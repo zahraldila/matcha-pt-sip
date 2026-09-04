@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/theme_controller.dart';
 import '../../auth/domain/models/user_model.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
@@ -21,29 +22,31 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   bool _notificationEnabled = true;
+  final ThemeController _themeController = ThemeController();
 
   void _handleLogout() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.surf,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.surfaceBorder),
+          side: BorderSide(color: context.surfBorder),
         ),
-        title: Text('Konfirmasi Keluar', style: AppTextStyles.cardTitle),
+        title: Text('Konfirmasi Keluar', style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary)),
         content: Text(
           'Apakah Anda yakin ingin keluar dari akun?',
-          style: AppTextStyles.bodySecondary,
+          style: AppTextStyles.bodySecondary.copyWith(color: context.txtSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Batal', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+            child: Text('Batal', style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
               minimumSize: const Size(80, 36),
             ),
             onPressed: () {
@@ -70,35 +73,38 @@ class _ProfilePageState extends State<ProfilePage> {
     final isHost = widget.user?.isHost ?? false;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Profil Pengguna', style: AppTextStyles.pageTitle.copyWith(fontSize: 22)),
+              Text(
+                'Profil Pengguna',
+                style: AppTextStyles.pageTitle.copyWith(fontSize: 22, color: context.txtPrimary),
+              ),
               const SizedBox(height: 16),
 
               // User Info Card
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.surf,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.surfaceBorder),
+                  border: Border.all(color: context.surfBorder),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 30,
                       backgroundColor: isHost
-                          ? AppColors.primary.withValues(alpha: 0.2)
+                          ? context.brandColor.withValues(alpha: 0.2)
                           : AppColors.info.withValues(alpha: 0.2),
                       child: Text(
                         name.isNotEmpty ? name[0].toUpperCase() : 'U',
                         style: AppTextStyles.pageTitle.copyWith(
-                          color: isHost ? AppColors.primary : AppColors.info,
+                          color: isHost ? context.brandColor : AppColors.info,
                           fontSize: 24,
                         ),
                       ),
@@ -108,22 +114,25 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(name, style: AppTextStyles.cardTitle.copyWith(fontSize: 17)),
+                          Text(
+                            name,
+                            style: AppTextStyles.cardTitle.copyWith(fontSize: 17, color: context.txtPrimary),
+                          ),
                           const SizedBox(height: 2),
-                          Text(email, style: AppTextStyles.caption),
+                          Text(email, style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
                           const SizedBox(height: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: isHost
-                                  ? AppColors.primary.withValues(alpha: 0.15)
+                                  ? context.brandColor.withValues(alpha: 0.15)
                                   : AppColors.info.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               role.toUpperCase(),
                               style: AppTextStyles.badge.copyWith(
-                                color: isHost ? AppColors.primary : AppColors.info,
+                                color: isHost ? context.brandColor : AppColors.info,
                                 fontSize: 10,
                               ),
                             ),
@@ -138,17 +147,46 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 24),
 
               // Section: Pengaturan Akun
-              Text('PENGATURAN', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary, letterSpacing: 1.5)),
+              Text(
+                'PENGATURAN TAMPILAN & AKUN',
+                style: AppTextStyles.badge.copyWith(color: context.txtSecondary, letterSpacing: 1.5),
+              ),
               const SizedBox(height: 12),
 
               Container(
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.surf,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.surfaceBorder),
+                  border: Border.all(color: context.surfBorder),
                 ),
                 child: Column(
                   children: [
+                    // Theme Switch Tile (Dark / Light Mode)
+                    ListTile(
+                      leading: Icon(
+                        _themeController.isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                        color: context.brandColor,
+                        size: 22,
+                      ),
+                      title: Text(
+                        _themeController.isDarkMode ? 'Mode Gelap (Dark Mode)' : 'Mode Terang (Light Mode)',
+                        style: AppTextStyles.body.copyWith(color: context.txtPrimary),
+                      ),
+                      subtitle: Text(
+                        _themeController.isDarkMode ? 'Tema sporty gelap aktif' : 'Tema terang bersih aktif',
+                        style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                      ),
+                      trailing: Switch(
+                        value: _themeController.isDarkMode,
+                        activeTrackColor: context.brandColor,
+                        onChanged: (isDark) {
+                          setState(() {
+                            _themeController.toggleTheme(isDark);
+                          });
+                        },
+                      ),
+                    ),
+                    Divider(height: 1, indent: 56, color: context.surfBorder),
                     _buildSettingsTile(
                       icon: Icons.lock_outline_rounded,
                       title: 'Ubah Kata Sandi',
@@ -157,25 +195,25 @@ class _ProfilePageState extends State<ProfilePage> {
                           SnackBar(
                             content: Text(
                               'Fitur ubah kata sandi siap dikonfigurasi.',
-                              style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
+                              style: AppTextStyles.body.copyWith(color: context.txtPrimary),
                             ),
-                            backgroundColor: AppColors.surfaceSecondary,
+                            backgroundColor: context.surf,
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
                       },
                     ),
-                    const Divider(height: 1, indent: 56),
+                    Divider(height: 1, indent: 56, color: context.surfBorder),
                     ListTile(
-                      leading: const Icon(Icons.notifications_outlined, color: AppColors.primary, size: 22),
-                      title: Text('Notifikasi Pertandingan', style: AppTextStyles.body),
+                      leading: Icon(Icons.notifications_outlined, color: context.brandColor, size: 22),
+                      title: Text('Notifikasi Pertandingan', style: AppTextStyles.body.copyWith(color: context.txtPrimary)),
                       trailing: Switch(
                         value: _notificationEnabled,
-                        activeTrackColor: AppColors.primary,
+                        activeTrackColor: context.brandColor,
                         onChanged: (val) => setState(() => _notificationEnabled = val),
                       ),
                     ),
-                    const Divider(height: 1, indent: 56),
+                    Divider(height: 1, indent: 56, color: context.surfBorder),
                     _buildSettingsTile(
                       icon: Icons.info_outline_rounded,
                       title: 'Tentang Aplikasi Matcha',
@@ -214,10 +252,10 @@ class _ProfilePageState extends State<ProfilePage> {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: AppColors.primary, size: 22),
-      title: Text(title, style: AppTextStyles.body),
-      subtitle: subtitle != null ? Text(subtitle, style: AppTextStyles.caption) : null,
-      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 20),
+      leading: Icon(icon, color: context.brandColor, size: 22),
+      title: Text(title, style: AppTextStyles.body.copyWith(color: context.txtPrimary)),
+      subtitle: subtitle != null ? Text(subtitle, style: AppTextStyles.caption.copyWith(color: context.txtSecondary)) : null,
+      trailing: Icon(Icons.chevron_right_rounded, color: context.txtSecondary, size: 20),
       onTap: onTap,
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_controller.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/splash/presentation/splash_page.dart';
 
@@ -29,6 +30,7 @@ class MatchaApp extends StatefulWidget {
 
 class _MatchaAppState extends State<MatchaApp> {
   late final AuthController _authController;
+  final ThemeController _themeController = ThemeController();
 
   @override
   void initState() {
@@ -44,11 +46,18 @@ class _MatchaAppState extends State<MatchaApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Matcha - Match Arena',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      home: SplashPage(authController: _authController),
+    return ListenableBuilder(
+      listenable: _themeController,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'Matcha - Match Arena',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: _themeController.themeMode,
+          home: SplashPage(authController: _authController),
+        );
+      },
     );
   }
 }

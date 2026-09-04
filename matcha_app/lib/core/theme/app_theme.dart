@@ -43,7 +43,7 @@ class AppTheme {
         margin: EdgeInsets.zero,
       ),
 
-      // Elevated Button Theme (Primary Button: Lime Green + Dark text)
+      // Elevated Button Theme (Lime Green + Dark text)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
@@ -58,7 +58,7 @@ class AppTheme {
         ),
       ),
 
-      // Outlined Button Theme (Secondary Button: Dark Surface + Border)
+      // Outlined Button Theme
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textPrimary,
@@ -112,7 +112,7 @@ class AppTheme {
         thickness: 1,
       ),
 
-      // SnackBar Theme (High Contrast White Text on Floating Card)
+      // SnackBar Theme
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.surfaceSecondary,
         contentTextStyle: AppTextStyles.body.copyWith(
@@ -122,6 +122,131 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: const BorderSide(color: AppColors.surfaceBorder, width: 1),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  static ThemeData get lightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: AppColors.lightBackground,
+      fontFamily: GoogleFonts.inter().fontFamily,
+      
+      // Color Scheme
+      colorScheme: const ColorScheme.light(
+        primary: AppColors.primaryAccentLight,
+        onPrimary: AppColors.lightTextOnPrimary,
+        secondary: AppColors.primaryDark,
+        surface: AppColors.lightSurface,
+        onSurface: AppColors.lightTextPrimary,
+        error: AppColors.error,
+      ),
+
+      // App Bar Theme
+      appBarTheme: AppBarTheme(
+        backgroundColor: AppColors.lightBackground,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: AppTextStyles.pageTitle.copyWith(
+          fontSize: 20,
+          color: AppColors.lightTextPrimary,
+        ),
+        iconTheme: const IconThemeData(color: AppColors.lightTextPrimary),
+      ),
+
+      // Card Theme
+      cardTheme: CardThemeData(
+        color: AppColors.lightSurface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.lightSurfaceBorder, width: 1),
+        ),
+        margin: EdgeInsets.zero,
+      ),
+
+      // Elevated Button Theme (Vibrant Green + White text)
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryAccentLight,
+          foregroundColor: Colors.white,
+          textStyle: AppTextStyles.button.copyWith(color: Colors.white),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          minimumSize: const Size.fromHeight(48),
+        ),
+      ),
+
+      // Outlined Button Theme
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.lightTextPrimary,
+          textStyle: AppTextStyles.buttonSecondary.copyWith(color: AppColors.lightTextPrimary),
+          side: const BorderSide(color: AppColors.lightSurfaceBorder, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          minimumSize: const Size.fromHeight(48),
+        ),
+      ),
+
+      // Input Field Decoration
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.lightSurface,
+        hintStyle: AppTextStyles.bodySecondary.copyWith(color: AppColors.lightTextSecondary),
+        labelStyle: AppTextStyles.bodySecondary.copyWith(color: AppColors.lightTextSecondary),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.lightSurfaceBorder, width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.lightSurfaceBorder, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primaryAccentLight, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error, width: 1),
+        ),
+      ),
+
+      // Bottom Navigation Bar Theme
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: AppColors.lightSurface,
+        selectedItemColor: AppColors.primaryAccentLight,
+        unselectedItemColor: AppColors.lightTextSecondary,
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+      ),
+
+      // Divider Theme
+      dividerTheme: const DividerThemeData(
+        color: AppColors.lightSurfaceBorder,
+        thickness: 1,
+      ),
+
+      // SnackBar Theme
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.lightSurface,
+        contentTextStyle: AppTextStyles.body.copyWith(
+          color: AppColors.lightTextPrimary,
+          fontWeight: FontWeight.w500,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: AppColors.lightSurfaceBorder, width: 1),
         ),
         behavior: SnackBarBehavior.floating,
       ),
