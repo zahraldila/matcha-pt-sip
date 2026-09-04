@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../drawing/presentation/drawing_result_page.dart';
 
 class CreateSessionPage extends StatefulWidget {
   final VoidCallback? onGenerateDrawing;
@@ -361,10 +362,16 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                 if (widget.onGenerateDrawing != null) {
                   widget.onGenerateDrawing!();
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Konfigurasi sesi berhasil disimpan! Siap menuju Drawing.'),
-                      backgroundColor: AppColors.surfaceSecondary,
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DrawingResultPage(
+                        sessionName: _nameController.text.isNotEmpty
+                            ? _nameController.text
+                            : 'Saturday Morning',
+                        sportName: _selectedSport,
+                        drawingMethod: _selectedMethod,
+                      ),
                     ),
                   );
                 }
