@@ -42,10 +42,21 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     setState(() {
       // Simulate shuffle animation/feedback
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Drawing berhasil diacak ulang secara acak & adil! 🎲'),
+        SnackBar(
+          content: Text(
+            'Drawing berhasil diacak ulang secara acak & adil! 🎲',
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           backgroundColor: AppColors.surfaceSecondary,
-          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: AppColors.surfaceBorder, width: 1),
+          ),
+          duration: const Duration(seconds: 2),
         ),
       );
     });

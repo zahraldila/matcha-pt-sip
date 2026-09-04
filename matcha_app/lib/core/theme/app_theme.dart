@@ -111,6 +111,20 @@ class AppTheme {
         color: AppColors.surfaceBorder,
         thickness: 1,
       ),
+
+      // SnackBar Theme (High Contrast White Text on Floating Card)
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.surfaceSecondary,
+        contentTextStyle: AppTextStyles.body.copyWith(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w500,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: AppColors.surfaceBorder, width: 1),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 }

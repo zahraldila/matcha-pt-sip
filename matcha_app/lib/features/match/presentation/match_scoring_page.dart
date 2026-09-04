@@ -56,9 +56,16 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
                 _isFinished = true;
               });
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Pertandingan selesai! Riwayat bermain telah diperbarui. Siap Re-Drawing! 🎾'),
+                SnackBar(
+                  content: Text(
+                    'Pertandingan selesai! Riwayat bermain telah diperbarui. Siap Re-Drawing! 🎾',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   backgroundColor: AppColors.surfaceSecondary,
+                  behavior: SnackBarBehavior.floating,
                 ),
               );
             },
@@ -102,9 +109,16 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
               ElevatedButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Skor pertandingan berhasil disimpan!'),
+                    SnackBar(
+                      content: Text(
+                        'Skor pertandingan berhasil disimpan!',
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       backgroundColor: AppColors.surfaceSecondary,
+                      behavior: SnackBarBehavior.floating,
                     ),
                   );
                 },
