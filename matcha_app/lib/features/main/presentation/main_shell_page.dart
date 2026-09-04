@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
-import '../../auth/presentation/login_page.dart';
 import '../../home/presentation/home_page.dart';
-
 import '../../session/presentation/session_list_page.dart';
 import '../../session/presentation/create_session_page.dart';
 import '../../match/presentation/live_session_page.dart';
+import '../../player/presentation/player_list_page.dart';
+import '../../profile/presentation/profile_page.dart';
 
 class MainShellPage extends StatefulWidget {
   final AuthController authController;
@@ -21,52 +21,13 @@ class MainShellPage extends StatefulWidget {
 class _MainShellPageState extends State<MainShellPage> {
   int _currentIndex = 0;
 
-  void _handleLogout() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.surfaceBorder),
-        ),
-        title: Text('Konfirmasi Keluar', style: AppTextStyles.cardTitle),
-        content: Text(
-          'Apakah Anda yakin ingin keluar dari akun?',
-          style: AppTextStyles.bodySecondary,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              minimumSize: const Size(80, 36),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              widget.authController.logout();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => LoginPage(authController: widget.authController),
-                ),
-              );
-            },
-            child: const Text('Keluar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = widget.authController.currentUser;
     final isHost = widget.authController.isHost;
 
     final tabs = [
+      // Tab 0: Home Dashboard
       HomePage(
         user: user,
         onCreateSessionTap: () {
@@ -91,6 +52,8 @@ class _MainShellPageState extends State<MainShellPage> {
         onManageCourtsTap: () => setState(() => _currentIndex = 1),
         onCommunityTap: () => setState(() => _currentIndex = 2),
       ),
+
+      // Tab 1: Session Management
       SessionListPage(
         isHost: isHost,
         onSessionTap: (id) {
@@ -106,14 +69,12 @@ class _MainShellPageState extends State<MainShellPage> {
           );
         },
       ),
-      _buildPlaceholderTab(
-        title: 'Players & Members',
-        icon: Icons.people_alt_rounded,
-        description: isHost
-            ? 'Kelola daftar pemain aktif, NIK, dan relasi komunitas.'
-            : 'Lihat informasi pemain dan riwayat pertandingan.',
-      ),
-      _buildProfileTab(user?.nama ?? 'User', user?.email ?? '', user?.role ?? 'User', isHost),
+
+      // Tab 2: Players & Members
+      PlayerListPage(isHost: isHost),
+
+      // Tab 3: Profile & Settings
+      ProfilePage(user: user, authController: widget.authController),
     ];
 
     return Scaffold(
@@ -192,101 +153,6 @@ class _MainShellPageState extends State<MainShellPage> {
               icon: Icon(Icons.person_outline_rounded),
               activeIcon: Icon(Icons.person_rounded),
               label: 'Profile',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileTab(String name, String email, String role, bool isHost) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.surfaceBorder),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                  child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                    style: AppTextStyles.pageTitle.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(name, style: AppTextStyles.cardTitle),
-                      const SizedBox(height: 2),
-                      Text(email, style: AppTextStyles.caption),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Role: $role',
-                        style: AppTextStyles.badge.copyWith(
-                          color: isHost ? AppColors.primary : AppColors.info,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.error,
-              side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
-            ),
-            onPressed: _handleLogout,
-            icon: const Icon(Icons.logout_rounded, size: 20),
-            label: const Text('Keluar dari Akun'),
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderTab({
-    required String title,
-    required IconData icon,
-    required String description,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.surfaceBorder),
-              ),
-              child: Icon(icon, size: 48, color: AppColors.primary),
-            ),
-            const SizedBox(height: 20),
-            Text(title, style: AppTextStyles.sectionTitle),
-            const SizedBox(height: 8),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySecondary,
             ),
           ],
         ),
