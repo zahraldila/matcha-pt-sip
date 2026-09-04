@@ -30,25 +30,25 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.surf,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.surfaceBorder),
+          side: BorderSide(color: context.surfBorder),
         ),
-        title: Text('Selesaikan Pertandingan?', style: AppTextStyles.cardTitle),
+        title: Text('Selesaikan Pertandingan?', style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary)),
         content: Text(
           'Hasil akhir: ${widget.sideA} ($_scoreA) vs ${widget.sideB} ($_scoreB)\n\nSkor akan disimpan ke riwayat dan siap untuk Re-Drawing ronde selanjutnya.',
-          style: AppTextStyles.bodySecondary,
+          style: AppTextStyles.bodySecondary.copyWith(color: context.txtSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Batal', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+            child: Text('Batal', style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.textOnPrimary,
+              backgroundColor: context.brandColor,
+              foregroundColor: Colors.black,
             ),
             onPressed: () {
               Navigator.pop(context);
@@ -60,11 +60,11 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
                   content: Text(
                     'Pertandingan selesai! Riwayat bermain telah diperbarui. Siap Re-Drawing! 🎾',
                     style: AppTextStyles.body.copyWith(
-                      color: AppColors.textPrimary,
+                      color: context.txtPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  backgroundColor: AppColors.surfaceSecondary,
+                  backgroundColor: context.surf,
                   behavior: SnackBarBehavior.floating,
                 ),
               );
@@ -79,11 +79,11 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       appBar: AppBar(
-        title: const Text('Input Score'),
+        title: Text('Input Score', style: TextStyle(color: context.txtPrimary)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: context.txtPrimary),
           onPressed: () => Navigator.maybePop(context),
         ),
       ),
@@ -94,15 +94,15 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Court & Round Info
-              _buildMatchHeader(),
+              _buildMatchHeader(context),
               const SizedBox(height: 24),
 
               // 2. Set Selector Tabs
-              _buildSetSelector(),
+              _buildSetSelector(context),
               const SizedBox(height: 24),
 
               // 3. Big Score Board (Side A vs Side B)
-              _buildScoreBoard(),
+              _buildScoreBoard(context),
               const SizedBox(height: 32),
 
               // 4. Action Buttons
@@ -113,11 +113,11 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
                       content: Text(
                         'Skor pertandingan berhasil disimpan!',
                         style: AppTextStyles.body.copyWith(
-                          color: AppColors.textPrimary,
+                          color: context.txtPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      backgroundColor: AppColors.surfaceSecondary,
+                      backgroundColor: context.surf,
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
@@ -127,10 +127,10 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: _isFinished ? AppColors.textSecondary : AppColors.warning,
+                  foregroundColor: _isFinished ? context.txtSecondary : AppColors.warning,
                   side: BorderSide(
                     color: _isFinished
-                        ? AppColors.surfaceBorder
+                        ? context.surfBorder
                         : AppColors.warning.withValues(alpha: 0.5),
                   ),
                 ),
@@ -148,13 +148,13 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
     );
   }
 
-  Widget _buildMatchHeader() {
+  Widget _buildMatchHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surf,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceBorder),
+        border: Border.all(color: context.surfBorder),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -164,12 +164,12 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
             children: [
               Text(
                 widget.courtName,
-                style: AppTextStyles.cardTitle.copyWith(color: AppColors.primary, fontSize: 14),
+                style: AppTextStyles.cardTitle.copyWith(color: context.brandColor, fontSize: 14),
               ),
               const SizedBox(height: 4),
               Text(
                 'Ronde 1 · Match 1 · ${widget.sessionName}',
-                style: AppTextStyles.caption,
+                style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
               ),
             ],
           ),
@@ -177,7 +177,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: _isFinished
-                  ? AppColors.surfaceSecondary
+                  ? context.surfSec
                   : AppColors.inProgressBadge.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
             ),
@@ -185,7 +185,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
               _isFinished ? 'FINISHED' : 'IN PROGRESS',
               style: AppTextStyles.badge.copyWith(
                 fontSize: 10,
-                color: _isFinished ? AppColors.textSecondary : AppColors.inProgressBadge,
+                color: _isFinished ? context.txtSecondary : AppColors.inProgressBadge,
               ),
             ),
           ),
@@ -194,7 +194,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
     );
   }
 
-  Widget _buildSetSelector() {
+  Widget _buildSetSelector(BuildContext context) {
     return Row(
       children: [1, 2, 3].map((setNum) {
         final isSelected = _selectedSet == setNum;
@@ -207,10 +207,10 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surface,
+                  color: isSelected ? context.brandColor.withValues(alpha: 0.15) : context.surf,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: isSelected ? AppColors.primary : AppColors.surfaceBorder,
+                    color: isSelected ? context.brandColor : context.surfBorder,
                     width: isSelected ? 1.5 : 1,
                   ),
                 ),
@@ -219,7 +219,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
                   textAlign: TextAlign.center,
                   style: AppTextStyles.caption.copyWith(
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                    color: isSelected ? context.brandColor : context.txtSecondary,
                   ),
                 ),
               ),
@@ -230,31 +230,33 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
     );
   }
 
-  Widget _buildScoreBoard() {
+  Widget _buildScoreBoard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surf,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.surfaceBorder),
+        border: Border.all(color: context.surfBorder),
       ),
       child: Column(
         children: [
           // Team A Row
           _buildTeamScoreRow(
+            context: context,
             teamName: widget.sideA,
             score: _scoreA,
             onIncrement: () => setState(() => _scoreA++),
             onDecrement: () => setState(() => _scoreA > 0 ? _scoreA-- : 0),
           ),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.0),
-            child: Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Divider(color: context.surfBorder),
           ),
 
           // Team B Row
           _buildTeamScoreRow(
+            context: context,
             teamName: widget.sideB,
             score: _scoreB,
             onIncrement: () => setState(() => _scoreB++),
@@ -266,6 +268,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
   }
 
   Widget _buildTeamScoreRow({
+    required BuildContext context,
     required String teamName,
     required int score,
     required VoidCallback onIncrement,
@@ -280,11 +283,11 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
             children: [
               Text(
                 teamName,
-                style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+                style: AppTextStyles.cardTitle.copyWith(fontSize: 16, color: context.txtPrimary),
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
-              Text('Pemain', style: AppTextStyles.caption),
+              Text('Pemain', style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
             ],
           ),
         ),
@@ -292,9 +295,10 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
           children: [
             // Minus Button
             _buildScoreButton(
+              context: context,
               icon: Icons.remove_rounded,
-              color: AppColors.surfaceSecondary,
-              iconColor: AppColors.textPrimary,
+              color: context.surfSec,
+              iconColor: context.txtPrimary,
               onTap: onDecrement,
             ),
             const SizedBox(width: 14),
@@ -306,7 +310,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
                 '$score',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.scoreDisplay.copyWith(
-                  color: AppColors.primary,
+                  color: context.brandColor,
                   fontSize: 34,
                 ),
               ),
@@ -315,9 +319,10 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
 
             // Plus Button
             _buildScoreButton(
+              context: context,
               icon: Icons.add_rounded,
-              color: AppColors.primary,
-              iconColor: AppColors.textOnPrimary,
+              color: context.brandColor,
+              iconColor: Colors.black,
               onTap: onIncrement,
             ),
           ],
@@ -327,6 +332,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
   }
 
   Widget _buildScoreButton({
+    required BuildContext context,
     required IconData icon,
     required Color color,
     required Color iconColor,
@@ -341,7 +347,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.surfaceBorder),
+          border: Border.all(color: context.surfBorder),
         ),
         child: Icon(icon, size: 20, color: iconColor),
       ),

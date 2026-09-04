@@ -122,11 +122,11 @@ class _PlayerListPageState extends State<PlayerListPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.surf,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (ctx) {
         return Padding(
           padding: EdgeInsets.only(
             left: 20,
@@ -141,37 +141,37 @@ class _PlayerListPageState extends State<PlayerListPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Tambah Pemain / Member Baru', style: AppTextStyles.cardTitle),
+                  Text('Tambah Pemain / Member Baru', style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary)),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                    icon: Icon(Icons.close_rounded, color: context.txtSecondary),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              Text('Nama Lengkap', style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+              Text('Nama Lengkap', style: AppTextStyles.caption.copyWith(color: context.txtPrimary, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextField(
                 controller: nameCtrl,
-                style: AppTextStyles.body,
+                style: AppTextStyles.body.copyWith(color: context.txtPrimary),
                 decoration: const InputDecoration(hintText: 'Misal: Rian Ardianto'),
               ),
               const SizedBox(height: 14),
-              Text('Nomor Identitas Pemain (NIK)', style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+              Text('Nomor Identitas Pemain (NIK)', style: AppTextStyles.caption.copyWith(color: context.txtPrimary, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextField(
                 controller: nikCtrl,
-                style: AppTextStyles.body,
+                style: AppTextStyles.body.copyWith(color: context.txtPrimary),
                 decoration: const InputDecoration(hintText: 'NIK-009'),
               ),
               const SizedBox(height: 14),
-              Text('Komunitas / Klub', style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+              Text('Komunitas / Klub', style: AppTextStyles.caption.copyWith(color: context.txtPrimary, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: selectedClub,
-                dropdownColor: AppColors.surfaceSecondary,
+                dropdownColor: context.surf,
                 items: ['Individual', 'Smansa Tennis', 'Sportif Tennis Club', 'Viborazer Padel']
-                    .map((club) => DropdownMenuItem(value: club, child: Text(club, style: AppTextStyles.body)))
+                    .map((club) => DropdownMenuItem(value: club, child: Text(club, style: AppTextStyles.body.copyWith(color: context.txtPrimary))))
                     .toList(),
                 onChanged: (val) {
                   if (val != null) selectedClub = val;
@@ -200,11 +200,11 @@ class _PlayerListPageState extends State<PlayerListPage> {
                         content: Text(
                           'Pemain "${nameCtrl.text.trim()}" berhasil ditambahkan ke daftar! 🎾',
                           style: AppTextStyles.body.copyWith(
-                            color: AppColors.textPrimary,
+                            color: context.txtPrimary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        backgroundColor: AppColors.surfaceSecondary,
+                        backgroundColor: context.surf,
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
@@ -222,11 +222,11 @@ class _PlayerListPageState extends State<PlayerListPage> {
   void _showPlayerDetailSheet(Map<String, dynamic> player) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.surf,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (ctx) {
         return Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
@@ -237,10 +237,10 @@ class _PlayerListPageState extends State<PlayerListPage> {
                 children: [
                   CircleAvatar(
                     radius: 26,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                    backgroundColor: context.brandColor.withValues(alpha: 0.2),
                     child: Text(
                       player['name'][0],
-                      style: AppTextStyles.pageTitle.copyWith(color: AppColors.primary, fontSize: 20),
+                      style: AppTextStyles.pageTitle.copyWith(color: context.brandColor, fontSize: 20),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -248,13 +248,13 @@ class _PlayerListPageState extends State<PlayerListPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(player['name'], style: AppTextStyles.cardTitle.copyWith(fontSize: 18)),
+                        Text(player['name'], style: AppTextStyles.cardTitle.copyWith(fontSize: 18, color: context.txtPrimary)),
                         const SizedBox(height: 2),
-                        Text('NIK: ${player['nik']}', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                        Text('NIK: ${player['nik']}', style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
                         const SizedBox(height: 4),
                         Text(
                           player['community'],
-                          style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
+                          style: AppTextStyles.caption.copyWith(color: context.brandColor, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
@@ -262,38 +262,38 @@ class _PlayerListPageState extends State<PlayerListPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
+                      color: context.brandColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       player['status'],
-                      style: AppTextStyles.badge.copyWith(color: AppColors.primary, fontSize: 10),
+                      style: AppTextStyles.badge.copyWith(color: context.brandColor, fontSize: 10),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
-              const Divider(),
+              Divider(color: context.surfBorder),
               const SizedBox(height: 12),
 
               // Statistics Card
-              Text('STATISTIK PERMAINAN', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary, letterSpacing: 1.5)),
+              Text('STATISTIK PERMAINAN', style: AppTextStyles.badge.copyWith(color: context.txtSecondary, letterSpacing: 1.5)),
               const SizedBox(height: 10),
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceSecondary,
+                  color: context.surfSec,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.surfaceBorder),
+                  border: Border.all(color: context.surfBorder),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatItem('Total Main', '${player['matches']}'),
-                    _buildStatDivider(),
-                    _buildStatItem('Menang', '${player['win']}', color: AppColors.primary),
-                    _buildStatDivider(),
-                    _buildStatItem('Kalah', '${player['lose']}', color: AppColors.error),
+                    _buildStatItem(context, 'Total Main', '${player['matches']}'),
+                    _buildStatDivider(context),
+                    _buildStatItem(context, 'Menang', '${player['win']}', color: context.brandColor),
+                    _buildStatDivider(context),
+                    _buildStatItem(context, 'Kalah', '${player['lose']}', color: AppColors.error),
                   ],
                 ),
               ),
@@ -306,7 +306,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Edit Data'),
+                        child: Text('Edit Data', style: TextStyle(color: context.txtPrimary)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -323,10 +323,10 @@ class _PlayerListPageState extends State<PlayerListPage> {
                               content: Text(
                                 'Status pemain "${player['name']}" dinonaktifkan.',
                                 style: AppTextStyles.body.copyWith(
-                                  color: AppColors.textPrimary,
+                                  color: context.txtPrimary,
                                 ),
                               ),
-                              backgroundColor: AppColors.surfaceSecondary,
+                              backgroundColor: context.surf,
                               behavior: SnackBarBehavior.floating,
                             ),
                           );
@@ -345,18 +345,18 @@ class _PlayerListPageState extends State<PlayerListPage> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, {Color? color}) {
+  Widget _buildStatItem(BuildContext context, String label, String value, {Color? color}) {
     return Column(
       children: [
-        Text(value, style: AppTextStyles.pageTitle.copyWith(fontSize: 18, color: color ?? AppColors.textPrimary)),
+        Text(value, style: AppTextStyles.pageTitle.copyWith(fontSize: 18, color: color ?? context.txtPrimary)),
         const SizedBox(height: 2),
-        Text(label, style: AppTextStyles.caption.copyWith(fontSize: 11)),
+        Text(label, style: AppTextStyles.caption.copyWith(fontSize: 11, color: context.txtSecondary)),
       ],
     );
   }
 
-  Widget _buildStatDivider() {
-    return Container(width: 1, height: 28, color: AppColors.surfaceBorder);
+  Widget _buildStatDivider(BuildContext context) {
+    return Container(width: 1, height: 28, color: context.surfBorder);
   }
 
   @override
@@ -368,7 +368,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
@@ -379,10 +379,10 @@ class _PlayerListPageState extends State<PlayerListPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Daftar Pemain', style: AppTextStyles.pageTitle.copyWith(fontSize: 22)),
+                  Text('Daftar Pemain', style: AppTextStyles.pageTitle.copyWith(fontSize: 22, color: context.txtPrimary)),
                   Text(
                     '${_players.length} Pemain',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
+                    style: AppTextStyles.caption.copyWith(color: context.brandColor, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -391,10 +391,10 @@ class _PlayerListPageState extends State<PlayerListPage> {
               // Search Bar
               TextField(
                 controller: _searchController,
-                style: AppTextStyles.body,
-                decoration: const InputDecoration(
+                style: AppTextStyles.body.copyWith(color: context.txtPrimary),
+                decoration: InputDecoration(
                   hintText: 'Cari nama pemain / NIK...',
-                  prefixIcon: Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 20),
+                  prefixIcon: Icon(Icons.search_rounded, color: context.txtSecondary, size: 20),
                 ),
               ),
               const SizedBox(height: 12),
@@ -410,15 +410,15 @@ class _PlayerListPageState extends State<PlayerListPage> {
                       child: ChoiceChip(
                         label: Text(filter),
                         selected: isSelected,
-                        selectedColor: AppColors.primary,
-                        backgroundColor: AppColors.surface,
+                        selectedColor: context.brandColor,
+                        backgroundColor: context.surf,
                         labelStyle: TextStyle(
-                          color: isSelected ? AppColors.textOnPrimary : AppColors.textSecondary,
+                          color: isSelected ? Colors.black : context.txtSecondary,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                           fontSize: 12,
                         ),
                         side: BorderSide(
-                          color: isSelected ? AppColors.primary : AppColors.surfaceBorder,
+                          color: isSelected ? context.brandColor : context.surfBorder,
                         ),
                         onSelected: (_) => setState(() => _selectedFilter = filter),
                       ),
@@ -435,7 +435,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
                   separatorBuilder: (context, index) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     final player = filteredPlayers[index];
-                    return _buildPlayerCard(player);
+                    return _buildPlayerCard(context, player);
                   },
                 ),
               ),
@@ -445,8 +445,8 @@ class _PlayerListPageState extends State<PlayerListPage> {
       ),
       floatingActionButton: widget.isHost
           ? FloatingActionButton.extended(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.textOnPrimary,
+              backgroundColor: context.brandColor,
+              foregroundColor: Colors.black,
               icon: const Icon(Icons.person_add_rounded),
               label: const Text('Tambah Player', style: TextStyle(fontWeight: FontWeight.bold)),
               onPressed: _showAddPlayerDialog,
@@ -455,27 +455,27 @@ class _PlayerListPageState extends State<PlayerListPage> {
     );
   }
 
-  Widget _buildPlayerCard(Map<String, dynamic> player) {
+  Widget _buildPlayerCard(BuildContext context, Map<String, dynamic> player) {
     return InkWell(
       onTap: () => _showPlayerDetailSheet(player),
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.surf,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.surfaceBorder),
+          border: Border.all(color: context.surfBorder),
         ),
         child: Row(
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: AppColors.surfaceSecondary,
+              backgroundColor: context.surfSec,
               child: Text(
                 player['name'][0],
                 style: AppTextStyles.body.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+                  color: context.brandColor,
                 ),
               ),
             ),
@@ -484,16 +484,16 @@ class _PlayerListPageState extends State<PlayerListPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(player['name'], style: AppTextStyles.cardTitle.copyWith(fontSize: 15)),
+                  Text(player['name'], style: AppTextStyles.cardTitle.copyWith(fontSize: 15, color: context.txtPrimary)),
                   const SizedBox(height: 2),
-                  Text(player['community'], style: AppTextStyles.caption),
+                  Text(player['community'], style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
                 ],
               ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
+                color: context.brandColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Row(
@@ -502,15 +502,15 @@ class _PlayerListPageState extends State<PlayerListPage> {
                   Container(
                     width: 6,
                     height: 6,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
+                    decoration: BoxDecoration(
+                      color: context.brandColor,
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'Active',
-                    style: AppTextStyles.badge.copyWith(color: AppColors.primary, fontSize: 10),
+                    style: AppTextStyles.badge.copyWith(color: context.brandColor, fontSize: 10),
                   ),
                 ],
               ),

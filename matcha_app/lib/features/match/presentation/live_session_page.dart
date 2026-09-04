@@ -45,11 +45,11 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       appBar: AppBar(
-        title: const Text('Live Session'),
+        title: Text('Live Session', style: TextStyle(color: context.txtPrimary)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: context.txtPrimary),
           onPressed: () => Navigator.maybePop(context),
         ),
         actions: [
@@ -57,7 +57,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.15),
+              color: context.brandColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -66,15 +66,15 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
+                  decoration: BoxDecoration(
+                    color: context.brandColor,
                     shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 6),
                 Text(
                   'LIVE',
-                  style: AppTextStyles.badge.copyWith(color: AppColors.primary, fontSize: 11),
+                  style: AppTextStyles.badge.copyWith(color: context.brandColor, fontSize: 11),
                 ),
               ],
             ),
@@ -88,15 +88,15 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Session Header Info
-              _buildSessionHeader(),
+              _buildSessionHeader(context),
               const SizedBox(height: 20),
 
               // 2. Section: Sedang Bertanding di Lapangan
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('PERTANDINGAN AKTIF', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary, letterSpacing: 1.5)),
-                  Text('${_liveCourts.length} Lapangan Berjalan', style: AppTextStyles.caption.copyWith(color: AppColors.primary)),
+                  Text('PERTANDINGAN AKTIF', style: AppTextStyles.badge.copyWith(color: context.txtSecondary, letterSpacing: 1.5)),
+                  Text('${_liveCourts.length} Lapangan Berjalan', style: AppTextStyles.caption.copyWith(color: context.brandColor)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -104,17 +104,17 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
               // 3. Live Court Score Cards
               ..._liveCourts.map((court) => Padding(
                     padding: const EdgeInsets.only(bottom: 14.0),
-                    child: _buildCourtScoreCard(court),
+                    child: _buildCourtScoreCard(context, court),
                   )),
 
               const SizedBox(height: 10),
 
               // 4. Waiting Players Section
-              _buildWaitingSection(),
+              _buildWaitingSection(context),
               const SizedBox(height: 20),
 
               // 5. Next Drawing / Next Turn Preview Box
-              _buildNextDrawingCard(),
+              _buildNextDrawingCard(context),
               const SizedBox(height: 24),
             ],
           ),
@@ -123,26 +123,26 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
     );
   }
 
-  Widget _buildSessionHeader() {
+  Widget _buildSessionHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surf,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceBorder),
+        border: Border.all(color: context.surfBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(widget.sessionName, style: AppTextStyles.sectionTitle.copyWith(fontSize: 18)),
+          Text(widget.sessionName, style: AppTextStyles.sectionTitle.copyWith(fontSize: 18, color: context.txtPrimary)),
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.sports_tennis_rounded, size: 14, color: AppColors.primary),
+              Icon(Icons.sports_tennis_rounded, size: 14, color: context.brandColor),
               const SizedBox(width: 6),
               Text(
                 '${widget.sportName} · 8 Players · 2 Courts · Americano',
-                style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
               ),
             ],
           ),
@@ -151,13 +151,13 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
     );
   }
 
-  Widget _buildCourtScoreCard(Map<String, dynamic> court) {
+  Widget _buildCourtScoreCard(BuildContext context, Map<String, dynamic> court) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surf,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceBorder),
+        border: Border.all(color: context.surfBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +168,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
             children: [
               Text(
                 court['courtName'],
-                style: AppTextStyles.cardTitle.copyWith(color: AppColors.primary, fontSize: 14),
+                style: AppTextStyles.cardTitle.copyWith(color: context.brandColor, fontSize: 14),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -192,9 +192,9 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
             decoration: BoxDecoration(
-              color: AppColors.surfaceSecondary,
+              color: context.surfSec,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.surfaceBorder),
+              border: Border.all(color: context.surfBorder),
             ),
             child: Row(
               children: [
@@ -205,10 +205,10 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                     children: [
                       Text(
                         court['sideA'],
-                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold, fontSize: 14, color: context.txtPrimary),
                       ),
                       const SizedBox(height: 2),
-                      Text('Side A', style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                      Text('Side A', style: AppTextStyles.caption.copyWith(fontSize: 10, color: context.txtSecondary)),
                     ],
                   ),
                 ),
@@ -217,14 +217,14 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: context.surf,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                    border: Border.all(color: context.brandColor.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     '${court['scoreA']} — ${court['scoreB']}',
                     style: AppTextStyles.scoreDisplay.copyWith(
-                      color: AppColors.primary,
+                      color: context.brandColor,
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                     ),
@@ -239,10 +239,10 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                       Text(
                         court['sideB'],
                         textAlign: TextAlign.end,
-                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold, fontSize: 14, color: context.txtPrimary),
                       ),
                       const SizedBox(height: 2),
-                      Text('Side B', style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                      Text('Side B', style: AppTextStyles.caption.copyWith(fontSize: 10, color: context.txtSecondary)),
                     ],
                   ),
                 ),
@@ -272,19 +272,19 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: context.brandColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                  border: Border.all(color: context.brandColor.withValues(alpha: 0.25)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.edit_note_rounded, size: 16, color: AppColors.primary),
+                    Icon(Icons.edit_note_rounded, size: 16, color: context.brandColor),
                     const SizedBox(width: 6),
                     Text(
                       'Input / Update Skor Pertandingan',
                       style: AppTextStyles.caption.copyWith(
-                        color: AppColors.primary,
+                        color: context.brandColor,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -298,13 +298,13 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
     );
   }
 
-  Widget _buildWaitingSection() {
+  Widget _buildWaitingSection(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surf,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceBorder),
+        border: Border.all(color: context.surfBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -326,16 +326,16 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceSecondary,
+                  color: context.surfSec,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.surfaceBorder),
+                  border: Border.all(color: context.surfBorder),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.person_outline_rounded, size: 14, color: AppColors.textSecondary),
+                    Icon(Icons.person_outline_rounded, size: 14, color: context.txtSecondary),
                     const SizedBox(width: 6),
-                    Text(name, style: AppTextStyles.body.copyWith(fontSize: 13)),
+                    Text(name, style: AppTextStyles.body.copyWith(fontSize: 13, color: context.txtPrimary)),
                   ],
                 ),
               );
@@ -346,34 +346,34 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
     );
   }
 
-  Widget _buildNextDrawingCard() {
+  Widget _buildNextDrawingCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surf,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceBorder),
+        border: Border.all(color: context.surfBorder),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.15),
+              color: context.brandColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.shuffle_rounded, color: AppColors.primary, size: 24),
+            child: Icon(Icons.shuffle_rounded, color: context.brandColor, size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Next Turn / Re-Drawing', style: AppTextStyles.cardTitle.copyWith(fontSize: 14)),
+                Text('Next Turn / Re-Drawing', style: AppTextStyles.cardTitle.copyWith(fontSize: 14, color: context.txtPrimary)),
                 const SizedBox(height: 2),
                 Text(
                   'Susunan ronde berikutnya siap dibuat setelah semua match selesai.',
-                  style: AppTextStyles.caption.copyWith(fontSize: 11),
+                  style: AppTextStyles.caption.copyWith(fontSize: 11, color: context.txtSecondary),
                 ),
               ],
             ),
@@ -395,7 +395,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                 ),
               );
             },
-            child: const Text('Lihat', style: TextStyle(fontSize: 12)),
+            child: Text('Lihat', style: TextStyle(fontSize: 12, color: context.txtPrimary)),
           ),
         ],
       ),
