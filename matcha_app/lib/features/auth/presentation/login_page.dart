@@ -46,14 +46,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  void _fillQuickDemo(String email, String password) {
-    setState(() {
-      _emailController.text = email;
-      _passwordController.text = password;
-    });
-    _handleLogin();
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -90,7 +82,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Pilih role atau masukkan kredensial untuk melanjutkan',
+                        'Masukkan kredensial untuk melanjutkan',
                         textAlign: TextAlign.center,
                         style: AppTextStyles.bodySecondary,
                       ),
@@ -219,102 +211,6 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               )
                             : const Text('Masuk ke Matcha'),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Quick Demo Login Section
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.surfaceBorder),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.flash_on_rounded,
-                                  color: AppColors.primary,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Akses Cepat Pengujian (Demo)',
-                                  style: AppTextStyles.caption.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 10,
-                                        horizontal: 8,
-                                      ),
-                                    ),
-                                    onPressed: isLoading
-                                        ? null
-                                        : () => _fillQuickDemo(
-                                              'host@matcha.com',
-                                              'host123',
-                                            ),
-                                    icon: const Icon(
-                                      Icons.admin_panel_settings_rounded,
-                                      size: 16,
-                                      color: AppColors.primary,
-                                    ),
-                                    label: Text(
-                                      'Host (Ala)',
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 10,
-                                        horizontal: 8,
-                                      ),
-                                    ),
-                                    onPressed: isLoading
-                                        ? null
-                                        : () => _fillQuickDemo(
-                                              'user@matcha.com',
-                                              'user123',
-                                            ),
-                                    icon: const Icon(
-                                      Icons.person_rounded,
-                                      size: 16,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    label: Text(
-                                      'Personal User',
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
                       ),
                     ],
                   ),
