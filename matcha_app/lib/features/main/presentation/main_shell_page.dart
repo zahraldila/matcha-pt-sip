@@ -3,6 +3,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
+import '../../home/presentation/home_page.dart';
 
 class MainShellPage extends StatefulWidget {
   final AuthController authController;
@@ -62,7 +63,14 @@ class _MainShellPageState extends State<MainShellPage> {
     final isHost = widget.authController.isHost;
 
     final tabs = [
-      _buildHomeTab(user?.nama ?? 'User', isHost),
+      HomePage(
+        user: user,
+        onCreateSessionTap: () => setState(() => _currentIndex = 1),
+        onLiveSessionTap: () => setState(() => _currentIndex = 1),
+        onManagePlayersTap: () => setState(() => _currentIndex = 2),
+        onManageCourtsTap: () => setState(() => _currentIndex = 1),
+        onCommunityTap: () => setState(() => _currentIndex = 2),
+      ),
       _buildPlaceholderTab(
         title: 'Session Management',
         icon: Icons.calendar_today_rounded,
@@ -159,145 +167,6 @@ class _MainShellPageState extends State<MainShellPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHomeTab(String name, bool isHost) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Greeting Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.surfaceSecondary,
-                  AppColors.surface,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.surfaceBorder),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Selamat Datang, 👋',
-                      style: AppTextStyles.caption.copyWith(fontSize: 13),
-                    ),
-                    Text(
-                      DateTime.now().toLocal().toString().split(' ')[0],
-                      style: AppTextStyles.caption,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  name,
-                  style: AppTextStyles.pageTitle.copyWith(fontSize: 22),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  isHost
-                      ? 'Sebagai Host, Anda memiliki akses penuh untuk membuat sesi mabar, menjalankan drawing, dan mencatat skor.'
-                      : 'Sebagai Personal User, Anda dapat memantau jalannya live session dan hasil pertandingan secara aktual.',
-                  style: AppTextStyles.bodySecondary.copyWith(fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Quick Action / Live Game Preview
-          Text(
-            isHost ? 'Aksi Cepat (Host)' : 'Pertandingan Langsung',
-            style: AppTextStyles.sectionTitle,
-          ),
-          const SizedBox(height: 12),
-
-          if (isHost) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.add_circle_outline_rounded,
-                      color: AppColors.primary,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Buat Sesi Permainan Baru', style: AppTextStyles.cardTitle),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Pilih sport, court, dan jalankan drawing',
-                          style: AppTextStyles.caption,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.surfaceBorder),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.live_tv_rounded,
-                    color: AppColors.primary,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Live Session Siap', style: AppTextStyles.cardTitle),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Buka tab Session untuk melihat pertandingan yang sedang aktif.',
-                          style: AppTextStyles.caption,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }
