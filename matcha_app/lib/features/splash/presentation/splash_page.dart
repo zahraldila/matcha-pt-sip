@@ -2,11 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
+import '../../auth/presentation/login_page.dart';
 
 class SplashPage extends StatefulWidget {
-  final VoidCallback? onInitialized;
+  final AuthController authController;
 
-  const SplashPage({super.key, this.onInitialized});
+  const SplashPage({super.key, required this.authController});
 
   @override
   State<SplashPage> createState() => _SplashPageState();
@@ -37,10 +39,20 @@ class _SplashPageState extends State<SplashPage>
 
     _controller.forward();
 
-    // Trigger onInitialized after splash duration
-    Timer(const Duration(milliseconds: 2500), () {
-      if (mounted && widget.onInitialized != null) {
-        widget.onInitialized!();
+    // Auto navigate to LoginPage after 2.2 seconds
+    Timer(const Duration(milliseconds: 2200), () {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                LoginPage(authController: widget.authController),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 600),
+          ),
+        );
       }
     });
   }
@@ -107,7 +119,8 @@ class _SplashPageState extends State<SplashPage>
                     height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.primary),
                     ),
                   ),
                   const SizedBox(height: 16),

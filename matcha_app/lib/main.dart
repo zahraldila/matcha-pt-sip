@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/splash/presentation/splash_page.dart';
 
 void main() async {
@@ -19,8 +20,27 @@ void main() async {
 
 final supabase = Supabase.instance.client;
 
-class MatchaApp extends StatelessWidget {
+class MatchaApp extends StatefulWidget {
   const MatchaApp({super.key});
+
+  @override
+  State<MatchaApp> createState() => _MatchaAppState();
+}
+
+class _MatchaAppState extends State<MatchaApp> {
+  late final AuthController _authController;
+
+  @override
+  void initState() {
+    super.initState();
+    _authController = AuthController();
+  }
+
+  @override
+  void dispose() {
+    _authController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +48,7 @@ class MatchaApp extends StatelessWidget {
       title: 'Matcha - Match Arena',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: const SplashPage(),
+      home: SplashPage(authController: _authController),
     );
   }
 }
