@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
+import 'core/theme/app_colors.dart';
+import 'core/theme/app_text_styles.dart';
+import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,45 +28,81 @@ class MatchaApp extends StatelessWidget {
     return MaterialApp(
       title: 'Matcha - Match Arena',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF050608),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFA8E63A),
-          surface: Color(0xFF111318),
-        ),
-      ),
-      home: const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.sports_tennis, size: 64, color: Color(0xFFA8E63A)),
-              SizedBox(height: 16),
-              Text(
-                'MATCHA',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                  color: Colors.white,
+      theme: AppTheme.darkTheme,
+      home: const SplashScreenPreview(),
+    );
+  }
+}
+
+class SplashScreenPreview extends StatelessWidget {
+  const SplashScreenPreview({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.surfaceBorder, width: 1.5),
+                  ),
+                  child: const Icon(
+                    Icons.sports_tennis_rounded,
+                    size: 56,
+                    color: AppColors.primary,
+                  ),
                 ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'MATCH ARENA',
-                style: TextStyle(
-                  fontSize: 14,
-                  letterSpacing: 4,
-                  color: Color(0xFFA9ADB5),
+                const SizedBox(height: 24),
+                Text('MATCHA', style: AppTextStyles.brandLogo),
+                const SizedBox(height: 6),
+                Text(
+                  'MATCH ARENA',
+                  style: AppTextStyles.caption.copyWith(
+                    letterSpacing: 4,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              SizedBox(height: 24),
-              Text(
-                'Supabase Connected Successfully! 🚀',
-                style: TextStyle(color: Color(0xFFA8E63A), fontSize: 13),
-              ),
-            ],
+                const SizedBox(height: 32),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Supabase & Design System Ready',
+                        style: AppTextStyles.bodySecondary.copyWith(
+                          color: AppColors.textPrimary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
