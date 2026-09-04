@@ -7,6 +7,7 @@ import '../../home/presentation/home_page.dart';
 
 import '../../session/presentation/session_list_page.dart';
 import '../../session/presentation/create_session_page.dart';
+import '../../match/presentation/live_session_page.dart';
 
 class MainShellPage extends StatefulWidget {
   final AuthController authController;
@@ -74,7 +75,18 @@ class _MainShellPageState extends State<MainShellPage> {
             MaterialPageRoute(builder: (context) => const CreateSessionPage()),
           );
         },
-        onLiveSessionTap: () => setState(() => _currentIndex = 1),
+        onLiveSessionTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => LiveSessionPage(
+                sessionName: 'Saturday Morning',
+                sportName: 'Tennis',
+                isHost: isHost,
+              ),
+            ),
+          );
+        },
         onManagePlayersTap: () => setState(() => _currentIndex = 2),
         onManageCourtsTap: () => setState(() => _currentIndex = 1),
         onCommunityTap: () => setState(() => _currentIndex = 2),
@@ -82,7 +94,16 @@ class _MainShellPageState extends State<MainShellPage> {
       SessionListPage(
         isHost: isHost,
         onSessionTap: (id) {
-          // Placeholder for opening session detail
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => LiveSessionPage(
+                sessionName: 'Saturday Morning',
+                sportName: 'Tennis',
+                isHost: isHost,
+              ),
+            ),
+          );
         },
       ),
       _buildPlaceholderTab(
