@@ -73,7 +73,7 @@ class _SessionListPageState extends State<SessionListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
@@ -84,12 +84,13 @@ class _SessionListPageState extends State<SessionListPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Daftar Session', style: AppTextStyles.pageTitle.copyWith(fontSize: 22)),
+                  Text(
+                    'Daftar Session',
+                    style: AppTextStyles.pageTitle.copyWith(fontSize: 22, color: context.txtPrimary),
+                  ),
                   IconButton(
-                    icon: const Icon(Icons.search_rounded, color: AppColors.textPrimary, size: 24),
-                    onPressed: () {
-                      // Action search sesi
-                    },
+                    icon: Icon(Icons.search_rounded, color: context.txtPrimary, size: 24),
+                    onPressed: () {},
                   ),
                 ],
               ),
@@ -106,15 +107,15 @@ class _SessionListPageState extends State<SessionListPage> {
                       child: ChoiceChip(
                         label: Text(filter),
                         selected: isSelected,
-                        selectedColor: AppColors.primary,
-                        backgroundColor: AppColors.surface,
+                        selectedColor: context.brandColor,
+                        backgroundColor: context.surf,
                         labelStyle: TextStyle(
-                          color: isSelected ? AppColors.textOnPrimary : AppColors.textSecondary,
+                          color: isSelected ? Colors.black : context.txtSecondary,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                           fontSize: 12,
                         ),
                         side: BorderSide(
-                          color: isSelected ? AppColors.primary : AppColors.surfaceBorder,
+                          color: isSelected ? context.brandColor : context.surfBorder,
                         ),
                         onSelected: (_) => setState(() => _selectedFilter = filter),
                       ),
@@ -131,7 +132,7 @@ class _SessionListPageState extends State<SessionListPage> {
                   separatorBuilder: (context, index) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final session = _mockSessions[index];
-                    return _buildSessionCard(session);
+                    return _buildSessionCard(context, session);
                   },
                 ),
               ),
@@ -141,8 +142,8 @@ class _SessionListPageState extends State<SessionListPage> {
       ),
       floatingActionButton: widget.isHost
           ? FloatingActionButton.extended(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.textOnPrimary,
+              backgroundColor: context.brandColor,
+              foregroundColor: Colors.black,
               icon: const Icon(Icons.add_rounded),
               label: const Text('Buat Session Baru', style: TextStyle(fontWeight: FontWeight.bold)),
               onPressed: () {
@@ -156,7 +157,7 @@ class _SessionListPageState extends State<SessionListPage> {
     );
   }
 
-  Widget _buildSessionCard(Map<String, dynamic> session) {
+  Widget _buildSessionCard(BuildContext context, Map<String, dynamic> session) {
     final isLive = session['status'] == 'LIVE';
 
     return InkWell(
@@ -169,10 +170,10 @@ class _SessionListPageState extends State<SessionListPage> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.surf,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isLive ? AppColors.primary.withValues(alpha: 0.4) : AppColors.surfaceBorder,
+            color: isLive ? context.brandColor.withValues(alpha: 0.4) : context.surfBorder,
             width: isLive ? 1.5 : 1,
           ),
         ),
@@ -184,9 +185,9 @@ class _SessionListPageState extends State<SessionListPage> {
               children: [
                 Text(
                   session['title'],
-                  style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+                  style: AppTextStyles.cardTitle.copyWith(fontSize: 16, color: context.txtPrimary),
                 ),
-                _buildStatusBadge(session['status']),
+                _buildStatusBadge(context, session['status']),
               ],
             ),
             const SizedBox(height: 8),
@@ -195,13 +196,13 @@ class _SessionListPageState extends State<SessionListPage> {
                 Icon(
                   Icons.sports_tennis_rounded,
                   size: 14,
-                  color: isLive ? AppColors.primary : AppColors.textSecondary,
+                  color: isLive ? context.brandColor : context.txtSecondary,
                 ),
                 const SizedBox(width: 6),
                 Text(
                   '${session['sport']} · ${session['players']} Players · ${session['courts']} Courts',
                   style: AppTextStyles.caption.copyWith(
-                    color: isLive ? AppColors.textPrimary : AppColors.textSecondary,
+                    color: isLive ? context.txtPrimary : context.txtSecondary,
                   ),
                 ),
               ],
@@ -209,11 +210,11 @@ class _SessionListPageState extends State<SessionListPage> {
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.access_time_rounded, size: 14, color: AppColors.textSecondary),
+                Icon(Icons.access_time_rounded, size: 14, color: context.txtSecondary),
                 const SizedBox(width: 6),
                 Text(
                   session['time'],
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
                 ),
               ],
             ),
@@ -223,22 +224,22 @@ class _SessionListPageState extends State<SessionListPage> {
     );
   }
 
-  Widget _buildStatusBadge(String status) {
+  Widget _buildStatusBadge(BuildContext context, String status) {
     Color badgeColor;
     Color textColor;
 
     switch (status) {
       case 'LIVE':
-        badgeColor = AppColors.primary.withValues(alpha: 0.15);
-        textColor = AppColors.primary;
+        badgeColor = context.brandColor.withValues(alpha: 0.15);
+        textColor = context.brandColor;
         break;
       case 'UPCOMING':
         badgeColor = AppColors.warning.withValues(alpha: 0.15);
         textColor = AppColors.warning;
         break;
       default:
-        badgeColor = AppColors.surfaceSecondary;
-        textColor = AppColors.textSecondary;
+        badgeColor = context.surfSec;
+        textColor = context.txtSecondary;
     }
 
     return Container(

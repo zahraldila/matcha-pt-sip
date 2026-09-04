@@ -63,11 +63,11 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.surf,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Container(
@@ -79,32 +79,32 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Pilih Pemain Sesi', style: AppTextStyles.cardTitle),
+                      Text('Pilih Pemain Sesi', style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary)),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                        icon: Icon(Icons.close_rounded, color: context.txtSecondary),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
                   ),
                   Text(
                     '$_selectedPlayersCount pemain dipilih',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.primary),
+                    style: AppTextStyles.caption.copyWith(color: context.brandColor),
                   ),
                   const SizedBox(height: 12),
-                  const Divider(),
+                  Divider(color: context.surfBorder),
                   Expanded(
                     child: ListView.separated(
                       itemCount: _availablePlayers.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      separatorBuilder: (context, index) => Divider(height: 1, color: context.surfBorder),
                       itemBuilder: (context, index) {
                         final player = _availablePlayers[index];
                         final isSelected = player['selected'] as bool;
 
                         return CheckboxListTile(
-                          activeColor: AppColors.primary,
-                          checkColor: AppColors.textOnPrimary,
-                          title: Text(player['name'], style: AppTextStyles.body),
-                          subtitle: Text(player['club'], style: AppTextStyles.caption),
+                          activeColor: context.brandColor,
+                          checkColor: Colors.black,
+                          title: Text(player['name'], style: AppTextStyles.body.copyWith(color: context.txtPrimary)),
+                          subtitle: Text(player['club'], style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
                           value: isSelected,
                           onChanged: (val) {
                             setModalState(() {
@@ -134,11 +134,11 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.surf,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Container(
@@ -150,32 +150,32 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Pilih Lapangan', style: AppTextStyles.cardTitle),
+                      Text('Pilih Lapangan', style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary)),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                        icon: Icon(Icons.close_rounded, color: context.txtSecondary),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
                   ),
                   Text(
                     '$_selectedCourtsCount lapangan dipilih',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.primary),
+                    style: AppTextStyles.caption.copyWith(color: context.brandColor),
                   ),
                   const SizedBox(height: 12),
-                  const Divider(),
+                  Divider(color: context.surfBorder),
                   Expanded(
                     child: ListView.separated(
                       itemCount: _availableCourts.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      separatorBuilder: (context, index) => Divider(height: 1, color: context.surfBorder),
                       itemBuilder: (context, index) {
                         final court = _availableCourts[index];
                         final isSelected = court['selected'] as bool;
 
                         return CheckboxListTile(
-                          activeColor: AppColors.primary,
-                          checkColor: AppColors.textOnPrimary,
-                          title: Text(court['name'], style: AppTextStyles.body),
-                          subtitle: Text('Sport: ${court['sport']}', style: AppTextStyles.caption),
+                          activeColor: context.brandColor,
+                          checkColor: Colors.black,
+                          title: Text(court['name'], style: AppTextStyles.body.copyWith(color: context.txtPrimary)),
+                          subtitle: Text('Sport: ${court['sport']}', style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
                           value: isSelected,
                           onChanged: (val) {
                             setModalState(() {
@@ -204,11 +204,11 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       appBar: AppBar(
-        title: const Text('Buat Sesi Permainan'),
+        title: Text('Buat Sesi Permainan', style: TextStyle(color: context.txtPrimary)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: context.txtPrimary),
           onPressed: () => Navigator.maybePop(context),
         ),
       ),
@@ -218,20 +218,20 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 1. Nama Sesi
-            _buildSectionLabel('Informasi Sesi'),
+            _buildSectionLabel(context, 'Informasi Sesi'),
             const SizedBox(height: 8),
             TextFormField(
               controller: _nameController,
-              style: AppTextStyles.body,
-              decoration: const InputDecoration(
+              style: AppTextStyles.body.copyWith(color: context.txtPrimary),
+              decoration: InputDecoration(
                 hintText: 'Misal: Saturday Morning Match',
-                prefixIcon: Icon(Icons.edit_outlined, color: AppColors.textSecondary, size: 20),
+                prefixIcon: Icon(Icons.edit_outlined, color: context.txtSecondary, size: 20),
               ),
             ),
             const SizedBox(height: 20),
 
             // 2. Pilih Sport
-            _buildSectionLabel('Pilih Olahraga'),
+            _buildSectionLabel(context, 'Pilih Olahraga'),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -239,6 +239,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               children: _sports.map((sport) {
                 final isSelected = _selectedSport == sport;
                 return _buildSelectableChip(
+                  context: context,
                   label: sport,
                   isSelected: isSelected,
                   icon: Icons.sports_tennis_rounded,
@@ -255,13 +256,14 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionLabel('Metode Drawing'),
+                      _buildSectionLabel(context, 'Metode Drawing'),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
                         children: _methods.map((method) {
                           final isSelected = _selectedMethod == method;
                           return _buildSelectableChip(
+                            context: context,
                             label: method,
                             isSelected: isSelected,
                             onTap: () => setState(() => _selectedMethod = method),
@@ -276,13 +278,14 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionLabel('Format'),
+                      _buildSectionLabel(context, 'Format'),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
                         children: _formats.map((format) {
                           final isSelected = _selectedFormat == format;
                           return _buildSelectableChip(
+                            context: context,
                             label: format,
                             isSelected: isSelected,
                             onTap: () => setState(() => _selectedFormat = format),
@@ -297,12 +300,13 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
             const SizedBox(height: 20),
 
             // 4. Tanggal & Waktu
-            _buildSectionLabel('Jadwal Pelaksanaan'),
+            _buildSectionLabel(context, 'Jadwal Pelaksanaan'),
             const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
                   child: _buildPickerCard(
+                    context: context,
                     icon: Icons.calendar_today_rounded,
                     title: 'Tanggal',
                     value: '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
@@ -320,6 +324,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildPickerCard(
+                    context: context,
                     icon: Icons.access_time_rounded,
                     title: 'Waktu Mulai',
                     value: _selectedTime.format(context),
@@ -338,6 +343,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
 
             // 5. Pemilihan Pemain Card
             _buildSelectionSummaryCard(
+              context: context,
               title: 'Daftar Peserta Pemain',
               countText: '$_selectedPlayersCount Pemain Dipilih',
               icon: Icons.people_alt_rounded,
@@ -348,6 +354,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
 
             // 6. Pemilihan Lapangan Card
             _buildSelectionSummaryCard(
+              context: context,
               title: 'Lapangan yang Digunakan',
               countText: '$_selectedCourtsCount Lapangan Dipilih',
               icon: Icons.stadium_rounded,
@@ -392,17 +399,18 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     );
   }
 
-  Widget _buildSectionLabel(String label) {
+  Widget _buildSectionLabel(BuildContext context, String label) {
     return Text(
       label,
       style: AppTextStyles.caption.copyWith(
-        color: AppColors.textPrimary,
+        color: context.txtPrimary,
         fontWeight: FontWeight.w600,
       ),
     );
   }
 
   Widget _buildSelectableChip({
+    required BuildContext context,
     required String label,
     required bool isSelected,
     IconData? icon,
@@ -414,10 +422,10 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surface,
+          color: isSelected ? context.brandColor.withValues(alpha: 0.15) : context.surf,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.surfaceBorder,
+            color: isSelected ? context.brandColor : context.surfBorder,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -425,7 +433,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 16, color: isSelected ? AppColors.primary : AppColors.textSecondary),
+              Icon(icon, size: 16, color: isSelected ? context.brandColor : context.txtSecondary),
               const SizedBox(width: 6),
             ],
             Text(
@@ -433,7 +441,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               style: AppTextStyles.body.copyWith(
                 fontSize: 13,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                color: isSelected ? context.brandColor : context.txtSecondary,
               ),
             ),
           ],
@@ -443,6 +451,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
   }
 
   Widget _buildPickerCard({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String value,
@@ -454,22 +463,22 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.surf,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.surfaceBorder),
+          border: Border.all(color: context.surfBorder),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, size: 16, color: AppColors.primary),
+                Icon(icon, size: 16, color: context.brandColor),
                 const SizedBox(width: 6),
-                Text(title, style: AppTextStyles.caption),
+                Text(title, style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
               ],
             ),
             const SizedBox(height: 6),
-            Text(value, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600)),
+            Text(value, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600, color: context.txtPrimary)),
           ],
         ),
       ),
@@ -477,6 +486,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
   }
 
   Widget _buildSelectionSummaryCard({
+    required BuildContext context,
     required String title,
     required String countText,
     required IconData icon,
@@ -489,40 +499,40 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.surf,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.surfaceBorder),
+          border: Border.all(color: context.surfBorder),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.surfaceSecondary,
+                color: context.surfSec,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: AppColors.primary, size: 22),
+              child: Icon(icon, color: context.brandColor, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTextStyles.cardTitle.copyWith(fontSize: 14)),
+                  Text(title, style: AppTextStyles.cardTitle.copyWith(fontSize: 14, color: context.txtPrimary)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: AppTextStyles.caption),
+                  Text(subtitle, style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
                   const SizedBox(height: 4),
                   Text(
                     countText,
                     style: AppTextStyles.caption.copyWith(
-                      color: AppColors.primary,
+                      color: context.brandColor,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
+            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: context.txtSecondary),
           ],
         ),
       ),
