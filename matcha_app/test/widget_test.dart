@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:matcha_app/main.dart';
+import 'package:matcha_app/features/splash/presentation/splash_page.dart';
 
 void main() {
-  testWidgets('Matcha app smoke test', (WidgetTester tester) async {
+  testWidgets('Matcha splash screen smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(const MatchaApp());
-    expect(find.text('MATCHA'), findsOneWidget);
+    expect(find.byType(SplashPage), findsOneWidget);
   });
 }
