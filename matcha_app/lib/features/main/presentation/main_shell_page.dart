@@ -78,7 +78,7 @@ class _MainShellPageState extends State<MainShellPage> {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       appBar: AppBar(
         title: Row(
           children: [
@@ -93,11 +93,11 @@ class _MainShellPageState extends State<MainShellPage> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: isHost
-                    ? AppColors.primary.withValues(alpha: 0.15)
+                    ? context.brandColor.withValues(alpha: 0.15)
                     : AppColors.info.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: isHost ? AppColors.primary : AppColors.info,
+                  color: isHost ? context.brandColor : AppColors.info,
                   width: 1,
                 ),
               ),
@@ -107,13 +107,13 @@ class _MainShellPageState extends State<MainShellPage> {
                   Icon(
                     isHost ? Icons.sports_tennis_rounded : Icons.visibility_rounded,
                     size: 13,
-                    color: isHost ? AppColors.primary : AppColors.info,
+                    color: isHost ? context.brandColor : AppColors.info,
                   ),
                   const SizedBox(width: 5),
                   Text(
                     isHost ? 'HOST' : 'PERSONAL USER',
                     style: AppTextStyles.badge.copyWith(
-                      color: isHost ? AppColors.primary : AppColors.info,
+                      color: isHost ? context.brandColor : AppColors.info,
                       fontSize: 10,
                     ),
                   ),
@@ -125,9 +125,9 @@ class _MainShellPageState extends State<MainShellPage> {
       ),
       body: tabs[_currentIndex],
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(color: AppColors.surfaceBorder, width: 1),
+            top: BorderSide(color: context.surfBorder, width: 1),
           ),
         ),
         child: BottomNavigationBar(
