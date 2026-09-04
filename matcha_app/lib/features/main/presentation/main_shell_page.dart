@@ -5,6 +5,9 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../home/presentation/home_page.dart';
 
+import '../../session/presentation/session_list_page.dart';
+import '../../session/presentation/create_session_page.dart';
+
 class MainShellPage extends StatefulWidget {
   final AuthController authController;
 
@@ -65,18 +68,22 @@ class _MainShellPageState extends State<MainShellPage> {
     final tabs = [
       HomePage(
         user: user,
-        onCreateSessionTap: () => setState(() => _currentIndex = 1),
+        onCreateSessionTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CreateSessionPage()),
+          );
+        },
         onLiveSessionTap: () => setState(() => _currentIndex = 1),
         onManagePlayersTap: () => setState(() => _currentIndex = 2),
         onManageCourtsTap: () => setState(() => _currentIndex = 1),
         onCommunityTap: () => setState(() => _currentIndex = 2),
       ),
-      _buildPlaceholderTab(
-        title: 'Session Management',
-        icon: Icons.calendar_today_rounded,
-        description: isHost
-            ? 'Buat sesi baru, pilih olahraga, lapangan, dan peserta.'
-            : 'Pantau daftar sesi permainan yang sedang berlangsung.',
+      SessionListPage(
+        isHost: isHost,
+        onSessionTap: (id) {
+          // Placeholder for opening session detail
+        },
       ),
       _buildPlaceholderTab(
         title: 'Players & Members',
