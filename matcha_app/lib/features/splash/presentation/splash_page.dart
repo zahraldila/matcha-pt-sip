@@ -66,7 +66,7 @@ class _SplashPageState extends State<SplashPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       body: Stack(
         children: [
           // Subtle radial glow behind logo
@@ -78,7 +78,7 @@ class _SplashPageState extends State<SplashPage>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primary.withValues(alpha: 0.12),
+                    context.brandColor.withValues(alpha: 0.12),
                     Colors.transparent,
                   ],
                 ),
@@ -114,13 +114,13 @@ class _SplashPageState extends State<SplashPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     width: 24,
                     height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
                       valueColor:
-                          AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          AlwaysStoppedAnimation<Color>(context.brandColor),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -128,7 +128,7 @@ class _SplashPageState extends State<SplashPage>
                     'SPORTS DRAWING & MATCH ARENA',
                     style: AppTextStyles.caption.copyWith(
                       letterSpacing: 2.0,
-                      color: AppColors.textSecondary,
+                      color: context.txtSecondary,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),

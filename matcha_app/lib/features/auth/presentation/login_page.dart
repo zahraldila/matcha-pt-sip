@@ -55,7 +55,7 @@ class _LoginPageState extends State<LoginPage> {
         final errorMessage = widget.authController.errorMessage;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: context.bg,
           body: SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -78,13 +78,13 @@ class _LoginPageState extends State<LoginPage> {
                       Text(
                         'Masuk ke Akun Anda',
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.pageTitle.copyWith(fontSize: 20),
+                        style: AppTextStyles.pageTitle.copyWith(fontSize: 20, color: context.txtPrimary),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         'Masukkan kredensial untuk melanjutkan',
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.bodySecondary,
+                        style: AppTextStyles.bodySecondary.copyWith(color: context.txtSecondary),
                       ),
                       const SizedBox(height: 28),
 
@@ -126,7 +126,7 @@ class _LoginPageState extends State<LoginPage> {
                       Text(
                         'Email Pengguna',
                         style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textPrimary,
+                          color: context.txtPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -134,12 +134,12 @@ class _LoginPageState extends State<LoginPage> {
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        style: AppTextStyles.body,
-                        decoration: const InputDecoration(
+                        style: AppTextStyles.body.copyWith(color: context.txtPrimary),
+                        decoration: InputDecoration(
                           hintText: 'nama@matcha.com',
                           prefixIcon: Icon(
                             Icons.email_outlined,
-                            color: AppColors.textSecondary,
+                            color: context.txtSecondary,
                             size: 20,
                           ),
                         ),
@@ -156,7 +156,7 @@ class _LoginPageState extends State<LoginPage> {
                       Text(
                         'Kata Sandi',
                         style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textPrimary,
+                          color: context.txtPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -164,12 +164,12 @@ class _LoginPageState extends State<LoginPage> {
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
-                        style: AppTextStyles.body,
+                        style: AppTextStyles.body.copyWith(color: context.txtPrimary),
                         decoration: InputDecoration(
                           hintText: '••••••••',
-                          prefixIcon: const Icon(
+                          prefixIcon: Icon(
                             Icons.lock_outline_rounded,
-                            color: AppColors.textSecondary,
+                            color: context.txtSecondary,
                             size: 20,
                           ),
                           suffixIcon: IconButton(
@@ -177,7 +177,7 @@ class _LoginPageState extends State<LoginPage> {
                               _obscurePassword
                                   ? Icons.visibility_off_outlined
                                   : Icons.visibility_outlined,
-                              color: AppColors.textSecondary,
+                              color: context.txtSecondary,
                               size: 20,
                             ),
                             onPressed: () {
@@ -206,7 +206,7 @@ class _LoginPageState extends State<LoginPage> {
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2.5,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppColors.textOnPrimary,
+                                    Colors.black,
                                   ),
                                 ),
                               )
