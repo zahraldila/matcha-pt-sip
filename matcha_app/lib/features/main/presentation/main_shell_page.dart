@@ -12,7 +12,10 @@ import '../../profile/presentation/profile_page.dart';
 class MainShellPage extends StatefulWidget {
   final AuthController authController;
 
-  const MainShellPage({super.key, required this.authController});
+  const MainShellPage({
+    super.key,
+    required this.authController,
+  });
 
   @override
   State<MainShellPage> createState() => _MainShellPageState();
@@ -26,6 +29,14 @@ class _MainShellPageState extends State<MainShellPage> {
     final user = widget.authController.currentUser;
     final isHost = widget.authController.isHost;
 
+    if (user == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text('User belum login'),
+        ),
+      );
+    }
+
     final tabs = [
       // Tab 0: Home Dashboard
       HomePage(
@@ -33,7 +44,11 @@ class _MainShellPageState extends State<MainShellPage> {
         onCreateSessionTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const CreateSessionPage()),
+            MaterialPageRoute(
+              builder: (context) => CreateSessionPage(
+                currentUser: user,
+              ),
+            ),
           );
         },
         onLiveSessionTap: () {
@@ -56,6 +71,7 @@ class _MainShellPageState extends State<MainShellPage> {
       // Tab 1: Session Management
       SessionListPage(
         isHost: isHost,
+        currentUser: user,
         onSessionTap: (id) {
           Navigator.push(
             context,
