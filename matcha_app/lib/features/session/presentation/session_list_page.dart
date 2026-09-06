@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import 'create_session_page.dart';
+import '../../auth/domain/models/user_model.dart';
 
 class SessionListPage extends StatefulWidget {
   final bool isHost;
+  final UserModel currentUser;
   final Function(String sessionId)? onSessionTap;
 
   const SessionListPage({
     super.key,
     required this.isHost,
+    required this.currentUser,
     this.onSessionTap,
   });
 
@@ -149,7 +152,11 @@ class _SessionListPageState extends State<SessionListPage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const CreateSessionPage()),
+                  MaterialPageRoute(
+                    builder: (context) => CreateSessionPage(
+                      currentUser: widget.currentUser,
+                    ),
+                  ),
                 );
               },
             )

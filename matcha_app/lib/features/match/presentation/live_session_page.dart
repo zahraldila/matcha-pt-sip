@@ -391,6 +391,9 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                   builder: (context) => DrawingResultPage(
                     sessionName: widget.sessionName,
                     sportName: widget.sportName,
+                    drawingMethod: 'Americano',
+                    jenisPermainan: 'Double',
+                    waktuSession: DateTime.now(),
                   ),
                 ),
               );

@@ -7,12 +7,16 @@ class DrawingResultPage extends StatefulWidget {
   final String sessionName;
   final String sportName;
   final String drawingMethod;
+  final String jenisPermainan;
+  final DateTime waktuSession;
 
   const DrawingResultPage({
     super.key,
-    this.sessionName = 'Saturday Morning',
-    this.sportName = 'Tennis',
-    this.drawingMethod = 'Americano',
+    required this.sessionName,
+    required this.sportName,
+    required this.drawingMethod,
+    required this.jenisPermainan,
+    required this.waktuSession,
   });
 
   @override
@@ -21,6 +25,31 @@ class DrawingResultPage extends StatefulWidget {
 
 class _DrawingResultPageState extends State<DrawingResultPage> {
   // Mock drawing results
+    String _formatSessionDateTime() {
+      final date = widget.waktuSession;
+
+      const monthNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des',
+      ];
+
+      final hour = date.hour.toString().padLeft(2, '0');
+      final minute = date.minute.toString().padLeft(2, '0');
+
+      return '${date.day} ${monthNames[date.month - 1]} '
+          '${date.year} · $hour:$minute';
+    }
+
   final List<Map<String, dynamic>> _matches = [
     {
       'court': 'Court 1 — SiJi Tennis Court',
@@ -175,8 +204,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                 ),
               ),
               Text(
-                '6 Sep 2026 · 08:00',
-                style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                _formatSessionDateTime(),
+                style: AppTextStyles.caption.copyWith(
+                  color: context.txtSecondary,
+                ),
               ),
             ],
           ),
@@ -188,8 +219,11 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               Icon(Icons.sports_tennis_rounded, size: 14, color: context.brandColor),
               const SizedBox(width: 6),
               Text(
-                '${widget.sportName} · Metode: ${widget.drawingMethod} · Doubles',
-                style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                '${widget.sportName} · Metode: ${widget.drawingMethod} · '
+                '${widget.jenisPermainan == 'Single' ? 'Singles' : 'Doubles'}',
+                style: AppTextStyles.caption.copyWith(
+                  color: context.txtSecondary,
+                ),
               ),
             ],
           ),
