@@ -52,9 +52,17 @@ void main() {
 
       final finishedMatch = MatchModel.fromJson({
         'match_id': 1,
-        'status_match': 'finished',
+        'status_match': 'Finished',
+        'hasil_pertandingan': 'Side A Win',
+        'waktu_selesai': '2026-09-07T10:00:00.000Z',
       });
       expect(finishedMatch.isFinished, true);
+      expect(finishedMatch.hasilPertandingan, 'Side A Win');
+      expect(finishedMatch.waktuSelesai, isNotNull);
+      final jsonFinished = finishedMatch.toJson();
+      expect(jsonFinished['status_match'], 'Finished');
+      expect(jsonFinished['hasil_pertandingan'], 'Side A Win');
+      expect(jsonFinished['waktu_selesai'], '2026-09-07T10:00:00.000Z');
     });
 
     test('PlayingHistoryModel winner determination & serialization', () {

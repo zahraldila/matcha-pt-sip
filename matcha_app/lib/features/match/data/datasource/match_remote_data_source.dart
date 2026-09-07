@@ -136,6 +136,27 @@ class MatchRemoteDataSource {
     }
   }
 
+  /// Menyelesaikan pertandingan (Finish Match) pada tb_match
+  Future<void> finishMatch({
+    required int matchId,
+    required String hasilPertandingan,
+  }) async {
+    final now = DateTime.now().toIso8601String();
+    try {
+      await _supabase.from('tb_match').update({
+        'status_match': 'Finished',
+        'waktu_selesai': now,
+        'hasil_pertandingan': hasilPertandingan,
+        'updated_at': now,
+      }).eq('match_id', matchId);
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Gagal menyelesaikan pertandingan: ${e.message}');
+      }
+      rethrow;
+    }
+  }
+
   /// Menyimpan statistik setiap player ke tb_playing_history
   Future<void> savePlayingHistories(List<PlayingHistoryModel> histories) async {
     try {
