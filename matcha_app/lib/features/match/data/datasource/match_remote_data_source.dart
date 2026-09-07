@@ -406,6 +406,60 @@ class MatchRemoteDataSource {
     return relationships;
   }
 
+  /// Menghitung jumlah match yang benar-benar telah dimainkan (status Finished)
+  /// oleh seorang player dalam session yang sedang berlangsung.
+  ///
+  /// Query:
+  /// - Gabungkan tb_match_participant (berisi player_id + match_id) dengan
+  ///   tb_match (berisi match_id + session_id + status_match).
+  /// - Hitung match di mana:
+  /// Jika sessionId null, fallback ke 1 (karena tidak dapat menghitung).
+  Future<int> countMatchesPlayedByPlayerInSession({
+    required int playerId,
+    int? sessionId,
+  }) async {
+    if (sessionId == null) return 1;
+    try {
+      // Ambil semua match dalam session ini yang sudah Finished
+      // dan player tersebut terdaftar sebagai participant
+      final finishedMatchesInSession = await _supabase
+          .from('tb_match')
+          .select('match_id')
+          .eq('session_id', sessionId)
+          .ilike('status_match', 'finished');
+
+      if (finishedMatchesInSession.isEmpty) return 0;
+
+      final matchIds = (finishedMatchesInSession as List)
+          .map((m) {
+            final rawId = m['match_id'];
+            return rawId is int ? rawId : int.tryParse(rawId.toString());
+          })
+          .whereType<int>()
+          .toList();
+
+      if (matchIds.isEmpty) return 0;
+
+      final participations = await _supabase
+          .from('tb_match_participant')
+          .select('match_id')
+          .eq('player_id', playerId)
+          .inFilter('match_id', matchIds);
+
+      final uniqueMatchIds = (participations as List)
+          .map((p) {
+            final rawId = p['match_id'];
+            return rawId is int ? rawId : int.tryParse(rawId.toString());
+          })
+          .whereType<int>()
+          .toSet();
+
+      return uniqueMatchIds.length;
+    } catch (_) {
+      return 1;
+    }
+  }
+
   /// Helper khusus untuk membentuk dan mencatat Playing History ke tb_playing_history
   /// dengan mengambil data participant dari tb_match_participant (player_id, side, group_no),
   /// skor dari tb_score, serta informasi match (session_id, court_id) dari tb_match.
@@ -450,10 +504,28 @@ class MatchRemoteDataSource {
       // 4. Petakan partner dan opponent berdasarkan data tb_match_participant
       final relationships = mapParticipantsRelationships(participants);
 
-      // 5. Bentuk PlayingHistoryModel untuk setiap participant
+      // 5. Hitung jumlah_permainan per player (berdasarkan session dan status Finished)
+      // Cache hasil agar tidak query berulang untuk player yang sama
+      final Map<int, int> jumlahPermainanCache = {};
+      Future<int> getJumlahPermainan(int playerId) async {
+        if (jumlahPermainanCache.containsKey(playerId)) {
+          return jumlahPermainanCache[playerId]!;
+        }
+        final count = sessionId != null
+            ? await countMatchesPlayedByPlayerInSession(
+                playerId: playerId,
+                sessionId: sessionId,
+              )
+            : 1; // fallback jika session_id tidak tersedia
+        jumlahPermainanCache[playerId] = count;
+        return count;
+      }
+
+      // 6. Bentuk PlayingHistoryModel untuk setiap participant
       final List<PlayingHistoryModel> histories = [];
       for (final rel in relationships) {
         final isSideB = rel.side == 'B';
+        final jumlahPermainan = await getJumlahPermainan(rel.playerId);
         histories.add(
           PlayingHistoryModel(
             playerId: rel.playerId,
@@ -463,12 +535,12 @@ class MatchRemoteDataSource {
             score: isSideB ? totalScoreB : totalScoreA,
             partnerPlayerId: rel.partnerPlayerId,
             opponentPlayerId: rel.opponentPlayerId,
-            jumlahPermainan: 1,
+            jumlahPermainan: jumlahPermainan,
           ),
         );
       }
 
-      // 6. Simpan seluruh playing history ke tb_playing_history
+      // 7. Simpan seluruh playing history ke tb_playing_history
       if (histories.isNotEmpty) {
         await savePlayingHistories(histories);
       }
