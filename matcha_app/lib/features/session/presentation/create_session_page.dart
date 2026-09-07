@@ -369,6 +369,23 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                 if (widget.onGenerateDrawing != null) {
                   widget.onGenerateDrawing!();
                 } else {
+                  final selectedPlayerNames = _availablePlayers
+                      .where((p) => p['selected'] == true)
+                      .map((p) => p['name'] as String)
+                      .toList();
+                  final selectedPlayerIds = _availablePlayers
+                      .where((p) => p['selected'] == true)
+                      .map((p) => p['id'] as int)
+                      .toList();
+                  final selectedCourtNames = _availableCourts
+                      .where((c) => c['selected'] == true)
+                      .map((c) => c['name'] as String)
+                      .toList();
+                  final selectedCourtIds = _availableCourts
+                      .where((c) => c['selected'] == true)
+                      .map((c) => c['id'] as int)
+                      .toList();
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -378,6 +395,11 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                             : 'Saturday Morning',
                         sportName: _selectedSport,
                         drawingMethod: _selectedMethod,
+                        format: _selectedFormat,
+                        playerNames: selectedPlayerNames,
+                        playerIds: selectedPlayerIds,
+                        courtNames: selectedCourtNames,
+                        courtIds: selectedCourtIds,
                       ),
                     ),
                   );

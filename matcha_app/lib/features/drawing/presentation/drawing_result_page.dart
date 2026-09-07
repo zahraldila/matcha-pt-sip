@@ -2,17 +2,34 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../match/presentation/match_scoring_page.dart';
+import '../domain/models/drawing_round_model.dart';
+import '../domain/models/match_pairing_model.dart';
+import 'controllers/drawing_controller.dart';
 
 class DrawingResultPage extends StatefulWidget {
+  final int? sessionId;
   final String sessionName;
   final String sportName;
   final String drawingMethod;
+  final String format;
+  final List<String>? playerNames;
+  final List<int>? playerIds;
+  final List<String>? courtNames;
+  final List<int>? courtIds;
+  final DrawingController? controller;
 
   const DrawingResultPage({
     super.key,
+    this.sessionId,
     this.sessionName = 'Saturday Morning',
     this.sportName = 'Tennis',
     this.drawingMethod = 'Americano',
+    this.format = 'Doubles',
+    this.playerNames,
+    this.playerIds,
+    this.courtNames,
+    this.courtIds,
+    this.controller,
   });
 
   @override
@@ -20,139 +37,193 @@ class DrawingResultPage extends StatefulWidget {
 }
 
 class _DrawingResultPageState extends State<DrawingResultPage> {
-  // Mock drawing results
-  final List<Map<String, dynamic>> _matches = [
-    {
-      'court': 'Court 1 — SiJi Tennis Court',
-      'sideA': ['Aldi', 'Budi'],
-      'sideB': ['Caca', 'Dina'],
-      'status': 'PLAYING',
-    },
-    {
-      'court': 'Court 2 — SiJi Tennis Court',
-      'sideA': ['Eka', 'Fajar'],
-      'sideB': ['Gilang', 'Hadi'],
-      'status': 'PLAYING',
-    },
-  ];
+  late final DrawingController _controller;
 
-  final List<String> _waitingPlayers = ['Indra', 'Joko'];
-
-  void _reRollDrawing() {
-    setState(() {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Drawing berhasil diacak ulang secara acak & adil! 🎲',
-            style: AppTextStyles.body.copyWith(
-              color: context.txtPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          backgroundColor: context.surf,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: context.surfBorder, width: 1),
-          ),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    });
-  }
+  late final List<String> _effectivePlayerNames;
+  late final List<int> _effectivePlayerIds;
+  late final List<String> _effectiveCourtNames;
+  late final List<int> _effectiveCourtIds;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.bg,
-      appBar: AppBar(
-        title: Text('Drawing Result', style: TextStyle(color: context.txtPrimary)),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: context.txtPrimary),
-          onPressed: () => Navigator.maybePop(context),
+  void initState() {
+    super.initState();
+    _controller = widget.controller ?? DrawingController();
+
+    _effectivePlayerNames = widget.playerNames ??
+        ['Aldi', 'Budi', 'Caca', 'Dina', 'Eka', 'Fajar', 'Gilang', 'Hadi', 'Indra', 'Joko'];
+    _effectivePlayerIds = widget.playerIds ??
+        List<int>.generate(_effectivePlayerNames.length, (i) => i + 1);
+
+    _effectiveCourtNames = widget.courtNames ??
+        ['Court 1 — SiJi Tennis Court', 'Court 2 — SiJi Tennis Court'];
+    _effectiveCourtIds = widget.courtIds ?? [1, 2];
+
+    // Generate initial drawing round
+    _controller.generateDrawing(
+      sessionName: widget.sessionName,
+      sportName: widget.sportName,
+      drawingMethod: widget.drawingMethod,
+      format: widget.format,
+      playerNames: _effectivePlayerNames,
+      playerIds: _effectivePlayerIds,
+      courtNames: _effectiveCourtNames,
+      courtIds: _effectiveCourtIds,
+      roundNumber: 1,
+    );
+  }
+
+  void _handleReRoll() {
+    _controller.reShuffleDrawing(
+      playerNames: _effectivePlayerNames,
+      playerIds: _effectivePlayerIds,
+      courtNames: _effectiveCourtNames,
+      courtIds: _effectiveCourtIds,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Drawing berhasil diacak ulang secara adil & acak! 🎲',
+          style: AppTextStyles.body.copyWith(
+            color: context.txtPrimary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh_rounded, color: context.brandColor),
-            tooltip: 'Acak Ulang Drawing',
-            onPressed: _reRollDrawing,
-          ),
-        ],
+        backgroundColor: context.surf,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: context.surfBorder, width: 1),
+        ),
+        duration: const Duration(seconds: 2),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Session Info Banner
-              _buildSessionInfoBanner(context),
-              const SizedBox(height: 20),
+    );
+  }
 
-              // 2. Section Title
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'SUSUNAN PERTANDINGAN',
-                    style: AppTextStyles.badge.copyWith(color: context.txtSecondary, letterSpacing: 1.5),
-                  ),
-                  Text('${_matches.length} Court Aktif', style: AppTextStyles.caption.copyWith(color: context.brandColor)),
-                ],
-              ),
-              const SizedBox(height: 12),
+  void _handleStartMatch() async {
+    final nav = Navigator.of(context);
+    await _controller.saveDrawingToSupabase();
 
-              // 3. Match Cards per Court
-              ..._matches.map((match) => Padding(
-                    padding: const EdgeInsets.only(bottom: 14.0),
-                    child: _buildMatchCard(context, match),
-                  )),
+    final currentRound = _controller.currentRound;
+    final firstMatch = currentRound?.matches.isNotEmpty == true ? currentRound!.matches.first : null;
 
-              const SizedBox(height: 10),
-
-              // 4. Waiting List Card
-              _buildWaitingListCard(context),
-              const SizedBox(height: 32),
-
-              // 5. Action Buttons (Mulai Match & Re-Draw)
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MatchScoringPage(
-                        sessionName: widget.sessionName,
-                        courtName: 'Court 1 — SiJi Tennis Court',
-                        sideA: 'Aldi · Budi',
-                        sideB: 'Caca · Dina',
-                      ),
-                    ),
-                  );
-                },
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('MULAI MATCH PERTANDINGAN'),
-                    SizedBox(width: 8),
-                    Icon(Icons.play_arrow_rounded, size: 22),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _reRollDrawing,
-                icon: Icon(Icons.shuffle_rounded, size: 18, color: context.brandColor),
-                label: Text('Acak Ulang Susunan (Re-Draw)', style: TextStyle(color: context.txtPrimary)),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
+    nav.push(
+      MaterialPageRoute(
+        builder: (context) => MatchScoringPage(
+          sessionName: widget.sessionName,
+          courtName: firstMatch?.courtName ?? 'Court 1 — SiJi Tennis Court',
+          sideA: firstMatch?.sideADisplay ?? 'Aldi · Budi',
+          sideB: firstMatch?.sideBDisplay ?? 'Caca · Dina',
         ),
       ),
     );
   }
 
-  Widget _buildSessionInfoBanner(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        final currentRound = _controller.currentRound;
+        final matches = currentRound?.matches ?? [];
+        final waitingPlayers = currentRound?.waitingPlayers ?? [];
+
+        return Scaffold(
+          backgroundColor: context.bg,
+          appBar: AppBar(
+            title: Text('Drawing Result', style: TextStyle(color: context.txtPrimary)),
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: context.txtPrimary),
+              onPressed: () => Navigator.maybePop(context),
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.refresh_rounded, color: context.brandColor),
+                tooltip: 'Acak Ulang Drawing',
+                onPressed: _handleReRoll,
+              ),
+            ],
+          ),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Session Info Banner
+                  _buildSessionInfoBanner(context, currentRound),
+                  const SizedBox(height: 20),
+
+                  // 2. Section Title
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'SUSUNAN PERTANDINGAN',
+                        style: AppTextStyles.badge.copyWith(color: context.txtSecondary, letterSpacing: 1.5),
+                      ),
+                      Text('${matches.length} Court Aktif', style: AppTextStyles.caption.copyWith(color: context.brandColor)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 3. Match Cards per Court
+                  if (_controller.isLoading)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: CircularProgressIndicator(color: context.brandColor),
+                      ),
+                    )
+                  else ...[
+                    ...matches.map((match) => Padding(
+                          padding: const EdgeInsets.only(bottom: 14.0),
+                          child: _buildMatchCard(context, match),
+                        )),
+                  ],
+
+                  const SizedBox(height: 10),
+
+                  // 4. Waiting List Card
+                  if (waitingPlayers.isNotEmpty) ...[
+                    _buildWaitingListCard(context, waitingPlayers),
+                    const SizedBox(height: 24),
+                  ],
+
+                  const SizedBox(height: 12),
+
+                  // 5. Action Buttons (Mulai Match & Re-Draw)
+                  ElevatedButton(
+                    onPressed: _handleStartMatch,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('MULAI MATCH PERTANDINGAN'),
+                        SizedBox(width: 8),
+                        Icon(Icons.play_arrow_rounded, size: 22),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _handleReRoll,
+                    icon: Icon(Icons.shuffle_rounded, size: 18, color: context.brandColor),
+                    label: Text('Acak Ulang Susunan (Re-Draw)', style: TextStyle(color: context.txtPrimary)),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSessionInfoBanner(BuildContext context, DrawingRoundModel? round) {
+    final roundNumber = round?.roundNumber ?? 1;
+    final method = round?.drawingMethod ?? widget.drawingMethod;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -167,7 +238,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'RONDE 1',
+                'RONDE $roundNumber',
                 style: AppTextStyles.badge.copyWith(
                   color: context.brandColor,
                   letterSpacing: 2,
@@ -175,7 +246,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                 ),
               ),
               Text(
-                '6 Sep 2026 · 08:00',
+                'Hari ini · 08:00',
                 style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
               ),
             ],
@@ -188,7 +259,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               Icon(Icons.sports_tennis_rounded, size: 14, color: context.brandColor),
               const SizedBox(width: 6),
               Text(
-                '${widget.sportName} · Metode: ${widget.drawingMethod} · Doubles',
+                '${widget.sportName} · Metode: $method · ${widget.format}',
                 style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
               ),
             ],
@@ -198,10 +269,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     );
   }
 
-  Widget _buildMatchCard(BuildContext context, Map<String, dynamic> match) {
-    final List<String> sideA = List<String>.from(match['sideA']);
-    final List<String> sideB = List<String>.from(match['sideB']);
-
+  Widget _buildMatchCard(BuildContext context, MatchPairingModel match) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -217,7 +285,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                match['court'],
+                match.courtName,
                 style: AppTextStyles.cardTitle.copyWith(fontSize: 14, color: context.brandColor),
               ),
               Container(
@@ -239,7 +307,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'PLAYING',
+                      match.statusMatch,
                       style: AppTextStyles.badge.copyWith(color: context.brandColor, fontSize: 9),
                     ),
                   ],
@@ -267,7 +335,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                       Text('SIDE A', style: AppTextStyles.badge.copyWith(fontSize: 10, color: context.txtSecondary)),
                       const SizedBox(height: 4),
                       Text(
-                        sideA.join(' · '),
+                        match.sideADisplay,
                         textAlign: TextAlign.center,
                         style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold, fontSize: 14, color: context.txtPrimary),
                       ),
@@ -297,7 +365,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                       Text('SIDE B', style: AppTextStyles.badge.copyWith(fontSize: 10, color: context.txtSecondary)),
                       const SizedBox(height: 4),
                       Text(
-                        sideB.join(' · '),
+                        match.sideBDisplay,
                         textAlign: TextAlign.center,
                         style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold, fontSize: 14, color: context.txtPrimary),
                       ),
@@ -312,7 +380,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     );
   }
 
-  Widget _buildWaitingListCard(BuildContext context) {
+  Widget _buildWaitingListCard(BuildContext context, List<String> waitingPlayers) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -331,7 +399,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   const Icon(Icons.pause_circle_outline_rounded, size: 18, color: AppColors.warning),
                   const SizedBox(width: 8),
                   Text(
-                    'WAITING PLAYERS (${_waitingPlayers.length})',
+                    'WAITING PLAYERS (${waitingPlayers.length})',
                     style: AppTextStyles.badge.copyWith(color: AppColors.warning, letterSpacing: 1),
                   ),
                 ],
@@ -345,7 +413,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
-            children: _waitingPlayers.map((name) {
+            children: waitingPlayers.map((name) {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
