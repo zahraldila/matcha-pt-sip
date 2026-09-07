@@ -65,23 +65,55 @@ void main() {
       expect(jsonFinished['waktu_selesai'], '2026-09-07T10:00:00.000Z');
     });
 
-    test('PlayingHistoryModel winner determination & serialization', () {
+    test('PlayingHistoryModel serialization and deserialization with actual tb_playing_history schema', () {
+      final now = DateTime.parse('2026-09-08T04:00:00.000Z');
       final history = PlayingHistoryModel(
+        historyId: 10,
         playerId: 101,
         matchId: 1,
-        totalScore: 12,
-        isWin: true,
+        sessionId: 5,
+        courtId: 2,
+        score: 21,
+        partnerPlayerId: 102,
+        opponentPlayerId: 201,
+        jumlahPermainan: 1,
+        createdAt: now,
       );
 
+      expect(history.historyId, 10);
       expect(history.playerId, 101);
       expect(history.matchId, 1);
-      expect(history.totalScore, 12);
-      expect(history.isWin, true);
+      expect(history.sessionId, 5);
+      expect(history.courtId, 2);
+      expect(history.score, 21);
+      expect(history.partnerPlayerId, 102);
+      expect(history.opponentPlayerId, 201);
+      expect(history.jumlahPermainan, 1);
+      expect(history.createdAt, now);
 
       final json = history.toJson();
+      expect(json['history_id'], 10);
       expect(json['player_id'], 101);
-      expect(json['total_score'], 12);
-      expect(json['is_win'], true);
+      expect(json['match_id'], 1);
+      expect(json['session_id'], 5);
+      expect(json['court_id'], 2);
+      expect(json['score'], 21);
+      expect(json['partner_player_id'], 102);
+      expect(json['opponent_player_id'], 201);
+      expect(json['jumlah_permainan'], 1);
+      expect(json['created_at'], '2026-09-08T04:00:00.000Z');
+
+      final fromJsonObj = PlayingHistoryModel.fromJson(json);
+      expect(fromJsonObj.historyId, 10);
+      expect(fromJsonObj.playerId, 101);
+      expect(fromJsonObj.matchId, 1);
+      expect(fromJsonObj.sessionId, 5);
+      expect(fromJsonObj.courtId, 2);
+      expect(fromJsonObj.score, 21);
+      expect(fromJsonObj.partnerPlayerId, 102);
+      expect(fromJsonObj.opponentPlayerId, 201);
+      expect(fromJsonObj.jumlahPermainan, 1);
+      expect(fromJsonObj.createdAt, now);
     });
 
     test('Aggregate score and is_win calculation logic', () {
@@ -127,7 +159,7 @@ void main() {
       expect(score.setNumber == 1, isFalse);
     });
 
-    test('tb_match_participant fields (match_id, player_id, side, group_no) map correctly to PlayingHistoryModel', () {
+    test('tb_match_participant fields map correctly to PlayingHistoryModel with partner, opponent & score', () {
       final participants = [
         {'match_id': 1, 'player_id': 101, 'side': 'Side A', 'group_no': 1},
         {'match_id': 1, 'player_id': 102, 'side': 'A', 'group_no': 1},
@@ -137,10 +169,12 @@ void main() {
 
       const totalScoreA = 21;
       const totalScoreB = 18;
-      final isSideAWin = totalScoreA > totalScoreB;
-      final isSideBWin = totalScoreB > totalScoreA;
+      const sessionId = 3;
+      const courtId = 1;
 
-      final List<PlayingHistoryModel> histories = [];
+      final List<int> sideAPlayers = [];
+      final List<int> sideBPlayers = [];
+
       for (final p in participants) {
         final rawId = p['player_id'];
         final pId = rawId is int ? rawId : int.tryParse(rawId.toString());
@@ -150,35 +184,91 @@ void main() {
         final groupNo = p['group_no'];
         final isSideB = side.contains('b') || groupNo == 2;
 
+        if (isSideB) {
+          sideBPlayers.add(pId!);
+        } else {
+          sideAPlayers.add(pId!);
+        }
+      }
+
+      final List<PlayingHistoryModel> histories = [];
+
+      for (final pId in sideAPlayers) {
+        int? partnerId;
+        for (final other in sideAPlayers) {
+          if (other != pId) {
+            partnerId = other;
+            break;
+          }
+        }
+        final opponentId = sideBPlayers.isNotEmpty ? sideBPlayers.first : null;
+
         histories.add(
           PlayingHistoryModel(
-            playerId: pId!,
-            matchId: p['match_id'] as int,
-            totalScore: isSideB ? totalScoreB : totalScoreA,
-            isWin: isSideB ? isSideBWin : isSideAWin,
+            playerId: pId,
+            matchId: 1,
+            sessionId: sessionId,
+            courtId: courtId,
+            score: totalScoreA,
+            partnerPlayerId: partnerId,
+            opponentPlayerId: opponentId,
+            jumlahPermainan: 1,
+          ),
+        );
+      }
+
+      for (final pId in sideBPlayers) {
+        int? partnerId;
+        for (final other in sideBPlayers) {
+          if (other != pId) {
+            partnerId = other;
+            break;
+          }
+        }
+        final opponentId = sideAPlayers.isNotEmpty ? sideAPlayers.first : null;
+
+        histories.add(
+          PlayingHistoryModel(
+            playerId: pId,
+            matchId: 1,
+            sessionId: sessionId,
+            courtId: courtId,
+            score: totalScoreB,
+            partnerPlayerId: partnerId,
+            opponentPlayerId: opponentId,
+            jumlahPermainan: 1,
           ),
         );
       }
 
       expect(histories.length, 4);
 
-      // Side A players
+      // Side A player 1
       expect(histories[0].playerId, 101);
-      expect(histories[0].totalScore, 21);
-      expect(histories[0].isWin, true);
+      expect(histories[0].score, 21);
+      expect(histories[0].partnerPlayerId, 102);
+      expect(histories[0].opponentPlayerId, 201);
+      expect(histories[0].sessionId, 3);
+      expect(histories[0].courtId, 1);
+      expect(histories[0].jumlahPermainan, 1);
 
+      // Side A player 2
       expect(histories[1].playerId, 102);
-      expect(histories[1].totalScore, 21);
-      expect(histories[1].isWin, true);
+      expect(histories[1].score, 21);
+      expect(histories[1].partnerPlayerId, 101);
+      expect(histories[1].opponentPlayerId, 201);
 
-      // Side B players
+      // Side B player 1
       expect(histories[2].playerId, 201);
-      expect(histories[2].totalScore, 18);
-      expect(histories[2].isWin, false);
+      expect(histories[2].score, 18);
+      expect(histories[2].partnerPlayerId, 202);
+      expect(histories[2].opponentPlayerId, 101);
 
+      // Side B player 2
       expect(histories[3].playerId, 202);
-      expect(histories[3].totalScore, 18);
-      expect(histories[3].isWin, false);
+      expect(histories[3].score, 18);
+      expect(histories[3].partnerPlayerId, 201);
+      expect(histories[3].opponentPlayerId, 101);
     });
   });
 }

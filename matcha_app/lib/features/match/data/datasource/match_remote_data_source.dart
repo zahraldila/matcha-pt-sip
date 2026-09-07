@@ -254,22 +254,18 @@ class MatchRemoteDataSource {
             .eq('match_id', history.matchId)
             .maybeSingle();
 
+        final data = history.toJson();
+        // Jangan sertakan history_id agar primary key dikelola otomatis oleh database
+        data.remove('history_id');
+
         if (existing != null) {
           await _supabase
               .from('tb_playing_history')
-              .update({
-                'total_score': history.totalScore,
-                'is_win': history.isWin,
-              })
+              .update(data)
               .eq('player_id', history.playerId)
               .eq('match_id', history.matchId);
         } else {
-          await _supabase.from('tb_playing_history').insert({
-            'player_id': history.playerId,
-            'match_id': history.matchId,
-            'total_score': history.totalScore,
-            'is_win': history.isWin,
-          });
+          await _supabase.from('tb_playing_history').insert(data);
         }
       }
     } catch (e) {
@@ -283,8 +279,8 @@ class MatchRemoteDataSource {
   }
 
   /// Helper khusus untuk membentuk dan mencatat Playing History ke tb_playing_history
-  /// dengan mengambil data participant dari tb_match_participant (player_id, side, group_no)
-  /// dan agregat skor dari tb_score.
+  /// dengan mengambil data participant dari tb_match_participant (player_id, side, group_no),
+  /// skor dari tb_score, serta informasi match (session_id, court_id) dari tb_match.
   Future<List<PlayingHistoryModel>> recordPlayingHistory({
     required int matchId,
   }) async {
@@ -295,7 +291,26 @@ class MatchRemoteDataSource {
         return [];
       }
 
-      // 2. Ambil seluruh skor dari tb_score
+      // 2. Ambil session_id dan court_id dari tb_match jika tersedia
+      int? sessionId;
+      int? courtId;
+      try {
+        final matchRes = await _supabase
+            .from('tb_match')
+            .select('session_id, court_id')
+            .eq('match_id', matchId)
+            .maybeSingle();
+        if (matchRes != null) {
+          sessionId = matchRes['session_id'] != null
+              ? int.tryParse(matchRes['session_id'].toString())
+              : null;
+          courtId = matchRes['court_id'] != null
+              ? int.tryParse(matchRes['court_id'].toString())
+              : null;
+        }
+      } catch (_) {}
+
+      // 3. Ambil seluruh skor dari tb_score
       final scores = await getScoresByMatchId(matchId);
       int totalScoreA = 0;
       int totalScoreB = 0;
@@ -304,11 +319,10 @@ class MatchRemoteDataSource {
         totalScoreB += s.scoreSideB;
       }
 
-      final bool isSideAWin = totalScoreA > totalScoreB;
-      final bool isSideBWin = totalScoreB > totalScoreA;
+      // 4. Pisahkan peserta ke dalam Side A dan Side B
+      final List<int> sideAPlayers = [];
+      final List<int> sideBPlayers = [];
 
-      // 3. Bentuk PlayingHistoryModel untuk setiap participant
-      final List<PlayingHistoryModel> histories = [];
       for (final participant in participants) {
         final rawPlayerId = participant['player_id'];
         if (rawPlayerId == null) continue;
@@ -322,17 +336,65 @@ class MatchRemoteDataSource {
         final groupNo = participant['group_no'];
         final isSideB = side.contains('b') || groupNo == 2;
 
+        if (isSideB) {
+          sideBPlayers.add(playerIdValue);
+        } else {
+          sideAPlayers.add(playerIdValue);
+        }
+      }
+
+      // 5. Bentuk PlayingHistoryModel untuk setiap participant
+      final List<PlayingHistoryModel> histories = [];
+
+      for (final pId in sideAPlayers) {
+        int? partnerId;
+        for (final other in sideAPlayers) {
+          if (other != pId) {
+            partnerId = other;
+            break;
+          }
+        }
+        final opponentId = sideBPlayers.isNotEmpty ? sideBPlayers.first : null;
+
         histories.add(
           PlayingHistoryModel(
-            playerId: playerIdValue,
+            playerId: pId,
             matchId: matchId,
-            totalScore: isSideB ? totalScoreB : totalScoreA,
-            isWin: isSideB ? isSideBWin : isSideAWin,
+            sessionId: sessionId,
+            courtId: courtId,
+            score: totalScoreA,
+            partnerPlayerId: partnerId,
+            opponentPlayerId: opponentId,
+            jumlahPermainan: 1,
           ),
         );
       }
 
-      // 4. Simpan seluruh playing history ke tb_playing_history
+      for (final pId in sideBPlayers) {
+        int? partnerId;
+        for (final other in sideBPlayers) {
+          if (other != pId) {
+            partnerId = other;
+            break;
+          }
+        }
+        final opponentId = sideAPlayers.isNotEmpty ? sideAPlayers.first : null;
+
+        histories.add(
+          PlayingHistoryModel(
+            playerId: pId,
+            matchId: matchId,
+            sessionId: sessionId,
+            courtId: courtId,
+            score: totalScoreB,
+            partnerPlayerId: partnerId,
+            opponentPlayerId: opponentId,
+            jumlahPermainan: 1,
+          ),
+        );
+      }
+
+      // 6. Simpan seluruh playing history ke tb_playing_history
       if (histories.isNotEmpty) {
         await savePlayingHistories(histories);
       }
