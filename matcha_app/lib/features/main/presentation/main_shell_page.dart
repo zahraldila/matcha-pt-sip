@@ -8,6 +8,8 @@ import '../../session/presentation/create_session_page.dart';
 import '../../match/presentation/live_session_page.dart';
 import '../../player/presentation/player_list_page.dart';
 import '../../profile/presentation/profile_page.dart';
+import '../../community/presentation/community_page.dart';
+import '../../court/presentation/court_page.dart';
 
 class MainShellPage extends StatefulWidget {
   final AuthController authController;
@@ -65,8 +67,22 @@ class _MainShellPageState extends State<MainShellPage> {
           );
         },
         onManagePlayersTap: () => setState(() => _currentIndex = 2),
-        onManageCourtsTap: () => setState(() => _currentIndex = 1),
-        onCommunityTap: () => setState(() => _currentIndex = 2),
+        onManageCourtsTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CourtPage(),
+            ),
+          );
+        },
+        onCommunityTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CommunityPage(),
+            ),
+          );
+        },
       ),
 
       // Tab 1: Session Management
