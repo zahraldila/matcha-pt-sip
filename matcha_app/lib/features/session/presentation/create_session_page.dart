@@ -306,6 +306,22 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       return;
     }
 
+    final selectedPlayers = _sessionController.players
+        .where((p) => _selectedPlayerIds.contains(p['player_id'] as int))
+        .toList();
+
+    final selectedPlayerNames = selectedPlayers
+        .map((p) => p['nama_player']?.toString() ?? 'Player ${p['player_id']}')
+        .toList();
+
+    final selectedCourts = _sessionController.courts
+        .where((c) => _selectedCourtIds.contains(c['court_id'] as int))
+        .toList();
+
+    final selectedCourtNames = selectedCourts
+        .map((c) => c['nama_court']?.toString() ?? 'Court ${c['court_id']}')
+        .toList();
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -314,9 +330,14 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
           sessionName: _nameController.text.trim(),
           sportName: _selectedSport,
           drawingMethod: _selectedMethod,
+          format: _selectedFormat,
           jenisPermainan:
               _selectedFormat == 'Singles' ? 'Single' : 'Double',
           waktuSession: sessionDateTime,
+          playerNames: selectedPlayerNames,
+          playerIds: _selectedPlayerIds.toList(),
+          courtNames: selectedCourtNames,
+          courtIds: _selectedCourtIds.toList(),
         ),
       ),
     );

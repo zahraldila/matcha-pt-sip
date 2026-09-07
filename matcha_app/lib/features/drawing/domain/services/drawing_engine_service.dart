@@ -115,6 +115,29 @@ class DrawingEngineService {
 
           playerIndex += 2;
         }
+      } else if (isDoubles && playerIndex + 2 <= activePlayers.length) {
+        // Fallback ke 1 vs 1 jika sisa pemain 2 atau 3
+        final courtName = courtNames[c];
+        final courtId = courtIds != null && c < courtIds.length ? courtIds[c] : c + 1;
+
+        final sideANames = [activePlayers[playerIndex]];
+        final sideAIds = [activeIds[playerIndex]];
+
+        final sideBNames = [activePlayers[playerIndex + 1]];
+        final sideBIds = [activeIds[playerIndex + 1]];
+
+        matches.add(MatchPairingModel(
+          courtId: courtId,
+          courtName: courtName,
+          roundNumber: roundNumber,
+          sideA: sideANames,
+          sideB: sideBNames,
+          sideAPlayerIds: sideAIds,
+          sideBPlayerIds: sideBIds,
+          statusMatch: 'PLAYING',
+        ));
+
+        playerIndex += 2;
       }
     }
 
@@ -141,31 +164,27 @@ class DrawingEngineService {
     List<int>? courtIds,
     int roundNumber = 1,
     String format = 'Doubles',
-    bool isReshuffle = false,
   }) {
     if (playerScores.isEmpty || courtNames.isEmpty) {
-      throw ArgumentError('Daftar skor pemain dan lapangan tidak boleh kosong');
-    }
-
-    // Urutkan pemain dari skor tertinggi ke terendah (Descending Rank)
-    final sortedScores = List<Map<String, dynamic>>.from(playerScores);
-    if (!isReshuffle && roundNumber > 1) {
-      sortedScores.sort((a, b) => (b['score'] as num).compareTo(a['score'] as num));
-    } else {
-      sortedScores.shuffle(_random);
+      throw ArgumentError('Daftar pemain dan lapangan tidak boleh kosong');
     }
 
     final isDoubles = format.toLowerCase() == 'doubles';
     final playersPerCourt = isDoubles ? 4 : 2;
     final totalCapacity = courtNames.length * playersPerCourt;
 
-    final int activeCount = min(sortedScores.length, totalCapacity);
-    final activeList = sortedScores.sublist(0, activeCount);
-    final waitingList = sortedScores.length > totalCapacity
-        ? sortedScores.sublist(totalCapacity).map((e) => e['name'] as String).toList()
+    // Urutkan pemain berdasarkan skor tertinggi (Rank 1 to N)
+    final sortedPlayers = List<Map<String, dynamic>>.from(playerScores)
+      ..sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
+
+    final int activeCount = min(sortedPlayers.length, totalCapacity);
+    final activeList = sortedPlayers.sublist(0, activeCount);
+
+    final waitingList = sortedPlayers.length > totalCapacity
+        ? sortedPlayers.sublist(totalCapacity).map((p) => p['name'] as String).toList()
         : <String>[];
-    final waitingIds = sortedScores.length > totalCapacity
-        ? sortedScores.sublist(totalCapacity).map((e) => e['id'] as int).toList()
+    final waitingIds = sortedPlayers.length > totalCapacity
+        ? sortedPlayers.sublist(totalCapacity).map((p) => p['id'] as int).toList()
         : <int>[];
 
     final List<MatchPairingModel> matches = [];
@@ -220,6 +239,24 @@ class DrawingEngineService {
 
           playerIndex += 2;
         }
+      } else if (isDoubles && playerIndex + 2 <= activeList.length) {
+        final courtName = courtNames[c];
+        final courtId = courtIds != null && c < courtIds.length ? courtIds[c] : c + 1;
+        final p1 = activeList[playerIndex];
+        final p2 = activeList[playerIndex + 1];
+
+        matches.add(MatchPairingModel(
+          courtId: courtId,
+          courtName: courtName,
+          roundNumber: roundNumber,
+          sideA: [p1['name'] as String],
+          sideB: [p2['name'] as String],
+          sideAPlayerIds: [p1['id'] as int],
+          sideBPlayerIds: [p2['id'] as int],
+          statusMatch: 'PLAYING',
+        ));
+
+        playerIndex += 2;
       }
     }
 
