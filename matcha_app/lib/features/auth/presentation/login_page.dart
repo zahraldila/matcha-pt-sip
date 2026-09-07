@@ -136,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
                         keyboardType: TextInputType.emailAddress,
                         style: AppTextStyles.body.copyWith(color: context.txtPrimary),
                         decoration: InputDecoration(
-                          hintText: 'nama@matcha.com',
+                          hintText: 'Masukkan email pengguna',
                           prefixIcon: Icon(
                             Icons.email_outlined,
                             color: context.txtSecondary,
