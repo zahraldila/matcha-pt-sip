@@ -5,6 +5,7 @@ import '../../../core/theme/theme_controller.dart';
 import '../../auth/domain/models/user_model.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
+import '../../player/presentation/controllers/player_controller.dart';
 
 class ProfilePage extends StatefulWidget {
   final UserModel? user;
@@ -23,6 +24,26 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   bool _notificationEnabled = true;
   final ThemeController _themeController = ThemeController();
+  late final PlayerController _playerController;
+
+  @override
+  void initState() {
+    super.initState();
+    _playerController = PlayerController();
+    _loadPlayerStats();
+  }
+
+  void _loadPlayerStats() {
+    if (widget.user != null) {
+      _playerController.loadPlayerStats(widget.user!.userId);
+    }
+  }
+
+  @override
+  void dispose() {
+    _playerController.dispose();
+    super.dispose();
+  }
 
   void _handleLogout() {
     showDialog(
@@ -62,6 +83,223 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showChangePasswordSheet() {
+    final formKey = GlobalKey<FormState>();
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    widget.authController.clearPasswordError();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
+          child: Container(
+            decoration: BoxDecoration(
+              color: context.surf,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border(top: BorderSide(color: context.surfBorder)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            child: ListenableBuilder(
+              listenable: widget.authController,
+              builder: (context, _) {
+                final passwordError = widget.authController.passwordError;
+
+                return Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 48,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: context.txtSecondary.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Ubah Kata Sandi',
+                          style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary),
+                        ),
+                        const SizedBox(height: 20),
+                        TextFormField(
+                          controller: oldPasswordController,
+                          obscureText: true,
+                          style: AppTextStyles.body.copyWith(color: context.txtPrimary),
+                          decoration: InputDecoration(
+                            labelText: 'Kata Sandi Lama',
+                            labelStyle: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                            filled: true,
+                            fillColor: context.bg,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: context.surfBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: context.surfBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: context.brandColor),
+                            ),
+                          ),
+                          validator: (value) {
+                            final text = value?.trim() ?? '';
+                            if (text.isEmpty) return 'Kata sandi lama wajib diisi.';
+                            if (text.length < 6) return 'Minimal 6 karakter.';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: newPasswordController,
+                          obscureText: true,
+                          style: AppTextStyles.body.copyWith(color: context.txtPrimary),
+                          decoration: InputDecoration(
+                            labelText: 'Kata Sandi Baru',
+                            labelStyle: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                            filled: true,
+                            fillColor: context.bg,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: context.surfBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: context.surfBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: context.brandColor),
+                            ),
+                          ),
+                          validator: (value) {
+                            final text = value?.trim() ?? '';
+                            if (text.isEmpty) return 'Kata sandi baru wajib diisi.';
+                            if (text.length < 6) return 'Minimal 6 karakter.';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: confirmPasswordController,
+                          obscureText: true,
+                          style: AppTextStyles.body.copyWith(color: context.txtPrimary),
+                          decoration: InputDecoration(
+                            labelText: 'Konfirmasi Kata Sandi Baru',
+                            labelStyle: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                            filled: true,
+                            fillColor: context.bg,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: context.surfBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: context.surfBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: context.brandColor),
+                            ),
+                          ),
+                          validator: (value) {
+                            final text = value?.trim() ?? '';
+                            if (text.isEmpty) return 'Konfirmasi kata sandi wajib diisi.';
+                            if (text.length < 6) return 'Minimal 6 karakter.';
+                            if (newPasswordController.text.trim() != text) {
+                              return 'Konfirmasi kata sandi tidak cocok.';
+                            }
+                            return null;
+                          },
+                        ),
+                        if (passwordError != null) ... [
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
+                            ),
+                            child: Text(
+                              passwordError,
+                              style: AppTextStyles.caption.copyWith(color: AppColors.error),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: widget.authController.isChangingPassword
+                                ? null
+                                : () async {
+                                    if (!formKey.currentState!.validate()) return;
+
+                                    final success = await widget.authController.changePassword(
+                                      oldPassword: oldPasswordController.text,
+                                      newPassword: newPasswordController.text,
+                                    );
+
+                                    if (!mounted) return;
+
+                                    if (success) {
+                                      Navigator.of(sheetContext).pop();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Kata sandi berhasil diperbarui.',
+                                            style: AppTextStyles.body.copyWith(color: context.txtPrimary),
+                                          ),
+                                          backgroundColor: context.surf,
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: context.brandColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: widget.authController.isChangingPassword
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Text('Simpan Kata Sandi'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -146,6 +384,84 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const SizedBox(height: 24),
 
+              // Statistics Cards Section
+              Text(
+                'STATISTIK PERFORMA',
+                style: AppTextStyles.badge.copyWith(color: context.txtSecondary, letterSpacing: 1.5),
+              ),
+              const SizedBox(height: 12),
+
+              ListenableBuilder(
+                listenable: _playerController,
+                builder: (context, _) {
+                  if (_playerController.isLoading) {
+                    return Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: context.surf,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: context.surfBorder),
+                      ),
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  if (_playerController.errorMessage != null) {
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: context.surf,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: context.surfBorder),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.info_outline, color: context.txtSecondary, size: 32),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Data performa tidak dapat dimuat',
+                            style: AppTextStyles.body.copyWith(color: context.txtSecondary),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _buildStatCard(
+                        label: 'Total Pertandingan',
+                        value: _playerController.totalMatches.toString(),
+                        icon: Icons.sports_tennis_rounded,
+                      ),
+                      _buildStatCard(
+                        label: 'Win Rate',
+                        value: '${_playerController.winRate.toStringAsFixed(1)}%',
+                        icon: Icons.trending_up_rounded,
+                      ),
+                      _buildStatCard(
+                        label: 'Menang',
+                        value: _playerController.wins.toString(),
+                        icon: Icons.check_circle_outline_rounded,
+                      ),
+                      _buildStatCard(
+                        label: 'Kalah',
+                        value: _playerController.losses.toString(),
+                        icon: Icons.cancel_outlined,
+                      ),
+                    ],
+                  );
+                },
+              ),
+
+              const SizedBox(height: 24),
+
               // Section: Pengaturan Akun
               Text(
                 'PENGATURAN TAMPILAN & AKUN',
@@ -190,18 +506,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     _buildSettingsTile(
                       icon: Icons.lock_outline_rounded,
                       title: 'Ubah Kata Sandi',
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Fitur ubah kata sandi siap dikonfigurasi.',
-                              style: AppTextStyles.body.copyWith(color: context.txtPrimary),
-                            ),
-                            backgroundColor: context.surf,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
+                      onTap: _showChangePasswordSheet,
                     ),
                     Divider(height: 1, indent: 56, color: context.surfBorder),
                     ListTile(
@@ -241,6 +546,42 @@ class _ProfilePageState extends State<ProfilePage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.surf,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.surfBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: context.brandColor, size: 26),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: AppTextStyles.pageTitle.copyWith(
+              fontSize: 20,
+              color: context.txtPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: context.txtSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }

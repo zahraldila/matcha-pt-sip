@@ -54,4 +54,34 @@ class AuthRemoteDataSource {
       return null;
     }
   }
+
+  /// Memverifikasi kata sandi lama, lalu menyimpan kata sandi baru ke tb_user
+  Future<void> changePassword({
+    required int userId,
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final existing = await _supabase
+          .from('tb_user')
+          .select('user_id')
+          .eq('user_id', userId)
+          .eq('password', oldPassword.trim())
+          .maybeSingle();
+
+      if (existing == null) {
+        throw Exception('Kata sandi lama yang Anda masukkan salah.');
+      }
+
+      await _supabase
+          .from('tb_user')
+          .update({'password': newPassword.trim()})
+          .eq('user_id', userId);
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Gagal mengubah kata sandi: ${e.message}');
+      }
+      rethrow;
+    }
+  }
 }

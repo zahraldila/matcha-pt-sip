@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import './controllers/player_list_controller.dart';
+import '../domain/models/player_model.dart';
 
 class PlayerListPage extends StatefulWidget {
   final bool isHost;
@@ -14,107 +16,31 @@ class PlayerListPage extends StatefulWidget {
 class _PlayerListPageState extends State<PlayerListPage> {
   final _searchController = TextEditingController();
   String _selectedFilter = 'Semua';
+  late final PlayerListController _playerListController;
 
-  final List<String> _filters = ['Semua', 'Active', 'Sportif Club', 'Smansa Tennis', 'Viborazer'];
+  final List<String> _filters = ['Semua', 'Active'];
 
-  final List<Map<String, dynamic>> _players = [
-    {
-      'id': 1,
-      'name': 'Aldi',
-      'nik': 'NIK-001',
-      'community': 'Sportif Tennis Club',
-      'phone': '0812-3456-7890',
-      'status': 'ACTIVE',
-      'matches': 14,
-      'win': 9,
-      'lose': 5,
-    },
-    {
-      'id': 2,
-      'name': 'Budi',
-      'nik': 'NIK-002',
-      'community': 'Smansa Tennis',
-      'phone': '0812-9876-5432',
-      'status': 'ACTIVE',
-      'matches': 12,
-      'win': 8,
-      'lose': 4,
-    },
-    {
-      'id': 3,
-      'name': 'Caca',
-      'nik': 'NIK-003',
-      'community': 'Individual',
-      'phone': '0813-1122-3344',
-      'status': 'ACTIVE',
-      'matches': 10,
-      'win': 6,
-      'lose': 4,
-    },
-    {
-      'id': 4,
-      'name': 'Dina',
-      'nik': 'NIK-004',
-      'community': 'Individual',
-      'phone': '0813-5566-7788',
-      'status': 'ACTIVE',
-      'matches': 10,
-      'win': 5,
-      'lose': 5,
-    },
-    {
-      'id': 5,
-      'name': 'Eka',
-      'nik': 'NIK-005',
-      'community': 'Viborazer Padel',
-      'phone': '0815-9988-7766',
-      'status': 'ACTIVE',
-      'matches': 8,
-      'win': 5,
-      'lose': 3,
-    },
-    {
-      'id': 6,
-      'name': 'Fajar',
-      'nik': 'NIK-006',
-      'community': 'Viborazer Padel',
-      'phone': '0817-4433-2211',
-      'status': 'ACTIVE',
-      'matches': 8,
-      'win': 4,
-      'lose': 4,
-    },
-    {
-      'id': 7,
-      'name': 'Gilang',
-      'nik': 'NIK-007',
-      'community': 'Sportif Tennis Club',
-      'phone': '0818-7766-5544',
-      'status': 'ACTIVE',
-      'matches': 6,
-      'win': 3,
-      'lose': 3,
-    },
-    {
-      'id': 8,
-      'name': 'Hadi',
-      'nik': 'NIK-008',
-      'community': 'Smansa Tennis',
-      'phone': '0819-0011-2233',
-      'status': 'ACTIVE',
-      'matches': 6,
-      'win': 2,
-      'lose': 4,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _playerListController = PlayerListController(isHost: widget.isHost);
+    _loadPlayers();
+  }
+
+  void _loadPlayers() {
+    _playerListController.loadActivePlayers();
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _playerListController.dispose();
     super.dispose();
   }
 
   void _showAddPlayerDialog() {
+    if (!widget.isHost) return; // Only Host can add players
+
     final nameCtrl = TextEditingController();
     final nikCtrl = TextEditingController(text: 'NIK-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}');
     String selectedClub = 'Individual';
@@ -181,19 +107,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
               ElevatedButton(
                 onPressed: () {
                   if (nameCtrl.text.trim().isNotEmpty) {
-                    setState(() {
-                      _players.insert(0, {
-                        'id': _players.length + 1,
-                        'name': nameCtrl.text.trim(),
-                        'nik': nikCtrl.text.trim(),
-                        'community': selectedClub,
-                        'phone': '0812-0000-1111',
-                        'status': 'ACTIVE',
-                        'matches': 0,
-                        'win': 0,
-                        'lose': 0,
-                      });
-                    });
+                    // TODO: Implement actual add player to database
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -219,7 +133,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
     );
   }
 
-  void _showPlayerDetailSheet(Map<String, dynamic> player) {
+  void _showPlayerDetailSheet(PlayerModel player) {
     showModalBottomSheet(
       context: context,
       backgroundColor: context.surf,
@@ -239,7 +153,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
                     radius: 26,
                     backgroundColor: context.brandColor.withValues(alpha: 0.2),
                     child: Text(
-                      player['name'][0],
+                      player.namaPlayer.isNotEmpty ? player.namaPlayer[0].toUpperCase() : 'P',
                       style: AppTextStyles.pageTitle.copyWith(color: context.brandColor, fontSize: 20),
                     ),
                   ),
@@ -248,12 +162,12 @@ class _PlayerListPageState extends State<PlayerListPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(player['name'], style: AppTextStyles.cardTitle.copyWith(fontSize: 18, color: context.txtPrimary)),
+                        Text(player.namaPlayer, style: AppTextStyles.cardTitle.copyWith(fontSize: 18, color: context.txtPrimary)),
                         const SizedBox(height: 2),
-                        Text('NIK: ${player['nik']}', style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
+                        Text('NIK: ${player.nik}', style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
                         const SizedBox(height: 4),
                         Text(
-                          player['community'],
+                          player.statusMember.toUpperCase(),
                           style: AppTextStyles.caption.copyWith(color: context.brandColor, fontWeight: FontWeight.w600),
                         ),
                       ],
@@ -266,7 +180,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      player['status'],
+                      'ACTIVE',
                       style: AppTextStyles.badge.copyWith(color: context.brandColor, fontSize: 10),
                     ),
                   ),
@@ -282,18 +196,18 @@ class _PlayerListPageState extends State<PlayerListPage> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: context.surfSec,
+                  color: context.surf,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: context.surfBorder),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatItem(context, 'Total Main', '${player['matches']}'),
+                    _buildStatItem(context, 'Total Main', '${player.totalMatches}'),
                     _buildStatDivider(context),
-                    _buildStatItem(context, 'Menang', '${player['win']}', color: context.brandColor),
+                    _buildStatItem(context, 'Menang', '${player.wins}', color: context.brandColor),
                     _buildStatDivider(context),
-                    _buildStatItem(context, 'Kalah', '${player['lose']}', color: AppColors.error),
+                    _buildStatItem(context, 'Kalah', '${player.losses}', color: AppColors.error),
                   ],
                 ),
               ),
@@ -321,7 +235,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Status pemain "${player['name']}" dinonaktifkan.',
+                                'Status pemain "${player.namaPlayer}" dinonaktifkan.',
                                 style: AppTextStyles.body.copyWith(
                                   color: context.txtPrimary,
                                 ),
@@ -361,12 +275,6 @@ class _PlayerListPageState extends State<PlayerListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredPlayers = _players.where((p) {
-      if (_selectedFilter == 'Semua') return true;
-      if (_selectedFilter == 'Active') return p['status'] == 'ACTIVE';
-      return p['community'].toString().contains(_selectedFilter);
-    }).toList();
-
     return Scaffold(
       backgroundColor: context.bg,
       body: SafeArea(
@@ -380,9 +288,14 @@ class _PlayerListPageState extends State<PlayerListPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Daftar Pemain', style: AppTextStyles.pageTitle.copyWith(fontSize: 22, color: context.txtPrimary)),
-                  Text(
-                    '${_players.length} Pemain',
-                    style: AppTextStyles.caption.copyWith(color: context.brandColor, fontWeight: FontWeight.w600),
+                  ListenableBuilder(
+                    listenable: _playerListController,
+                    builder: (context, _) {
+                      return Text(
+                        '${_playerListController.players.length} Pemain',
+                        style: AppTextStyles.caption.copyWith(color: context.brandColor, fontWeight: FontWeight.w600),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -430,12 +343,59 @@ class _PlayerListPageState extends State<PlayerListPage> {
 
               // Players List
               Expanded(
-                child: ListView.separated(
-                  itemCount: filteredPlayers.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final player = filteredPlayers[index];
-                    return _buildPlayerCard(context, player);
+                child: ListenableBuilder(
+                  listenable: _playerListController,
+                  builder: (context, _) {
+                    if (_playerListController.isLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (_playerListController.errorMessage != null) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, color: context.txtSecondary, size: 48),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Gagal memuat daftar pemain',
+                              style: AppTextStyles.body.copyWith(color: context.txtSecondary),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _loadPlayers,
+                              child: const Text('Coba Lagi'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final players = _playerListController.filteredPlayers;
+                    if (players.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.person_outline, color: context.txtSecondary, size: 48),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Tidak ada pemain ditemukan',
+                              style: AppTextStyles.body.copyWith(color: context.txtSecondary),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      itemCount: players.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final player = players[index];
+                        return _buildPlayerCard(context, player);
+                      },
+                    );
                   },
                 ),
               ),
@@ -455,7 +415,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
     );
   }
 
-  Widget _buildPlayerCard(BuildContext context, Map<String, dynamic> player) {
+  Widget _buildPlayerCard(BuildContext context, PlayerModel player) {
     return InkWell(
       onTap: () => _showPlayerDetailSheet(player),
       borderRadius: BorderRadius.circular(14),
@@ -472,7 +432,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
               radius: 20,
               backgroundColor: context.surfSec,
               child: Text(
-                player['name'][0],
+                player.namaPlayer.isNotEmpty ? player.namaPlayer[0].toUpperCase() : 'P',
                 style: AppTextStyles.body.copyWith(
                   fontWeight: FontWeight.bold,
                   color: context.brandColor,
@@ -484,9 +444,9 @@ class _PlayerListPageState extends State<PlayerListPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(player['name'], style: AppTextStyles.cardTitle.copyWith(fontSize: 15, color: context.txtPrimary)),
+                  Text(player.namaPlayer, style: AppTextStyles.cardTitle.copyWith(fontSize: 15, color: context.txtPrimary)),
                   const SizedBox(height: 2),
-                  Text(player['community'], style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
+                  Text(player.nik, style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
                 ],
               ),
             ),
