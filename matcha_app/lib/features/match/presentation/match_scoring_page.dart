@@ -307,6 +307,20 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
           matchId: matchId,
           hasilPertandingan: hasilPertandingan,
         );
+
+        // 4. Catat riwayat bermain untuk semua participant yang sebenarnya bermain
+        try {
+          await dataSource.recordPlayingHistory(matchId: matchId);
+        } catch (e) {
+          // Jika penyimpanan riwayat gagal, beri tahu user namun match tetap selesai.
+          if (mounted) {
+            _showFeedbackSnackBar(
+              message: 'Match selesai, namun gagal menyimpan riwayat: ${e.toString().replaceFirst('Exception: ', '')}',
+              isError: true,
+            );
+          }
+          // tetap melanjutkan flow tanpa melempar ulang error
+        }
       }
 
       if (mounted) {
@@ -314,10 +328,18 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
           _isFinished = true;
         });
 
-        _showFeedbackSnackBar(
-          message: 'Match berhasil diselesaikan.',
-          isError: false,
-        );
+        // Jika sampai sini tidak ada error pada penyimpanan riwayat, tampilkan pesan sukses lengkap
+        if (dataSource != null) {
+          _showFeedbackSnackBar(
+            message: 'Match berhasil diselesaikan dan riwayat bermain tercatat.',
+            isError: false,
+          );
+        } else {
+          _showFeedbackSnackBar(
+            message: 'Match berhasil diselesaikan.',
+            isError: false,
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
