@@ -52,9 +52,17 @@ void main() {
 
       final finishedMatch = MatchModel.fromJson({
         'match_id': 1,
-        'status_match': 'finished',
+        'status_match': 'Finished',
+        'hasil_pertandingan': 'Side A Win',
+        'waktu_selesai': '2026-09-07T10:00:00.000Z',
       });
       expect(finishedMatch.isFinished, true);
+      expect(finishedMatch.hasilPertandingan, 'Side A Win');
+      expect(finishedMatch.waktuSelesai, isNotNull);
+      final jsonFinished = finishedMatch.toJson();
+      expect(jsonFinished['status_match'], 'Finished');
+      expect(jsonFinished['hasil_pertandingan'], 'Side A Win');
+      expect(jsonFinished['waktu_selesai'], '2026-09-07T10:00:00.000Z');
     });
 
     test('PlayingHistoryModel winner determination & serialization', () {
@@ -103,6 +111,20 @@ void main() {
       );
       expect(pageWithValues.matchId, 8);
       expect(pageWithValues.nomorMatch, 1);
+    });
+
+    test('ScoreModel handles null set_number without defaulting to Set 1', () {
+      final jsonLegacy = {
+        'score_id': 99,
+        'match_id': 1,
+        'set_number': null,
+        'score_side_a': 5,
+        'score_side_b': 3,
+      };
+
+      final score = ScoreModel.fromJson(jsonLegacy);
+      expect(score.setNumber, isNull);
+      expect(score.setNumber == 1, isFalse);
     });
   });
 }

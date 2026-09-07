@@ -93,9 +93,10 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
       // 2. Ambil skor yang sudah ada di tb_score
       final scores = await dataSource.getScoresByMatchId(matchId);
       for (final s in scores) {
-        if (s.setNumber >= 1 && s.setNumber <= 3) {
-          _scoresA[s.setNumber] = s.scoreSideA;
-          _scoresB[s.setNumber] = s.scoreSideB;
+        final setNum = s.setNumber;
+        if (setNum != null && setNum >= 1 && setNum <= 3) {
+          _scoresA[setNum] = s.scoreSideA;
+          _scoresB[setNum] = s.scoreSideB;
         }
       }
     } catch (_) {
@@ -196,6 +197,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
 
   /// Menampilkan dialog konfirmasi penyelesaian match
   void _finishMatch() {
+    if (_isFinished || _isFinishing) return;
     final surfColor = context.surf;
 
     showDialog(
@@ -211,7 +213,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
           style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary),
         ),
         content: Text(
-          'Hasil akhir agregat: ${widget.sideA} ($_totalScoreA) vs ${widget.sideB} ($_totalScoreB)\n\nStatus match akan diperbarui menjadi selesai dan riwayat bermain (Playing History) tiap pemain akan dicatat ke database.',
+          'Hasil akhir agregat: ${widget.sideA} ($_totalScoreA) vs ${widget.sideB} ($_totalScoreB)\n\nStatus pertandingan akan diperbarui menjadi Finished.',
           style:
               AppTextStyles.bodySecondary.copyWith(color: context.txtSecondary),
         ),
@@ -239,15 +241,23 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
     );
   }
 
-  /// Mengeksekusi proses penyelesaian match dan pencatatan playing history
+  /// Mengeksekusi proses penyelesaian match pada tb_match
   Future<void> _processFinishMatch() async {
     if (_isFinishing) return;
+
+    if (_isFinished) {
+      _showFeedbackSnackBar(
+        message: 'Pertandingan ini sudah selesai.',
+        isError: false,
+      );
+      return;
+    }
 
     final matchId = widget.matchId;
     if (matchId == null) {
       _showFeedbackSnackBar(
         message:
-            'Tidak dapat menyelesaikan: ID Pertandingan belum tersedia dari sistem.',
+            'Tidak dapat menyelesaikan: ID Pertandingan (match_id) belum tersedia dari sistem.',
         isError: true,
       );
       return;
@@ -258,6 +268,19 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
     try {
       final dataSource = _dataSource;
       if (dataSource != null) {
+        // Cek status terkini dari database untuk mencegah double-finish
+        final currentMatch = await dataSource.getMatchById(matchId);
+        if (currentMatch != null && currentMatch.isFinished) {
+          if (mounted) {
+            setState(() => _isFinished = true);
+            _showFeedbackSnackBar(
+              message: 'Pertandingan ini sudah selesai.',
+              isError: false,
+            );
+          }
+          return;
+        }
+
         // 1. Simpan skor set yang sedang aktif terlebih dahulu ke tb_score
         await dataSource.saveOrUpdateScore(
           matchId: matchId,
@@ -266,14 +289,23 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
           scoreSideB: _currentScoreB,
         );
 
-        // 2. Selesaikan match dan catat playing history
-        await dataSource.finishMatchAndRecordHistory(
+        // 2. Hitung hasil pertandingan berdasarkan skor per set yang tersimpan di tb_score
+        final scores = await dataSource.getScoresByMatchId(matchId);
+        int totalScoreA = 0;
+        int totalScoreB = 0;
+        for (final s in scores) {
+          totalScoreA += s.scoreSideA;
+          totalScoreB += s.scoreSideB;
+        }
+
+        final String hasilPertandingan = totalScoreA > totalScoreB
+            ? 'Side A Win'
+            : (totalScoreB > totalScoreA ? 'Side B Win' : 'Draw');
+
+        // 3. Selesaikan match pada tb_match (status_match = 'Finished', waktu_selesai, hasil_pertandingan)
+        await dataSource.finishMatch(
           matchId: matchId,
-          fallbackMatch: widget.matchData ??
-              MatchModel(
-                matchId: matchId,
-                statusMatch: 'in_progress',
-              ),
+          hasilPertandingan: hasilPertandingan,
         );
       }
 
@@ -283,8 +315,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
         });
 
         _showFeedbackSnackBar(
-          message:
-              'Pertandingan selesai! Status match & Playing History berhasil disimpan ke database. 🎾',
+          message: 'Match berhasil diselesaikan.',
           isError: false,
         );
       }

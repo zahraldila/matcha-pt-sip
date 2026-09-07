@@ -19,9 +19,14 @@ class MatchRemoteDataSource {
           .order('set_number', ascending: true);
 
       final List<dynamic> data = response as List<dynamic>;
-      return data
-          .map((item) => ScoreModel.fromJson(item as Map<String, dynamic>))
-          .toList();
+      final List<ScoreModel> scores = [];
+      for (final item in data) {
+        final map = item as Map<String, dynamic>;
+        // Abaikan/skip record legacy yang tidak memiliki set_number (null)
+        if (map['set_number'] == null) continue;
+        scores.add(ScoreModel.fromJson(map));
+      }
+      return scores;
     } catch (e) {
       if (e is PostgrestException) {
         throw Exception('Gagal mengambil data skor: ${e.message}');
@@ -126,6 +131,27 @@ class MatchRemoteDataSource {
     } catch (e) {
       if (e is PostgrestException) {
         throw Exception('Gagal memperbarui status pertandingan: ${e.message}');
+      }
+      rethrow;
+    }
+  }
+
+  /// Menyelesaikan pertandingan (Finish Match) pada tb_match
+  Future<void> finishMatch({
+    required int matchId,
+    required String hasilPertandingan,
+  }) async {
+    final now = DateTime.now().toIso8601String();
+    try {
+      await _supabase.from('tb_match').update({
+        'status_match': 'Finished',
+        'waktu_selesai': now,
+        'hasil_pertandingan': hasilPertandingan,
+        'updated_at': now,
+      }).eq('match_id', matchId);
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Gagal menyelesaikan pertandingan: ${e.message}');
       }
       rethrow;
     }

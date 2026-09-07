@@ -481,6 +481,9 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                   MaterialPageRoute(
                     builder: (context) => MatchScoringPage(
                       matchId: court['matchId'] as int?,
+                      nomorMatch: court['nomorMatch'] is int
+                          ? court['nomorMatch'] as int
+                          : int.tryParse(court['nomorMatch']?.toString() ?? ''),
                       sessionId: _activeSessionId,
                       sessionName: _sessionTitle.isNotEmpty
                           ? _sessionTitle

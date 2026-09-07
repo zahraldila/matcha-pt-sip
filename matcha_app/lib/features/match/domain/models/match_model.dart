@@ -8,6 +8,8 @@ class MatchModel {
   final int? sideBPlayer1;
   final int? sideBPlayer2;
   final String statusMatch;
+  final String? hasilPertandingan;
+  final DateTime? waktuSelesai;
 
   const MatchModel({
     required this.matchId,
@@ -19,6 +21,8 @@ class MatchModel {
     this.sideBPlayer1,
     this.sideBPlayer2,
     this.statusMatch = 'in_progress',
+    this.hasilPertandingan,
+    this.waktuSelesai,
   });
 
   bool get isFinished =>
@@ -53,6 +57,10 @@ class MatchModel {
           ? int.tryParse(json['side_b_player2'].toString())
           : null,
       statusMatch: json['status_match'] as String? ?? 'in_progress',
+      hasilPertandingan: json['hasil_pertandingan'] as String?,
+      waktuSelesai: json['waktu_selesai'] != null
+          ? DateTime.tryParse(json['waktu_selesai'].toString())
+          : null,
     );
   }
 
@@ -67,6 +75,8 @@ class MatchModel {
       if (sideBPlayer1 != null) 'side_b_player1': sideBPlayer1,
       if (sideBPlayer2 != null) 'side_b_player2': sideBPlayer2,
       'status_match': statusMatch,
+      if (hasilPertandingan != null) 'hasil_pertandingan': hasilPertandingan,
+      if (waktuSelesai != null) 'waktu_selesai': waktuSelesai!.toIso8601String(),
     };
   }
 }
