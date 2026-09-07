@@ -1,112 +1,36 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../domain/models/player_model.dart';
+import 'controllers/player_controller.dart';
 
 class PlayerListPage extends StatefulWidget {
   final bool isHost;
+  final PlayerController? controller;
 
-  const PlayerListPage({super.key, required this.isHost});
+  const PlayerListPage({
+    super.key,
+    required this.isHost,
+    this.controller,
+  });
 
   @override
   State<PlayerListPage> createState() => _PlayerListPageState();
 }
 
 class _PlayerListPageState extends State<PlayerListPage> {
+  late final PlayerController _controller;
   final _searchController = TextEditingController();
   String _selectedFilter = 'Semua';
 
-  final List<String> _filters = ['Semua', 'Active', 'Sportif Club', 'Smansa Tennis', 'Viborazer'];
+  final List<String> _filters = ['Semua', 'Active', 'Inactive'];
 
-  final List<Map<String, dynamic>> _players = [
-    {
-      'id': 1,
-      'name': 'Aldi',
-      'nik': 'NIK-001',
-      'community': 'Sportif Tennis Club',
-      'phone': '0812-3456-7890',
-      'status': 'ACTIVE',
-      'matches': 14,
-      'win': 9,
-      'lose': 5,
-    },
-    {
-      'id': 2,
-      'name': 'Budi',
-      'nik': 'NIK-002',
-      'community': 'Smansa Tennis',
-      'phone': '0812-9876-5432',
-      'status': 'ACTIVE',
-      'matches': 12,
-      'win': 8,
-      'lose': 4,
-    },
-    {
-      'id': 3,
-      'name': 'Caca',
-      'nik': 'NIK-003',
-      'community': 'Individual',
-      'phone': '0813-1122-3344',
-      'status': 'ACTIVE',
-      'matches': 10,
-      'win': 6,
-      'lose': 4,
-    },
-    {
-      'id': 4,
-      'name': 'Dina',
-      'nik': 'NIK-004',
-      'community': 'Individual',
-      'phone': '0813-5566-7788',
-      'status': 'ACTIVE',
-      'matches': 10,
-      'win': 5,
-      'lose': 5,
-    },
-    {
-      'id': 5,
-      'name': 'Eka',
-      'nik': 'NIK-005',
-      'community': 'Viborazer Padel',
-      'phone': '0815-9988-7766',
-      'status': 'ACTIVE',
-      'matches': 8,
-      'win': 5,
-      'lose': 3,
-    },
-    {
-      'id': 6,
-      'name': 'Fajar',
-      'nik': 'NIK-006',
-      'community': 'Viborazer Padel',
-      'phone': '0817-4433-2211',
-      'status': 'ACTIVE',
-      'matches': 8,
-      'win': 4,
-      'lose': 4,
-    },
-    {
-      'id': 7,
-      'name': 'Gilang',
-      'nik': 'NIK-007',
-      'community': 'Sportif Tennis Club',
-      'phone': '0818-7766-5544',
-      'status': 'ACTIVE',
-      'matches': 6,
-      'win': 3,
-      'lose': 3,
-    },
-    {
-      'id': 8,
-      'name': 'Hadi',
-      'nik': 'NIK-008',
-      'community': 'Smansa Tennis',
-      'phone': '0819-0011-2233',
-      'status': 'ACTIVE',
-      'matches': 6,
-      'win': 2,
-      'lose': 4,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.controller ?? PlayerController();
+    _controller.fetchPlayers();
+  }
 
   @override
   void dispose() {
@@ -116,8 +40,10 @@ class _PlayerListPageState extends State<PlayerListPage> {
 
   void _showAddPlayerDialog() {
     final nameCtrl = TextEditingController();
-    final nikCtrl = TextEditingController(text: 'NIK-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}');
-    String selectedClub = 'Individual';
+    final nikCtrl = TextEditingController(
+      text: 'NIK-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
+    );
+    String selectedStatus = 'active';
 
     showModalBottomSheet(
       context: context,
@@ -141,7 +67,10 @@ class _PlayerListPageState extends State<PlayerListPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Tambah Pemain / Member Baru', style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary)),
+                  Text(
+                    'Tambah Pemain / Member Baru',
+                    style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary),
+                  ),
                   IconButton(
                     icon: Icon(Icons.close_rounded, color: context.txtSecondary),
                     onPressed: () => Navigator.pop(context),
@@ -149,7 +78,10 @@ class _PlayerListPageState extends State<PlayerListPage> {
                 ],
               ),
               const SizedBox(height: 16),
-              Text('Nama Lengkap', style: AppTextStyles.caption.copyWith(color: context.txtPrimary, fontWeight: FontWeight.w600)),
+              Text(
+                'Nama Lengkap',
+                style: AppTextStyles.caption.copyWith(color: context.txtPrimary, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 6),
               TextField(
                 controller: nameCtrl,
@@ -157,7 +89,10 @@ class _PlayerListPageState extends State<PlayerListPage> {
                 decoration: const InputDecoration(hintText: 'Misal: Rian Ardianto'),
               ),
               const SizedBox(height: 14),
-              Text('Nomor Identitas Pemain (NIK)', style: AppTextStyles.caption.copyWith(color: context.txtPrimary, fontWeight: FontWeight.w600)),
+              Text(
+                'Nomor Identitas Pemain (NIK)',
+                style: AppTextStyles.caption.copyWith(color: context.txtPrimary, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 6),
               TextField(
                 controller: nikCtrl,
@@ -165,46 +100,49 @@ class _PlayerListPageState extends State<PlayerListPage> {
                 decoration: const InputDecoration(hintText: 'NIK-009'),
               ),
               const SizedBox(height: 14),
-              Text('Komunitas / Klub', style: AppTextStyles.caption.copyWith(color: context.txtPrimary, fontWeight: FontWeight.w600)),
+              Text(
+                'Status Keanggotaan',
+                style: AppTextStyles.caption.copyWith(color: context.txtPrimary, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
-                initialValue: selectedClub,
+                initialValue: selectedStatus,
                 dropdownColor: context.surf,
-                items: ['Individual', 'Smansa Tennis', 'Sportif Tennis Club', 'Viborazer Padel']
-                    .map((club) => DropdownMenuItem(value: club, child: Text(club, style: AppTextStyles.body.copyWith(color: context.txtPrimary))))
-                    .toList(),
+                items: const [
+                  DropdownMenuItem(value: 'active', child: Text('Active Member')),
+                  DropdownMenuItem(value: 'inactive', child: Text('Inactive / Guest')),
+                ],
                 onChanged: (val) {
-                  if (val != null) selectedClub = val;
+                  if (val != null) selectedStatus = val;
                 },
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (nameCtrl.text.trim().isNotEmpty) {
-                    setState(() {
-                      _players.insert(0, {
-                        'id': _players.length + 1,
-                        'name': nameCtrl.text.trim(),
-                        'nik': nikCtrl.text.trim(),
-                        'community': selectedClub,
-                        'phone': '0812-0000-1111',
-                        'status': 'ACTIVE',
-                        'matches': 0,
-                        'win': 0,
-                        'lose': 0,
-                      });
-                    });
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    final nav = Navigator.of(context);
+                    final sm = ScaffoldMessenger.of(context);
+                    final name = nameCtrl.text.trim();
+                    final txtColor = context.txtPrimary;
+                    final surfColor = context.surf;
+
+                    await _controller.addPlayer(
+                      namaPlayer: name,
+                      nik: nikCtrl.text.trim(),
+                      statusMember: selectedStatus,
+                    );
+
+                    nav.pop();
+                    sm.showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Pemain "${nameCtrl.text.trim()}" berhasil ditambahkan ke daftar! 🎾',
+                          'Pemain "$name" berhasil ditambahkan ke database! 🎾',
                           style: AppTextStyles.body.copyWith(
-                            color: context.txtPrimary,
+                            color: txtColor,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        backgroundColor: context.surf,
+                        backgroundColor: surfColor,
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
@@ -219,7 +157,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
     );
   }
 
-  void _showPlayerDetailSheet(Map<String, dynamic> player) {
+  void _showPlayerDetailSheet(PlayerModel player) {
     showModalBottomSheet(
       context: context,
       backgroundColor: context.surf,
@@ -239,7 +177,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
                     radius: 26,
                     backgroundColor: context.brandColor.withValues(alpha: 0.2),
                     child: Text(
-                      player['name'][0],
+                      player.namaPlayer.isNotEmpty ? player.namaPlayer[0].toUpperCase() : 'P',
                       style: AppTextStyles.pageTitle.copyWith(color: context.brandColor, fontSize: 20),
                     ),
                   ),
@@ -248,12 +186,18 @@ class _PlayerListPageState extends State<PlayerListPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(player['name'], style: AppTextStyles.cardTitle.copyWith(fontSize: 18, color: context.txtPrimary)),
+                        Text(
+                          player.namaPlayer,
+                          style: AppTextStyles.cardTitle.copyWith(fontSize: 18, color: context.txtPrimary),
+                        ),
                         const SizedBox(height: 2),
-                        Text('NIK: ${player['nik']}', style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
+                        Text(
+                          'NIK: ${player.nik ?? '-'}',
+                          style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                        ),
                         const SizedBox(height: 4),
                         Text(
-                          player['community'],
+                          player.communityName ?? 'Komunitas MATCHA',
                           style: AppTextStyles.caption.copyWith(color: context.brandColor, fontWeight: FontWeight.w600),
                         ),
                       ],
@@ -262,12 +206,17 @@ class _PlayerListPageState extends State<PlayerListPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: context.brandColor.withValues(alpha: 0.15),
+                      color: player.isActive
+                          ? context.brandColor.withValues(alpha: 0.15)
+                          : AppColors.error.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      player['status'],
-                      style: AppTextStyles.badge.copyWith(color: context.brandColor, fontSize: 10),
+                      player.statusMember.toUpperCase(),
+                      style: AppTextStyles.badge.copyWith(
+                        color: player.isActive ? context.brandColor : AppColors.error,
+                        fontSize: 10,
+                      ),
                     ),
                   ),
                 ],
@@ -277,7 +226,10 @@ class _PlayerListPageState extends State<PlayerListPage> {
               const SizedBox(height: 12),
 
               // Statistics Card
-              Text('STATISTIK PERMAINAN', style: AppTextStyles.badge.copyWith(color: context.txtSecondary, letterSpacing: 1.5)),
+              Text(
+                'STATISTIK PERMAINAN',
+                style: AppTextStyles.badge.copyWith(color: context.txtSecondary, letterSpacing: 1.5),
+              ),
               const SizedBox(height: 10),
               Container(
                 padding: const EdgeInsets.all(14),
@@ -289,11 +241,11 @@ class _PlayerListPageState extends State<PlayerListPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatItem(context, 'Total Main', '${player['matches']}'),
+                    _buildStatItem(context, 'Total Main', '${player.totalMatches}'),
                     _buildStatDivider(context),
-                    _buildStatItem(context, 'Menang', '${player['win']}', color: context.brandColor),
+                    _buildStatItem(context, 'Menang', '${player.totalWins}', color: context.brandColor),
                     _buildStatDivider(context),
-                    _buildStatItem(context, 'Kalah', '${player['lose']}', color: AppColors.error),
+                    _buildStatItem(context, 'Kalah', '${player.totalLosses}', color: AppColors.error),
                   ],
                 ),
               ),
@@ -306,32 +258,36 @@ class _PlayerListPageState extends State<PlayerListPage> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
-                        child: Text('Edit Data', style: TextStyle(color: context.txtPrimary)),
+                        child: Text('Tutup', style: TextStyle(color: context.txtPrimary)),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+                          foregroundColor: player.isActive ? AppColors.error : context.brandColor,
+                          side: BorderSide(
+                            color: (player.isActive ? AppColors.error : context.brandColor).withValues(alpha: 0.5),
+                          ),
                         ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Status pemain "${player['name']}" dinonaktifkan.',
-                                style: AppTextStyles.body.copyWith(
-                                  color: context.txtPrimary,
+                        onPressed: () async {
+                          final newStatus = player.isActive ? 'inactive' : 'active';
+                          await _controller.updatePlayerStatus(player.playerId, newStatus);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Status "${player.namaPlayer}" diubah menjadi $newStatus.',
+                                  style: AppTextStyles.body.copyWith(color: context.txtPrimary),
                                 ),
+                                backgroundColor: context.surf,
+                                behavior: SnackBarBehavior.floating,
                               ),
-                              backgroundColor: context.surf,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
+                            );
+                          }
                         },
-                        child: const Text('Nonaktifkan'),
+                        child: Text(player.isActive ? 'Nonaktifkan' : 'Aktifkan'),
                       ),
                     ),
                   ],
@@ -361,101 +317,126 @@ class _PlayerListPageState extends State<PlayerListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredPlayers = _players.where((p) {
-      if (_selectedFilter == 'Semua') return true;
-      if (_selectedFilter == 'Active') return p['status'] == 'ACTIVE';
-      return p['community'].toString().contains(_selectedFilter);
-    }).toList();
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        final allPlayers = _controller.players;
+        final filteredPlayers = allPlayers.where((p) {
+          final matchesSearch = _searchController.text.isEmpty ||
+              p.namaPlayer.toLowerCase().contains(_searchController.text.toLowerCase()) ||
+              (p.nik != null && p.nik!.toLowerCase().contains(_searchController.text.toLowerCase()));
 
-    return Scaffold(
-      backgroundColor: context.bg,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          if (!matchesSearch) return false;
+          if (_selectedFilter == 'Semua') return true;
+          if (_selectedFilter == 'Active') return p.isActive;
+          if (_selectedFilter == 'Inactive') return !p.isActive;
+          return true;
+        }).toList();
+
+        return Scaffold(
+          backgroundColor: context.bg,
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Daftar Pemain', style: AppTextStyles.pageTitle.copyWith(fontSize: 22, color: context.txtPrimary)),
-                  Text(
-                    '${_players.length} Pemain',
-                    style: AppTextStyles.caption.copyWith(color: context.brandColor, fontWeight: FontWeight.w600),
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Daftar Pemain',
+                        style: AppTextStyles.pageTitle.copyWith(fontSize: 22, color: context.txtPrimary),
+                      ),
+                      Text(
+                        '${filteredPlayers.length} Pemain',
+                        style: AppTextStyles.caption.copyWith(color: context.brandColor, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Search Bar
+                  TextField(
+                    controller: _searchController,
+                    onChanged: (_) => setState(() {}),
+                    style: AppTextStyles.body.copyWith(color: context.txtPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama pemain / NIK...',
+                      prefixIcon: Icon(Icons.search_rounded, color: context.txtSecondary, size: 20),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Filter Chips
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _filters.map((filter) {
+                        final isSelected = _selectedFilter == filter;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            label: Text(filter),
+                            selected: isSelected,
+                            selectedColor: context.brandColor,
+                            backgroundColor: context.surf,
+                            labelStyle: TextStyle(
+                              color: isSelected ? Colors.black : context.txtSecondary,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 12,
+                            ),
+                            side: BorderSide(
+                              color: isSelected ? context.brandColor : context.surfBorder,
+                            ),
+                            onSelected: (_) => setState(() => _selectedFilter = filter),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Players List
+                  Expanded(
+                    child: _controller.isLoading
+                        ? Center(child: CircularProgressIndicator(color: context.brandColor))
+                        : filteredPlayers.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'Tidak ada pemain ditemukan',
+                                  style: AppTextStyles.bodySecondary.copyWith(color: context.txtSecondary),
+                                ),
+                              )
+                            : ListView.separated(
+                                itemCount: filteredPlayers.length,
+                                separatorBuilder: (context, index) => const SizedBox(height: 10),
+                                itemBuilder: (context, index) {
+                                  final player = filteredPlayers[index];
+                                  return _buildPlayerCard(context, player);
+                                },
+                              ),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-
-              // Search Bar
-              TextField(
-                controller: _searchController,
-                style: AppTextStyles.body.copyWith(color: context.txtPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Cari nama pemain / NIK...',
-                  prefixIcon: Icon(Icons.search_rounded, color: context.txtSecondary, size: 20),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Filter Chips
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: _filters.map((filter) {
-                    final isSelected = _selectedFilter == filter;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ChoiceChip(
-                        label: Text(filter),
-                        selected: isSelected,
-                        selectedColor: context.brandColor,
-                        backgroundColor: context.surf,
-                        labelStyle: TextStyle(
-                          color: isSelected ? Colors.black : context.txtSecondary,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 12,
-                        ),
-                        side: BorderSide(
-                          color: isSelected ? context.brandColor : context.surfBorder,
-                        ),
-                        onSelected: (_) => setState(() => _selectedFilter = filter),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Players List
-              Expanded(
-                child: ListView.separated(
-                  itemCount: filteredPlayers.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final player = filteredPlayers[index];
-                    return _buildPlayerCard(context, player);
-                  },
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
-      floatingActionButton: widget.isHost
-          ? FloatingActionButton.extended(
-              backgroundColor: context.brandColor,
-              foregroundColor: Colors.black,
-              icon: const Icon(Icons.person_add_rounded),
-              label: const Text('Tambah Player', style: TextStyle(fontWeight: FontWeight.bold)),
-              onPressed: _showAddPlayerDialog,
-            )
-          : null,
+          floatingActionButton: widget.isHost
+              ? FloatingActionButton.extended(
+                  backgroundColor: context.brandColor,
+                  foregroundColor: Colors.black,
+                  icon: const Icon(Icons.person_add_rounded),
+                  label: const Text('Tambah Player', style: TextStyle(fontWeight: FontWeight.bold)),
+                  onPressed: _showAddPlayerDialog,
+                )
+              : null,
+        );
+      },
     );
   }
 
-  Widget _buildPlayerCard(BuildContext context, Map<String, dynamic> player) {
+  Widget _buildPlayerCard(BuildContext context, PlayerModel player) {
     return InkWell(
       onTap: () => _showPlayerDetailSheet(player),
       borderRadius: BorderRadius.circular(14),
@@ -472,7 +453,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
               radius: 20,
               backgroundColor: context.surfSec,
               child: Text(
-                player['name'][0],
+                player.namaPlayer.isNotEmpty ? player.namaPlayer[0].toUpperCase() : 'P',
                 style: AppTextStyles.body.copyWith(
                   fontWeight: FontWeight.bold,
                   color: context.brandColor,
@@ -484,16 +465,24 @@ class _PlayerListPageState extends State<PlayerListPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(player['name'], style: AppTextStyles.cardTitle.copyWith(fontSize: 15, color: context.txtPrimary)),
+                  Text(
+                    player.namaPlayer,
+                    style: AppTextStyles.cardTitle.copyWith(fontSize: 15, color: context.txtPrimary),
+                  ),
                   const SizedBox(height: 2),
-                  Text(player['community'], style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
+                  Text(
+                    player.communityName ?? 'Individual',
+                    style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                  ),
                 ],
               ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: context.brandColor.withValues(alpha: 0.12),
+                color: player.isActive
+                    ? context.brandColor.withValues(alpha: 0.12)
+                    : AppColors.error.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Row(
@@ -503,14 +492,17 @@ class _PlayerListPageState extends State<PlayerListPage> {
                     width: 6,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: context.brandColor,
+                      color: player.isActive ? context.brandColor : AppColors.error,
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'Active',
-                    style: AppTextStyles.badge.copyWith(color: context.brandColor, fontSize: 10),
+                    player.statusMember.toUpperCase(),
+                    style: AppTextStyles.badge.copyWith(
+                      color: player.isActive ? context.brandColor : AppColors.error,
+                      fontSize: 10,
+                    ),
                   ),
                 ],
               ),
