@@ -5,7 +5,8 @@ import '../data/datasource/match_remote_data_source.dart';
 import '../domain/models/match_model.dart';
 
 class MatchScoringPage extends StatefulWidget {
-  final int matchId;
+  final int? matchId;
+  final int? nomorMatch;
   final String sessionName;
   final String courtName;
   final String sideA;
@@ -14,7 +15,8 @@ class MatchScoringPage extends StatefulWidget {
 
   const MatchScoringPage({
     super.key,
-    this.matchId = 1,
+    this.matchId,
+    this.nomorMatch,
     this.sessionName = 'Saturday Morning',
     this.courtName = 'Court 1 — SiJi Tennis Court',
     this.sideA = 'Aldi · Budi',
@@ -50,16 +52,22 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
 
   /// Memuat data score yang sudah tersimpan di tb_score dan status pada tb_match
   Future<void> _loadMatchAndScoreData() async {
+    final matchId = widget.matchId;
+    if (matchId == null) {
+      // Jika matchId belum tersedia dari caller, gunakan state in-memory tanpa query ke database
+      return;
+    }
+
     setState(() => _isLoadingInitial = true);
     try {
       // 1. Cek status match
-      final match = await _dataSource.getMatchById(widget.matchId);
+      final match = await _dataSource.getMatchById(matchId);
       if (match != null && match.isFinished) {
         _isFinished = true;
       }
 
       // 2. Ambil skor yang sudah ada di tb_score
-      final scores = await _dataSource.getScoresByMatchId(widget.matchId);
+      final scores = await _dataSource.getScoresByMatchId(matchId);
       for (final s in scores) {
         if (s.setNumber >= 1 && s.setNumber <= 3) {
           _scoresA[s.setNumber] = s.scoreSideA;
@@ -103,6 +111,15 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
   Future<void> _handleSaveScore() async {
     if (_isSavingScore || _isFinishing) return;
 
+    final matchId = widget.matchId;
+    if (matchId == null) {
+      _showFeedbackSnackBar(
+        message: 'Tidak dapat menyimpan: ID Pertandingan (match_id) belum tersedia dari sistem.',
+        isError: true,
+      );
+      return;
+    }
+
     final scoreA = _currentScoreA;
     final scoreB = _currentScoreB;
 
@@ -118,7 +135,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
 
     try {
       await _dataSource.saveOrUpdateScore(
-        matchId: widget.matchId,
+        matchId: matchId,
         setNumber: _selectedSet,
         scoreSideA: scoreA,
         scoreSideB: scoreB,
@@ -195,12 +212,21 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
   Future<void> _processFinishMatch() async {
     if (_isFinishing) return;
 
+    final matchId = widget.matchId;
+    if (matchId == null) {
+      _showFeedbackSnackBar(
+        message: 'Tidak dapat menyelesaikan: ID Pertandingan belum tersedia dari sistem.',
+        isError: true,
+      );
+      return;
+    }
+
     setState(() => _isFinishing = true);
 
     try {
       // 1. Simpan skor set yang sedang aktif terlebih dahulu ke tb_score
       await _dataSource.saveOrUpdateScore(
-        matchId: widget.matchId,
+        matchId: matchId,
         setNumber: _selectedSet,
         scoreSideA: _currentScoreA,
         scoreSideB: _currentScoreB,
@@ -208,10 +234,10 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
 
       // 2. Selesaikan match dan catat playing history
       await _dataSource.finishMatchAndRecordHistory(
-        matchId: widget.matchId,
+        matchId: matchId,
         fallbackMatch: widget.matchData ??
             MatchModel(
-              matchId: widget.matchId,
+              matchId: matchId,
               statusMatch: 'in_progress',
             ),
       );
@@ -391,7 +417,9 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Match #${widget.matchId} · ${widget.sessionName}',
+                widget.nomorMatch != null
+                    ? 'Match #${widget.nomorMatch} · ${widget.sessionName}'
+                    : 'Match · ${widget.sessionName}',
                 style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
               ),
             ],

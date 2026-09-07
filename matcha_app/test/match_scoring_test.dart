@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:matcha_app/features/match/domain/models/match_model.dart';
 import 'package:matcha_app/features/match/domain/models/playing_history_model.dart';
 import 'package:matcha_app/features/match/domain/models/score_model.dart';
+import 'package:matcha_app/features/match/presentation/match_scoring_page.dart';
 
 void main() {
   group('Match & Scoring Models Test', () {
@@ -88,6 +89,20 @@ void main() {
       expect(totalScoreA, 17);
       expect(totalScoreB, 15);
       expect(totalScoreA > totalScoreB, true);
+    });
+
+    test('MatchScoringPage handles null and non-null matchId / nomorMatch correctly', () {
+      const pageWithNull = MatchScoringPage();
+      expect(pageWithNull.matchId, isNull);
+      expect(pageWithNull.nomorMatch, isNull);
+
+      const pageWithValues = MatchScoringPage(
+        matchId: 8,
+        nomorMatch: 1,
+        sessionName: 'Saturday Morning',
+      );
+      expect(pageWithValues.matchId, 8);
+      expect(pageWithValues.nomorMatch, 1);
     });
   });
 }

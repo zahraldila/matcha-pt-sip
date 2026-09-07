@@ -56,6 +56,9 @@ class MatchRemoteDataSource {
             .update({
               'score_side_a': scoreSideA,
               'score_side_b': scoreSideB,
+              'score_value': scoreSideA + scoreSideB,
+              'status_score': 'recorded',
+              'updated_at': DateTime.now().toIso8601String(),
             })
             .eq('match_id', matchId)
             .eq('set_number', setNumber)
@@ -64,6 +67,7 @@ class MatchRemoteDataSource {
 
         return ScoreModel.fromJson(updated);
       } else {
+        final now = DateTime.now().toIso8601String();
         final inserted = await _supabase
             .from('tb_score')
             .insert({
@@ -71,6 +75,11 @@ class MatchRemoteDataSource {
               'set_number': setNumber,
               'score_side_a': scoreSideA,
               'score_side_b': scoreSideB,
+              'score_value': scoreSideA + scoreSideB,
+              'status_score': 'recorded',
+              'waktu_pencatatan': now,
+              'created_at': now,
+              'updated_at': now,
             })
             .select()
             .single();
