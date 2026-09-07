@@ -19,9 +19,14 @@ class MatchRemoteDataSource {
           .order('set_number', ascending: true);
 
       final List<dynamic> data = response as List<dynamic>;
-      return data
-          .map((item) => ScoreModel.fromJson(item as Map<String, dynamic>))
-          .toList();
+      final List<ScoreModel> scores = [];
+      for (final item in data) {
+        final map = item as Map<String, dynamic>;
+        // Abaikan/skip record legacy yang tidak memiliki set_number (null)
+        if (map['set_number'] == null) continue;
+        scores.add(ScoreModel.fromJson(map));
+      }
+      return scores;
     } catch (e) {
       if (e is PostgrestException) {
         throw Exception('Gagal mengambil data skor: ${e.message}');

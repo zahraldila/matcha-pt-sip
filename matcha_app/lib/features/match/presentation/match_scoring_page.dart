@@ -93,9 +93,10 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
       // 2. Ambil skor yang sudah ada di tb_score
       final scores = await dataSource.getScoresByMatchId(matchId);
       for (final s in scores) {
-        if (s.setNumber >= 1 && s.setNumber <= 3) {
-          _scoresA[s.setNumber] = s.scoreSideA;
-          _scoresB[s.setNumber] = s.scoreSideB;
+        final setNum = s.setNumber;
+        if (setNum != null && setNum >= 1 && setNum <= 3) {
+          _scoresA[setNum] = s.scoreSideA;
+          _scoresB[setNum] = s.scoreSideB;
         }
       }
     } catch (_) {

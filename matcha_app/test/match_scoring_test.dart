@@ -104,5 +104,19 @@ void main() {
       expect(pageWithValues.matchId, 8);
       expect(pageWithValues.nomorMatch, 1);
     });
+
+    test('ScoreModel handles null set_number without defaulting to Set 1', () {
+      final jsonLegacy = {
+        'score_id': 99,
+        'match_id': 1,
+        'set_number': null,
+        'score_side_a': 5,
+        'score_side_b': 3,
+      };
+
+      final score = ScoreModel.fromJson(jsonLegacy);
+      expect(score.setNumber, isNull);
+      expect(score.setNumber == 1, isFalse);
+    });
   });
 }

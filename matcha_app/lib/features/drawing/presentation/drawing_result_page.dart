@@ -127,6 +127,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     nav.push(
       MaterialPageRoute(
         builder: (context) => MatchScoringPage(
+          matchId: firstMatch?.matchId,
           sessionName: widget.sessionName,
           courtName: firstMatch?.courtName ?? 'Court 1 — SiJi Tennis Court',
           sideA: firstMatch?.sideADisplay ?? 'Aldi · Budi',
