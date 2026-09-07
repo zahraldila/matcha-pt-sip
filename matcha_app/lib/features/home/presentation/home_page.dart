@@ -637,7 +637,7 @@ class _HomePageState extends State<HomePage> {
             _buildActionItem(
               context: context,
               icon: Icons.stadium_outlined,
-              label: 'Kelola Court',
+              label: 'Court',
               onTap: widget.onManageCourtsTap,
             ),
             _buildActionItem(
