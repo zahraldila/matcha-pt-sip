@@ -77,20 +77,21 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
   /// Memuat data score yang sudah tersimpan di tb_score dan status pada tb_match
   Future<void> _loadMatchAndScoreData() async {
     final matchId = widget.matchId;
-    if (matchId == null || _dataSource == null) {
+    final dataSource = _dataSource;
+    if (matchId == null || dataSource == null) {
       return;
     }
 
     setState(() => _isLoadingInitial = true);
     try {
       // 1. Cek status match
-      final match = await _dataSource!.getMatchById(matchId);
+      final match = await dataSource.getMatchById(matchId);
       if (match != null && match.isFinished) {
         _isFinished = true;
       }
 
       // 2. Ambil skor yang sudah ada di tb_score
-      final scores = await _dataSource!.getScoresByMatchId(matchId);
+      final scores = await dataSource.getScoresByMatchId(matchId);
       for (final s in scores) {
         if (s.setNumber >= 1 && s.setNumber <= 3) {
           _scoresA[s.setNumber] = s.scoreSideA;
@@ -158,8 +159,9 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
     setState(() => _isSavingScore = true);
 
     try {
-      if (_dataSource != null) {
-        await _dataSource!.saveOrUpdateScore(
+      final dataSource = _dataSource;
+      if (dataSource != null) {
+        await dataSource.saveOrUpdateScore(
           matchId: matchId,
           setNumber: _selectedSet,
           scoreSideA: scoreA,
@@ -254,9 +256,10 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
     setState(() => _isFinishing = true);
 
     try {
-      if (_dataSource != null) {
+      final dataSource = _dataSource;
+      if (dataSource != null) {
         // 1. Simpan skor set yang sedang aktif terlebih dahulu ke tb_score
-        await _dataSource!.saveOrUpdateScore(
+        await dataSource.saveOrUpdateScore(
           matchId: matchId,
           setNumber: _selectedSet,
           scoreSideA: _currentScoreA,
@@ -264,7 +267,7 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
         );
 
         // 2. Selesaikan match dan catat playing history
-        await _dataSource!.finishMatchAndRecordHistory(
+        await dataSource.finishMatchAndRecordHistory(
           matchId: matchId,
           fallbackMatch: widget.matchData ??
               MatchModel(
