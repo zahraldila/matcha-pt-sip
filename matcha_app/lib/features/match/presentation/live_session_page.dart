@@ -701,8 +701,11 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => DrawingResultPage(
-                    sessionName: widget.sessionName,
-                    sportName: widget.sportName,
+                    sessionId: _activeSessionId is int
+                        ? _activeSessionId as int
+                        : int.tryParse(_activeSessionId.toString()),
+                    sessionName: _sessionTitle,
+                    sportName: _sportTitle,
                     drawingMethod: 'Americano',
                     jenisPermainan: 'Double',
                     waktuSession: DateTime.now(),
