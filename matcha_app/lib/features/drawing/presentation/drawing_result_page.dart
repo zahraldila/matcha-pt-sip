@@ -12,6 +12,8 @@ class DrawingResultPage extends StatefulWidget {
   final String sportName;
   final String drawingMethod;
   final String format;
+  final String? jenisPermainan;
+  final DateTime? waktuSession;
   final List<String>? playerNames;
   final List<int>? playerIds;
   final List<String>? courtNames;
@@ -25,6 +27,8 @@ class DrawingResultPage extends StatefulWidget {
     this.sportName = 'Tennis',
     this.drawingMethod = 'Americano',
     this.format = 'Doubles',
+    this.jenisPermainan,
+    this.waktuSession,
     this.playerNames,
     this.playerIds,
     this.courtNames,
@@ -50,7 +54,18 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     _controller = widget.controller ?? DrawingController();
 
     _effectivePlayerNames = widget.playerNames ??
-        ['Aldi', 'Budi', 'Caca', 'Dina', 'Eka', 'Fajar', 'Gilang', 'Hadi', 'Indra', 'Joko'];
+        [
+          'Aldi',
+          'Budi',
+          'Caca',
+          'Dina',
+          'Eka',
+          'Fajar',
+          'Gilang',
+          'Hadi',
+          'Indra',
+          'Joko'
+        ];
     _effectivePlayerIds = widget.playerIds ??
         List<int>.generate(_effectivePlayerNames.length, (i) => i + 1);
 
@@ -105,7 +120,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     await _controller.saveDrawingToSupabase();
 
     final currentRound = _controller.currentRound;
-    final firstMatch = currentRound?.matches.isNotEmpty == true ? currentRound!.matches.first : null;
+    final firstMatch = currentRound?.matches.isNotEmpty == true
+        ? currentRound!.matches.first
+        : null;
 
     nav.push(
       MaterialPageRoute(
@@ -117,6 +134,30 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         ),
       ),
     );
+  }
+
+  String _formatSessionDateTime() {
+    if (widget.waktuSession != null) {
+      final date = widget.waktuSession!;
+      const monthNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des',
+      ];
+      final hour = date.hour.toString().padLeft(2, '0');
+      final minute = date.minute.toString().padLeft(2, '0');
+      return '${date.day} ${monthNames[date.month - 1]} ${date.year} · $hour:$minute';
+    }
+    return 'Hari ini · 08:00';
   }
 
   @override
@@ -131,9 +172,16 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         return Scaffold(
           backgroundColor: context.bg,
           appBar: AppBar(
-            title: Text('Drawing Result', style: TextStyle(color: context.txtPrimary)),
+            title: Text(
+              'Drawing Result',
+              style: TextStyle(color: context.txtPrimary),
+            ),
             leading: IconButton(
-              icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: context.txtPrimary),
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: context.txtPrimary,
+              ),
               onPressed: () => Navigator.maybePop(context),
             ),
             actions: [
@@ -146,7 +194,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           ),
           body: SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 16.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -160,9 +211,17 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     children: [
                       Text(
                         'SUSUNAN PERTANDINGAN',
-                        style: AppTextStyles.badge.copyWith(color: context.txtSecondary, letterSpacing: 1.5),
+                        style: AppTextStyles.badge.copyWith(
+                          color: context.txtSecondary,
+                          letterSpacing: 1.5,
+                        ),
                       ),
-                      Text('${matches.length} Court Aktif', style: AppTextStyles.caption.copyWith(color: context.brandColor)),
+                      Text(
+                        '${matches.length} Court Aktif',
+                        style: AppTextStyles.caption.copyWith(
+                          color: context.brandColor,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -172,14 +231,18 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     Center(
                       child: Padding(
                         padding: const EdgeInsets.all(32.0),
-                        child: CircularProgressIndicator(color: context.brandColor),
+                        child: CircularProgressIndicator(
+                          color: context.brandColor,
+                        ),
                       ),
                     )
                   else ...[
-                    ...matches.map((match) => Padding(
-                          padding: const EdgeInsets.only(bottom: 14.0),
-                          child: _buildMatchCard(context, match),
-                        )),
+                    ...matches.map(
+                      (match) => Padding(
+                        padding: const EdgeInsets.only(bottom: 14.0),
+                        child: _buildMatchCard(context, match),
+                      ),
+                    ),
                   ],
 
                   const SizedBox(height: 10),
@@ -207,8 +270,15 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
                     onPressed: _handleReRoll,
-                    icon: Icon(Icons.shuffle_rounded, size: 18, color: context.brandColor),
-                    label: Text('Acak Ulang Susunan (Re-Draw)', style: TextStyle(color: context.txtPrimary)),
+                    icon: Icon(
+                      Icons.shuffle_rounded,
+                      size: 18,
+                      color: context.brandColor,
+                    ),
+                    label: Text(
+                      'Acak Ulang Susunan (Re-Draw)',
+                      style: TextStyle(color: context.txtPrimary),
+                    ),
                   ),
                   const SizedBox(height: 20),
                 ],
@@ -220,9 +290,15 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     );
   }
 
-  Widget _buildSessionInfoBanner(BuildContext context, DrawingRoundModel? round) {
+  Widget _buildSessionInfoBanner(
+    BuildContext context,
+    DrawingRoundModel? round,
+  ) {
     final roundNumber = round?.roundNumber ?? 1;
     final method = round?.drawingMethod ?? widget.drawingMethod;
+    final formatDisplay = widget.format.isNotEmpty
+        ? widget.format
+        : (widget.jenisPermainan == 'Single' ? 'Singles' : 'Doubles');
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -246,21 +322,35 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                 ),
               ),
               Text(
-                'Hari ini · 08:00',
-                style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                _formatSessionDateTime(),
+                style: AppTextStyles.caption.copyWith(
+                  color: context.txtSecondary,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(widget.sessionName, style: AppTextStyles.sectionTitle.copyWith(fontSize: 18, color: context.txtPrimary)),
+          Text(
+            widget.sessionName,
+            style: AppTextStyles.sectionTitle.copyWith(
+              fontSize: 18,
+              color: context.txtPrimary,
+            ),
+          ),
           const SizedBox(height: 4),
           Row(
             children: [
-              Icon(Icons.sports_tennis_rounded, size: 14, color: context.brandColor),
+              Icon(
+                Icons.sports_tennis_rounded,
+                size: 14,
+                color: context.brandColor,
+              ),
               const SizedBox(width: 6),
               Text(
-                '${widget.sportName} · Metode: $method · ${widget.format}',
-                style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                '${widget.sportName} · Metode: $method · $formatDisplay',
+                style: AppTextStyles.caption.copyWith(
+                  color: context.txtSecondary,
+                ),
               ),
             ],
           ),
@@ -286,10 +376,16 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             children: [
               Text(
                 match.courtName,
-                style: AppTextStyles.cardTitle.copyWith(fontSize: 14, color: context.brandColor),
+                style: AppTextStyles.cardTitle.copyWith(
+                  fontSize: 14,
+                  color: context.brandColor,
+                ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 3,
+                ),
                 decoration: BoxDecoration(
                   color: context.brandColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
@@ -308,7 +404,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     const SizedBox(width: 4),
                     Text(
                       match.statusMatch,
-                      style: AppTextStyles.badge.copyWith(color: context.brandColor, fontSize: 9),
+                      style: AppTextStyles.badge.copyWith(
+                        color: context.brandColor,
+                        fontSize: 9,
+                      ),
                     ),
                   ],
                 ),
@@ -319,7 +418,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
 
           // Team A vs Team B Display
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+            padding: const EdgeInsets.symmetric(
+              vertical: 12,
+              horizontal: 14,
+            ),
             decoration: BoxDecoration(
               color: context.surfSec,
               borderRadius: BorderRadius.circular(12),
@@ -332,12 +434,22 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text('SIDE A', style: AppTextStyles.badge.copyWith(fontSize: 10, color: context.txtSecondary)),
+                      Text(
+                        'SIDE A',
+                        style: AppTextStyles.badge.copyWith(
+                          fontSize: 10,
+                          color: context.txtSecondary,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         match.sideADisplay,
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold, fontSize: 14, color: context.txtPrimary),
+                        style: AppTextStyles.body.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: context.txtPrimary,
+                        ),
                       ),
                     ],
                   ),
@@ -345,7 +457,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
 
                 // VS Badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: context.surf,
                     borderRadius: BorderRadius.circular(8),
@@ -353,7 +468,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   ),
                   child: Text(
                     'VS',
-                    style: AppTextStyles.badge.copyWith(color: context.brandColor, fontSize: 11),
+                    style: AppTextStyles.badge.copyWith(
+                      color: context.brandColor,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
 
@@ -362,12 +480,22 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text('SIDE B', style: AppTextStyles.badge.copyWith(fontSize: 10, color: context.txtSecondary)),
+                      Text(
+                        'SIDE B',
+                        style: AppTextStyles.badge.copyWith(
+                          fontSize: 10,
+                          color: context.txtSecondary,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         match.sideBDisplay,
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold, fontSize: 14, color: context.txtPrimary),
+                        style: AppTextStyles.body.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: context.txtPrimary,
+                        ),
                       ),
                     ],
                   ),
@@ -380,8 +508,12 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     );
   }
 
-  Widget _buildWaitingListCard(BuildContext context, List<String> waitingPlayers) {
+  Widget _buildWaitingListCard(
+    BuildContext context,
+    List<String> waitingPlayers,
+  ) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: context.surf,
@@ -396,26 +528,40 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.pause_circle_outline_rounded, size: 18, color: AppColors.warning),
+                  const Icon(
+                    Icons.pause_circle_outline_rounded,
+                    size: 18,
+                    color: AppColors.warning,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'WAITING PLAYERS (${waitingPlayers.length})',
-                    style: AppTextStyles.badge.copyWith(color: AppColors.warning, letterSpacing: 1),
+                    style: AppTextStyles.badge.copyWith(
+                      color: AppColors.warning,
+                      letterSpacing: 1,
+                    ),
                   ),
                 ],
               ),
               Text(
                 'Prioritas Ronde 2',
-                style: AppTextStyles.caption.copyWith(fontSize: 11, color: context.txtSecondary),
+                style: AppTextStyles.caption.copyWith(
+                  fontSize: 11,
+                  color: context.txtSecondary,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
+            runSpacing: 8,
             children: waitingPlayers.map((name) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: context.surfSec,
                   borderRadius: BorderRadius.circular(10),
@@ -424,9 +570,23 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.person_outline_rounded, size: 14, color: context.txtSecondary),
-                    const SizedBox(width: 6),
-                    Text(name, style: AppTextStyles.body.copyWith(fontSize: 13, fontWeight: FontWeight.w500, color: context.txtPrimary)),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppColors.warning,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      name,
+                      style: AppTextStyles.body.copyWith(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: context.txtPrimary,
+                      ),
+                    ),
                   ],
                 ),
               );

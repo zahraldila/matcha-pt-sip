@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import 'create_session_page.dart';
+import '../../auth/domain/models/user_model.dart';
+import 'controllers/session_controller.dart';
 
 class SessionListPage extends StatefulWidget {
   final bool isHost;
+  final UserModel currentUser;
   final Function(String sessionId)? onSessionTap;
 
-  const SessionListPage({super.key, required this.isHost, this.onSessionTap});
+  const SessionListPage({
+    super.key,
+    required this.isHost,
+    required this.currentUser,
+    this.onSessionTap,
+  });
 
   @override
   State<SessionListPage> createState() => _SessionListPageState();
@@ -16,112 +23,55 @@ class SessionListPage extends StatefulWidget {
 
 class _SessionListPageState extends State<SessionListPage> {
   String _selectedFilter = 'Semua';
-  final List<String> _filters = ['Semua', 'Live', 'Upcoming', 'Finished'];
 
-  List<Map<String, dynamic>> _sessions = [];
-  bool _isLoading = true;
+  late final SessionController _sessionController;
 
-  final List<Map<String, dynamic>> _fallbackMockSessions = [
-    {
-      'id': 'sess-001',
-      'title': 'Saturday Morning',
-      'sport': 'Tennis',
-      'players': 8,
-      'courts': 2,
-      'time': 'Hari ini, 08:00',
-      'status': 'LIVE',
-    },
-    {
-      'id': 'sess-002',
-      'title': 'Friday Night Play',
-      'sport': 'Padel',
-      'players': 6,
-      'courts': 1,
-      'time': '7 Sep 2026 · 18:00',
-      'status': 'UPCOMING',
-    },
-    {
-      'id': 'sess-003',
-      'title': 'Badminton Community',
-      'sport': 'Badminton',
-      'players': 12,
-      'courts': 3,
-      'time': '8 Sep 2026 · 19:00',
-      'status': 'UPCOMING',
-    },
-    {
-      'id': 'sess-004',
-      'title': 'Pickleball Fun',
-      'sport': 'Pickleball',
-      'players': 8,
-      'courts': 2,
-      'time': '9 Sep 2026 · 16:00',
-      'status': 'UPCOMING',
-    },
-    {
-      'id': 'sess-005',
-      'title': 'Tennis Weekend',
-      'sport': 'Tennis',
-      'players': 12,
-      'courts': 3,
-      'time': '10 Sep 2026 · 07:00',
-      'status': 'FINISHED',
-    },
+  final List<String> _filters = [
+    'Semua',
+    'Live',
+    'Upcoming',
+    'Finished',
   ];
 
   @override
   void initState() {
     super.initState();
+
+    _sessionController = SessionController();
+    _sessionController.addListener(_onControllerChanged);
+
     _loadSessions();
   }
 
-  Future<void> _loadSessions() async {
-    try {
-      final res = await Supabase.instance.client
-          .from('tb_session')
-          .select()
-          .order('session_id', ascending: false);
-
-      if (res.isNotEmpty && mounted) {
-        setState(() {
-          _sessions = res.map<Map<String, dynamic>>((s) {
-            return {
-              'id': s['session_id'].toString(),
-              'title': s['nama_session'] ?? 'Session',
-              'sport': s['sport_id'] == 22
-                  ? 'Tennis'
-                  : (s['sport_id'] == 23 ? 'Padel' : 'Sports'),
-              'players': 8,
-              'courts': 2,
-              'time': s['waktu_session'] ?? 'Hari ini',
-              'status': (s['status_session'] ?? 'LIVE')
-                  .toString()
-                  .toUpperCase(),
-            };
-          }).toList();
-          _isLoading = false;
-        });
-        return;
-      }
-    } catch (_) {}
-
+  void _onControllerChanged() {
     if (mounted) {
-      setState(() {
-        _sessions = _fallbackMockSessions;
-        _isLoading = false;
-      });
+      setState(() {});
     }
   }
 
+  Future<void> _loadSessions() async {
+    await _sessionController.loadSessions();
+  }
+
+  @override
+  void dispose() {
+    _sessionController.removeListener(_onControllerChanged);
+    _sessionController.dispose();
+    super.dispose();
+  }
+
   List<Map<String, dynamic>> get _filteredSessions {
-    if (_selectedFilter == 'Semua') return _sessions;
-    return _sessions
-        .where(
-          (s) =>
-              s['status']?.toString().toUpperCase() ==
-              _selectedFilter.toUpperCase(),
-        )
-        .toList();
+    final sessions = _sessionController.sessions;
+
+    if (_selectedFilter == 'Semua') {
+      return sessions;
+    }
+
+    return sessions.where((session) {
+      final status = session['status_session']?.toString().toLowerCase();
+
+      return status == _selectedFilter.toLowerCase();
+    }).toList();
   }
 
   @override
@@ -130,7 +80,10 @@ class _SessionListPageState extends State<SessionListPage> {
       backgroundColor: context.bg,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 20.0,
+            vertical: 16.0,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -163,6 +116,7 @@ class _SessionListPageState extends State<SessionListPage> {
                 child: Row(
                   children: _filters.map((filter) {
                     final isSelected = _selectedFilter == filter;
+
                     return Padding(
                       padding: const EdgeInsets.only(right: 8.0),
                       child: ChoiceChip(
@@ -184,8 +138,11 @@ class _SessionListPageState extends State<SessionListPage> {
                               ? context.brandColor
                               : context.surfBorder,
                         ),
-                        onSelected: (_) =>
-                            setState(() => _selectedFilter = filter),
+                        onSelected: (_) {
+                          setState(() {
+                            _selectedFilter = filter;
+                          });
+                        },
                       ),
                     );
                   }).toList(),
@@ -195,27 +152,14 @@ class _SessionListPageState extends State<SessionListPage> {
 
               // Sessions List
               Expanded(
-                child: _isLoading
-                    ? Center(
-                        child: CircularProgressIndicator(
-                          color: context.brandColor,
-                        ),
-                      )
-                    : ListView.separated(
-                        itemCount: _filteredSessions.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final session = _filteredSessions[index];
-                          return _buildSessionCard(context, session);
-                        },
-                      ),
+                child: _buildSessionList(context),
               ),
             ],
           ),
         ),
       ),
 
+      // Create Session Button
       floatingActionButton: widget.isHost
           ? FloatingActionButton.extended(
               backgroundColor: context.brandColor,
@@ -223,28 +167,190 @@ class _SessionListPageState extends State<SessionListPage> {
               icon: const Icon(Icons.add_rounded),
               label: const Text(
                 'Buat Session Baru',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const CreateSessionPage(),
+                    builder: (context) => CreateSessionPage(
+                      currentUser: widget.currentUser,
+                    ),
                   ),
                 );
+
+                // Refresh setelah kembali dari Create Session.
+                if (mounted) {
+                  await _loadSessions();
+                }
               },
             )
           : null,
     );
   }
 
-  Widget _buildSessionCard(BuildContext context, Map<String, dynamic> session) {
-    final isLive = session['status'] == 'LIVE';
+  // ============================================================
+  // SESSION LIST
+  // ============================================================
+
+  Widget _buildSessionList(BuildContext context) {
+    if (_sessionController.isLoading) {
+      return Center(
+        child: CircularProgressIndicator(color: context.brandColor),
+      );
+    }
+
+    if (_sessionController.errorMessage != null) {
+      return _buildErrorState(context);
+    }
+
+    final sessions = _filteredSessions;
+
+    if (sessions.isEmpty) {
+      return _buildEmptyState(context);
+    }
+
+    return RefreshIndicator(
+      color: context.brandColor,
+      onRefresh: _loadSessions,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: sessions.length,
+        separatorBuilder: (context, index) {
+          return const SizedBox(height: 12);
+        },
+        itemBuilder: (context, index) {
+          final session = sessions[index];
+
+          return _buildSessionCard(
+            context,
+            session,
+          );
+        },
+      ),
+    );
+  }
+
+  // ============================================================
+  // ERROR STATE
+  // ============================================================
+
+  Widget _buildErrorState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 48,
+              color: context.txtSecondary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Gagal memuat session',
+              style: AppTextStyles.cardTitle.copyWith(
+                color: context.txtPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _sessionController.errorMessage!,
+              style: AppTextStyles.caption.copyWith(
+                color: context.txtSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton(
+              onPressed: _loadSessions,
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // EMPTY STATE
+  // ============================================================
+
+  Widget _buildEmptyState(BuildContext context) {
+    final message = _selectedFilter == 'Semua'
+        ? 'Belum ada session.'
+        : 'Belum ada session $_selectedFilter.';
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.sports_tennis_rounded,
+              size: 48,
+              color: context.txtSecondary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              style: AppTextStyles.cardTitle.copyWith(
+                color: context.txtPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // SESSION CARD
+  // ============================================================
+
+  Widget _buildSessionCard(
+    BuildContext context,
+    Map<String, dynamic> session,
+  ) {
+    final status = session['status_session']?.toString().toUpperCase() ?? '';
+
+    final isLive = status == 'LIVE';
+
+    // Data sport dari relasi tb_sport.
+    final sportData = session['tb_sport'];
+
+    final sportName =
+        sportData is Map ? sportData['nama_sport']?.toString() ?? '-' : '-';
+
+    // Data player dari relasi tb_session_player.
+    final playersData = session['tb_session_player'];
+
+    final playerCount = playersData is List ? playersData.length : 0;
+
+    // Data court dari relasi tb_session_court.
+    final courtsData = session['tb_session_court'];
+
+    final courtCount = courtsData is List ? courtsData.length : 0;
+
+    // Waktu session.
+    final waktuSession = session['waktu_session'] != null
+        ? DateTime.tryParse(
+            session['waktu_session'].toString(),
+          )
+        : null;
 
     return InkWell(
       onTap: () {
         if (widget.onSessionTap != null) {
-          widget.onSessionTap!(session['id']);
+          widget.onSessionTap!(
+            session['session_id'].toString(),
+          );
         }
       },
       borderRadius: BorderRadius.circular(16),
@@ -263,20 +369,31 @@ class _SessionListPageState extends State<SessionListPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Session Name + Status
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  session['title'],
-                  style: AppTextStyles.cardTitle.copyWith(
-                    fontSize: 16,
-                    color: context.txtPrimary,
+                Expanded(
+                  child: Text(
+                    session['nama_session']?.toString() ?? '-',
+                    style: AppTextStyles.cardTitle.copyWith(
+                      fontSize: 16,
+                      color: context.txtPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                _buildStatusBadge(context, session['status']),
+                const SizedBox(width: 8),
+                _buildStatusBadge(
+                  context,
+                  status,
+                ),
               ],
             ),
+
             const SizedBox(height: 8),
+
+            // Sport + Players + Courts
             Row(
               children: [
                 Icon(
@@ -285,15 +402,23 @@ class _SessionListPageState extends State<SessionListPage> {
                   color: isLive ? context.brandColor : context.txtSecondary,
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  '${session['sport']} · ${session['players']} Players · ${session['courts']} Courts',
-                  style: AppTextStyles.caption.copyWith(
-                    color: isLive ? context.txtPrimary : context.txtSecondary,
+                Expanded(
+                  child: Text(
+                    '$sportName · '
+                    '$playerCount Players · '
+                    '$courtCount Courts',
+                    style: AppTextStyles.caption.copyWith(
+                      color: isLive ? context.txtPrimary : context.txtSecondary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
+
             const SizedBox(height: 6),
+
+            // Session Time
             Row(
               children: [
                 Icon(
@@ -303,7 +428,7 @@ class _SessionListPageState extends State<SessionListPage> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  session['time'],
+                  _formatSessionDateTime(waktuSession),
                   style: AppTextStyles.caption.copyWith(
                     color: context.txtSecondary,
                   ),
@@ -316,7 +441,14 @@ class _SessionListPageState extends State<SessionListPage> {
     );
   }
 
-  Widget _buildStatusBadge(BuildContext context, String status) {
+  // ============================================================
+  // STATUS BADGE
+  // ============================================================
+
+  Widget _buildStatusBadge(
+    BuildContext context,
+    String status,
+  ) {
     Color badgeColor;
     Color textColor;
 
@@ -325,25 +457,69 @@ class _SessionListPageState extends State<SessionListPage> {
         badgeColor = context.brandColor.withValues(alpha: 0.15);
         textColor = context.brandColor;
         break;
+
       case 'UPCOMING':
         badgeColor = AppColors.warning.withValues(alpha: 0.15);
         textColor = AppColors.warning;
         break;
+
+      case 'FINISHED':
+        badgeColor = context.surfSec;
+        textColor = context.txtSecondary;
+        break;
+
       default:
         badgeColor = context.surfSec;
         textColor = context.txtSecondary;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: badgeColor,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         status,
-        style: AppTextStyles.badge.copyWith(fontSize: 10, color: textColor),
+        style: AppTextStyles.badge.copyWith(
+          fontSize: 10,
+          color: textColor,
+        ),
       ),
     );
+  }
+
+  // ============================================================
+  // DATE FORMATTER
+  // ============================================================
+
+  String _formatSessionDateTime(DateTime? date) {
+    if (date == null) {
+      return '-';
+    }
+
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+
+    return '${date.day} ${monthNames[date.month - 1]} '
+        '${date.year} · $hour:$minute';
   }
 }
