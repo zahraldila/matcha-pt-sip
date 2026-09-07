@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:matcha_app/features/match/data/datasource/match_remote_data_source.dart';
 import 'package:matcha_app/features/match/domain/models/match_model.dart';
 import 'package:matcha_app/features/match/domain/models/playing_history_model.dart';
 import 'package:matcha_app/features/match/domain/models/score_model.dart';
@@ -269,6 +270,78 @@ void main() {
       expect(histories[3].score, 18);
       expect(histories[3].partnerPlayerId, 201);
       expect(histories[3].opponentPlayerId, 101);
+    });
+
+    test('MatchRemoteDataSource.mapParticipantsRelationships handles Singles correctly', () {
+      final singlesParticipants = [
+        {'match_id': 10, 'player_id': 11, 'side': 'Side A', 'group_no': 1},
+        {'match_id': 10, 'player_id': 22, 'side': 'Side B', 'group_no': 2},
+      ];
+
+      final relationships = MatchRemoteDataSource.mapParticipantsRelationships(singlesParticipants);
+      expect(relationships.length, 2);
+
+      final relA = relationships.firstWhere((r) => r.playerId == 11);
+      expect(relA.partnerPlayerId, isNull);
+      expect(relA.opponentPlayerId, 22);
+      expect(relA.side, 'A');
+
+      final relB = relationships.firstWhere((r) => r.playerId == 22);
+      expect(relB.partnerPlayerId, isNull);
+      expect(relB.opponentPlayerId, 11);
+      expect(relB.side, 'B');
+    });
+
+    test('MatchRemoteDataSource.mapParticipantsRelationships handles Doubles (Aldi, Budi vs Caca, Dina)', () {
+      final doublesParticipants = [
+        {'match_id': 20, 'player_id': 101, 'side': 'Side A', 'group_no': 1}, // Aldi
+        {'match_id': 20, 'player_id': 102, 'side': 'Side A', 'group_no': 1}, // Budi
+        {'match_id': 20, 'player_id': 201, 'side': 'Side B', 'group_no': 2}, // Caca
+        {'match_id': 20, 'player_id': 202, 'side': 'Side B', 'group_no': 2}, // Dina
+      ];
+
+      final relationships = MatchRemoteDataSource.mapParticipantsRelationships(doublesParticipants);
+      expect(relationships.length, 4);
+
+      // Aldi -> partner Budi (102), opponent Caca (201)
+      final aldi = relationships.firstWhere((r) => r.playerId == 101);
+      expect(aldi.partnerPlayerId, 102);
+      expect(aldi.opponentPlayerId, 201);
+      expect(aldi.side, 'A');
+
+      // Budi -> partner Aldi (101), opponent Caca (201)
+      final budi = relationships.firstWhere((r) => r.playerId == 102);
+      expect(budi.partnerPlayerId, 101);
+      expect(budi.opponentPlayerId, 201);
+      expect(budi.side, 'A');
+
+      // Caca -> partner Dina (202), opponent Aldi (101)
+      final caca = relationships.firstWhere((r) => r.playerId == 201);
+      expect(caca.partnerPlayerId, 202);
+      expect(caca.opponentPlayerId, 101);
+      expect(caca.side, 'B');
+
+      // Dina -> partner Caca (201), opponent Aldi (101)
+      final dina = relationships.firstWhere((r) => r.playerId == 202);
+      expect(dina.partnerPlayerId, 201);
+      expect(dina.opponentPlayerId, 101);
+      expect(dina.side, 'B');
+    });
+
+    test('MatchRemoteDataSource.mapParticipantsRelationships handles incomplete and safe data', () {
+      final incompleteParticipants = [
+        {'match_id': 30, 'player_id': null, 'side': 'Side A', 'group_no': 1},
+        {'match_id': 30, 'player_id': 'invalid_id', 'side': 'Side A', 'group_no': 1},
+        {'match_id': 30, 'player_id': 101, 'side': 'Side A', 'group_no': 1},
+        // Duplicate player_id 101 in participant list
+        {'match_id': 30, 'player_id': 101, 'side': 'Side A', 'group_no': 1},
+      ];
+
+      final relationships = MatchRemoteDataSource.mapParticipantsRelationships(incompleteParticipants);
+      expect(relationships.length, 1);
+      expect(relationships.first.playerId, 101);
+      expect(relationships.first.partnerPlayerId, isNull);
+      expect(relationships.first.opponentPlayerId, isNull);
     });
   });
 }

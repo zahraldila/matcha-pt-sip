@@ -2,6 +2,26 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/models/match_model.dart';
 import '../../domain/models/playing_history_model.dart';
 import '../../domain/models/score_model.dart';
+/// Model representasi relasi participant dalam pertandingan (partner dan opponent)
+class MatchParticipantRelationship {
+  final int playerId;
+  final int? partnerPlayerId;
+  final int? opponentPlayerId;
+  final String side; // 'A' or 'B'
+  final int? groupNo;
+
+  const MatchParticipantRelationship({
+    required this.playerId,
+    this.partnerPlayerId,
+    this.opponentPlayerId,
+    required this.side,
+    this.groupNo,
+  });
+
+  @override
+  String toString() =>
+      'MatchParticipantRelationship(playerId: $playerId, partnerId: $partnerPlayerId, opponentId: $opponentPlayerId, side: $side, groupNo: $groupNo)';
+}
 
 class MatchRemoteDataSource {
   final SupabaseClient _supabase;
@@ -278,6 +298,114 @@ class MatchRemoteDataSource {
     }
   }
 
+  /// Helper khusus untuk memetakan pasangan (partner) dan lawan (opponent)
+  /// untuk setiap participant berdasarkan data dari `tb_match_participant` (player_id, side, group_no).
+  ///
+  /// Aturan:
+  /// 1. Singles:
+  ///    - Player tidak memiliki partner (partner_player_id = null).
+  ///    - opponent_player_id berisi player dari side lawan.
+  /// 2. Doubles:
+  ///    - Player mendapatkan partner dari pasangan/group yang sama sesuai data tb_match_participant.
+  ///    - Player mendapatkan opponent dari side lawan.
+  ///    - Tidak menggunakan posisi hardcoded seperti sideAPlayer1/sideBPlayer1.
+  /// 3. Safe/Incomplete Data Handling:
+  ///    - Record dengan player_id null atau invalid diabaikan secara aman.
+  ///    - Jika lawan tidak ada, opponent_player_id bernilai null.
+  static List<MatchParticipantRelationship> mapParticipantsRelationships(
+    List<Map<String, dynamic>> participants,
+  ) {
+    if (participants.isEmpty) return [];
+
+    final List<int> sideAPlayers = [];
+    final List<int> sideBPlayers = [];
+    final Map<int, int?> playerGroupNos = {};
+
+    for (final participant in participants) {
+      final rawPlayerId = participant['player_id'];
+      if (rawPlayerId == null) continue;
+
+      final playerIdValue = rawPlayerId is int
+          ? rawPlayerId
+          : int.tryParse(rawPlayerId.toString());
+      if (playerIdValue == null) continue;
+
+      final side = (participant['side'] ?? '').toString().toLowerCase().trim();
+      final rawGroupNo = participant['group_no'];
+      final groupNo = rawGroupNo is int
+          ? rawGroupNo
+          : int.tryParse(rawGroupNo?.toString() ?? '');
+
+      playerGroupNos[playerIdValue] = groupNo;
+
+      final isSideB = side.contains('b') || groupNo == 2;
+      if (isSideB) {
+        if (!sideBPlayers.contains(playerIdValue)) {
+          sideBPlayers.add(playerIdValue);
+        }
+      } else {
+        if (!sideAPlayers.contains(playerIdValue)) {
+          sideAPlayers.add(playerIdValue);
+        }
+      }
+    }
+
+    final List<MatchParticipantRelationship> relationships = [];
+
+    // Helper untuk mencari partner dalam satu tim
+    int? findPartner(int pId, List<int> teamPlayers) {
+      if (teamPlayers.length <= 1) return null; // Singles: tidak ada partner
+
+      // Jika ada group_no spesifik yang membedakan pasangan dalam tim
+      final currentGroup = playerGroupNos[pId];
+      if (currentGroup != null) {
+        final sameGroupPartner = teamPlayers.firstWhere(
+          (other) => other != pId && playerGroupNos[other] == currentGroup,
+          orElse: () => -1,
+        );
+        if (sameGroupPartner != -1) return sameGroupPartner;
+      }
+
+      // Fallback ke pemain lain di side yang sama
+      final other = teamPlayers.firstWhere((other) => other != pId, orElse: () => -1);
+      return other != -1 ? other : null;
+    }
+
+    // Process Side A players
+    for (final pId in sideAPlayers) {
+      final partnerId = findPartner(pId, sideAPlayers);
+      final opponentId = sideBPlayers.isNotEmpty ? sideBPlayers.first : null;
+
+      relationships.add(
+        MatchParticipantRelationship(
+          playerId: pId,
+          partnerPlayerId: partnerId,
+          opponentPlayerId: opponentId,
+          side: 'A',
+          groupNo: playerGroupNos[pId],
+        ),
+      );
+    }
+
+    // Process Side B players
+    for (final pId in sideBPlayers) {
+      final partnerId = findPartner(pId, sideBPlayers);
+      final opponentId = sideAPlayers.isNotEmpty ? sideAPlayers.first : null;
+
+      relationships.add(
+        MatchParticipantRelationship(
+          playerId: pId,
+          partnerPlayerId: partnerId,
+          opponentPlayerId: opponentId,
+          side: 'B',
+          groupNo: playerGroupNos[pId],
+        ),
+      );
+    }
+
+    return relationships;
+  }
+
   /// Helper khusus untuk membentuk dan mencatat Playing History ke tb_playing_history
   /// dengan mengambil data participant dari tb_match_participant (player_id, side, group_no),
   /// skor dari tb_score, serta informasi match (session_id, court_id) dari tb_match.
@@ -319,76 +447,22 @@ class MatchRemoteDataSource {
         totalScoreB += s.scoreSideB;
       }
 
-      // 4. Pisahkan peserta ke dalam Side A dan Side B
-      final List<int> sideAPlayers = [];
-      final List<int> sideBPlayers = [];
-
-      for (final participant in participants) {
-        final rawPlayerId = participant['player_id'];
-        if (rawPlayerId == null) continue;
-
-        final playerIdValue = rawPlayerId is int
-            ? rawPlayerId
-            : int.tryParse(rawPlayerId.toString());
-        if (playerIdValue == null) continue;
-
-        final side = (participant['side'] ?? '').toString().toLowerCase().trim();
-        final groupNo = participant['group_no'];
-        final isSideB = side.contains('b') || groupNo == 2;
-
-        if (isSideB) {
-          sideBPlayers.add(playerIdValue);
-        } else {
-          sideAPlayers.add(playerIdValue);
-        }
-      }
+      // 4. Petakan partner dan opponent berdasarkan data tb_match_participant
+      final relationships = mapParticipantsRelationships(participants);
 
       // 5. Bentuk PlayingHistoryModel untuk setiap participant
       final List<PlayingHistoryModel> histories = [];
-
-      for (final pId in sideAPlayers) {
-        int? partnerId;
-        for (final other in sideAPlayers) {
-          if (other != pId) {
-            partnerId = other;
-            break;
-          }
-        }
-        final opponentId = sideBPlayers.isNotEmpty ? sideBPlayers.first : null;
-
+      for (final rel in relationships) {
+        final isSideB = rel.side == 'B';
         histories.add(
           PlayingHistoryModel(
-            playerId: pId,
+            playerId: rel.playerId,
             matchId: matchId,
             sessionId: sessionId,
             courtId: courtId,
-            score: totalScoreA,
-            partnerPlayerId: partnerId,
-            opponentPlayerId: opponentId,
-            jumlahPermainan: 1,
-          ),
-        );
-      }
-
-      for (final pId in sideBPlayers) {
-        int? partnerId;
-        for (final other in sideBPlayers) {
-          if (other != pId) {
-            partnerId = other;
-            break;
-          }
-        }
-        final opponentId = sideAPlayers.isNotEmpty ? sideAPlayers.first : null;
-
-        histories.add(
-          PlayingHistoryModel(
-            playerId: pId,
-            matchId: matchId,
-            sessionId: sessionId,
-            courtId: courtId,
-            score: totalScoreB,
-            partnerPlayerId: partnerId,
-            opponentPlayerId: opponentId,
+            score: isSideB ? totalScoreB : totalScoreA,
+            partnerPlayerId: rel.partnerPlayerId,
+            opponentPlayerId: rel.opponentPlayerId,
             jumlahPermainan: 1,
           ),
         );
