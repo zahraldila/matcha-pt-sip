@@ -24,6 +24,9 @@ class SessionController extends ChangeNotifier {
   List<Map<String, dynamic>> _courts = [];
   List<Map<String, dynamic>> _sessions = [];
 
+  List<Map<String, dynamic>> _sessionPlayers = [];
+  List<Map<String, dynamic>> _sessionCourts = [];
+
   // ============================================================
   // GETTERS
   // ============================================================
@@ -37,6 +40,9 @@ class SessionController extends ChangeNotifier {
   List<Map<String, dynamic>> get players => _players;
   List<Map<String, dynamic>> get courts => _courts;
   List<Map<String, dynamic>> get sessions => _sessions;
+
+  List<Map<String, dynamic>> get sessionPlayers => _sessionPlayers;
+  List<Map<String, dynamic>> get sessionCourts => _sessionCourts;
 
   // ============================================================
   // ERROR
@@ -136,6 +142,32 @@ class SessionController extends ChangeNotifier {
             'Exception: ',
             '',
           );
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadSessionDetails({
+    required int sessionId,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _sessionPlayers = await _dataSource.getSessionPlayers(
+        sessionId: sessionId,
+      );
+
+      _sessionCourts = await _dataSource.getSessionCourts(
+        sessionId: sessionId,
+      );
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage =
+          e.toString().replaceFirst('Exception: ', '');
       notifyListeners();
     }
   }

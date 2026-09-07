@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../match/presentation/match_scoring_page.dart';
+import '../../session/presentation/controllers/session_controller.dart';
 
 class DrawingResultPage extends StatefulWidget {
+  final int sessionId;
   final String sessionName;
   final String sportName;
   final String drawingMethod;
@@ -12,6 +14,7 @@ class DrawingResultPage extends StatefulWidget {
 
   const DrawingResultPage({
     super.key,
+    required this.sessionId,
     required this.sessionName,
     required this.sportName,
     required this.drawingMethod,
@@ -24,48 +27,65 @@ class DrawingResultPage extends StatefulWidget {
 }
 
 class _DrawingResultPageState extends State<DrawingResultPage> {
-  // Mock drawing results
-    String _formatSessionDateTime() {
-      final date = widget.waktuSession;
+  late final SessionController _sessionController;
 
-      const monthNames = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'Mei',
-        'Jun',
-        'Jul',
-        'Agu',
-        'Sep',
-        'Okt',
-        'Nov',
-        'Des',
-      ];
+  @override
+  void initState() {
+    super.initState();
 
-      final hour = date.hour.toString().padLeft(2, '0');
-      final minute = date.minute.toString().padLeft(2, '0');
+    _sessionController = SessionController();
 
-      return '${date.day} ${monthNames[date.month - 1]} '
-          '${date.year} · $hour:$minute';
+    _loadSessionDetails();
+  }
+
+  Future<void> _loadSessionDetails() async {
+    await _sessionController.loadSessionDetails(
+      sessionId: widget.sessionId,
+    );
+
+    if (mounted) {
+      setState(() {});
     }
+  }
 
-  final List<Map<String, dynamic>> _matches = [
-    {
-      'court': 'Court 1 — SiJi Tennis Court',
-      'sideA': ['Aldi', 'Budi'],
-      'sideB': ['Caca', 'Dina'],
-      'status': 'PLAYING',
-    },
-    {
-      'court': 'Court 2 — SiJi Tennis Court',
-      'sideA': ['Eka', 'Fajar'],
-      'sideB': ['Gilang', 'Hadi'],
-      'status': 'PLAYING',
-    },
-  ];
+  @override
+  void dispose() {
+    _sessionController.dispose();
+    super.dispose();
+  }
 
-  final List<String> _waitingPlayers = ['Indra', 'Joko'];
+  List<Map<String, dynamic>> get _sessionCourts {
+    return _sessionController.sessionCourts;
+  }
+
+  List<Map<String, dynamic>> get _sessionPlayers {
+    return _sessionController.sessionPlayers;
+  }
+
+  String _formatSessionDateTime() {
+    final date = widget.waktuSession;
+
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+
+    return '${date.day} ${monthNames[date.month - 1]} '
+        '${date.year} · $hour:$minute';
+  }
 
   void _reRollDrawing() {
     setState(() {
@@ -126,16 +146,21 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     'SUSUNAN PERTANDINGAN',
                     style: AppTextStyles.badge.copyWith(color: context.txtSecondary, letterSpacing: 1.5),
                   ),
-                  Text('${_matches.length} Court Aktif', style: AppTextStyles.caption.copyWith(color: context.brandColor)),
+                  Text('${_sessionCourts.length} Court Aktif', style: AppTextStyles.caption.copyWith(color: context.brandColor)),
                 ],
               ),
               const SizedBox(height: 12),
 
               // 3. Match Cards per Court
-              ..._matches.map((match) => Padding(
-                    padding: const EdgeInsets.only(bottom: 14.0),
-                    child: _buildMatchCard(context, match),
-                  )),
+              ..._sessionCourts.map(
+                (court) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14.0),
+                  child: _buildCourtCard(
+                    context,
+                    court,
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 10),
 
@@ -226,6 +251,91 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCourtCard(
+    BuildContext context,
+    Map<String, dynamic> court,
+  ) {
+    final courtData = court['tb_court'];
+
+    final courtName = courtData is Map
+        ? courtData['nama_court']?.toString() ?? '-'
+        : '-';
+
+    final location = courtData is Map
+        ? courtData['lokasi']?.toString() ?? ''
+        : '';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.surf,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: context.surfBorder,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: context.surfSec,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.sports_tennis_rounded,
+              color: context.brandColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  courtName,
+                  style: AppTextStyles.cardTitle.copyWith(
+                    fontSize: 14,
+                    color: context.txtPrimary,
+                  ),
+                ),
+                if (location.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    location,
+                    style: AppTextStyles.caption.copyWith(
+                      color: context.txtSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: context.brandColor.withValues(
+                alpha: 0.15,
+              ),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              'DIPILIH',
+              style: AppTextStyles.badge.copyWith(
+                color: context.brandColor,
+                fontSize: 9,
+              ),
+            ),
           ),
         ],
       ),
@@ -348,56 +458,74 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
 
   Widget _buildWaitingListCard(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: context.surf,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.surfBorder),
+        border: Border.all(
+          color: context.surfBorder,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.pause_circle_outline_rounded, size: 18, color: AppColors.warning),
-                  const SizedBox(width: 8),
-                  Text(
-                    'WAITING PLAYERS (${_waitingPlayers.length})',
-                    style: AppTextStyles.badge.copyWith(color: AppColors.warning, letterSpacing: 1),
-                  ),
-                ],
-              ),
-              Text(
-                'Prioritas Ronde 2',
-                style: AppTextStyles.caption.copyWith(fontSize: 11, color: context.txtSecondary),
-              ),
-            ],
+          Text(
+            'PLAYERS SESSION (${_sessionPlayers.length})',
+            style: AppTextStyles.caption.copyWith(
+              color: context.txtSecondary,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            children: _waitingPlayers.map((name) {
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: context.surfSec,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: context.surfBorder),
-                ),
+
+          if (_sessionPlayers.isEmpty)
+            Text(
+              'Belum ada pemain dalam session.',
+              style: AppTextStyles.body.copyWith(
+                color: context.txtSecondary,
+              ),
+            )
+          else
+            ..._sessionPlayers.map((player) {
+              final playerData = player['tb_player'];
+
+              final playerName = playerData is Map
+                  ? playerData['nama_player']?.toString() ?? '-'
+                  : '-';
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.person_outline_rounded, size: 14, color: context.txtSecondary),
-                    const SizedBox(width: 6),
-                    Text(name, style: AppTextStyles.body.copyWith(fontSize: 13, fontWeight: FontWeight.w500, color: context.txtPrimary)),
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: context.brandColor.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.person_outline_rounded,
+                        color: context.brandColor,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        playerName,
+                        style: AppTextStyles.body.copyWith(
+                          color: context.txtPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               );
-            }).toList(),
-          ),
+            }),
         ],
       ),
     );

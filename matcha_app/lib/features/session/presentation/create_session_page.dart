@@ -283,33 +283,43 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
         courtIds: _selectedCourtIds.toList(),
       );
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Session berhasil dibuat. ID: $sessionId',
-          ),
-        ),
+    if (sessionId == null) {
+      _showError(
+        _sessionController.errorMessage ??
+            'Gagal membuat session.',
       );
+      return;
+    }
 
-      if (widget.onGenerateDrawing != null) {
-        widget.onGenerateDrawing!();
-        return;
-      }
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DrawingResultPage(
-            sessionName: _nameController.text.trim(),
-            sportName: _selectedSport,
-            drawingMethod: _selectedMethod,
-            jenisPermainan: _selectedFormat == 'Singles' ? 'Single' : 'Double',
-            waktuSession: sessionDateTime,
-          ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Session berhasil dibuat. ID: $sessionId',
         ),
-      );
+      ),
+    );
+
+    if (widget.onGenerateDrawing != null) {
+      widget.onGenerateDrawing!();
+      return;
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DrawingResultPage(
+          sessionId: sessionId,
+          sessionName: _nameController.text.trim(),
+          sportName: _selectedSport,
+          drawingMethod: _selectedMethod,
+          jenisPermainan:
+              _selectedFormat == 'Singles' ? 'Single' : 'Double',
+          waktuSession: sessionDateTime,
+        ),
+      ),
+    );
     } catch (e) {
       if (!mounted) return;
 

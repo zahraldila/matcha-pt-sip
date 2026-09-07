@@ -139,6 +139,63 @@ class SessionRemoteDataSource {
   }
 
   // ============================================================
+  // GET SESSION PLAYERS
+  // ============================================================
+
+  Future<List<Map<String, dynamic>>> getSessionPlayers({
+    required int sessionId,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('tb_session_player')
+          .select('''
+            player_id,
+            tb_player (
+              player_id,
+              nama_player
+            )
+          ''')
+          .eq('session_id', sessionId)
+          .order('player_id');
+
+      return List<Map<String, dynamic>>.from(response);
+    } on PostgrestException catch (e) {
+      throw Exception(
+        'Gagal mengambil pemain session: ${e.message}',
+      );
+    }
+  }
+
+  // ============================================================
+  // GET SESSION COURTS
+  // ============================================================
+
+  Future<List<Map<String, dynamic>>> getSessionCourts({
+    required int sessionId,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('tb_session_court')
+          .select('''
+            court_id,
+            tb_court (
+              court_id,
+              nama_court,
+              lokasi
+            )
+          ''')
+          .eq('session_id', sessionId)
+          .order('court_id');
+
+      return List<Map<String, dynamic>>.from(response);
+    } on PostgrestException catch (e) {
+      throw Exception(
+        'Gagal mengambil lapangan session: ${e.message}',
+      );
+    }
+  }
+
+  // ============================================================
   // SESSION - COURT
   // ============================================================
 
@@ -189,6 +246,12 @@ class SessionRemoteDataSource {
         tb_sport (
           sport_id,
           nama_sport
+        ),
+        tb_session_player (
+          player_id
+        ),
+        tb_session_court (
+          court_id
         )
         ''',
       );
