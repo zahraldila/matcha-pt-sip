@@ -1,19 +1,30 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../data/match_service.dart';
 
 class MatchScoringPage extends StatefulWidget {
+  final int? matchId;
+  final dynamic sessionId;
   final String sessionName;
   final String courtName;
   final String sideA;
   final String sideB;
+  final int initialScoreA;
+  final int initialScoreB;
+  final String? statusMatch;
 
   const MatchScoringPage({
     super.key,
+    this.matchId,
+    this.sessionId,
     this.sessionName = 'Saturday Morning',
     this.courtName = 'Court 1 — SiJi Tennis Court',
     this.sideA = 'Aldi · Budi',
     this.sideB = 'Caca · Dina',
+    this.initialScoreA = 6,
+    this.initialScoreB = 4,
+    this.statusMatch,
   });
 
   @override
@@ -21,53 +32,98 @@ class MatchScoringPage extends StatefulWidget {
 }
 
 class _MatchScoringPageState extends State<MatchScoringPage> {
-  int _scoreA = 6;
-  int _scoreB = 4;
+  late int _scoreA;
+  late int _scoreB;
   int _selectedSet = 1;
-  bool _isFinished = false;
+  late bool _isFinished;
+  bool _isSaving = false;
+  final MatchService _matchService = MatchService();
+
+  @override
+  void initState() {
+    super.initState();
+    _scoreA = widget.initialScoreA;
+    _scoreB = widget.initialScoreB;
+    final normalized = (widget.statusMatch ?? '').toString().toLowerCase();
+    _isFinished = normalized == 'finished';
+  }
 
   void _finishMatch() {
+    final messenger = ScaffoldMessenger.of(context);
+    final surfColor = context.surf;
+    final txtPrimaryColor = context.txtPrimary;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: context.surf,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: surfColor,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: context.surfBorder),
         ),
-        title: Text('Selesaikan Pertandingan?', style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary)),
+        title: Text(
+          'Selesaikan Pertandingan?',
+          style: AppTextStyles.cardTitle.copyWith(color: txtPrimaryColor),
+        ),
         content: Text(
           'Hasil akhir: ${widget.sideA} ($_scoreA) vs ${widget.sideB} ($_scoreB)\n\nSkor akan disimpan ke riwayat dan siap untuk Re-Drawing ronde selanjutnya.',
-          style: AppTextStyles.bodySecondary.copyWith(color: context.txtSecondary),
+          style: AppTextStyles.bodySecondary.copyWith(
+            color: context.txtSecondary,
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal', style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Batal',
+              style: AppTextStyles.caption.copyWith(
+                color: context.txtSecondary,
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: context.brandColor,
               foregroundColor: Colors.black,
             ),
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _isFinished = true;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Pertandingan selesai! Riwayat bermain telah diperbarui. Siap Re-Drawing! 🎾',
-                    style: AppTextStyles.body.copyWith(
-                      color: context.txtPrimary,
-                      fontWeight: FontWeight.w600,
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              if (widget.matchId != null) {
+                try {
+                  await _matchService.finishMatch(
+                    matchId: widget.matchId!,
+                    sessionId: widget.sessionId,
+                  );
+                } catch (e) {
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('Gagal menyelesaikan match: $e'),
+                        backgroundColor: surfColor,
+                      ),
+                    );
+                  }
+                  return;
+                }
+              }
+              if (mounted) {
+                setState(() {
+                  _isFinished = true;
+                });
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Pertandingan selesai! Riwayat bermain telah diperbarui. Siap Re-Drawing! 🎾',
+                      style: AppTextStyles.body.copyWith(
+                        color: txtPrimaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                    backgroundColor: surfColor,
+                    behavior: SnackBarBehavior.floating,
                   ),
-                  backgroundColor: context.surf,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+                );
+              }
             },
             child: const Text('Ya, Selesaikan Match'),
           ),
@@ -83,7 +139,11 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
       appBar: AppBar(
         title: Text('Input Score', style: TextStyle(color: context.txtPrimary)),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: context.txtPrimary),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 18,
+            color: context.txtPrimary,
+          ),
           onPressed: () => Navigator.maybePop(context),
         ),
       ),
@@ -107,27 +167,89 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
 
               // 4. Action Buttons
               ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Skor pertandingan berhasil disimpan!',
-                        style: AppTextStyles.body.copyWith(
-                          color: context.txtPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      backgroundColor: context.surf,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-                child: const Text('SIMPAN SCORE'),
+                onPressed: _isSaving
+                    ? null
+                    : () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final surfColor = context.surf;
+                        final txtPrimaryColor = context.txtPrimary;
+
+                        if (widget.matchId == null) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Skor disimpan lokal (Match ID tidak tersedia).',
+                                style: AppTextStyles.body.copyWith(
+                                  color: txtPrimaryColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              backgroundColor: surfColor,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
+
+                        setState(() => _isSaving = true);
+                        try {
+                          await _matchService.saveMatchScore(
+                            matchId: widget.matchId!,
+                            scoreA: _scoreA,
+                            scoreB: _scoreB,
+                            sessionId: widget.sessionId,
+                          );
+
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Skor pertandingan berhasil disimpan!',
+                                style: AppTextStyles.body.copyWith(
+                                  color: txtPrimaryColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              backgroundColor: surfColor,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        } catch (e) {
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Gagal menyimpan skor: $e',
+                                style: AppTextStyles.body.copyWith(
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              backgroundColor: surfColor,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        } finally {
+                          if (mounted) {
+                            setState(() => _isSaving = false);
+                          }
+                        }
+                      },
+
+                child: _isSaving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('SIMPAN SCORE'),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: _isFinished ? context.txtSecondary : AppColors.warning,
+                  foregroundColor: _isFinished
+                      ? context.txtSecondary
+                      : AppColors.warning,
                   side: BorderSide(
                     color: _isFinished
                         ? context.surfBorder
@@ -139,7 +261,9 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
                   _isFinished ? Icons.check_circle_rounded : Icons.flag_rounded,
                   size: 18,
                 ),
-                label: Text(_isFinished ? 'PERTANDINGAN SELESAI' : 'SELESAIKAN MATCH'),
+                label: Text(
+                  _isFinished ? 'PERTANDINGAN SELESAI' : 'SELESAIKAN MATCH',
+                ),
               ),
             ],
           ),
@@ -164,12 +288,17 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
             children: [
               Text(
                 widget.courtName,
-                style: AppTextStyles.cardTitle.copyWith(color: context.brandColor, fontSize: 14),
+                style: AppTextStyles.cardTitle.copyWith(
+                  color: context.brandColor,
+                  fontSize: 14,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Ronde 1 · Match 1 · ${widget.sessionName}',
-                style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                style: AppTextStyles.caption.copyWith(
+                  color: context.txtSecondary,
+                ),
               ),
             ],
           ),
@@ -182,10 +311,12 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              _isFinished ? 'FINISHED' : 'IN PROGRESS',
+              _isFinished ? 'Finished' : 'In Progress',
               style: AppTextStyles.badge.copyWith(
                 fontSize: 10,
-                color: _isFinished ? context.txtSecondary : AppColors.inProgressBadge,
+                color: _isFinished
+                    ? context.txtSecondary
+                    : AppColors.inProgressBadge,
               ),
             ),
           ),
@@ -207,7 +338,9 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? context.brandColor.withValues(alpha: 0.15) : context.surf,
+                  color: isSelected
+                      ? context.brandColor.withValues(alpha: 0.15)
+                      : context.surf,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: isSelected ? context.brandColor : context.surfBorder,
@@ -218,8 +351,12 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
                   'Set $setNum',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.caption.copyWith(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? context.brandColor : context.txtSecondary,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: isSelected
+                        ? context.brandColor
+                        : context.txtSecondary,
                   ),
                 ),
               ),
@@ -283,11 +420,19 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
             children: [
               Text(
                 teamName,
-                style: AppTextStyles.cardTitle.copyWith(fontSize: 16, color: context.txtPrimary),
+                style: AppTextStyles.cardTitle.copyWith(
+                  fontSize: 16,
+                  color: context.txtPrimary,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
-              Text('Pemain', style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
+              Text(
+                'Pemain',
+                style: AppTextStyles.caption.copyWith(
+                  color: context.txtSecondary,
+                ),
+              ),
             ],
           ),
         ),

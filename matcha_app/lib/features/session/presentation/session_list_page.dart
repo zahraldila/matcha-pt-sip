@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import 'create_session_page.dart';
@@ -7,11 +8,7 @@ class SessionListPage extends StatefulWidget {
   final bool isHost;
   final Function(String sessionId)? onSessionTap;
 
-  const SessionListPage({
-    super.key,
-    required this.isHost,
-    this.onSessionTap,
-  });
+  const SessionListPage({super.key, required this.isHost, this.onSessionTap});
 
   @override
   State<SessionListPage> createState() => _SessionListPageState();
@@ -19,10 +16,12 @@ class SessionListPage extends StatefulWidget {
 
 class _SessionListPageState extends State<SessionListPage> {
   String _selectedFilter = 'Semua';
-
   final List<String> _filters = ['Semua', 'Live', 'Upcoming', 'Finished'];
 
-  final List<Map<String, dynamic>> _mockSessions = [
+  List<Map<String, dynamic>> _sessions = [];
+  bool _isLoading = true;
+
+  final List<Map<String, dynamic>> _fallbackMockSessions = [
     {
       'id': 'sess-001',
       'title': 'Saturday Morning',
@@ -71,6 +70,61 @@ class _SessionListPageState extends State<SessionListPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadSessions();
+  }
+
+  Future<void> _loadSessions() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('tb_session')
+          .select()
+          .order('session_id', ascending: false);
+
+      if (res.isNotEmpty && mounted) {
+        setState(() {
+          _sessions = res.map<Map<String, dynamic>>((s) {
+            return {
+              'id': s['session_id'].toString(),
+              'title': s['nama_session'] ?? 'Session',
+              'sport': s['sport_id'] == 22
+                  ? 'Tennis'
+                  : (s['sport_id'] == 23 ? 'Padel' : 'Sports'),
+              'players': 8,
+              'courts': 2,
+              'time': s['waktu_session'] ?? 'Hari ini',
+              'status': (s['status_session'] ?? 'LIVE')
+                  .toString()
+                  .toUpperCase(),
+            };
+          }).toList();
+          _isLoading = false;
+        });
+        return;
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _sessions = _fallbackMockSessions;
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredSessions {
+    if (_selectedFilter == 'Semua') return _sessions;
+    return _sessions
+        .where(
+          (s) =>
+              s['status']?.toString().toUpperCase() ==
+              _selectedFilter.toUpperCase(),
+        )
+        .toList();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.bg,
@@ -86,10 +140,17 @@ class _SessionListPageState extends State<SessionListPage> {
                 children: [
                   Text(
                     'Daftar Session',
-                    style: AppTextStyles.pageTitle.copyWith(fontSize: 22, color: context.txtPrimary),
+                    style: AppTextStyles.pageTitle.copyWith(
+                      fontSize: 22,
+                      color: context.txtPrimary,
+                    ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.search_rounded, color: context.txtPrimary, size: 24),
+                    icon: Icon(
+                      Icons.search_rounded,
+                      color: context.txtPrimary,
+                      size: 24,
+                    ),
                     onPressed: () {},
                   ),
                 ],
@@ -110,14 +171,21 @@ class _SessionListPageState extends State<SessionListPage> {
                         selectedColor: context.brandColor,
                         backgroundColor: context.surf,
                         labelStyle: TextStyle(
-                          color: isSelected ? Colors.black : context.txtSecondary,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? Colors.black
+                              : context.txtSecondary,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                           fontSize: 12,
                         ),
                         side: BorderSide(
-                          color: isSelected ? context.brandColor : context.surfBorder,
+                          color: isSelected
+                              ? context.brandColor
+                              : context.surfBorder,
                         ),
-                        onSelected: (_) => setState(() => _selectedFilter = filter),
+                        onSelected: (_) =>
+                            setState(() => _selectedFilter = filter),
                       ),
                     );
                   }).toList(),
@@ -127,29 +195,42 @@ class _SessionListPageState extends State<SessionListPage> {
 
               // Sessions List
               Expanded(
-                child: ListView.separated(
-                  itemCount: _mockSessions.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final session = _mockSessions[index];
-                    return _buildSessionCard(context, session);
-                  },
-                ),
+                child: _isLoading
+                    ? Center(
+                        child: CircularProgressIndicator(
+                          color: context.brandColor,
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: _filteredSessions.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final session = _filteredSessions[index];
+                          return _buildSessionCard(context, session);
+                        },
+                      ),
               ),
             ],
           ),
         ),
       ),
+
       floatingActionButton: widget.isHost
           ? FloatingActionButton.extended(
               backgroundColor: context.brandColor,
               foregroundColor: Colors.black,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Buat Session Baru', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Buat Session Baru',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const CreateSessionPage()),
+                  MaterialPageRoute(
+                    builder: (context) => const CreateSessionPage(),
+                  ),
                 );
               },
             )
@@ -173,7 +254,9 @@ class _SessionListPageState extends State<SessionListPage> {
           color: context.surf,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isLive ? context.brandColor.withValues(alpha: 0.4) : context.surfBorder,
+            color: isLive
+                ? context.brandColor.withValues(alpha: 0.4)
+                : context.surfBorder,
             width: isLive ? 1.5 : 1,
           ),
         ),
@@ -185,7 +268,10 @@ class _SessionListPageState extends State<SessionListPage> {
               children: [
                 Text(
                   session['title'],
-                  style: AppTextStyles.cardTitle.copyWith(fontSize: 16, color: context.txtPrimary),
+                  style: AppTextStyles.cardTitle.copyWith(
+                    fontSize: 16,
+                    color: context.txtPrimary,
+                  ),
                 ),
                 _buildStatusBadge(context, session['status']),
               ],
@@ -210,11 +296,17 @@ class _SessionListPageState extends State<SessionListPage> {
             const SizedBox(height: 6),
             Row(
               children: [
-                Icon(Icons.access_time_rounded, size: 14, color: context.txtSecondary),
+                Icon(
+                  Icons.access_time_rounded,
+                  size: 14,
+                  color: context.txtSecondary,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   session['time'],
-                  style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                  style: AppTextStyles.caption.copyWith(
+                    color: context.txtSecondary,
+                  ),
                 ),
               ],
             ),

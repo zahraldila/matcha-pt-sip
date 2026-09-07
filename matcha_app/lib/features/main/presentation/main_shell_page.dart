@@ -36,13 +36,14 @@ class _MainShellPageState extends State<MainShellPage> {
             MaterialPageRoute(builder: (context) => const CreateSessionPage()),
           );
         },
-        onLiveSessionTap: () {
+        onLiveSessionTap: (sessionId) {
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => LiveSessionPage(
-                sessionName: 'Saturday Morning',
-                sportName: 'Tennis',
+                sessionId: sessionId != null && sessionId.toString().isNotEmpty
+                    ? sessionId
+                    : null,
                 isHost: isHost,
               ),
             ),
@@ -61,8 +62,7 @@ class _MainShellPageState extends State<MainShellPage> {
             context,
             MaterialPageRoute(
               builder: (context) => LiveSessionPage(
-                sessionName: 'Saturday Morning',
-                sportName: 'Tennis',
+                sessionId: id.isNotEmpty ? id : null,
                 isHost: isHost,
               ),
             ),
@@ -105,7 +105,9 @@ class _MainShellPageState extends State<MainShellPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    isHost ? Icons.sports_tennis_rounded : Icons.visibility_rounded,
+                    isHost
+                        ? Icons.sports_tennis_rounded
+                        : Icons.visibility_rounded,
                     size: 13,
                     color: isHost ? context.brandColor : AppColors.info,
                   ),
@@ -126,9 +128,7 @@ class _MainShellPageState extends State<MainShellPage> {
       body: tabs[_currentIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(color: context.surfBorder, width: 1),
-          ),
+          border: Border(top: BorderSide(color: context.surfBorder, width: 1)),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
