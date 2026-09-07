@@ -166,7 +166,7 @@ class _LoginPageState extends State<LoginPage> {
                         obscureText: _obscurePassword,
                         style: AppTextStyles.body.copyWith(color: context.txtPrimary),
                         decoration: InputDecoration(
-                          hintText: '••••••••',
+                          hintText: 'Masukkan kata sandi',
                           prefixIcon: Icon(
                             Icons.lock_outline_rounded,
                             color: context.txtSecondary,

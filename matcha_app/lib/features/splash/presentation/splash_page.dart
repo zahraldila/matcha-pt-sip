@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
+import '../../main/presentation/main_shell_page.dart';
 
 class SplashPage extends StatefulWidget {
   final AuthController authController;
@@ -39,22 +40,31 @@ class _SplashPageState extends State<SplashPage>
 
     _controller.forward();
 
-    // Auto navigate to LoginPage after 2.2 seconds
-    Timer(const Duration(milliseconds: 2200), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                LoginPage(authController: widget.authController),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 600),
-          ),
-        );
-      }
-    });
+    _checkSessionAndNavigate();
+  }
+
+  Future<void> _checkSessionAndNavigate() async {
+    // Jalankan pengecekan session di background bersamaan dengan durasi animasi splash
+    final results = await Future.wait([
+      widget.authController.checkSavedSession(),
+      Future.delayed(const Duration(milliseconds: 2000)),
+    ]);
+
+    final isLoggedIn = results[0] as bool;
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => isLoggedIn
+            ? MainShellPage(authController: widget.authController)
+            : LoginPage(authController: widget.authController),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 600),
+      ),
+    );
   }
 
   @override
