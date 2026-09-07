@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../data/match_service.dart';
+import '../data/datasource/match_remote_data_source.dart';
+import '../domain/models/match_model.dart';
 
 class MatchScoringPage extends StatefulWidget {
   final int? matchId;
+  final int? nomorMatch;
   final dynamic sessionId;
   final String sessionName;
   final String courtName;
@@ -13,18 +15,23 @@ class MatchScoringPage extends StatefulWidget {
   final int initialScoreA;
   final int initialScoreB;
   final String? statusMatch;
+  final MatchModel? matchData;
+  final MatchRemoteDataSource? dataSource;
 
   const MatchScoringPage({
     super.key,
     this.matchId,
+    this.nomorMatch,
     this.sessionId,
     this.sessionName = 'Saturday Morning',
     this.courtName = 'Court 1 — SiJi Tennis Court',
     this.sideA = 'Aldi · Budi',
     this.sideB = 'Caca · Dina',
-    this.initialScoreA = 6,
-    this.initialScoreB = 4,
+    this.initialScoreA = 0,
+    this.initialScoreB = 0,
     this.statusMatch,
+    this.matchData,
+    this.dataSource,
   });
 
   @override
@@ -32,26 +39,162 @@ class MatchScoringPage extends StatefulWidget {
 }
 
 class _MatchScoringPageState extends State<MatchScoringPage> {
-  late int _scoreA;
-  late int _scoreB;
+  late final MatchRemoteDataSource? _dataSource;
+
   int _selectedSet = 1;
-  late bool _isFinished;
-  bool _isSaving = false;
-  final MatchService _matchService = MatchService();
+  final Map<int, int> _scoresA = {1: 0, 2: 0, 3: 0};
+  final Map<int, int> _scoresB = {1: 0, 2: 0, 3: 0};
+
+  bool _isLoadingInitial = false;
+  bool _isSavingScore = false;
+  bool _isFinishing = false;
+  bool _isFinished = false;
+
+  int get _currentScoreA => _scoresA[_selectedSet] ?? 0;
+  int get _currentScoreB => _scoresB[_selectedSet] ?? 0;
 
   @override
   void initState() {
     super.initState();
-    _scoreA = widget.initialScoreA;
-    _scoreB = widget.initialScoreB;
+    try {
+      _dataSource = widget.dataSource ?? MatchRemoteDataSource();
+    } catch (_) {
+      _dataSource = null;
+    }
+    if (widget.initialScoreA > 0) {
+      _scoresA[1] = widget.initialScoreA;
+    }
+    if (widget.initialScoreB > 0) {
+      _scoresB[1] = widget.initialScoreB;
+    }
     final normalized = (widget.statusMatch ?? '').toString().toLowerCase();
-    _isFinished = normalized == 'finished';
+    if (normalized == 'finished') {
+      _isFinished = true;
+    }
+    _loadMatchAndScoreData();
   }
 
+  /// Memuat data score yang sudah tersimpan di tb_score dan status pada tb_match
+  Future<void> _loadMatchAndScoreData() async {
+    final matchId = widget.matchId;
+    if (matchId == null || _dataSource == null) {
+      return;
+    }
+
+    setState(() => _isLoadingInitial = true);
+    try {
+      // 1. Cek status match
+      final match = await _dataSource!.getMatchById(matchId);
+      if (match != null && match.isFinished) {
+        _isFinished = true;
+      }
+
+      // 2. Ambil skor yang sudah ada di tb_score
+      final scores = await _dataSource!.getScoresByMatchId(matchId);
+      for (final s in scores) {
+        if (s.setNumber >= 1 && s.setNumber <= 3) {
+          _scoresA[s.setNumber] = s.scoreSideA;
+          _scoresB[s.setNumber] = s.scoreSideB;
+        }
+      }
+    } catch (_) {
+      // Jika terjadi error koneksi awal, gunakan default in-memory
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingInitial = false);
+      }
+    }
+  }
+
+  /// Mengubah skor Side A
+  void _changeScoreA(int delta) {
+    if (_isFinished) return;
+    final current = _scoresA[_selectedSet] ?? 0;
+    final updated = current + delta;
+    if (updated >= 0) {
+      setState(() {
+        _scoresA[_selectedSet] = updated;
+      });
+    }
+  }
+
+  /// Mengubah skor Side B
+  void _changeScoreB(int delta) {
+    if (_isFinished) return;
+    final current = _scoresB[_selectedSet] ?? 0;
+    final updated = current + delta;
+    if (updated >= 0) {
+      setState(() {
+        _scoresB[_selectedSet] = updated;
+      });
+    }
+  }
+
+  /// Menyimpan atau memperbarui skor set aktif ke tb_score
+  Future<void> _handleSaveScore() async {
+    if (_isSavingScore || _isFinishing) return;
+
+    final matchId = widget.matchId;
+    if (matchId == null) {
+      _showFeedbackSnackBar(
+        message:
+            'Tidak dapat menyimpan: ID Pertandingan (match_id) belum tersedia dari sistem.',
+        isError: true,
+      );
+      return;
+    }
+
+    final scoreA = _currentScoreA;
+    final scoreB = _currentScoreB;
+
+    if (scoreA < 0 || scoreB < 0) {
+      _showFeedbackSnackBar(
+        message: 'Skor tidak boleh bernilai negatif.',
+        isError: true,
+      );
+      return;
+    }
+
+    setState(() => _isSavingScore = true);
+
+    try {
+      if (_dataSource != null) {
+        await _dataSource!.saveOrUpdateScore(
+          matchId: matchId,
+          setNumber: _selectedSet,
+          scoreSideA: scoreA,
+          scoreSideB: scoreB,
+        );
+      }
+
+      if (mounted) {
+        _showFeedbackSnackBar(
+          message: 'Skor Set $_selectedSet berhasil disimpan ke database!',
+          isError: false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = e.toString().replaceFirst('Exception: ', '');
+        _showFeedbackSnackBar(
+          message: errorMsg,
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingScore = false);
+      }
+    }
+  }
+
+  /// Menghitung total skor agregat semua set
+  int get _totalScoreA => _scoresA.values.fold(0, (sum, val) => sum + val);
+  int get _totalScoreB => _scoresB.values.fold(0, (sum, val) => sum + val);
+
+  /// Menampilkan dialog konfirmasi penyelesaian match
   void _finishMatch() {
-    final messenger = ScaffoldMessenger.of(context);
     final surfColor = context.surf;
-    final txtPrimaryColor = context.txtPrimary;
 
     showDialog(
       context: context,
@@ -63,22 +206,19 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
         ),
         title: Text(
           'Selesaikan Pertandingan?',
-          style: AppTextStyles.cardTitle.copyWith(color: txtPrimaryColor),
+          style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary),
         ),
         content: Text(
-          'Hasil akhir: ${widget.sideA} ($_scoreA) vs ${widget.sideB} ($_scoreB)\n\nSkor akan disimpan ke riwayat dan siap untuk Re-Drawing ronde selanjutnya.',
-          style: AppTextStyles.bodySecondary.copyWith(
-            color: context.txtSecondary,
-          ),
+          'Hasil akhir agregat: ${widget.sideA} ($_totalScoreA) vs ${widget.sideB} ($_totalScoreB)\n\nStatus match akan diperbarui menjadi selesai dan riwayat bermain (Playing History) tiap pemain akan dicatat ke database.',
+          style:
+              AppTextStyles.bodySecondary.copyWith(color: context.txtSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: Text(
               'Batal',
-              style: AppTextStyles.caption.copyWith(
-                color: context.txtSecondary,
-              ),
+              style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
             ),
           ),
           ElevatedButton(
@@ -86,48 +226,107 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
               backgroundColor: context.brandColor,
               foregroundColor: Colors.black,
             ),
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(dialogContext);
-              if (widget.matchId != null) {
-                try {
-                  await _matchService.finishMatch(
-                    matchId: widget.matchId!,
-                    sessionId: widget.sessionId,
-                  );
-                } catch (e) {
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text('Gagal menyelesaikan match: $e'),
-                        backgroundColor: surfColor,
-                      ),
-                    );
-                  }
-                  return;
-                }
-              }
-              if (mounted) {
-                setState(() {
-                  _isFinished = true;
-                });
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Pertandingan selesai! Riwayat bermain telah diperbarui. Siap Re-Drawing! 🎾',
-                      style: AppTextStyles.body.copyWith(
-                        color: txtPrimaryColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    backgroundColor: surfColor,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
+              _processFinishMatch();
             },
             child: const Text('Ya, Selesaikan Match'),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Mengeksekusi proses penyelesaian match dan pencatatan playing history
+  Future<void> _processFinishMatch() async {
+    if (_isFinishing) return;
+
+    final matchId = widget.matchId;
+    if (matchId == null) {
+      _showFeedbackSnackBar(
+        message:
+            'Tidak dapat menyelesaikan: ID Pertandingan belum tersedia dari sistem.',
+        isError: true,
+      );
+      return;
+    }
+
+    setState(() => _isFinishing = true);
+
+    try {
+      if (_dataSource != null) {
+        // 1. Simpan skor set yang sedang aktif terlebih dahulu ke tb_score
+        await _dataSource!.saveOrUpdateScore(
+          matchId: matchId,
+          setNumber: _selectedSet,
+          scoreSideA: _currentScoreA,
+          scoreSideB: _currentScoreB,
+        );
+
+        // 2. Selesaikan match dan catat playing history
+        await _dataSource!.finishMatchAndRecordHistory(
+          matchId: matchId,
+          fallbackMatch: widget.matchData ??
+              MatchModel(
+                matchId: matchId,
+                statusMatch: 'in_progress',
+              ),
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _isFinished = true;
+        });
+
+        _showFeedbackSnackBar(
+          message:
+              'Pertandingan selesai! Status match & Playing History berhasil disimpan ke database. 🎾',
+          isError: false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = e.toString().replaceFirst('Exception: ', '');
+        _showFeedbackSnackBar(
+          message: 'Gagal menyelesaikan pertandingan: $errorMsg',
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isFinishing = false);
+      }
+    }
+  }
+
+  /// Helper untuk menampilkan snackbar feedback konsisten
+  void _showFeedbackSnackBar({
+    required String message,
+    required bool isError,
+  }) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: AppTextStyles.body.copyWith(
+            color: context.txtPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: context.surf,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isError
+                ? AppColors.error.withValues(alpha: 0.5)
+                : context.brandColor.withValues(alpha: 0.5),
+            width: 1,
+          ),
+        ),
+        duration: Duration(seconds: isError ? 4 : 2),
       ),
     );
   }
@@ -148,126 +347,93 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Court & Round Info
-              _buildMatchHeader(context),
-              const SizedBox(height: 24),
-
-              // 2. Set Selector Tabs
-              _buildSetSelector(context),
-              const SizedBox(height: 24),
-
-              // 3. Big Score Board (Side A vs Side B)
-              _buildScoreBoard(context),
-              const SizedBox(height: 32),
-
-              // 4. Action Buttons
-              ElevatedButton(
-                onPressed: _isSaving
-                    ? null
-                    : () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        final surfColor = context.surf;
-                        final txtPrimaryColor = context.txtPrimary;
-
-                        if (widget.matchId == null) {
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Skor disimpan lokal (Match ID tidak tersedia).',
-                                style: AppTextStyles.body.copyWith(
-                                  color: txtPrimaryColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              backgroundColor: surfColor,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                          return;
-                        }
-
-                        setState(() => _isSaving = true);
-                        try {
-                          await _matchService.saveMatchScore(
-                            matchId: widget.matchId!,
-                            scoreA: _scoreA,
-                            scoreB: _scoreB,
-                            sessionId: widget.sessionId,
-                          );
-
-                          if (!mounted) return;
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Skor pertandingan berhasil disimpan!',
-                                style: AppTextStyles.body.copyWith(
-                                  color: txtPrimaryColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              backgroundColor: surfColor,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        } catch (e) {
-                          if (!mounted) return;
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Gagal menyimpan skor: $e',
-                                style: AppTextStyles.body.copyWith(
-                                  color: Colors.redAccent,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              backgroundColor: surfColor,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        } finally {
-                          if (mounted) {
-                            setState(() => _isSaving = false);
-                          }
-                        }
-                      },
-
-                child: _isSaving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('SIMPAN SCORE'),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _isFinished
-                      ? context.txtSecondary
-                      : AppColors.warning,
-                  side: BorderSide(
-                    color: _isFinished
-                        ? context.surfBorder
-                        : AppColors.warning.withValues(alpha: 0.5),
-                  ),
+        child: _isLoadingInitial
+            ? Center(
+                child: CircularProgressIndicator(
+                  color: context.brandColor,
+                  strokeWidth: 2.5,
                 ),
-                onPressed: _isFinished ? null : _finishMatch,
-                icon: Icon(
-                  _isFinished ? Icons.check_circle_rounded : Icons.flag_rounded,
-                  size: 18,
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 16.0,
                 ),
-                label: Text(
-                  _isFinished ? 'PERTANDINGAN SELESAI' : 'SELESAIKAN MATCH',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. Court & Round Info
+                    _buildMatchHeader(context),
+                    const SizedBox(height: 24),
+
+                    // 2. Set Selector Tabs
+                    _buildSetSelector(context),
+                    const SizedBox(height: 24),
+
+                    // 3. Big Score Board (Side A vs Side B)
+                    _buildScoreBoard(context),
+                    const SizedBox(height: 32),
+
+                    // 4. Action Buttons
+                    ElevatedButton(
+                      onPressed: (_isSavingScore || _isFinishing || _isFinished)
+                          ? null
+                          : _handleSaveScore,
+                      child: _isSavingScore
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.black),
+                              ),
+                            )
+                          : const Text('SIMPAN SCORE'),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _isFinished
+                            ? context.txtSecondary
+                            : AppColors.warning,
+                        side: BorderSide(
+                          color: _isFinished
+                              ? context.surfBorder
+                              : AppColors.warning.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      onPressed: (_isFinished || _isFinishing || _isSavingScore)
+                          ? null
+                          : _finishMatch,
+                      icon: _isFinishing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppColors.warning,
+                                ),
+                              ),
+                            )
+                          : Icon(
+                              _isFinished
+                                  ? Icons.check_circle_rounded
+                                  : Icons.flag_rounded,
+                              size: 18,
+                            ),
+                      label: Text(
+                        _isFinishing
+                            ? 'MEMPROSES...'
+                            : (_isFinished
+                                ? 'PERTANDINGAN SELESAI'
+                                : 'SELESAIKAN MATCH'),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -295,10 +461,11 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Ronde 1 · Match 1 · ${widget.sessionName}',
-                style: AppTextStyles.caption.copyWith(
-                  color: context.txtSecondary,
-                ),
+                widget.nomorMatch != null
+                    ? 'Match #${widget.nomorMatch} · ${widget.sessionName}'
+                    : 'Match · ${widget.sessionName}',
+                style:
+                    AppTextStyles.caption.copyWith(color: context.txtSecondary),
               ),
             ],
           ),
@@ -329,6 +496,10 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
     return Row(
       children: [1, 2, 3].map((setNum) {
         final isSelected = _selectedSet == setNum;
+        final setScoreA = _scoresA[setNum] ?? 0;
+        final setScoreB = _scoresB[setNum] ?? 0;
+        final hasScore = setScoreA > 0 || setScoreB > 0;
+
         return Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -347,17 +518,33 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
                     width: isSelected ? 1.5 : 1,
                   ),
                 ),
-                child: Text(
-                  'Set $setNum',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.caption.copyWith(
-                    fontWeight: isSelected
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                    color: isSelected
-                        ? context.brandColor
-                        : context.txtSecondary,
-                  ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Set $setNum',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.caption.copyWith(
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? context.brandColor
+                            : context.txtSecondary,
+                      ),
+                    ),
+                    if (hasScore) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        '$setScoreA - $setScoreB',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected
+                              ? context.brandColor
+                              : context.txtSecondary,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -381,9 +568,9 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
           _buildTeamScoreRow(
             context: context,
             teamName: widget.sideA,
-            score: _scoreA,
-            onIncrement: () => setState(() => _scoreA++),
-            onDecrement: () => setState(() => _scoreA > 0 ? _scoreA-- : 0),
+            score: _currentScoreA,
+            onIncrement: () => _changeScoreA(1),
+            onDecrement: () => _changeScoreA(-1),
           ),
 
           Padding(
@@ -395,9 +582,9 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
           _buildTeamScoreRow(
             context: context,
             teamName: widget.sideB,
-            score: _scoreB,
-            onIncrement: () => setState(() => _scoreB++),
-            onDecrement: () => setState(() => _scoreB > 0 ? _scoreB-- : 0),
+            score: _currentScoreB,
+            onIncrement: () => _changeScoreB(1),
+            onDecrement: () => _changeScoreB(-1),
           ),
         ],
       ),
@@ -443,8 +630,8 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
               context: context,
               icon: Icons.remove_rounded,
               color: context.surfSec,
-              iconColor: context.txtPrimary,
-              onTap: onDecrement,
+              iconColor: _isFinished ? context.txtDisabled : context.txtPrimary,
+              onTap: _isFinished ? () {} : onDecrement,
             ),
             const SizedBox(width: 14),
 
@@ -455,7 +642,8 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
                 '$score',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.scoreDisplay.copyWith(
-                  color: context.brandColor,
+                  color:
+                      _isFinished ? context.txtSecondary : context.brandColor,
                   fontSize: 34,
                 ),
               ),
@@ -466,9 +654,9 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
             _buildScoreButton(
               context: context,
               icon: Icons.add_rounded,
-              color: context.brandColor,
-              iconColor: Colors.black,
-              onTap: onIncrement,
+              color: _isFinished ? context.surfSec : context.brandColor,
+              iconColor: _isFinished ? context.txtDisabled : Colors.black,
+              onTap: _isFinished ? () {} : onIncrement,
             ),
           ],
         ),
