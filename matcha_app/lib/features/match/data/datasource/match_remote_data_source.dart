@@ -7,7 +7,7 @@ class MatchRemoteDataSource {
   final SupabaseClient _supabase;
 
   MatchRemoteDataSource({SupabaseClient? supabaseClient})
-      : _supabase = supabaseClient ?? Supabase.instance.client;
+    : _supabase = supabaseClient ?? Supabase.instance.client;
 
   /// Mengambil semua score dari tb_score berdasarkan match_id
   Future<List<ScoreModel>> getScoresByMatchId(int matchId) async {
@@ -99,7 +99,8 @@ class MatchRemoteDataSource {
     }
   }
 
-  /// Mengambil data match dari tb_match berdasarkan match_id
+  /// Mengambil data match dari tb_match berdasarkan match_id,
+  /// dan melengkapi informasi player dari tb_match_participant jika tersedia.
   Future<MatchModel?> getMatchById(int matchId) async {
     try {
       final response = await _supabase
@@ -109,10 +110,84 @@ class MatchRemoteDataSource {
           .maybeSingle();
 
       if (response == null) return null;
-      return MatchModel.fromJson(response);
+
+      final baseMatch = MatchModel.fromJson(response);
+
+      // Ambil participant aktual dari tb_match_participant untuk melengkapi sideAPlayer & sideBPlayer
+      try {
+        final participants = await getMatchParticipantsByMatchId(matchId);
+        int? sideA1;
+        int? sideA2;
+        int? sideB1;
+        int? sideB2;
+
+        for (final p in participants) {
+          final rawPlayerId = p['player_id'];
+          final pId = rawPlayerId is int
+              ? rawPlayerId
+              : int.tryParse(rawPlayerId.toString());
+          if (pId == null) continue;
+
+          final side = (p['side'] ?? '').toString().toLowerCase().trim();
+          final groupNo = p['group_no'];
+          final isSideB = side.contains('b') || groupNo == 2;
+
+          if (isSideB) {
+            if (sideB1 == null) {
+              sideB1 = pId;
+            } else {
+              sideB2 ??= pId;
+            }
+          } else {
+            if (sideA1 == null) {
+              sideA1 = pId;
+            } else {
+              sideA2 ??= pId;
+            }
+          }
+        }
+
+        return MatchModel(
+          matchId: baseMatch.matchId,
+          drawingId: baseMatch.drawingId,
+          courtId: baseMatch.courtId,
+          roundNumber: baseMatch.roundNumber,
+          sideAPlayer1: sideA1 ?? baseMatch.sideAPlayer1,
+          sideAPlayer2: sideA2 ?? baseMatch.sideAPlayer2,
+          sideBPlayer1: sideB1 ?? baseMatch.sideBPlayer1,
+          sideBPlayer2: sideB2 ?? baseMatch.sideBPlayer2,
+          statusMatch: baseMatch.statusMatch,
+          hasilPertandingan: baseMatch.hasilPertandingan,
+          waktuSelesai: baseMatch.waktuSelesai,
+        );
+      } catch (_) {
+        return baseMatch;
+      }
     } catch (e) {
       if (e is PostgrestException) {
         throw Exception('Gagal mengambil data pertandingan: ${e.message}');
+      }
+      rethrow;
+    }
+  }
+
+  /// Mengambil seluruh participant pertandingan dari tb_match_participant
+  /// berdasarkan match_id dengan kolom yang tersedia: match_id, player_id, side, group_no.
+  Future<List<Map<String, dynamic>>> getMatchParticipantsByMatchId(
+    int matchId,
+  ) async {
+    try {
+      final response = await _supabase
+          .from('tb_match_participant')
+          .select('match_id, player_id, side, group_no')
+          .eq('match_id', matchId);
+
+      return List<Map<String, dynamic>>.from(response as List);
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception(
+          'Gagal mengambil participant pertandingan: ${e.message}',
+        );
       }
       rethrow;
     }
@@ -137,18 +212,29 @@ class MatchRemoteDataSource {
   }
 
   /// Menyelesaikan pertandingan (Finish Match) pada tb_match
+  /// dan mencatat Playing History untuk setiap participant dari tb_match_participant.
   Future<void> finishMatch({
     required int matchId,
     required String hasilPertandingan,
   }) async {
     final now = DateTime.now().toIso8601String();
     try {
-      await _supabase.from('tb_match').update({
-        'status_match': 'Finished',
-        'waktu_selesai': now,
-        'hasil_pertandingan': hasilPertandingan,
-        'updated_at': now,
-      }).eq('match_id', matchId);
+      await _supabase
+          .from('tb_match')
+          .update({
+            'status_match': 'Finished',
+            'waktu_selesai': now,
+            'hasil_pertandingan': hasilPertandingan,
+            'updated_at': now,
+          })
+          .eq('match_id', matchId);
+
+      // Simpan riwayat bermain untuk seluruh participant aktual
+      try {
+        await recordPlayingHistory(matchId: matchId);
+      } catch (_) {
+        // Jangan gagalkan finishMatch jika history gagal dicatat
+      }
     } catch (e) {
       if (e is PostgrestException) {
         throw Exception('Gagal menyelesaikan pertandingan: ${e.message}');
@@ -178,49 +264,39 @@ class MatchRemoteDataSource {
               .eq('player_id', history.playerId)
               .eq('match_id', history.matchId);
         } else {
-          await _supabase
-              .from('tb_playing_history')
-              .insert({
-                'player_id': history.playerId,
-                'match_id': history.matchId,
-                'total_score': history.totalScore,
-                'is_win': history.isWin,
-              });
+          await _supabase.from('tb_playing_history').insert({
+            'player_id': history.playerId,
+            'match_id': history.matchId,
+            'total_score': history.totalScore,
+            'is_win': history.isWin,
+          });
         }
       }
     } catch (e) {
       if (e is PostgrestException) {
-        throw Exception('Gagal menyimpan riwayat bermain ke database: ${e.message}');
+        throw Exception(
+          'Gagal menyimpan riwayat bermain ke database: ${e.message}',
+        );
       }
       rethrow;
     }
   }
 
-  /// Proses lengkap penyelesaian pertandingan:
-  /// 1. Ambil data match dan score
-  /// 2. Hitung agregat score
-  /// 3. Update status tb_match menjadi 'finished'
-  /// 4. Simpan riwayat bermain ke tb_playing_history
-  Future<void> finishMatchAndRecordHistory({
+  /// Helper khusus untuk membentuk dan mencatat Playing History ke tb_playing_history
+  /// dengan mengambil data participant dari tb_match_participant (player_id, side, group_no)
+  /// dan agregat skor dari tb_score.
+  Future<List<PlayingHistoryModel>> recordPlayingHistory({
     required int matchId,
-    MatchModel? fallbackMatch,
   }) async {
     try {
-      // 1. Dapatkan data match dari tb_match
-      MatchModel? match = await getMatchById(matchId);
-      match ??= fallbackMatch;
-
-      if (match == null) {
-        throw Exception('Data pertandingan dengan ID $matchId tidak ditemukan.');
+      // 1. Ambil participant aktual dari tb_match_participant
+      final participants = await getMatchParticipantsByMatchId(matchId);
+      if (participants.isEmpty) {
+        return [];
       }
 
-      // 2. Ambil data score yang sudah tersimpan pada tb_score
+      // 2. Ambil seluruh skor dari tb_score
       final scores = await getScoresByMatchId(matchId);
-      if (scores.isEmpty) {
-        throw Exception('Belum ada skor yang tersimpan di database untuk pertandingan ini. Silakan simpan skor terlebih dahulu.');
-      }
-
-      // 3. Hitung agregat total score untuk Side A dan Side B
       int totalScoreA = 0;
       int totalScoreB = 0;
       for (final s in scores) {
@@ -231,55 +307,100 @@ class MatchRemoteDataSource {
       final bool isSideAWin = totalScoreA > totalScoreB;
       final bool isSideBWin = totalScoreB > totalScoreA;
 
-      // 4. Ubah status match menjadi 'finished' pada tb_match
-      await updateMatchStatus(matchId: matchId, status: 'finished');
-
-      // 5. Susun playing history untuk setiap player yang terlibat pada match
+      // 3. Bentuk PlayingHistoryModel untuk setiap participant
       final List<PlayingHistoryModel> histories = [];
+      for (final participant in participants) {
+        final rawPlayerId = participant['player_id'];
+        if (rawPlayerId == null) continue;
 
-      // Side A Players
-      if (match.sideAPlayer1 != null) {
-        histories.add(PlayingHistoryModel(
-          playerId: match.sideAPlayer1!,
-          matchId: matchId,
-          totalScore: totalScoreA,
-          isWin: isSideAWin,
-        ));
-      }
-      if (match.sideAPlayer2 != null) {
-        histories.add(PlayingHistoryModel(
-          playerId: match.sideAPlayer2!,
-          matchId: matchId,
-          totalScore: totalScoreA,
-          isWin: isSideAWin,
-        ));
-      }
+        final playerIdValue = rawPlayerId is int
+            ? rawPlayerId
+            : int.tryParse(rawPlayerId.toString());
+        if (playerIdValue == null) continue;
 
-      // Side B Players
-      if (match.sideBPlayer1 != null) {
-        histories.add(PlayingHistoryModel(
-          playerId: match.sideBPlayer1!,
-          matchId: matchId,
-          totalScore: totalScoreB,
-          isWin: isSideBWin,
-        ));
-      }
-      if (match.sideBPlayer2 != null) {
-        histories.add(PlayingHistoryModel(
-          playerId: match.sideBPlayer2!,
-          matchId: matchId,
-          totalScore: totalScoreB,
-          isWin: isSideBWin,
-        ));
+        final side = (participant['side'] ?? '').toString().toLowerCase().trim();
+        final groupNo = participant['group_no'];
+        final isSideB = side.contains('b') || groupNo == 2;
+
+        histories.add(
+          PlayingHistoryModel(
+            playerId: playerIdValue,
+            matchId: matchId,
+            totalScore: isSideB ? totalScoreB : totalScoreA,
+            isWin: isSideB ? isSideBWin : isSideAWin,
+          ),
+        );
       }
 
-      // 6. Simpan seluruh playing history ke tb_playing_history
+      // 4. Simpan seluruh playing history ke tb_playing_history
       if (histories.isNotEmpty) {
         await savePlayingHistories(histories);
       }
+
+      return histories;
     } catch (e) {
       if (e is PostgrestException) {
-        throw Exception('Terjadi kesalahan saat menyelesaikan match: ${e.message}');
+        throw Exception(
+          'Gagal mencatat riwayat bermain: ${e.message}',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  /// Proses lengkap penyelesaian pertandingan:
+  /// 1. Ambil data match dan score
+  /// 2. Hitung agregat score
+  /// 3. Update status tb_match menjadi 'finished'
+  /// 4. Simpan riwayat bermain ke tb_playing_history berdasarkan tb_match_participant
+  Future<void> finishMatchAndRecordHistory({
+    required int matchId,
+    MatchModel? fallbackMatch,
+  }) async {
+    try {
+      // 1. Dapatkan data match dari tb_match
+      MatchModel? match = await getMatchById(matchId);
+      match ??= fallbackMatch;
+
+      if (match == null) {
+        throw Exception(
+          'Data pertandingan dengan ID $matchId tidak ditemukan.',
+        );
+      }
+
+      // 2. Ambil data score yang sudah tersimpan pada tb_score
+      final scores = await getScoresByMatchId(matchId);
+      if (scores.isEmpty) {
+        throw Exception(
+          'Belum ada skor yang tersimpan di database untuk pertandingan ini. Silakan simpan skor terlebih dahulu.',
+        );
+      }
+
+      // 3. Hitung agregat total score untuk Side A dan Side B
+      int totalScoreA = 0;
+      int totalScoreB = 0;
+      for (final s in scores) {
+        totalScoreA += s.scoreSideA;
+        totalScoreB += s.scoreSideB;
+      }
+
+      final String hasilPertandingan = totalScoreA > totalScoreB
+          ? 'Side A Win'
+          : (totalScoreB > totalScoreA ? 'Side B Win' : 'Draw');
+
+      // 4. Selesaikan match pada tb_match
+      await finishMatch(
+        matchId: matchId,
+        hasilPertandingan: hasilPertandingan,
+      );
+
+      // 5. Catat riwayat bermain dari tb_match_participant (jika belum tercatat oleh finishMatch)
+      await recordPlayingHistory(matchId: matchId);
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception(
+          'Terjadi kesalahan saat menyelesaikan match: ${e.message}',
+        );
       }
       rethrow;
     }

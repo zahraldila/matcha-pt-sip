@@ -188,5 +188,15 @@ void main() {
         throwsA(isA<Exception>()),
       );
     });
+
+    test('5. getMatchParticipantsByMatchId queries tb_match_participant with valid columns', () async {
+      final participants = await dataSource.getMatchParticipantsByMatchId(testMatchId!);
+      expect(participants, isA<List<Map<String, dynamic>>>());
+      for (final p in participants) {
+        expect(p.containsKey('player_id'), isTrue);
+        expect(p.containsKey('side'), isTrue);
+        expect(p.containsKey('group_no'), isTrue);
+      }
+    });
   });
 }

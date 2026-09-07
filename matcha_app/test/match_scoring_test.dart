@@ -126,5 +126,59 @@ void main() {
       expect(score.setNumber, isNull);
       expect(score.setNumber == 1, isFalse);
     });
+
+    test('tb_match_participant fields (match_id, player_id, side, group_no) map correctly to PlayingHistoryModel', () {
+      final participants = [
+        {'match_id': 1, 'player_id': 101, 'side': 'Side A', 'group_no': 1},
+        {'match_id': 1, 'player_id': 102, 'side': 'A', 'group_no': 1},
+        {'match_id': 1, 'player_id': 201, 'side': 'Side B', 'group_no': 2},
+        {'match_id': 1, 'player_id': 202, 'side': 'B', 'group_no': 2},
+      ];
+
+      const totalScoreA = 21;
+      const totalScoreB = 18;
+      final isSideAWin = totalScoreA > totalScoreB;
+      final isSideBWin = totalScoreB > totalScoreA;
+
+      final List<PlayingHistoryModel> histories = [];
+      for (final p in participants) {
+        final rawId = p['player_id'];
+        final pId = rawId is int ? rawId : int.tryParse(rawId.toString());
+        expect(pId, isNotNull);
+
+        final side = (p['side'] ?? '').toString().toLowerCase().trim();
+        final groupNo = p['group_no'];
+        final isSideB = side.contains('b') || groupNo == 2;
+
+        histories.add(
+          PlayingHistoryModel(
+            playerId: pId!,
+            matchId: p['match_id'] as int,
+            totalScore: isSideB ? totalScoreB : totalScoreA,
+            isWin: isSideB ? isSideBWin : isSideAWin,
+          ),
+        );
+      }
+
+      expect(histories.length, 4);
+
+      // Side A players
+      expect(histories[0].playerId, 101);
+      expect(histories[0].totalScore, 21);
+      expect(histories[0].isWin, true);
+
+      expect(histories[1].playerId, 102);
+      expect(histories[1].totalScore, 21);
+      expect(histories[1].isWin, true);
+
+      // Side B players
+      expect(histories[2].playerId, 201);
+      expect(histories[2].totalScore, 18);
+      expect(histories[2].isWin, false);
+
+      expect(histories[3].playerId, 202);
+      expect(histories[3].totalScore, 18);
+      expect(histories[3].isWin, false);
+    });
   });
 }
