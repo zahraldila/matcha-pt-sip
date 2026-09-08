@@ -38,7 +38,7 @@
             </div>
 
             <div class="flex justify-end pt-4 border-t border-slate-100">
-                <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-colors">
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01]">
                     Daftarkan Komunitas
                 </button>
             </div>

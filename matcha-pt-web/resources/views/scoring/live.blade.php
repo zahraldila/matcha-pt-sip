@@ -40,7 +40,7 @@
             
             <!-- Team A Side -->
             <div class="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-slate-200/70 text-center space-y-4 shadow-xs">
-                <span class="inline-block px-2.5 py-0.5 rounded-md bg-emerald-100/80 text-emerald-900 font-extrabold text-[10px] uppercase tracking-wider">
+                <span class="inline-block px-2.5 py-0.5 rounded-md bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25 font-extrabold text-[10px] uppercase tracking-wider">
                     TEAM A
                 </span>
                 
@@ -58,14 +58,14 @@
                 </div>
 
                 <!-- Point Button -->
-                <button onclick="addPoint('A')" class="w-full py-3.5 rounded-xl bg-[#1c4927] hover:bg-[#255d33] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-plus text-xs"></i> Tambah Poin Team A
+                <button onclick="addPoint('A')" class="w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-plus text-xs text-[#A8E63A]"></i> Tambah Poin Team A
                 </button>
             </div>
 
             <!-- Team B Side -->
             <div class="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-slate-200/70 text-center space-y-4 shadow-xs">
-                <span class="inline-block px-2.5 py-0.5 rounded-md bg-[#eaf3eb] text-[#245b2c] font-extrabold text-[10px] uppercase tracking-wider border border-[#c1dec4]">
+                <span class="inline-block px-2.5 py-0.5 rounded-md bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25 font-extrabold text-[10px] uppercase tracking-wider">
                     TEAM B
                 </span>
 
@@ -83,8 +83,8 @@
                 </div>
 
                 <!-- Point Button -->
-                <button onclick="addPoint('B')" class="w-full py-3.5 rounded-xl bg-[#2d5237] hover:bg-[#376242] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-plus text-xs"></i> Tambah Poin Team B
+                <button onclick="addPoint('B')" class="w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-plus text-xs text-[#A8E63A]"></i> Tambah Poin Team B
                 </button>
             </div>
         </div>
@@ -100,8 +100,8 @@
                 <i class="fa-solid fa-rotate-left text-[10px]"></i> Reset Skor Game Ini
             </button>
 
-            <button onclick="finishMatch()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-2">
-                <i class="fa-solid fa-check text-[11px]"></i> Selesai Match & Simpan Rekap
+            <button onclick="finishMatch()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-check text-[11px] text-[#A8E63A]"></i> Selesai Match & Simpan Rekap
             </button>
         </div>
     </div>
@@ -215,7 +215,7 @@
             if (advantage === 'A') {
                 displayA.innerText = 'ADV';
                 displayB.innerText = '40';
-                notice.innerHTML = '<strong class="text-emerald-700">Advantage Team A</strong> (Butuh 1 poin lagi untuk memenangkan game)';
+                notice.innerHTML = '<strong class="text-[#063B00]">Advantage Team A</strong> (Butuh 1 poin lagi untuk memenangkan game)';
             } else if (advantage === 'B') {
                 displayA.innerText = '40';
                 displayB.innerText = 'ADV';

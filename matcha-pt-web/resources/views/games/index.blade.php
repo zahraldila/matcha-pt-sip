@@ -2,35 +2,35 @@
 
 @section('content')
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 pb-4">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900">
+            <h1 class="text-2xl font-bold text-[#050608]">
                 Jadwal Mabar & Turnamen
             </h1>
             <p class="text-xs text-slate-500 mt-0.5">Daftar sesi mabar aktif yang dibuat oleh Host Komunitas</p>
         </div>
 
-        <a href="{{ route('games.create') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-colors">
+        <a href="{{ route('games.create') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01]">
             <i class="fa-solid fa-plus text-[10px]"></i> Buat Sesi Mabar Baru
         </a>
     </div>
 
     <!-- Filters Bar -->
-    <div class="clean-card p-3.5 rounded-xl flex flex-wrap items-center justify-between gap-3">
+    <div class="glass-card p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 border border-white/90">
         <div class="flex items-center gap-2">
-            <a href="{{ route('games.index', ['sport' => 'all']) }}" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {{ ($selectedSport ?? 'all') === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200' }}">
+            <a href="{{ route('games.index', ['sport' => 'all']) }}" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all {{ ($selectedSport ?? 'all') === 'all' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
                 Semua Cabang
             </a>
-            <a href="{{ route('games.index', ['sport' => 'tennis']) }}" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {{ ($selectedSport ?? '') === 'tennis' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200' }}">
+            <a href="{{ route('games.index', ['sport' => 'tennis']) }}" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all {{ ($selectedSport ?? '') === 'tennis' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
                 🎾 Tennis
             </a>
-            <a href="{{ route('games.index', ['sport' => 'padel']) }}" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {{ ($selectedSport ?? '') === 'padel' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200' }}">
+            <a href="{{ route('games.index', ['sport' => 'padel']) }}" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all {{ ($selectedSport ?? '') === 'padel' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
                 🏓 Padel
             </a>
         </div>
 
         <div class="text-xs text-slate-500">
-            Total <strong>{{ count($games) }}</strong> sesi pertandingan
+            Total <strong class="text-[#050608]">{{ count($games) }}</strong> sesi pertandingan
         </div>
     </div>
 

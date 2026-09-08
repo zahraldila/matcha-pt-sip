@@ -8,7 +8,7 @@
         </a>
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">
+                <h1 class="text-2xl font-bold text-[#050608]">
                     {{ $venue['name'] }}
                 </h1>
                 <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
@@ -16,7 +16,7 @@
                 </p>
             </div>
 
-            <a href="{{ route('games.create') }}" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-colors">
+            <a href="{{ route('games.create') }}" class="px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] inline-flex items-center gap-1.5">
                 <i class="fa-solid fa-plus text-[10px]"></i> Buat Mabar di Sini
             </a>
         </div>
@@ -45,13 +45,13 @@
                         <div class="bg-slate-50 p-3.5 rounded-lg border border-slate-200 space-y-2">
                             <div class="flex items-center justify-between">
                                 <span class="font-semibold text-xs text-slate-900">{{ $court['name'] }}</span>
-                                <span class="text-[10px] px-2 py-0.5 rounded font-semibold {{ $court['status'] === 'Available' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200' }}">
+                                <span class="text-[10px] px-2 py-0.5 rounded font-semibold {{ $court['status'] === 'Available' ? 'bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25' : 'bg-rose-50 text-rose-800 border border-rose-200' }}">
                                     {{ $court['status'] }}
                                 </span>
                             </div>
                             <div class="text-xs text-slate-500 flex items-center justify-between">
                                 <span>Tipe: <strong class="text-slate-700">{{ $court['type'] }}</strong></span>
-                                <span class="text-emerald-700 text-[11px] font-medium">Siap Pakai</span>
+                                <span class="text-[#063B00] text-[11px] font-semibold">Siap Pakai</span>
                             </div>
                         </div>
                     @endforeach
@@ -85,7 +85,7 @@
                 <div class="pt-3 border-t border-slate-100 space-y-1 text-xs">
                     <span class="text-slate-500 block">PIC / Pengelola:</span>
                     <p class="text-slate-900 font-semibold">{{ $venue['pic_name'] }}</p>
-                    <p class="text-emerald-700 font-medium">{{ $venue['pic_phone'] }}</p>
+                    <p class="text-[#063B00] font-bold">{{ $venue['pic_phone'] }}</p>
                 </div>
             </div>
 
@@ -98,7 +98,7 @@
                 <ul class="space-y-1.5 text-xs text-slate-600">
                     @foreach($venue['facilities'] as $facility)
                         <li class="flex items-center gap-2">
-                            <i class="fa-solid fa-check text-emerald-600 text-xs"></i>
+                            <i class="fa-solid fa-check text-[#063B00] text-xs"></i>
                             <span>{{ $facility }}</span>
                         </li>
                     @endforeach

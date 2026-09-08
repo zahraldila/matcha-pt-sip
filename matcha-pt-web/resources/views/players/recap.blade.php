@@ -12,8 +12,8 @@
             <p class="text-xs text-slate-500 mt-0.5">Ringkasan aktivitas pertandingan dan statistik kemenangan pemain</p>
         </div>
 
-        <button onclick="shareRecap()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01]">
-            <i class="fa-solid fa-arrow-up-from-bracket text-[10px]"></i> Bagikan Rekap
+        <button onclick="shareRecap()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] cursor-pointer">
+            <i class="fa-solid fa-arrow-up-from-bracket text-[10px] text-[#A8E63A]"></i> Bagikan Rekap
         </button>
     </div>
 
@@ -23,11 +23,11 @@
         <!-- Brand Header -->
         <div class="flex items-center justify-between border-b border-slate-200/40 pb-4">
             <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white text-xs shadow-xs">
+                <div class="w-8 h-8 rounded-xl bg-[#063B00] flex items-center justify-center text-[#A8E63A] text-xs shadow-xs">
                     <i class="fa-solid fa-table-tennis-paddle-ball"></i>
                 </div>
                 <div>
-                    <span class="text-[10px] font-bold tracking-wider text-emerald-800 uppercase">Match Activity Summary</span>
+                    <span class="text-[10px] font-bold tracking-wider text-[#063B00] uppercase">Match Activity Summary</span>
                     <h3 class="text-sm font-bold text-slate-900 leading-tight">Sesi Mabar JTK Bonang Arena</h3>
                 </div>
             </div>
@@ -41,11 +41,11 @@
         <!-- Player Profile & Highlight -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-center gap-3.5">
-                <img src="{{ $recap['player']['avatar'] }}" alt="{{ $recap['player']['name'] }}" class="w-14 h-14 rounded-full object-cover ring-2 ring-emerald-600/70 shadow-xs">
+                <img src="{{ $recap['player']['avatar'] }}" alt="{{ $recap['player']['name'] }}" class="w-14 h-14 rounded-full object-cover ring-2 ring-[#063B00]/40 shadow-xs">
                 <div>
                     <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                         {{ $recap['player']['name'] }}
-                        <span class="text-xs bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200/60 font-semibold">{{ $recap['player']['level'] }}</span>
+                        <span class="text-xs bg-[#EBF8D8] text-[#063B00] px-2 py-0.5 rounded-full border border-[#063B00]/25 font-semibold">{{ $recap['player']['level'] }}</span>
                     </h2>
                     <p class="text-xs text-slate-500">{{ $recap['player']['username'] }} &bull; {{ $recap['player']['community'] }}</p>
                 </div>
@@ -66,14 +66,14 @@
 
             <div class="bg-white/70 backdrop-blur-xs p-4 rounded-2xl border border-slate-200/60 text-center shadow-2xs">
                 <span class="text-[10px] text-slate-400 font-medium block uppercase">Kemenangan</span>
-                <strong class="text-2xl font-bold text-emerald-700 mt-0.5 block">{{ $recap['player']['wins'] }}W</strong>
+                <strong class="text-2xl font-bold text-[#063B00] mt-0.5 block">{{ $recap['player']['wins'] }}W</strong>
                 <span class="text-[10px] text-slate-400">{{ $recap['player']['losses'] }}x Kalah</span>
             </div>
 
             <div class="bg-white/70 backdrop-blur-xs p-4 rounded-2xl border border-slate-200/60 text-center shadow-2xs">
                 <span class="text-[10px] text-slate-400 font-medium block uppercase">Win Rate %</span>
                 <strong class="text-2xl font-bold text-slate-800 mt-0.5 block">{{ $recap['player']['win_rate'] }}</strong>
-                <span class="text-[10px] text-emerald-700 font-semibold">Persentase</span>
+                <span class="text-[10px] text-[#063B00] font-semibold">Persentase</span>
             </div>
 
             <div class="bg-white/70 backdrop-blur-xs p-4 rounded-2xl border border-slate-200/60 text-center shadow-2xs">
@@ -98,7 +98,7 @@
                     <div class="glass-card p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div class="space-y-1">
                             <div class="flex items-center gap-2">
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $match['result'] === 'WIN' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200' }}">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $match['result'] === 'WIN' ? 'bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25' : 'bg-rose-50 text-rose-800 border border-rose-200' }}">
                                     {{ $match['result'] }}
                                 </span>
                                 <span class="font-bold text-xs text-slate-900">{{ $match['sport'] }}</span>
@@ -137,13 +137,13 @@
                         <div class="bg-white/70 p-3 rounded-xl border border-slate-200/50 space-y-1.5 shadow-2xs">
                             <div class="flex items-center justify-between text-xs font-semibold">
                                 <span class="text-slate-800">{{ $h2h['opponent'] }}</span>
-                                <span class="text-emerald-700 font-bold">{{ $h2h['win'] }}W - {{ $h2h['lose'] }}L</span>
+                                <span class="text-[#063B00] font-bold">{{ $h2h['win'] }}W - {{ $h2h['lose'] }}L</span>
                             </div>
                             <div class="w-full bg-slate-200/70 rounded-full h-1.5 overflow-hidden">
                                 @php
                                     $h2hPercent = ($h2h['win'] / $h2h['played']) * 100;
                                 @endphp
-                                <div class="bg-gradient-to-r from-emerald-600 to-teal-500 h-1.5 rounded-full" style="width: {{ $h2hPercent }}%"></div>
+                                <div class="bg-[#063B00] h-1.5 rounded-full" style="width: {{ $h2hPercent }}%"></div>
                             </div>
                             <div class="flex justify-between text-[10px] text-slate-400">
                                 <span>{{ $h2h['played'] }}x main</span>

@@ -9,8 +9,8 @@
             <i class="fa-solid fa-arrow-left"></i> Kembali ke Daftar Mabar
         </a>
         <div class="flex items-center gap-2">
-            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                <i class="fa-solid fa-circle-check text-emerald-600"></i> Match Finished
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25">
+                <i class="fa-solid fa-circle-check text-[#063B00]"></i> Match Finished
             </span>
             <button onclick="shareRecap()" class="px-3 py-1 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-2xs transition-colors flex items-center gap-1.5">
                 <i class="fa-solid fa-share-nodes text-slate-400"></i> Bagikan
@@ -20,8 +20,8 @@
 
     <!-- Match Result Showcase (Glass Hero) -->
     <div class="glass-card rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden border border-white">
-        <div class="absolute top-0 right-0 transform translate-x-8 -translate-y-8 w-40 h-40 bg-emerald-100/50 rounded-full blur-2xl pointer-events-none"></div>
-        <div class="absolute bottom-0 left-0 transform -translate-x-8 translate-y-8 w-40 h-40 bg-lime-100/50 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="absolute top-0 right-0 transform translate-x-8 -translate-y-8 w-40 h-40 bg-[#A8E63A]/20 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 transform -translate-x-8 translate-y-8 w-40 h-40 bg-[#EBF8D8]/50 rounded-full blur-2xl pointer-events-none"></div>
 
         <div class="relative space-y-4">
             <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/80 border border-amber-200 text-amber-900 text-xs font-bold">
@@ -39,15 +39,15 @@
             <div class="grid grid-cols-3 items-center max-w-lg mx-auto py-4 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-xs">
                 <!-- Team A -->
                 <div class="p-3 text-center space-y-1">
-                    <span class="text-[10px] font-bold tracking-wider text-emerald-700 uppercase">Team A</span>
+                    <span class="text-[10px] font-bold tracking-wider text-[#063B00] uppercase">Team A</span>
                     <p class="text-xs sm:text-sm font-black text-slate-900 leading-tight">Billy Santoso<br><span class="text-[11px] font-medium text-slate-500">& Gisel A.</span></p>
-                    <span class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">WINNER</span>
+                    <span class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25 font-bold">WINNER</span>
                 </div>
 
                 <!-- Final Score Points -->
                 <div class="text-center space-y-1">
                     <div class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-                        <span class="text-emerald-600">24</span> : <span>18</span>
+                        <span class="text-[#063B00]">24</span> : <span>18</span>
                     </div>
                     <span class="text-[10px] font-semibold text-slate-400">Total Points</span>
                 </div>
@@ -66,7 +66,7 @@
     <div class="glass-card rounded-3xl p-6 border border-white space-y-4">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
             <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 text-xs">
+                <div class="w-8 h-8 rounded-xl bg-[#EBF8D8] border border-[#063B00]/20 flex items-center justify-center text-[#063B00] text-xs">
                     <i class="fa-solid fa-chart-line"></i>
                 </div>
                 <div>
@@ -74,7 +74,7 @@
                     <p class="text-[11px] text-slate-500">Rating dihitung berdasarkan selisih poin & rating lawan (Playtomic Algorithm)</p>
                 </div>
             </div>
-            <span class="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+            <span class="text-xs font-bold text-[#063B00] bg-[#EBF8D8] px-2.5 py-1 rounded-full border border-[#063B00]/25">
                 Level Confidence: 92%
             </span>
         </div>
@@ -87,15 +87,15 @@
                         <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80" class="w-7 h-7 rounded-full object-cover border border-slate-200" alt="Billy">
                         <span class="text-xs font-bold text-slate-900">Billy Santoso (You)</span>
                     </div>
-                    <span class="text-xs font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">+0.18</span>
+                    <span class="text-xs font-black text-[#063B00] bg-[#EBF8D8] px-2 py-0.5 rounded-full border border-[#063B00]/25">+0.18</span>
                 </div>
                 <div class="flex items-center justify-between text-xs text-slate-500">
                     <span>3.42 (Intermediate)</span>
                     <i class="fa-solid fa-arrow-right text-slate-400 text-[10px]"></i>
-                    <span class="font-bold text-emerald-700">3.60 (Intermediate+)</span>
+                    <span class="font-bold text-[#063B00]">3.60 (Intermediate+)</span>
                 </div>
                 <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                    <div class="bg-emerald-600 h-1.5 rounded-full" style="width: 72%"></div>
+                    <div class="bg-[#063B00] h-1.5 rounded-full" style="width: 72%"></div>
                 </div>
             </div>
 
@@ -106,15 +106,15 @@
                         <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=80&auto=format&fit=crop&q=80" class="w-7 h-7 rounded-full object-cover border border-slate-200" alt="Gisel">
                         <span class="text-xs font-bold text-slate-900">Gisel Anastasia</span>
                     </div>
-                    <span class="text-xs font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">+0.24</span>
+                    <span class="text-xs font-black text-[#063B00] bg-[#EBF8D8] px-2 py-0.5 rounded-full border border-[#063B00]/25">+0.24</span>
                 </div>
                 <div class="flex items-center justify-between text-xs text-slate-500">
                     <span>2.15 (Beginner)</span>
                     <i class="fa-solid fa-arrow-right text-slate-400 text-[10px]"></i>
-                    <span class="font-bold text-emerald-700">2.39 (Beginner+)</span>
+                    <span class="font-bold text-[#063B00]">2.39 (Beginner+)</span>
                 </div>
                 <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                    <div class="bg-emerald-600 h-1.5 rounded-full" style="width: 48%"></div>
+                    <div class="bg-[#063B00] h-1.5 rounded-full" style="width: 48%"></div>
                 </div>
             </div>
         </div>
@@ -148,13 +148,13 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-1.5">
-                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-all">
+                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
                         🎾 Super Forehand
                     </button>
-                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-all">
+                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
                         🛡️ Solid Defense
                     </button>
-                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-all">
+                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
                         🤝 Fun Partner
                     </button>
                 </div>
@@ -171,13 +171,13 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-1.5">
-                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-all">
+                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
                         💥 Killer Smash
                     </button>
-                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-all">
+                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
                         ⭐ MVP Play
                     </button>
-                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-all">
+                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
                         ✨ Fair Play
                     </button>
                 </div>
@@ -186,13 +186,13 @@
     </div>
 
     <!-- Strava-Style Activity Recap Banner -->
-    <div class="p-6 rounded-3xl bg-gradient-to-r from-emerald-800 to-teal-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+    <div class="p-6 rounded-3xl bg-gradient-to-r from-[#063B00] to-[#042a00] text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
         <div class="space-y-1 text-center sm:text-left">
-            <span class="text-[10px] font-bold uppercase tracking-widest text-emerald-300">Strava-like Recap Card</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-[#A8E63A]">Strava-like Recap Card</span>
             <h3 class="text-lg font-black">Bagikan Kartu Statistik Pertandinganmu</h3>
-            <p class="text-xs text-emerald-100/80">Posting statistik match ke Instagram Story atau WhatsApp Group komunitasmu.</p>
+            <p class="text-xs text-white/80">Posting statistik match ke Instagram Story atau WhatsApp Group komunitasmu.</p>
         </div>
-        <a href="{{ route('player.recap') }}" class="px-5 py-2.5 rounded-xl bg-lime-400 hover:bg-lime-500 text-slate-950 font-extrabold text-xs shadow-md transition-all hover:scale-105 shrink-0">
+        <a href="{{ route('player.recap') }}" class="px-5 py-2.5 rounded-xl bg-[#A8E63A] hover:bg-[#92d628] text-[#050608] font-extrabold text-xs shadow-md transition-all hover:scale-105 shrink-0">
             Lihat Kartu Recap &rarr;
         </a>
     </div>
@@ -202,11 +202,11 @@
 @push('scripts')
 <script>
     function toggleKudos(btn) {
-        if (btn.classList.contains('bg-emerald-600')) {
-            btn.className = 'px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-all';
+        if (btn.classList.contains('bg-[#063B00]')) {
+            btn.className = 'px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer';
             showToast('Kudos dibatalkan.');
         } else {
-            btn.className = 'px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-emerald-600 bg-emerald-600 text-white shadow-xs transition-all';
+            btn.className = 'px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-[#063B00] bg-[#063B00] text-white shadow-xs transition-all cursor-pointer';
             showToast('Kudos berhasil dikirimkan! 🌟');
         }
     }

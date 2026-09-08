@@ -20,22 +20,22 @@
         body {
             font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
             background-color: #f8fafc;
-            color: #0f172a;
+            color: #050608;
         }
 
         /* Subtle Frosted Glassmorphism */
         .glass-card {
-            background: rgba(255, 255, 255, 0.82);
+            background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.9);
-            box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 1px 3px 0 rgba(15, 23, 42, 0.02);
+            box-shadow: 0 4px 20px -2px rgba(5, 6, 8, 0.04), 0 1px 3px 0 rgba(5, 6, 8, 0.02);
             transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .glass-card:hover {
-            background: rgba(255, 255, 255, 0.94);
+            background: rgba(255, 255, 255, 0.96);
             border-color: #ffffff;
-            box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.07);
+            box-shadow: 0 12px 32px -4px rgba(5, 6, 8, 0.07);
         }
 
         .glass-subtle {
@@ -46,13 +46,13 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col antialiased selection:bg-emerald-100 selection:text-emerald-900 relative">
+<body class="min-h-screen flex flex-col antialiased selection:bg-[#A8E63A] selection:text-[#050608] relative">
     
     <!-- Ambient Background Lighting (Subtle Pastel Blooms for Glass Effect) -->
     <div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
-        <div class="absolute -top-32 -left-32 w-96 h-96 bg-emerald-100/50 rounded-full blur-3xl"></div>
-        <div class="absolute top-1/3 -right-32 w-96 h-96 bg-teal-100/40 rounded-full blur-3xl"></div>
-        <div class="absolute bottom-10 left-1/4 w-80 h-80 bg-amber-50/40 rounded-full blur-3xl"></div>
+        <div class="absolute -top-32 -left-32 w-96 h-96 bg-[#A8E63A]/15 rounded-full blur-3xl"></div>
+        <div class="absolute top-1/3 -right-32 w-96 h-96 bg-emerald-100/40 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-10 left-1/4 w-80 h-80 bg-lime-50/50 rounded-full blur-3xl"></div>
     </div>
 
     <!-- Navbar Component -->
@@ -73,8 +73,8 @@
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            toast.className = `glass-card !bg-slate-900/90 !text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 transition-all duration-300 transform translate-y-3 opacity-0 pointer-events-auto border border-slate-700/50 text-xs font-medium`;
-            toast.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> <span>${message}</span>`;
+            toast.className = `glass-card !bg-[#111318]/95 !text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 transition-all duration-300 transform translate-y-3 opacity-0 pointer-events-auto border border-white/10 text-xs font-medium`;
+            toast.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-[#A8E63A] shadow-[0_0_8px_#A8E63A]"></span> <span class="text-white">${message}</span>`;
             container.appendChild(toast);
             
             setTimeout(() => {

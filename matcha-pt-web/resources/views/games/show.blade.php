@@ -129,30 +129,30 @@
 
         <!-- Sidebar Actions -->
         <div class="space-y-4">
-            <div class="clean-card rounded-xl p-5 space-y-4">
+            <div class="glass-card rounded-3xl p-5 space-y-4 border border-white/90">
                 <div class="space-y-1">
-                    <h3 class="text-sm font-bold text-slate-900">Drawing & Mulai Pertandingan</h3>
+                    <h3 class="text-sm font-bold text-[#050608]">Drawing & Mulai Pertandingan</h3>
                     <p class="text-xs text-slate-500">
                         Pemain telah lengkap. Host dapat mengacak tim dan memulai scoring poin.
                     </p>
                 </div>
 
                 <div class="space-y-2 pt-2">
-                    <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5">
+                    <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-shuffle text-[11px]"></i> Buka Drawing Tim
                     </a>
 
-                    <a href="{{ route('scoring.live', $game['id']) }}" class="w-full text-center py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs border border-slate-200 transition-colors flex items-center justify-center gap-1.5">
+                    <a href="{{ route('scoring.live', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#063B00] font-semibold text-xs border-1.5 border-[#063B00] transition-all shadow-xs flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-stopwatch text-[11px]"></i> Live Match Scoring
                     </a>
                 </div>
 
                 <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500 space-y-1.5">
                     <p class="flex items-center gap-1.5">
-                        <i class="fa-solid fa-check text-emerald-600"></i> Drawing otomatis seimbang
+                        <i class="fa-solid fa-check text-[#063B00]"></i> Drawing otomatis seimbang
                     </p>
                     <p class="flex items-center gap-1.5">
-                        <i class="fa-solid fa-check text-emerald-600"></i> Visualisasi lapangan tennis/padel
+                        <i class="fa-solid fa-check text-[#063B00]"></i> Visualisasi lapangan tennis/padel
                     </p>
                 </div>
             </div>

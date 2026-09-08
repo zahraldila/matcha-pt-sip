@@ -8,11 +8,11 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
             
             <div class="max-w-3xl space-y-3">
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-subtle text-emerald-900 text-xs font-semibold shadow-xs">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#A8E63A]/20 border border-[#063B00]/25 text-[#050608] text-xs font-semibold shadow-xs">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#063B00]"></span>
                     Tennis & Padel Community Platform
                 </div>
-                <h1 class="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                <h1 class="text-3xl sm:text-5xl font-extrabold text-[#050608] tracking-tight leading-tight">
                     Main bareng, drawing tim seimbang, dan catat skor pertandingan.
                 </h1>
                 <p class="text-slate-600 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
@@ -24,13 +24,13 @@
             <div class="glass-card rounded-3xl p-5 sm:p-6 shadow-sm max-w-5xl border border-white/80">
                 <!-- Tabs: Mabar / Venue / Komunitas -->
                 <div class="flex items-center gap-2 pb-4 mb-4 border-b border-slate-200/50 text-xs font-semibold">
-                    <button class="px-4 py-2 rounded-xl bg-[#163820] text-white shadow-xs flex items-center gap-2">
-                        <i class="fa-solid fa-users text-xs text-lime-400"></i> Jadwal Mabar
+                    <button class="px-4 py-2 rounded-xl bg-[#063B00] text-white shadow-xs flex items-center gap-2 font-bold">
+                        <i class="fa-solid fa-users text-xs text-[#A8E63A]"></i> Jadwal Mabar
                     </button>
-                    <a href="{{ route('venues.index') }}" class="px-4 py-2 rounded-xl bg-white/80 text-slate-600 hover:text-slate-900 hover:bg-white border border-slate-200/60 flex items-center gap-2 transition-colors shadow-xs">
+                    <a href="{{ route('venues.index') }}" class="px-4 py-2 rounded-xl bg-white/80 text-slate-600 hover:text-[#050608] hover:bg-white border border-slate-200/60 flex items-center gap-2 transition-colors shadow-xs">
                         <i class="fa-solid fa-location-dot text-xs text-slate-400"></i> Sewa Lapangan
                     </a>
-                    <a href="{{ route('communities.index') }}" class="px-4 py-2 rounded-xl bg-white/80 text-slate-600 hover:text-slate-900 hover:bg-white border border-slate-200/60 flex items-center gap-2 transition-colors shadow-xs">
+                    <a href="{{ route('communities.index') }}" class="px-4 py-2 rounded-xl bg-white/80 text-slate-600 hover:text-[#050608] hover:bg-white border border-slate-200/60 flex items-center gap-2 transition-colors shadow-xs">
                         <i class="fa-solid fa-shield-halved text-xs text-slate-400"></i> Komunitas
                     </a>
                 </div>
@@ -39,7 +39,7 @@
                 <form action="{{ route('games.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
                     <div>
                         <label class="block font-medium text-slate-600 mb-1">Cabang Olahraga</label>
-                        <select name="sport" class="w-full bg-white/90 border border-slate-200/70 rounded-xl px-3.5 py-2.5 text-slate-800 font-medium focus:border-emerald-600 focus:outline-none shadow-xs">
+                        <select name="sport" class="w-full bg-white/90 border border-slate-200/70 rounded-xl px-3.5 py-2.5 text-slate-800 font-medium focus:border-[#063B00] focus:outline-none shadow-xs">
                             <option value="all">Semua Cabang (All)</option>
                             <option value="tennis">🎾 Tennis</option>
                             <option value="padel">🏓 Padel</option>
@@ -48,7 +48,7 @@
 
                     <div>
                         <label class="block font-medium text-slate-600 mb-1">Kota / Lokasi</label>
-                        <select class="w-full bg-white/90 border border-slate-200/70 rounded-xl px-3.5 py-2.5 text-slate-800 font-medium focus:border-emerald-600 focus:outline-none shadow-xs">
+                        <select class="w-full bg-white/90 border border-slate-200/70 rounded-xl px-3.5 py-2.5 text-slate-800 font-medium focus:border-[#063B00] focus:outline-none shadow-xs">
                             <option value="all">Semua Kota</option>
                             <option value="jakarta">Jakarta Pusat / Selatan</option>
                             <option value="bandung">Bandung</option>
@@ -57,11 +57,11 @@
 
                     <div>
                         <label class="block font-medium text-slate-600 mb-1">Pilih Tanggal</label>
-                        <input type="date" value="2026-09-12" class="w-full bg-white/90 border border-slate-200/70 rounded-xl px-3.5 py-2.5 text-slate-800 font-medium focus:border-emerald-600 focus:outline-none shadow-xs">
+                        <input type="date" value="2026-09-12" class="w-full bg-white/90 border border-slate-200/70 rounded-xl px-3.5 py-2.5 text-slate-800 font-medium focus:border-[#063B00] focus:outline-none shadow-xs">
                     </div>
 
                     <div class="flex items-end">
-                        <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-all hover:scale-[1.01] flex items-center justify-center gap-2">
+                        <button type="submit" class="w-full py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-2">
                             <i class="fa-solid fa-magnifying-glass"></i> Cari Jadwal Mabar
                         </button>
                     </div>
@@ -75,14 +75,14 @@
         
         <!-- Category Pill Switcher -->
         <div class="flex items-center gap-2.5 overflow-x-auto pb-1">
-            <a href="{{ route('dashboard', ['sport' => 'all']) }}" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? 'all') === 'all' ? 'bg-[#163820] text-white shadow-xs' : 'glass-card text-slate-600 hover:text-slate-900' }}">
+            <a href="{{ route('dashboard', ['sport' => 'all']) }}" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? 'all') === 'all' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
                 <i class="fa-solid fa-layer-group text-[11px]"></i> Semua Cabang
             </a>
-            <a href="{{ route('dashboard', ['sport' => 'tennis']) }}" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? '') === 'tennis' ? 'bg-[#163820] text-white shadow-xs' : 'glass-card text-slate-600 hover:text-slate-900' }}">
-                <span>🎾</span> Tennis Lapangan
+            <a href="{{ route('dashboard', ['sport' => 'tennis']) }}" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? '') === 'tennis' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
+                <span>🎾</span> Tennis
             </a>
-            <a href="{{ route('dashboard', ['sport' => 'padel']) }}" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? '') === 'padel' ? 'bg-[#163820] text-white shadow-xs' : 'glass-card text-slate-600 hover:text-slate-900' }}">
-                <span>🏓</span> Padel Arena
+            <a href="{{ route('dashboard', ['sport' => 'padel']) }}" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? '') === 'padel' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
+                <span>🏓</span> Padel
             </a>
         </div>
 

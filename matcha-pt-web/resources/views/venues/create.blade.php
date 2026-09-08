@@ -17,15 +17,15 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div class="sm:col-span-2">
                     <label class="block font-semibold text-slate-700 mb-1">Nama Tempat / Venue</label>
-                    <input type="text" placeholder="Contoh: Gelora Sports Center" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none" required>
+                    <input type="text" placeholder="Contoh: Gelora Sports Center" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none" required>
                 </div>
                 <div class="sm:col-span-2">
                     <label class="block font-semibold text-slate-700 mb-1">Alamat Lengkap</label>
-                    <input type="text" placeholder="Jl. Raya Utama No. ..." class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none" required>
+                    <input type="text" placeholder="Jl. Raya Utama No. ..." class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none" required>
                 </div>
                 <div>
                     <label class="block font-semibold text-slate-700 mb-1">Cabang Olahraga</label>
-                    <select class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none">
+                    <select class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none">
                         <option value="Tennis">Tennis</option>
                         <option value="Padel">Padel</option>
                         <option value="Both">Tennis & Padel</option>
@@ -33,24 +33,24 @@
                 </div>
                 <div>
                     <label class="block font-semibold text-slate-700 mb-1">Jam Operasional Reguler</label>
-                    <input type="text" value="06:00 - 22:00" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none" required>
+                    <input type="text" value="06:00 - 22:00" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none" required>
                 </div>
                 <div>
                     <label class="block font-semibold text-slate-700 mb-1">Nama PIC Venue</label>
-                    <input type="text" placeholder="Nama pengelola" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none" required>
+                    <input type="text" placeholder="Nama pengelola" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none" required>
                 </div>
                 <div>
                     <label class="block font-semibold text-slate-700 mb-1">Nomor WhatsApp PIC</label>
-                    <input type="text" placeholder="0812-xxxx-xxxx" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none" required>
+                    <input type="text" placeholder="0812-xxxx-xxxx" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none" required>
                 </div>
                 <div class="sm:col-span-2">
                     <label class="block font-semibold text-slate-700 mb-1">Ketentuan Jam Tutup / Availability Khusus</label>
-                    <input type="text" placeholder="Contoh: Court outdoor tutup jam 10.00-12.00 karena panas terik" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none">
+                    <input type="text" placeholder="Contoh: Court outdoor tutup jam 10.00-12.00 karena panas terik" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none">
                 </div>
             </div>
 
             <div class="flex justify-end pt-4 border-t border-slate-100">
-                <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-colors">
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01]">
                     Daftarkan Venue
                 </button>
             </div>

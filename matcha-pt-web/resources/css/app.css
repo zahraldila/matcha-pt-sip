@@ -4,6 +4,69 @@
 @source '../../storage/framework/views/*.php';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+    /* Matcha Brand Color Palette */
+    --color-matcha-primary: #A8E63A;
+    --color-matcha-dark: #063B00;
+    --color-matcha-dark-hover: #042a00;
+    --color-matcha-near-black: #050608;
+    --color-matcha-surface: #111318;
+    --color-matcha-surface-secondary: #1A1D23;
+
+    /* Text Hierarchy */
+    --color-matcha-text-primary: #050608;
+    --color-matcha-text-secondary: #A9ADB5;
+    --color-matcha-text-disabled: #666A73;
+
+    /* Semantic Colors */
+    --color-matcha-success: #22C55E;
+    --color-matcha-warning: #F59E0B;
+    --color-matcha-error: #EF4444;
+    --color-matcha-info: #3B82F6;
+    --color-matcha-disabled: #9CA3AF;
 }
+
+/* Custom UI Components matching #063B00 */
+.btn-matcha-primary {
+    background-color: #063B00;
+    color: #ffffff;
+    font-weight: 600;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-matcha-primary:hover {
+    background-color: #042a00;
+    box-shadow: 0 4px 14px rgba(6, 59, 0, 0.3);
+    transform: translateY(-1px);
+}
+.btn-matcha-primary:active {
+    transform: translateY(0);
+}
+
+.btn-matcha-secondary {
+    background-color: #ffffff;
+    border: 1.5px solid #063B00;
+    color: #063B00;
+    font-weight: 600;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-matcha-secondary:hover {
+    background-color: rgba(6, 59, 0, 0.06);
+    border-color: #042a00;
+    color: #042a00;
+    box-shadow: 0 2px 8px rgba(6, 59, 0, 0.15);
+}
+
+.badge-matcha {
+    background-color: rgba(168, 230, 58, 0.18);
+    color: #063B00;
+    border: 1px solid rgba(6, 59, 0, 0.25);
+    font-weight: 600;
+}
+
+.card-matcha-alert {
+    background-color: #EBF8D8;
+    border: 1px solid #C4E992;
+    color: #050608;
+}
+

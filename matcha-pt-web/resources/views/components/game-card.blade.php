@@ -28,7 +28,7 @@
         </div>
 
         <!-- Title -->
-        <h3 class="text-sm sm:text-base font-bold text-slate-900 group-hover:text-emerald-700 transition-colors leading-snug mb-3">
+        <h3 class="text-sm sm:text-base font-bold text-[#050608] group-hover:text-[#063B00] transition-colors leading-snug mb-3">
             <a href="{{ route('games.show', $game['id']) }}">{{ $game['title'] }}</a>
         </h3>
 
@@ -36,7 +36,7 @@
         <div class="space-y-1.5 text-xs text-slate-600 mb-4 bg-white/60 backdrop-blur-xs p-3 rounded-xl border border-slate-200/50">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-location-dot text-slate-400 w-3.5 text-center text-[11px]"></i>
-                <span class="font-semibold text-slate-800 truncate">{{ $game['venue_name'] }}</span>
+                <span class="font-semibold text-[#050608] truncate">{{ $game['venue_name'] }}</span>
                 <span class="text-slate-300">&bull;</span>
                 <span class="text-slate-500 truncate text-[11px]">{{ $game['court_name'] }}</span>
             </div>
@@ -46,7 +46,7 @@
             </div>
             <div class="flex items-center gap-2 text-[11px]">
                 <i class="fa-regular fa-clock text-slate-400 w-3.5 text-center"></i>
-                <span class="font-semibold text-slate-800">{{ $game['time'] }} WIB</span>
+                <span class="font-semibold text-[#050608]">{{ $game['time'] }} WIB</span>
                 <span class="text-slate-400">({{ $game['duration'] }})</span>
             </div>
         </div>
@@ -57,13 +57,13 @@
                 <span class="text-slate-500 text-[11px]">
                     Ketersediaan Slot
                 </span>
-                <span class="font-bold text-slate-900 text-xs">{{ $game['joined_count'] }} / {{ $game['quota'] }} Pemain</span>
+                <span class="font-bold text-[#050608] text-xs">{{ $game['joined_count'] }} / {{ $game['quota'] }} Pemain</span>
             </div>
             <div class="w-full bg-slate-200/60 rounded-full h-1.5 overflow-hidden">
                 @php
                     $percentage = min(100, ($game['joined_count'] / $game['quota']) * 100);
                 @endphp
-                <div class="bg-gradient-to-r from-emerald-600 to-teal-500 h-1.5 rounded-full transition-all duration-300" style="width: {{ $percentage }}%"></div>
+                <div class="bg-gradient-to-r from-[#063B00] to-[#A8E63A] h-1.5 rounded-full transition-all duration-300" style="width: {{ $percentage }}%"></div>
             </div>
         </div>
 
@@ -85,7 +85,7 @@
                 @endif
             </div>
             <span class="text-[11px] text-slate-500">
-                Host: <strong class="text-slate-800">{{ $game['host']['name'] }}</strong>
+                Host: <strong class="text-[#050608]">{{ $game['host']['name'] }}</strong>
             </span>
         </div>
     </div>
@@ -96,11 +96,11 @@
             Detail
         </a>
         @if($game['joined_count'] >= $game['quota'])
-            <a href="{{ route('games.drawing', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-all">
+            <a href="{{ route('games.drawing', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-semibold shadow-xs transition-all hover:scale-[1.01]">
                 Drawing Tim
             </a>
         @else
-            <button onclick="showJoinModal('{{ $game['id'] }}', '{{ $game['title'] }}')" class="text-center py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-all">
+            <button onclick="showJoinModal('{{ $game['id'] }}', '{{ $game['title'] }}')" class="text-center py-2 px-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-semibold shadow-xs transition-all hover:scale-[1.01]">
                 Gabung Slot
             </button>
         @endif

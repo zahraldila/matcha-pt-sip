@@ -19,21 +19,18 @@
             <button id="shuffleBtn" onclick="runDrawingAnimation()" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white border border-slate-200/80 text-slate-800 font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5">
                 <i class="fa-solid fa-arrows-rotate text-slate-500" id="shuffleIcon"></i> Acak Ulang Tim
             </button>
-            <a href="{{ route('scoring.live', $game['id']) }}" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center gap-1.5">
-                <span>Mulai Scoring</span> <i class="fa-solid fa-arrow-right text-[10px]"></i>
-            </a>
         </div>
     </div>
 
     <!-- Match Rounds Tab Selector -->
     <div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-200/50">
-        <button onclick="switchRound(1)" id="tabRound1" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all bg-[#163820] text-white shadow-xs">
+        <button onclick="switchRound(1)" id="tabRound1" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all bg-[#063B00] text-white shadow-xs">
             Ronde 1 (Pembuka)
         </button>
-        <button onclick="switchRound(2)" id="tabRound2" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all glass-card text-slate-600 hover:text-slate-900">
+        <button onclick="switchRound(2)" id="tabRound2" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all glass-card text-slate-600 hover:text-[#050608]">
             Ronde 2 (Rotasi)
         </button>
-        <button onclick="switchRound(3)" id="tabRound3" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all glass-card text-slate-600 hover:text-slate-900">
+        <button onclick="switchRound(3)" id="tabRound3" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all glass-card text-slate-600 hover:text-[#050608]">
             Ronde 3 (Final)
         </button>
     </div>
@@ -54,9 +51,9 @@
 
             <!-- Match Settings Summary -->
             <div class="glass-card rounded-2xl p-4 flex items-center justify-between text-xs text-slate-500">
-                <span>Format: <strong class="text-slate-800">{{ $game['match_format'] }} ({{ $game['quota'] }} Pemain)</strong></span>
-                <span>Durasi: <strong class="text-slate-800">{{ $game['duration'] }}</strong></span>
-                <span>Scoring: <strong class="text-slate-800">{{ $game['scoring_system'] }}</strong></span>
+                <span>Format: <strong class="text-[#050608]">{{ $game['match_format'] }} ({{ $game['quota'] }} Pemain)</strong></span>
+                <span>Durasi: <strong class="text-[#050608]">{{ $game['duration'] }}</strong></span>
+                <span>Scoring: <strong class="text-[#050608]">{{ $game['scoring_system'] }}</strong></span>
             </div>
         </div>
 
@@ -64,25 +61,25 @@
         <div class="space-y-4">
             <div class="glass-card rounded-3xl p-5 space-y-4 border border-white/90">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    <h3 class="text-xs font-bold text-[#050608] uppercase tracking-wider">
                         Roster Tim
                     </h3>
-                    <span class="text-[10px] bg-emerald-50 text-emerald-800 font-semibold px-2 py-0.5 rounded-full border border-emerald-200/60">Seimbang</span>
+                    <span class="text-[10px] bg-[#EBF8D8] text-[#1e4e26] font-semibold px-2 py-0.5 rounded-full border border-[#C4E992]">Seimbang</span>
                 </div>
 
                 <!-- Team A Roster Card -->
                 <div class="p-3.5 rounded-2xl bg-white/70 border border-slate-200/60 space-y-2 shadow-2xs">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold text-slate-900">TEAM A</span>
+                        <span class="text-xs font-bold text-[#050608]">TEAM A</span>
                         <span class="text-[10px] text-slate-500">Sisi Kiri</span>
                     </div>
                     <div class="space-y-1.5" id="rosterTeamA">
                         <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                            <span class="font-semibold text-slate-800">1. Billy Santoso</span>
+                            <span class="font-semibold text-[#050608]">1. Billy Santoso</span>
                             <x-badge type="intermediate">Intermediate</x-badge>
                         </div>
                         <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                            <span class="font-semibold text-slate-800">2. Gisel Anastasia</span>
+                            <span class="font-semibold text-[#050608]">2. Gisel Anastasia</span>
                             <x-badge type="beginner">Beginner</x-badge>
                         </div>
                     </div>
@@ -91,16 +88,16 @@
                 <!-- Team B Roster Card -->
                 <div class="p-3.5 rounded-2xl bg-white/70 border border-slate-200/60 space-y-2 shadow-2xs">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold text-slate-900">TEAM B</span>
+                        <span class="text-xs font-bold text-[#050608]">TEAM B</span>
                         <span class="text-[10px] text-slate-500">Sisi Kanan</span>
                     </div>
                     <div class="space-y-1.5" id="rosterTeamB">
                         <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                            <span class="font-semibold text-slate-800">1. Fahri Dhani</span>
+                            <span class="font-semibold text-[#050608]">1. Fahri Dhani</span>
                             <x-badge type="advanced">Advanced</x-badge>
                         </div>
                         <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                            <span class="font-semibold text-slate-800">2. Davina Putri</span>
+                            <span class="font-semibold text-[#050608]">2. Davina Putri</span>
                             <x-badge type="newbie">Newbie</x-badge>
                         </div>
                     </div>
@@ -125,7 +122,7 @@
                 </div>
 
                 <!-- CTA -->
-                <a href="{{ route('scoring.live', $game['id']) }}" class="block text-center py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01]">
+                <a href="{{ route('scoring.live', $game['id']) }}" class="block text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01]">
                     Kunci Tim & Buka Scoring
                 </a>
             </div>
@@ -157,9 +154,9 @@
         [1, 2, 3].forEach(n => {
             const tab = document.getElementById(`tabRound${n}`);
             if (n === roundNum) {
-                tab.className = 'px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all bg-[#163820] text-white shadow-xs';
+                tab.className = 'px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all bg-[#063B00] text-white shadow-xs';
             } else {
-                tab.className = 'px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all glass-card text-slate-600 hover:text-slate-900';
+                tab.className = 'px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all glass-card text-slate-600 hover:text-[#050608]';
             }
         });
 
