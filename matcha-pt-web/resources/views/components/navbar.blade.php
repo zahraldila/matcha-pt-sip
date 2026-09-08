@@ -36,29 +36,67 @@
             </div>
 
             <!-- Header Actions -->
-            <div class="flex items-center gap-2">
-                <a href="{{ route('login') }}" class="hidden sm:inline-flex text-xs font-semibold text-slate-600 hover:text-[#063B00] px-3 py-1.5 rounded-xl hover:bg-white/60 transition-colors">
-                    Masuk
-                </a>
-                <a href="{{ route('register') }}" class="hidden sm:inline-flex text-xs font-semibold text-slate-600 hover:text-[#063B00] px-3 py-1.5 rounded-xl hover:bg-white/60 transition-colors">
-                    Daftar
-                </a>
-                <a href="{{ route('games.create') }}" class="inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-semibold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
-                    <i class="fa-solid fa-plus text-[10px]"></i> <span class="hidden sm:inline">Host Game</span><span class="sm:hidden">Host</span>
+            <div class="flex items-center gap-2.5">
+                
+                @guest
+                    <!-- Guest State: Masuk & Daftar -->
+                    <a href="{{ route('login') }}" class="text-xs font-bold text-slate-700 hover:text-[#063B00] px-3.5 py-1.5 rounded-xl hover:bg-white/60 transition-colors">
+                        Masuk
+                    </a>
+                    <a href="{{ route('register') }}" class="hidden sm:inline-flex text-xs font-bold text-[#063B00] bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 px-3.5 py-1.5 rounded-xl transition-all shadow-2xs">
+                        Daftar
+                    </a>
+                @endguest
+
+                <!-- Action Button: Host Game -->
+                <a href="{{ route('games.create') }}" class="inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
+                    <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span class="hidden sm:inline">Host Game</span><span class="sm:hidden">Host</span>
                 </a>
 
-                <!-- User Profile / Mobile Toggle -->
-                <div class="flex items-center pl-1 sm:pl-2 border-l border-slate-200/60">
-                    <a href="{{ route('player.profile') }}" class="flex items-center gap-2 p-1 rounded-xl hover:bg-white/60 transition-colors" title="Profil Member">
-                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80" alt="Avatar" class="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200">
-                        <span class="hidden lg:inline text-xs font-semibold text-[#050608]">Billy</span>
-                    </a>
-                    
-                    <!-- Mobile Hamburger Button -->
-                    <button onclick="toggleMobileMenu()" class="md:hidden ml-1 p-2 text-slate-600 hover:text-[#063B00] focus:outline-none rounded-lg hover:bg-slate-100">
-                        <i class="fa-solid fa-bars text-sm"></i>
-                    </button>
-                </div>
+                @auth
+                    <!-- Authenticated User Dropdown -->
+                    <div class="relative flex items-center pl-2 border-l border-slate-200/60">
+                        <div class="flex items-center gap-2 cursor-pointer group" onclick="toggleUserDropdown()">
+                            <div class="w-8 h-8 rounded-full bg-[#063B00] border-2 border-[#A8E63A]/40 flex items-center justify-center text-white text-xs font-black shadow-xs">
+                                {{ strtoupper(substr(Auth::user()->nama ?? 'U', 0, 1)) }}
+                            </div>
+                            <div class="hidden lg:block text-left">
+                                <span class="text-xs font-extrabold text-[#050608] leading-tight block truncate max-w-[100px]">
+                                    {{ Auth::user()->nama }}
+                                </span>
+                                <span class="text-[9px] font-bold uppercase tracking-wider text-[#063B00] block">
+                                    {{ Auth::user()->role ?? 'Member' }}
+                                </span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 group-hover:text-slate-600 transition-transform"></i>
+                        </div>
+
+                        <!-- Dropdown Menu -->
+                        <div id="userDropdown" class="hidden absolute right-0 top-11 w-48 bg-white/95 backdrop-blur-2xl rounded-2xl p-2 border border-slate-200/80 shadow-xl space-y-1 text-xs z-50">
+                            <div class="px-3 py-2 border-b border-slate-100">
+                                <p class="font-extrabold text-slate-900 truncate">{{ Auth::user()->nama }}</p>
+                                <p class="text-[10px] text-slate-400 truncate">{{ Auth::user()->email }}</p>
+                            </div>
+                            <a href="{{ route('player.profile') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
+                                <i class="fa-solid fa-id-card text-slate-400 text-xs"></i> Profil & Rating
+                            </a>
+                            <a href="{{ route('player.recap') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
+                                <i class="fa-solid fa-chart-line text-slate-400 text-xs"></i> Rekap Karir
+                            </a>
+                            <form action="{{ route('logout') }}" method="POST" class="pt-1 border-t border-slate-100">
+                                @csrf
+                                <button type="submit" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 font-bold transition-colors text-left">
+                                    <i class="fa-solid fa-right-from-bracket text-xs"></i> Keluar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                @endauth
+
+                <!-- Mobile Hamburger Button -->
+                <button onclick="toggleMobileMenu()" class="md:hidden p-2 text-slate-600 hover:text-[#063B00] focus:outline-none rounded-lg hover:bg-slate-100">
+                    <i class="fa-solid fa-bars text-sm"></i>
+                </button>
             </div>
         </div>
     </div>
@@ -80,14 +118,24 @@
         <a href="{{ route('player.recap') }}" class="block px-3 py-2 rounded-xl text-xs font-semibold {{ request()->routeIs('player.*') ? 'bg-[#063B00] text-white font-bold' : 'text-slate-600 hover:bg-slate-50' }}">
             <i class="fa-solid fa-chart-line mr-2 {{ request()->routeIs('player.*') ? 'text-white' : 'text-slate-400' }}"></i> Match Recap
         </a>
-        <div class="pt-2 border-t border-slate-100 flex gap-2">
-            <a href="{{ route('login') }}" class="flex-1 text-center py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">Masuk</a>
-            <a href="{{ route('register') }}" class="flex-1 text-center py-2 rounded-lg bg-[#063B00] text-white text-xs font-semibold">Daftar</a>
-        </div>
+
+        @guest
+            <div class="pt-2 border-t border-slate-100 flex gap-2">
+                <a href="{{ route('login') }}" class="flex-1 text-center py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Masuk</a>
+                <a href="{{ route('register') }}" class="flex-1 text-center py-2.5 rounded-xl bg-[#063B00] text-white text-xs font-bold">Daftar</a>
+            </div>
+        @else
+            <form action="{{ route('logout') }}" method="POST" class="pt-2 border-t border-slate-100">
+                @csrf
+                <button type="submit" class="w-full text-center py-2 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold">
+                    Keluar (Logout)
+                </button>
+            </form>
+        @endguest
     </div>
 </header>
 
-<!-- Mobile Bottom Navigation Bar (App-like experience for smartphone users) -->
+<!-- Mobile Bottom Navigation Bar -->
 <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-slate-200/80 px-2 py-1.5 flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
     <a href="{{ route('dashboard') }}" class="flex flex-col items-center justify-center p-1 text-[10px] font-semibold {{ request()->routeIs('dashboard') ? 'text-[#063B00]' : 'text-slate-500' }}">
         <i class="fa-solid fa-house text-sm mb-0.5"></i>
@@ -99,7 +147,7 @@
     </a>
     <a href="{{ route('games.create') }}" class="flex flex-col items-center justify-center p-1 -mt-4">
         <div class="w-11 h-11 rounded-full bg-[#063B00] text-white flex items-center justify-center shadow-md">
-            <i class="fa-solid fa-plus text-base"></i>
+            <i class="fa-solid fa-plus text-base text-[#A8E63A]"></i>
         </div>
         <span class="text-[9px] font-bold text-slate-700 mt-0.5">Host</span>
     </a>
@@ -118,4 +166,19 @@
         const menu = document.getElementById('mobileMenu');
         menu.classList.toggle('hidden');
     }
+
+    function toggleUserDropdown() {
+        const dropdown = document.getElementById('userDropdown');
+        if (dropdown) {
+            dropdown.classList.toggle('hidden');
+        }
+    }
+
+    // Close dropdown on click outside
+    document.addEventListener('click', function(e) {
+        const dropdown = document.getElementById('userDropdown');
+        if (dropdown && !e.target.closest('.relative.flex.items-center')) {
+            dropdown.classList.add('hidden');
+        }
+    });
 </script>
