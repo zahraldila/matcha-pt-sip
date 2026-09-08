@@ -52,40 +52,12 @@
                 <!-- Tennis -->
                 <button type="button" onclick="selectSport('Tennis', '🎾')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
                     <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xl text-amber-700 group-hover:scale-105 transition-transform">
+                        <div class="w-12 h-12 rounded-2xl bg-lime-50 border border-lime-100 flex items-center justify-center text-xl text-lime-800 group-hover:scale-105 transition-transform">
                             <i class="fa-solid fa-baseball"></i>
                         </div>
                         <div>
                             <h3 class="text-base font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Tennis</h3>
                             <p class="text-xs text-slate-500">Tennis single, double, sets & game scoring</p>
-                        </div>
-                    </div>
-                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
-                </button>
-
-                <!-- Badminton -->
-                <button type="button" onclick="selectSport('Badminton', '🏸')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-xl text-teal-700 group-hover:scale-105 transition-transform">
-                            <i class="fa-solid fa-feather-pointed"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Badminton</h3>
-                            <p class="text-xs text-slate-500">Rally points 21 / 30 & rotation</p>
-                        </div>
-                    </div>
-                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
-                </button>
-
-                <!-- Pickleball -->
-                <button type="button" onclick="selectSport('Pickleball', '🏓')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl text-indigo-700 group-hover:scale-105 transition-transform">
-                            <i class="fa-solid fa-table-tennis-paddle-ball"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Pickleball</h3>
-                            <p class="text-xs text-slate-500">Pickleball community match play</p>
                         </div>
                     </div>
                     <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
@@ -104,63 +76,139 @@
 
             <div class="space-y-3">
                 <!-- Americano -->
-                <button type="button" onclick="selectGameType('Americano', 'All players play with everyone')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-base font-extrabold text-white">Americano</h3>
-                        <span class="text-[10px] font-bold bg-lime-400/20 text-lime-300 px-2 py-0.5 rounded-full border border-lime-400/30">POPULER</span>
+                <button type="button" onclick="selectGameType('Americano', 'All players play with everyone')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-lg text-emerald-700 group-hover:scale-105 transition-transform shrink-0">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </div>
+                        <div class="space-y-0.5">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Americano</h3>
+                                <span class="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full">POPULER</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Semua pemain berpasangan secara bergantian (Round-Robin)</p>
+                        </div>
                     </div>
-                    <p class="text-xs text-emerald-100/90 mt-0.5">All players play with everyone (Round-Robin)</p>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
                 </button>
 
                 <!-- Mexicano -->
-                <button type="button" onclick="selectGameType('Mexicano', 'Like Americano but will result in more even games based on scoreboard')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-base font-extrabold text-white">Mexicano</h3>
-                        <span class="text-[10px] font-bold bg-lime-400/20 text-lime-300 px-2 py-0.5 rounded-full border border-lime-400/30">DYNAMIC</span>
+                <button type="button" onclick="selectGameType('Mexicano', 'Like Americano but will result in more even games based on scoreboard')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-lg text-teal-700 group-hover:scale-105 transition-transform shrink-0">
+                            <i class="fa-solid fa-chart-line"></i>
+                        </div>
+                        <div class="space-y-0.5">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Mexicano</h3>
+                                <span class="text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded-full">DYNAMIC</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Pasangan pertandingan diacak dinamis berdasarkan klasemen skor ronde sebelumnya</p>
+                        </div>
                     </div>
-                    <p class="text-xs text-emerald-100/90 mt-0.5">Like Americano but will result in more even games. After every round, a new game is generated depending on current scoreboard.</p>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
                 </button>
 
                 <!-- Team Americano -->
-                <button type="button" onclick="selectGameType('Team Americano', 'Each team plays against all other teams one time with fixed teams')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
-                    <h3 class="text-base font-extrabold text-white">Team Americano</h3>
-                    <p class="text-xs text-emerald-100/90 mt-0.5">Each team plays against all other teams one time (Fixed Teams).</p>
+                <button type="button" onclick="selectGameType('Team Americano', 'Each team plays against all other teams one time with fixed teams')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-lime-50 border border-lime-100 flex items-center justify-center text-lg text-lime-800 group-hover:scale-105 transition-transform shrink-0">
+                            <i class="fa-solid fa-user-group"></i>
+                        </div>
+                        <div class="space-y-0.5">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Team Americano</h3>
+                                <span class="text-[10px] font-bold bg-lime-50 text-lime-800 border border-lime-200 px-2 py-0.5 rounded-full">FIXED TEAMS</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Setiap pasangan tim tetap bertanding melawan seluruh tim lainnya</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
                 </button>
 
                 <!-- Team Mexicano -->
-                <button type="button" onclick="selectGameType('Team Mexicano', 'Mexicano with fixed teams')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
-                    <h3 class="text-base font-extrabold text-white">Team Mexicano</h3>
-                    <p class="text-xs text-emerald-100/90 mt-0.5">Mexicano with fixed teams.</p>
+                <button type="button" onclick="selectGameType('Team Mexicano', 'Mexicano with fixed teams')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-lg text-emerald-700 group-hover:scale-105 transition-transform shrink-0">
+                            <i class="fa-solid fa-users-rectangle"></i>
+                        </div>
+                        <div class="space-y-0.5">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Team Mexicano</h3>
+                                <span class="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full">DYNAMIC</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Format Mexicano kompetitif dengan pasangan tim yang tetap</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
                 </button>
 
                 <!-- Mixicano -->
-                <button type="button" onclick="selectGameType('Mixicano', 'Woman and a man in each team with Mexicano logic')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-base font-extrabold text-white">Mixicano</h3>
-                        <span class="text-[10px] font-bold bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30">MIX GENDER</span>
+                <button type="button" onclick="selectGameType('Mixicano', 'Woman and a man in each team with Mexicano logic')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-lg text-rose-700 group-hover:scale-105 transition-transform shrink-0">
+                            <i class="fa-solid fa-venus-mars"></i>
+                        </div>
+                        <div class="space-y-0.5">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Mixicano</h3>
+                                <span class="text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200 px-2 py-0.5 rounded-full">MIX GENDER</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Sistem selalu memasangkan 1 pria & 1 wanita dalam tiap tim secara dinamis</p>
+                        </div>
                     </div>
-                    <p class="text-xs text-emerald-100/90 mt-0.5">Like Mexicano but you will always be drawn a woman and a man in each team.</p>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
                 </button>
 
                 <!-- Mix Americano -->
-                <button type="button" onclick="selectGameType('Mix Americano', 'The team is drawn with a woman and a man in each team')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-base font-extrabold text-white">Mix Americano</h3>
-                        <span class="text-[10px] font-bold bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30">MIX GENDER</span>
+                <button type="button" onclick="selectGameType('Mix Americano', 'The team is drawn with a woman and a man in each team')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-lg text-amber-700 group-hover:scale-105 transition-transform shrink-0">
+                            <i class="fa-solid fa-heart"></i>
+                        </div>
+                        <div class="space-y-0.5">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Mix Americano</h3>
+                                <span class="text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full">MIX GENDER</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Drawing putaran round-robin dengan komposisi pria dan wanita seimbang</p>
+                        </div>
                     </div>
-                    <p class="text-xs text-emerald-100/90 mt-0.5">The team is drawn with a woman and a man in each team.</p>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
                 </button>
 
-                <!-- King of the SKOR / Court -->
-                <button type="button" onclick="selectGameType('King of the Court', 'Fight your way up to winners court and defend your place')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
-                    <h3 class="text-base font-extrabold text-white">King of the Court</h3>
-                    <p class="text-xs text-emerald-100/90 mt-0.5">Fight your way up to winners court and then defend your place there until the end.</p>
+                <!-- King of the Court -->
+                <button type="button" onclick="selectGameType('King of the Court', 'Fight your way up to winners court and defend your place')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-lg text-amber-700 group-hover:scale-105 transition-transform shrink-0">
+                            <i class="fa-solid fa-crown"></i>
+                        </div>
+                        <div class="space-y-0.5">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">King of the Court</h3>
+                                <span class="text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full">DEFEND</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Berjuang naik ke lapangan pemenang (Court 1) dan pertahankan posisi</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
                 </button>
 
                 <!-- Knockout -->
-                <button type="button" onclick="selectGameType('Knockout', 'Bracket-based tournament with knockout rounds')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
-                    <h3 class="text-base font-extrabold text-white">Knockout</h3>
-                    <p class="text-xs text-emerald-100/90 mt-0.5">A bracket-based tournament in which players or pairs compete in knockout rounds until the championship match.</p>
+                <button type="button" onclick="selectGameType('Knockout', 'Bracket-based tournament with knockout rounds')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-lg text-slate-700 group-hover:scale-105 transition-transform shrink-0">
+                            <i class="fa-solid fa-trophy"></i>
+                        </div>
+                        <div class="space-y-0.5">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Knockout</h3>
+                                <span class="text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-full">BRACKET</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Turnamen sistem gugur berjenjang hingga babak final perebutan juara</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
                 </button>
             </div>
         </div>
@@ -168,9 +216,9 @@
         <!-- ==================== STEP 3: MATCH & SCORING CONFIGURATION ==================== -->
         <div id="step3" class="space-y-6 hidden">
             <!-- Format Banner Header -->
-            <div class="rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] p-6 text-white text-center space-y-1 shadow-md border border-emerald-900/40">
-                <span class="text-[10px] uppercase font-bold tracking-widest text-lime-300">Selected Format</span>
-                <h2 class="text-2xl font-black text-white" id="configFormatTitle">Americano</h2>
+            <div class="glass-card rounded-2xl p-6 text-center space-y-1 border border-emerald-100/80 bg-gradient-to-r from-emerald-50/60 via-white/80 to-lime-50/40 shadow-xs">
+                <span class="text-[10px] uppercase font-bold tracking-widest text-emerald-800">Selected Format</span>
+                <h2 class="text-2xl font-black text-slate-900" id="configFormatTitle">Americano</h2>
             </div>
 
             <div class="glass-card rounded-2xl p-6 space-y-5">
@@ -254,12 +302,12 @@
         <div id="step4" class="space-y-6 hidden">
             
             <!-- Summary Header Card -->
-            <div class="rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] p-5 text-white shadow-md flex items-center justify-between border border-emerald-900/40">
+            <div class="glass-card rounded-2xl p-5 border border-emerald-100/80 bg-gradient-to-r from-emerald-50/60 via-white/80 to-lime-50/40 shadow-xs flex items-center justify-between">
                 <div>
-                    <h2 class="text-xl font-extrabold text-white" id="summaryGameName">Padel Weekend Mabar</h2>
-                    <p class="text-xs text-emerald-100" id="summaryGameFormat">Americano &bull; 1 Court &bull; 24 Points</p>
+                    <h2 class="text-lg sm:text-xl font-extrabold text-slate-900" id="summaryGameName">Padel Weekend Mabar</h2>
+                    <p class="text-xs text-slate-500 font-medium" id="summaryGameFormat">Americano &bull; 1 Court &bull; 24 Points</p>
                 </div>
-                <span class="text-xs bg-lime-400/20 text-lime-300 border border-lime-400/40 px-3 py-1 rounded-full font-bold">Host Mode</span>
+                <span class="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full">Host Mode</span>
             </div>
 
             <!-- Add Player Action Bar -->
