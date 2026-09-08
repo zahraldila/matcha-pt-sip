@@ -80,6 +80,10 @@ class GameController extends Controller
 
     public function create()
     {
+        if (Auth::user()->role !== 'host') {
+            return redirect()->route('games.index')->with('error', 'Akses ditolak: Fitur ini khusus untuk akun Host Game.');
+        }
+
         $venues = Venue::with('courts')->get();
         if ($venues->isEmpty()) {
             $venues = MatchaDummyDataService::getVenues();
@@ -89,6 +93,10 @@ class GameController extends Controller
 
     public function createSchedule()
     {
+        if (Auth::user()->role !== 'host') {
+            return redirect()->route('games.index')->with('error', 'Akses ditolak: Fitur pembukaan sesi mabar khusus untuk akun Host Game.');
+        }
+
         $venues = Venue::with('courts')->get();
         $sports = Sport::all();
         return view('games.schedule', compact('venues', 'sports'));
@@ -96,6 +104,10 @@ class GameController extends Controller
 
     public function storeSchedule(Request $request)
     {
+        if (Auth::user()->role !== 'host') {
+            return redirect()->route('games.index')->with('error', 'Akses ditolak: Fitur pembukaan sesi mabar khusus untuk akun Host Game.');
+        }
+
         $request->validate([
             'nama_session' => 'required|string|max:255',
             'sport_id' => 'required|integer',
