@@ -47,7 +47,7 @@ class AuthController extends Controller
 
         if ($user && Hash::check($password, $user->password)) {
             Auth::login($user, $request->boolean('remember', true));
-            return redirect()->route('dashboard')->with('success', "Selamat datang kembali, {$user->nama}!");
+            return redirect()->intended(route('dashboard'))->with('success', "Selamat datang kembali, {$user->nama}!");
         }
 
         return back()->withInput($request->only('login_id'))->withErrors([
