@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="matchaGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#84cc16"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+    <linearGradient id="matchaAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Dark Canvas -->
+  <rect width="400" height="400" rx="40" fill="#090d10"/>
+
+  <!-- Left Racquet (Green) -->
+  <g transform="rotate(-35 170 170)">
+    <!-- Head Oval Outer -->
+    <ellipse cx="170" cy="110" rx="38" ry="52" fill="none" stroke="url(#matchaGreen)" stroke-width="8"/>
+    <!-- String Grid -->
+    <path d="M152 75 v70 M164 62 v96 M176 62 v96 M188 75 v70 M138 95 h64 M134 110 h72 M138 125 h64" stroke="#84cc16" stroke-width="1.8" stroke-opacity="0.85"/>
+    <!-- Throat Bridge -->
+    <path d="M152 155 L165 190 L175 190 L188 155" fill="none" stroke="url(#matchaGreen)" stroke-width="7" stroke-linejoin="round"/>
+    <!-- Shaft / Handle -->
+    <rect x="165" y="190" width="10" height="95" rx="3" fill="#14532d"/>
+    <!-- Grip Tape Stripes -->
+    <path d="M165 205 h10 M165 220 h10 M165 235 h10 M165 250 h10 M165 265 h10 M165 280 h10" stroke="#84cc16" stroke-width="3"/>
+  </g>
+
+  <!-- Right Racquet (White) -->
+  <g transform="rotate(35 230 170)">
+    <!-- Head Oval Outer -->
+    <ellipse cx="230" cy="110" rx="38" ry="52" fill="none" stroke="#f8fafc" stroke-width="8"/>
+    <!-- String Grid -->
+    <path d="M212 75 v70 M224 62 v96 M236 62 v96 M248 75 v70 M198 95 h64 M194 110 h72 M198 125 h64" stroke="#cbd5e1" stroke-width="1.8" stroke-opacity="0.9"/>
+    <!-- Throat Bridge -->
+    <path d="M212 155 L225 190 L235 190 L248 155" fill="none" stroke="#f8fafc" stroke-width="7" stroke-linejoin="round"/>
+    <!-- Shaft / Handle -->
+    <rect x="225" y="190" width="10" height="95" rx="3" fill="#334155"/>
+    <!-- Grip Tape Stripes -->
+    <path d="M225 205 h10 M225 220 h10 M225 235 h10 M225 250 h10 M225 265 h10 M225 280 h10" stroke="#ffffff" stroke-width="3"/>
+  </g>
+
+  <!-- Center Cross Shadow/Accent -->
+  <circle cx="200" cy="205" r="7" fill="#090d10"/>
+
+  <!-- Brand Typography: MATCHA -->
+  <text x="200" y="325" text-anchor="middle" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="900" font-size="44" letter-spacing="4" fill="#ffffff">
+    M<tspan fill="#22c55e">A</tspan>TCHA
+  </text>
+
+  <!-- Tagline: MATCH ARENA with lines -->
+  <line x1="45" y1="352" x2="105" y2="352" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="200" y="357" text-anchor="middle" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="800" font-size="14" letter-spacing="8" fill="#84cc16">
+    MATCH ARENA
+  </text>
+  <line x1="295" y1="352" x2="355" y2="352" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
