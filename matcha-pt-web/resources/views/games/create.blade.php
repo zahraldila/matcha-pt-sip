@@ -216,83 +216,84 @@
         <!-- ==================== STEP 3: MATCH & SCORING CONFIGURATION ==================== -->
         <div id="step3" class="space-y-6 hidden">
             <!-- Format Banner Header -->
-            <div class="glass-card rounded-2xl p-6 text-center space-y-1 border border-emerald-100/80 bg-gradient-to-r from-emerald-50/60 via-white/80 to-lime-50/40 shadow-xs">
+            <div class="glass-card rounded-2xl p-5 text-center space-y-1 border border-emerald-100/80 bg-gradient-to-r from-emerald-50/60 via-white/80 to-lime-50/40 shadow-xs">
                 <span class="text-[10px] uppercase font-bold tracking-widest text-emerald-800">Selected Format</span>
-                <h2 class="text-2xl font-black text-slate-900" id="configFormatTitle">Americano</h2>
+                <h2 class="text-xl sm:text-2xl font-black text-slate-900" id="configFormatTitle">Americano</h2>
             </div>
 
-            <div class="glass-card rounded-2xl p-6 space-y-5">
+            <div class="glass-card rounded-3xl p-6 sm:p-7 space-y-5 border border-white">
                 <!-- Activity Name -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-800 mb-1.5">Activity Name</label>
-                    <input type="text" id="activityName" value="Padel Weekend Mabar" placeholder="Contoh: tenis / padel jtk" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-emerald-600 focus:outline-none shadow-xs" required>
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-800">
+                        Activity Name
+                    </label>
+                    <input type="text" id="activityName" value="Padel Weekend Mabar" placeholder="Contoh: Padel Weekend Fun / Tenis JTK" class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all shadow-2xs" required>
                 </div>
 
                 <!-- Number of Courts -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-800 mb-1.5">Numbers of Court</label>
-                    <select id="numCourts" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-emerald-600 focus:outline-none shadow-xs">
-                        <option value="1 Court">1 Court</option>
-                        <option value="2 Court">2 Court</option>
-                        <option value="3 Court">3 Court</option>
-                        <option value="4 Court">4 Court</option>
-                    </select>
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-800">
+                        Numbers of Court
+                    </label>
+                    <div class="relative">
+                        <select id="numCourts" class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 focus:outline-none appearance-none transition-all shadow-2xs">
+                            <option value="1 Court">1 Court</option>
+                            <option value="2 Court">2 Court</option>
+                            <option value="3 Court">3 Court</option>
+                            <option value="4 Court">4 Court</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                    </div>
                 </div>
 
-                <!-- Scoring System Selector -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-800 mb-2">Scoring System</label>
+                <!-- Scoring System (General Only) -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-800">
+                        Scoring System
+                    </label>
                     
-                    <!-- Toggle Points vs General -->
-                    <div class="grid grid-cols-2 gap-2 mb-3">
-                        <button type="button" onclick="setScoringType('points')" id="btnScoringPoints" class="py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all">
-                            Points
-                        </button>
-                        <button type="button" onclick="setScoringType('general')" id="btnScoringGeneral" class="py-2.5 rounded-xl font-bold text-xs bg-slate-50 text-slate-700 border border-slate-200 transition-all hover:bg-slate-100">
-                            General
-                        </button>
-                    </div>
-
-                    <!-- Points Options Dropdown -->
-                    <div id="pointsDropdownWrapper">
-                        <select id="scoringPointsValue" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-emerald-600 focus:outline-none shadow-xs">
-                            <option value="16 Points">16 Points</option>
-                            <option value="21 Points">21 Points</option>
-                            <option value="24 Points" selected>24 Points</option>
-                            <option value="30 Points">30 Points</option>
-                            <option value="31 Points">31 Points</option>
-                            <option value="32 Points">32 Points</option>
+                    <div class="relative">
+                        <select id="scoringGeneralValue" class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 focus:outline-none appearance-none transition-all shadow-2xs">
+                            <option value="Total of 3" selected>Total of 3</option>
+                            <option value="Total of 4">Total of 4</option>
+                            <option value="Total of 5">Total of 5</option>
+                            <option value="Total of 6">Total of 6</option>
+                            <option value="Total of 7">Total of 7</option>
+                            <option value="First to 8">First to 8</option>
+                            <option value="First to 3">First to 3</option>
+                            <option value="First to 4">First to 4</option>
+                            <option value="First to 5">First to 5</option>
+                            <option value="First to 6">First to 6</option>
+                            <option value="First to 7">First to 7</option>
+                            <option value="First to 11">First to 11</option>
+                            <option value="First to 10">First to 10</option>
+                            <option value="First to 15">First to 15</option>
+                            <option value="First to 21">First to 21</option>
+                            <option value="First to 25">First to 25</option>
+                            <option value="First to 30">First to 30</option>
                         </select>
-                    </div>
-
-                    <!-- General Options Dropdown -->
-                    <div id="generalDropdownWrapper" class="hidden">
-                        <select id="scoringGeneralValue" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-emerald-600 focus:outline-none shadow-xs">
-                            <option value="Total of 3">Total of 3 Sets</option>
-                            <option value="Total of 4">Total of 4 Sets</option>
-                            <option value="First to 8">First to 8 Games</option>
-                            <option value="First to 4">First to 4 Games</option>
-                            <option value="Tennis 15-30-40-Game">Sistem Tennis (15, 30, 40, Deuce, Game)</option>
-                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                     </div>
                 </div>
 
                 <!-- Leaderboard Ranked by -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-800 mb-2">Leaderboard Ranked by</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button type="button" onclick="setRankBy('point')" id="btnRankPoint" class="py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all">
-                            Point
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-800">
+                        Leaderboard Ranked by
+                    </label>
+                    <div class="grid grid-cols-2 gap-2.5 p-1 bg-slate-100/80 rounded-2xl border border-slate-200/60">
+                        <button type="button" onclick="setRankBy('point')" id="btnRankPoint" class="py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-bullseye text-[11px] text-lime-400"></i> Point
                         </button>
-                        <button type="button" onclick="setRankBy('win')" id="btnRankWin" class="py-2.5 rounded-xl font-bold text-xs bg-slate-50 text-slate-700 border border-slate-200 transition-all hover:bg-slate-100">
-                            Win
+                        <button type="button" onclick="setRankBy('win')" id="btnRankWin" class="py-2.5 rounded-xl font-bold text-xs bg-transparent text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-trophy text-[11px] text-slate-400"></i> Win
                         </button>
                     </div>
                 </div>
 
-                <div class="pt-2">
-                    <button type="button" onclick="goToStep(4)" class="w-full py-3.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-slate-950 font-black text-sm shadow-md transition-all hover:scale-[1.01] active:scale-95">
-                        Confirm & Input Players &rarr;
+                <div class="pt-3">
+                    <button type="button" onclick="goToStep(4)" class="w-full py-3.5 rounded-2xl bg-[#163820] hover:bg-[#1f4b2b] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2">
+                        <span>Lanjut & Atur Daftar Pemain</span> <i class="fa-solid fa-arrow-right text-[10px] text-lime-400"></i>
                     </button>
                 </div>
             </div>
@@ -436,29 +437,14 @@
         goToStep(3);
     }
 
-    function setScoringType(type) {
-        scoringType = type;
-        if (type === 'points') {
-            document.getElementById('btnScoringPoints').className = 'py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all';
-            document.getElementById('btnScoringGeneral').className = 'py-2.5 rounded-xl font-bold text-xs bg-slate-50 text-slate-700 border border-slate-200 transition-all hover:bg-slate-100';
-            document.getElementById('pointsDropdownWrapper').classList.remove('hidden');
-            document.getElementById('generalDropdownWrapper').classList.add('hidden');
-        } else {
-            document.getElementById('btnScoringGeneral').className = 'py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all';
-            document.getElementById('btnScoringPoints').className = 'py-2.5 rounded-xl font-bold text-xs bg-slate-50 text-slate-700 border border-slate-200 transition-all hover:bg-slate-100';
-            document.getElementById('generalDropdownWrapper').classList.remove('hidden');
-            document.getElementById('pointsDropdownWrapper').classList.add('hidden');
-        }
-    }
-
     function setRankBy(type) {
         rankBy = type;
         if (type === 'point') {
-            document.getElementById('btnRankPoint').className = 'py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all';
-            document.getElementById('btnRankWin').className = 'py-2.5 rounded-xl font-bold text-xs bg-slate-50 text-slate-700 border border-slate-200 transition-all hover:bg-slate-100';
+            document.getElementById('btnRankPoint').className = 'py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all flex items-center justify-center gap-1.5';
+            document.getElementById('btnRankWin').className = 'py-2.5 rounded-xl font-bold text-xs bg-transparent text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5';
         } else {
-            document.getElementById('btnRankWin').className = 'py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all';
-            document.getElementById('btnRankPoint').className = 'py-2.5 rounded-xl font-bold text-xs bg-slate-50 text-slate-700 border border-slate-200 transition-all hover:bg-slate-100';
+            document.getElementById('btnRankWin').className = 'py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all flex items-center justify-center gap-1.5';
+            document.getElementById('btnRankPoint').className = 'py-2.5 rounded-xl font-bold text-xs bg-transparent text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5';
         }
     }
 
@@ -489,7 +475,7 @@
         if (step === 4) {
             const actName = document.getElementById('activityName').value || `${selectedSport} Mabar`;
             const numCourt = document.getElementById('numCourts').value;
-            const scoreVal = scoringType === 'points' ? document.getElementById('scoringPointsValue').value : document.getElementById('scoringGeneralValue').value;
+            const scoreVal = document.getElementById('scoringGeneralValue').value;
             
             document.getElementById('summaryGameName').innerText = actName;
             document.getElementById('summaryGameFormat').innerText = `${selectedGameType} • ${numCourt} • ${scoreVal}`;
