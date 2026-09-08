@@ -46,7 +46,7 @@ class AuthController extends Controller
             ->first();
 
         if ($user && Hash::check($password, $user->password)) {
-            Auth::login($user, $request->boolean('remember', true));
+            Auth::login($user, false);
             return redirect()->intended(route('dashboard'))->with('success', "Selamat datang kembali, {$user->nama}!");
         }
 

@@ -33,6 +33,21 @@ class User extends Authenticatable
         ];
     }
 
+    public function getRememberTokenName()
+    {
+        return '';
+    }
+
+    public function getRememberToken()
+    {
+        return null;
+    }
+
+    public function setRememberToken($value)
+    {
+        // tb_user does not have remember_token column
+    }
+
     public function player()
     {
         return $this->hasOne(Player::class, 'user_id', 'user_id');
