@@ -46,14 +46,28 @@
                     <a href="{{ route('register') }}" class="hidden sm:inline-flex text-xs font-bold text-[#063B00] bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 px-3.5 py-1.5 rounded-xl transition-all shadow-2xs">
                         Daftar
                     </a>
+                    <a href="{{ route('games.create') }}" class="inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
+                        <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span class="hidden sm:inline">Host Game</span><span class="sm:hidden">Host</span>
+                    </a>
                 @endguest
 
-                <!-- Action Button: Host Game -->
-                <a href="{{ route('games.create') }}" class="inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
-                    <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span class="hidden sm:inline">Host Game</span><span class="sm:hidden">Host</span>
-                </a>
-
                 @auth
+                    <!-- Role-Based Action Button -->
+                    @if(Auth::user()->role === 'host')
+                        <a href="{{ route('games.create') }}" class="inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
+                            <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span class="hidden sm:inline">Host Game</span><span class="sm:hidden">Host</span>
+                        </a>
+                    @elseif(Auth::user()->role === 'venue_owner')
+                        <a href="{{ route('venues.create') }}" class="inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
+                            <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span class="hidden sm:inline">Tambah Venue</span><span class="sm:hidden">Venue</span>
+                        </a>
+                    @else
+                        <!-- Role: member (Pemain) -->
+                        <a href="{{ route('communities.create') }}" class="inline-flex items-center gap-1.5 bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-2xs hover:scale-[1.02]">
+                            <i class="fa-solid fa-plus text-[10px]"></i> <span class="hidden sm:inline">Komunitas</span><span class="sm:hidden">Komunitas</span>
+                        </a>
+                    @endif
+
                     <!-- Authenticated User Dropdown -->
                     <div class="relative flex items-center pl-2 border-l border-slate-200/60">
                         <div class="flex items-center gap-2 cursor-pointer group" onclick="toggleUserDropdown()">
@@ -61,11 +75,11 @@
                                 {{ strtoupper(substr(Auth::user()->nama ?? 'U', 0, 1)) }}
                             </div>
                             <div class="hidden lg:block text-left">
-                                <span class="text-xs font-extrabold text-[#050608] leading-tight block truncate max-w-[100px]">
+                                <span class="text-xs font-extrabold text-[#050608] leading-tight block truncate max-w-[110px]">
                                     {{ Auth::user()->nama }}
                                 </span>
-                                <span class="text-[9px] font-bold uppercase tracking-wider text-[#063B00] block">
-                                    {{ Auth::user()->role ?? 'Member' }}
+                                <span class="text-[9px] font-bold uppercase tracking-wider {{ Auth::user()->role === 'host' ? 'text-amber-700' : (Auth::user()->role === 'venue_owner' ? 'text-sky-700' : 'text-[#063B00]') }} block">
+                                    {{ Auth::user()->role === 'venue_owner' ? 'Venue Owner' : (Auth::user()->role === 'host' ? 'Host Game' : 'Member') }}
                                 </span>
                             </div>
                             <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 group-hover:text-slate-600 transition-transform"></i>
@@ -135,32 +149,6 @@
     </div>
 </header>
 
-<!-- Mobile Bottom Navigation Bar -->
-<nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-slate-200/80 px-2 py-1.5 flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
-    <a href="{{ route('dashboard') }}" class="flex flex-col items-center justify-center p-1 text-[10px] font-semibold {{ request()->routeIs('dashboard') ? 'text-[#063B00]' : 'text-slate-500' }}">
-        <i class="fa-solid fa-house text-sm mb-0.5"></i>
-        <span>Home</span>
-    </a>
-    <a href="{{ route('games.index') }}" class="flex flex-col items-center justify-center p-1 text-[10px] font-semibold {{ request()->routeIs('games.*') ? 'text-[#063B00]' : 'text-slate-500' }}">
-        <i class="fa-solid fa-trophy text-sm mb-0.5"></i>
-        <span>Mabar</span>
-    </a>
-    <a href="{{ route('games.create') }}" class="flex flex-col items-center justify-center p-1 -mt-4">
-        <div class="w-11 h-11 rounded-full bg-[#063B00] text-white flex items-center justify-center shadow-md">
-            <i class="fa-solid fa-plus text-base text-[#A8E63A]"></i>
-        </div>
-        <span class="text-[9px] font-bold text-slate-700 mt-0.5">Host</span>
-    </a>
-    <a href="{{ route('venues.index') }}" class="flex flex-col items-center justify-center p-1 text-[10px] font-semibold {{ request()->routeIs('venues.*') ? 'text-[#063B00]' : 'text-slate-500' }}">
-        <i class="fa-solid fa-location-dot text-sm mb-0.5"></i>
-        <span>Venue</span>
-    </a>
-    <a href="{{ route('player.recap') }}" class="flex flex-col items-center justify-center p-1 text-[10px] font-semibold {{ request()->routeIs('player.*') ? 'text-[#063B00]' : 'text-slate-500' }}">
-        <i class="fa-solid fa-chart-line text-sm mb-0.5"></i>
-        <span>Recap</span>
-    </a>
-</nav>
-
 <script>
     function toggleMobileMenu() {
         const menu = document.getElementById('mobileMenu');
@@ -174,7 +162,6 @@
         }
     }
 
-    // Close dropdown on click outside
     document.addEventListener('click', function(e) {
         const dropdown = document.getElementById('userDropdown');
         if (dropdown && !e.target.closest('.relative.flex.items-center')) {

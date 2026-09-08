@@ -8,6 +8,7 @@
         str_contains(strtolower($game['status']), 'open') => 'open',
         default => 'default',
     };
+    $isFull = $game['joined_count'] >= $game['quota'];
 @endphp
 
 <div class="glass-card rounded-2xl p-5 flex flex-col justify-between group">
@@ -90,17 +91,26 @@
         </div>
     </div>
 
-    <!-- Action Buttons -->
+    <!-- Action Buttons with Role Checking -->
     <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/40">
         <a href="{{ route('games.show', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-white/80 hover:bg-white text-slate-700 text-xs font-semibold transition-all border border-slate-200/60 shadow-xs">
             Detail
         </a>
-        @if($game['joined_count'] >= $game['quota'])
-            <a href="{{ route('games.drawing', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-semibold shadow-xs transition-all hover:scale-[1.01]">
-                Drawing Tim
-            </a>
+
+        @if($isFull)
+            {{-- Kuota Penuh --}}
+            @if(Auth::check() && Auth::user()->role === 'host')
+                <a href="{{ route('games.drawing', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-bold shadow-xs transition-all hover:scale-[1.01]">
+                    🎲 Drawing Tim
+                </a>
+            @else
+                <button type="button" disabled class="text-center py-2 px-3 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold border border-slate-200/60 cursor-not-allowed">
+                    Slot Penuh
+                </button>
+            @endif
         @else
-            <button onclick="showJoinModal('{{ $game['id'] }}', '{{ $game['title'] }}')" class="text-center py-2 px-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-semibold shadow-xs transition-all hover:scale-[1.01]">
+            {{-- Slot Masih Terbuka --}}
+            <button onclick="showJoinModal('{{ $game['id'] }}', '{{ $game['title'] }}')" class="text-center py-2 px-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-bold shadow-xs transition-all hover:scale-[1.01] cursor-pointer">
                 Gabung Slot
             </button>
         @endif

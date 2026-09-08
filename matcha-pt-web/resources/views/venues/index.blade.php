@@ -10,9 +10,11 @@
             <p class="text-xs text-slate-500 mt-0.5">Daftar lokasi lapangan Tennis & Padel dengan informasi jam operasional dan fasilitas</p>
         </div>
 
-        <a href="{{ route('venues.create') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01]">
-            <i class="fa-solid fa-plus text-[10px]"></i> Daftarkan Venue Baru
-        </a>
+        @if(Auth::check() && Auth::user()->role === 'venue_owner')
+            <a href="{{ route('venues.create') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01]">
+                <i class="fa-solid fa-plus text-[10px]"></i> Daftarkan Venue Baru
+            </a>
+        @endif
     </div>
 
     <!-- Grid of Venues -->
