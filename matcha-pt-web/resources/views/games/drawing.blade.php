@@ -168,7 +168,12 @@
         showToast(`Beralih ke Ronde ${roundNum}`);
     }
 
+    function isFemaleName(name) {
+        return /gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita/i.test(name);
+    }
+
     function renderRoster(data) {
+        // Render Team A Roster
         document.getElementById('rosterTeamA').innerHTML = `
             <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
                 <span class="font-semibold text-slate-800">1. ${data.teamA[0]}</span>
@@ -180,6 +185,7 @@
             </div>
         `;
 
+        // Render Team B Roster
         document.getElementById('rosterTeamB').innerHTML = `
             <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
                 <span class="font-semibold text-slate-800">1. ${data.teamB[0]}</span>
@@ -191,6 +197,7 @@
             </div>
         `;
 
+        // Render Resting Bench
         document.getElementById('rosterResting').innerHTML = `
             <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
                 <span class="text-slate-700">1. ${data.resting[0]}</span>
@@ -201,6 +208,42 @@
                 <span class="text-[10px] text-slate-400 font-semibold">Bench</span>
             </div>
         `;
+
+        // Update Court Visualizer Team A Cards
+        const courtA = document.getElementById('courtTeamA');
+        if (courtA) {
+            courtA.innerHTML = data.teamA.map((name, idx) => {
+                const female = isFemaleName(name);
+                return `
+                    <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-110 w-fit mx-auto sm:mx-8">
+                        <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full ${female ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600'} text-white border-2 border-white shadow-md flex items-center justify-center text-xs sm:text-sm mb-1">
+                            <i class="${female ? 'fa-solid fa-person-dress' : 'fa-solid fa-person'}"></i>
+                        </div>
+                        <p class="text-[11px] sm:text-xs font-bold text-white text-center leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] max-w-[110px] sm:max-w-[130px] truncate">
+                            ${name}
+                        </p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update Court Visualizer Team B Cards
+        const courtB = document.getElementById('courtTeamB');
+        if (courtB) {
+            courtB.innerHTML = data.teamB.map((name, idx) => {
+                const female = isFemaleName(name);
+                return `
+                    <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-110 w-fit mx-auto sm:mx-8">
+                        <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full ${female ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600'} text-white border-2 border-white shadow-md flex items-center justify-center text-xs sm:text-sm mb-1">
+                            <i class="${female ? 'fa-solid fa-person-dress' : 'fa-solid fa-person'}"></i>
+                        </div>
+                        <p class="text-[11px] sm:text-xs font-bold text-white text-center leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] max-w-[110px] sm:max-w-[130px] truncate">
+                            ${name}
+                        </p>
+                    </div>
+                `;
+            }).join('');
+        }
     }
 
     function runDrawingAnimation() {

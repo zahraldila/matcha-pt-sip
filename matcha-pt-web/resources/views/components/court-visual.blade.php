@@ -15,60 +15,67 @@
     </div>
 
     <!-- Court Graphic Container -->
-    <div class="relative w-full aspect-[16/10] bg-[#163820] rounded-2xl border-2 border-white/90 p-4 flex flex-col justify-between overflow-hidden shadow-inner">
+    <div class="relative w-full min-h-[260px] sm:min-h-[300px] bg-[#14341d] rounded-2xl border-2 border-white/90 p-3 sm:p-4 flex flex-col justify-between overflow-hidden shadow-inner">
         <!-- Court Service Lines -->
-        <div class="absolute inset-x-6 inset-y-3 border border-white/80 pointer-events-none"></div>
+        <div class="absolute inset-x-4 sm:inset-x-6 inset-y-3 border border-white/80 pointer-events-none"></div>
+        
         <!-- Center Net -->
-        <div class="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-white flex flex-col justify-between items-center z-10">
-            <div class="w-2.5 h-2.5 bg-[#0f2415] border border-white rounded-full -mt-1"></div>
-            <span class="bg-[#0f2415] text-lime-300 font-bold text-[8px] px-1 py-0.5 rounded tracking-widest uppercase border border-white/40 rotate-90 my-auto">NET</span>
-            <div class="w-2.5 h-2.5 bg-[#0f2415] border border-white rounded-full -mb-1"></div>
+        <div class="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-white flex flex-col justify-between items-center z-10 pointer-events-none">
+            <div class="w-2.5 h-2.5 bg-[#0d2213] border border-white rounded-full -mt-1"></div>
+            <span class="bg-[#0d2213] text-lime-300 font-black text-[8px] px-1 py-0.5 rounded tracking-widest uppercase border border-white/40 rotate-90 my-auto">NET</span>
+            <div class="w-2.5 h-2.5 bg-[#0d2213] border border-white rounded-full -mb-1"></div>
         </div>
 
         <!-- Center Service Line -->
-        <div class="absolute inset-y-1/2 left-6 right-6 h-0.5 -translate-y-1/2 bg-white/80 pointer-events-none"></div>
+        <div class="absolute inset-y-1/2 left-4 sm:left-6 right-4 sm:right-6 h-0.5 -translate-y-1/2 bg-white/80 pointer-events-none"></div>
 
         <!-- Left Court / Team A -->
-        <div class="relative z-20 w-1/2 pr-3 flex flex-col justify-around h-full">
+        <div class="relative z-20 w-1/2 pr-2 sm:pr-3 flex flex-col justify-between h-full">
             <div class="text-left">
-                <span class="text-[10px] font-extrabold tracking-wider uppercase px-2.5 py-0.5 rounded-md bg-white text-[#163820] shadow-sm">
+                <span class="text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white border border-white/30 shadow-xs">
                     Team A
                 </span>
             </div>
             
-            <div class="grid grid-rows-2 gap-2 my-auto">
+            <div class="flex flex-col justify-around gap-2 my-auto py-1" id="courtTeamA">
                 @foreach($teamA as $idx => $player)
-                    <div class="bg-white/95 backdrop-blur-md border border-white/90 rounded-xl p-2.5 flex items-center gap-2.5 shadow-sm transform transition-transform hover:scale-105">
-                        <div class="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center font-extrabold text-[#163820] text-[10px]">
-                            A{{ $idx + 1 }}
+                    @php
+                        $name = is_array($player) ? ($player['name'] ?? '') : (string)$player;
+                        $isFemale = preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita/i', $name);
+                    @endphp
+                    <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-110 w-fit mx-auto sm:mx-8">
+                        <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full {{ $isFemale ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600' }} text-white border-2 border-white shadow-md flex items-center justify-center text-xs sm:text-sm mb-1">
+                            <i class="{{ $isFemale ? 'fa-solid fa-person-dress' : 'fa-solid fa-person' }}"></i>
                         </div>
-                        <div class="truncate">
-                            <p class="text-xs font-bold text-slate-800 truncate">{{ $player }}</p>
-                            <p class="text-[9px] text-slate-500 font-medium">{{ $idx === 0 ? 'Posisi Kiri' : 'Posisi Kanan' }}</p>
-                        </div>
+                        <p class="text-[11px] sm:text-xs font-bold text-white text-center leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] max-w-[110px] sm:max-w-[130px] truncate">
+                            {{ $name }}
+                        </p>
                     </div>
                 @endforeach
             </div>
         </div>
 
         <!-- Right Court / Team B -->
-        <div class="relative z-20 w-1/2 pl-3 ml-auto flex flex-col justify-around h-full text-right">
+        <div class="relative z-20 w-1/2 pl-2 sm:pl-3 ml-auto flex flex-col justify-between h-full text-right items-end">
             <div class="text-right">
-                <span class="text-[10px] font-extrabold tracking-wider uppercase px-2.5 py-0.5 rounded-md bg-white text-[#163820] shadow-sm">
+                <span class="text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white border border-white/30 shadow-xs">
                     Team B
                 </span>
             </div>
 
-            <div class="grid grid-rows-2 gap-2 my-auto">
+            <div class="flex flex-col justify-around gap-2 my-auto py-1 w-full items-center" id="courtTeamB">
                 @foreach($teamB as $idx => $player)
-                    <div class="bg-white/95 backdrop-blur-md border border-white/90 rounded-xl p-2.5 flex items-center justify-end gap-2.5 shadow-sm text-right transform transition-transform hover:scale-105">
-                        <div class="truncate">
-                            <p class="text-xs font-bold text-slate-800 truncate">{{ $player }}</p>
-                            <p class="text-[9px] text-slate-500 font-medium">{{ $idx === 0 ? 'Posisi Kiri' : 'Posisi Kanan' }}</p>
+                    @php
+                        $name = is_array($player) ? ($player['name'] ?? '') : (string)$player;
+                        $isFemale = preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita/i', $name);
+                    @endphp
+                    <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-110 w-fit mx-auto sm:mx-8">
+                        <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full {{ $isFemale ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600' }} text-white border-2 border-white shadow-md flex items-center justify-center text-xs sm:text-sm mb-1">
+                            <i class="{{ $isFemale ? 'fa-solid fa-person-dress' : 'fa-solid fa-person' }}"></i>
                         </div>
-                        <div class="w-6 h-6 rounded-lg bg-lime-100 flex items-center justify-center font-extrabold text-[#163820] text-[10px]">
-                            B{{ $idx + 1 }}
-                        </div>
+                        <p class="text-[11px] sm:text-xs font-bold text-white text-center leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] max-w-[110px] sm:max-w-[130px] truncate">
+                            {{ $name }}
+                        </p>
                     </div>
                 @endforeach
             </div>
