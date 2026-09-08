@@ -10,7 +10,7 @@
             <p class="text-xs text-slate-500 mt-0.5">Daftar sesi mabar aktif yang dibuat oleh Host Komunitas</p>
         </div>
 
-        <a href="{{ route('games.create') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01]">
+        <a href="{{ route('games.schedule') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01]">
             <i class="fa-solid fa-plus text-[10px]"></i> Buat Sesi Mabar Baru
         </a>
     </div>

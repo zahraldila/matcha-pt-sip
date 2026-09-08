@@ -25,9 +25,11 @@ Route::prefix('games')->name('games.')->group(function () {
     Route::get('/{id}', [GameController::class, 'show'])->whereNumber('id')->name('show');
     Route::get('/{id}/drawing', [GameController::class, 'drawing'])->whereNumber('id')->name('drawing');
 
-    // Protected: Create Game (Only for Authenticated Users / Host)
+    // Protected: Create Game Wizard (Instant Host) & Schedule Sesi Mabar
     Route::middleware('auth')->group(function () {
         Route::get('/create', [GameController::class, 'create'])->name('create');
+        Route::get('/schedule', [GameController::class, 'createSchedule'])->name('schedule');
+        Route::post('/schedule', [GameController::class, 'storeSchedule'])->name('schedule.post');
     });
 });
 
