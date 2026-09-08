@@ -71,4 +71,36 @@ class VenueController extends Controller
 
         return view('venues.create');
     }
+
+    /**
+     * Simpan venue baru ke database.
+     * Route: POST /venues
+     *
+     * TODO [SMK 2]: Lengkapi validasi dan simpan ke tb_venue.
+     * Field yang perlu disimpan:
+     *   - nama_venue, alamat, owner_user_id = Auth::id()
+     *   - fasilitas, foto (jika ada upload)
+     */
+    public function store(Request $request)
+    {
+        if (Auth::user()->role !== 'venue_owner') {
+            return redirect()->route('venues.index')->with('error', 'Akses ditolak.');
+        }
+
+        $request->validate([
+            'nama_venue' => 'required|string|max:255',
+            'alamat'     => 'required|string',
+        ]);
+
+        // TODO [SMK 2]: Simpan ke tb_venue
+        // Venue::create([
+        //     'nama_venue'     => $request->nama_venue,
+        //     'alamat'         => $request->alamat,
+        //     'owner_user_id'  => Auth::id(),
+        //     'fasilitas'      => $request->fasilitas,
+        // ]);
+
+        return redirect()->route('venues.index')
+            ->with('success', 'Venue berhasil didaftarkan! Tim Matcha akan segera meninjau data Anda.');
+    }
 }

@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Game\GameController;
 use App\Http\Controllers\Venue\VenueController;
+use App\Http\Controllers\Venue\CourtController;       // [SMK 2] Court management
 use App\Http\Controllers\Scoring\ScoringController;
 use App\Http\Controllers\Player\PlayerController;
 use App\Http\Controllers\Community\CommunityController;
@@ -38,9 +39,13 @@ Route::prefix('venues')->name('venues.')->group(function () {
     Route::get('/', [VenueController::class, 'index'])->name('index');
     Route::get('/{id}', [VenueController::class, 'show'])->whereNumber('id')->name('show');
 
-    // Protected: Register Venue (Only for Authenticated Users / Venue Owner)
+    // Protected: SMK 2 — Venue & Court Manager
     Route::middleware('auth')->group(function () {
         Route::get('/create', [VenueController::class, 'create'])->name('create');
+        Route::post('/', [VenueController::class, 'store'])->name('store');             // [SMK 2] Simpan venue baru ke DB
+        Route::get('/{id}/courts', [CourtController::class, 'index'])->whereNumber('id')->name('courts.index');   // [SMK 2] List court per venue
+        Route::get('/{id}/courts/create', [CourtController::class, 'create'])->whereNumber('id')->name('courts.create'); // [SMK 2] Form tambah court
+        Route::post('/{id}/courts', [CourtController::class, 'store'])->whereNumber('id')->name('courts.store');  // [SMK 2] Simpan court baru ke DB
     });
 });
 
@@ -59,9 +64,13 @@ Route::prefix('player')->name('player.')->middleware('auth')->group(function () 
 // Community
 Route::prefix('communities')->name('communities.')->group(function () {
     Route::get('/', [CommunityController::class, 'index'])->name('index');
+    Route::get('/{id}', [CommunityController::class, 'show'])->whereNumber('id')->name('show'); // [SMK 3] Detail komunitas
 
-    // Protected: Create Community (Only for Authenticated Members)
+    // Protected: SMK 3 — Community Manager
     Route::middleware('auth')->group(function () {
         Route::get('/create', [CommunityController::class, 'create'])->name('create');
+        Route::post('/', [CommunityController::class, 'store'])->name('store');                  // [SMK 3] Simpan komunitas baru ke DB
+        Route::post('/{id}/join', [CommunityController::class, 'join'])->whereNumber('id')->name('join');   // [SMK 3] Join komunitas
+        Route::post('/{id}/leave', [CommunityController::class, 'leave'])->whereNumber('id')->name('leave'); // [SMK 3] Leave komunitas
     });
 });
