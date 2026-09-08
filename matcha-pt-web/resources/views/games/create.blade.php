@@ -1,0 +1,575 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    
+    <!-- Top Step Progress Bar -->
+    <div class="flex items-center justify-between pb-4 border-b border-slate-200/60">
+        <div class="flex items-center gap-3">
+            <button type="button" onclick="prevStep()" id="backBtn" class="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-700 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-xs hidden">
+                <i class="fa-solid fa-arrow-left text-xs"></i>
+            </button>
+            <div>
+                <span class="text-[10px] font-bold tracking-wider text-emerald-800 uppercase" id="stepBadge">Langkah 1 dari 4</span>
+                <h1 class="text-xl sm:text-2xl font-black text-slate-900 leading-tight" id="stepTitle">
+                    Create new game
+                </h1>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 transition-all" id="indicator1"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-slate-200 transition-all" id="indicator2"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-slate-200 transition-all" id="indicator3"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-slate-200 transition-all" id="indicator4"></span>
+        </div>
+    </div>
+
+    <!-- Multi-Step Wizard Container -->
+    <div class="space-y-6">
+
+        <!-- ==================== STEP 1: SELECT SPORT TYPE ==================== -->
+        <div id="step1" class="space-y-4">
+            <h2 class="text-sm font-bold text-slate-800">
+                Select sport type
+            </h2>
+
+            <div class="space-y-3">
+                <!-- Padel -->
+                <button type="button" onclick="selectSport('Padel', '🏓')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-xl text-emerald-700 group-hover:scale-105 transition-transform">
+                            <i class="fa-solid fa-table-tennis-paddle-ball"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Padel</h3>
+                            <p class="text-xs text-slate-500">World Padel Tour standard & Americano format</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
+                </button>
+
+                <!-- Tennis -->
+                <button type="button" onclick="selectSport('Tennis', '🎾')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xl text-amber-700 group-hover:scale-105 transition-transform">
+                            <i class="fa-solid fa-baseball"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Tennis</h3>
+                            <p class="text-xs text-slate-500">Tennis single, double, sets & game scoring</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
+                </button>
+
+                <!-- Badminton -->
+                <button type="button" onclick="selectSport('Badminton', '🏸')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-xl text-teal-700 group-hover:scale-105 transition-transform">
+                            <i class="fa-solid fa-feather-pointed"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Badminton</h3>
+                            <p class="text-xs text-slate-500">Rally points 21 / 30 & rotation</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
+                </button>
+
+                <!-- Pickleball -->
+                <button type="button" onclick="selectSport('Pickleball', '🏓')" class="w-full glass-card hover:border-emerald-500 rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl text-indigo-700 group-hover:scale-105 transition-transform">
+                            <i class="fa-solid fa-table-tennis-paddle-ball"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Pickleball</h3>
+                            <p class="text-xs text-slate-500">Pickleball community match play</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== STEP 2: SELECT GAME TYPE (FORMAT) ==================== -->
+        <div id="step2" class="space-y-4 hidden">
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-bold text-slate-800">
+                    Select game type (<span id="selectedSportLabel" class="text-emerald-700">Padel</span>)
+                </h2>
+                <span class="text-xs text-slate-400">Pilih format turnamen/mabar</span>
+            </div>
+
+            <div class="space-y-3">
+                <!-- Americano -->
+                <button type="button" onclick="selectGameType('Americano', 'All players play with everyone')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-base font-extrabold text-white">Americano</h3>
+                        <span class="text-[10px] font-bold bg-lime-400/20 text-lime-300 px-2 py-0.5 rounded-full border border-lime-400/30">POPULER</span>
+                    </div>
+                    <p class="text-xs text-emerald-100/90 mt-0.5">All players play with everyone (Round-Robin)</p>
+                </button>
+
+                <!-- Mexicano -->
+                <button type="button" onclick="selectGameType('Mexicano', 'Like Americano but will result in more even games based on scoreboard')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-base font-extrabold text-white">Mexicano</h3>
+                        <span class="text-[10px] font-bold bg-lime-400/20 text-lime-300 px-2 py-0.5 rounded-full border border-lime-400/30">DYNAMIC</span>
+                    </div>
+                    <p class="text-xs text-emerald-100/90 mt-0.5">Like Americano but will result in more even games. After every round, a new game is generated depending on current scoreboard.</p>
+                </button>
+
+                <!-- Team Americano -->
+                <button type="button" onclick="selectGameType('Team Americano', 'Each team plays against all other teams one time with fixed teams')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
+                    <h3 class="text-base font-extrabold text-white">Team Americano</h3>
+                    <p class="text-xs text-emerald-100/90 mt-0.5">Each team plays against all other teams one time (Fixed Teams).</p>
+                </button>
+
+                <!-- Team Mexicano -->
+                <button type="button" onclick="selectGameType('Team Mexicano', 'Mexicano with fixed teams')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
+                    <h3 class="text-base font-extrabold text-white">Team Mexicano</h3>
+                    <p class="text-xs text-emerald-100/90 mt-0.5">Mexicano with fixed teams.</p>
+                </button>
+
+                <!-- Mixicano -->
+                <button type="button" onclick="selectGameType('Mixicano', 'Woman and a man in each team with Mexicano logic')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-base font-extrabold text-white">Mixicano</h3>
+                        <span class="text-[10px] font-bold bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30">MIX GENDER</span>
+                    </div>
+                    <p class="text-xs text-emerald-100/90 mt-0.5">Like Mexicano but you will always be drawn a woman and a man in each team.</p>
+                </button>
+
+                <!-- Mix Americano -->
+                <button type="button" onclick="selectGameType('Mix Americano', 'The team is drawn with a woman and a man in each team')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-base font-extrabold text-white">Mix Americano</h3>
+                        <span class="text-[10px] font-bold bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30">MIX GENDER</span>
+                    </div>
+                    <p class="text-xs text-emerald-100/90 mt-0.5">The team is drawn with a woman and a man in each team.</p>
+                </button>
+
+                <!-- King of the SKOR / Court -->
+                <button type="button" onclick="selectGameType('King of the Court', 'Fight your way up to winners court and defend your place')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
+                    <h3 class="text-base font-extrabold text-white">King of the Court</h3>
+                    <p class="text-xs text-emerald-100/90 mt-0.5">Fight your way up to winners court and then defend your place there until the end.</p>
+                </button>
+
+                <!-- Knockout -->
+                <button type="button" onclick="selectGameType('Knockout', 'Bracket-based tournament with knockout rounds')" class="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] hover:from-[#1b4327] hover:to-[#316e42] text-white shadow-md transition-all group border border-emerald-900/40">
+                    <h3 class="text-base font-extrabold text-white">Knockout</h3>
+                    <p class="text-xs text-emerald-100/90 mt-0.5">A bracket-based tournament in which players or pairs compete in knockout rounds until the championship match.</p>
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== STEP 3: MATCH & SCORING CONFIGURATION ==================== -->
+        <div id="step3" class="space-y-6 hidden">
+            <!-- Format Banner Header -->
+            <div class="rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] p-6 text-white text-center space-y-1 shadow-md border border-emerald-900/40">
+                <span class="text-[10px] uppercase font-bold tracking-widest text-lime-300">Selected Format</span>
+                <h2 class="text-2xl font-black text-white" id="configFormatTitle">Americano</h2>
+            </div>
+
+            <div class="glass-card rounded-2xl p-6 space-y-5">
+                <!-- Activity Name -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 mb-1.5">Activity Name</label>
+                    <input type="text" id="activityName" value="Padel Weekend Mabar" placeholder="Contoh: tenis / padel jtk" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-emerald-600 focus:outline-none shadow-xs" required>
+                </div>
+
+                <!-- Number of Courts -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 mb-1.5">Numbers of Court</label>
+                    <select id="numCourts" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-emerald-600 focus:outline-none shadow-xs">
+                        <option value="1 Court">1 Court</option>
+                        <option value="2 Court">2 Court</option>
+                        <option value="3 Court">3 Court</option>
+                        <option value="4 Court">4 Court</option>
+                    </select>
+                </div>
+
+                <!-- Scoring System Selector -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 mb-2">Scoring System</label>
+                    
+                    <!-- Toggle Points vs General -->
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <button type="button" onclick="setScoringType('points')" id="btnScoringPoints" class="py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all">
+                            Points
+                        </button>
+                        <button type="button" onclick="setScoringType('general')" id="btnScoringGeneral" class="py-2.5 rounded-xl font-bold text-xs bg-slate-50 text-slate-700 border border-slate-200 transition-all hover:bg-slate-100">
+                            General
+                        </button>
+                    </div>
+
+                    <!-- Points Options Dropdown -->
+                    <div id="pointsDropdownWrapper">
+                        <select id="scoringPointsValue" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-emerald-600 focus:outline-none shadow-xs">
+                            <option value="16 Points">16 Points</option>
+                            <option value="21 Points">21 Points</option>
+                            <option value="24 Points" selected>24 Points</option>
+                            <option value="30 Points">30 Points</option>
+                            <option value="31 Points">31 Points</option>
+                            <option value="32 Points">32 Points</option>
+                        </select>
+                    </div>
+
+                    <!-- General Options Dropdown -->
+                    <div id="generalDropdownWrapper" class="hidden">
+                        <select id="scoringGeneralValue" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-emerald-600 focus:outline-none shadow-xs">
+                            <option value="Total of 3">Total of 3 Sets</option>
+                            <option value="Total of 4">Total of 4 Sets</option>
+                            <option value="First to 8">First to 8 Games</option>
+                            <option value="First to 4">First to 4 Games</option>
+                            <option value="Tennis 15-30-40-Game">Sistem Tennis (15, 30, 40, Deuce, Game)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Leaderboard Ranked by -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 mb-2">Leaderboard Ranked by</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="setRankBy('point')" id="btnRankPoint" class="py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all">
+                            Point
+                        </button>
+                        <button type="button" onclick="setRankBy('win')" id="btnRankWin" class="py-2.5 rounded-xl font-bold text-xs bg-slate-50 text-slate-700 border border-slate-200 transition-all hover:bg-slate-100">
+                            Win
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="button" onclick="goToStep(4)" class="w-full py-3.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-slate-950 font-black text-sm shadow-md transition-all hover:scale-[1.01] active:scale-95">
+                        Confirm & Input Players &rarr;
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== STEP 4: MANUAL PLAYER LIST MANAGEMENT ==================== -->
+        <div id="step4" class="space-y-6 hidden">
+            
+            <!-- Summary Header Card -->
+            <div class="rounded-2xl bg-gradient-to-r from-[#163820] via-[#1e482b] to-[#285d37] p-5 text-white shadow-md flex items-center justify-between border border-emerald-900/40">
+                <div>
+                    <h2 class="text-xl font-extrabold text-white" id="summaryGameName">Padel Weekend Mabar</h2>
+                    <p class="text-xs text-emerald-100" id="summaryGameFormat">Americano &bull; 1 Court &bull; 24 Points</p>
+                </div>
+                <span class="text-xs bg-lime-400/20 text-lime-300 border border-lime-400/40 px-3 py-1 rounded-full font-bold">Host Mode</span>
+            </div>
+
+            <!-- Add Player Action Bar -->
+            <div class="glass-card rounded-2xl p-5 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div>
+                        <h3 class="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                            Player List (<span id="playerCount">0</span>)
+                        </h3>
+                        <p class="text-[11px] text-slate-500">*Minimal 4 pemain untuk generate drawing</p>
+                    </div>
+                </div>
+
+                <!-- Add Buttons Row (Sesuai Screenshot Skor App) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <button type="button" onclick="addYourself()" class="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs shadow-2xs transition-colors flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-user-check text-emerald-600"></i> + ADD YOURSELF
+                    </button>
+                    <button type="button" onclick="openAddPlayerModal()" class="py-3 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 font-bold text-xs shadow-2xs transition-colors flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-user-plus text-emerald-700"></i> + ADD PLAYER / GUEST
+                    </button>
+                </div>
+
+                <!-- Player List Container -->
+                <div class="space-y-2 pt-2" id="playersContainer">
+                    <!-- Empty State Illustration (Sesuai Screenshot) -->
+                    <div id="emptyPlayersState" class="py-8 text-center space-y-3">
+                        <div class="w-16 h-16 mx-auto rounded-full bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-400 text-2xl shadow-xs">
+                            <i class="fa-solid fa-box-open"></i>
+                        </div>
+                        <div class="space-y-1">
+                            <h4 class="text-xs font-bold text-slate-800">Great moments are meant to be shared.</h4>
+                            <p class="text-[11px] text-slate-400">Tambahkan minimal 4 pemain untuk memulai pengacakan drawing tim.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generate Drawing CTA Button -->
+                <div class="pt-4 border-t border-slate-100">
+                    <button type="button" id="btnStartDrawing" onclick="startDrawingAction()" disabled class="w-full py-3.5 rounded-xl bg-slate-200 text-slate-400 font-black text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-shuffle"></i> 🎲 Generate Drawing & Start Game
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal Input Manual Player (Guest / Member) -->
+<div id="addPlayerModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="glass-card !bg-white max-w-md w-full rounded-3xl p-6 border border-white space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-user-plus text-emerald-600"></i> Input Nama Pemain
+            </h3>
+            <button onclick="closeAddPlayerModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none">&times;</button>
+        </div>
+
+        <form onsubmit="handleManualPlayerSubmit(event)" class="space-y-3 text-xs">
+            <div>
+                <label class="block font-semibold text-slate-700 mb-1">Nama Pemain</label>
+                <input type="text" id="manualPlayerName" placeholder="Contoh: Gisel Anastasia" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none" required>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Gender</label>
+                    <select id="manualPlayerGender" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none">
+                        <option value="Male">Laki-laki</option>
+                        <option value="Female">Perempuan</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Skill Level</label>
+                    <select id="manualPlayerLevel" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none">
+                        <option value="Newbie">Newbie</option>
+                        <option value="Beginner" selected>Beginner</option>
+                        <option value="Intermediate">Intermediate</option>
+                        <option value="Advanced">Advanced</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 mb-1">Tipe Pemain</label>
+                <select id="manualPlayerType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none">
+                    <option value="Guest">Guest Player (Tamu di Lapangan)</option>
+                    <option value="Member">Registered Member</option>
+                </select>
+            </div>
+
+            <div class="flex gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeAddPlayerModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors">
+                    Batal
+                </button>
+                <button type="submit" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs transition-colors">
+                    + Tambahkan Pemain
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+    let currentStep = 1;
+    let selectedSport = 'Padel';
+    let selectedGameType = 'Americano';
+    let scoringType = 'points'; // 'points' or 'general'
+    let rankBy = 'point'; // 'point' or 'win'
+
+    let players = [
+        // Pre-filled with realistic data if Host clicks Add Yourself
+    ];
+
+    function selectSport(sport, icon) {
+        selectedSport = sport;
+        document.getElementById('selectedSportLabel').innerText = `${icon} ${sport}`;
+        goToStep(2);
+    }
+
+    function selectGameType(format, description) {
+        selectedGameType = format;
+        document.getElementById('configFormatTitle').innerText = format;
+        goToStep(3);
+    }
+
+    function setScoringType(type) {
+        scoringType = type;
+        if (type === 'points') {
+            document.getElementById('btnScoringPoints').className = 'py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all';
+            document.getElementById('btnScoringGeneral').className = 'py-2.5 rounded-xl font-bold text-xs bg-slate-50 text-slate-700 border border-slate-200 transition-all hover:bg-slate-100';
+            document.getElementById('pointsDropdownWrapper').classList.remove('hidden');
+            document.getElementById('generalDropdownWrapper').classList.add('hidden');
+        } else {
+            document.getElementById('btnScoringGeneral').className = 'py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all';
+            document.getElementById('btnScoringPoints').className = 'py-2.5 rounded-xl font-bold text-xs bg-slate-50 text-slate-700 border border-slate-200 transition-all hover:bg-slate-100';
+            document.getElementById('generalDropdownWrapper').classList.remove('hidden');
+            document.getElementById('pointsDropdownWrapper').classList.add('hidden');
+        }
+    }
+
+    function setRankBy(type) {
+        rankBy = type;
+        if (type === 'point') {
+            document.getElementById('btnRankPoint').className = 'py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all';
+            document.getElementById('btnRankWin').className = 'py-2.5 rounded-xl font-bold text-xs bg-slate-50 text-slate-700 border border-slate-200 transition-all hover:bg-slate-100';
+        } else {
+            document.getElementById('btnRankWin').className = 'py-2.5 rounded-xl font-bold text-xs bg-[#163820] text-white shadow-xs transition-all';
+            document.getElementById('btnRankPoint').className = 'py-2.5 rounded-xl font-bold text-xs bg-slate-50 text-slate-700 border border-slate-200 transition-all hover:bg-slate-100';
+        }
+    }
+
+    function goToStep(step) {
+        currentStep = step;
+
+        // Hide all steps
+        [1, 2, 3, 4].forEach(s => {
+            document.getElementById(`step${s}`).classList.add('hidden');
+            document.getElementById(`indicator${s}`).className = 'w-2.5 h-2.5 rounded-full bg-slate-200 transition-all';
+        });
+
+        // Show current step
+        document.getElementById(`step${step}`).classList.remove('hidden');
+        document.getElementById(`stepBadge`).innerText = `Langkah ${step} dari 4`;
+
+        for (let i = 1; i <= step; i++) {
+            document.getElementById(`indicator${i}`).className = 'w-2.5 h-2.5 rounded-full bg-emerald-600 transition-all';
+        }
+
+        // Show/hide back button
+        if (step > 1) {
+            document.getElementById('backBtn').classList.remove('hidden');
+        } else {
+            document.getElementById('backBtn').classList.add('hidden');
+        }
+
+        if (step === 4) {
+            const actName = document.getElementById('activityName').value || `${selectedSport} Mabar`;
+            const numCourt = document.getElementById('numCourts').value;
+            const scoreVal = scoringType === 'points' ? document.getElementById('scoringPointsValue').value : document.getElementById('scoringGeneralValue').value;
+            
+            document.getElementById('summaryGameName').innerText = actName;
+            document.getElementById('summaryGameFormat').innerText = `${selectedGameType} • ${numCourt} • ${scoreVal}`;
+        }
+    }
+
+    function prevStep() {
+        if (currentStep > 1) {
+            goToStep(currentStep - 1);
+        }
+    }
+
+    // Player List Management
+    function addYourself() {
+        const hostExists = players.some(p => p.name.includes('Billy Santoso'));
+        if (hostExists) {
+            showToast('Host (Billy Santoso) sudah berada di daftar pemain.');
+            return;
+        }
+
+        players.unshift({
+            name: 'Billy Santoso (Host)',
+            gender: 'Male',
+            level: 'Intermediate',
+            type: 'Host'
+        });
+
+        renderPlayers();
+        showToast('Billy Santoso (Host) berhasil ditambahkan!');
+    }
+
+    function openAddPlayerModal() {
+        document.getElementById('manualPlayerName').value = '';
+        document.getElementById('addPlayerModal').classList.remove('hidden');
+        document.getElementById('addPlayerModal').classList.add('flex');
+    }
+
+    function closeAddPlayerModal() {
+        document.getElementById('addPlayerModal').classList.add('hidden');
+        document.getElementById('addPlayerModal').classList.remove('flex');
+    }
+
+    function handleManualPlayerSubmit(e) {
+        e.preventDefault();
+        const name = document.getElementById('manualPlayerName').value;
+        const gender = document.getElementById('manualPlayerGender').value;
+        const level = document.getElementById('manualPlayerLevel').value;
+        const type = document.getElementById('manualPlayerType').value;
+
+        players.push({ name, gender, level, type });
+        closeAddPlayerModal();
+        renderPlayers();
+        showToast(`Pemain ${name} berhasil ditambahkan!`);
+    }
+
+    function removePlayer(idx) {
+        players.splice(idx, 1);
+        renderPlayers();
+        showToast('Pemain dihapus dari daftar.');
+    }
+
+    function renderPlayers() {
+        const container = document.getElementById('playersContainer');
+        const countSpan = document.getElementById('playerCount');
+        const startBtn = document.getElementById('btnStartDrawing');
+        
+        countSpan.innerText = players.length;
+
+        if (players.length === 0) {
+            container.innerHTML = `
+                <div id="emptyPlayersState" class="py-8 text-center space-y-3">
+                    <div class="w-16 h-16 mx-auto rounded-full bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-400 text-2xl shadow-xs">
+                        <i class="fa-solid fa-box-open"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="text-xs font-bold text-slate-800">Great moments are meant to be shared.</h4>
+                        <p class="text-[11px] text-slate-400">Tambahkan minimal 4 pemain untuk memulai pengacakan drawing tim.</p>
+                    </div>
+                </div>
+            `;
+            startBtn.disabled = true;
+            startBtn.className = 'w-full py-3.5 rounded-xl bg-slate-200 text-slate-400 font-black text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2';
+            return;
+        }
+
+        let html = '';
+        players.forEach((p, idx) => {
+            const badgeClass = p.level === 'Advanced' ? 'bg-orange-50 text-orange-800 border-orange-200' :
+                               p.level === 'Intermediate' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' :
+                               p.level === 'Beginner' ? 'bg-teal-50 text-teal-800 border-teal-200' :
+                               'bg-sky-50 text-sky-800 border-sky-200';
+
+            html += `
+                <div class="p-3 bg-white rounded-xl border border-slate-200/80 flex items-center justify-between shadow-2xs text-xs">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">${idx + 1}</span>
+                        <div>
+                            <p class="font-bold text-slate-900">${p.name}</p>
+                            <p class="text-[10px] text-slate-400">${p.gender} • <span class="font-semibold text-slate-600">${p.type}</span></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badgeClass}">${p.level}</span>
+                        <button type="button" onclick="removePlayer(${idx})" class="text-slate-400 hover:text-rose-600 p-1 text-xs">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+
+        if (players.length >= 4) {
+            startBtn.disabled = false;
+            startBtn.className = 'w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer flex items-center justify-center gap-2';
+        } else {
+            startBtn.disabled = true;
+            startBtn.className = 'w-full py-3.5 rounded-xl bg-slate-200 text-slate-400 font-black text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2';
+        }
+    }
+
+    function startDrawingAction() {
+        showToast('Drawing berhasil di-generate secara seimbang!');
+        setTimeout(() => {
+            window.location.href = "{{ route('games.drawing', 1) }}";
+        }, 1200);
+    }
+</script>
+@endpush
+@endsection
