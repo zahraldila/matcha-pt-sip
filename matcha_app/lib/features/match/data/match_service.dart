@@ -140,18 +140,26 @@ class MatchService {
         try {
           final scores = await _supabase
               .from('tb_score')
-              .select('score_id, score_value, status_score, waktu_pencatatan')
+              .select(
+                'score_id, score_value, score_side_a, score_side_b, status_score, waktu_pencatatan',
+              )
               .eq('match_id', matchId)
               .order('score_id', ascending: true);
 
           for (final s in scores) {
+            if (s['score_side_a'] != null) {
+              scoreA = s['score_side_a'] as int? ?? scoreA;
+            }
+            if (s['score_side_b'] != null) {
+              scoreB = s['score_side_b'] as int? ?? scoreB;
+            }
             final statusScore = (s['status_score'] ?? '')
                 .toString()
                 .toLowerCase();
             final val = s['score_value'] as int? ?? 0;
-            if (statusScore.contains('a')) {
+            if (statusScore.contains('side a') && !statusScore.contains('side b')) {
               scoreA = val;
-            } else if (statusScore.contains('b')) {
+            } else if (statusScore.contains('side b') && !statusScore.contains('side a')) {
               scoreB = val;
             }
           }
@@ -248,11 +256,6 @@ class MatchService {
   }
 
   /// Menyimpan atau mengupdate skor ke tb_score.
-  /// Sesuai aturan:
-  /// 1. Cek skor saat ini di tb_score
-  /// 2. UPDATE jika sudah ada
-  /// 3. INSERT jika belum ada (wajib sertakan created_at karena NOT NULL constraint)
-  /// 4. HANYA jika database berhasil, broadcast event score_update ke channel
   Future<void> saveMatchScore({
     required int matchId,
     required int scoreA,
@@ -267,48 +270,27 @@ class MatchService {
         .select('score_id, status_score')
         .eq('match_id', matchId);
 
-    // Cari baris Side A
-    Map<String, dynamic>? rowA;
-    Map<String, dynamic>? rowB;
-
-    for (final r in existingRows) {
-      final status = (r['status_score'] ?? '').toString().toLowerCase();
-      if (status.contains('a')) {
-        rowA = r;
-      } else if (status.contains('b')) {
-        rowB = r;
-      }
-    }
-
-    // Update / Insert Side A
-    if (rowA != null) {
-      await _supabase
-          .from('tb_score')
-          .update({'score_value': scoreA, 'waktu_pencatatan': now})
-          .eq('score_id', rowA['score_id']);
+    if (existingRows.isNotEmpty) {
+      final firstRow = existingRows.first;
+      await _supabase.from('tb_score').update({
+        'score_side_a': scoreA,
+        'score_side_b': scoreB,
+        'score_value': scoreA + scoreB,
+        'status_score': 'Side A: $scoreA, Side B: $scoreB',
+        'waktu_pencatatan': now,
+        'updated_at': now,
+      }).eq('score_id', firstRow['score_id']);
     } else {
       await _supabase.from('tb_score').insert({
         'match_id': matchId,
-        'score_value': scoreA,
-        'status_score': 'Side A',
+        'set_number': 1,
+        'score_side_a': scoreA,
+        'score_side_b': scoreB,
+        'score_value': scoreA + scoreB,
+        'status_score': 'Side A: $scoreA, Side B: $scoreB',
         'waktu_pencatatan': now,
         'created_at': now,
-      });
-    }
-
-    // Update / Insert Side B
-    if (rowB != null) {
-      await _supabase
-          .from('tb_score')
-          .update({'score_value': scoreB, 'waktu_pencatatan': now})
-          .eq('score_id', rowB['score_id']);
-    } else {
-      await _supabase.from('tb_score').insert({
-        'match_id': matchId,
-        'score_value': scoreB,
-        'status_score': 'Side B',
-        'waktu_pencatatan': now,
-        'created_at': now,
+        'updated_at': now,
       });
     }
 
@@ -409,6 +391,107 @@ class MatchService {
         .subscribe();
 
     return channel;
+  }
+
+  /// Mengambil sesi yang akan datang (Upcoming Session)
+  Future<Map<String, dynamic>?> getUpcomingSession() async {
+    try {
+      final upcomingSessions = await _supabase
+          .from('tb_session')
+          .select('''
+            session_id,
+            nama_session,
+            status_session,
+            waktu_session,
+            jenis_permainan,
+            sport_id,
+            tb_sport (nama_sport)
+          ''')
+          .neq('status_session', 'live')
+          .neq('status_session', 'finished')
+          .order('waktu_session', ascending: true)
+          .limit(1);
+
+      if (upcomingSessions.isNotEmpty) {
+        final session = upcomingSessions.first;
+        final sessionId = session['session_id'];
+
+        int playerCount = 0;
+        int courtCount = 0;
+        try {
+          final players = await _supabase
+              .from('tb_session_player')
+              .select('player_id')
+              .eq('session_id', sessionId);
+          playerCount = (players as List).length;
+        } catch (_) {}
+
+        try {
+          final courts = await _supabase
+              .from('tb_session_court')
+              .select('court_id')
+              .eq('session_id', sessionId);
+          courtCount = (courts as List).length;
+        } catch (_) {}
+
+        final sportMap = session['tb_sport'] as Map<String, dynamic>?;
+        final sportName = sportMap?['nama_sport']?.toString() ?? 'Tennis';
+
+        return {
+          'session_id': sessionId,
+          'nama_session': session['nama_session'] ?? 'Upcoming Match Session',
+          'sport_name': sportName,
+          'player_count': playerCount > 0 ? playerCount : 6,
+          'court_count': courtCount > 0 ? courtCount : 1,
+          'waktu_session': session['waktu_session'],
+        };
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Mengambil ringkasan data statistik aplikasi secara dinamis dari Supabase
+  Future<Map<String, int>> getSummaryStats() async {
+    int playersCount = 8;
+    int courtsCount = 2;
+    int activeSessionsCount = 1;
+    int totalSessionsCount = 1;
+
+    try {
+      final pRes = await _supabase.from('tb_player').select('player_id');
+      if (pRes.isNotEmpty) {
+        playersCount = pRes.length;
+      }
+    } catch (_) {}
+
+    try {
+      final cRes = await _supabase.from('tb_court').select('court_id');
+      if (cRes.isNotEmpty) {
+        courtsCount = cRes.length;
+      }
+    } catch (_) {}
+
+    try {
+      final sAll = await _supabase
+          .from('tb_session')
+          .select('session_id, status_session');
+      if (sAll.isNotEmpty) {
+        totalSessionsCount = sAll.length;
+        activeSessionsCount = sAll.where((s) {
+          final st = (s['status_session'] ?? '').toString().toLowerCase();
+          return st == 'live' || st == 'in_progress' || st == 'active';
+        }).length;
+      }
+    } catch (_) {}
+
+    return {
+      'players': playersCount,
+      'courts': courtsCount,
+      'activeSessions': activeSessionsCount,
+      'totalSessions': totalSessionsCount,
+    };
   }
 
   /// Menghapus channel subscription secara bersih

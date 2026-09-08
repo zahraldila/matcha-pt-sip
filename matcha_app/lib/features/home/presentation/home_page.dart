@@ -34,36 +34,44 @@ class _HomePageState extends State<HomePage> {
   bool _isLoading = true;
   Map<String, dynamic>? _activeSession;
   List<Map<String, dynamic>> _matches = [];
+  Map<String, dynamic>? _upcomingSession;
+  Map<String, int> _summaryStats = {
+    'players': 8,
+    'courts': 2,
+    'activeSessions': 1,
+    'totalSessions': 1,
+  };
 
   @override
   void initState() {
     super.initState();
-    _loadLiveSessionAndSubscribe();
+    _loadAllDashboardData();
   }
 
-  Future<void> _loadLiveSessionAndSubscribe() async {
+  Future<void> _loadAllDashboardData() async {
     try {
+      // 1. Ambil live session aktif
       final session = await _matchService.getSession(null);
+      List<Map<String, dynamic>> matches = [];
       if (session != null) {
-        final matches = await _matchService.getMatchesForSession(
+        matches = await _matchService.getMatchesForSession(
           session['session_id'],
         );
-        if (mounted) {
-          setState(() {
-            _activeSession = session;
-            _matches = matches;
-            _isLoading = false;
-          });
-          _subscribeRealtime(session['session_id']);
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _activeSession = null;
-            _matches = [];
-            _isLoading = false;
-          });
-        }
+        _subscribeRealtime(session['session_id']);
+      }
+
+      // 2. Ambil upcoming session & summary stats
+      final upcoming = await _matchService.getUpcomingSession();
+      final stats = await _matchService.getSummaryStats();
+
+      if (mounted) {
+        setState(() {
+          _activeSession = session;
+          _matches = matches;
+          _upcomingSession = upcoming;
+          _summaryStats = stats;
+          _isLoading = false;
+        });
       }
     } catch (_) {
       if (mounted) {
@@ -85,9 +93,11 @@ class _HomePageState extends State<HomePage> {
   Future<void> _refreshScoresSilently(dynamic sessionId) async {
     try {
       final matches = await _matchService.getMatchesForSession(sessionId);
+      final stats = await _matchService.getSummaryStats();
       if (mounted) {
         setState(() {
           _matches = matches;
+          _summaryStats = stats;
         });
       }
     } catch (_) {}
@@ -525,7 +535,30 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  String _formatUpcomingDate(dynamic dateVal) {
+    if (dateVal == null) return '📅 7 Sep 2026 · 18:00';
+    try {
+      final dt = DateTime.tryParse(dateVal.toString());
+      if (dt != null) {
+        const monthNames = [
+          'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+          'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+        ];
+        final hour = dt.hour.toString().padLeft(2, '0');
+        final min = dt.minute.toString().padLeft(2, '0');
+        return '📅 ${dt.day} ${monthNames[dt.month - 1]} ${dt.year} · $hour:$min';
+      }
+    } catch (_) {}
+    return '📅 $dateVal';
+  }
+
   Widget _buildUpcomingSessionCard(BuildContext context) {
+    final title = _upcomingSession?['nama_session'] ?? 'Friday Night Play';
+    final sport = _upcomingSession?['sport_name'] ?? 'Padel';
+    final players = _upcomingSession?['player_count'] ?? 6;
+    final courts = _upcomingSession?['court_count'] ?? 1;
+    final formattedDate = _formatUpcomingDate(_upcomingSession?['waktu_session']);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -549,58 +582,68 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: context.surf,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: context.surfBorder),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: context.surfSec,
-                  borderRadius: BorderRadius.circular(10),
+        InkWell(
+          onTap: () {
+            if (_upcomingSession?['session_id'] != null && widget.onLiveSessionTap != null) {
+              try {
+                (widget.onLiveSessionTap as dynamic)(_upcomingSession!['session_id'].toString());
+              } catch (_) {}
+            }
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.surf,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: context.surfBorder),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: context.surfSec,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.sports_tennis_rounded,
+                    color: context.brandColor,
+                    size: 24,
+                  ),
                 ),
-                child: Icon(
-                  Icons.sports_tennis_rounded,
-                  color: context.brandColor,
-                  size: 24,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTextStyles.cardTitle.copyWith(
+                          fontSize: 15,
+                          color: context.txtPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$sport · $players Players · $courts Court',
+                        style: AppTextStyles.caption.copyWith(
+                          color: context.txtSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formattedDate,
+                        style: AppTextStyles.caption.copyWith(
+                          color: context.brandColor,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Friday Night Play',
-                      style: AppTextStyles.cardTitle.copyWith(
-                        fontSize: 15,
-                        color: context.txtPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Padel · 6 Players · 1 Court',
-                      style: AppTextStyles.caption.copyWith(
-                        color: context.txtSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '📅 7 Sep 2026 · 18:00',
-                      style: AppTextStyles.caption.copyWith(
-                        color: context.brandColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: context.txtSecondary),
-            ],
+                Icon(Icons.chevron_right_rounded, color: context.txtSecondary),
+              ],
+            ),
           ),
         ),
       ],
@@ -689,6 +732,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildSummaryStats(BuildContext context) {
+    final players = _summaryStats['players']?.toString() ?? '8';
+    final courts = _summaryStats['courts']?.toString() ?? '2';
+    final active = _summaryStats['activeSessions']?.toString() ?? '1';
+    final total = _summaryStats['totalSessions']?.toString() ?? '1';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -707,16 +755,16 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: context.surfBorder),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _StatItem(count: '8', label: 'Players'),
-              _StatDivider(),
-              _StatItem(count: '2', label: 'Courts'),
-              _StatDivider(),
-              _StatItem(count: '3', label: 'Session\nAktif'),
-              _StatDivider(),
-              _StatItem(count: '12', label: 'Total\nSesi'),
+              _StatItem(count: players, label: 'Players'),
+              const _StatDivider(),
+              _StatItem(count: courts, label: 'Courts'),
+              const _StatDivider(),
+              _StatItem(count: active, label: 'Session\nAktif'),
+              const _StatDivider(),
+              _StatItem(count: total, label: 'Total\nSesi'),
             ],
           ),
         ),

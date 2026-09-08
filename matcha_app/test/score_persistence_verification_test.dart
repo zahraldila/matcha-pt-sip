@@ -20,29 +20,24 @@ void main() {
     bool shouldDeleteMatch = false;
 
     setUp(() async {
-      // Find an existing match from tb_match, or create one if possible
-      final existingMatch = await supabase.from('tb_match').select('match_id').limit(1).maybeSingle();
-      if (existingMatch != null) {
-        testMatchId = existingMatch['match_id'] is int
-            ? existingMatch['match_id'] as int
-            : int.parse(existingMatch['match_id'].toString());
-        shouldDeleteMatch = false;
-      } else {
-        // Find existing drawing
-        final existingDrawing = await supabase.from('tb_drawing').select('drawing_id').limit(1).maybeSingle();
-        final drawingId = existingDrawing != null ? existingDrawing['drawing_id'] : 1;
-        final matchRes = await supabase.from('tb_match').insert({
-          'drawing_id': drawingId,
-          'status_match': 'in_progress',
-        }).select().single();
-        testMatchId = matchRes['match_id'] is int
-            ? matchRes['match_id'] as int
-            : int.parse(matchRes['match_id'].toString());
-        shouldDeleteMatch = true;
-      }
-
-      // Clear any existing scores for this testMatchId
-      await supabase.from('tb_score').delete().eq('match_id', testMatchId!);
+      // Create a dedicated test match to prevent interference with other live tests
+      final existingDrawing = await supabase.from('tb_drawing').select('drawing_id').limit(1).maybeSingle();
+      final drawingId = existingDrawing != null ? existingDrawing['drawing_id'] : 1;
+      final existingCourt = await supabase.from('tb_court').select('court_id').limit(1).maybeSingle();
+      final courtId = existingCourt != null ? existingCourt['court_id'] : 1;
+      final now = DateTime.now().toIso8601String();
+      final matchRes = await supabase.from('tb_match').insert({
+        'drawing_id': drawingId,
+        'court_id': courtId,
+        'nomor_match': 99,
+        'status_match': 'in_progress',
+        'created_at': now,
+        'updated_at': now,
+      }).select().single();
+      testMatchId = matchRes['match_id'] is int
+          ? matchRes['match_id'] as int
+          : int.parse(matchRes['match_id'].toString());
+      shouldDeleteMatch = true;
     });
 
     tearDown(() async {
