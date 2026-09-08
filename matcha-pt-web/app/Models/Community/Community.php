@@ -2,9 +2,8 @@
 
 namespace App\Models\Community;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Community as BaseCommunity;
 
-class Community extends Model
+class Community extends BaseCommunity
 {
-    protected $guarded = [];
 }

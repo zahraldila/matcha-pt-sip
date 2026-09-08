@@ -2,14 +2,8 @@
 
 namespace App\Models\Venue;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Court as BaseCourt;
 
-class Court extends Model
+class Court extends BaseCourt
 {
-    protected $guarded = [];
-
-    public function venue()
-    {
-        return $this->belongsTo(Venue::class);
-    }
 }

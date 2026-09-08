@@ -2,20 +2,8 @@
 
 namespace App\Models\Venue;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Venue as BaseVenue;
 
-class Venue extends Model
+class Venue extends BaseVenue
 {
-    protected $guarded = [];
-
-    protected $casts = [
-        'facilities' => 'array',
-        'operating_hours' => 'array',
-        'unavailability_slots' => 'array',
-    ];
-
-    public function courts()
-    {
-        return $this->hasMany(Court::class);
-    }
 }
