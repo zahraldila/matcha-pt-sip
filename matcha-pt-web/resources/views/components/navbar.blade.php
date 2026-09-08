@@ -97,9 +97,9 @@
                             <a href="{{ route('player.recap') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
                                 <i class="fa-solid fa-chart-line text-slate-400 text-xs"></i> Rekap Karir
                             </a>
-                            <form action="{{ route('logout') }}" method="POST" class="pt-1 border-t border-slate-100">
+                            <form id="desktopLogoutForm" action="{{ route('logout') }}" method="POST" class="pt-1 border-t border-slate-100">
                                 @csrf
-                                <button type="submit" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 font-bold transition-colors text-left">
+                                <button type="button" onclick="confirmLogout('desktopLogoutForm')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 font-bold transition-colors text-left cursor-pointer">
                                     <i class="fa-solid fa-right-from-bracket text-xs"></i> Keluar
                                 </button>
                             </form>
@@ -139,9 +139,9 @@
                 <a href="{{ route('register') }}" class="flex-1 text-center py-2.5 rounded-xl bg-[#063B00] text-white text-xs font-bold">Daftar</a>
             </div>
         @else
-            <form action="{{ route('logout') }}" method="POST" class="pt-2 border-t border-slate-100">
+            <form id="mobileLogoutForm" action="{{ route('logout') }}" method="POST" class="pt-2 border-t border-slate-100">
                 @csrf
-                <button type="submit" class="w-full text-center py-2 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold">
+                <button type="button" onclick="confirmLogout('mobileLogoutForm')" class="w-full text-center py-2 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold cursor-pointer">
                     Keluar (Logout)
                 </button>
             </form>
@@ -149,7 +149,32 @@
     </div>
 </header>
 
+<!-- Logout Confirmation Modal -->
+<div id="logoutConfirmModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white/95 backdrop-blur-2xl border border-white/80 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+        <div class="w-14 h-14 rounded-3xl bg-rose-100 border border-rose-200 text-rose-600 flex items-center justify-center text-2xl mx-auto shadow-xs">
+            <i class="fa-solid fa-right-from-bracket"></i>
+        </div>
+        <div class="text-center space-y-1.5">
+            <h3 class="text-base font-black text-slate-900">Konfirmasi Keluar Akun</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+                Apakah Anda yakin ingin keluar dari akun? Anda perlu masuk kembali untuk mengakses sesi mabar dan profil Anda.
+            </p>
+        </div>
+        <div class="flex gap-2.5 pt-2">
+            <button type="button" onclick="closeLogoutModal()" class="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all">
+                Batal
+            </button>
+            <button type="button" onclick="submitActiveLogoutForm()" class="flex-1 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-md transition-all">
+                Ya, Keluar Akun
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
+    let activeLogoutFormId = 'desktopLogoutForm';
+
     function toggleMobileMenu() {
         const menu = document.getElementById('mobileMenu');
         menu.classList.toggle('hidden');
@@ -159,6 +184,28 @@
         const dropdown = document.getElementById('userDropdown');
         if (dropdown) {
             dropdown.classList.toggle('hidden');
+        }
+    }
+
+    function confirmLogout(formId) {
+        activeLogoutFormId = formId;
+        const modal = document.getElementById('logoutConfirmModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+
+    function closeLogoutModal() {
+        const modal = document.getElementById('logoutConfirmModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+
+    function submitActiveLogoutForm() {
+        const form = document.getElementById(activeLogoutFormId);
+        if (form) {
+            form.submit();
         }
     }
 

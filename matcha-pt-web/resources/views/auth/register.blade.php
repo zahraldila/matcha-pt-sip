@@ -39,7 +39,7 @@
                 </div>
             @endif
 
-            <form action="{{ route('register.post') }}" method="POST" class="space-y-6 text-xs">
+            <form id="registerForm" action="{{ route('register.post') }}" method="POST" class="space-y-6 text-xs" novalidate onsubmit="showRegisterConfirmation(event)">
                 @csrf
 
                 <!-- ==================== STEP A: PILIHAN ROLE / PERAN ==================== -->
@@ -49,13 +49,12 @@
                             <span class="w-5 h-5 rounded-full bg-[#063B00] text-white flex items-center justify-center text-[10px] font-bold">1</span>
                             Pilih Peran Utama Anda
                         </h3>
-                        <span class="text-[10px] text-slate-400 font-semibold">*Bisa disesuaikan nanti</span>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         <!-- Member / Player -->
                         <label class="cursor-pointer">
-                            <input type="radio" name="role" value="member" class="peer sr-only" checked onchange="updateRoleBadge('member')">
+                            <input type="radio" name="role" value="member" class="peer sr-only" checked>
                             <div class="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 peer-checked:bg-gradient-to-b peer-checked:from-[#EBF8D8]/80 peer-checked:to-white peer-checked:border-[#063B00] peer-checked:shadow-sm transition-all text-center space-y-1 hover:border-slate-300">
                                 <div class="w-8 h-8 mx-auto rounded-xl bg-white border border-slate-200/70 flex items-center justify-center text-sm text-[#063B00] shadow-2xs">
                                     <i class="fa-solid fa-user"></i>
@@ -67,7 +66,7 @@
 
                         <!-- Host Game -->
                         <label class="cursor-pointer">
-                            <input type="radio" name="role" value="host" class="peer sr-only" onchange="updateRoleBadge('host')">
+                            <input type="radio" name="role" value="host" class="peer sr-only">
                             <div class="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 peer-checked:bg-gradient-to-b peer-checked:from-[#EBF8D8]/80 peer-checked:to-white peer-checked:border-[#063B00] peer-checked:shadow-sm transition-all text-center space-y-1 hover:border-slate-300">
                                 <div class="w-8 h-8 mx-auto rounded-xl bg-white border border-slate-200/70 flex items-center justify-center text-sm text-[#063B00] shadow-2xs">
                                     <i class="fa-solid fa-trophy"></i>
@@ -79,7 +78,7 @@
 
                         <!-- Venue Owner -->
                         <label class="cursor-pointer">
-                            <input type="radio" name="role" value="venue_owner" class="peer sr-only" onchange="updateRoleBadge('venue_owner')">
+                            <input type="radio" name="role" value="venue_owner" class="peer sr-only">
                             <div class="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 peer-checked:bg-gradient-to-b peer-checked:from-[#EBF8D8]/80 peer-checked:to-white peer-checked:border-[#063B00] peer-checked:shadow-sm transition-all text-center space-y-1 hover:border-slate-300">
                                 <div class="w-8 h-8 mx-auto rounded-xl bg-white border border-slate-200/70 flex items-center justify-center text-sm text-[#063B00] shadow-2xs">
                                     <i class="fa-solid fa-building"></i>
@@ -103,24 +102,33 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                         <div class="sm:col-span-2 space-y-1">
                             <label class="block font-bold text-slate-800">
-                                Nama Lengkap
+                                Nama Lengkap <span class="text-rose-500">*</span>
                             </label>
-                            <input type="text" name="nama" value="{{ old('nama') }}" placeholder="Contoh: Billy Santoso" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
-                            <span class="text-[10px] text-slate-400 block font-medium">*Nama ini akan tercatat konsisten di papan drawing dan rekap pertandingan.</span>
+                            <input type="text" name="nama" id="input_nama" value="{{ old('nama') }}" placeholder="Contoh: Billy Santoso" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <p id="err_nama" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Nama lengkap wajib diisi.
+                            </p>
+                            <span class="text-[10px] text-slate-400 block font-medium mt-0.5">*Nama ini akan tercatat konsisten di papan drawing dan rekap pertandingan.</span>
                         </div>
 
                         <div class="space-y-1">
                             <label class="block font-bold text-slate-800">
-                                Nomor WhatsApp / HP
+                                Nomor WhatsApp / HP <span class="text-rose-500">*</span>
                             </label>
-                            <input type="text" name="no_hp" value="{{ old('no_hp') }}" placeholder="0812-xxxx-xxxx" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                            <input type="text" name="no_hp" id="input_no_hp" value="{{ old('no_hp') }}" placeholder="0812-xxxx-xxxx" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <p id="err_no_hp" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Nomor WhatsApp / HP wajib diisi.
+                            </p>
                         </div>
 
                         <div class="space-y-1">
                             <label class="block font-bold text-slate-800">
-                                Alamat Email
+                                Alamat Email <span class="text-rose-500">*</span>
                             </label>
-                            <input type="email" name="email" value="{{ old('email') }}" placeholder="nama@email.com" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                            <input type="email" name="email" id="input_email" value="{{ old('email') }}" placeholder="nama@email.com" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <p id="err_email" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Alamat email wajib diisi.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -151,9 +159,12 @@
 
                         <div class="space-y-1">
                             <label class="block font-bold text-slate-800">
-                                Usia (Tahun)
+                                Usia (Tahun) <span class="text-rose-500">*</span>
                             </label>
-                            <input type="number" name="usia" value="{{ old('usia', 25) }}" min="10" max="85" placeholder="Contoh: 28" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                            <input type="number" name="usia" id="input_usia" value="{{ old('usia', 25) }}" min="10" max="85" placeholder="Contoh: 28" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <p id="err_usia" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Usia wajib diisi.
+                            </p>
                         </div>
 
                         <div class="space-y-1">
@@ -202,14 +213,17 @@
 
                     <div class="space-y-1">
                         <label class="block font-bold text-slate-800">
-                            Password Login
+                            Password Login <span class="text-rose-500">*</span>
                         </label>
                         <div class="relative">
-                            <input type="password" id="registerPassword" name="password" placeholder="Minimal 6 karakter" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl pl-4 pr-10 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                            <input type="password" id="registerPassword" name="password" placeholder="Minimal 6 karakter" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl pl-4 pr-10 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                             <button type="button" onclick="togglePasswordVisibility('registerPassword', 'regEyeIcon')" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none">
                                 <i class="fa-solid fa-eye text-xs" id="regEyeIcon"></i>
                             </button>
                         </div>
+                        <p id="err_password" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Password wajib diisi (minimal 6 karakter).
+                        </p>
                     </div>
                 </div>
 
@@ -231,6 +245,29 @@
     </div>
 </div>
 
+<!-- Confirmation Modal -->
+<div id="registerConfirmModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white/95 backdrop-blur-2xl border border-white/80 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+        <div class="w-14 h-14 rounded-3xl bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] flex items-center justify-center text-2xl mx-auto shadow-xs">
+            <i class="fa-solid fa-user-check"></i>
+        </div>
+        <div class="text-center space-y-1.5">
+            <h3 class="text-base font-black text-slate-900">Konfirmasi Pendaftaran</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+                Apakah Anda yakin data pendaftaran akun sudah benar? Akun Anda akan didaftarkan dan dapat langsung digunakan.
+            </p>
+        </div>
+        <div class="flex gap-2.5 pt-2">
+            <button type="button" onclick="closeRegisterConfirmModal()" class="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all">
+                Periksa Kembali
+            </button>
+            <button type="button" onclick="submitRegisterForm()" class="flex-1 py-3 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all">
+                Ya, Selesaikan
+            </button>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
     function togglePasswordVisibility(inputId, iconId) {
@@ -247,8 +284,73 @@
         }
     }
 
-    function updateRoleBadge(role) {
-        // Subtle haptic/visual feedback if needed
+    let isFormConfirmed = false;
+
+    function setFieldError(fieldId, errId, message) {
+        const input = document.getElementById(fieldId);
+        const err = document.getElementById(errId);
+
+        if (message) {
+            input.classList.add('border-rose-400', 'bg-rose-50/40', 'focus:ring-rose-200', 'focus:border-rose-500');
+            input.classList.remove('border-slate-200/80', 'bg-slate-50/80');
+            err.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> ${message}`;
+            err.classList.remove('hidden');
+            err.classList.add('flex');
+            return true;
+        } else {
+            input.classList.remove('border-rose-400', 'bg-rose-50/40', 'focus:ring-rose-200', 'focus:border-rose-500');
+            input.classList.add('border-slate-200/80', 'bg-slate-50/80');
+            err.classList.add('hidden');
+            err.classList.remove('flex');
+            return false;
+        }
+    }
+
+    function showRegisterConfirmation(e) {
+        if (isFormConfirmed) return true;
+        
+        e.preventDefault();
+
+        const nama = document.getElementById('input_nama').value.trim();
+        const noHp = document.getElementById('input_no_hp').value.trim();
+        const email = document.getElementById('input_email').value.trim();
+        const usia = document.getElementById('input_usia').value.trim();
+        const password = document.getElementById('registerPassword').value.trim();
+
+        let hasError = false;
+
+        if (setFieldError('input_nama', 'err_nama', !nama ? 'Nama lengkap wajib diisi.' : null)) hasError = true;
+        if (setFieldError('input_no_hp', 'err_no_hp', !noHp ? 'Nomor WhatsApp / HP wajib diisi.' : null)) hasError = true;
+        if (setFieldError('input_email', 'err_email', !email ? 'Alamat email wajib diisi.' : null)) hasError = true;
+        if (setFieldError('input_usia', 'err_usia', !usia ? 'Usia wajib diisi.' : null)) hasError = true;
+        
+        if (!password) {
+            if (setFieldError('registerPassword', 'err_password', 'Password wajib diisi.')) hasError = true;
+        } else if (password.length < 6) {
+            if (setFieldError('registerPassword', 'err_password', 'Password minimal 6 karakter.')) hasError = true;
+        } else {
+            setFieldError('registerPassword', 'err_password', null);
+        }
+
+        if (hasError) {
+            const firstErrorField = document.querySelector('.border-rose-400');
+            if (firstErrorField) {
+                firstErrorField.focus();
+                firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return false;
+        }
+
+        document.getElementById('registerConfirmModal').classList.remove('hidden');
+    }
+
+    function closeRegisterConfirmModal() {
+        document.getElementById('registerConfirmModal').classList.add('hidden');
+    }
+
+    function submitRegisterForm() {
+        isFormConfirmed = true;
+        document.getElementById('registerForm').submit();
     }
 </script>
 @endpush

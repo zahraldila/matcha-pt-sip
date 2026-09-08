@@ -39,7 +39,7 @@
                 </div>
             @endif
 
-            <form action="{{ route('login.post') }}" method="POST" class="space-y-4 text-xs">
+            <form id="loginForm" action="{{ route('login.post') }}" method="POST" class="space-y-4 text-xs" novalidate onsubmit="handleLoginSubmit(event)">
                 @csrf
 
                 <!-- Input Login ID -->
@@ -51,8 +51,11 @@
                         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                             <i class="fa-solid fa-envelope text-xs"></i>
                         </div>
-                        <input type="text" name="login_id" value="{{ old('login_id', 'billy@matcha.app') }}" placeholder="nama@email.com atau 0812..." class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                        <input type="text" name="login_id" id="loginId" value="{{ old('login_id', 'billy@matcha.app') }}" placeholder="nama@email.com atau 0812..." class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                     </div>
+                    <p id="err_login_id" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Email atau Nomor WhatsApp wajib diisi.
+                    </p>
                 </div>
 
                 <!-- Input Password -->
@@ -65,11 +68,14 @@
                         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                             <i class="fa-solid fa-lock text-xs"></i>
                         </div>
-                        <input type="password" id="loginPassword" name="password" value="secret123" placeholder="••••••••" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl pl-10 pr-10 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                        <input type="password" id="loginPassword" name="password" value="secret123" placeholder="••••••••" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl pl-10 pr-10 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                         <button type="button" onclick="togglePasswordVisibility('loginPassword', 'eyeIcon')" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none">
                             <i class="fa-solid fa-eye text-xs" id="eyeIcon"></i>
                         </button>
                     </div>
+                    <p id="err_login_password" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Password wajib diisi.
+                    </p>
                 </div>
 
                 <!-- Remember Me -->
@@ -123,6 +129,45 @@
             icon.classList.remove('fa-eye-slash');
             icon.classList.add('fa-eye');
         }
+    }
+
+    function setLoginFieldError(fieldId, errId, message) {
+        const input = document.getElementById(fieldId);
+        const err = document.getElementById(errId);
+
+        if (message) {
+            input.classList.add('border-rose-400', 'bg-rose-50/40', 'focus:ring-rose-200', 'focus:border-rose-500');
+            input.classList.remove('border-slate-200/80', 'bg-slate-50/80');
+            err.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> ${message}`;
+            err.classList.remove('hidden');
+            err.classList.add('flex');
+            return true;
+        } else {
+            input.classList.remove('border-rose-400', 'bg-rose-50/40', 'focus:ring-rose-200', 'focus:border-rose-500');
+            input.classList.add('border-slate-200/80', 'bg-slate-50/80');
+            err.classList.add('hidden');
+            err.classList.remove('flex');
+            return false;
+        }
+    }
+
+    function handleLoginSubmit(e) {
+        const loginId = document.getElementById('loginId').value.trim();
+        const password = document.getElementById('loginPassword').value.trim();
+
+        let hasError = false;
+
+        if (setLoginFieldError('loginId', 'err_login_id', !loginId ? 'Email atau Nomor WhatsApp wajib diisi.' : null)) hasError = true;
+        if (setLoginFieldError('loginPassword', 'err_login_password', !password ? 'Password wajib diisi.' : null)) hasError = true;
+
+        if (hasError) {
+            e.preventDefault();
+            const firstErr = document.querySelector('.border-rose-400');
+            if (firstErr) firstErr.focus();
+            return false;
+        }
+
+        return true;
     }
 </script>
 @endpush
