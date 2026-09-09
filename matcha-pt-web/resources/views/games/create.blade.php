@@ -227,7 +227,7 @@
                     <label class="block text-xs font-bold text-slate-800">
                         Activity Name
                     </label>
-                    <input type="text" id="activityName" value="Padel Weekend Mabar" placeholder="Contoh: Padel Weekend Fun / Tenis JTK" class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none transition-all shadow-2xs" required>
+                    <input type="text" id="activityName" value="" placeholder="Contoh: Padel Weekend Fun / Tenis JTK" class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none transition-all shadow-2xs" required>
                 </div>
 
                 <!-- Number of Courts -->

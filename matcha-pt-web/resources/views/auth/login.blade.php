@@ -51,7 +51,7 @@
                         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                             <i class="fa-solid fa-envelope text-xs"></i>
                         </div>
-                        <input type="text" name="login_id" id="loginId" value="{{ old('login_id', 'billy@matcha.app') }}" placeholder="nama@email.com atau 0812..." class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                        <input type="text" name="login_id" id="loginId" value="{{ old('login_id') }}" placeholder="nama@email.com atau 0812..." class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                     </div>
                     <p id="err_login_id" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
                         <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Email atau Nomor WhatsApp wajib diisi.
@@ -68,7 +68,7 @@
                         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                             <i class="fa-solid fa-lock text-xs"></i>
                         </div>
-                        <input type="password" id="loginPassword" name="password" value="secret123" placeholder="••••••••" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl pl-10 pr-10 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                        <input type="password" id="loginPassword" name="password" value="" placeholder="••••••••" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl pl-10 pr-10 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                         <button type="button" onclick="togglePasswordVisibility('loginPassword', 'eyeIcon')" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none">
                             <i class="fa-solid fa-eye text-xs" id="eyeIcon"></i>
                         </button>
@@ -81,7 +81,7 @@
                 <!-- Remember Me -->
                 <div class="flex items-center justify-between text-xs pt-1">
                     <label class="flex items-center gap-2 cursor-pointer text-slate-600 font-medium select-none">
-                        <input type="checkbox" name="remember" value="1" checked class="w-4 h-4 rounded-md border-slate-300 text-[#063B00] focus:ring-[#063B00]">
+                        <input type="checkbox" name="remember" value="1" class="w-4 h-4 rounded-md border-slate-300 text-[#063B00] focus:ring-[#063B00]">
                         <span>Ingat saya di perangkat ini</span>
                     </label>
                 </div>
