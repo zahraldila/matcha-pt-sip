@@ -109,16 +109,16 @@ class GameController extends Controller
         }
 
         $request->validate([
-            'nama_session' => 'required|string|max:255',
-            'sport_id' => 'required|integer',
-            'venue_id' => 'required|integer',
-            'court_id' => 'required|integer',
-            'tanggal' => 'required|date',
-            'jam' => 'required|string',
-            'durasi' => 'required|string',
-            'jumlah_pemain' => 'required|integer|min:4|max:20',
-            'level_rekomendasi' => 'nullable|string',
-            'deskripsi' => 'nullable|string',
+            'nama_session'     => 'required|string|max:255',
+            'sport_id'         => 'required|integer|exists:tb_sport,sport_id',
+            'venue_id'         => 'required|integer|exists:tb_venue,venue_id',
+            'court_id'         => 'required|integer|exists:tb_court,court_id',
+            'tanggal'          => 'required|date|after_or_equal:today',
+            'jam'              => 'required|string',
+            'durasi'           => 'required|string',
+            'jumlah_pemain'    => 'required|integer|in:4,6,8,12',
+            'level_rekomendasi'=> 'nullable|string',
+            'deskripsi'        => 'nullable|string',
         ]);
 
         try {
@@ -129,14 +129,14 @@ class GameController extends Controller
 
             // 1. Create tb_session
             $session = SessionModel::create([
-                'host_user_id' => Auth::id() ?? 1,
-                'sport_id' => $request->sport_id,
-                'venue_id' => $request->venue_id,
-                'nama_session' => $request->nama_session,
-                'waktu_session' => $waktuSession,
-                'datetime' => $dateTime,
-                'status_session' => 'Open',
-                'jumlah_pemain' => (string) $request->jumlah_pemain,
+                'host_user_id'     => Auth::id(),
+                'sport_id'         => $request->sport_id,
+                'venue_id'         => $request->venue_id,
+                'nama_session'     => $request->nama_session,
+                'waktu_session'    => $waktuSession,
+                'datetime'         => $dateTime,
+                'status_session'   => 'Open',
+                'jumlah_pemain'    => (string) $request->jumlah_pemain,
             ]);
 
             // 2. Attach court
