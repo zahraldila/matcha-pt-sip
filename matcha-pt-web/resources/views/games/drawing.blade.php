@@ -86,26 +86,60 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5" id="courtMatchesContainer">
                     @forelse($activeRound['matches'] ?? [] as $m)
+                        @php
+                            $courtLabel = $m['court_name'] ?? ('Court ' . ($m['court'] ?? 1));
+                            $statusLabel = $m['status'] ?? 'Scheduled';
+                            
+                            // Extract Team A name & player list
+                            if (is_array($m['team_a']) && isset($m['team_a']['name'])) {
+                                $teamAName = $m['team_a']['name'];
+                                $teamAPlayers = $m['team_a']['player_names'] ?? [];
+                            } elseif (!empty($m['team_a_names'])) {
+                                $teamAName = implode(' & ', $m['team_a_names']);
+                                $teamAPlayers = $m['team_a_names'];
+                            } elseif (is_array($m['team_a'])) {
+                                $teamAPlayers = array_column($m['team_a'], 'name');
+                                $teamAName = implode(' & ', $teamAPlayers);
+                            } else {
+                                $teamAName = 'Team A';
+                                $teamAPlayers = [];
+                            }
+
+                            // Extract Team B name & player list
+                            if (is_array($m['team_b']) && isset($m['team_b']['name'])) {
+                                $teamBName = $m['team_b']['name'];
+                                $teamBPlayers = $m['team_b']['player_names'] ?? [];
+                            } elseif (!empty($m['team_b_names'])) {
+                                $teamBName = implode(' & ', $m['team_b_names']);
+                                $teamBPlayers = $m['team_b_names'];
+                            } elseif (is_array($m['team_b'])) {
+                                $teamBPlayers = array_column($m['team_b'], 'name');
+                                $teamBName = implode(' & ', $teamBPlayers);
+                            } else {
+                                $teamBName = 'Team B';
+                                $teamBPlayers = [];
+                            }
+                        @endphp
                         <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 text-xs space-y-1.5">
                             <div class="flex items-center justify-between border-b border-slate-200/60 pb-1">
                                 <div class="flex items-center gap-1.5">
-                                    <span class="font-bold text-[#063B00]">{{ $m['court_name'] }}</span>
+                                    <span class="font-bold text-[#063B00]">{{ $courtLabel }}</span>
                                     @if(!empty($m['slot_number']))
                                         <span class="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">Slot {{ $m['slot_number'] }}</span>
                                     @endif
                                 </div>
                                 <span class="text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
-                                    {{ $m['status'] }}
+                                    {{ $statusLabel }}
                                 </span>
                             </div>
                             <div class="flex items-center justify-between text-slate-800 font-semibold pt-0.5">
-                                <span class="truncate max-w-[45%] text-[#063B00]">{{ $m['team_a']['name'] }}</span>
+                                <span class="truncate max-w-[45%] text-[#063B00]">{{ $teamAName }}</span>
                                 <span class="text-[10px] text-slate-400 font-black">VS</span>
-                                <span class="truncate max-w-[45%] text-slate-700 text-right">{{ $m['team_b']['name'] }}</span>
+                                <span class="truncate max-w-[45%] text-slate-700 text-right">{{ $teamBName }}</span>
                             </div>
                             <div class="flex items-center justify-between text-[10px] text-slate-500">
-                                <span class="truncate max-w-[45%]">{{ implode(' & ', $m['team_a']['player_names'] ?? []) }}</span>
-                                <span class="truncate max-w-[45%] text-right">{{ implode(' & ', $m['team_b']['player_names'] ?? []) }}</span>
+                                <span class="truncate max-w-[45%]">{{ implode(' & ', $teamAPlayers) }}</span>
+                                <span class="truncate max-w-[45%] text-right">{{ implode(' & ', $teamBPlayers) }}</span>
                             </div>
                         </div>
                     @empty
@@ -118,9 +152,9 @@
 
             <!-- Tournament Settings Summary -->
             <div class="glass-card rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-                <span>Format: <strong class="text-[#050608]">Team Americano ({{ $drawingData['total_teams'] ?? 4 }} Tim Tetap)</strong></span>
-                <span>Total Ronde: <strong class="text-[#050608]">{{ $drawingData['total_rounds'] ?? 3 }} Ronde</strong></span>
-                <span>Total Match: <strong class="text-[#050608]">{{ $drawingData['total_matches'] ?? 6 }} Match</strong></span>
+                <span>Format: <strong class="text-[#050608]">{{ $drawingData['format'] ?? ($game['match_format'] ?? 'Team Americano') }} ({{ $drawingData['total_teams'] ?? count($game['participants'] ?? []) }} {{ isset($drawingData['format']) && str_contains(strtolower($drawingData['format']), 'team') ? 'Tim Tetap' : 'Peserta' }})</strong></span>
+                <span>Total Ronde: <strong class="text-[#050608]">{{ $drawingData['total_rounds'] ?? count($rounds) }} Ronde</strong></span>
+                <span>Total Match: <strong class="text-[#050608]">{{ $drawingData['total_matches'] ?? array_sum(array_map(fn($r) => count($r['matches'] ?? []), $rounds)) }} Match</strong></span>
                 <span>Scoring: <strong class="text-[#050608]">{{ $game['scoring_system'] }}</strong></span>
             </div>
         </div>
@@ -204,37 +238,86 @@
 
 @push('scripts')
 <script>
-    const rounds = {
-        1: {
-            teamA: ['Billy Santoso (Host)', 'Gisel Anastasia'],
-            teamB: ['Fahri Dhani', 'Davina Putri'],
-            resting: ['Andi Wijaya', 'Marame Nagoan']
-        },
-        2: {
-            teamA: ['Billy Santoso (Host)', 'Andi Wijaya'],
-            teamB: ['Marame Nagoan', 'Gisel Anastasia'],
-            resting: ['Fahri Dhani', 'Davina Putri']
-        },
-        3: {
-            teamA: ['Fahri Dhani', 'Marame Nagoan'],
-            teamB: ['Andi Wijaya', 'Davina Putri'],
-            resting: ['Billy Santoso (Host)', 'Gisel Anastasia']
-        }
-    };
+    const roundsData = @json($drawingData['rounds'] ?? []);
 
     function switchRound(roundNum) {
-        [1, 2, 3].forEach(n => {
+        Object.keys(roundsData).forEach(n => {
             const tab = document.getElementById(`tabRound${n}`);
-            if (n === roundNum) {
-                tab.className = 'px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all bg-[#063B00] text-white shadow-xs';
-            } else {
-                tab.className = 'px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all glass-card text-slate-600 hover:text-[#050608]';
+            if (tab) {
+                if (parseInt(n) === roundNum) {
+                    tab.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 bg-[#063B00] text-white shadow-xs';
+                } else {
+                    tab.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 glass-card text-slate-600 hover:text-[#050608]';
+                }
             }
+        });
+
+        const roundData = roundsData[roundNum];
+        if (!roundData) return;
+
+        // Update Round label in visualizer
+        const roundTitleElem = document.getElementById('labelCurrentRoundTitle');
+        if (roundTitleElem) {
+            roundTitleElem.innerText = roundData.round_title || `Ronde ${roundNum}`;
         }
 
-        const data = rounds[roundNum];
-        renderRoster(data);
-        showToast(`Beralih ke Ronde ${roundNum}`);
+        // Render Matches list
+        const matchesContainer = document.getElementById('courtMatchesContainer');
+        if (matchesContainer && roundData.matches) {
+            matchesContainer.innerHTML = roundData.matches.map(m => {
+                const courtLabel = m.court_name || `Court ${m.court || 1}`;
+                const slotBadge = m.slot_number ? `<span class="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">Slot ${m.slot_number}</span>` : '';
+                const statusLabel = m.status || 'Scheduled';
+                
+                let teamAName = 'Team A';
+                let teamAPlayers = [];
+                if (m.team_a && m.team_a.name) {
+                    teamAName = m.team_a.name;
+                    teamAPlayers = m.team_a.player_names || [];
+                } else if (m.team_a_names) {
+                    teamAName = m.team_a_names.join(' & ');
+                    teamAPlayers = m.team_a_names;
+                }
+
+                let teamBName = 'Team B';
+                let teamBPlayers = [];
+                if (m.team_b && m.team_b.name) {
+                    teamBName = m.team_b.name;
+                    teamBPlayers = m.team_b.player_names || [];
+                } else if (m.team_b_names) {
+                    teamBName = m.team_b_names.join(' & ');
+                    teamBPlayers = m.team_b_names;
+                }
+
+                return `
+                    <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 text-xs space-y-1.5">
+                        <div class="flex items-center justify-between border-b border-slate-200/60 pb-1">
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-bold text-[#063B00]">${courtLabel}</span>
+                                ${slotBadge}
+                            </div>
+                            <span class="text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                                ${statusLabel}
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between text-slate-800 font-semibold pt-0.5">
+                            <span class="truncate max-w-[45%] text-[#063B00]">${teamAName}</span>
+                            <span class="text-[10px] text-slate-400 font-black">VS</span>
+                            <span class="truncate max-w-[45%] text-slate-700 text-right">${teamBName}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] text-slate-500">
+                            <span class="truncate max-w-[45%]">${teamAPlayers.join(' & ')}</span>
+                            <span class="truncate max-w-[45%] text-right">${teamBPlayers.join(' & ')}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        renderRoster(roundData);
+        if (typeof showToast === 'function') {
+            showToast(`Beralih ke Ronde ${roundNum}`);
+        }
     }
 
     function isFemaleName(name) {
@@ -242,46 +325,70 @@
     }
 
     function renderRoster(data) {
+        const teamA = data.teamA || [];
+        const teamB = data.teamB || [];
+        const resting = data.resting || [];
+
+        // Update Labels
+        const labelA = document.getElementById('labelTeamAName');
+        if (labelA && data.primary_match && data.primary_match.team_a) {
+            labelA.innerText = data.primary_match.team_a.name || 'TEAM ALPHA';
+        }
+
+        const labelB = document.getElementById('labelTeamBName');
+        if (labelB && data.primary_match && data.primary_match.team_b) {
+            labelB.innerText = data.primary_match.team_b.name || 'TEAM BETA';
+        }
+
         // Render Team A Roster
-        document.getElementById('rosterTeamA').innerHTML = `
-            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                <span class="font-semibold text-slate-800">1. ${data.teamA[0]}</span>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player 1</span>
-            </div>
-            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                <span class="font-semibold text-slate-800">2. ${data.teamA[1]}</span>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-lime-50 text-lime-800 border border-lime-200">Player 2</span>
-            </div>
-        `;
+        const rosterA = document.getElementById('rosterTeamA');
+        if (rosterA) {
+            rosterA.innerHTML = teamA.map((name, idx) => `
+                <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                    <span class="font-semibold text-slate-800">${idx + 1}. ${name}</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player ${idx + 1}</span>
+                </div>
+            `).join('');
+        }
 
         // Render Team B Roster
-        document.getElementById('rosterTeamB').innerHTML = `
-            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                <span class="font-semibold text-slate-800">1. ${data.teamB[0]}</span>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player 1</span>
-            </div>
-            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                <span class="font-semibold text-slate-800">2. ${data.teamB[1]}</span>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">Player 2</span>
-            </div>
-        `;
+        const rosterB = document.getElementById('rosterTeamB');
+        if (rosterB) {
+            rosterB.innerHTML = teamB.map((name, idx) => `
+                <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                    <span class="font-semibold text-slate-800">${idx + 1}. ${name}</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player ${idx + 1}</span>
+                </div>
+            `).join('');
+        }
 
         // Render Resting Bench
-        document.getElementById('rosterResting').innerHTML = `
-            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
-                <span class="text-slate-700">1. ${data.resting[0]}</span>
-                <span class="text-[10px] text-slate-400 font-semibold">Bench</span>
-            </div>
-            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
-                <span class="text-slate-700">2. ${data.resting[1]}</span>
-                <span class="text-[10px] text-slate-400 font-semibold">Bench</span>
-            </div>
-        `;
+        const rosterResting = document.getElementById('rosterResting');
+        const restingCount = document.getElementById('labelRestingCount');
+        if (restingCount) {
+            restingCount.innerText = `${resting.length} Pemain`;
+        }
+        if (rosterResting) {
+            if (resting.length > 0) {
+                rosterResting.innerHTML = resting.map((name, idx) => `
+                    <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
+                        <span class="text-slate-700">${idx + 1}. ${name}</span>
+                        <span class="text-[10px] text-slate-400 font-semibold">Bench</span>
+                    </div>
+                `).join('');
+            } else {
+                rosterResting.innerHTML = `
+                    <div class="text-center py-2 text-slate-400 text-xs">
+                        Semua pemain aktif bertanding di ronde ini.
+                    </div>
+                `;
+            }
+        }
 
-        // 6. Update Court Visualizer Graphic
+        // Update Court Visualizer Graphic
         const courtA = document.getElementById('courtTeamA');
         if (courtA) {
-            courtA.innerHTML = data.teamA.map((name, idx) => {
+            courtA.innerHTML = teamA.map(name => {
                 const female = isFemaleName(name);
                 return `
                     <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-110 w-fit mx-auto sm:mx-8">
@@ -298,7 +405,7 @@
 
         const courtB = document.getElementById('courtTeamB');
         if (courtB) {
-            courtB.innerHTML = data.teamB.map((name, idx) => {
+            courtB.innerHTML = teamB.map(name => {
                 const female = isFemaleName(name);
                 return `
                     <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-110 w-fit mx-auto sm:mx-8">
