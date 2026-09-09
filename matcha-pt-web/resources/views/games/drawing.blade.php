@@ -1,8 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $firstRound = $rounds[1] ?? (reset($rounds) ?: null);
+@endphp
+
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-    
+
     <!-- Header & Breadcrumb -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/50 pb-4">
         <div>
@@ -59,14 +63,12 @@
         
         <!-- Left: Court Graphic Visualizer (2 Cols) -->
         <div class="lg:col-span-2 space-y-4">
-            
-            <!-- Current Active Court Visualizer -->
-            <div id="courtContainer" class="relative">
+            <div id="courtContainer">
                 <x-court-visual 
                     :sport="$game['sport']"
-                    :teamA="$activeRound['teamA'] ?? []"
-                    :teamB="$activeRound['teamB'] ?? []"
-                    :resting="$activeRound['resting'] ?? []"
+                    :teamA="['Billy Santoso (Host)', 'Gisel Anastasia']"
+                    :teamB="['Fahri Dhani', 'Davina Putri']"
+                    :resting="['Andi Wijaya', 'Marame Nagoan']"
                 />
             </div>
 
@@ -142,12 +144,14 @@
                         <span class="text-[10px] font-semibold text-slate-400">Sisi Kiri (Court 1)</span>
                     </div>
                     <div class="space-y-1.5" id="rosterTeamA">
-                        @foreach($activeRound['teamA'] ?? [] as $idx => $pName)
-                            <div class="flex items-center justify-between bg-slate-50/70 p-2 rounded-xl border border-slate-200/60 text-xs shadow-2xs">
-                                <span class="font-bold text-slate-800">{{ $idx + 1 }}. {{ $pName }}</span>
-                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">Player {{ $idx + 1 }}</span>
-                            </div>
-                        @endforeach
+                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                            <span class="font-semibold text-[#050608]">1. Billy Santoso</span>
+                            <x-badge type="intermediate">Intermediate</x-badge>
+                        </div>
+                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                            <span class="font-semibold text-[#050608]">2. Gisel Anastasia</span>
+                            <x-badge type="beginner">Beginner</x-badge>
+                        </div>
                     </div>
                 </div>
 
@@ -160,32 +164,32 @@
                         <span class="text-[10px] font-semibold text-slate-400">Sisi Kanan (Court 1)</span>
                     </div>
                     <div class="space-y-1.5" id="rosterTeamB">
-                        @foreach($activeRound['teamB'] ?? [] as $idx => $pName)
-                            <div class="flex items-center justify-between bg-slate-50/70 p-2 rounded-xl border border-slate-200/60 text-xs shadow-2xs">
-                                <span class="font-bold text-slate-800">{{ $idx + 1 }}. {{ $pName }}</span>
-                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">Player {{ $idx + 1 }}</span>
-                            </div>
-                        @endforeach
+                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                            <span class="font-semibold text-[#050608]">1. Fahri Dhani</span>
+                            <x-badge type="advanced">Advanced</x-badge>
+                        </div>
+                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                            <span class="font-semibold text-[#050608]">2. Davina Putri</span>
+                            <x-badge type="newbie">Newbie</x-badge>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Resting Bench Card -->
                 <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2 shadow-2xs">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold text-slate-700">Bangku Istirahat / Antrean</span>
-                        <span class="text-[10px] text-slate-500 font-semibold" id="restingCountBadge">
-                            {{ count($activeRound['resting'] ?? []) }} Pemain
-                        </span>
+                        <span class="text-xs font-semibold text-slate-700">Bangku Istirahat Ronde 1</span>
+                        <span class="text-[10px] text-slate-500">2 Pemain</span>
                     </div>
                     <div class="space-y-1.5" id="rosterResting">
-                        @forelse($activeRound['resting'] ?? [] as $idx => $rPlayer)
-                            <div class="flex items-center justify-between bg-slate-50/70 p-2 rounded-xl border border-slate-200/60 text-xs">
-                                <span class="text-slate-700 font-medium">{{ $idx + 1 }}. {{ $rPlayer }}</span>
-                                <span class="text-[10px] text-slate-400 font-semibold">Bench / BYE</span>
-                            </div>
-                        @empty
-                            <p class="text-[11px] text-slate-400 italic py-1 text-center">Semua tim bertanding di ronde ini.</p>
-                        @endforelse
+                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
+                            <span class="text-slate-700">1. Andi Wijaya</span>
+                            <x-badge type="intermediate">Intermediate</x-badge>
+                        </div>
+                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
+                            <span class="text-slate-700">2. Marame Nagoan</span>
+                            <x-badge type="beginner">Beginner</x-badge>
+                        </div>
                     </div>
                 </div>
 
@@ -200,26 +204,36 @@
 
 @push('scripts')
 <script>
-    const rounds = @json($drawingData['rounds'] ?? []);
-    const totalRounds = {{ count($rounds) }};
+    const rounds = {
+        1: {
+            teamA: ['Billy Santoso (Host)', 'Gisel Anastasia'],
+            teamB: ['Fahri Dhani', 'Davina Putri'],
+            resting: ['Andi Wijaya', 'Marame Nagoan']
+        },
+        2: {
+            teamA: ['Billy Santoso (Host)', 'Andi Wijaya'],
+            teamB: ['Marame Nagoan', 'Gisel Anastasia'],
+            resting: ['Fahri Dhani', 'Davina Putri']
+        },
+        3: {
+            teamA: ['Fahri Dhani', 'Marame Nagoan'],
+            teamB: ['Andi Wijaya', 'Davina Putri'],
+            resting: ['Billy Santoso (Host)', 'Gisel Anastasia']
+        }
+    };
 
     function switchRound(roundNum) {
-        // Update Tab Active Styling
-        for (let n = 1; n <= totalRounds; n++) {
+        [1, 2, 3].forEach(n => {
             const tab = document.getElementById(`tabRound${n}`);
-            if (tab) {
-                if (n === roundNum) {
-                    tab.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 bg-[#063B00] text-white shadow-xs';
-                } else {
-                    tab.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 glass-card text-slate-600 hover:text-[#050608]';
-                }
+            if (n === roundNum) {
+                tab.className = 'px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all bg-[#063B00] text-white shadow-xs';
+            } else {
+                tab.className = 'px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all glass-card text-slate-600 hover:text-[#050608]';
             }
         }
 
         const data = rounds[roundNum];
-        if (!data) return;
-
-        renderRoster(data, roundNum);
+        renderRoster(data);
         showToast(`Beralih ke Ronde ${roundNum}`);
     }
 
@@ -227,90 +241,47 @@
         return /gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|dewi|maya|lisa/i.test(name);
     }
 
-    function renderRoster(data, roundNum) {
-        // 1. Update Ronde Title & Court Matches
-        const lblTitle = document.getElementById('labelCurrentRoundTitle');
-        if (lblTitle) lblTitle.innerText = `Ronde ${roundNum}`;
+    function renderRoster(data) {
+        // Render Team A Roster
+        document.getElementById('rosterTeamA').innerHTML = `
+            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                <span class="font-semibold text-slate-800">1. ${data.teamA[0]}</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player 1</span>
+            </div>
+            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                <span class="font-semibold text-slate-800">2. ${data.teamA[1]}</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-lime-50 text-lime-800 border border-lime-200">Player 2</span>
+            </div>
+        `;
 
-        const matchesContainer = document.getElementById('courtMatchesContainer');
-        const matchesCountBadge = document.getElementById('labelTotalMatches');
+        // Render Team B Roster
+        document.getElementById('rosterTeamB').innerHTML = `
+            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                <span class="font-semibold text-slate-800">1. ${data.teamB[0]}</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player 1</span>
+            </div>
+            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                <span class="font-semibold text-slate-800">2. ${data.teamB[1]}</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">Player 2</span>
+            </div>
+        `;
 
-        if (matchesContainer && data.matches) {
-            matchesCountBadge.innerText = `${data.matches.length} Match Berjalan`;
-            matchesContainer.innerHTML = data.matches.map(m => `
-                <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 text-xs space-y-1.5">
-                    <div class="flex items-center justify-between border-b border-slate-200/60 pb-1">
-                        <div class="flex items-center gap-1.5">
-                            <span class="font-bold text-[#063B00]">${m.court_name}</span>
-                            ${m.slot_number ? `<span class="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">Slot ${m.slot_number}</span>` : ''}
-                        </div>
-                        <span class="text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
-                            ${m.status}
-                        </span>
-                    </div>
-                    <div class="flex items-center justify-between text-slate-800 font-semibold pt-0.5">
-                        <span class="truncate max-w-[45%] text-[#063B00]">${m.team_a.name}</span>
-                        <span class="text-[10px] text-slate-400 font-black">VS</span>
-                        <span class="truncate max-w-[45%] text-slate-700 text-right">${m.team_b.name}</span>
-                    </div>
-                    <div class="flex items-center justify-between text-[10px] text-slate-500">
-                        <span class="truncate max-w-[45%]">${(m.team_a.player_names || []).join(' & ')}</span>
-                        <span class="truncate max-w-[45%] text-right">${(m.team_b.player_names || []).join(' & ')}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // 2. Update Team Labels in Roster Sidebar
-        const teamAName = data.primary_match ? data.primary_match.team_a.name : 'TEAM A';
-        const teamBName = data.primary_match ? data.primary_match.team_b.name : 'TEAM B';
-        document.getElementById('labelTeamAName').innerText = teamAName;
-        document.getElementById('labelTeamBName').innerText = teamBName;
-
-        // 3. Render Team A Roster
-        const rosterTeamA = document.getElementById('rosterTeamA');
-        if (rosterTeamA) {
-            rosterTeamA.innerHTML = (data.teamA || []).map((pName, idx) => `
-                <div class="flex items-center justify-between bg-slate-50/70 p-2 rounded-xl border border-slate-200/60 text-xs shadow-2xs">
-                    <span class="font-bold text-slate-800">${idx + 1}. ${pName}</span>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player ${idx + 1}</span>
-                </div>
-            `).join('');
-        }
-
-        // 4. Render Team B Roster
-        const rosterTeamB = document.getElementById('rosterTeamB');
-        if (rosterTeamB) {
-            rosterTeamB.innerHTML = (data.teamB || []).map((pName, idx) => `
-                <div class="flex items-center justify-between bg-slate-50/70 p-2 rounded-xl border border-slate-200/60 text-xs shadow-2xs">
-                    <span class="font-bold text-slate-800">${idx + 1}. ${pName}</span>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">Player ${idx + 1}</span>
-                </div>
-            `).join('');
-        }
-
-        // 5. Render Resting Bench
-        const rosterResting = document.getElementById('rosterResting');
-        const restingBadge = document.getElementById('restingCountBadge');
-        if (rosterResting) {
-            const restingList = data.resting || [];
-            restingBadge.innerText = `${restingList.length} Pemain`;
-            if (restingList.length === 0) {
-                rosterResting.innerHTML = `<p class="text-[11px] text-slate-400 italic py-1 text-center">Semua tim bertanding di ronde ini.</p>`;
-            } else {
-                rosterResting.innerHTML = restingList.map((pName, idx) => `
-                    <div class="flex items-center justify-between bg-slate-50/70 p-2 rounded-xl border border-slate-200/60 text-xs">
-                        <span class="text-slate-700 font-medium">${idx + 1}. ${pName}</span>
-                        <span class="text-[10px] text-slate-400 font-semibold">Bench / BYE</span>
-                    </div>
-                `).join('');
-            }
-        }
+        // Render Resting Bench
+        document.getElementById('rosterResting').innerHTML = `
+            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
+                <span class="text-slate-700">1. ${data.resting[0]}</span>
+                <span class="text-[10px] text-slate-400 font-semibold">Bench</span>
+            </div>
+            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
+                <span class="text-slate-700">2. ${data.resting[1]}</span>
+                <span class="text-[10px] text-slate-400 font-semibold">Bench</span>
+            </div>
+        `;
 
         // 6. Update Court Visualizer Graphic
         const courtA = document.getElementById('courtTeamA');
-        if (courtA && data.teamA) {
-            courtA.innerHTML = data.teamA.map(name => {
+        if (courtA) {
+            courtA.innerHTML = data.teamA.map((name, idx) => {
                 const female = isFemaleName(name);
                 return `
                     <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-110 w-fit mx-auto sm:mx-8">
@@ -326,8 +297,8 @@
         }
 
         const courtB = document.getElementById('courtTeamB');
-        if (courtB && data.teamB) {
-            courtB.innerHTML = data.teamB.map(name => {
+        if (courtB) {
+            courtB.innerHTML = data.teamB.map((name, idx) => {
                 const female = isFemaleName(name);
                 return `
                     <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-110 w-fit mx-auto sm:mx-8">
