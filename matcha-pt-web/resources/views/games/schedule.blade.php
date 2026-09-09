@@ -108,8 +108,8 @@
                         <div class="relative">
                             <select name="court_id" id="courtSelect" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs" required>
                                 <!-- Populated dynamically by JS based on selected venue -->
-                                @if(isset($venues[0]) && $venues[0]->courts)
-                                    @foreach($venues[0]->courts as $court)
+                                @if($venues->first() && $venues->first()->courts)
+                                    @foreach($venues->first()->courts as $court)
                                         <option value="{{ $court->court_id }}">{{ $court->nama_court }}</option>
                                     @endforeach
                                 @endif
