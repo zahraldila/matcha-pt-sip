@@ -18,109 +18,239 @@
         </div>
     </div>
 
+    {{-- Flash message --}}
+    @if(session('success'))
+    <div class="p-3.5 rounded-2xl bg-[#EBF8D8] border border-[#063B00]/25 text-xs font-semibold text-[#063B00] flex items-center gap-2">
+        <i class="fa-solid fa-circle-check"></i> {{ session('success') }}
+    </div>
+    @endif
+
     <!-- Match Result Showcase (Glass Hero) -->
     <div class="glass-card rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden border border-white">
         <div class="absolute top-0 right-0 transform translate-x-8 -translate-y-8 w-40 h-40 bg-[#A8E63A]/20 rounded-full blur-2xl pointer-events-none"></div>
         <div class="absolute bottom-0 left-0 transform -translate-x-8 translate-y-8 w-40 h-40 bg-[#EBF8D8]/50 rounded-full blur-2xl pointer-events-none"></div>
 
         <div class="relative space-y-4">
+            @php
+                $winnerTeamLabel = 'Team A';
+                $winnerNames     = [];
+                $loserNames      = [];
+                $finalScoreA     = 0;
+                $finalScoreB     = 0;
+
+                if ($lastScore) {
+                    $finalScoreA = $lastScore['score_a'];
+                    $finalScoreB = $lastScore['score_b'];
+                    if ($finalScoreA >= $finalScoreB) {
+                        $winnerTeamLabel = 'Team A';
+                        $winnerNames     = $lastScore['team_a'] ?? [];
+                        $loserNames      = $lastScore['team_b'] ?? [];
+                    } else {
+                        $winnerTeamLabel = 'Team B';
+                        $winnerNames     = $lastScore['team_b'] ?? [];
+                        $loserNames      = $lastScore['team_a'] ?? [];
+                    }
+                }
+            @endphp
+
             <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/80 border border-amber-200 text-amber-900 text-xs font-bold">
-                <i class="fa-solid fa-trophy text-amber-600"></i> Match Winner &bull; Team A
+                <i class="fa-solid fa-trophy text-amber-600"></i> Match Winner &bull; {{ $winnerTeamLabel }}
             </div>
 
             <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                 {{ $game['title'] ?? 'Padel Weekend Americano' }}
             </h1>
             <p class="text-xs text-slate-500">
-                {{ $game['venue_name'] ?? 'GBK Padel Arena' }} &bull; {{ $game['schedule'] ?? 'Hari ini, 16:00 - 18:00 WIB' }}
+                {{ $game['venue_name'] ?? 'GBK Padel Arena' }} &bull; {{ $game['date'] ?? '' }} {{ $game['time'] ?? '' }}
             </p>
 
             <!-- Scoreboard Big Visual -->
             <div class="grid grid-cols-3 items-center max-w-lg mx-auto py-4 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-xs">
-                <!-- Team A -->
+                <!-- Team A / Winner -->
                 <div class="p-3 text-center space-y-1">
-                    <span class="text-[10px] font-bold tracking-wider text-[#063B00] uppercase">Team A</span>
-                    <p class="text-xs sm:text-sm font-black text-slate-900 leading-tight">Billy Santoso<br><span class="text-[11px] font-medium text-slate-500">& Gisel A.</span></p>
-                    <span class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25 font-bold">WINNER</span>
+                    <span class="text-[10px] font-bold tracking-wider {{ $winnerTeamLabel === 'Team A' ? 'text-[#063B00]' : 'text-slate-500' }} uppercase">Team A</span>
+                    <p class="text-xs sm:text-sm font-black text-slate-900 leading-tight">
+                        @forelse($lastScore['team_a'] ?? [] as $pName)
+                            {{ $pName }}<br>
+                        @empty
+                            —
+                        @endforelse
+                    </p>
+                    @if($winnerTeamLabel === 'Team A')
+                        <span class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25 font-bold">WINNER 🏆</span>
+                    @else
+                        <span class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-semibold">Runner-up</span>
+                    @endif
                 </div>
 
                 <!-- Final Score Points -->
                 <div class="text-center space-y-1">
                     <div class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-                        <span class="text-[#063B00]">24</span> : <span>18</span>
+                        <span class="{{ $finalScoreA >= $finalScoreB ? 'text-[#063B00]' : 'text-slate-400' }}">{{ $finalScoreA }}</span>
+                        :
+                        <span class="{{ $finalScoreB > $finalScoreA ? 'text-[#063B00]' : 'text-slate-400' }}">{{ $finalScoreB }}</span>
                     </div>
-                    <span class="text-[10px] font-semibold text-slate-400">Total Points</span>
+                    <span class="text-[10px] font-semibold text-slate-400">Skor Akhir</span>
                 </div>
 
                 <!-- Team B -->
                 <div class="p-3 text-center space-y-1">
-                    <span class="text-[10px] font-bold tracking-wider text-slate-500 uppercase">Team B</span>
-                    <p class="text-xs sm:text-sm font-black text-slate-900 leading-tight">Fahri Dhani<br><span class="text-[11px] font-medium text-slate-500">& Davina P.</span></p>
-                    <span class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">Runner-up</span>
+                    <span class="text-[10px] font-bold tracking-wider {{ $winnerTeamLabel === 'Team B' ? 'text-[#063B00]' : 'text-slate-500' }} uppercase">Team B</span>
+                    <p class="text-xs sm:text-sm font-black text-slate-900 leading-tight">
+                        @forelse($lastScore['team_b'] ?? [] as $pName)
+                            {{ $pName }}<br>
+                        @empty
+                            —
+                        @endforelse
+                    </p>
+                    @if($winnerTeamLabel === 'Team B')
+                        <span class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25 font-bold">WINNER 🏆</span>
+                    @else
+                        <span class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-semibold">Runner-up</span>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Rating & Level Progression (Playtomic Benchmark) -->
-    <div class="glass-card rounded-3xl p-6 border border-white space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-xl bg-[#EBF8D8] border border-[#063B00]/20 flex items-center justify-center text-[#063B00] text-xs">
-                    <i class="fa-solid fa-chart-line"></i>
-                </div>
-                <div>
-                    <h2 class="text-sm font-bold text-slate-900">Game-Based Rating Progression</h2>
-                    <p class="text-[11px] text-slate-500">Rating dihitung berdasarkan selisih poin & rating lawan (Playtomic Algorithm)</p>
-                </div>
+    <!-- 🏆 Podium Klasemen Akhir -->
+    <div class="glass-card rounded-3xl p-6 sm:p-8 border border-white space-y-5">
+        <div class="flex items-center gap-2.5 border-b border-slate-100 pb-4">
+            <div class="w-8 h-8 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700 text-xs">
+                <i class="fa-solid fa-ranking-star"></i>
             </div>
-            <span class="text-xs font-bold text-[#063B00] bg-[#EBF8D8] px-2.5 py-1 rounded-full border border-[#063B00]/25">
-                Level Confidence: 92%
-            </span>
+            <div>
+                <h2 class="text-sm font-bold text-slate-900">Podium &amp; Klasemen Akhir</h2>
+                <p class="text-[11px] text-slate-500">Diurutkan: Poin Menang &rarr; Total Poin &rarr; Selisih Poin</p>
+            </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- Billy Santoso Rating Change -->
-            <div class="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-2">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80" class="w-7 h-7 rounded-full object-cover border border-slate-200" alt="Billy">
-                        <span class="text-xs font-bold text-slate-900">Billy Santoso (You)</span>
-                    </div>
-                    <span class="text-xs font-black text-[#063B00] bg-[#EBF8D8] px-2 py-0.5 rounded-full border border-[#063B00]/25">+0.18</span>
+        {{-- Top 3 Podium Visual --}}
+        @if(count($rankedPlayers) >= 1)
+        <div class="grid grid-cols-3 gap-3 items-end pb-2">
+            
+            {{-- Juara 2 (Silver) — kiri --}}
+            @php $p2 = $rankedPlayers[1] ?? null; @endphp
+            <div class="flex flex-col items-center gap-2">
+                @if($p2)
+                <div class="text-center space-y-1">
+                    @if($p2['avatar'])
+                        <img src="{{ $p2['avatar'] }}" class="w-12 h-12 rounded-full object-cover border-2 border-slate-300 mx-auto shadow" alt="{{ $p2['name'] }}">
+                    @else
+                        <div class="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center mx-auto text-slate-500 font-bold">{{ mb_substr($p2['name'], 0, 1) }}</div>
+                    @endif
+                    <p class="text-[11px] font-bold text-slate-700 leading-tight">{{ $p2['name'] }}</p>
+                    <p class="text-[10px] text-slate-400">{{ $p2['points_for'] }} pts</p>
                 </div>
-                <div class="flex items-center justify-between text-xs text-slate-500">
-                    <span>3.42 (Intermediate)</span>
-                    <i class="fa-solid fa-arrow-right text-slate-400 text-[10px]"></i>
-                    <span class="font-bold text-[#063B00]">3.60 (Intermediate+)</span>
+                <div class="w-full bg-slate-200 rounded-t-xl py-5 text-center">
+                    <span class="text-2xl">🥈</span>
+                    <p class="text-[10px] font-black text-slate-600 mt-1">2nd</p>
                 </div>
-                <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                    <div class="bg-[#063B00] h-1.5 rounded-full" style="width: 72%"></div>
-                </div>
+                @endif
             </div>
 
-            <!-- Gisel Anastasia Rating Change -->
-            <div class="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-2">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=80&auto=format&fit=crop&q=80" class="w-7 h-7 rounded-full object-cover border border-slate-200" alt="Gisel">
-                        <span class="text-xs font-bold text-slate-900">Gisel Anastasia</span>
+            {{-- Juara 1 (Gold) — tengah, lebih tinggi --}}
+            @php $p1 = $rankedPlayers[0] ?? null; @endphp
+            <div class="flex flex-col items-center gap-2">
+                @if($p1)
+                <div class="text-center space-y-1">
+                    @if($p1['avatar'])
+                        <img src="{{ $p1['avatar'] }}" class="w-14 h-14 rounded-full object-cover border-2 border-amber-400 mx-auto shadow-lg ring-2 ring-amber-200" alt="{{ $p1['name'] }}">
+                    @else
+                        <div class="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto text-amber-700 font-bold text-lg">{{ mb_substr($p1['name'], 0, 1) }}</div>
+                    @endif
+                    <p class="text-xs font-black text-slate-900 leading-tight">{{ $p1['name'] }}</p>
+                    <span class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 font-bold">{{ $p1['points_for'] }} pts</span>
+                </div>
+                <div class="w-full bg-gradient-to-t from-amber-400 to-amber-300 rounded-t-xl py-8 text-center shadow-md">
+                    <span class="text-3xl">🥇</span>
+                    <p class="text-[11px] font-black text-amber-900 mt-1">JUARA!</p>
+                </div>
+                @endif
+            </div>
+
+            {{-- Juara 3 (Bronze) — kanan --}}
+            @php $p3 = $rankedPlayers[2] ?? null; @endphp
+            <div class="flex flex-col items-center gap-2">
+                @if($p3)
+                <div class="text-center space-y-1">
+                    @if($p3['avatar'])
+                        <img src="{{ $p3['avatar'] }}" class="w-11 h-11 rounded-full object-cover border-2 border-orange-300 mx-auto shadow" alt="{{ $p3['name'] }}">
+                    @else
+                        <div class="w-11 h-11 rounded-full bg-orange-100 flex items-center justify-center mx-auto text-orange-700 font-bold">{{ mb_substr($p3['name'], 0, 1) }}</div>
+                    @endif
+                    <p class="text-[11px] font-bold text-slate-700 leading-tight">{{ $p3['name'] }}</p>
+                    <p class="text-[10px] text-slate-400">{{ $p3['points_for'] }} pts</p>
+                </div>
+                <div class="w-full bg-orange-200 rounded-t-xl py-4 text-center">
+                    <span class="text-xl">🥉</span>
+                    <p class="text-[10px] font-black text-orange-700 mt-1">3rd</p>
+                </div>
+                @endif
+            </div>
+        </div>
+        @endif
+
+        {{-- Tabel Ranking Lengkap --}}
+        <div class="space-y-2">
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1">Ranking Lengkap</p>
+            @foreach($rankedPlayers as $player)
+            @php
+                $isTop3 = $player['rank'] <= 3;
+                $medalEmoji = $player['medal']['emoji'];
+                $bgClass = match($player['rank']) {
+                    1 => 'bg-amber-50 border-amber-200/80',
+                    2 => 'bg-slate-50 border-slate-200/80',
+                    3 => 'bg-orange-50 border-orange-200/80',
+                    default => 'bg-white border-slate-200/70',
+                };
+            @endphp
+            <div class="p-3.5 rounded-2xl {{ $bgClass }} border flex items-center gap-3 shadow-2xs">
+                {{-- Rank --}}
+                <div class="w-8 text-center shrink-0">
+                    @if($medalEmoji)
+                        <span class="text-lg leading-none">{{ $medalEmoji }}</span>
+                    @else
+                        <span class="text-xs font-black text-slate-400">#{{ $player['rank'] }}</span>
+                    @endif
+                </div>
+
+                {{-- Avatar --}}
+                @if($player['avatar'])
+                    <img src="{{ $player['avatar'] }}" class="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0" alt="{{ $player['name'] }}">
+                @else
+                    <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-500 text-xs font-bold">{{ mb_substr($player['name'], 0, 1) }}</div>
+                @endif
+
+                {{-- Nama & Level --}}
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-900 truncate">{{ $player['name'] }}</p>
+                    <p class="text-[10px] text-slate-400">{{ $player['level'] }} &bull; {{ $player['matches'] }} match</p>
+                </div>
+
+                {{-- Stats --}}
+                <div class="flex items-center gap-3 text-[10px] shrink-0">
+                    <div class="text-center">
+                        <p class="font-black text-[#063B00] text-sm">{{ $player['wins'] }}</p>
+                        <p class="text-slate-400 font-medium">Menang</p>
                     </div>
-                    <span class="text-xs font-black text-[#063B00] bg-[#EBF8D8] px-2 py-0.5 rounded-full border border-[#063B00]/25">+0.24</span>
-                </div>
-                <div class="flex items-center justify-between text-xs text-slate-500">
-                    <span>2.15 (Beginner)</span>
-                    <i class="fa-solid fa-arrow-right text-slate-400 text-[10px]"></i>
-                    <span class="font-bold text-[#063B00]">2.39 (Beginner+)</span>
-                </div>
-                <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                    <div class="bg-[#063B00] h-1.5 rounded-full" style="width: 48%"></div>
+                    <div class="text-center">
+                        <p class="font-black text-slate-700 text-sm">{{ $player['points_for'] }}</p>
+                        <p class="text-slate-400 font-medium">Poin</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="font-black text-sm {{ $player['point_diff'] >= 0 ? 'text-[#063B00]' : 'text-rose-600' }}">
+                            {{ $player['point_diff'] >= 0 ? '+' : '' }}{{ $player['point_diff'] }}
+                        </p>
+                        <p class="text-slate-400 font-medium">Selisih</p>
+                    </div>
                 </div>
             </div>
+            @endforeach
         </div>
     </div>
 
-    <!-- Kudos & Compliments Giving (Reclub / Playtomic Benchmark) -->
+    <!-- Kudos & Compliments Giving -->
     <div class="glass-card rounded-3xl p-6 border border-white space-y-4">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
             <div class="flex items-center gap-2.5">
@@ -129,59 +259,43 @@
                 </div>
                 <div>
                     <h2 class="text-sm font-bold text-slate-900">Beri Kudos untuk Teman Main (Kudos System)</h2>
-                    <p class="text-[11px] text-slate-500">Apresiasi skill & sportivitas pemain di lapangan</p>
+                    <p class="text-[11px] text-slate-500">Apresiasi skill &amp; sportivitas pemain di lapangan</p>
                 </div>
             </div>
             <span class="text-[11px] font-semibold text-slate-400">Pilih badge</span>
         </div>
 
-        <!-- Kudos Grid -->
+        <!-- Kudos Grid — render semua peserta kecuali diri sendiri (dummy: kecuali rank 1) -->
         <div class="space-y-3">
-            <!-- Player: Gisel Anastasia -->
+            @foreach($rankedPlayers as $player)
+            @if($loop->index === 0) @continue @endif {{-- Skip pemain pertama (pov: kamu) --}}
             <div class="p-3.5 rounded-2xl bg-white border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
                 <div class="flex items-center gap-3">
-                    <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=80&auto=format&fit=crop&q=80" class="w-8 h-8 rounded-full object-cover border border-slate-200" alt="Gisel">
+                    @if($player['avatar'])
+                        <img src="{{ $player['avatar'] }}" class="w-8 h-8 rounded-full object-cover border border-slate-200" alt="{{ $player['name'] }}">
+                    @else
+                        <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-xs font-bold">{{ mb_substr($player['name'], 0, 1) }}</div>
+                    @endif
                     <div>
-                        <h4 class="text-xs font-bold text-slate-900">Gisel Anastasia (Partner)</h4>
-                        <p class="text-[10px] text-slate-400">Team A</p>
+                        <h4 class="text-xs font-bold text-slate-900">{{ $player['name'] }}</h4>
+                        <p class="text-[10px] text-slate-400">{{ $player['medal']['label'] }} &bull; {{ $player['level'] }}</p>
                     </div>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-1.5">
-                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
-                        🎾 Super Forehand
+                    @php
+                        $kudosBadges = ['🎾 Super Forehand', '🛡️ Solid Defense', '🤝 Fun Partner', '💥 Killer Smash', '⭐ MVP Play', '✨ Fair Play'];
+                        $randomBadges = array_slice($kudosBadges, ($loop->index % 3) * 1, 3);
+                    @endphp
+                    @foreach($randomBadges as $badge)
+                    <button type="button" onclick="toggleKudos(this)"
+                        class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
+                        {{ $badge }}
                     </button>
-                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
-                        🛡️ Solid Defense
-                    </button>
-                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
-                        🤝 Fun Partner
-                    </button>
+                    @endforeach
                 </div>
             </div>
-
-            <!-- Player: Fahri Dhani -->
-            <div class="p-3.5 rounded-2xl bg-white border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-                <div class="flex items-center gap-3">
-                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80" class="w-8 h-8 rounded-full object-cover border border-slate-200" alt="Fahri">
-                    <div>
-                        <h4 class="text-xs font-bold text-slate-900">Fahri Dhani (Opponent)</h4>
-                        <p class="text-[10px] text-slate-400">Team B</p>
-                    </div>
-                </div>
-
-                <div class="flex flex-wrap items-center gap-1.5">
-                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
-                        💥 Killer Smash
-                    </button>
-                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
-                        ⭐ MVP Play
-                    </button>
-                    <button type="button" onclick="toggleKudos(this)" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
-                        ✨ Fair Play
-                    </button>
-                </div>
-            </div>
+            @endforeach
         </div>
     </div>
 
@@ -212,13 +326,16 @@
     }
 
     function shareRecap() {
+        const title  = '{{ addslashes($game['title'] ?? 'Matcha Match') }}';
+        const winner = '{{ addslashes($winnerTeamLabel ?? 'Team A') }}';
         if (navigator.share) {
             navigator.share({
-                title: 'Hasil Pertandingan Matcha Arena',
-                text: 'Team A menang 24-18 di Padel Weekend Americano! Cek skor selengkapnya di Matcha.',
-                url: window.location.href
+                title: `Hasil Pertandingan — ${title}`,
+                text : `${winner} menang {{ $finalScoreA ?? 0 }}-{{ $finalScoreB ?? 0 }}! Cek skor selengkapnya di Matcha.`,
+                url  : window.location.href
             }).catch(() => {});
         } else {
+            navigator.clipboard?.writeText(window.location.href);
             showToast('Link ringkasan pertandingan berhasil disalin ke clipboard!');
         }
     }
