@@ -383,9 +383,11 @@
     </div>
 </div>
 
-<!-- Modal Select Player from Database -->
-<div id="addPlayerModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden items-center justify-center p-4">
-    <div class="glass-card !bg-white max-w-md w-full rounded-3xl p-6 border border-white space-y-4 shadow-2xl">
+<!-- Modal Add Player -->
+<div id="addPlayerModal"
+    class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden items-center justify-center p-4">
+
+    <div class="glass-card !bg-white max-w-md w-full rounded-3xl p-6 border border-white shadow-2xl">
 
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -394,8 +396,9 @@
                     <i class="fa-solid fa-user-plus text-[#063B00]"></i>
                     Tambahkan Player
                 </h3>
+
                 <p class="text-[10px] text-slate-400 mt-1">
-                    Cari player yang sudah terdaftar
+                    Tambahkan pemain ke sesi ini
                 </p>
             </div>
 
@@ -408,43 +411,170 @@
             </button>
         </div>
 
-        <!-- Search -->
-        <div class="relative">
-            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+        <!-- Tabs -->
+        <div class="grid grid-cols-2 gap-1 p-1 mt-4 bg-slate-100 rounded-xl">
 
-            <input
-                type="text"
-                id="playerSearchInput"
-                placeholder="Cari nama player..."
-                autocomplete="off"
-                class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none"
-                oninput="searchPlayers()"
-            >
-        </div>
-
-        <!-- Search Result -->
-        <div
-            id="playerSearchResults"
-            class="space-y-2 max-h-72 overflow-y-auto"
-        >
-            <div class="py-8 text-center">
-                <i class="fa-solid fa-magnifying-glass text-slate-300 text-xl mb-2"></i>
-                <p class="text-[11px] text-slate-400">
-                    Ketik nama player untuk mencari
-                </p>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="pt-3 border-t border-slate-100">
             <button
                 type="button"
-                onclick="closeAddPlayerModal()"
-                class="w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors text-xs"
+                id="tabDatabase"
+                onclick="switchPlayerMode('database')"
+                class="py-2.5 rounded-lg text-[11px] font-bold bg-white text-[#063B00] shadow-sm transition-all"
             >
-                Batal
+                <i class="fa-solid fa-database mr-1"></i>
+                Dari Database
             </button>
+
+            <button
+                type="button"
+                id="tabManual"
+                onclick="switchPlayerMode('manual')"
+                class="py-2.5 rounded-lg text-[11px] font-bold text-slate-500 hover:text-slate-700 transition-all"
+            >
+                <i class="fa-solid fa-pen mr-1"></i>
+                Input Manual
+            </button>
+
         </div>
+
+
+        <!-- ================= DATABASE MODE ================= -->
+        <div id="databasePlayerMode" class="mt-4 space-y-3">
+
+            <!-- Search -->
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+
+                <input
+                    type="text"
+                    id="playerSearchInput"
+                    placeholder="Cari nama player..."
+                    autocomplete="off"
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none"
+                    oninput="searchPlayers()"
+                >
+            </div>
+
+            <!-- Search Results -->
+            <div
+                id="playerSearchResults"
+                class="space-y-2 max-h-72 overflow-y-auto"
+            >
+                <div class="py-8 text-center">
+                    <i class="fa-solid fa-magnifying-glass text-slate-300 text-xl mb-2"></i>
+
+                    <p class="text-[11px] text-slate-400">
+                        Ketik nama player untuk mencari
+                    </p>
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- ================= MANUAL MODE ================= -->
+        <div id="manualPlayerMode" class="mt-4 hidden">
+
+            <form
+                onsubmit="handleManualPlayerSubmit(event)"
+                class="space-y-4"
+            >
+
+                <!-- Name -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 mb-1.5">
+                        Nama Player
+                    </label>
+
+                    <input
+                        type="text"
+                        id="manualPlayerName"
+                        placeholder="Masukkan nama player..."
+                        autocomplete="off"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none"
+                        required
+                    >
+                </div>
+
+
+                <!-- Gender + Level -->
+                <div class="grid grid-cols-2 gap-3">
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 mb-1.5">
+                            Gender
+                        </label>
+
+                        <select
+                            id="manualPlayerGender"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none"
+                        >
+                            <option value="Male">Laki-laki</option>
+                            <option value="Female">Perempuan</option>
+                        </select>
+                    </div>
+
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 mb-1.5">
+                            Skill Level
+                        </label>
+
+                        <select
+                            id="manualPlayerLevel"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none"
+                        >
+                            <option value="Newbie">Newbie</option>
+                            <option value="Beginner" selected>Beginner</option>
+                            <option value="Intermediate">Intermediate</option>
+                            <option value="Advanced">Advanced</option>
+                        </select>
+                    </div>
+
+                </div>
+
+
+                <!-- Guest Info -->
+                <div class="flex items-start gap-3 p-3 rounded-xl bg-orange-50 border border-orange-100">
+
+                    <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-user-clock text-orange-400 text-xs"></i>
+                    </div>
+
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-700">
+                            Guest Player
+                        </p>
+
+                        <p class="text-[10px] text-slate-400 leading-relaxed mt-0.5">
+                            Player ini belum terdaftar di database dan akan ditambahkan sebagai guest.
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <!-- Submit -->
+                <button
+                    type="submit"
+                    class="w-full py-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2"
+                >
+                    <i class="fa-solid fa-user-plus text-[11px]"></i>
+                    Tambahkan Player
+                </button>
+
+            </form>
+
+        </div>
+
+
+        <!-- Cancel -->
+        <button
+            type="button"
+            onclick="closeAddPlayerModal()"
+            class="w-full mt-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-all"
+        >
+            Batal
+        </button>
 
     </div>
 </div>
@@ -546,7 +676,9 @@
 
     function openAddPlayerModal() {
         const searchInput = document.getElementById('playerSearchInput');
+        const manualName = document.getElementById('manualPlayerName');
 
+        // Reset database search
         searchInput.value = '';
 
         document.getElementById('playerSearchResults').innerHTML = `
@@ -558,12 +690,98 @@
             </div>
         `;
 
+        // Reset manual form
+        manualName.value = '';
+        document.getElementById('manualPlayerGender').value = 'Male';
+        document.getElementById('manualPlayerLevel').value = 'Beginner';
+
+        // Default buka Database
+        switchPlayerMode('database');
+
+        // Tampilkan modal
         document.getElementById('addPlayerModal').classList.remove('hidden');
         document.getElementById('addPlayerModal').classList.add('flex');
 
         setTimeout(() => {
             searchInput.focus();
         }, 100);
+    }
+
+    function switchPlayerMode(mode) {
+        const databaseMode = document.getElementById('databasePlayerMode');
+        const manualMode = document.getElementById('manualPlayerMode');
+
+        const tabDatabase = document.getElementById('tabDatabase');
+        const tabManual = document.getElementById('tabManual');
+
+        if (mode === 'database') {
+
+            databaseMode.classList.remove('hidden');
+            manualMode.classList.add('hidden');
+
+            tabDatabase.className =
+                'py-2.5 rounded-lg text-[11px] font-bold bg-white text-[#063B00] shadow-sm transition-all';
+
+            tabManual.className =
+                'py-2.5 rounded-lg text-[11px] font-bold text-slate-500 hover:text-slate-700 transition-all';
+
+            setTimeout(() => {
+                document.getElementById('playerSearchInput').focus();
+            }, 50);
+
+        } else {
+
+            databaseMode.classList.add('hidden');
+            manualMode.classList.remove('hidden');
+
+            tabDatabase.className =
+                'py-2.5 rounded-lg text-[11px] font-bold text-slate-500 hover:text-slate-700 transition-all';
+
+            tabManual.className =
+                'py-2.5 rounded-lg text-[11px] font-bold bg-white text-[#063B00] shadow-sm transition-all';
+
+            setTimeout(() => {
+                document.getElementById('manualPlayerName').focus();
+            }, 50);
+        }
+    }
+
+    function handleManualPlayerSubmit(e) {
+        e.preventDefault();
+
+        const name = document.getElementById('manualPlayerName').value.trim();
+        const gender = document.getElementById('manualPlayerGender').value;
+        const level = document.getElementById('manualPlayerLevel').value;
+
+        if (!name) {
+            showToast('Nama player wajib diisi.');
+            return;
+        }
+
+        // Cek nama yang sama
+        const alreadyAdded = players.some(
+            p => p.name.trim().toLowerCase() === name.toLowerCase()
+        );
+
+        if (alreadyAdded) {
+            showToast(`${name} sudah berada di daftar pemain.`);
+            return;
+        }
+
+        const manualPlayer = {
+            player_id: null,
+            name: name,
+            gender: gender,
+            level: level,
+            type: 'Guest'
+        };
+
+        players.push(manualPlayer);
+
+        closeAddPlayerModal();
+        renderPlayers();
+
+        showToast(`${name} berhasil ditambahkan sebagai Guest!`);
     }
 
     function addPlayerToList(player) {
@@ -800,6 +1018,30 @@
             return;
         }
 
+        const button = document.getElementById('btnStartDrawing');
+
+        // Cegah double / multiple click
+        if (button.disabled) {
+            return;
+        }
+
+        button.disabled = true;
+        button.classList.remove(
+            'bg-slate-200',
+            'text-slate-400',
+            'cursor-not-allowed'
+        );
+        button.classList.add(
+            'bg-slate-400',
+            'text-white',
+            'cursor-wait'
+        );
+
+        button.innerHTML = `
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            Creating Game...
+        `;
+
         const data = {
             _token: '{{ csrf_token() }}',
             nama_session: document.getElementById('activityName').value,
@@ -827,10 +1069,33 @@
                 return;
             }
 
-            return response.json();
+            return response.json().then(result => {
+                throw new Error(
+                    result.message || 'Gagal membuat game.'
+                );
+            });
         })
         .catch(error => {
             console.error(error);
+
+            // Aktifkan kembali tombol kalau request gagal
+            button.disabled = false;
+            button.classList.remove(
+                'bg-slate-400',
+                'text-white',
+                'cursor-wait'
+            );
+            button.classList.add(
+                'bg-slate-200',
+                'text-slate-400',
+                'cursor-not-allowed'
+            );
+
+            button.innerHTML = `
+                <i class="fa-solid fa-shuffle"></i>
+                🎲 Generate Drawing & Start Game
+            `;
+
             showToast('Gagal membuat game. Silakan coba lagi.');
         });
     }

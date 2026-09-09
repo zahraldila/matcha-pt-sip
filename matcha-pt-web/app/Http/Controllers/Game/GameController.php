@@ -215,10 +215,12 @@ class GameController extends Controller
 
                 // GUEST
                 else {
-                    throw new \Exception(
-                        "Guest belum dapat ditambahkan karena tabel tb_player " .
-                        "mewajibkan user_id."
-                    );
+                    $player = Player::create([
+                        'user_id' => null,
+                        'nama' => $playerData['name'],
+                        'gender' => $playerData['gender'],
+                        'level' => $playerData['level'],
+                    ]);
                 }
 
                 // Hindari player yang sama masuk dua kali
