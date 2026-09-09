@@ -86,7 +86,12 @@
                     @forelse($activeRound['matches'] ?? [] as $m)
                         <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 text-xs space-y-1.5">
                             <div class="flex items-center justify-between border-b border-slate-200/60 pb-1">
-                                <span class="font-bold text-[#063B00]">{{ $m['court_name'] }}</span>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-bold text-[#063B00]">{{ $m['court_name'] }}</span>
+                                    @if(!empty($m['slot_number']))
+                                        <span class="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">Slot {{ $m['slot_number'] }}</span>
+                                    @endif
+                                </div>
                                 <span class="text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
                                     {{ $m['status'] }}
                                 </span>
@@ -235,7 +240,10 @@
             matchesContainer.innerHTML = data.matches.map(m => `
                 <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 text-xs space-y-1.5">
                     <div class="flex items-center justify-between border-b border-slate-200/60 pb-1">
-                        <span class="font-bold text-[#063B00]">${m.court_name}</span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-bold text-[#063B00]">${m.court_name}</span>
+                            ${m.slot_number ? `<span class="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">Slot ${m.slot_number}</span>` : ''}
+                        </div>
                         <span class="text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
                             ${m.status}
                         </span>
