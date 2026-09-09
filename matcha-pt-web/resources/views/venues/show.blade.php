@@ -77,7 +77,7 @@
                         <span class="font-semibold block flex items-center gap-1.5 text-xs">
                             <i class="fa-solid fa-circle-exclamation text-amber-600"></i> Ketentuan Availability:
                         </span>
-                        <p class="text-[11px] leading-relaxed text-amber-800">{{ $venue['unavailability_note'] }}</p>
+                        <p class="text-[11px] leading-relaxed text-amber-800">{{ $venue['unavailability_note'] ?? 'Sesuai jadwal ketersediaan lapangan reguler.' }}</p>
                     </div>
                 </div>
 

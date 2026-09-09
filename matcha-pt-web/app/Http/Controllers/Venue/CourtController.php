@@ -83,16 +83,15 @@ class CourtController extends Controller
 
         abort_unless($sportId, 422, 'Belum ada data sport yang tersedia.');
 
-        $court = new Court();
-        $court->forceFill([
+        $court = Court::create([
             'venue_id' => $venue->venue_id,
             'sport_id' => $sportId,
             'nama_court' => $validated['nama_court'],
-            'tipe_court' => $validated['tipe_court'],
-            'harga_per_jam' => $validated['harga_per_jam'],
-        ])->save();
+            'status_ketersediaan' => 'Available',
+            'deskripsi' => "Tipe: {$validated['tipe_court']} • Rp " . number_format($validated['harga_per_jam']) . "/jam",
+        ]);
 
-        return redirect()->route('venues.index')
+        return redirect()->route('venues.show', $venue->venue_id)
             ->with('success', 'Court berhasil ditambahkan!');
     }
 
