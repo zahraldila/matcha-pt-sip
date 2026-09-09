@@ -53,6 +53,9 @@ Route::prefix('venues')->name('venues.')->group(function () {
 Route::prefix('scoring')->name('scoring.')->group(function () {
     Route::get('/live/{id?}', [ScoringController::class, 'live'])->name('live');
     Route::get('/recap/{id?}', [ScoringController::class, 'recap'])->name('recap');
+    Route::get('/get-score/{gameId}/{round?}', [ScoringController::class, 'getScore'])->name('get-score'); // JSON polling
+    Route::post('/update-score', [ScoringController::class, 'updateScore'])->name('update-score'); // AJAX endpoint
+    Route::post('/finish', [ScoringController::class, 'finishSession'])->name('finish');           // Selesaikan sesi
 });
 
 // Protected: Player Profile & Strava-like Recap

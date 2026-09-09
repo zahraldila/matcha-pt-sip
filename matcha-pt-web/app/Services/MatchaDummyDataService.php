@@ -125,8 +125,8 @@ class MatchaDummyDataService
                 'time' => '07:00',
                 'duration' => '2 Jam',
                 'quota' => 4,
-                'joined_count' => 3,
-                'status' => 'Open (1 Slot Left)',
+                'joined_count' => 4,
+                'status' => 'In Progress (Scoring)',
                 'level_recommendation' => 'Intermediate - Advanced',
                 'match_format' => 'Single / Double',
                 'scoring_system' => 'Tennis System (15, 30, 40, Deuce, Adv, Game)',
@@ -141,8 +141,15 @@ class MatchaDummyDataService
                     ['name' => 'Steven Kurniawan (Host)', 'gender' => 'Male', 'age' => 29, 'level' => 'Advanced', 'is_member' => true, 'phone' => '0811-3344-9900', 'avatar' => 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=200&q=80'],
                     ['name' => 'Andi Wijaya', 'gender' => 'Male', 'age' => 30, 'level' => 'Intermediate', 'is_member' => true, 'phone' => '0812-4455-6677', 'avatar' => 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80'],
                     ['name' => 'Firman Utina (Guest)', 'gender' => 'Male', 'age' => 31, 'level' => 'Intermediate', 'is_member' => false, 'phone' => '0815-6677-8899', 'avatar' => 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80'],
+                    ['name' => 'Budi Pratama', 'gender' => 'Male', 'age' => 28, 'level' => 'Intermediate', 'is_member' => true, 'phone' => '0813-2233-4455', 'avatar' => 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80'],
                 ],
-                'drawing' => null,
+                'drawing' => [
+                    'round_1' => [
+                        'team_a' => ['Steven Kurniawan', 'Andi Wijaya'],
+                        'team_b' => ['Firman Utina', 'Budi Pratama'],
+                        'resting' => [],
+                    ],
+                ],
             ],
             [
                 'id' => 3,
