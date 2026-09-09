@@ -9,6 +9,7 @@ use App\Models\Court;
 use App\Models\Sport;
 use App\Models\Player;
 use App\Services\MatchaDummyDataService;
+use App\Services\Drawing\AmericanoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -215,8 +216,75 @@ class GameController extends Controller
 
     public function drawing($id)
     {
-        $games = MatchaDummyDataService::getGames();
-        $game = collect($games)->firstWhere('id', (int) $id) ?? $games[0];
-        return view('games.drawing', compact('game'));
+        try {
+            $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->find((int) $id);
+        } catch (\Throwable $e) {
+            $dbSession = null;
+        }
+
+        if ($dbSession) {
+            $quota = (int) ($dbSession->jumlah_pemain ?? 6);
+            $joinedCount = $dbSession->players->count();
+            $slotLeft = max(0, $quota - $joinedCount);
+            $status = $slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)";
+
+            $game = [
+                'id' => $dbSession->session_id,
+                'title' => $dbSession->nama_session,
+                'sport' => $dbSession->sport->nama_sport ?? 'Padel',
+                'venue_id' => $dbSession->venue_id,
+                'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
+                'court_name' => $dbSession->courts->first()->nama_court ?? 'Court 1',
+                'date' => $dbSession->datetime ? $dbSession->datetime->format('Y-m-d') : date('Y-m-d'),
+                'time' => $dbSession->waktu_session ?? '18:30 WIB',
+                'duration' => '2 Jam',
+                'quota' => $quota,
+                'joined_count' => $joinedCount > 0 ? $joinedCount : 1,
+                'status' => $status,
+                'level_recommendation' => 'All Level Welcome',
+                'match_format' => 'Americano / Double',
+                'scoring_system' => 'Americano 32 Points',
+                'host' => [
+                    'name' => $dbSession->host->nama ?? 'Host Matcha',
+                    'role' => 'Host Game',
+                    'level' => 'Intermediate',
+                    'phone' => $dbSession->host->no_hp ?? '-',
+                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                ],
+                'participants' => $dbSession->players->map(function ($p) {
+                    return [
+                        'id' => $p->player_id,
+                        'name' => $p->nama,
+                        'gender' => $p->gender ?? 'Male',
+                        'age' => $p->usia ?? 25,
+                        'level' => $p->level ?? 'Intermediate',
+                        'is_member' => true,
+                        'phone' => $p->no_hp,
+                        'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                    ];
+                })->toArray(),
+                'drawing' => null,
+            ];
+
+            $players = $game['participants'];
+            // If registered players are fewer than 4, fallback to dummy participants so drawing can run
+            if (count($players) < 4) {
+                $dummyGame = collect(MatchaDummyDataService::getGames())->firstWhere('id', (int) $id) ?? MatchaDummyDataService::getGames()[0];
+                $players = $dummyGame['participants'];
+                $game['participants'] = $players;
+            }
+
+            $courtCount = max(1, $dbSession->courts->count());
+        } else {
+            $games = MatchaDummyDataService::getGames();
+            $game = collect($games)->firstWhere('id', (int) $id) ?? $games[0];
+            $players = $game['participants'] ?? [];
+            $courtCount = 1;
+        }
+
+        $americanoService = new AmericanoService();
+        $rounds = $americanoService->generateRounds($players, $courtCount);
+
+        return view('games.drawing', compact('game', 'rounds'));
     }
 }
