@@ -28,10 +28,16 @@ Route::prefix('games')->name('games.')->group(function () {
 
     // Protected: Create Game Wizard (Instant Host) & Schedule Sesi Mabar
     Route::middleware('auth')->group(function () {
-        Route::get('/create', [GameController::class, 'create'])->name('create');
-        Route::get('/schedule', [GameController::class, 'createSchedule'])->name('schedule');
-        Route::post('/schedule', [GameController::class, 'storeSchedule'])->name('schedule.post');
-    });
+    Route::get('/create', [GameController::class, 'create'])->name('create');
+
+    Route::get('/players/search', [GameController::class, 'searchPlayers'])
+        ->name('players.search');
+
+    Route::post('/', [GameController::class, 'store'])->name('store');
+
+    Route::get('/schedule', [GameController::class, 'createSchedule'])->name('schedule');
+    Route::post('/schedule', [GameController::class, 'storeSchedule'])->name('schedule.post');
+});
 });
 
 // Venues & Courts

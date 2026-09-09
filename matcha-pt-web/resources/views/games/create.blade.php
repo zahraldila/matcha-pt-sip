@@ -237,11 +237,36 @@
                     </label>
                     <div class="relative">
                         <select id="numCourts" class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none appearance-none transition-all shadow-2xs">
-                            <option value="1 Court">1 Court</option>
-                            <option value="2 Court">2 Court</option>
-                            <option value="3 Court">3 Court</option>
-                            <option value="4 Court">4 Court</option>
+                            <option value="1">1 Court</option>
+                            <option value="2">2 Court</option>
+                            <option value="3">3 Court</option>
+                            <option value="4">4 Court</option>
                         </select>
+                        <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                    </div>
+                </div>
+
+                <!-- Venue -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-800">
+                        Venue
+                    </label>
+
+                    <div class="relative">
+                        <select
+                            id="venueId"
+                            class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none appearance-none transition-all shadow-2xs"
+                            required
+                        >
+                            <option value="" selected disabled>Pilih venue</option>
+
+                            @foreach ($venues as $venue)
+                                <option value="{{ $venue->venue_id }}">
+                                    {{ $venue->nama_venue }}
+                                </option>
+                            @endforeach
+                        </select>
+
                         <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                     </div>
                 </div>
@@ -358,58 +383,69 @@
     </div>
 </div>
 
-<!-- Modal Input Manual Player (Guest / Member) -->
+<!-- Modal Select Player from Database -->
 <div id="addPlayerModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden items-center justify-center p-4">
     <div class="glass-card !bg-white max-w-md w-full rounded-3xl p-6 border border-white space-y-4 shadow-2xl">
+
+        <!-- Header -->
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <i class="fa-solid fa-user-plus text-[#063B00]"></i> Input Nama Pemain
-            </h3>
-            <button onclick="closeAddPlayerModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none">&times;</button>
+            <div>
+                <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-[#063B00]"></i>
+                    Tambahkan Player
+                </h3>
+                <p class="text-[10px] text-slate-400 mt-1">
+                    Cari player yang sudah terdaftar
+                </p>
+            </div>
+
+            <button
+                type="button"
+                onclick="closeAddPlayerModal()"
+                class="text-slate-400 hover:text-slate-600 text-lg leading-none"
+            >
+                &times;
+            </button>
         </div>
 
-        <form onsubmit="handleManualPlayerSubmit(event)" class="space-y-3 text-xs">
-            <div>
-                <label class="block font-semibold text-slate-700 mb-1">Nama Pemain</label>
-                <input type="text" id="manualPlayerName" placeholder="Contoh: Gisel Anastasia" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none" required>
-            </div>
+        <!-- Search -->
+        <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
 
-            <div class="grid grid-cols-2 gap-2.5">
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Gender</label>
-                    <select id="manualPlayerGender" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none">
-                        <option value="Male">Laki-laki</option>
-                        <option value="Female">Perempuan</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Skill Level</label>
-                    <select id="manualPlayerLevel" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none">
-                        <option value="Newbie">Newbie</option>
-                        <option value="Beginner" selected>Beginner</option>
-                        <option value="Intermediate">Intermediate</option>
-                        <option value="Advanced">Advanced</option>
-                    </select>
-                </div>
-            </div>
+            <input
+                type="text"
+                id="playerSearchInput"
+                placeholder="Cari nama player..."
+                autocomplete="off"
+                class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none"
+                oninput="searchPlayers()"
+            >
+        </div>
 
-            <div>
-                <label class="block font-semibold text-slate-700 mb-1">Tipe Pemain</label>
-                <select id="manualPlayerType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none">
-                    <option value="Guest">Guest Player (Tamu di Lapangan)</option>
-                    <option value="Member">Registered Member</option>
-                </select>
+        <!-- Search Result -->
+        <div
+            id="playerSearchResults"
+            class="space-y-2 max-h-72 overflow-y-auto"
+        >
+            <div class="py-8 text-center">
+                <i class="fa-solid fa-magnifying-glass text-slate-300 text-xl mb-2"></i>
+                <p class="text-[11px] text-slate-400">
+                    Ketik nama player untuk mencari
+                </p>
             </div>
+        </div>
 
-            <div class="flex gap-2 pt-3 border-t border-slate-100">
-                <button type="button" onclick="closeAddPlayerModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors">
-                    Batal
-                </button>
-                <button type="submit" class="flex-1 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold shadow-xs transition-colors">
-                    + Tambahkan Pemain
-                </button>
-            </div>
-        </form>
+        <!-- Footer -->
+        <div class="pt-3 border-t border-slate-100">
+            <button
+                type="button"
+                onclick="closeAddPlayerModal()"
+                class="w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors text-xs"
+            >
+                Batal
+            </button>
+        </div>
+
     </div>
 </div>
 
@@ -476,9 +512,12 @@
             const actName = document.getElementById('activityName').value || `${selectedSport} Mabar`;
             const numCourt = document.getElementById('numCourts').value;
             const scoreVal = document.getElementById('scoringGeneralValue').value;
-            
+
+            const venueSelect = document.getElementById('venueId');
+            const venueName = venueSelect.options[venueSelect.selectedIndex]?.text || 'Venue belum dipilih';
+
             document.getElementById('summaryGameName').innerText = actName;
-            document.getElementById('summaryGameFormat').innerText = `${selectedGameType} • ${numCourt} • ${scoreVal}`;
+            document.getElementById('summaryGameFormat').innerText = `${selectedGameType} • ${numCourt} Court • ${venueName} • ${scoreVal}`;
         }
     }
 
@@ -490,27 +529,57 @@
 
     // Player List Management
     function addYourself() {
-        const hostExists = players.some(p => p.name.includes('Billy Santoso'));
-        if (hostExists) {
-            showToast('Host (Billy Santoso) sudah berada di daftar pemain.');
-            return;
-        }
-
-        players.unshift({
-            name: 'Billy Santoso (Host)',
-            gender: 'Male',
-            level: 'Intermediate',
+    @if ($hostPlayer)
+        const hostPlayer = {
+            player_id: {{ $hostPlayer->player_id }},
+            name: @json($hostPlayer->nama),
+            gender: @json($hostPlayer->gender ?? 'Male'),
+            level: @json($hostPlayer->level ?? 'Intermediate'),
             type: 'Host'
-        });
+        };
 
-        renderPlayers();
-        showToast('Billy Santoso (Host) berhasil ditambahkan!');
+        addPlayerToList(hostPlayer);
+    @else
+        showToast('Data player untuk akun host belum ditemukan.');
+    @endif
     }
 
     function openAddPlayerModal() {
-        document.getElementById('manualPlayerName').value = '';
+        const searchInput = document.getElementById('playerSearchInput');
+
+        searchInput.value = '';
+
+        document.getElementById('playerSearchResults').innerHTML = `
+            <div class="py-8 text-center">
+                <i class="fa-solid fa-magnifying-glass text-slate-300 text-xl mb-2"></i>
+                <p class="text-[11px] text-slate-400">
+                    Ketik nama player untuk mencari
+                </p>
+            </div>
+        `;
+
         document.getElementById('addPlayerModal').classList.remove('hidden');
         document.getElementById('addPlayerModal').classList.add('flex');
+
+        setTimeout(() => {
+            searchInput.focus();
+        }, 100);
+    }
+
+    function addPlayerToList(player) {
+        const alreadyAdded = players.some(
+            p => Number(p.player_id) === Number(player.player_id)
+        );
+
+        if (alreadyAdded) {
+            showToast(`${player.name} sudah berada di daftar pemain.`);
+            return;
+        }
+
+        players.push(player);
+
+        renderPlayers();
+        showToast(`${player.name} berhasil ditambahkan!`);
     }
 
     function closeAddPlayerModal() {
@@ -518,17 +587,144 @@
         document.getElementById('addPlayerModal').classList.remove('flex');
     }
 
-    function handleManualPlayerSubmit(e) {
-        e.preventDefault();
-        const name = document.getElementById('manualPlayerName').value;
-        const gender = document.getElementById('manualPlayerGender').value;
-        const level = document.getElementById('manualPlayerLevel').value;
-        const type = document.getElementById('manualPlayerType').value;
+    let playerSearchTimeout = null;
 
-        players.push({ name, gender, level, type });
+    function searchPlayers() {
+        const searchInput = document.getElementById('playerSearchInput');
+        const resultsContainer = document.getElementById('playerSearchResults');
+
+        const search = searchInput.value.trim();
+
+        clearTimeout(playerSearchTimeout);
+
+        if (search.length < 2) {
+            resultsContainer.innerHTML = `
+                <div class="py-8 text-center">
+                    <i class="fa-solid fa-magnifying-glass text-slate-300 text-xl mb-2"></i>
+                    <p class="text-[11px] text-slate-400">
+                        Ketik minimal 2 karakter
+                    </p>
+                </div>
+            `;
+            return;
+        }
+
+        resultsContainer.innerHTML = `
+            <div class="py-8 text-center">
+                <i class="fa-solid fa-spinner fa-spin text-[#063B00] text-lg"></i>
+                <p class="text-[11px] text-slate-400 mt-2">
+                    Mencari player...
+                </p>
+            </div>
+        `;
+
+        playerSearchTimeout = setTimeout(() => {
+            fetch(`{{ route('games.players.search') }}?search=${encodeURIComponent(search)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Gagal mengambil data player');
+                    }
+
+                    return response.json();
+                })
+                .then(data => {
+                    renderPlayerSearchResults(data);
+                })
+                .catch(error => {
+                    console.error(error);
+
+                    resultsContainer.innerHTML = `
+                        <div class="py-8 text-center">
+                            <i class="fa-solid fa-circle-exclamation text-rose-400 text-lg"></i>
+                            <p class="text-[11px] text-slate-400 mt-2">
+                                Gagal mencari player
+                            </p>
+                        </div>
+                    `;
+                });
+        }, 300);
+    }
+
+    function renderPlayerSearchResults(data) {
+        const container = document.getElementById('playerSearchResults');
+
+        if (!data.length) {
+            container.innerHTML = `
+                <div class="py-8 text-center">
+                    <i class="fa-solid fa-user-slash text-slate-300 text-xl mb-2"></i>
+                    <p class="text-[11px] text-slate-400">
+                        Player tidak ditemukan
+                    </p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = data.map(player => {
+            const alreadyAdded = players.some(
+            p => Number(p.player_id) === Number(player.player_id)
+        );
+
+            return `
+                <button
+                    type="button"
+                    onclick="selectDatabasePlayer(${player.player_id}, ${JSON.stringify(player).replace(/"/g, '&quot;')})"
+                    ${alreadyAdded ? 'disabled' : ''}
+                    class="w-full p-3 rounded-xl border border-slate-200 bg-white text-left flex items-center justify-between transition-all
+                        ${alreadyAdded
+                            ? 'opacity-50 cursor-not-allowed'
+                            : 'hover:border-[#063B00] hover:bg-[#EBF8D8]/30'
+                        }"
+                >
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-9 h-9 rounded-full bg-[#EBF8D8] flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-user text-xs text-[#063B00]"></i>
+                        </div>
+
+                        <div class="min-w-0">
+                            <p class="font-bold text-xs text-slate-900 truncate">
+                                ${escapeHtml(player.nama)}
+                            </p>
+
+                            <p class="text-[10px] text-slate-400">
+                                ${escapeHtml(player.gender || '-')}
+                                •
+                                ${escapeHtml(player.level || 'No Level')}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="shrink-0 ml-2">
+                        ${
+                            alreadyAdded
+                            ? `<span class="text-[9px] font-bold text-slate-400">SUDAH DITAMBAHKAN</span>`
+                            : `<i class="fa-solid fa-plus text-xs text-[#063B00]"></i>`
+                        }
+                    </div>
+                </button>
+            `;
+        }).join('');
+    }
+
+    function selectDatabasePlayer(playerId, player) {
+        addPlayerToList({
+            player_id: player.player_id,
+            name: player.nama,
+            gender: player.gender || 'Male',
+            level: player.level || 'Intermediate',
+            type: 'Member'
+        });
+
         closeAddPlayerModal();
-        renderPlayers();
-        showToast(`Pemain ${name} berhasil ditambahkan!`);
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     function removePlayer(idx) {
@@ -599,10 +795,44 @@
     }
 
     function startDrawingAction() {
-        showToast('Drawing berhasil di-generate secara seimbang!');
-        setTimeout(() => {
-            window.location.href = "{{ route('games.drawing', 1) }}";
-        }, 1200);
+        if (players.length < 4) {
+            showToast('Minimal 4 pemain untuk generate drawing.');
+            return;
+        }
+
+        const data = {
+            _token: '{{ csrf_token() }}',
+            nama_session: document.getElementById('activityName').value,
+            sport: selectedSport,
+            format: selectedGameType,
+            num_courts: document.getElementById('numCourts').value,
+            venue_id: document.getElementById('venueId').value,
+            scoring_system: document.getElementById('scoringGeneralValue').value,
+            rank_by: rankBy,
+            players: players
+        };
+
+        fetch('{{ route('games.store') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+
+            return response.json();
+        })
+        .catch(error => {
+            console.error(error);
+            showToast('Gagal membuat game. Silakan coba lagi.');
+        });
     }
 </script>
 @endpush

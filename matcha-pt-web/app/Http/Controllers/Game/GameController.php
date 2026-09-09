@@ -85,10 +85,170 @@ class GameController extends Controller
         }
 
         $venues = Venue::with('courts')->get();
+
         if ($venues->isEmpty()) {
             $venues = MatchaDummyDataService::getVenues();
         }
-        return view('games.create', compact('venues'));
+
+        $hostPlayer = Player::where('user_id', Auth::id())->first();
+
+        return view('games.create', compact('venues', 'hostPlayer'));
+    }
+
+    public function searchPlayers(Request $request)
+    {
+        $search = $request->query('search', '');
+
+        $players = Player::query()
+            ->where(function ($query) use ($search) {
+                $query->where('nama', 'ilike', "%{$search}%");
+            })
+            ->orderBy('nama')
+            ->limit(20)
+            ->get([
+                'player_id',
+                'nama',
+                'gender',
+                'level',
+            ]);
+
+        return response()->json($players);
+    }
+
+    public function store(Request $request)
+    {
+        if (Auth::user()->role !== 'host') {
+            return redirect()->route('games.index')
+                ->with('error', 'Akses ditolak: Fitur ini khusus untuk akun Host Game.');
+        }
+
+        $request->validate([
+            'nama_session' => 'required|string|max:255',
+            'sport' => 'required|in:Padel,Tennis',
+            'format' => 'required|string',
+            'num_courts' => 'required|integer|min:1|max:4',
+            'venue_id' => 'required|integer|exists:tb_venue,venue_id',
+            'scoring_system' => 'required|string|max:100',
+            'rank_by' => 'required|in:point,win',
+
+            'players' => 'required|array|min:4',
+
+            'players.*.player_id' => 'nullable|integer|exists:tb_player,player_id',
+            'players.*.name' => 'required|string|max:255',
+            'players.*.gender' => 'required|in:Male,Female',
+            'players.*.level' => 'required|string|max:50',
+            'players.*.type' => 'required|in:Host,Member,Guest',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // 1. Cari sport berdasarkan nama
+            $sport = Sport::where('nama_sport', $request->sport)->first();
+
+            if (!$sport) {
+                throw new \Exception("Sport {$request->sport} tidak ditemukan.");
+            }
+
+            // 2. Cari court yang tersedia sesuai venue + sport
+            $courts = Court::where('venue_id', $request->venue_id)
+                ->where('sport_id', $sport->sport_id)
+                ->where('status_ketersediaan', 'Available')
+                ->take((int) $request->num_courts)
+                ->get();
+
+            if ($courts->count() < (int) $request->num_courts) {
+                throw new \Exception(
+                    "Court yang tersedia tidak mencukupi. " .
+                    "Dibutuhkan {$request->num_courts} court, " .
+                    "tetapi hanya tersedia {$courts->count()}."
+                );
+            }
+
+            // 3. Buat session
+            $session = SessionModel::create([
+                'host_user_id' => Auth::id(),
+                'sport_id' => $sport->sport_id,
+                'venue_id' => $request->venue_id,
+                'nama_session' => $request->nama_session,
+                'waktu_session' => now()->format('H:i') . ' WIB',
+                'datetime' => now(),
+                'status_session' => 'Ready for Drawing',
+                'jumlah_pemain' => (string) count($request->players),
+            ]);
+
+            // 4. Hubungkan court ke session
+            $session->courts()->sync($courts->pluck('court_id'));
+
+            // 5. Hubungkan players ke session
+            $playerIds = [];
+
+            foreach ($request->players as $playerData) {
+
+                // HOST
+                if ($playerData['type'] === 'Host') {
+
+                    // Host harus menggunakan player milik akun yang sedang login
+                    $player = Player::where('user_id', Auth::id())->first();
+
+                    if (!$player) {
+                        throw new \Exception(
+                            'Data player untuk akun host belum ditemukan.'
+                        );
+                    }
+                }
+
+                // MEMBER
+                elseif ($playerData['type'] === 'Member') {
+
+                    // Ambil player yang dipilih dari database
+                    $player = Player::find($playerData['player_id']);
+
+                    if (!$player) {
+                        throw new \Exception(
+                            "Player {$playerData['name']} tidak ditemukan di database."
+                        );
+                    }
+                }
+
+                // GUEST
+                else {
+                    throw new \Exception(
+                        "Guest belum dapat ditambahkan karena tabel tb_player " .
+                        "mewajibkan user_id."
+                    );
+                }
+
+                // Hindari player yang sama masuk dua kali
+                if (in_array($player->player_id, $playerIds)) {
+                    throw new \Exception(
+                        "Player {$player->nama} tidak boleh ditambahkan lebih dari satu kali."
+                    );
+                }
+
+                $playerIds[] = $player->player_id;
+            }
+
+            // 6. Hubungkan semua player ke session
+            $session->players()->sync($playerIds);
+
+            DB::commit();
+
+            // 7. Redirect ke drawing
+            return redirect()
+                ->route('games.drawing', ['id' => $session->session_id])
+                ->with('success', 'Game berhasil dibuat. Drawing siap dilakukan!');
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'error' => 'Gagal membuat game: ' . $e->getMessage(),
+                ]);
+        }
     }
 
     public function createSchedule()
