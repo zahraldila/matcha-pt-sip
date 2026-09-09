@@ -9,6 +9,7 @@ use App\Models\Court;
 use App\Models\Sport;
 use App\Models\Player;
 use App\Services\MatchaDummyDataService;
+use App\Services\Drawing\AmericanoService;
 use App\Services\Drawing\TeamAmericanoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -216,7 +217,11 @@ class GameController extends Controller
 
     public function drawing($id, Request $request)
     {
-        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->find((int) $id);
+        try {
+            $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->find((int) $id);
+        } catch (\Throwable $e) {
+            $dbSession = null;
+        }
 
         if ($dbSession) {
             $quota = (int) ($dbSession->jumlah_pemain ?? 6);
@@ -226,6 +231,7 @@ class GameController extends Controller
 
             $participants = $dbSession->players->map(function ($p) {
                 return [
+                    'id' => $p->player_id,
                     'name' => $p->nama,
                     'gender' => $p->gender ?? 'Male',
                     'age' => $p->usia ?? 25,
@@ -236,7 +242,7 @@ class GameController extends Controller
                 ];
             })->toArray();
 
-            // Jika peserta kurang dari 4, lengkapi dengan dummy agar drawing bisa di-render
+            // Jika peserta terdaftar kurang dari 4, fallback ke dummy agar drawing dapat berjalan
             if (count($participants) < 4) {
                 $dummy = MatchaDummyDataService::getGames()[0]['participants'];
                 $participants = array_merge($participants, array_slice($dummy, count($participants)));
@@ -256,7 +262,7 @@ class GameController extends Controller
                 'joined_count' => count($participants),
                 'status' => $status,
                 'level_recommendation' => 'All Level Welcome',
-                'match_format' => 'Team Americano (Fixed Pairs)',
+                'match_format' => $request->query('format', 'Team Americano'),
                 'scoring_system' => 'Americano 32 Points',
                 'host' => [
                     'name' => $dbSession->host->nama ?? 'Host Matcha',
@@ -267,18 +273,36 @@ class GameController extends Controller
                 ],
                 'participants' => $participants,
             ];
+
+            $courtCount = max(1, $dbSession->courts->count());
         } else {
             $games = MatchaDummyDataService::getGames();
             $game = collect($games)->firstWhere('id', (int) $id) ?? $games[0];
-            $game['match_format'] = 'Team Americano (Fixed Pairs)';
+            $game['match_format'] = $request->query('format', $game['match_format'] ?? 'Team Americano');
+            $participants = $game['participants'] ?? [];
+            $courtCount = 2;
         }
 
-        // Eksekusi TeamAmericanoService untuk generate drawing round-robin tim tetap
-        $courtCount = 2; // Default 2 courts
-        $service = new TeamAmericanoService();
-        $drawingData = $service->generateTeamRounds($game['participants'], $courtCount);
+        $format = strtolower($game['match_format'] ?? 'americano');
 
-        return view('games.drawing', compact('game', 'drawingData'));
+        if (str_contains($format, 'team')) {
+            // Eksekusi Team Americano Engine (Fixed Pairs)
+            $teamService = new TeamAmericanoService();
+            $drawingData = $teamService->generateTeamRounds($participants, $courtCount);
+            $rounds = $drawingData['rounds'];
+        } else {
+            // Eksekusi Americano Engine (Individual Rotating Pairs)
+            $americanoService = new AmericanoService();
+            $rounds = $americanoService->generateRounds($participants, $courtCount);
+            $drawingData = [
+                'format' => 'Americano',
+                'total_teams' => count($participants),
+                'total_rounds' => count($rounds),
+                'total_matches' => array_sum(array_map(fn($r) => count($r['matches'] ?? []), $rounds)),
+                'rounds' => $rounds,
+            ];
+        }
+
+        return view('games.drawing', compact('game', 'drawingData', 'rounds'));
     }
 }
-
