@@ -16,6 +16,8 @@ class Community extends Model
         'nama_community',
         'deskripsi',
         'logo',
+        'jadwal_rutin',
+        'sport_utama',
     ];
 
     public function players()
