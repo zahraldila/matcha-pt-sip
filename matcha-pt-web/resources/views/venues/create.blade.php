@@ -48,7 +48,8 @@
     <!-- Main Glassmorphism Form Card -->
     <div class="backdrop-blur-2xl bg-white/80 border border-white/90 rounded-3xl p-6 sm:p-10 shadow-[0_20px_50px_rgba(6,59,0,0.06)] relative z-10 space-y-8">
 
-        <form id="venueForm" onsubmit="handleVenuePreview(event)" class="space-y-8 text-xs">
+        <form id="venueForm" action="{{ route('venues.store') }}" method="POST" class="space-y-8 text-xs">
+            @csrf
             
             <!-- SECTION 1: Informasi Utama Venue -->
             <div class="space-y-4">
@@ -64,7 +65,7 @@
                         </label>
                         <div class="relative">
                             <i class="fa-solid fa-building absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" id="venueName" placeholder="Contoh: Gelora Racquet & Padel Club" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                            <input type="text" id="venueName" name="nama_venue" value="{{ old('nama_venue') }}" placeholder="Contoh: Gelora Racquet & Padel Club" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
                         </div>
                     </div>
 
@@ -74,7 +75,7 @@
                         </label>
                         <div class="relative">
                             <i class="fa-solid fa-map-location-dot absolute left-4 top-3.5 text-slate-400 text-xs"></i>
-                            <textarea id="venueAddress" rows="2" placeholder="Jl. Raya Utama No. 88, Kebayoran Baru, Jakarta Selatan..." class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-2.5 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required></textarea>
+                            <textarea id="venueAddress" name="alamat" rows="2" placeholder="Jl. Raya Utama No. 88, Kebayoran Baru, Jakarta Selatan..." class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-2.5 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>{{ old('alamat') }}</textarea>
                         </div>
                     </div>
 
@@ -311,44 +312,4 @@
     </div>
 </div>
 
-<!-- Modal Preview & Confirmation -->
-<div id="previewModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="bg-white/95 backdrop-blur-2xl border border-white/80 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
-        <div class="w-14 h-14 rounded-3xl bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] flex items-center justify-center text-2xl mx-auto shadow-xs">
-            <i class="fa-solid fa-circle-check"></i>
-        </div>
-        <div class="text-center space-y-1.5">
-            <h3 class="text-base font-black text-slate-900">Form Venue Siap & Tervalidasi!</h3>
-            <p class="text-xs text-slate-500 leading-relaxed">
-                Tampilan form pendaftaran venue telah selesai diperbarui dengan desain modern glassmorphism.
-            </p>
-        </div>
-        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1">
-            <p class="font-bold text-slate-800 flex items-center gap-1.5">
-                <i class="fa-solid fa-info-circle text-[#063B00]"></i> Mode Review Tampilan
-            </p>
-            <p>Data belum disimpan ke database sesuai preferensi pengembangan UI Anda.</p>
-        </div>
-        <div class="flex gap-2.5">
-            <button onclick="closePreviewModal()" class="w-full py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs transition-all">
-                Tutup Review
-            </button>
-        </div>
-    </div>
-</div>
-
-@push('scripts')
-<script>
-    function handleVenuePreview(e) {
-        e.preventDefault();
-        const modal = document.getElementById('previewModal');
-        modal.classList.remove('hidden');
-    }
-
-    function closePreviewModal() {
-        const modal = document.getElementById('previewModal');
-        modal.classList.add('hidden');
-    }
-</script>
-@endpush
 @endsection
