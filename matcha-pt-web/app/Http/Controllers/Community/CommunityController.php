@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Community;
 
 use App\Http\Controllers\Controller;
 use App\Models\Community;
+use App\Models\Player;
 use App\Services\MatchaDummyDataService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,16 +37,29 @@ class CommunityController extends Controller
      */
     public function store(Request $request)
     {
-        // TODO [SMK 3]: Validasi request dan simpan ke tb_community
-        // Field: nama_community, deskripsi, jadwal_rutin, sport_utama, admin/founder = Auth::id()
-        $request->validate([
-            'nama_community' => 'required|string|max:255',
-            'sport_focus'    => 'required|in:Padel,Tennis,Both',
+        // Validasi request
+        $validated = $request->validate([
+            'nama_community'   => 'required|string|max:255',
+            'sport_focus'      => 'required|in:Padel,Tennis,Both',
+            'deskripsi'        => 'required|string',
+            'jadwal_rutin'     => 'nullable|string|max:255',
+            'tagline'          => 'nullable|string|max:255',
+            'kota'             => 'required|string|max:255',
+            'target_level'     => 'nullable|string',
+            'membership_status' => 'nullable|string',
+            'benefits'         => 'nullable|array',
+            'venue_utama'      => 'nullable|string|max:255',
         ]);
 
-        // Community::create([...]);
+        // Buat community baru
+        $community = Community::create([
+            'nama_community' => $validated['nama_community'],
+            'deskripsi'      => $validated['deskripsi'],
+            'jadwal_rutin'   => $validated['jadwal_rutin'] ?? null,
+            'sport_utama'    => $validated['sport_focus'],
+        ]);
 
-        return redirect()->route('communities.index')
+        return redirect()->route('communities.show', $community->community_id)
             ->with('success', 'Komunitas berhasil dibuat!');
     }
 
@@ -55,10 +69,8 @@ class CommunityController extends Controller
      */
     public function show($id)
     {
-        // TODO [SMK 3]: Ambil data komunitas beserta daftar anggota
-        // $community = Community::with('players')->findOrFail($id);
-        $communities = MatchaDummyDataService::getCommunities();
-        $community   = collect($communities)->firstWhere('id', (int) $id) ?? $communities[0];
+        // Ambil data komunitas beserta daftar anggota
+        $community = Community::with('players')->findOrFail($id);
 
         return view('communities.show', compact('community'));
     }
@@ -69,8 +81,8 @@ class CommunityController extends Controller
      */
     public function join(Request $request, $id)
     {
-        // TODO [SMK 3]: Update field community_id pada tb_player milik Auth::user()
-        // Player::where('user_id', Auth::id())->update(['community_id' => $id]);
+        // Update field community_id pada tb_player milik Auth::user()
+        Player::where('user_id', Auth::id())->update(['community_id' => $id]);
 
         return redirect()->route('communities.show', $id)
             ->with('success', 'Berhasil bergabung ke komunitas!');
@@ -82,8 +94,8 @@ class CommunityController extends Controller
      */
     public function leave(Request $request, $id)
     {
-        // TODO [SMK 3]: Set community_id = null pada tb_player milik Auth::user()
-        // Player::where('user_id', Auth::id())->update(['community_id' => null]);
+        // Set community_id = null pada tb_player milik Auth::user()
+        Player::where('user_id', Auth::id())->update(['community_id' => null]);
 
         return redirect()->route('communities.index')
             ->with('success', 'Anda telah meninggalkan komunitas.');

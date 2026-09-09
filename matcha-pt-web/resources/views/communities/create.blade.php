@@ -48,7 +48,8 @@
     <!-- Main Glassmorphism Form Card -->
     <div class="backdrop-blur-2xl bg-white/80 border border-white/90 rounded-3xl p-6 sm:p-10 shadow-[0_20px_50px_rgba(6,59,0,0.06)] relative z-10 space-y-8">
 
-        <form id="communityForm" onsubmit="handleCommunityPreview(event)" class="space-y-8 text-xs">
+        <form id="communityForm" action="{{ route('communities.store') }}" method="POST" class="space-y-8 text-xs">
+            @csrf
             
             <!-- SECTION 1: Identitas Komunitas -->
             <div class="space-y-4">
@@ -64,7 +65,7 @@
                         </label>
                         <div class="relative">
                             <i class="fa-solid fa-users-rectangle absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" id="communityName" placeholder="Contoh: JTK Padel Club Bandung" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                            <input type="text" id="communityName" name="nama_community" placeholder="Contoh: JTK Padel Club Bandung" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
                         </div>
                     </div>
 
@@ -72,7 +73,7 @@
                         <label class="block font-bold text-slate-800">Slogan / Tagline Komunitas</label>
                         <div class="relative">
                             <i class="fa-solid fa-quote-left absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" placeholder="Contoh: Mabar Seru, Keringat Bareng, Rating Naik!" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <input type="text" name="tagline" placeholder="Contoh: Mabar Seru, Keringat Bareng, Rating Naik!" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                         </div>
                     </div>
 
@@ -80,7 +81,7 @@
                         <label class="block font-bold text-slate-800">Kota Homebase <span class="text-rose-500">*</span></label>
                         <div class="relative">
                             <i class="fa-solid fa-location-dot absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" value="Bandung / Jakarta" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                            <input type="text" name="kota" placeholder="Contoh: Bandung, Jakarta, Surabaya" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
                         </div>
                     </div>
                 </div>
@@ -141,7 +142,7 @@
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Target Level Member</label>
                         <div class="relative">
-                            <select class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                            <select name="target_level" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
                                 <option value="All Levels" selected>Semua Level (Newbie s/d Advanced)</option>
                                 <option value="Beginners">Fokus Newbie & Beginner</option>
                                 <option value="Intermediate">Intermediate & Competitive</option>
@@ -153,7 +154,7 @@
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Status Keanggotaan</label>
                         <div class="relative">
-                            <select class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                            <select name="membership_status" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
                                 <option value="Open" selected>Terbuka untuk Umum (Free Join)</option>
                                 <option value="Approval">Memerlukan Persetujuan Admin</option>
                                 <option value="Private">Undangan Khusus (Private)</option>
@@ -174,7 +175,7 @@
                 <div class="space-y-4">
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Deskripsi Lengkap Komunitas <span class="text-rose-500">*</span></label>
-                        <textarea rows="3" placeholder="Jelaskan mengenai komunitas Anda, visi bermain, suasana mabar, aturan fair play, dan fasilitas yang biasa dinikmati..." class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required></textarea>
+                        <textarea rows="3" name="deskripsi" placeholder="Jelaskan mengenai komunitas Anda, visi bermain, suasana mabar, aturan fair play, dan fasilitas yang biasa dinikmati..." class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required></textarea>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -182,7 +183,7 @@
                             <label class="block font-bold text-slate-800">Jadwal Mabar Rutin</label>
                             <div class="relative">
                                 <i class="fa-regular fa-calendar-days absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                <input type="text" placeholder="Contoh: Tiap Rabu Malam & Sabtu Pagi" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                                <input type="text" name="jadwal_rutin" placeholder="Contoh: Tiap Rabu Malam & Sabtu Pagi" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                             </div>
                         </div>
 
@@ -190,7 +191,7 @@
                             <label class="block font-bold text-slate-800">Homebase Venue Utama</label>
                             <div class="relative">
                                 <i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                <input type="text" placeholder="Contoh: Gelora Racquet Arena" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                                <input type="text" name="venue_utama" placeholder="Contoh: Gelora Racquet Arena" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                             </div>
                         </div>
                     </div>
