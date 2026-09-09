@@ -9,6 +9,7 @@ use App\Models\Court;
 use App\Models\Sport;
 use App\Models\Player;
 use App\Services\MatchaDummyDataService;
+use App\Services\Drawing\TeamAmericanoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -373,10 +374,71 @@ class GameController extends Controller
         return view('games.show', compact('game'));
     }
 
-    public function drawing($id)
+    public function drawing($id, Request $request)
     {
-        $games = MatchaDummyDataService::getGames();
-        $game = collect($games)->firstWhere('id', (int) $id) ?? $games[0];
-        return view('games.drawing', compact('game'));
+        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->find((int) $id);
+
+        if ($dbSession) {
+            $quota = (int) ($dbSession->jumlah_pemain ?? 6);
+            $joinedCount = $dbSession->players->count();
+            $slotLeft = max(0, $quota - $joinedCount);
+            $status = $slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)";
+
+            $participants = $dbSession->players->map(function ($p) {
+                return [
+                    'name' => $p->nama,
+                    'gender' => $p->gender ?? 'Male',
+                    'age' => $p->usia ?? 25,
+                    'level' => $p->level ?? 'Intermediate',
+                    'is_member' => true,
+                    'phone' => $p->no_hp,
+                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                ];
+            })->toArray();
+
+            // Jika peserta kurang dari 4, lengkapi dengan dummy agar drawing bisa di-render
+            if (count($participants) < 4) {
+                $dummy = MatchaDummyDataService::getGames()[0]['participants'];
+                $participants = array_merge($participants, array_slice($dummy, count($participants)));
+            }
+
+            $game = [
+                'id' => $dbSession->session_id,
+                'title' => $dbSession->nama_session,
+                'sport' => $dbSession->sport->nama_sport ?? 'Padel',
+                'venue_id' => $dbSession->venue_id,
+                'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
+                'court_name' => $dbSession->courts->first()->nama_court ?? 'Court 1',
+                'date' => $dbSession->datetime ? $dbSession->datetime->format('Y-m-d') : date('Y-m-d'),
+                'time' => $dbSession->waktu_session ?? '18:30 WIB',
+                'duration' => '2 Jam',
+                'quota' => $quota,
+                'joined_count' => count($participants),
+                'status' => $status,
+                'level_recommendation' => 'All Level Welcome',
+                'match_format' => 'Team Americano (Fixed Pairs)',
+                'scoring_system' => 'Americano 32 Points',
+                'host' => [
+                    'name' => $dbSession->host->nama ?? 'Host Matcha',
+                    'role' => 'Host Game',
+                    'level' => 'Intermediate',
+                    'phone' => $dbSession->host->no_hp ?? '-',
+                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                ],
+                'participants' => $participants,
+            ];
+        } else {
+            $games = MatchaDummyDataService::getGames();
+            $game = collect($games)->firstWhere('id', (int) $id) ?? $games[0];
+            $game['match_format'] = 'Team Americano (Fixed Pairs)';
+        }
+
+        // Eksekusi TeamAmericanoService untuk generate drawing round-robin tim tetap
+        $courtCount = 2; // Default 2 courts
+        $service = new TeamAmericanoService();
+        $drawingData = $service->generateTeamRounds($game['participants'], $courtCount);
+
+        return view('games.drawing', compact('game', 'drawingData'));
     }
 }
+
