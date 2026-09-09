@@ -30,11 +30,13 @@ class CommunityController extends Controller
                     'name' => $c->nama_community,
                     'sport' => 'Padel & Tennis',
                     'city' => 'Jakarta',
-                    'member_count' => $c->players->count(),
+                    'members_count' => $c->players->count(),
+                    'admin_name' => $c->players->first()?->nama ?? 'Admin',
                     'image' => $c->logo ?? 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&w=800&q=80',
                     'tagline' => 'Komunitas Olahraga Matcha',
                     'description' => $c->deskripsi ?? 'Komunitas mabar Padel & Tennis di Matcha Match Arena.',
                     'schedule' => 'Rutin Setiap Pekan',
+                    'status' => 'Active',
                 ];
             })->toArray();
         } else {
