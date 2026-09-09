@@ -248,18 +248,19 @@
 
                 <!-- Venue -->
                 <div class="space-y-1.5">
-                    <label class="block text-xs font-bold text-slate-800">
-                        Venue
+                    <label class="block text-xs font-bold text-slate-800 flex items-center justify-between">
+                        <span>Venue</span>
+                        <span class="text-[10px] text-[#063B00] font-semibold" id="venueSportBadge">Sesuai Cabang Olahraga</span>
                     </label>
 
                     <div class="relative">
                         <select
                             id="venueId"
+                            onchange="onVenueChanged()"
                             class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none appearance-none transition-all shadow-2xs"
                             required
                         >
                             <option value="" selected disabled>Pilih venue</option>
-
                             @foreach ($venues as $venue)
                                 <option value="{{ $venue->venue_id }}">
                                     {{ $venue->nama_venue }}
@@ -285,17 +286,9 @@
                             <option value="Total of 6">Total of 6</option>
                             <option value="Total of 7">Total of 7</option>
                             <option value="First to 8">First to 8</option>
-                            <option value="First to 3">First to 3</option>
-                            <option value="First to 4">First to 4</option>
-                            <option value="First to 5">First to 5</option>
-                            <option value="First to 6">First to 6</option>
-                            <option value="First to 7">First to 7</option>
                             <option value="First to 11">First to 11</option>
-                            <option value="First to 10">First to 10</option>
                             <option value="First to 15">First to 15</option>
                             <option value="First to 21">First to 21</option>
-                            <option value="First to 25">First to 25</option>
-                            <option value="First to 30">First to 30</option>
                         </select>
                         <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                     </div>
@@ -581,6 +574,7 @@
 
 @push('scripts')
 <script>
+    const allVenues = @json($venues);
     let currentStep = 1;
     let selectedSport = 'Padel';
     let selectedGameType = 'Americano';
@@ -591,9 +585,91 @@
         // Pre-filled with realistic data if Host clicks Add Yourself
     ];
 
+    function filterVenuesBySport() {
+        const venueSelect = document.getElementById('venueId');
+        const badge = document.getElementById('venueSportBadge');
+        if (!venueSelect) return;
+
+        if (badge) {
+            badge.innerText = `Khusus Lapangan ${selectedSport}`;
+        }
+
+        venueSelect.innerHTML = '';
+
+        const matchingVenues = allVenues.filter(venue => {
+            if (!venue.courts || !Array.isArray(venue.courts)) return false;
+            return venue.courts.some(court => {
+                const sportName = court.sport ? (court.sport.nama_sport || '') : '';
+                return sportName.toLowerCase() === selectedSport.toLowerCase() &&
+                       court.status_ketersediaan === 'Available';
+            });
+        });
+
+        if (matchingVenues.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.disabled = true;
+            opt.selected = true;
+            opt.textContent = `Tidak ada venue dengan court ${selectedSport} yang tersedia`;
+            venueSelect.appendChild(opt);
+            updateNumCourts(0);
+            return;
+        }
+
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.disabled = true;
+        defaultOpt.selected = true;
+        defaultOpt.textContent = `-- Pilih Venue ${selectedSport} --`;
+        venueSelect.appendChild(defaultOpt);
+
+        matchingVenues.forEach(venue => {
+            const availableCourts = venue.courts.filter(court => {
+                const sportName = court.sport ? (court.sport.nama_sport || '') : '';
+                return sportName.toLowerCase() === selectedSport.toLowerCase() &&
+                       court.status_ketersediaan === 'Available';
+            });
+
+            const opt = document.createElement('option');
+            opt.value = venue.venue_id;
+            opt.dataset.courtCount = availableCourts.length;
+            opt.textContent = `${venue.nama_venue} (${availableCourts.length} Court ${selectedSport} Tersedia)`;
+            venueSelect.appendChild(opt);
+        });
+
+        // Auto select the first matching venue
+        venueSelect.selectedIndex = 1;
+        onVenueChanged();
+    }
+
+    function onVenueChanged() {
+        const venueSelect = document.getElementById('venueId');
+        if (!venueSelect) return;
+        const selectedOpt = venueSelect.options[venueSelect.selectedIndex];
+        const count = selectedOpt && selectedOpt.dataset.courtCount ? parseInt(selectedOpt.dataset.courtCount) : 1;
+        updateNumCourts(count);
+    }
+
+    function updateNumCourts(maxAvailable) {
+        const numCourtsSelect = document.getElementById('numCourts');
+        if (!numCourtsSelect) return;
+
+        numCourtsSelect.innerHTML = '';
+        const limit = Math.max(1, Math.min(maxAvailable || 1, 4));
+
+        for (let i = 1; i <= limit; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `${i} Court${i > 1 ? 's' : ''}`;
+            numCourtsSelect.appendChild(opt);
+        }
+        numCourtsSelect.value = "1";
+    }
+
     function selectSport(sport, icon) {
         selectedSport = sport;
         document.getElementById('selectedSportLabel').innerText = `${icon} ${sport}`;
+        filterVenuesBySport();
         goToStep(2);
     }
 
@@ -1012,9 +1088,16 @@
         }
     }
 
-    function startDrawingAction() {
+    async function startDrawingAction() {
         if (players.length < 4) {
             showToast('Minimal 4 pemain untuk generate drawing.');
+            return;
+        }
+
+        const venueSelect = document.getElementById('venueId');
+        if (!venueSelect || !venueSelect.value) {
+            showToast('Silakan pilih venue terlebih dahulu.');
+            goToStep(3);
             return;
         }
 
@@ -1027,9 +1110,10 @@
 
         button.disabled = true;
         button.classList.remove(
-            'bg-slate-200',
-            'text-slate-400',
-            'cursor-not-allowed'
+            'bg-[#063B00]',
+            'hover:bg-[#042a00]',
+            'text-white',
+            'cursor-pointer'
         );
         button.classList.add(
             'bg-slate-400',
@@ -1039,43 +1123,44 @@
 
         button.innerHTML = `
             <i class="fa-solid fa-spinner fa-spin"></i>
-            Creating Game...
+            Creating Game & Drawing...
         `;
 
         const data = {
             _token: '{{ csrf_token() }}',
-            nama_session: document.getElementById('activityName').value,
+            nama_session: document.getElementById('activityName').value || `${selectedSport} Mabar`,
             sport: selectedSport,
             format: selectedGameType,
-            num_courts: document.getElementById('numCourts').value,
-            venue_id: document.getElementById('venueId').value,
+            num_courts: parseInt(document.getElementById('numCourts').value) || 1,
+            venue_id: parseInt(venueSelect.value),
             scoring_system: document.getElementById('scoringGeneralValue').value,
             rank_by: rankBy,
             players: players
         };
 
-        fetch('{{ route('games.store') }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => {
-            if (response.redirected) {
-                window.location.href = response.url;
-                return;
+        try {
+            const response = await fetch('{{ route('games.store') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Gagal membuat game.');
             }
 
-            return response.json().then(result => {
-                throw new Error(
-                    result.message || 'Gagal membuat game.'
-                );
-            });
-        })
-        .catch(error => {
+            if (result.redirect) {
+                window.location.href = result.redirect;
+            } else {
+                window.location.href = '{{ route('games.index') }}';
+            }
+        } catch (error) {
             console.error(error);
 
             // Aktifkan kembali tombol kalau request gagal
@@ -1086,9 +1171,10 @@
                 'cursor-wait'
             );
             button.classList.add(
-                'bg-slate-200',
-                'text-slate-400',
-                'cursor-not-allowed'
+                'bg-[#063B00]',
+                'hover:bg-[#042a00]',
+                'text-white',
+                'cursor-pointer'
             );
 
             button.innerHTML = `
@@ -1096,9 +1182,14 @@
                 🎲 Generate Drawing & Start Game
             `;
 
-            showToast('Gagal membuat game. Silakan coba lagi.');
-        });
+            showToast(error.message || 'Gagal membuat game. Silakan periksa kembali data venue atau pemain.');
+        }
     }
+
+    // Inisialisasi awal venue dropdown
+    document.addEventListener('DOMContentLoaded', () => {
+        filterVenuesBySport();
+    });
 </script>
 @endpush
 @endsection

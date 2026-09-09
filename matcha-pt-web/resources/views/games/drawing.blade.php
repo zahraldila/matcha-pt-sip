@@ -2,7 +2,16 @@
 
 @section('content')
 @php
-    $firstRound = $rounds[1] ?? (reset($rounds) ?: null);
+    $rounds = $drawingData['rounds'] ?? ($rounds ?? []);
+    $firstRoundKey = !empty($rounds) ? array_key_first($rounds) : 1;
+    $activeRound = (!empty($rounds) && isset($rounds[$firstRoundKey])) ? $rounds[$firstRoundKey] : [
+        'teamA' => [],
+        'teamB' => [],
+        'resting' => [],
+        'team_a' => ['name' => 'Team A'],
+        'team_b' => ['name' => 'Team B'],
+        'matches' => [],
+    ];
 @endphp
 
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -18,10 +27,10 @@
                     Drawing & Jadwal Pertandingan
                 </h1>
                 <span class="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    <i class="fa-solid fa-user-group text-[10px]"></i> Team Americano
+                    <i class="fa-solid fa-trophy text-[10px]"></i> {{ $game['match_format'] ?? 'Americano' }}
                 </span>
             </div>
-            <p class="text-xs text-slate-500 mt-0.5">Pasangan tim tetap bertanding melawan seluruh tim lain dalam sistem Round-Robin</p>
+            <p class="text-xs text-slate-500 mt-0.5">Sistem drawing pertandingan dan rotasi Round-Robin</p>
         </div>
 
         <div class="flex items-center gap-2.5">
@@ -31,24 +40,11 @@
         </div>
     </div>
 
-    @php
-        $rounds = $drawingData['rounds'] ?? [];
-        $firstRoundKey = array_key_first($rounds) ?? 1;
-        $activeRound = $rounds[$firstRoundKey] ?? [
-            'teamA' => ['Billy Santoso (Host)', 'Gisel Anastasia'],
-            'teamB' => ['Fahri Dhani', 'Davina Putri'],
-            'resting' => ['Andi Wijaya', 'Marame Nagoan'],
-            'team_a' => ['name' => 'Team Alpha'],
-            'team_b' => ['name' => 'Team Beta'],
-            'matches' => [],
-        ];
-    @endphp
-
     <!-- Match Rounds Tab Selector -->
     <div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-200/50" id="roundsTabContainer">
         @foreach($rounds as $rNum => $rData)
             <button onclick="switchRound({{ $rNum }})" id="tabRound{{ $rNum }}" class="px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 {{ $loop->first ? 'bg-[#063B00] text-white shadow-xs' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
-                {{ $rData['round_title'] ?? "Ronde {$rNum}" }}
+                {{ $rData['round_title'] ?? $rData['round_name'] ?? "Ronde {$rNum}" }}
                 @if($loop->first)
                     <span class="text-[10px] opacity-80 font-normal ml-1">(Pembuka)</span>
                 @elseif($loop->last)
@@ -66,9 +62,9 @@
             <div id="courtContainer">
                 <x-court-visual 
                     :sport="$game['sport']"
-                    :teamA="['Billy Santoso (Host)', 'Gisel Anastasia']"
-                    :teamB="['Fahri Dhani', 'Davina Putri']"
-                    :resting="['Andi Wijaya', 'Marame Nagoan']"
+                    :teamA="$activeRound['teamA'] ?? []"
+                    :teamB="$activeRound['teamB'] ?? []"
+                    :resting="$activeRound['resting'] ?? []"
                 />
             </div>
 
@@ -166,26 +162,26 @@
                     <h3 class="text-xs font-bold text-[#050608] uppercase tracking-wider flex items-center gap-1.5">
                         <i class="fa-solid fa-users text-[#063B00]"></i> Roster Pertandingan
                     </h3>
-                    <span class="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-full border border-indigo-200">Fixed Pairs</span>
+                    <span class="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-full border border-indigo-200">{{ $game['match_format'] ?? 'Round-Robin' }}</span>
                 </div>
 
                 <!-- Team A Roster Card -->
                 <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2 shadow-2xs">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-extrabold text-[#063B00]" id="labelTeamAName">
-                            {{ $activeRound['primary_match']['team_a']['name'] ?? 'TEAM ALPHA' }}
+                            {{ $activeRound['primary_match']['team_a']['name'] ?? ($activeRound['team_a']['name'] ?? 'TEAM ALPHA') }}
                         </span>
                         <span class="text-[10px] font-semibold text-slate-400">Sisi Kiri (Court 1)</span>
                     </div>
                     <div class="space-y-1.5" id="rosterTeamA">
-                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                            <span class="font-semibold text-[#050608]">1. Billy Santoso</span>
-                            <x-badge type="intermediate">Intermediate</x-badge>
-                        </div>
-                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                            <span class="font-semibold text-[#050608]">2. Gisel Anastasia</span>
-                            <x-badge type="beginner">Beginner</x-badge>
-                        </div>
+                        @forelse($activeRound['teamA'] ?? [] as $idx => $pName)
+                            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                                <span class="font-semibold text-[#050608]">{{ $idx + 1 }}. {{ $pName }}</span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player {{ $idx + 1 }}</span>
+                            </div>
+                        @empty
+                            <p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>
+                        @endforelse
                     </div>
                 </div>
 
@@ -193,37 +189,39 @@
                 <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2 shadow-2xs">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-extrabold text-slate-800" id="labelTeamBName">
-                            {{ $activeRound['primary_match']['team_b']['name'] ?? 'TEAM BETA' }}
+                            {{ $activeRound['primary_match']['team_b']['name'] ?? ($activeRound['team_b']['name'] ?? 'TEAM BETA') }}
                         </span>
                         <span class="text-[10px] font-semibold text-slate-400">Sisi Kanan (Court 1)</span>
                     </div>
                     <div class="space-y-1.5" id="rosterTeamB">
-                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                            <span class="font-semibold text-[#050608]">1. Fahri Dhani</span>
-                            <x-badge type="advanced">Advanced</x-badge>
-                        </div>
-                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                            <span class="font-semibold text-[#050608]">2. Davina Putri</span>
-                            <x-badge type="newbie">Newbie</x-badge>
-                        </div>
+                        @forelse($activeRound['teamB'] ?? [] as $idx => $pName)
+                            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                                <span class="font-semibold text-[#050608]">{{ $idx + 1 }}. {{ $pName }}</span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player {{ $idx + 1 }}</span>
+                            </div>
+                        @empty
+                            <p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>
+                        @endforelse
                     </div>
                 </div>
 
                 <!-- Resting Bench Card -->
                 <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2 shadow-2xs">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-semibold text-slate-700">Bangku Istirahat Ronde 1</span>
-                        <span class="text-[10px] text-slate-500">2 Pemain</span>
+                        <span class="text-xs font-semibold text-slate-700">Bangku Istirahat</span>
+                        <span class="text-[10px] text-slate-500" id="labelRestingCount">{{ count($activeRound['resting'] ?? []) }} Pemain</span>
                     </div>
                     <div class="space-y-1.5" id="rosterResting">
-                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
-                            <span class="text-slate-700">1. Andi Wijaya</span>
-                            <x-badge type="intermediate">Intermediate</x-badge>
-                        </div>
-                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
-                            <span class="text-slate-700">2. Marame Nagoan</span>
-                            <x-badge type="beginner">Beginner</x-badge>
-                        </div>
+                        @forelse($activeRound['resting'] ?? [] as $idx => $pName)
+                            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
+                                <span class="text-slate-700">{{ $idx + 1 }}. {{ $pName }}</span>
+                                <span class="text-[10px] text-slate-400 font-semibold">Bench</span>
+                            </div>
+                        @empty
+                            <div class="text-center py-2 text-slate-400 text-xs">
+                                Semua pemain aktif bertanding di ronde ini.
+                            </div>
+                        @endforelse
                     </div>
                 </div>
 
@@ -430,6 +428,14 @@
             window.location.reload();
         }, 400);
     }
+
+    // Sinkronisasi otomatis data ronde pertama saat halaman dimuat
+    document.addEventListener('DOMContentLoaded', () => {
+        const firstKey = {{ $firstRoundKey }};
+        if (typeof switchRound === 'function') {
+            switchRound(firstKey);
+        }
+    });
 </script>
 @endpush
 @endsection

@@ -85,7 +85,7 @@ class MatchaDummyDataService
                 'status' => 'Ready for Drawing', // Open, Full / Ready for Drawing, In Progress, Finished
                 'level_recommendation' => 'Beginner - Intermediate',
                 'match_format' => 'Double',
-                'scoring_system' => 'Americano 32 Points',
+                'scoring_system' => 'Total of 3',
                 'host' => [
                     'name' => 'Billy Santoso',
                     'role' => 'Host & Community Admin',
@@ -129,7 +129,7 @@ class MatchaDummyDataService
                 'status' => 'In Progress (Scoring)',
                 'level_recommendation' => 'Intermediate - Advanced',
                 'match_format' => 'Single / Double',
-                'scoring_system' => 'Tennis System (15, 30, 40, Deuce, Adv, Game)',
+                'scoring_system' => 'Total of 3',
                 'host' => [
                     'name' => 'Steven Kurniawan',
                     'role' => 'Host Game',
@@ -166,7 +166,7 @@ class MatchaDummyDataService
                 'status' => 'In Progress (Scoring)',
                 'level_recommendation' => 'All Level Welcome',
                 'match_format' => 'Double Rotation',
-                'scoring_system' => 'Points (1, 2, 3... / 24 Points per game)',
+                'scoring_system' => 'First to 8',
                 'host' => [
                     'name' => 'Billy Santoso',
                     'role' => 'Host & Community Admin',

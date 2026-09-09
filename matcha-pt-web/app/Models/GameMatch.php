@@ -20,6 +20,7 @@ class GameMatch extends Model
         'waktu_mulai',
         'waktu_selesai',
         'hasil_pertandingan',
+        'winner_team',
     ];
 
     public function drawing()

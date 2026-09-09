@@ -143,13 +143,15 @@ class AmericanoService
             $rounds[$r] = [
                 'round' => $r,
                 'round_name' => $roundName,
+                'round_title' => $roundName,
                 'court_count' => $activeCourts,
                 'matches' => $matches,
                 'teamA' => $teamANames,
                 'teamB' => $teamBNames,
                 'resting' => $restingNames,
-                'team_a' => $matches[0]['team_a'],
-                'team_b' => $matches[0]['team_b'],
+                'team_a' => $matches[0]['team_a'] ?? [],
+                'team_b' => $matches[0]['team_b'] ?? [],
+                'primary_match' => $matches[0] ?? null,
                 'resting_players' => $restingPlayers,
             ];
         }

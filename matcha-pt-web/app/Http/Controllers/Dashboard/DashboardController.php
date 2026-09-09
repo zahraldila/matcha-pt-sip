@@ -37,7 +37,7 @@ class DashboardController extends Controller
                 'status' => $status,
                 'level_recommendation' => 'All Level Welcome',
                 'match_format' => 'Americano / Double',
-                'scoring_system' => 'Americano 32 Points',
+                'scoring_system' => 'Tennis System (15, 30, 40, Game)',
                 'host' => [
                     'name' => $s->host->nama ?? 'Host Matcha',
                     'role' => 'Host Game',

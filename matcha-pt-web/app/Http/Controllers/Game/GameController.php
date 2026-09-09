@@ -46,7 +46,7 @@ class GameController extends Controller
                 'status' => $status,
                 'level_recommendation' => 'All Level Welcome',
                 'match_format' => 'Americano / Double',
-                'scoring_system' => 'Americano 32 Points',
+                'scoring_system' => $s->scoring_system ?? 'Total of 3',
                 'host' => [
                     'name' => $s->host->nama ?? 'Host Matcha',
                     'role' => 'Host Game',
@@ -86,7 +86,7 @@ class GameController extends Controller
             return redirect()->route('games.index')->with('error', 'Akses ditolak: Fitur ini khusus untuk akun Host Game.');
         }
 
-        $venues = Venue::with('courts')->get();
+        $venues = Venue::with('courts.sport')->get();
 
         if ($venues->isEmpty()) {
             $venues = MatchaDummyDataService::getVenues();
@@ -173,6 +173,7 @@ class GameController extends Controller
                 'sport_id' => $sport->sport_id,
                 'venue_id' => $request->venue_id,
                 'nama_session' => $request->nama_session,
+                'scoring_system' => $request->scoring_system ?? 'Total of 3',
                 'waktu_session' => now()->format('H:i') . ' WIB',
                 'datetime' => now(),
                 'status_session' => 'Ready for Drawing',
@@ -238,14 +239,35 @@ class GameController extends Controller
 
             DB::commit();
 
-            // 7. Redirect ke drawing
+            // 7. Redirect ke drawing (support JSON untuk form wizard AJAX)
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Game berhasil dibuat. Drawing siap dilakukan!',
+                    'redirect' => route('games.drawing', [
+                        'id' => $session->session_id,
+                        'format' => $request->format,
+                    ]),
+                ]);
+            }
+
             return redirect()
-                ->route('games.drawing', ['id' => $session->session_id])
+                ->route('games.drawing', [
+                    'id' => $session->session_id,
+                    'format' => $request->format,
+                ])
                 ->with('success', 'Game berhasil dibuat. Drawing siap dilakukan!');
 
         } catch (\Exception $e) {
 
             DB::rollBack();
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal membuat game: ' . $e->getMessage(),
+                ], 422);
+            }
 
             return back()
                 ->withInput()
@@ -261,7 +283,7 @@ class GameController extends Controller
             return redirect()->route('games.index')->with('error', 'Akses ditolak: Fitur pembukaan sesi mabar khusus untuk akun Host Game.');
         }
 
-        $venues = Venue::with('courts')->get();
+        $venues = Venue::with('courts.sport')->get();
         $sports = Sport::all();
         return view('games.schedule', compact('venues', 'sports'));
     }
@@ -348,7 +370,7 @@ class GameController extends Controller
                 'status' => $status,
                 'level_recommendation' => 'All Level Welcome',
                 'match_format' => 'Americano / Double',
-                'scoring_system' => 'Americano 32 Points',
+                'scoring_system' => 'Tennis System (15, 30, 40, Game)',
                 'host' => [
                     'name' => $dbSession->host->nama ?? 'Host Matcha',
                     'role' => 'Host Game',
@@ -424,8 +446,8 @@ class GameController extends Controller
                 'joined_count' => count($participants),
                 'status' => $status,
                 'level_recommendation' => 'All Level Welcome',
-                'match_format' => $request->query('format', 'Team Americano'),
-                'scoring_system' => 'Americano 32 Points',
+                'match_format' => $request->query('format', 'Americano'),
+                'scoring_system' => 'Tennis System (15, 30, 40, Game)',
                 'host' => [
                     'name' => $dbSession->host->nama ?? 'Host Matcha',
                     'role' => 'Host Game',
@@ -440,20 +462,36 @@ class GameController extends Controller
         } else {
             $games = MatchaDummyDataService::getGames();
             $game = collect($games)->firstWhere('id', (int) $id) ?? $games[0];
-            $game['match_format'] = $request->query('format', $game['match_format'] ?? 'Team Americano');
+            $game['match_format'] = $request->query('format', $game['match_format'] ?? 'Americano');
             $participants = $game['participants'] ?? [];
             $courtCount = 2;
         }
 
         $format = strtolower($game['match_format'] ?? 'americano');
+        $rounds = [];
+        $drawingData = [];
 
-        if (str_contains($format, 'team')) {
-            // Eksekusi Team Americano Engine (Fixed Pairs)
-            $teamService = new TeamAmericanoService();
-            $drawingData = $teamService->generateTeamRounds($participants, $courtCount);
-            $rounds = $drawingData['rounds'];
-        } else {
-            // Eksekusi Americano Engine (Individual Rotating Pairs)
+        try {
+            // Team Americano butuh jumlah pemain genap (2 pemain per tim)
+            if (str_contains($format, 'team') && count($participants) >= 4 && count($participants) % 2 === 0) {
+                // Eksekusi Team Americano Engine (Fixed Pairs)
+                $teamService = new TeamAmericanoService();
+                $drawingData = $teamService->generateTeamRounds($participants, $courtCount);
+                $rounds = $drawingData['rounds'] ?? [];
+            } else {
+                // Eksekusi Americano Engine (Individual Rotating Pairs)
+                $americanoService = new AmericanoService();
+                $rounds = $americanoService->generateRounds($participants, $courtCount);
+                $drawingData = [
+                    'format' => str_contains($format, 'team') ? 'Americano' : ($game['match_format'] ?? 'Americano'),
+                    'total_teams' => count($participants),
+                    'total_rounds' => count($rounds),
+                    'total_matches' => array_sum(array_map(fn($r) => count($r['matches'] ?? []), $rounds)),
+                    'rounds' => $rounds,
+                ];
+            }
+        } catch (\Throwable $e) {
+            // Fallback gracefully jika ada masalah algoritma agar tampilan drawing tetap muncul
             $americanoService = new AmericanoService();
             $rounds = $americanoService->generateRounds($participants, $courtCount);
             $drawingData = [
