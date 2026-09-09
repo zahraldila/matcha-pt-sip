@@ -83,24 +83,27 @@ class VenueController extends Controller
      */
     public function store(Request $request)
     {
-        if (Auth::user()->role !== 'venue_owner') {
+        $user = Auth::user();
+
+        if (!$user || $user->role !== 'venue_owner') {
             return redirect()->route('venues.index')->with('error', 'Akses ditolak.');
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'nama_venue' => 'required|string|max:255',
             'alamat'     => 'required|string',
+            'fasilitas'  => 'nullable|array',
+            'fasilitas.*' => 'string|max:100',
         ]);
 
-        // TODO [SMK 2]: Simpan ke tb_venue
-        // Venue::create([
-        //     'nama_venue'     => $request->nama_venue,
-        //     'alamat'         => $request->alamat,
-        //     'owner_user_id'  => Auth::id(),
-        //     'fasilitas'      => $request->fasilitas,
-        // ]);
+        $venue = Venue::create([
+            'nama_venue' => $validated['nama_venue'],
+            'alamat' => $validated['alamat'],
+            'owner_user_id' => $user->user_id,
+            'fasilitas' => implode(', ', $validated['fasilitas'] ?? []),
+        ]);
 
-        return redirect()->route('venues.index')
-            ->with('success', 'Venue berhasil didaftarkan! Tim Matcha akan segera meninjau data Anda.');
+        return redirect()->route('venues.courts.create', $venue->venue_id)
+            ->with('success', 'Venue berhasil didaftarkan. Tambahkan court pertama Anda.');
     }
 }
