@@ -73,6 +73,24 @@
         
         <!-- Left: Court Graphic Visualizer (2 Cols) -->
         <div class="lg:col-span-2 space-y-4">
+            
+            <!-- Court Selector Tabs for Multi-Court Session -->
+            <div id="courtSelectorContainer" class="flex flex-wrap items-center justify-between gap-2 pb-1 {{ count($activeRound['matches'] ?? []) > 1 ? '' : 'hidden' }}">
+                <div class="flex items-center gap-1.5 overflow-x-auto" id="courtTabsWrapper">
+                    @if(count($activeRound['matches'] ?? []) > 1)
+                        @foreach($activeRound['matches'] as $mIdx => $m)
+                            <button onclick="selectCourtMatch({{ $mIdx }})" id="btnCourtTab{{ $mIdx }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer {{ $mIdx === 0 ? 'bg-[#063B00] text-white shadow-xs' : 'glass-card text-slate-600 hover:text-slate-900' }}">
+                                <i class="fa-solid fa-table-tennis-paddle-ball text-[10px]"></i>
+                                {{ $m['court_name'] ?? ('Court ' . ($m['court'] ?? ($mIdx + 1))) }}
+                            </button>
+                        @endforeach
+                    @endif
+                </div>
+                <span class="text-[11px] text-slate-500 font-semibold" id="labelActiveCourtIndicator">
+                    Visualisasi Lapangan: <strong class="text-[#063B00]" id="labelCurrentActiveCourt">{{ $activeRound['matches'][0]['court_name'] ?? 'Court 1' }}</strong>
+                </span>
+            </div>
+
             <div id="courtContainer">
                 <x-court-visual 
                     :sport="$game['sport']"
@@ -96,9 +114,9 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5" id="courtMatchesContainer">
-                    @forelse($activeRound['matches'] ?? [] as $m)
+                    @forelse($activeRound['matches'] ?? [] as $mIdx => $m)
                         @php
-                            $courtLabel = $m['court_name'] ?? ('Court ' . ($m['court'] ?? 1));
+                            $courtLabel = $m['court_name'] ?? ('Court ' . ($m['court'] ?? ($mIdx + 1)));
                             $statusLabel = $m['status'] ?? 'Scheduled';
                             
                             // Extract Team A name & player list
@@ -131,7 +149,7 @@
                                 $teamBPlayers = [];
                             }
                         @endphp
-                        <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 text-xs space-y-1.5">
+                        <div onclick="selectCourtMatch({{ $mIdx }})" id="matchCard{{ $mIdx }}" class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 text-xs space-y-1.5 transition-all hover:bg-white hover:shadow-xs cursor-pointer {{ $mIdx === 0 ? 'ring-2 ring-[#063B00] bg-white shadow-xs' : '' }}">
                             <div class="flex items-center justify-between border-b border-slate-200/60 pb-1">
                                 <div class="flex items-center gap-1.5">
                                     <span class="font-bold text-[#063B00]">{{ $courtLabel }}</span>
@@ -254,6 +272,7 @@
     let participantsMap = @json($participantsMap ?? []);
     const unitLabel = @json($unitLabel ?? 'Round');
     let currentRoundKey = {{ $firstRoundKey }};
+    let activeMatchIndex = 0;
 
     function switchRound(roundNum, notify = true) {
         currentRoundKey = roundNum;
@@ -284,11 +303,36 @@
             labelTotalMatches.innerText = `${roundData.matches.length} Match Berjalan`;
         }
 
+        const matches = roundData.matches || [];
+
+        // Render Court Selector Tabs jika match > 1
+        const courtSelectorContainer = document.getElementById('courtSelectorContainer');
+        const courtTabsWrapper = document.getElementById('courtTabsWrapper');
+
+        if (courtSelectorContainer && courtTabsWrapper) {
+            if (matches.length > 1) {
+                courtSelectorContainer.classList.remove('hidden');
+                courtTabsWrapper.innerHTML = matches.map((m, idx) => {
+                    const cLabel = m.court_name || `Court ${m.court || (idx + 1)}`;
+                    const isSelected = idx === activeMatchIndex;
+                    return `
+                        <button onclick="selectCourtMatch(${idx})" id="btnCourtTab${idx}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${isSelected ? 'bg-[#063B00] text-white shadow-xs' : 'glass-card text-slate-600 hover:text-slate-900'}">
+                            <i class="fa-solid fa-table-tennis-paddle-ball text-[10px]"></i>
+                            ${cLabel}
+                        </button>
+                    `;
+                }).join('');
+            } else {
+                courtSelectorContainer.classList.add('hidden');
+                courtTabsWrapper.innerHTML = '';
+            }
+        }
+
         // Render Matches list
         const matchesContainer = document.getElementById('courtMatchesContainer');
-        if (matchesContainer && roundData.matches) {
-            matchesContainer.innerHTML = roundData.matches.map(m => {
-                const courtLabel = m.court_name || `Court ${m.court || 1}`;
+        if (matchesContainer && matches.length > 0) {
+            matchesContainer.innerHTML = matches.map((m, idx) => {
+                const courtLabel = m.court_name || `Court ${m.court || (idx + 1)}`;
                 const slotBadge = m.slot_number ? `<span class="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">Slot ${m.slot_number}</span>` : '';
                 const statusLabel = m.status || 'Scheduled';
                 
@@ -296,24 +340,32 @@
                 let teamAPlayers = [];
                 if (m.team_a && m.team_a.name) {
                     teamAName = m.team_a.name;
-                    teamAPlayers = m.team_a.player_names || [];
+                    teamAPlayers = m.team_a.player_names || (m.team_a.players ? m.team_a.players.map(p => p.name || p.nama) : []);
                 } else if (m.team_a_names) {
                     teamAName = m.team_a_names.join(' & ');
                     teamAPlayers = m.team_a_names;
+                } else if (Array.isArray(m.team_a)) {
+                    teamAPlayers = m.team_a.map(p => typeof p === 'object' ? (p.name || p.nama) : String(p));
+                    teamAName = teamAPlayers.join(' & ');
                 }
 
                 let teamBName = 'Team B';
                 let teamBPlayers = [];
                 if (m.team_b && m.team_b.name) {
                     teamBName = m.team_b.name;
-                    teamBPlayers = m.team_b.player_names || [];
+                    teamBPlayers = m.team_b.player_names || (m.team_b.players ? m.team_b.players.map(p => p.name || p.nama) : []);
                 } else if (m.team_b_names) {
                     teamBName = m.team_b_names.join(' & ');
                     teamBPlayers = m.team_b_names;
+                } else if (Array.isArray(m.team_b)) {
+                    teamBPlayers = m.team_b.map(p => typeof p === 'object' ? (p.name || p.nama) : String(p));
+                    teamBName = teamBPlayers.join(' & ');
                 }
 
+                const isSelected = (idx === activeMatchIndex);
+
                 return `
-                    <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 text-xs space-y-1.5 transition-all hover:bg-white hover:shadow-xs">
+                    <div onclick="selectCourtMatch(${idx})" id="matchCard${idx}" class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 text-xs space-y-1.5 transition-all hover:bg-white hover:shadow-xs cursor-pointer ${isSelected ? 'ring-2 ring-[#063B00] bg-white shadow-xs' : ''}">
                         <div class="flex items-center justify-between border-b border-slate-200/60 pb-1">
                             <div class="flex items-center gap-1.5">
                                 <span class="font-bold text-[#063B00]">${courtLabel}</span>
@@ -337,41 +389,92 @@
             }).join('');
         }
 
-        renderRoster(roundData);
+        // Tampilkan match yang aktif
+        const targetIdx = Math.min(activeMatchIndex, Math.max(0, matches.length - 1));
+        selectCourtMatch(targetIdx, false);
+
+        // Update Resting Bench
+        renderRestingBench(roundData.resting || []);
+
         if (notify && typeof showToast === 'function') {
             showToast(`Beralih ke ${unitLabel} ${roundNum}`);
         }
     }
 
-    function isFemalePlayer(name) {
-        if (!name) return false;
-        const p = participantsMap[name] || participantsMap[name.trim()];
-        if (p && p.gender) {
-            return ['female', 'perempuan', 'f', 'p', 'wanita'].includes(String(p.gender).toLowerCase());
-        }
-        return /gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|dewi|maya|lisa|mau|sekarang|naykila|sisil/i.test(name);
-    }
+    function selectCourtMatch(matchIdx, notify = true) {
+        activeMatchIndex = matchIdx;
+        const roundData = roundsData[currentRoundKey];
+        if (!roundData) return;
 
-    function renderRoster(data) {
-        const teamA = data.teamA || [];
-        const teamB = data.teamB || [];
-        const resting = data.resting || [];
+        const matches = roundData.matches || [];
+        if (matches.length === 0) {
+            renderCourtGraphic(roundData.teamA || [], roundData.teamB || []);
+            return;
+        }
+
+        const targetMatch = matches[matchIdx] || matches[0];
+        const courtName = targetMatch.court_name || `Court ${targetMatch.court || (matchIdx + 1)}`;
+
+        // Update Court Header indicator
+        const courtLabelElem = document.getElementById('labelCurrentActiveCourt');
+        if (courtLabelElem) courtLabelElem.innerText = courtName;
+
+        // Update Tab states
+        matches.forEach((_, idx) => {
+            const btn = document.getElementById(`btnCourtTab${idx}`);
+            if (btn) {
+                if (idx === matchIdx) {
+                    btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-[#063B00] text-white shadow-xs';
+                } else {
+                    btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer glass-card text-slate-600 hover:text-slate-900';
+                }
+            }
+            const matchCard = document.getElementById(`matchCard${idx}`);
+            if (matchCard) {
+                if (idx === matchIdx) {
+                    matchCard.classList.add('ring-2', 'ring-[#063B00]', 'bg-white', 'shadow-xs');
+                } else {
+                    matchCard.classList.remove('ring-2', 'ring-[#063B00]', 'bg-white', 'shadow-xs');
+                }
+            }
+        });
+
+        // Ekstrak Pemain Team A & Team B
+        let teamAPlayers = [];
+        let teamBPlayers = [];
+        let teamAName = 'TEAM ALPHA';
+        let teamBName = 'TEAM BETA';
+
+        if (targetMatch.team_a) {
+            if (targetMatch.team_a.name) teamAName = targetMatch.team_a.name;
+            if (targetMatch.team_a.player_names) teamAPlayers = targetMatch.team_a.player_names;
+            else if (targetMatch.team_a.players) teamAPlayers = targetMatch.team_a.players.map(p => p.name || p.nama);
+            else if (Array.isArray(targetMatch.team_a)) teamAPlayers = targetMatch.team_a.map(p => typeof p === 'object' ? (p.name || p.nama) : String(p));
+        } else if (targetMatch.team_a_names) {
+            teamAPlayers = targetMatch.team_a_names;
+            teamAName = teamAPlayers.join(' & ');
+        }
+
+        if (targetMatch.team_b) {
+            if (targetMatch.team_b.name) teamBName = targetMatch.team_b.name;
+            if (targetMatch.team_b.player_names) teamBPlayers = targetMatch.team_b.player_names;
+            else if (targetMatch.team_b.players) teamBPlayers = targetMatch.team_b.players.map(p => p.name || p.nama);
+            else if (Array.isArray(targetMatch.team_b)) teamBPlayers = targetMatch.team_b.map(p => typeof p === 'object' ? (p.name || p.nama) : String(p));
+        } else if (targetMatch.team_b_names) {
+            teamBPlayers = targetMatch.team_b_names;
+            teamBName = teamBPlayers.join(' & ');
+        }
 
         // Update Labels
         const labelA = document.getElementById('labelTeamAName');
-        if (labelA && data.primary_match && data.primary_match.team_a) {
-            labelA.innerText = data.primary_match.team_a.name || 'TEAM ALPHA';
-        }
-
+        if (labelA) labelA.innerText = teamAName;
         const labelB = document.getElementById('labelTeamBName');
-        if (labelB && data.primary_match && data.primary_match.team_b) {
-            labelB.innerText = data.primary_match.team_b.name || 'TEAM BETA';
-        }
+        if (labelB) labelB.innerText = teamBName;
 
-        // Render Team A Roster
+        // Render Roster Kanan
         const rosterA = document.getElementById('rosterTeamA');
         if (rosterA) {
-            rosterA.innerHTML = teamA.map((name, idx) => `
+            rosterA.innerHTML = teamAPlayers.map((name, idx) => `
                 <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
                     <span class="font-semibold text-slate-800">${idx + 1}. ${name}</span>
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player ${idx + 1}</span>
@@ -379,10 +482,9 @@
             `).join('');
         }
 
-        // Render Team B Roster
         const rosterB = document.getElementById('rosterTeamB');
         if (rosterB) {
-            rosterB.innerHTML = teamB.map((name, idx) => `
+            rosterB.innerHTML = teamBPlayers.map((name, idx) => `
                 <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
                     <span class="font-semibold text-slate-800">${idx + 1}. ${name}</span>
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player ${idx + 1}</span>
@@ -390,7 +492,15 @@
             `).join('');
         }
 
-        // Render Resting Bench di Roster Kanan
+        // Render Court Graphic
+        renderCourtGraphic(teamAPlayers, teamBPlayers);
+
+        if (notify && typeof showToast === 'function') {
+            showToast(`Menampilkan visualisasi ${courtName}`);
+        }
+    }
+
+    function renderRestingBench(resting) {
         const rosterResting = document.getElementById('rosterResting');
         const restingCount = document.getElementById('labelRestingCount');
         if (restingCount) {
@@ -413,7 +523,6 @@
             }
         }
 
-        // Update Resting Bench di bawah Court Visualizer 2D
         const courtRestingSec = document.getElementById('courtVisualRestingSection');
         const courtRestingList = document.getElementById('courtVisualRestingList');
         if (courtRestingSec && courtRestingList) {
@@ -429,8 +538,9 @@
                 courtRestingList.innerHTML = '';
             }
         }
+    }
 
-        // Update Court Visualizer Graphic
+    function renderCourtGraphic(teamA, teamB) {
         const courtA = document.getElementById('courtTeamA');
         if (courtA) {
             courtA.innerHTML = teamA.map(name => {
@@ -464,6 +574,15 @@
                 `;
             }).join('');
         }
+    }
+
+    function isFemalePlayer(name) {
+        if (!name) return false;
+        const p = participantsMap[name] || participantsMap[name.trim()];
+        if (p && p.gender) {
+            return ['female', 'perempuan', 'f', 'p', 'wanita'].includes(String(p.gender).toLowerCase());
+        }
+        return /gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|dewi|maya|lisa|mau|sekarang|naykila|sisil/i.test(name);
     }
 
     function runDrawingAnimation() {
