@@ -40,35 +40,35 @@
                 
                 @guest
                     <!-- Guest State: Masuk & Daftar -->
-                    <a href="{{ route('login') }}" class="text-xs font-bold text-slate-700 hover:text-[#063B00] px-3.5 py-1.5 rounded-xl hover:bg-white/60 transition-colors">
+                    <a href="{{ route('login') }}" class="text-xs font-bold text-slate-700 hover:text-[#063B00] px-3 py-1.5 rounded-xl hover:bg-white/60 transition-colors">
                         Masuk
                     </a>
                     <a href="{{ route('register') }}" class="hidden sm:inline-flex text-xs font-bold text-[#063B00] bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 px-3.5 py-1.5 rounded-xl transition-all shadow-2xs">
                         Daftar
                     </a>
-                    <a href="{{ route('games.create') }}" class="inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
-                        <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span class="hidden sm:inline">Host Game</span><span class="sm:hidden">Host</span>
+                    <a href="{{ route('games.create') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
+                        <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span>Host Game</span>
                     </a>
                 @endguest
 
                 @auth
-                    <!-- Role-Based Action Button -->
+                    <!-- Role-Based Action Button (Desktop Only) -->
                     @if(Auth::user()->role === 'host')
-                        <a href="{{ route('games.create') }}" class="inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
-                            <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span class="hidden sm:inline">Host Game</span><span class="sm:hidden">Host</span>
+                        <a href="{{ route('games.create') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
+                            <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span>Host Game</span>
                         </a>
                     @elseif(Auth::user()->role === 'venue_owner')
-                        <a href="{{ route('venues.create') }}" class="inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
-                            <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span class="hidden sm:inline">Tambah Venue</span><span class="sm:hidden">Venue</span>
+                        <a href="{{ route('venues.create') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
+                            <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span>Tambah Venue</span>
                         </a>
                     @else
                         <!-- Role: member (Pemain) -->
-                        <a href="{{ route('communities.create') }}" class="inline-flex items-center gap-1.5 bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-2xs hover:scale-[1.02]">
-                            <i class="fa-solid fa-plus text-[10px]"></i> <span class="hidden sm:inline">Komunitas</span><span class="sm:hidden">Komunitas</span>
+                        <a href="{{ route('communities.create') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-2xs hover:scale-[1.02]">
+                            <i class="fa-solid fa-plus text-[10px]"></i> <span>Komunitas</span>
                         </a>
                     @endif
 
-                    <!-- Authenticated User Dropdown -->
+                    <!-- Authenticated User Profile Dropdown (Mobile & Desktop) -->
                     <div class="relative flex items-center pl-2 border-l border-slate-200/60">
                         <div class="flex items-center gap-2 cursor-pointer group" onclick="toggleUserDropdown()">
                             <div class="w-8 h-8 rounded-full bg-[#063B00] border-2 border-[#A8E63A]/40 flex items-center justify-center text-white text-xs font-black shadow-xs">
@@ -86,75 +86,36 @@
                         </div>
 
                         <!-- Dropdown Menu -->
-                        <div id="userDropdown" class="hidden absolute right-0 top-11 w-48 bg-white/95 backdrop-blur-2xl rounded-2xl p-2 border border-slate-200/80 shadow-xl space-y-1 text-xs z-50">
+                        <div id="userDropdown" class="hidden absolute right-0 top-11 w-52 bg-white/95 backdrop-blur-2xl rounded-2xl p-2 border border-slate-200/80 shadow-xl space-y-1 text-xs z-50">
                             <div class="px-3 py-2 border-b border-slate-100">
                                 <p class="font-extrabold text-slate-900 truncate">{{ Auth::user()->nama }}</p>
                                 <p class="text-[10px] text-slate-400 truncate">{{ Auth::user()->email }}</p>
+                                <span class="inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full {{ Auth::user()->role === 'host' ? 'bg-amber-50 text-amber-800' : (Auth::user()->role === 'venue_owner' ? 'bg-sky-50 text-sky-800' : 'bg-emerald-50 text-emerald-800') }}">
+                                    {{ Auth::user()->role === 'venue_owner' ? 'Venue Owner' : (Auth::user()->role === 'host' ? 'Host Game' : 'Member') }}
+                                </span>
                             </div>
                             @if(Auth::user()->role === 'venue_owner')
                                 <a href="{{ route('venues.index', ['tab' => 'my_venues']) }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#063B00] bg-emerald-50/70 hover:bg-emerald-100 font-bold transition-colors">
                                     <i class="fa-solid fa-crown text-amber-500 text-xs"></i> Kelola Venue Saya
                                 </a>
                             @endif
+                            <a href="{{ route('communities.index') }}" class="md:hidden flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
+                                <i class="fa-solid fa-users text-slate-400 text-xs"></i> Komunitas
+                            </a>
                             <a href="{{ route('player.profile') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
-                                <i class="fa-solid fa-id-card text-slate-400 text-xs"></i> Profil & Rating
+                                <i class="fa-solid fa-id-card text-slate-400 text-xs"></i> Profil &amp; Rating
                             </a>
                             <form id="desktopLogoutForm" action="{{ route('logout') }}" method="POST" class="pt-1 border-t border-slate-100">
                                 @csrf
                                 <button type="button" onclick="confirmLogout('desktopLogoutForm')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 font-bold transition-colors text-left cursor-pointer">
-                                    <i class="fa-solid fa-right-from-bracket text-xs"></i> Keluar
+                                    <i class="fa-solid fa-right-from-bracket text-xs"></i> Keluar (Logout)
                                 </button>
                             </form>
                         </div>
                     </div>
                 @endauth
-
-                <!-- Mobile Hamburger Button -->
-                <button onclick="toggleMobileMenu()" class="md:hidden p-2 text-slate-600 hover:text-[#063B00] focus:outline-none rounded-lg hover:bg-slate-100">
-                    <i class="fa-solid fa-bars text-sm"></i>
-                </button>
             </div>
         </div>
-    </div>
-
-    <!-- Mobile Slide-down Menu -->
-    <div id="mobileMenu" class="hidden md:hidden border-t border-slate-100 bg-white/95 backdrop-blur-xl px-4 pt-3 pb-4 space-y-2 shadow-lg">
-        <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded-xl text-xs font-semibold {{ request()->routeIs('dashboard') ? 'bg-[#063B00] text-white font-bold' : 'text-slate-600 hover:bg-slate-50' }}">
-            <i class="fa-solid fa-house mr-2 {{ request()->routeIs('dashboard') ? 'text-white' : 'text-slate-400' }}"></i> Dashboard
-        </a>
-        <a href="{{ route('games.index') }}" class="block px-3 py-2 rounded-xl text-xs font-semibold {{ request()->routeIs('games.*') ? 'bg-[#063B00] text-white font-bold' : 'text-slate-600 hover:bg-slate-50' }}">
-            <i class="fa-solid fa-trophy mr-2 {{ request()->routeIs('games.*') ? 'text-white' : 'text-slate-400' }}"></i> Jadwal Mabar
-        </a>
-        <a href="{{ route('venues.index') }}" class="block px-3 py-2 rounded-xl text-xs font-semibold {{ request()->routeIs('venues.*') ? 'bg-[#063B00] text-white font-bold' : 'text-slate-600 hover:bg-slate-50' }}">
-            <i class="fa-solid fa-location-dot mr-2 {{ request()->routeIs('venues.*') ? 'text-white' : 'text-slate-400' }}"></i> Venue & Court
-        </a>
-        <a href="{{ route('communities.index') }}" class="block px-3 py-2 rounded-xl text-xs font-semibold {{ request()->routeIs('communities.*') ? 'bg-[#063B00] text-white font-bold' : 'text-slate-600 hover:bg-slate-50' }}">
-            <i class="fa-solid fa-users mr-2 {{ request()->routeIs('communities.*') ? 'text-white' : 'text-slate-400' }}"></i> Komunitas
-        </a>
-        @auth
-            @if(Auth::user()->role === 'venue_owner')
-                <a href="{{ route('venues.index', ['tab' => 'my_venues']) }}" class="block px-3 py-2 rounded-xl text-xs font-semibold text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100">
-                    <i class="fa-solid fa-crown mr-2 text-amber-500"></i> Kelola Venue Saya
-                </a>
-            @endif
-        @endauth
-        <a href="{{ route('player.recap') }}" class="block px-3 py-2 rounded-xl text-xs font-semibold {{ request()->routeIs('player.*') ? 'bg-[#063B00] text-white font-bold' : 'text-slate-600 hover:bg-slate-50' }}">
-            <i class="fa-solid fa-chart-line mr-2 {{ request()->routeIs('player.*') ? 'text-white' : 'text-slate-400' }}"></i> Match Recap
-        </a>
-
-        @guest
-            <div class="pt-2 border-t border-slate-100 flex gap-2">
-                <a href="{{ route('login') }}" class="flex-1 text-center py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Masuk</a>
-                <a href="{{ route('register') }}" class="flex-1 text-center py-2.5 rounded-xl bg-[#063B00] text-white text-xs font-bold">Daftar</a>
-            </div>
-        @else
-            <form id="mobileLogoutForm" action="{{ route('logout') }}" method="POST" class="pt-2 border-t border-slate-100">
-                @csrf
-                <button type="button" onclick="confirmLogout('mobileLogoutForm')" class="w-full text-center py-2 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold cursor-pointer">
-                    Keluar (Logout)
-                </button>
-            </form>
-        @endguest
     </div>
 </header>
 

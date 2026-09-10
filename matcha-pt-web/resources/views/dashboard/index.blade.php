@@ -23,14 +23,14 @@
             <!-- Clean Frosted Glass Search & Filter Card -->
             <div class="glass-card rounded-3xl p-5 sm:p-6 shadow-sm max-w-5xl border border-white/80">
                 <!-- Tabs: Mabar / Venue / Komunitas -->
-                <div class="flex items-center gap-2 pb-4 mb-4 border-b border-slate-200/50 text-xs font-semibold">
-                    <button type="button" onclick="switchDashboardTab('mabar')" id="tab-btn-mabar" class="tab-btn px-4 py-2 rounded-xl bg-[#063B00] text-white shadow-xs flex items-center gap-2 font-bold cursor-pointer transition-all">
+                <div class="flex items-center gap-2 pb-4 mb-4 border-b border-slate-200/50 text-xs font-semibold overflow-x-auto scrollbar-none">
+                    <button type="button" onclick="switchDashboardTab('mabar')" id="tab-btn-mabar" class="tab-btn px-4 py-2 rounded-xl bg-[#063B00] text-white shadow-xs flex items-center gap-2 font-bold cursor-pointer transition-all whitespace-nowrap">
                         <i class="fa-solid fa-users text-xs text-[#A8E63A]"></i> <span>Jadwal Mabar</span>
                     </button>
-                    <button type="button" onclick="switchDashboardTab('venue')" id="tab-btn-venue" class="tab-btn px-4 py-2 rounded-xl bg-white/80 text-slate-600 hover:text-[#050608] hover:bg-white border border-slate-200/60 flex items-center gap-2 transition-all shadow-xs cursor-pointer">
+                    <button type="button" onclick="switchDashboardTab('venue')" id="tab-btn-venue" class="tab-btn px-4 py-2 rounded-xl bg-white/80 text-slate-600 hover:text-[#050608] hover:bg-white border border-slate-200/60 flex items-center gap-2 transition-all shadow-xs cursor-pointer whitespace-nowrap">
                         <i class="fa-solid fa-location-dot text-xs text-slate-400"></i> <span>Sewa Lapangan</span>
                     </button>
-                    <button type="button" onclick="switchDashboardTab('community')" id="tab-btn-community" class="tab-btn px-4 py-2 rounded-xl bg-white/80 text-slate-600 hover:text-[#050608] hover:bg-white border border-slate-200/60 flex items-center gap-2 transition-all shadow-xs cursor-pointer">
+                    <button type="button" onclick="switchDashboardTab('community')" id="tab-btn-community" class="tab-btn px-4 py-2 rounded-xl bg-white/80 text-slate-600 hover:text-[#050608] hover:bg-white border border-slate-200/60 flex items-center gap-2 transition-all shadow-xs cursor-pointer whitespace-nowrap">
                         <i class="fa-solid fa-shield-halved text-xs text-slate-400"></i> <span>Komunitas</span>
                     </button>
                 </div>

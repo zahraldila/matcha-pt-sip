@@ -60,15 +60,20 @@
     @include('components.navbar')
 
     <!-- Main Content Area -->
-    <main class="flex-grow pb-16 md:pb-0">
+    <main class="flex-grow pb-24 md:pb-8">
         @yield('content')
     </main>
 
+    <!-- Mobile Bottom Navigation Bar (Visible only on mobile/tablet) -->
+    @include('components.mobile-bottom-nav')
+
     <!-- Footer Component -->
-    @include('components.footer')
+    <div class="mb-20 md:mb-0">
+        @include('components.footer')
+    </div>
 
     <!-- Notification Toast Container -->
-    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+    <div id="toast-container" class="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50 flex flex-col space-y-2 pointer-events-none max-w-[calc(100vw-2rem)]"></div>
 
     <script>
         function showToast(message, type = 'success') {
