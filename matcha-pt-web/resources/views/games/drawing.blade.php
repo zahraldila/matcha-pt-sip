@@ -12,6 +12,8 @@
         'team_b' => ['name' => 'Team B'],
         'matches' => [],
     ];
+    $isSetBased = str_contains(strtolower($game['scoring_system'] ?? ''), 'total of') || str_contains(strtolower($game['scoring_system'] ?? ''), 'best of');
+    $unitLabel = $isSetBased ? 'Set' : 'Round';
 @endphp
 
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -30,7 +32,7 @@
                     <i class="fa-solid fa-trophy text-[10px]"></i> {{ $game['match_format'] ?? 'Americano' }}
                 </span>
             </div>
-            <p class="text-xs text-slate-500 mt-0.5">Sistem drawing pertandingan dan rotasi Round-Robin</p>
+            <p class="text-xs text-slate-500 mt-0.5">Sistem drawing pertandingan dan rotasi {{ $isSetBased ? 'Set Permainan' : 'Round-Robin' }}</p>
         </div>
 
         <div class="flex items-center gap-2.5">
@@ -43,12 +45,18 @@
     <!-- Match Rounds Tab Selector -->
     <div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-200/50" id="roundsTabContainer">
         @foreach($rounds as $rNum => $rData)
+            @php
+                $baseNum = $rData['round'] ?? $rData['round_number'] ?? $rNum;
+                $cleanTitle = "{$unitLabel} {$baseNum}";
+            @endphp
             <button onclick="switchRound({{ $rNum }})" id="tabRound{{ $rNum }}" class="px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 {{ $loop->first ? 'bg-[#063B00] text-white shadow-xs' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
-                {{ $rData['round_title'] ?? $rData['round_name'] ?? "Ronde {$rNum}" }}
-                @if($loop->first)
+                {{ $cleanTitle }}
+                @if($loop->first && count($rounds) > 1)
                     <span class="text-[10px] opacity-80 font-normal ml-1">(Pembuka)</span>
-                @elseif($loop->last)
+                @elseif($loop->last && count($rounds) > 1)
                     <span class="text-[10px] opacity-80 font-normal ml-1">(Final)</span>
+                @elseif(count($rounds) > 2)
+                    <span class="text-[10px] opacity-80 font-normal ml-1">({{ $isSetBased ? 'Lanjutan' : 'Rotasi' }})</span>
                 @endif
             </button>
         @endforeach
@@ -74,7 +82,7 @@
                 <div class="flex items-center justify-between">
                     <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                         <i class="fa-solid fa-table-tennis-paddle-ball text-[#063B00]"></i>
-                        Alokasi Lapangan <span id="labelCurrentRoundTitle" class="text-[#063B00]">Ronde 1</span>
+                        Alokasi Lapangan <span id="labelCurrentRoundTitle" class="text-[#063B00]">{{ $unitLabel }} 1</span>
                     </h3>
                     <span class="text-[10px] text-slate-400 font-semibold" id="labelTotalMatches">
                         {{ count($activeRound['matches'] ?? []) }} Match Berjalan
@@ -150,7 +158,7 @@
             <!-- Tournament Settings Summary -->
             <div class="glass-card rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
                 <span>Format: <strong class="text-[#050608]">{{ $drawingData['format'] ?? ($game['match_format'] ?? 'Team Americano') }} ({{ $drawingData['total_teams'] ?? count($game['participants'] ?? []) }} {{ isset($drawingData['format']) && str_contains(strtolower($drawingData['format']), 'team') ? 'Tim Tetap' : 'Peserta' }})</strong></span>
-                <span>Total Ronde: <strong class="text-[#050608]">{{ $drawingData['total_rounds'] ?? count($rounds) }} Ronde</strong></span>
+                <span>Total {{ $unitLabel }}: <strong class="text-[#050608]">{{ $drawingData['total_rounds'] ?? count($rounds) }} {{ $unitLabel }}</strong></span>
                 <span>Total Match: <strong class="text-[#050608]">{{ $drawingData['total_matches'] ?? array_sum(array_map(fn($r) => count($r['matches'] ?? []), $rounds)) }} Match</strong></span>
                 <span>Scoring: <strong class="text-[#050608]">{{ $game['scoring_system'] }}</strong></span>
             </div>
@@ -239,6 +247,7 @@
 <script>
     const roundsData = @json($drawingData['rounds'] ?? []);
     const participantsMap = @json($participantsMap ?? []);
+    const unitLabel = @json($unitLabel ?? 'Round');
 
     function switchRound(roundNum) {
         Object.keys(roundsData).forEach(n => {
@@ -255,10 +264,10 @@
         const roundData = roundsData[roundNum];
         if (!roundData) return;
 
-        // Update Round label in visualizer
+        // Update label in visualizer
         const roundTitleElem = document.getElementById('labelCurrentRoundTitle');
         if (roundTitleElem) {
-            roundTitleElem.innerText = roundData.round_title || `Ronde ${roundNum}`;
+            roundTitleElem.innerText = `${unitLabel} ${roundNum}`;
         }
 
         // Render Matches list
@@ -316,7 +325,7 @@
 
         renderRoster(roundData);
         if (typeof showToast === 'function') {
-            showToast(`Beralih ke Ronde ${roundNum}`);
+            showToast(`Beralih ke ${unitLabel} ${roundNum}`);
         }
     }
 

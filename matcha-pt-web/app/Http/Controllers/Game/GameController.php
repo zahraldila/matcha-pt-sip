@@ -447,7 +447,7 @@ class GameController extends Controller
                 'status' => $status,
                 'level_recommendation' => 'All Level Welcome',
                 'match_format' => $request->query('format', 'Americano'),
-                'scoring_system' => 'Tennis System (15, 30, 40, Game)',
+                'scoring_system' => $dbSession->scoring_system ?? 'Total of 3',
                 'host' => [
                     'name' => $dbSession->host->nama ?? 'Host Matcha',
                     'role' => 'Host Game',
