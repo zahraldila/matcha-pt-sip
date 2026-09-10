@@ -285,8 +285,9 @@
                     <div class="space-y-1">
                         <div class="relative">
                             <div id="logo-dropzone" onclick="document.getElementById('input_logo').click()" class="border-2 border-dashed border-slate-200 hover:border-[#063B00] rounded-2xl p-4 bg-slate-50/50 text-center transition-all cursor-pointer group flex flex-col items-center justify-center">
-                                <i class="fa-solid fa-image text-slate-400 group-hover:text-[#063B00] text-lg mb-1"></i>
-                                <p class="text-[11px] font-bold text-slate-800">Upload Logo Komunitas</p>
+                                <img id="logo-preview-img" src="" alt="Preview Logo" class="hidden w-12 h-12 rounded-xl object-cover border border-[#063B00]/30 shadow-xs mb-1.5">
+                                <i id="logo-icon" class="fa-solid fa-image text-slate-400 group-hover:text-[#063B00] text-lg mb-1"></i>
+                                <p id="logo-title" class="text-[11px] font-bold text-slate-800">Upload Logo Komunitas</p>
                                 <p id="logo-filename" class="text-[9px] text-slate-400">Rasio 1:1 format JPG/PNG</p>
                             </div>
                             <!-- Clear button: muncul hanya saat file dipilih -->
@@ -295,6 +296,7 @@
                             </button>
                         </div>
                         <input type="file" id="input_logo" name="logo" accept="image/jpeg,image/jpg,image/png" class="sr-only">
+                        <input type="hidden" id="uploaded_logo_url" name="logo_url" value="{{ old('logo_url') }}">
                         <p id="err_logo" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
                             <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Format tidak valid.
                         </p>
@@ -372,6 +374,8 @@
         }
     }
 
+    let isLogoUploading = false;
+
     function validateLogoField() {
         const input = document.getElementById('input_logo');
         const errEl = document.getElementById('err_logo');
@@ -392,8 +396,11 @@
         const maxBytes = 2 * 1024 * 1024; // 2 MB
 
         let logoError = null;
+        const fileName = file.name || '';
+        const ext = fileName.split('.').pop().toLowerCase();
+        const allowedExtensions = ['jpg', 'jpeg', 'png'];
 
-        if (!allowedTypes.includes(file.type.toLowerCase())) {
+        if (!allowedTypes.includes(file.type.toLowerCase()) && !allowedExtensions.includes(ext)) {
             logoError = 'Format logo tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.';
         } else if (file.size > maxBytes) {
             logoError = 'Ukuran logo maksimal 2 MB.';
@@ -404,7 +411,7 @@
             errEl.classList.remove('hidden');
             errEl.classList.add('flex');
             dropzone.classList.add('border-rose-400', 'bg-rose-50/40');
-            dropzone.classList.remove('border-slate-200');
+            dropzone.classList.remove('border-slate-200', 'border-emerald-500/70', 'bg-[#EBF8D8]/30');
             return false;
         }
 
@@ -416,7 +423,170 @@
         return true;
     }
 
+    function clearLogoSelection(e) {
+        if (e) e.stopPropagation(); // jangan buka file picker saat klik X
+        const input = document.getElementById('input_logo');
+        const clearBtn = document.getElementById('logo-clear-btn');
+        const filenameEl = document.getElementById('logo-filename');
+        const titleEl = document.getElementById('logo-title');
+        const iconEl = document.getElementById('logo-icon');
+        const previewImg = document.getElementById('logo-preview-img');
+        const errEl = document.getElementById('err_logo');
+        const dropzone = document.getElementById('logo-dropzone');
+        const logoUrlInput = document.getElementById('uploaded_logo_url');
+
+        if (input) input.value = '';
+        if (logoUrlInput) logoUrlInput.value = '';
+        if (clearBtn) clearBtn.classList.add('hidden');
+        if (previewImg) {
+            previewImg.src = '';
+            previewImg.classList.add('hidden');
+        }
+        if (titleEl) titleEl.textContent = 'Upload Logo Komunitas';
+        if (filenameEl) filenameEl.textContent = 'Rasio 1:1 format JPG/PNG';
+        if (iconEl) {
+            iconEl.className = 'fa-solid fa-image text-slate-400 group-hover:text-[#063B00] text-lg mb-1';
+        }
+        if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('flex'); }
+        if (dropzone) {
+            dropzone.classList.remove('border-rose-400', 'bg-rose-50/40', 'border-emerald-500/70', 'bg-[#EBF8D8]/30');
+            dropzone.classList.add('border-slate-200');
+        }
+        isLogoUploading = false;
+    }
+
+    // Validate and upload logo on file selection change
+    document.getElementById('input_logo')?.addEventListener('change', function() {
+        const filenameEl = document.getElementById('logo-filename');
+        const titleEl = document.getElementById('logo-title');
+        const iconEl = document.getElementById('logo-icon');
+        const previewImg = document.getElementById('logo-preview-img');
+        const clearBtn = document.getElementById('logo-clear-btn');
+        const errEl = document.getElementById('err_logo');
+        const dropzone = document.getElementById('logo-dropzone');
+        const logoUrlInput = document.getElementById('uploaded_logo_url');
+
+        if (!this.files || this.files.length === 0) {
+            clearLogoSelection();
+            return;
+        }
+
+        // 1. Validasi format & ukuran SEBELUM upload ke Supabase Storage
+        const isValid = validateLogoField();
+        if (!isValid) {
+            if (logoUrlInput) logoUrlInput.value = '';
+            if (clearBtn) clearBtn.classList.remove('hidden');
+            if (previewImg) previewImg.classList.add('hidden');
+            if (filenameEl) filenameEl.textContent = this.files[0]?.name || 'File tidak valid';
+            if (iconEl) iconEl.className = 'fa-solid fa-image text-rose-500 text-lg mb-1';
+            return;
+        }
+
+        // File valid -> Tampilkan preview & state loading upload
+        const file = this.files[0];
+        if (previewImg) {
+            previewImg.src = URL.createObjectURL(file);
+            previewImg.classList.remove('hidden');
+        }
+        if (filenameEl) filenameEl.textContent = file.name;
+        if (titleEl) titleEl.textContent = 'Mengunggah logo ke Supabase Storage...';
+        if (iconEl) iconEl.className = 'fa-solid fa-circle-notch fa-spin text-[#063B00] text-lg mb-1';
+        if (clearBtn) clearBtn.classList.add('hidden');
+        isLogoUploading = true;
+
+        // 2. Upload async ke Supabase Storage via backend route
+        const formData = new FormData();
+        formData.append('logo', file);
+
+        const csrfToken = document.querySelector('input[name="_token"]')?.value || '';
+
+        fetch("{{ route('communities.upload-logo') }}", {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Gagal mengunggah logo ke Supabase Storage.');
+            }
+            return data;
+        })
+        .then(data => {
+            isLogoUploading = false;
+            if (data.success && data.url) {
+                if (logoUrlInput) logoUrlInput.value = data.url;
+                if (titleEl) titleEl.textContent = 'Logo Berhasil Diunggah';
+                if (filenameEl) filenameEl.textContent = file.name;
+                if (iconEl) iconEl.className = 'fa-solid fa-circle-check text-[#063B00] text-lg mb-1';
+                if (clearBtn) clearBtn.classList.remove('hidden');
+                if (dropzone) {
+                    dropzone.classList.remove('border-slate-200', 'border-rose-400', 'bg-rose-50/40');
+                    dropzone.classList.add('border-emerald-500/70', 'bg-[#EBF8D8]/30');
+                }
+                if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('flex'); }
+            } else {
+                throw new Error(data.message || 'Gagal mengunggah logo ke Supabase Storage.');
+            }
+        })
+        .catch(error => {
+            isLogoUploading = false;
+            if (logoUrlInput) logoUrlInput.value = '';
+            if (clearBtn) clearBtn.classList.remove('hidden');
+            if (previewImg) previewImg.classList.add('hidden');
+            if (titleEl) titleEl.textContent = 'Upload Logo Komunitas';
+            if (filenameEl) filenameEl.textContent = file.name;
+            if (iconEl) iconEl.className = 'fa-solid fa-image text-rose-500 text-lg mb-1';
+            if (errEl) {
+                errEl.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> ${error.message}`;
+                errEl.classList.remove('hidden');
+                errEl.classList.add('flex');
+            }
+            if (dropzone) {
+                dropzone.classList.remove('border-slate-200', 'border-emerald-500/70', 'bg-[#EBF8D8]/30');
+                dropzone.classList.add('border-rose-400', 'bg-rose-50/40');
+            }
+        });
+    });
+
     function validateCommunityForm(e) {
+        if (isLogoUploading) {
+            e.preventDefault();
+            const errEl = document.getElementById('err_logo');
+            if (errEl) {
+                errEl.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Logo sedang diunggah ke Supabase Storage, mohon tunggu beberapa saat...`;
+                errEl.classList.remove('hidden');
+                errEl.classList.add('flex');
+            }
+            return false;
+        }
+
+        const inputLogo = document.getElementById('input_logo');
+        const logoUrlInput = document.getElementById('uploaded_logo_url');
+        const errLogo = document.getElementById('err_logo');
+        const dropzone = document.getElementById('logo-dropzone');
+
+        // Cegah submit jika file dipilih tapi belum/gagal terupload ke Supabase
+        if (inputLogo && inputLogo.files && inputLogo.files.length > 0 && (!logoUrlInput || !logoUrlInput.value)) {
+            e.preventDefault();
+            if (errLogo) {
+                if (errLogo.classList.contains('hidden')) {
+                    errLogo.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> Upload logo ke Supabase Storage belum berhasil. Silakan tunggu atau batalkan pilihan logo.`;
+                    errLogo.classList.remove('hidden');
+                    errLogo.classList.add('flex');
+                }
+            }
+            if (dropzone) {
+                dropzone.classList.add('border-rose-400', 'bg-rose-50/40');
+                dropzone.classList.remove('border-slate-200', 'border-emerald-500/70', 'bg-[#EBF8D8]/30');
+                dropzone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return false;
+        }
+
         const nama = document.getElementById('input_nama_community')?.value.trim() || '';
         const kota = document.getElementById('input_kota')?.value.trim() || '';
         const deskripsi = document.getElementById('input_deskripsi')?.value.trim() || '';
@@ -453,59 +623,12 @@
         }
     });
 
-    function clearLogoSelection(e) {
-        e.stopPropagation(); // jangan buka file picker saat klik X
-        const input = document.getElementById('input_logo');
-        const clearBtn = document.getElementById('logo-clear-btn');
-        const filenameEl = document.getElementById('logo-filename');
-        const errEl = document.getElementById('err_logo');
-        const dropzone = document.getElementById('logo-dropzone');
-
-        if (input) input.value = '';
-        if (clearBtn) clearBtn.classList.add('hidden');
-        if (filenameEl) filenameEl.textContent = 'Rasio 1:1 format JPG/PNG';
-        if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('flex'); }
-        if (dropzone) {
-            dropzone.classList.remove('border-rose-400', 'bg-rose-50/40');
-            dropzone.classList.add('border-slate-200');
-        }
-    }
-
-    // Validate logo on file selection change
-    document.getElementById('input_logo')?.addEventListener('change', function() {
-        const filenameEl = document.getElementById('logo-filename');
-        const clearBtn = document.getElementById('logo-clear-btn');
-        if (this.files && this.files.length > 0) {
-            validateLogoField();
-            // Show filename & clear button only when valid
-            const errEl = document.getElementById('err_logo');
-            if (errEl && errEl.classList.contains('hidden')) {
-                if (filenameEl) filenameEl.textContent = this.files[0].name;
-                if (clearBtn) clearBtn.classList.remove('hidden');
-            } else {
-                if (filenameEl) filenameEl.textContent = 'Rasio 1:1 format JPG/PNG';
-                if (clearBtn) clearBtn.classList.add('hidden');
-            }
-        } else {
-            if (filenameEl) filenameEl.textContent = 'Rasio 1:1 format JPG/PNG';
-            if (clearBtn) clearBtn.classList.add('hidden');
-        }
-    });
-
     // Reset error UI on form reset
     document.getElementById('communityForm')?.addEventListener('reset', function() {
         ['input_nama_community', 'input_kota', 'input_deskripsi'].forEach(id => {
             setFieldError(id, 'err_' + id.replace('input_', ''), null);
         });
-        // Reset logo area
-        const errLogo = document.getElementById('err_logo');
-        const dropzone = document.getElementById('logo-dropzone');
-        const filenameEl = document.getElementById('logo-filename');
-        if (errLogo) { errLogo.classList.add('hidden'); errLogo.classList.remove('flex'); }
-        if (dropzone) { dropzone.classList.remove('border-rose-400', 'bg-rose-50/40'); dropzone.classList.add('border-slate-200'); }
-        if (filenameEl) filenameEl.textContent = 'Rasio 1:1 format JPG/PNG';
-        const clearBtn = document.getElementById('logo-clear-btn');
-        if (clearBtn) clearBtn.classList.add('hidden');
+        clearLogoSelection();
     });
 
     function handleCommunityPreview(e) {

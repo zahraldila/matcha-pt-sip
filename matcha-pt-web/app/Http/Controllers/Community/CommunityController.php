@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Community;
 use App\Models\Player;
 use App\Services\MatchaDummyDataService;
+use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
+use App\Exceptions\ConfigurationException;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -52,10 +54,48 @@ class CommunityController extends Controller
     }
 
     /**
+     * Upload logo komunitas ke Supabase Storage.
+     * Route: POST /communities/upload-logo
+     */
+    public function uploadLogo(Request $request, SupabaseStorageService $storageService)
+    {
+        $request->validate([
+            'logo' => 'required|file|mimes:jpeg,jpg,png|max:2048',
+        ], [
+            'logo.required' => 'File logo belum dipilih.',
+            'logo.mimes'    => 'Format logo tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.',
+            'logo.max'      => 'Ukuran logo maksimal 2 MB.',
+        ]);
+
+        try {
+            $result = $storageService->uploadLogo($request->file('logo'));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Logo upload error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memproses file logo: ' . $e->getMessage(),
+            ], 500);
+        }
+
+        if (!$result['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+            ], 422);
+        }
+
+        return response()->json([
+            'success'  => true,
+            'url'      => $result['url'],
+            'filename' => $result['filename'],
+        ]);
+    }
+
+    /**
      * Simpan komunitas baru ke database.
      * Route: POST /communities
      */
-    public function store(Request $request)
+    public function store(Request $request, SupabaseStorageService $storageService)
     {
         // Validasi request
         $validated = $request->validate([
@@ -69,13 +109,44 @@ class CommunityController extends Controller
             'membership_status' => 'nullable|string',
             'benefits'          => 'nullable|array',
             'venue_utama'       => 'nullable|string|max:255',
+            'logo_url'          => 'nullable|string',
+            'logo'              => 'nullable|file|mimes:jpeg,jpg,png|max:2048',
+        ], [
+            'logo.mimes' => 'Format logo tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.',
+            'logo.max'   => 'Ukuran logo maksimal 2 MB.',
         ]);
+
+        $logoUrl = $validated['logo_url'] ?? null;
+
+        // Fallback: Jika logo diunggah langsung bersamaan dengan form submit
+        if (!$logoUrl && $request->hasFile('logo')) {
+            try {
+                $uploadResult = $storageService->uploadLogo($request->file('logo'));
+                if ($uploadResult['success']) {
+                    $logoUrl = $uploadResult['url'];
+                } else {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['logo' => $uploadResult['message']]);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Logo upload error during store: ' . $e->getMessage());
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['logo' => 'Gagal mengunggah logo: ' . $e->getMessage()]);
+            }
+        }
+
+        // Hanya simpan logo jika benar-benar berasal dari Supabase Storage public object
+        if ($logoUrl && !str_contains($logoUrl, '/storage/v1/object/public/')) {
+            $logoUrl = null;
+        }
 
         // Buat community baru dengan field yang valid di database
         $community = Community::create([
             'nama_community' => $validated['nama_community'],
             'deskripsi'      => $validated['deskripsi'],
-            'logo'           => 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&w=800&q=80',
+            'logo'           => $logoUrl ?: 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&w=800&q=80',
         ]);
 
         // Jika pembuat komunitas adalah player, otomatis join ke komunitas ini

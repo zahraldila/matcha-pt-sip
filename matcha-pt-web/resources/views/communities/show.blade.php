@@ -24,9 +24,16 @@
                 <span class="text-xs text-slate-400">•</span>
                 <span class="text-xs font-medium text-slate-500">Komunitas Detail</span>
             </div>
-            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-                {{ $community->nama_community }}
-            </h1>
+            <div class="flex items-center gap-3.5 mt-2">
+                @if(!empty($community->logo))
+                    <img src="{{ $community->logo }}" alt="{{ $community->nama_community }}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200/80 shadow-sm">
+                @endif
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                        {{ $community->nama_community }}
+                    </h1>
+                </div>
+            </div>
         </div>
 
         <div class="hidden sm:flex flex-col items-end gap-2">
