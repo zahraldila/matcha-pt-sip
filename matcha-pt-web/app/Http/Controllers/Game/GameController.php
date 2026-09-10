@@ -503,7 +503,19 @@ class GameController extends Controller
             ];
         }
 
-        return view('games.drawing', compact('game', 'drawingData', 'rounds'));
+        $participantsMap = [];
+        foreach ($participants as $p) {
+            $pName = is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->nama ?? $p->name ?? '') : (string)$p);
+            $pGender = is_array($p) ? ($p['gender'] ?? 'Male') : (is_object($p) ? ($p->gender ?? 'Male') : 'Male');
+            if ($pName) {
+                $participantsMap[$pName] = [
+                    'name' => $pName,
+                    'gender' => $pGender,
+                ];
+            }
+        }
+
+        return view('games.drawing', compact('game', 'drawingData', 'rounds', 'participantsMap'));
     }
 }
 

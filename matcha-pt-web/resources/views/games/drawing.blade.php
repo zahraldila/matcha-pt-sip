@@ -65,6 +65,7 @@
                     :teamA="$activeRound['teamA'] ?? []"
                     :teamB="$activeRound['teamB'] ?? []"
                     :resting="$activeRound['resting'] ?? []"
+                    :participantsMap="$participantsMap ?? []"
                 />
             </div>
 
@@ -237,6 +238,7 @@
 @push('scripts')
 <script>
     const roundsData = @json($drawingData['rounds'] ?? []);
+    const participantsMap = @json($participantsMap ?? []);
 
     function switchRound(roundNum) {
         Object.keys(roundsData).forEach(n => {
@@ -318,8 +320,13 @@
         }
     }
 
-    function isFemaleName(name) {
-        return /gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|dewi|maya|lisa/i.test(name);
+    function isFemalePlayer(name) {
+        if (!name) return false;
+        const p = participantsMap[name] || participantsMap[name.trim()];
+        if (p && p.gender) {
+            return ['female', 'perempuan', 'f', 'p', 'wanita'].includes(String(p.gender).toLowerCase());
+        }
+        return /gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|dewi|maya|lisa|mau|sekarang|naykila|sisil/i.test(name);
     }
 
     function renderRoster(data) {
@@ -387,7 +394,7 @@
         const courtA = document.getElementById('courtTeamA');
         if (courtA) {
             courtA.innerHTML = teamA.map(name => {
-                const female = isFemaleName(name);
+                const female = isFemalePlayer(name);
                 return `
                     <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-110 w-fit mx-auto sm:mx-8">
                         <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full ${female ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600'} text-white border-2 border-white shadow-md flex items-center justify-center text-xs sm:text-sm mb-1">
@@ -404,7 +411,7 @@
         const courtB = document.getElementById('courtTeamB');
         if (courtB) {
             courtB.innerHTML = teamB.map(name => {
-                const female = isFemaleName(name);
+                const female = isFemalePlayer(name);
                 return `
                     <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-110 w-fit mx-auto sm:mx-8">
                         <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full ${female ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600'} text-white border-2 border-white shadow-md flex items-center justify-center text-xs sm:text-sm mb-1">
