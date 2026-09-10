@@ -45,9 +45,16 @@
                 </div>
 
                 <div class="p-5 pt-0">
-                    <button onclick="showToast('Permintaan bergabung ke komunitas telah dikirim!')" class="w-full py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs transition-all shadow-xs hover:scale-[1.01]">
-                        Gabung Komunitas
-                    </button>
+                    @if(!empty($comm['is_member']))
+                        <div class="w-full py-2.5 rounded-xl bg-green-50 border border-green-200 text-green-700 font-semibold text-xs flex items-center justify-center gap-1.5 shadow-2xs">
+                            <i class="fa-solid fa-circle-check text-green-600 text-[11px]"></i>
+                            <span>Anggota Komunitas</span>
+                        </div>
+                    @else
+                        <a href="{{ route('communities.show', $comm['id']) }}" class="block text-center w-full py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs transition-all shadow-xs hover:scale-[1.01]">
+                            Gabung Komunitas
+                        </a>
+                    @endif
                 </div>
             </div>
         @endforeach

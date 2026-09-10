@@ -10,6 +10,7 @@ use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
 use App\Exceptions\ConfigurationException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 /**
  * CommunityController — SMK 3
@@ -24,9 +25,11 @@ class CommunityController extends Controller
 {
     public function index()
     {
+        $currentUserCommunityId = Auth::check() ? Player::where('user_id', Auth::id())->value('community_id') : null;
+
         $dbCommunities = Community::with(['players.user', 'creator'])->latest()->get();
         if ($dbCommunities->isNotEmpty()) {
-            $communities = $dbCommunities->map(function ($c) {
+            $communities = $dbCommunities->map(function ($c) use ($currentUserCommunityId) {
                 return [
                     'id' => $c->community_id,
                     'name' => $c->nama_community,
@@ -39,6 +42,7 @@ class CommunityController extends Controller
                     'description' => $c->deskripsi ?? ('Komunitas mabar ' . $c->sport . ' di Matcha Match Arena.'),
                     'schedule' => $c->jadwal_rutin ?: 'Rutin Setiap Pekan',
                     'status' => $c->status_keanggotaan ?: 'Active',
+                    'is_member' => ($currentUserCommunityId && $currentUserCommunityId == $c->community_id),
                 ];
             })->toArray();
         } else {
@@ -185,25 +189,52 @@ class CommunityController extends Controller
             $logoUrl = null;
         }
 
-        // Buat community baru dengan seluruh field yang valid di database
-        $community = Community::create([
-            'nama_community'     => $validated['nama_community'],
-            'tagline'            => $request->input('tagline') ?: null,
-            'kota_homebase'      => $request->input('kota_homebase') ?: ($request->input('kota') ?: null),
-            'sport'              => $normalizedSport,
-            'target_level'       => $request->input('target_level') ?: null,
-            'status_keanggotaan' => $request->input('status_keanggotaan') ?: ($request->input('membership_status') ?: 'Open'),
-            'deskripsi'          => $validated['deskripsi'],
-            'jadwal_rutin'       => $request->input('jadwal_rutin') ?: null,
-            'homebase_venue'     => $request->input('homebase_venue') ?: ($request->input('venue_utama') ?: null),
-            'benefits'           => !empty($normalizedBenefits) ? $normalizedBenefits : null,
-            'created_by'         => Auth::id(),
-            'logo'               => $logoUrl ?: null,
-        ]);
+        // Simpan community dan daftarkan creator sebagai member dalam satu database transaction
+        try {
+            DB::beginTransaction();
 
-        // Jika pembuat komunitas adalah player, otomatis join ke komunitas ini
-        if (Auth::check()) {
-            Player::where('user_id', Auth::id())->update(['community_id' => $community->community_id]);
+            // Buat community baru dengan seluruh field yang valid di database
+            $community = Community::create([
+                'nama_community'     => $validated['nama_community'],
+                'tagline'            => $request->input('tagline') ?: null,
+                'kota_homebase'      => $request->input('kota_homebase') ?: ($request->input('kota') ?: null),
+                'sport'              => $normalizedSport,
+                'target_level'       => $request->input('target_level') ?: null,
+                'status_keanggotaan' => $request->input('status_keanggotaan') ?: ($request->input('membership_status') ?: 'Open'),
+                'deskripsi'          => $validated['deskripsi'],
+                'jadwal_rutin'       => $request->input('jadwal_rutin') ?: null,
+                'homebase_venue'     => $request->input('homebase_venue') ?: ($request->input('venue_utama') ?: null),
+                'benefits'           => !empty($normalizedBenefits) ? $normalizedBenefits : null,
+                'created_by'         => Auth::id(),
+                'logo'               => $logoUrl ?: null,
+            ]);
+
+            // Daftarkan authenticated creator sebagai member komunitas (menggunakan struktur membership tb_player)
+            if (Auth::check()) {
+                $user = Auth::user();
+                $player = Player::where('user_id', $user->user_id)->first();
+                if ($player) {
+                    $player->community_id = $community->community_id;
+                    $player->save();
+                } else {
+                    Player::create([
+                        'user_id'      => $user->user_id,
+                        'community_id' => $community->community_id,
+                        'nama'         => $user->nama,
+                        'rating'       => 1.00,
+                        'no_hp'        => $user->no_hp,
+                        'email'        => $user->email,
+                    ]);
+                }
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('Create community error: ' . $e->getMessage());
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'Gagal membuat komunitas: ' . $e->getMessage()]);
         }
 
         return redirect()->route('communities.show', $community->community_id)
@@ -247,9 +278,27 @@ class CommunityController extends Controller
             return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu untuk bergabung ke komunitas.');
         }
 
-        // Update field community_id pada tb_player milik Auth::user()
-        $player = Player::where('user_id', Auth::id())->first();
-        if ($player) {
+        $user = Auth::user();
+        $player = Player::where('user_id', $user->user_id)->first();
+
+        // Cek apakah user sudah menjadi anggota komunitas ini (termasuk creator)
+        if ($player && $player->community_id == (int) $id) {
+            return redirect()->route('communities.show', $id)
+                ->with('info', 'Anda sudah menjadi bagian dari komunitas.');
+        }
+
+        // Jika belum memiliki record Player, buatkan
+        if (!$player) {
+            Player::create([
+                'user_id'      => $user->user_id,
+                'community_id' => (int) $id,
+                'nama'         => $user->nama,
+                'rating'       => 1.00,
+                'no_hp'        => $user->no_hp,
+                'email'        => $user->email,
+            ]);
+        } else {
+            // Update field community_id pada tb_player milik Auth::user()
             $player->update(['community_id' => (int) $id]);
         }
 

@@ -51,6 +51,25 @@
         </div>
     </div>
 
+    @if(session('success'))
+        <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2.5">
+            <i class="fa-solid fa-circle-check text-emerald-600"></i>
+            <span>{{ session('success') }}</span>
+        </div>
+    @endif
+    @if(session('info'))
+        <div class="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold flex items-center gap-2.5">
+            <i class="fa-solid fa-circle-info text-blue-600"></i>
+            <span>{{ session('info') }}</span>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2.5">
+            <i class="fa-solid fa-circle-exclamation text-rose-600"></i>
+            <span>{{ session('error') }}</span>
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Main Content Column -->
         <div class="lg:col-span-2 space-y-6 relative z-10">
