@@ -467,8 +467,30 @@ class GameController extends Controller
             $courtCount = 2;
         }
 
-        // Tangani permintaan acak ulang (shuffle) dengan seed dinamis
-        if ($request->has('shuffle') || $request->has('seed')) {
+        // Cek apakah pertandingan sudah dimulai / scoring live sudah berjalan
+        $isLocked = false;
+        $cacheKey = "scoring.game_{$game['id']}";
+        $savedScores = \Illuminate\Support\Facades\Cache::get($cacheKey, []);
+        if (!empty($savedScores) && is_array($savedScores)) {
+            foreach ($savedScores as $k => $v) {
+                if ($k !== '_meta' && is_array($v) && (
+                    ($v['status'] ?? '') === 'in_progress' || 
+                    ($v['status'] ?? '') === 'completed' ||
+                    ($v['games_a'] ?? 0) > 0 || ($v['games_b'] ?? 0) > 0 ||
+                    ($v['score_a'] ?? 0) > 0 || ($v['score_b'] ?? 0) > 0 ||
+                    ($v['sets_a'] ?? 0) > 0 || ($v['sets_b'] ?? 0) > 0
+                )) {
+                    $isLocked = true;
+                    break;
+                }
+            }
+        }
+        if (isset($dbSession->status_session) && in_array($dbSession->status_session, ['in_progress', 'completed', 'finished'])) {
+            $isLocked = true;
+        }
+
+        // Tangani permintaan acak ulang (shuffle) dengan seed dinamis (hanya jika belum terkunci)
+        if (!$isLocked && ($request->has('shuffle') || $request->has('seed'))) {
             $seed = (int) $request->query('seed', rand(1000, 999999));
             mt_srand($seed);
             $keys = array_keys($participants);
@@ -478,6 +500,14 @@ class GameController extends Controller
                 $shuffled[] = $participants[$k];
             }
             $participants = $shuffled;
+        } elseif ($isLocked && ($request->has('shuffle') || $request->has('seed'))) {
+            if ($request->wantsJson() || $request->ajax() || $request->query('json')) {
+                return response()->json([
+                    'success' => false,
+                    'isLocked' => true,
+                    'message' => 'Pertandingan sudah berjalan! Jadwal tim terkunci dan tidak dapat diacak ulang.',
+                ], 422);
+            }
         }
 
         $format = strtolower($game['match_format'] ?? 'americano');
@@ -532,13 +562,14 @@ class GameController extends Controller
         if ($request->wantsJson() || $request->ajax() || $request->query('json')) {
             return response()->json([
                 'success' => true,
+                'isLocked' => $isLocked,
                 'drawingData' => $drawingData,
                 'rounds' => $rounds,
                 'participantsMap' => $participantsMap,
             ]);
         }
 
-        return view('games.drawing', compact('game', 'drawingData', 'rounds', 'participantsMap'));
+        return view('games.drawing', compact('game', 'drawingData', 'rounds', 'participantsMap', 'isLocked'));
     }
 }
 

@@ -36,9 +36,15 @@
         </div>
 
         <div class="flex items-center gap-2.5">
-            <button id="shuffleBtn" onclick="runDrawingAnimation()" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white border border-slate-200/80 text-slate-800 font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 hover:border-[#063B00] cursor-pointer">
-                <i class="fa-solid fa-arrows-rotate text-slate-500" id="shuffleIcon"></i> Acak Ulang Jadwal
-            </button>
+            @if($isLocked ?? false)
+                <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold shadow-2xs" title="Pertandingan sudah dimulai, jadwal tim tidak dapat diacak ulang">
+                    <i class="fa-solid fa-lock text-amber-600"></i> Tim Terkunci (Match Berjalan)
+                </span>
+            @else
+                <button id="shuffleBtn" onclick="runDrawingAnimation()" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white border border-slate-200/80 text-slate-800 font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 hover:border-[#063B00] cursor-pointer">
+                    <i class="fa-solid fa-arrows-rotate text-slate-500" id="shuffleIcon"></i> Acak Ulang Jadwal
+                </button>
+            @endif
         </div>
     </div>
 
@@ -234,7 +240,7 @@
                 </div>
 
                 <!-- CTA Button to Live Scoring -->
-                <a href="{{ route('scoring.live', $game['id']) }}" class="block text-center py-3.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
+                <a href="{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano']) }}" class="block text-center py-3.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
                     <span>Kunci Tim & Buka Scoring Live</span> <i class="fa-solid fa-arrow-right text-[10px] text-[#A8E63A] ml-1"></i>
                 </a>
             </div>
@@ -384,7 +390,7 @@
             `).join('');
         }
 
-        // Render Resting Bench
+        // Render Resting Bench di Roster Kanan
         const rosterResting = document.getElementById('rosterResting');
         const restingCount = document.getElementById('labelRestingCount');
         if (restingCount) {
@@ -404,6 +410,23 @@
                         Semua pemain aktif bertanding di ronde ini.
                     </div>
                 `;
+            }
+        }
+
+        // Update Resting Bench di bawah Court Visualizer 2D
+        const courtRestingSec = document.getElementById('courtVisualRestingSection');
+        const courtRestingList = document.getElementById('courtVisualRestingList');
+        if (courtRestingSec && courtRestingList) {
+            if (resting.length > 0) {
+                courtRestingSec.classList.remove('hidden');
+                courtRestingList.innerHTML = resting.map(name => `
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/80 text-slate-700 text-xs border border-slate-200/70 font-medium shadow-2xs">
+                        <i class="fa-regular fa-clock text-slate-400 text-[10px]"></i> ${name}
+                    </span>
+                `).join('');
+            } else {
+                courtRestingSec.classList.add('hidden');
+                courtRestingList.innerHTML = '';
             }
         }
 
