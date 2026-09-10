@@ -12,8 +12,8 @@
             <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25">
                 <i class="fa-solid fa-circle-check text-[#063B00]"></i> Match Finished
             </span>
-            <button onclick="shareRecap()" class="px-3 py-1 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer">
-                <i class="fa-solid fa-share-nodes text-slate-400"></i> Bagikan
+            <button onclick="openShareModal()" class="px-3.5 py-1.5 rounded-xl bg-[#063B00] text-white hover:bg-[#042a00] text-xs font-bold shadow-xs hover:shadow-sm transition-all flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-share-nodes text-[#A8E63A]"></i> <span>Bagikan</span>
             </button>
         </div>
     </div>
@@ -313,54 +313,54 @@
                     default => 'bg-white border-slate-200/70',
                 };
             @endphp
-            <div class="p-3.5 rounded-2xl {{ $bgClass }} border flex items-center gap-3 shadow-2xs">
+            <div class="p-2.5 sm:p-3.5 rounded-2xl {{ $bgClass }} border flex items-center gap-2 sm:gap-3 shadow-2xs">
                 {{-- Rank --}}
-                <div class="w-8 text-center shrink-0">
+                <div class="w-6 sm:w-8 text-center shrink-0">
                     @if($medalEmoji)
-                        <span class="text-lg leading-none">{{ $medalEmoji }}</span>
+                        <span class="text-base sm:text-lg leading-none">{{ $medalEmoji }}</span>
                     @else
-                        <span class="text-xs font-black text-slate-400">#{{ $player['rank'] }}</span>
+                        <span class="text-[10px] sm:text-xs font-black text-slate-400">#{{ $player['rank'] }}</span>
                     @endif
                 </div>
 
                 {{-- Avatar --}}
                 @if(!empty($player['avatar']))
-                    <img src="{{ $player['avatar'] }}" class="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0" alt="{{ $player['name'] }}">
+                    <img src="{{ $player['avatar'] }}" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-slate-200 shrink-0" alt="{{ $player['name'] }}">
                 @else
-                    <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-500 text-xs font-bold">{{ mb_substr($player['name'], 0, 1) }}</div>
+                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-500 text-[10px] sm:text-xs font-bold">{{ mb_substr($player['name'], 0, 1) }}</div>
                 @endif
 
                 {{-- Nama & Level --}}
                 <div class="flex-1 min-w-0">
                     <p class="text-xs font-bold text-slate-900 truncate">{{ $player['name'] }}</p>
-                    <p class="text-[10px] text-slate-400">{{ $player['level'] }} &bull; {{ $player['matches'] }} match</p>
+                    <p class="text-[9px] sm:text-[10px] text-slate-400 truncate">{{ $player['level'] }} &bull; {{ $player['matches'] }} match</p>
                 </div>
 
                 {{-- Stats Columns --}}
-                <div class="flex items-center gap-3 text-[10px] shrink-0">
-                    <div class="text-center min-w-[36px]">
-                        <p class="font-black text-[#063B00] text-sm">{{ $player['wins'] }}</p>
-                        <p class="text-slate-400 font-medium">Win</p>
+                <div class="flex items-center gap-1 sm:gap-3 text-[9px] sm:text-[10px] shrink-0">
+                    <div class="text-center min-w-[26px] sm:min-w-[36px]">
+                        <p class="font-black text-[#063B00] text-xs sm:text-sm">{{ $player['wins'] }}</p>
+                        <p class="text-slate-400 font-medium text-[8px] sm:text-[10px]">Win</p>
                     </div>
 
                     @if($isSets)
-                    <div class="text-center min-w-[36px]">
-                        <p class="font-black text-slate-700 text-sm">{{ $player['sets_won'] }}</p>
-                        <p class="text-slate-400 font-medium">Sets</p>
+                    <div class="text-center min-w-[26px] sm:min-w-[36px]">
+                        <p class="font-black text-slate-700 text-xs sm:text-sm">{{ $player['sets_won'] }}</p>
+                        <p class="text-slate-400 font-medium text-[8px] sm:text-[10px]">Sets</p>
                     </div>
                     @endif
 
-                    <div class="text-center min-w-[36px]">
-                        <p class="font-black text-slate-700 text-sm">{{ $player['games_won'] }}</p>
-                        <p class="text-slate-400 font-medium">Games</p>
+                    <div class="text-center min-w-[26px] sm:min-w-[36px]">
+                        <p class="font-black text-slate-700 text-xs sm:text-sm">{{ $player['games_won'] }}</p>
+                        <p class="text-slate-400 font-medium text-[8px] sm:text-[10px]">Games</p>
                     </div>
 
-                    <div class="text-center min-w-[40px]">
+                    <div class="text-center min-w-[28px] sm:min-w-[40px]">
                         @php $diff = $isSets ? $player['game_diff'] : $player['game_diff']; @endphp
-                        <p class="font-black text-sm {{ $diff >= 0 ? 'text-[#063B00]' : 'text-rose-600' }}">
+                        <p class="font-black text-xs sm:text-sm {{ $diff >= 0 ? 'text-[#063B00]' : 'text-rose-600' }}">
                             {{ $diff >= 0 ? '+' : '' }}{{ $diff }}
                         </p>
-                        <p class="text-slate-400 font-medium">Selisih</p>
+                        <p class="text-slate-400 font-medium text-[8px] sm:text-[10px]">Selisih</p>
                     </div>
                 </div>
             </div>
@@ -462,10 +462,517 @@
             </div>
         </div>
     </div>
+
+</div>
+
+<!-- ========================================================= -->
+<!-- 1. MODAL: SHARE GAME OPTIONS (GAYA SKOR REFERENSI) -->
+<!-- ========================================================= -->
+<div id="shareOptionsModal" class="fixed inset-0 z-[100] hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 transition-all">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 space-y-6 relative border border-slate-200 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <!-- Close Button -->
+        <button onclick="closeShareModal()" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer">
+            <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+
+        <!-- Header -->
+        <div class="space-y-1 pr-6">
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EBF8D8] text-[#063B00] text-[10px] font-bold border border-[#063B00]/20">
+                <i class="fa-solid fa-share-nodes"></i> Share Game
+            </div>
+            <h3 class="text-xl font-black text-slate-900 tracking-tight">Bagikan Hasil Pertandingan</h3>
+            <p class="text-xs text-slate-500">Rayakan serunya momen mabar dan kemenangan bersama teman atau komunitasmu!</p>
+        </div>
+
+        <!-- Options Cards -->
+        <div class="space-y-3">
+            <!-- Option 1: Share as Web Preview -->
+            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-[#063B00]/30 transition-all space-y-3">
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-[#063B00] text-sm shrink-0">
+                        <i class="fa-solid fa-globe"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-900">Share as Web Preview</h4>
+                        <p class="text-[11px] text-slate-500 leading-relaxed">Tampilkan hasil pertandingan lengkap dalam format web. Cocok untuk grup WhatsApp / Telegram.</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 pt-1">
+                    <button onclick="copyWebLink()" class="flex-1 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs">
+                        <i class="fa-solid fa-copy text-slate-400"></i> Salin Link
+                    </button>
+                    <button onclick="shareWebDirect()" class="flex-1 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs">
+                        <i class="fa-solid fa-paper-plane text-[#A8E63A]"></i> Bagikan Link
+                    </button>
+                </div>
+            </div>
+
+            <!-- Option 2: Share as Image (Template Studio) -->
+            <div class="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-lime-50 to-white border border-[#063B00]/25 hover:border-[#063B00] transition-all space-y-3 shadow-2xs">
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-[#063B00] text-[#A8E63A] flex items-center justify-center text-sm shrink-0 shadow-xs">
+                        <i class="fa-solid fa-palette"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <h4 class="text-xs font-bold text-slate-900">Share as Image / Story</h4>
+                            <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-[#063B00] text-white">9:16</span>
+                        </div>
+                        <p class="text-[11px] text-slate-600 leading-relaxed">Ubah hasil mabar jadi kartu gambar story ala Strava/SKOR dengan foto dari galerimu!</p>
+                    </div>
+                </div>
+                <button onclick="openTemplateStudio()" class="w-full py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md hover:scale-[1.01]">
+                    <i class="fa-solid fa-wand-magic-sparkles text-[#A8E63A]"></i> Pilih Template Story
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- 2. MODAL: TEMPLATE STUDIO (9:16 STORY CUSTOMIZER - LIGHT MODE) -->
+<!-- ========================================================= -->
+<div id="templateStudioModal" class="fixed inset-0 z-[100] hidden bg-slate-950/70 backdrop-blur-md overflow-y-auto p-2 sm:p-6 pb-24 sm:pb-8 transition-all flex items-start sm:items-center justify-center">
+    <div class="max-w-4xl w-full bg-white rounded-3xl border border-slate-200 shadow-2xl text-slate-900 overflow-hidden my-3 sm:my-auto animate-in fade-in zoom-in duration-200">
+        
+        <!-- Studio Header (Clean & Light) -->
+        <div class="px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+            <div class="space-y-0.5">
+                <div class="flex items-center gap-2">
+                    <h3 class="text-sm sm:text-base font-black text-slate-900">Select Template Story</h3>
+                    <span class="text-[9px] sm:text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/20">9:16 HD</span>
+                </div>
+                <p class="text-[10px] sm:text-[11px] text-slate-500">Pilih template, pasang foto dokumentasi mabar dari galeri, dan unduh/bagikan.</p>
+            </div>
+            <!-- Single Clean Close Button -->
+            <button onclick="closeTemplateStudio()" class="w-8 h-8 rounded-full bg-white hover:bg-slate-200 border border-slate-200 text-slate-500 flex items-center justify-center text-xs transition-colors cursor-pointer shrink-0" title="Tutup">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Studio Workspace Grid -->
+        <div class="p-3 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-center">
+            
+            <!-- LEFT: 9:16 Live Story Preview Card with < > Navigation Arrows -->
+            <div class="lg:col-span-6 flex items-center justify-center gap-1.5 sm:gap-3">
+                
+                <!-- Prev Button (<) -->
+                <button type="button" onclick="prevTemplate()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-100 hover:bg-[#063B00] hover:text-white border border-slate-200 text-slate-700 shadow-sm flex items-center justify-center font-bold text-xs sm:text-sm cursor-pointer transition-all shrink-0 hover:scale-105" title="Template Sebelumnya">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+
+                <!-- Story Card Wrapper (Rasio 9:16 HD) -->
+                <div id="storyCardContainer" class="w-[240px] xs:w-[270px] sm:w-[320px] aspect-[9/16] rounded-[24px] sm:rounded-[26px] overflow-hidden shadow-2xl relative select-none border border-slate-800 bg-[#090d10] text-white flex flex-col justify-between p-3.5 sm:p-4.5" style="box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);">
+                    
+                    <!-- Background Layer: User Custom Uploaded Photo -->
+                    <div id="storyBgPhoto" class="absolute inset-0 bg-cover bg-center transition-all duration-300" style="background-image: none;"></div>
+                    
+                    <!-- Gradient & Frosted Overlay to guarantee high contrast on any photo -->
+                    <div id="storyOverlayTint" class="absolute inset-0 bg-gradient-to-b from-black/80 via-black/35 to-black/90 pointer-events-none"></div>
+
+                    <!-- Ambient Court Grid Pattern (If no photo uploaded yet) -->
+                    <div id="storyDefaultGridPattern" class="absolute inset-0 opacity-15 pointer-events-none bg-[radial-gradient(#A8E63A_1px,transparent_1px)] [background-size:16px_16px]"></div>
+
+                    <!-- ---------------------------------------------------- -->
+                    <!-- TEMPLATE 1: MINIMALIST PODIUM (BOTTOM OVERLAY) -->
+                    <!-- ---------------------------------------------------- -->
+                    <div id="tpl_podium" class="template-view relative z-10 h-full flex flex-col justify-between">
+                        <!-- Top Header -->
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-xs font-black tracking-tight text-white truncate max-w-[160px]">{{ $game['title'] ?? 'Matcha Session' }}</h4>
+                                <p class="text-[9px] text-[#A8E63A] font-bold flex items-center gap-1">
+                                    <span>{{ count($rankedPlayers) }} Players</span> &bull; 
+                                    <span>{{ count($game['drawing'] ?? []) }} Rounds</span> &bull; 
+                                    <span>{{ $scoringSystem['label'] }}</span>
+                                </p>
+                            </div>
+                            <!-- Matcha Brand Logo -->
+                            <div class="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2 py-1 rounded-xl border border-white/10">
+                                <img src="{{ asset('images/logo.svg') }}" class="w-5 h-5" alt="Matcha">
+                                <span class="text-[10px] font-black tracking-wider text-white">MATCHA</span>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Frosted Podium Overlay (With Match Results Tag Right on Top) -->
+                        <div class="space-y-1.5 mt-auto">
+                            <div class="text-center">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#EBF8D8]/20 border border-[#A8E63A]/40 text-[#A8E63A] text-[9px] font-black backdrop-blur-md shadow-xs">
+                                    <i class="fa-solid fa-trophy text-amber-400"></i> Match Results
+                                </span>
+                            </div>
+
+                            <div class="bg-black/65 backdrop-blur-xl border border-white/15 rounded-2xl p-2.5 sm:p-3 shadow-2xl space-y-2">
+                                @php
+                                    $p1 = $rankedPlayers[0] ?? null;
+                                    $p2 = $rankedPlayers[1] ?? null;
+                                    $p3 = $rankedPlayers[2] ?? null;
+                                @endphp
+                                
+                                <div class="grid grid-cols-3 gap-1.5 items-end pt-1">
+                                    <!-- 2nd Place -->
+                                    <div class="text-center space-y-1">
+                                        @if($p2)
+                                        <div class="relative inline-block">
+                                            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-700 border-2 border-slate-300 mx-auto flex items-center justify-center text-xs font-bold text-white shadow">
+                                                {{ mb_substr($p2['name'], 0, 1) }}
+                                            </div>
+                                            <span class="absolute -top-1.5 -right-1 w-4 h-4 rounded-full bg-slate-300 text-slate-900 text-[8px] font-black flex items-center justify-center shadow">2</span>
+                                        </div>
+                                        <p class="text-[10px] font-bold text-slate-200 truncate">{{ $p2['name'] }}</p>
+                                        <p class="text-[8px] text-slate-400 font-semibold">{{ $p2['wins'] }}-{{ $p2['losses'] }}-0 &bull; {{ $p2['game_diff'] >= 0 ? '+' : '' }}{{ $p2['game_diff'] }}</p>
+                                        <span class="inline-block px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 text-[9px] font-black border border-slate-700">{{ $p2['points_for'] ?? $p2['games_won'] }} pts</span>
+                                        @endif
+                                    </div>
+
+                                    <!-- 1st Place (Center / Taller) -->
+                                    <div class="text-center space-y-1">
+                                        @if($p1)
+                                        <div class="relative inline-block">
+                                            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-amber-600/60 border-2 border-amber-400 mx-auto flex items-center justify-center text-sm font-black text-white shadow-lg ring-2 ring-amber-400/40">
+                                                {{ mb_substr($p1['name'], 0, 1) }}
+                                            </div>
+                                            <span class="absolute -top-2 -right-1 w-5 h-5 rounded-full bg-gradient-to-tr from-amber-500 to-amber-300 text-amber-950 text-[9px] font-black flex items-center justify-center shadow">🥇</span>
+                                        </div>
+                                        <p class="text-[11px] font-black text-amber-300 truncate">{{ $p1['name'] }}</p>
+                                        <p class="text-[8px] text-amber-200/80 font-bold">{{ $p1['wins'] }}-{{ $p1['losses'] }}-0 &bull; {{ $p1['game_diff'] >= 0 ? '+' : '' }}{{ $p1['game_diff'] }}</p>
+                                        <span class="inline-block px-2 py-0.5 rounded bg-amber-400 text-amber-950 text-[10px] font-black shadow">{{ $p1['points_for'] ?? $p1['games_won'] }} pts</span>
+                                        @endif
+                                    </div>
+
+                                    <!-- 3rd Place -->
+                                    <div class="text-center space-y-1">
+                                        @if($p3)
+                                        <div class="relative inline-block">
+                                            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-orange-950 border-2 border-orange-400 mx-auto flex items-center justify-center text-xs font-bold text-white shadow">
+                                                {{ mb_substr($p3['name'], 0, 1) }}
+                                            </div>
+                                            <span class="absolute -top-1.5 -right-1 w-4 h-4 rounded-full bg-orange-400 text-orange-950 text-[8px] font-black flex items-center justify-center shadow">3</span>
+                                        </div>
+                                        <p class="text-[10px] font-bold text-slate-200 truncate">{{ $p3['name'] }}</p>
+                                        <p class="text-[8px] text-slate-400 font-semibold">{{ $p3['wins'] }}-{{ $p3['losses'] }}-0 &bull; {{ $p3['game_diff'] >= 0 ? '+' : '' }}{{ $p3['game_diff'] }}</p>
+                                        <span class="inline-block px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 text-[9px] font-black border border-slate-700">{{ $p3['points_for'] ?? $p3['games_won'] }} pts</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ---------------------------------------------------- -->
+                    <!-- TEMPLATE 2: GLASS LEADERBOARD CARD (TOP OVERLAY) -->
+                    <!-- ---------------------------------------------------- -->
+                    <div id="tpl_leaderboard" class="template-view relative z-10 h-full flex flex-col justify-between hidden">
+                        <!-- Top Header & Brand -->
+                        <div class="flex items-center justify-between pb-2 border-b border-white/10">
+                            <div class="flex items-center gap-2">
+                                <img src="{{ asset('images/logo.svg') }}" class="w-6 h-6" alt="Matcha">
+                                <div>
+                                    <span class="text-xs font-black tracking-wider text-white block">MATCHA</span>
+                                    <span class="text-[8px] font-bold text-[#A8E63A] uppercase tracking-widest block -mt-0.5">LEADERBOARD</span>
+                                </div>
+                            </div>
+                            <span class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-[#063B00] text-[#A8E63A] border border-[#A8E63A]/30">
+                                {{ $game['sport'] }}
+                            </span>
+                        </div>
+
+                        <!-- Leaderboard Glass Table Card -->
+                        <div class="bg-black/65 backdrop-blur-xl border border-white/15 rounded-2xl p-2.5 sm:p-3 shadow-2xl space-y-1.5 my-auto">
+                            <div class="flex items-center justify-between text-[9px] font-extrabold text-slate-400 px-2 pb-1 border-b border-white/10">
+                                <div class="w-6 text-left">POS</div>
+                                <div class="flex-1 text-left">PLAYER</div>
+                                <div class="w-10 text-center">W-L</div>
+                                <div class="w-8 text-center">DIFF</div>
+                                <div class="w-10 text-right">PTS</div>
+                            </div>
+
+                            @foreach(array_slice($rankedPlayers, 0, 4) as $idx => $rp)
+                            @php
+                                $isFirst = $idx === 0;
+                                $rowBg = $isFirst ? 'bg-amber-400/20 border border-amber-400/40 text-amber-200' : 'bg-white/5 border border-white/5 text-white';
+                            @endphp
+                            <div class="flex items-center justify-between p-1.5 rounded-xl {{ $rowBg }} text-[10px]">
+                                <div class="w-6 font-black text-center">
+                                    @if($idx === 0) 🥇
+                                    @elseif($idx === 1) 🥈
+                                    @elseif($idx === 2) 🥉
+                                    @else #{{ $idx + 1 }}
+                                    @endif
+                                </div>
+                                <div class="flex-1 flex items-center gap-1.5 truncate px-1 font-bold">
+                                    <div class="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[9px] shrink-0">
+                                        {{ mb_substr($rp['name'], 0, 1) }}
+                                    </div>
+                                    <span class="truncate">{{ $rp['name'] }}</span>
+                                </div>
+                                <div class="w-10 text-center font-semibold text-[9px] text-slate-300">
+                                    {{ $rp['wins'] }}-{{ $rp['losses'] }}
+                                </div>
+                                <div class="w-8 text-center font-black text-[9px] {{ $rp['game_diff'] >= 0 ? 'text-[#A8E63A]' : 'text-rose-400' }}">
+                                    {{ $rp['game_diff'] >= 0 ? '+' : '' }}{{ $rp['game_diff'] }}
+                                </div>
+                                <div class="w-10 text-right font-black text-xs text-white">
+                                    {{ $rp['points_for'] ?? $rp['games_won'] }}
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+
+                        <!-- Bottom Watermark -->
+                        <div class="pt-2 text-center border-t border-white/10">
+                            <p class="text-[10px] font-black text-white truncate">{{ $game['title'] ?? 'Matcha Session' }}</p>
+                            <p class="text-[8px] text-slate-400">{{ $game['venue_name'] ?? 'Arena Olahraga' }} &bull; Matcha Match Arena</p>
+                        </div>
+                    </div>
+
+                    <!-- ---------------------------------------------------- -->
+                    <!-- TEMPLATE 3: MATCH HIGHLIGHTS & SCORES -->
+                    <!-- ---------------------------------------------------- -->
+                    <div id="tpl_matches" class="template-view relative z-10 h-full flex flex-col justify-between hidden">
+                        <!-- Top Header -->
+                        <div class="flex items-center justify-between pb-2 border-b border-white/10">
+                            <div class="flex items-center gap-2">
+                                <img src="{{ asset('images/logo.svg') }}" class="w-6 h-6" alt="Matcha">
+                                <div>
+                                    <h4 class="text-xs font-black text-white truncate max-w-[150px]">{{ $game['title'] ?? 'Matcha Session' }}</h4>
+                                    <p class="text-[8px] text-[#A8E63A] font-bold">Match Recap Highlights</p>
+                                </div>
+                            </div>
+                            <span class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-white/10 text-slate-200 border border-white/15">
+                                {{ count($game['drawing'] ?? []) }} Rounds
+                            </span>
+                        </div>
+
+                        <!-- Match Result Cards List -->
+                        <div class="space-y-2 my-auto">
+                            @php
+                                $sampleDrawing = array_slice($game['drawing'] ?? [], 0, 3, true);
+                            @endphp
+                            @foreach($sampleDrawing as $rKey => $rData)
+                            @php
+                                $rTitle = ucfirst(str_replace('_', ' ', $rKey));
+                                $mScore = $effectiveScores[$rKey] ?? [];
+                                $isDone = ($mScore['status'] ?? '') === 'completed';
+                                $mWinner = $mScore['winner_team'] ?? 'Team A';
+                                $teamA = $rData['team_a'] ?? ['Team A'];
+                                $teamB = $rData['team_b'] ?? ['Team B'];
+                                $scoreStrA = $isSets ? ($mScore['sets_a'] ?? 0) : ($mScore['games_a'] ?? $mScore['score_a'] ?? 0);
+                                $scoreStrB = $isSets ? ($mScore['sets_b'] ?? 0) : ($mScore['games_b'] ?? $mScore['score_b'] ?? 0);
+                            @endphp
+                            <div class="bg-black/65 backdrop-blur-xl border border-white/15 rounded-xl p-2 sm:p-2.5 shadow-md space-y-1.5">
+                                <div class="flex items-center justify-between text-[9px] font-black text-[#A8E63A]">
+                                    <span><i class="fa-solid fa-flag-checkered mr-1"></i> {{ $rTitle }}</span>
+                                    <span class="text-slate-400 font-semibold">Court 1</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 text-[10px]">
+                                    <!-- Team A -->
+                                    <div class="p-1.5 rounded-lg {{ $mWinner === 'Team A' ? 'bg-[#063B00]/80 border border-[#A8E63A]/40' : 'bg-white/5' }} flex items-center justify-between">
+                                        <span class="truncate font-bold text-slate-200 text-[9px]">{{ implode(' & ', is_array($teamA) ? $teamA : [$teamA]) }}</span>
+                                        <span class="font-black text-xs {{ $mWinner === 'Team A' ? 'text-[#A8E63A]' : 'text-slate-400' }} ml-1">{{ $scoreStrA }}</span>
+                                    </div>
+                                    <!-- Team B -->
+                                    <div class="p-1.5 rounded-lg {{ $mWinner === 'Team B' ? 'bg-[#063B00]/80 border border-[#A8E63A]/40' : 'bg-white/5' }} flex items-center justify-between">
+                                        <span class="truncate font-bold text-slate-200 text-[9px]">{{ implode(' & ', is_array($teamB) ? $teamB : [$teamB]) }}</span>
+                                        <span class="font-black text-xs {{ $mWinner === 'Team B' ? 'text-[#A8E63A]' : 'text-slate-400' }} ml-1">{{ $scoreStrB }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="pt-2 text-center border-t border-white/10">
+                            <span class="text-[9px] font-bold text-[#A8E63A]"><i class="fa-solid fa-trophy mr-1"></i> Winner: {{ $rankedPlayers[0]['name'] ?? 'Champion' }}</span>
+                        </div>
+                    </div>
+
+                    <!-- ---------------------------------------------------- -->
+                    <!-- TEMPLATE 4: STRAVA-STYLE ATHLETIC STATS CARD -->
+                    <!-- ---------------------------------------------------- -->
+                    <div id="tpl_strava" class="template-view relative z-10 h-full flex flex-col justify-between hidden">
+                        <!-- Top Header Strava Style -->
+                        <div class="space-y-1 border-b border-white/10 pb-2.5">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-[#A8E63A] animate-pulse"></span>
+                                    <span class="text-[9px] font-black tracking-widest text-[#A8E63A] uppercase">MATCHA ACTIVITY</span>
+                                </div>
+                                <img src="{{ asset('images/logo.svg') }}" class="w-5 h-5" alt="Matcha">
+                            </div>
+                            <!-- Player Profile Info -->
+                            <div class="flex items-center gap-2.5 pt-1">
+                                <div class="w-9 h-9 rounded-full bg-emerald-600 border-2 border-[#A8E63A] flex items-center justify-center font-black text-xs text-white shadow" id="stravaAvatarInitial">
+                                    {{ mb_substr($rankedPlayers[0]['name'] ?? 'M', 0, 1) }}
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-black text-white leading-tight" id="stravaPlayerName">
+                                        {{ $rankedPlayers[0]['name'] ?? 'Pemain Matcha' }}
+                                    </h4>
+                                    <p class="text-[9px] text-slate-300">
+                                        {{ $game['sport'] }} &bull; <span class="text-[#A8E63A] font-bold">{{ $game['venue_name'] ?? 'Matcha Arena' }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Big Athletic Metrics Grid (Clean Strava-like - Without Calories) -->
+                        <div class="bg-black/65 backdrop-blur-xl border border-white/15 rounded-2xl p-3 shadow-2xl space-y-2.5 my-auto">
+                            <div class="grid grid-cols-2 gap-2 text-center">
+                                <div class="p-2 rounded-xl bg-white/5 border border-white/5">
+                                    <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Total Poin</p>
+                                    <p class="text-2xl font-black text-white mt-0.5" id="stravaPoints">
+                                        {{ $rankedPlayers[0]['points_for'] ?? ($playerRecap['total_points'] ?? 24) }}
+                                    </p>
+                                </div>
+                                <div class="p-2 rounded-xl bg-[#063B00]/70 border border-[#A8E63A]/40">
+                                    <p class="text-[8px] font-bold text-[#A8E63A] uppercase tracking-wider">Win Rate</p>
+                                    <p class="text-2xl font-black text-[#A8E63A] mt-0.5" id="stravaWinRate">
+                                        {{ !empty($rankedPlayers[0]['matches']) ? round(($rankedPlayers[0]['wins'] / $rankedPlayers[0]['matches']) * 100) . '%' : ($playerRecap['win_rate'] ?? '75%') }}
+                                    </p>
+                                </div>
+                                <div class="p-2 rounded-xl bg-white/5 border border-white/5">
+                                    <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Match Record</p>
+                                    <p class="text-base font-black text-slate-200 mt-0.5" id="stravaRecord">
+                                        {{ $rankedPlayers[0]['wins'] ?? 2 }}W - {{ $rankedPlayers[0]['losses'] ?? 1 }}L
+                                    </p>
+                                </div>
+                                <div class="p-2 rounded-xl bg-white/5 border border-white/5">
+                                    <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Durasi Main</p>
+                                    <p class="text-base font-black text-slate-200 mt-0.5" id="stravaCalTime">
+                                        {{ $playerRecap['duration_played'] ?? '1j 45m' }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Kudos Badges Highlight Pills -->
+                            <div class="pt-0.5 flex items-center justify-center gap-1.5 flex-wrap">
+                                <span class="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#A8E63A]/20 text-[#A8E63A] border border-[#A8E63A]/30">🎾 Super Forehand</span>
+                                <span class="px-2 py-0.5 rounded-full text-[8px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">⭐ MVP Play</span>
+                            </div>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="pt-2 text-center border-t border-white/10 flex items-center justify-between text-[8px] text-slate-400">
+                            <span>MATCHA Tennis & Padel</span>
+                            <span class="font-bold text-[#A8E63A]">{{ date('d M Y') }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Next Button (>) -->
+                <button type="button" onclick="nextTemplate()" class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-100 hover:bg-[#063B00] hover:text-white border border-slate-200 text-slate-700 shadow-sm flex items-center justify-center font-bold text-sm cursor-pointer transition-all shrink-0 hover:scale-105" title="Template Selanjutnya">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <!-- RIGHT: Customization Controls & Actions (Light Mode Theme) -->
+            <div class="lg:col-span-6 space-y-4">
+                
+                <!-- 1. Select Template Tabs -->
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                        <i class="fa-solid fa-shapes text-[#063B00] mr-1"></i> Pilih Template
+                    </label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="switchTemplate(0)" id="tplBtn_0" class="tpl-btn p-2.5 rounded-2xl bg-[#063B00] border-2 border-[#063B00] text-left transition-all cursor-pointer shadow-xs">
+                            <p class="text-xs font-black text-white">1. Minimalist Podium</p>
+                            <p class="text-[10px] text-slate-200">Bottom 3-avatar overlay</p>
+                        </button>
+                        <button onclick="switchTemplate(1)" id="tplBtn_1" class="tpl-btn p-2.5 rounded-2xl bg-white border-2 border-slate-200 text-left hover:border-slate-300 hover:bg-slate-50 transition-all cursor-pointer shadow-2xs">
+                            <p class="text-xs font-black text-slate-900">2. Glass Leaderboard</p>
+                            <p class="text-[10px] text-slate-500">Tabel ranking 1st - 4th</p>
+                        </button>
+                        <button onclick="switchTemplate(2)" id="tplBtn_2" class="tpl-btn p-2.5 rounded-2xl bg-white border-2 border-slate-200 text-left hover:border-slate-300 hover:bg-slate-50 transition-all cursor-pointer shadow-2xs">
+                            <p class="text-xs font-black text-slate-900">3. Match Highlights</p>
+                            <p class="text-[10px] text-slate-500">Rekap skor tiap match</p>
+                        </button>
+                        <button onclick="switchTemplate(3)" id="tplBtn_3" class="tpl-btn p-2.5 rounded-2xl bg-white border-2 border-slate-200 text-left hover:border-slate-300 hover:bg-slate-50 transition-all cursor-pointer shadow-2xs">
+                            <p class="text-xs font-black text-slate-900">4. Strava Athletic</p>
+                            <p class="text-[10px] text-slate-500">Personal performance card</p>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Player Selector (For Strava Template) -->
+                <div id="playerSelectorWrapper" class="space-y-1.5 hidden">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                        <i class="fa-solid fa-user text-[#063B00] mr-1"></i> Pilih Pemain untuk Highlight
+                    </label>
+                    <select id="stravaPlayerSelect" onchange="onSelectStravaPlayer(this.value)" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 shadow-2xs focus:outline-none focus:border-[#063B00]">
+                        @foreach($rankedPlayers as $rp)
+                        <option value="{{ $rp['name'] }}" 
+                            data-points="{{ $rp['points_for'] ?? $rp['games_won'] }}" 
+                            data-wins="{{ $rp['wins'] }}" 
+                            data-losses="{{ $rp['losses'] }}"
+                            data-matches="{{ $rp['matches'] }}">
+                            #{{ $rp['rank'] }} &bull; {{ $rp['name'] }} ({{ $rp['points_for'] ?? $rp['games_won'] }} pts)
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- 3. Insert Photo Background from Local Device -->
+                <div class="space-y-2 bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl shadow-2xs">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                            <i class="fa-solid fa-image text-[#063B00] mr-1"></i> Background Foto Lapangan
+                        </label>
+                        <span id="photoBadge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25">Foto Terpasang</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500">Pasang foto momen mabar dari galeri HP atau komputermu.</p>
+                    
+                    <input type="file" id="recapBgInput" accept="image/*" class="hidden" onchange="handlePhotoUpload(event)">
+                    
+                    <div class="flex items-center gap-2 pt-0.5">
+                        <button type="button" onclick="document.getElementById('recapBgInput').click()" class="flex-1 py-2.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs">
+                            <i class="fa-solid fa-camera text-[#063B00]"></i> <span id="photoBtnLabel">Insert Photo dari Galeri</span>
+                        </button>
+                        <button type="button" id="removePhotoBtn" onclick="removePhoto()" class="hidden px-3 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition-all cursor-pointer" title="Hapus foto">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4. Overlay Filter Style -->
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                        <i class="fa-solid fa-sliders text-[#063B00] mr-1"></i> Filter Gelap Overlay
+                    </label>
+                    <div class="flex items-center gap-2">
+                        <button onclick="setOverlayTheme('contrast')" id="filterBtn_contrast" class="filter-btn flex-1 py-2 rounded-xl bg-[#063B00] border-2 border-[#063B00] text-white text-xs font-bold transition-all cursor-pointer shadow-xs">
+                            Dark Contrast
+                        </button>
+                        <button onclick="setOverlayTheme('matcha')" id="filterBtn_matcha" class="filter-btn flex-1 py-2 rounded-xl bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all cursor-pointer shadow-2xs">
+                            Matcha Glow
+                        </button>
+                        <button onclick="setOverlayTheme('clean')" id="filterBtn_clean" class="filter-btn flex-1 py-2 rounded-xl bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all cursor-pointer shadow-2xs">
+                            Minimal
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 5. Export Actions -->
+                <div class="pt-2 space-y-2 mb-6 sm:mb-0">
+                    <button type="button" id="btnShareStory" onclick="exportAndShareStory('share')" class="w-full py-3.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer border border-[#A8E63A]/40 active:scale-[0.99]">
+                        <i class="fa-solid fa-share-nodes text-[#A8E63A]"></i> <span class="text-white font-bold">Share Image / Story</span>
+                    </button>
+                    <button type="button" id="btnDownloadStory" onclick="exportAndShareStory('download')" class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-[0.99]">
+                        <i class="fa-solid fa-download text-[#063B00]"></i> <span>Download PNG (1080x1920)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @push('scripts')
+<!-- Include html-to-image and html2canvas fallback -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <script>
+    // Kudos logic
     function toggleKudos(button, playerName) {
         if (button.classList.contains('bg-[#063B00]')) {
             button.classList.remove('bg-[#063B00]', 'text-white', 'border-[#063B00]');
@@ -479,20 +986,315 @@
         }
     }
 
-    function shareRecap() {
-        if (navigator.share) {
+    // Modal Control: Share Options Modal
+    function openShareModal() {
+        document.getElementById('shareOptionsModal').classList.remove('hidden');
+    }
+
+    function closeShareModal() {
+        document.getElementById('shareOptionsModal').classList.add('hidden');
+    }
+
+    function copyWebLink() {
+        navigator.clipboard.writeText(window.location.href);
+        if (typeof showToast === 'function') {
+            showToast('Link rekap berhasil disalin ke clipboard!');
+        } else {
+            alert('Link rekap berhasil disalin ke clipboard!');
+        }
+    }
+
+    function shareWebDirect() {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile && navigator.share) {
             navigator.share({
-                title: 'Hasil Match MATCHA',
+                title: 'Hasil Match MATCHA - {{ $game["title"] ?? "Mabar" }}',
                 text: 'Cek hasil pertandingan mabar hari ini di MATCHA!',
                 url: window.location.href,
-            }).catch(() => {});
+            }).catch(() => {
+                copyWebLink();
+            });
         } else {
-            navigator.clipboard.writeText(window.location.href);
-            if (typeof showToast === 'function') {
-                showToast('Link rekap disalin ke clipboard!');
+            copyWebLink();
+        }
+    }
+
+    // Modal Control: Template Studio
+    function openTemplateStudio() {
+        closeShareModal();
+        document.getElementById('templateStudioModal').classList.remove('hidden');
+    }
+
+    function closeTemplateStudio() {
+        document.getElementById('templateStudioModal').classList.add('hidden');
+    }
+
+    // Template Switching Logic
+    const templateIds = ['tpl_podium', 'tpl_leaderboard', 'tpl_matches', 'tpl_strava'];
+    let currentTemplateIdx = 0;
+
+    function nextTemplate() {
+        const nextIdx = (currentTemplateIdx + 1) % templateIds.length;
+        switchTemplate(nextIdx);
+    }
+
+    function prevTemplate() {
+        const prevIdx = (currentTemplateIdx - 1 + templateIds.length) % templateIds.length;
+        switchTemplate(prevIdx);
+    }
+
+    function switchTemplate(idx) {
+        currentTemplateIdx = idx;
+        
+        // Switch Template Views
+        templateIds.forEach((id, i) => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (i === idx) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
             }
+        });
+
+        // Update Tab Buttons
+        for (let i = 0; i < 4; i++) {
+            const btn = document.getElementById(`tplBtn_${i}`);
+            if (btn) {
+                const titleEl = btn.querySelector('p:first-child');
+                const descEl  = btn.querySelector('p:last-child');
+                if (i === idx) {
+                    btn.className = 'tpl-btn p-2.5 rounded-2xl bg-[#063B00] border-2 border-[#063B00] text-left transition-all cursor-pointer shadow-xs';
+                    if (titleEl) titleEl.className = 'text-xs font-black text-white';
+                    if (descEl) descEl.className = 'text-[10px] text-slate-200';
+                } else {
+                    btn.className = 'tpl-btn p-2.5 rounded-2xl bg-white border-2 border-slate-200 text-left hover:border-slate-300 hover:bg-slate-50 transition-all cursor-pointer shadow-2xs';
+                    if (titleEl) titleEl.className = 'text-xs font-black text-slate-900';
+                    if (descEl) descEl.className = 'text-[10px] text-slate-500';
+                }
+            }
+        }
+
+        // Show/Hide Strava Player Selector
+        const playerSel = document.getElementById('playerSelectorWrapper');
+        if (playerSel) {
+            if (idx === 3) {
+                playerSel.classList.remove('hidden');
+            } else {
+                playerSel.classList.add('hidden');
+            }
+        }
+    }
+
+    // Local Photo Upload & Live Background Injection
+    function handlePhotoUpload(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const bgContainer = document.getElementById('storyBgPhoto');
+            const defaultGrid = document.getElementById('storyDefaultGridPattern');
+            const photoBadge  = document.getElementById('photoBadge');
+            const removeBtn   = document.getElementById('removePhotoBtn');
+            const photoLabel  = document.getElementById('photoBtnLabel');
+
+            if (bgContainer) {
+                bgContainer.style.backgroundImage = `url("${e.target.result}")`;
+            }
+            if (defaultGrid) {
+                defaultGrid.classList.add('opacity-0');
+            }
+            if (photoBadge) photoBadge.classList.remove('hidden');
+            if (removeBtn) removeBtn.classList.remove('hidden');
+            if (photoLabel) photoLabel.innerText = 'Ganti Foto Lapangan';
+
+            if (typeof showToast === 'function') {
+                showToast('Foto latar belakang berhasil dipasang! 📸');
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function removePhoto() {
+        const bgContainer = document.getElementById('storyBgPhoto');
+        const defaultGrid = document.getElementById('storyDefaultGridPattern');
+        const photoBadge  = document.getElementById('photoBadge');
+        const removeBtn   = document.getElementById('removePhotoBtn');
+        const photoLabel  = document.getElementById('photoBtnLabel');
+        const fileInput   = document.getElementById('recapBgInput');
+
+        if (bgContainer) bgContainer.style.backgroundImage = 'none';
+        if (defaultGrid) defaultGrid.classList.remove('opacity-0');
+        if (photoBadge) photoBadge.classList.add('hidden');
+        if (removeBtn) removeBtn.classList.add('hidden');
+        if (photoLabel) photoLabel.innerText = 'Insert Photo dari Galeri';
+        if (fileInput) fileInput.value = '';
+    }
+
+    // Overlay Theme Filters
+    function setOverlayTheme(theme) {
+        const overlay = document.getElementById('storyOverlayTint');
+        const buttons = {
+            contrast: document.getElementById('filterBtn_contrast'),
+            matcha: document.getElementById('filterBtn_matcha'),
+            clean: document.getElementById('filterBtn_clean'),
+        };
+
+        Object.keys(buttons).forEach(k => {
+            if (buttons[k]) {
+                if (k === theme) {
+                    buttons[k].className = 'filter-btn flex-1 py-2 rounded-xl bg-[#063B00] border-2 border-[#063B00] text-white text-xs font-bold transition-all cursor-pointer shadow-xs';
+                } else {
+                    buttons[k].className = 'filter-btn flex-1 py-2 rounded-xl bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all cursor-pointer shadow-2xs';
+                }
+            }
+        });
+
+        if (overlay) {
+            if (theme === 'contrast') {
+                overlay.className = 'absolute inset-0 bg-gradient-to-b from-black/80 via-black/35 to-black/90 pointer-events-none';
+            } else if (theme === 'matcha') {
+                overlay.className = 'absolute inset-0 bg-gradient-to-b from-[#063B00]/85 via-black/40 to-[#063B00]/95 pointer-events-none';
+            } else if (theme === 'clean') {
+                overlay.className = 'absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/75 pointer-events-none';
+            }
+        }
+    }
+
+    // Strava Player Selector Handler
+    function onSelectStravaPlayer(playerName) {
+        const select = document.getElementById('stravaPlayerSelect');
+        const selectedOpt = select ? select.options[select.selectedIndex] : null;
+        if (!selectedOpt) return;
+
+        const points = selectedOpt.getAttribute('data-points') || '0';
+        const wins = parseInt(selectedOpt.getAttribute('data-wins') || '0');
+        const losses = parseInt(selectedOpt.getAttribute('data-losses') || '0');
+        const matches = parseInt(selectedOpt.getAttribute('data-matches') || '1');
+
+        const nameEl = document.getElementById('stravaPlayerName');
+        const avatarEl = document.getElementById('stravaAvatarInitial');
+        const ptsEl = document.getElementById('stravaPoints');
+        const wrEl = document.getElementById('stravaWinRate');
+        const recEl = document.getElementById('stravaRecord');
+
+        if (nameEl) nameEl.innerText = playerName;
+        if (avatarEl) avatarEl.innerText = playerName.charAt(0);
+        if (ptsEl) ptsEl.innerText = points;
+        if (recEl) recEl.innerText = `${wins}W - ${losses}L`;
+        if (wrEl) {
+            const rate = matches > 0 ? Math.round((wins / matches) * 100) : 0;
+            wrEl.innerText = `${rate}%`;
+        }
+    }
+
+    // High Resolution Image Generator (9:16 HD Export)
+    async function exportAndShareStory(mode = 'share') {
+        const card = document.getElementById('storyCardContainer');
+        const btnShare = document.getElementById('btnShareStory');
+        const btnDownload = document.getElementById('btnDownloadStory');
+
+        if (!card) return;
+
+        // Button Loading State
+        const originalText = btnShare.innerHTML;
+        btnShare.disabled = true;
+        btnShare.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Generating HD Story...</span>';
+        if (btnDownload) btnDownload.disabled = true;
+
+        try {
+            let blob = null;
+
+            // Method 1: Try htmlToImage toPng -> Blob
+            if (typeof htmlToImage !== 'undefined' && htmlToImage.toPng) {
+                try {
+                    const dataUrl = await htmlToImage.toPng(card, {
+                        pixelRatio: 2.5,
+                        backgroundColor: '#090d10',
+                        cacheBust: true,
+                    });
+                    const res = await fetch(dataUrl);
+                    blob = await res.blob();
+                } catch (e) {
+                    console.warn('htmlToImage failed, fallback to html2canvas:', e);
+                }
+            }
+
+            // Method 2: Fallback html2canvas
+            if (!blob && typeof html2canvas !== 'undefined') {
+                const canvas = await html2canvas(card, {
+                    scale: 2.5,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#090d10',
+                    logging: false,
+                });
+                blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95));
+            }
+
+            if (!blob) {
+                throw new Error('Tidak dapat membuat file gambar story dari browser.');
+            }
+
+            const filename = `MATCHA-Recap-{{ \Illuminate\Support\Str::slug($game['title'] ?? 'Session') }}.png`;
+            const file = new File([blob], filename, { type: 'image/png' });
+
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            // Trigger Mobile Native Share sheet if on mobile device
+            if (mode === 'share' && isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: 'MATCHA Match Story',
+                        text: 'Cek hasil pertandingan mabar hari ini di MATCHA! 🎾',
+                        files: [file],
+                    });
+                    if (typeof showToast === 'function') {
+                        showToast('Story berhasil dibagikan! 🎉');
+                    }
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        downloadBlob(blob, filename);
+                    }
+                }
+            } else {
+                // Direct Download mode (Desktop or fallback)
+                downloadBlob(blob, filename);
+            }
+
+            btnShare.disabled = false;
+            btnShare.innerHTML = originalText;
+            if (btnDownload) btnDownload.disabled = false;
+
+        } catch (err) {
+            console.error('Export Error:', err);
+            const errMsg = err && (err.message || err.toString()) ? (err.message || err.toString()) : 'Gagal memproses gambar';
+            alert('Gagal membuat gambar story: ' + errMsg);
+            btnShare.disabled = false;
+            btnShare.innerHTML = originalText;
+            if (btnDownload) btnDownload.disabled = false;
+        }
+    }
+
+    function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        if (typeof showToast === 'function') {
+            showToast('Gambar story berhasil diunduh! 📥');
+        } else {
+            alert('Gambar story berhasil diunduh ke perangkatmu!');
         }
     }
 </script>
 @endpush
 @endsection
+
