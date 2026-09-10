@@ -16,10 +16,26 @@ class Community extends Model
         'nama_community',
         'deskripsi',
         'logo',
-        'jadwal_rutin',
-        'sport_utama',
         'sport',
+        'tagline',
+        'kota_homebase',
+        'target_level',
+        'status_keanggotaan',
+        'jadwal_rutin',
+        'homebase_venue',
+        'benefits',
+        'created_by',
+        'sport_utama',
     ];
+
+    protected $casts = [
+        'benefits' => 'array',
+    ];
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by', 'user_id');
+    }
 
     public function players()
     {
@@ -87,6 +103,14 @@ class Community extends Model
      */
     public function getAdminNameAttribute()
     {
+        // 0. Ambil dari user pembuat (creator) jika tersedia
+        if ($this->relationLoaded('creator') ? $this->creator : $this->creator()->first()) {
+            $creator = $this->relationLoaded('creator') ? $this->creator : $this->creator()->first();
+            if (!empty($creator?->nama)) {
+                return $creator->nama;
+            }
+        }
+
         // 1. Ambil dari relasi player yang terdaftar di komunitas ini
         if ($this->relationLoaded('players') ? $this->players->isNotEmpty() : $this->players()->exists()) {
             $firstPlayer = $this->players->sortBy('created_at')->first();

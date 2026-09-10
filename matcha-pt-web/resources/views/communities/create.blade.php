@@ -98,7 +98,7 @@
                         <label class="block font-bold text-slate-800">Kota Homebase <span class="text-rose-500">*</span></label>
                         <div class="relative">
                             <i class="fa-solid fa-location-dot absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" id="input_kota" name="kota" value="{{ old('kota') }}" placeholder="Contoh: Bandung, Jakarta, Surabaya" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <input type="text" id="input_kota" name="kota_homebase" value="{{ old('kota_homebase', old('kota')) }}" placeholder="Contoh: Bandung, Jakarta, Surabaya" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                         </div>
                         <p id="err_kota" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
                             <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Kota homebase wajib diisi.
@@ -163,9 +163,9 @@
                         <label class="block font-bold text-slate-800">Target Level Member</label>
                         <div class="relative">
                             <select name="target_level" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                                <option value="All Levels" selected>Semua Level (Newbie s/d Advanced)</option>
-                                <option value="Beginners">Fokus Newbie & Beginner</option>
-                                <option value="Intermediate">Intermediate & Competitive</option>
+                                <option value="All Levels" {{ old('target_level', 'All Levels') === 'All Levels' ? 'selected' : '' }}>Semua Level (Newbie s/d Advanced)</option>
+                                <option value="Beginners" {{ old('target_level') === 'Beginners' ? 'selected' : '' }}>Fokus Newbie & Beginner</option>
+                                <option value="Intermediate" {{ old('target_level') === 'Intermediate' ? 'selected' : '' }}>Intermediate & Competitive</option>
                             </select>
                             <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
@@ -174,10 +174,10 @@
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Status Keanggotaan</label>
                         <div class="relative">
-                            <select name="membership_status" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                                <option value="Open" selected>Terbuka untuk Umum (Free Join)</option>
-                                <option value="Approval">Memerlukan Persetujuan Admin</option>
-                                <option value="Private">Undangan Khusus (Private)</option>
+                            <select name="status_keanggotaan" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                                <option value="Open" {{ old('status_keanggotaan', old('membership_status', 'Open')) === 'Open' ? 'selected' : '' }}>Terbuka untuk Umum (Free Join)</option>
+                                <option value="Approval" {{ old('status_keanggotaan', old('membership_status')) === 'Approval' ? 'selected' : '' }}>Memerlukan Persetujuan Admin</option>
+                                <option value="Private" {{ old('status_keanggotaan', old('membership_status')) === 'Private' ? 'selected' : '' }}>Undangan Khusus (Private)</option>
                             </select>
                             <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
@@ -206,7 +206,7 @@
                             <label class="block font-bold text-slate-800">Jadwal Mabar Rutin</label>
                             <div class="relative">
                                 <i class="fa-regular fa-calendar-days absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                <input type="text" name="jadwal_rutin" placeholder="Contoh: Tiap Rabu Malam & Sabtu Pagi" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                                <input type="text" name="jadwal_rutin" value="{{ old('jadwal_rutin') }}" placeholder="Contoh: Tiap Rabu Malam & Sabtu Pagi" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                             </div>
                         </div>
 
@@ -214,7 +214,7 @@
                             <label class="block font-bold text-slate-800">Homebase Venue Utama</label>
                             <div class="relative">
                                 <i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                <input type="text" name="venue_utama" placeholder="Contoh: Gelora Racquet Arena" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                                <input type="text" name="homebase_venue" value="{{ old('homebase_venue', old('venue_utama')) }}" placeholder="Contoh: Gelora Racquet Arena" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                             </div>
                         </div>
                     </div>
@@ -231,20 +231,20 @@
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     @php
                         $benefits = [
-                            ['icon' => 'fa-calendar-check', 'name' => 'Sesi Mabar Mingguan'],
-                            ['icon' => 'fa-trophy', 'name' => 'Internal Tournament'],
-                            ['icon' => 'fa-graduation-cap', 'name' => 'Coaching Clinic'],
-                            ['icon' => 'fa-comments', 'name' => 'WhatsApp Group Aktif'],
-                            ['icon' => 'fa-tags', 'name' => 'Diskon Sewa Court'],
-                            ['icon' => 'fa-shirt', 'name' => 'Jersey Official Club'],
-                            ['icon' => 'fa-chart-line', 'name' => 'Tracking Rating Pemain'],
-                            ['icon' => 'fa-handshake', 'name' => 'Networking Profesional'],
+                            ['icon' => 'fa-calendar-check', 'key' => 'weekly_mabar', 'name' => 'Sesi Mabar Mingguan'],
+                            ['icon' => 'fa-trophy', 'key' => 'internal_tournament', 'name' => 'Internal Tournament'],
+                            ['icon' => 'fa-graduation-cap', 'key' => 'coaching_clinic', 'name' => 'Coaching Clinic'],
+                            ['icon' => 'fa-comments', 'key' => 'whatsapp_group', 'name' => 'WhatsApp Group Aktif'],
+                            ['icon' => 'fa-tags', 'key' => 'court_discount', 'name' => 'Diskon Sewa Court'],
+                            ['icon' => 'fa-shirt', 'key' => 'official_jersey', 'name' => 'Jersey Official Club'],
+                            ['icon' => 'fa-chart-line', 'key' => 'rating_tracking', 'name' => 'Tracking Rating Pemain'],
+                            ['icon' => 'fa-handshake', 'key' => 'networking', 'name' => 'Networking Profesional'],
                         ];
                     @endphp
 
                     @foreach($benefits as $ben)
                         <label class="cursor-pointer">
-                            <input type="checkbox" name="benefits[]" value="{{ $ben['name'] }}" class="peer sr-only" {{ in_array($ben['name'], old('benefits', [])) ? 'checked' : '' }}>
+                            <input type="checkbox" name="benefits[]" value="{{ $ben['key'] }}" class="peer sr-only" {{ in_array($ben['key'], old('benefits', [])) || in_array($ben['name'], old('benefits', [])) ? 'checked' : '' }}>
                             <div class="p-3 rounded-2xl border border-slate-200/70 bg-slate-50/50 peer-checked:bg-[#EBF8D8]/70 peer-checked:border-[#063B00] peer-checked:text-[#063B00] transition-all flex items-center gap-2.5 group hover:border-slate-300">
                                 <div class="w-7 h-7 rounded-xl bg-white border border-slate-200/80 flex items-center justify-center text-xs text-slate-600 peer-checked:text-[#063B00] shadow-2xs">
                                     <i class="fa-solid {{ $ben['icon'] }}"></i>

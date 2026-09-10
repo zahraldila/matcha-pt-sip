@@ -24,21 +24,21 @@ class CommunityController extends Controller
 {
     public function index()
     {
-        $dbCommunities = Community::with(['players.user'])->latest()->get();
+        $dbCommunities = Community::with(['players.user', 'creator'])->latest()->get();
         if ($dbCommunities->isNotEmpty()) {
             $communities = $dbCommunities->map(function ($c) {
                 return [
                     'id' => $c->community_id,
                     'name' => $c->nama_community,
                     'sport' => $c->sport,
-                    'city' => str_contains(strtolower($c->nama_community . ' ' . $c->deskripsi), 'bandung') ? 'Bandung' : 'Jakarta',
+                    'city' => $c->kota_homebase ?: (str_contains(strtolower($c->nama_community . ' ' . $c->deskripsi), 'bandung') ? 'Bandung' : 'Jakarta'),
                     'members_count' => $c->players->count(),
                     'admin_name' => $c->admin_name,
                     'image' => $c->logo ?: asset('images/default-community.jpg'),
-                    'tagline' => 'Komunitas Olahraga Matcha',
+                    'tagline' => $c->tagline ?: 'Komunitas Olahraga Matcha',
                     'description' => $c->deskripsi ?? ('Komunitas mabar ' . $c->sport . ' di Matcha Match Arena.'),
-                    'schedule' => 'Rutin Setiap Pekan',
-                    'status' => 'Active',
+                    'schedule' => $c->jadwal_rutin ?: 'Rutin Setiap Pekan',
+                    'status' => $c->status_keanggotaan ?: 'Active',
                 ];
             })->toArray();
         } else {
@@ -99,19 +99,22 @@ class CommunityController extends Controller
     {
         // Validasi request
         $validated = $request->validate([
-            'nama_community'    => 'required|string|max:255',
-            'sport'             => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
-            'sport_focus'       => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
-            'deskripsi'         => 'required|string',
-            'jadwal_rutin'      => 'nullable|string|max:255',
-            'tagline'           => 'nullable|string|max:255',
-            'kota'              => 'required|string|max:255',
-            'target_level'      => 'nullable|string',
-            'membership_status' => 'nullable|string',
-            'benefits'          => 'nullable|array',
-            'venue_utama'       => 'nullable|string|max:255',
-            'logo_url'          => 'nullable|string',
-            'logo'              => 'nullable|file|mimes:jpeg,jpg,png|max:2048',
+            'nama_community'     => 'required|string|max:255',
+            'sport'              => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
+            'sport_focus'        => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
+            'deskripsi'          => 'required|string',
+            'jadwal_rutin'       => 'nullable|string|max:255',
+            'tagline'            => 'nullable|string|max:255',
+            'kota_homebase'      => 'nullable|string|max:255',
+            'kota'               => 'nullable|string|max:255',
+            'target_level'       => 'nullable|string|max:100',
+            'status_keanggotaan' => 'nullable|string|max:100',
+            'membership_status'  => 'nullable|string|max:100',
+            'benefits'           => 'nullable|array',
+            'homebase_venue'     => 'nullable|string|max:255',
+            'venue_utama'        => 'nullable|string|max:255',
+            'logo_url'           => 'nullable|string',
+            'logo'               => 'nullable|file|mimes:jpeg,jpg,png|max:2048',
         ], [
             'logo.mimes' => 'Format logo tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.',
             'logo.max'   => 'Ukuran logo maksimal 2 MB.',
@@ -124,6 +127,37 @@ class CommunityController extends Controller
             'all_racquet', 'both', 'all racquet', 'padel & tennis' => 'all_racquet',
             default => 'padel',
         };
+
+        // Normalisasi benefit ke array key konsisten
+        $rawBenefits = (array) $request->input('benefits', []);
+        $benefitMap = [
+            'sesi mabar mingguan' => 'weekly_mabar',
+            'weekly_mabar' => 'weekly_mabar',
+            'internal tournament' => 'internal_tournament',
+            'internal_tournament' => 'internal_tournament',
+            'coaching clinic' => 'coaching_clinic',
+            'coaching_clinic' => 'coaching_clinic',
+            'whatsapp group aktif' => 'whatsapp_group',
+            'whatsapp_group' => 'whatsapp_group',
+            'diskon sewa court' => 'court_discount',
+            'court_discount' => 'court_discount',
+            'jersey official club' => 'official_jersey',
+            'official_jersey' => 'official_jersey',
+            'tracking rating pemain' => 'rating_tracking',
+            'rating_tracking' => 'rating_tracking',
+            'networking profesional' => 'networking',
+            'networking' => 'networking',
+        ];
+        $normalizedBenefits = [];
+        foreach ($rawBenefits as $b) {
+            $key = strtolower(trim((string) $b));
+            if (isset($benefitMap[$key])) {
+                $normalizedBenefits[] = $benefitMap[$key];
+            } else if (!empty($key)) {
+                $normalizedBenefits[] = $key;
+            }
+        }
+        $normalizedBenefits = array_values(array_unique($normalizedBenefits));
 
         $logoUrl = $validated['logo_url'] ?? null;
 
@@ -151,12 +185,20 @@ class CommunityController extends Controller
             $logoUrl = null;
         }
 
-        // Buat community baru dengan field yang valid di database
+        // Buat community baru dengan seluruh field yang valid di database
         $community = Community::create([
-            'nama_community' => $validated['nama_community'],
-            'deskripsi'      => $validated['deskripsi'],
-            'logo'           => $logoUrl ?: null,
-            'sport'          => $normalizedSport,
+            'nama_community'     => $validated['nama_community'],
+            'tagline'            => $request->input('tagline') ?: null,
+            'kota_homebase'      => $request->input('kota_homebase') ?: ($request->input('kota') ?: null),
+            'sport'              => $normalizedSport,
+            'target_level'       => $request->input('target_level') ?: null,
+            'status_keanggotaan' => $request->input('status_keanggotaan') ?: ($request->input('membership_status') ?: 'Open'),
+            'deskripsi'          => $validated['deskripsi'],
+            'jadwal_rutin'       => $request->input('jadwal_rutin') ?: null,
+            'homebase_venue'     => $request->input('homebase_venue') ?: ($request->input('venue_utama') ?: null),
+            'benefits'           => !empty($normalizedBenefits) ? $normalizedBenefits : null,
+            'created_by'         => Auth::id(),
+            'logo'               => $logoUrl ?: null,
         ]);
 
         // Jika pembuat komunitas adalah player, otomatis join ke komunitas ini
