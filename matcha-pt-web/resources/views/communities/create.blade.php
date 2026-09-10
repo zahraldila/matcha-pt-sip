@@ -48,7 +48,21 @@
     <!-- Main Glassmorphism Form Card -->
     <div class="backdrop-blur-2xl bg-white/80 border border-white/90 rounded-3xl p-6 sm:p-10 shadow-[0_20px_50px_rgba(6,59,0,0.06)] relative z-10 space-y-8">
 
-        <form id="communityForm" action="{{ route('communities.store') }}" method="POST" class="space-y-8 text-xs">
+        @if($errors->any())
+            <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs space-y-1">
+                <div class="font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>Mohon periksa data yang belum sesuai:</span>
+                </div>
+                <ul class="list-disc list-inside pl-1 text-[11px] text-rose-600 space-y-0.5">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <form id="communityForm" action="{{ route('communities.store') }}" method="POST" class="space-y-8 text-xs" novalidate onsubmit="validateCommunityForm(event)">
             @csrf
             
             <!-- SECTION 1: Identitas Komunitas -->
@@ -65,8 +79,11 @@
                         </label>
                         <div class="relative">
                             <i class="fa-solid fa-users-rectangle absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" id="communityName" name="nama_community" placeholder="Contoh: JTK Padel Club Bandung" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                            <input type="text" id="input_nama_community" name="nama_community" value="{{ old('nama_community') }}" placeholder="Contoh: JTK Padel Club Bandung" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                         </div>
+                        <p id="err_nama_community" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Nama komunitas wajib diisi.
+                        </p>
                     </div>
 
                     <div class="space-y-1.5">
@@ -81,8 +98,11 @@
                         <label class="block font-bold text-slate-800">Kota Homebase <span class="text-rose-500">*</span></label>
                         <div class="relative">
                             <i class="fa-solid fa-location-dot absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" name="kota" placeholder="Contoh: Bandung, Jakarta, Surabaya" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                            <input type="text" id="input_kota" name="kota" value="{{ old('kota') }}" placeholder="Contoh: Bandung, Jakarta, Surabaya" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                         </div>
+                        <p id="err_kota" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Kota homebase wajib diisi.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -175,7 +195,10 @@
                 <div class="space-y-4">
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Deskripsi Lengkap Komunitas <span class="text-rose-500">*</span></label>
-                        <textarea rows="3" name="deskripsi" placeholder="Jelaskan mengenai komunitas Anda, visi bermain, suasana mabar, aturan fair play, dan fasilitas yang biasa dinikmati..." class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required></textarea>
+                        <textarea rows="3" id="input_deskripsi" name="deskripsi" placeholder="Jelaskan mengenai komunitas Anda, visi bermain, suasana mabar, aturan fair play, dan fasilitas yang biasa dinikmati..." class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">{{ old('deskripsi') }}</textarea>
+                        <p id="err_deskripsi" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Deskripsi lengkap komunitas wajib diisi.
+                        </p>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -316,6 +339,70 @@
 
 @push('scripts')
 <script>
+    function setFieldError(fieldId, errId, message) {
+        const input = document.getElementById(fieldId);
+        const err = document.getElementById(errId);
+        if (!input || !err) return false;
+
+        if (message) {
+            input.classList.add('border-rose-400', 'bg-rose-50/40', 'focus:ring-rose-200', 'focus:border-rose-500');
+            input.classList.remove('border-slate-200/80', 'bg-slate-50/70');
+            err.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> ${message}`;
+            err.classList.remove('hidden');
+            err.classList.add('flex');
+            return true;
+        } else {
+            input.classList.remove('border-rose-400', 'bg-rose-50/40', 'focus:ring-rose-200', 'focus:border-rose-500');
+            input.classList.add('border-slate-200/80', 'bg-slate-50/70');
+            err.classList.add('hidden');
+            err.classList.remove('flex');
+            return false;
+        }
+    }
+
+    function validateCommunityForm(e) {
+        const nama = document.getElementById('input_nama_community')?.value.trim() || '';
+        const kota = document.getElementById('input_kota')?.value.trim() || '';
+        const deskripsi = document.getElementById('input_deskripsi')?.value.trim() || '';
+
+        let hasError = false;
+
+        if (setFieldError('input_nama_community', 'err_nama_community', !nama ? 'Nama komunitas / klub wajib diisi.' : null)) hasError = true;
+        if (setFieldError('input_kota', 'err_kota', !kota ? 'Kota homebase wajib diisi.' : null)) hasError = true;
+        if (setFieldError('input_deskripsi', 'err_deskripsi', !deskripsi ? 'Deskripsi lengkap komunitas wajib diisi.' : null)) hasError = true;
+
+        if (hasError) {
+            e.preventDefault();
+            const firstErrorField = document.querySelector('.border-rose-400');
+            if (firstErrorField) {
+                firstErrorField.focus();
+                firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    // Clear error UI immediately as user fills/fixes the field
+    ['input_nama_community', 'input_kota', 'input_deskripsi'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', function() {
+                if (this.value.trim()) {
+                    setFieldError(id, 'err_' + id.replace('input_', ''), null);
+                }
+            });
+        }
+    });
+
+    // Reset error UI on form reset
+    document.getElementById('communityForm')?.addEventListener('reset', function() {
+        ['input_nama_community', 'input_kota', 'input_deskripsi'].forEach(id => {
+            setFieldError(id, 'err_' + id.replace('input_', ''), null);
+        });
+    });
+
     function handleCommunityPreview(e) {
         e.preventDefault();
         const modal = document.getElementById('previewModal');
