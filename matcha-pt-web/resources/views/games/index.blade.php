@@ -43,4 +43,6 @@
         @endforeach
     </div>
 </div>
+
+<x-join-modal />
 @endsection
