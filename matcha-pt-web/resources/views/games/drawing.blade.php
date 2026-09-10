@@ -135,54 +135,65 @@
                             </span>
                         </div>
 
-                        <!-- Padel Court Graphic -->
-                        <div class="relative w-full min-h-[220px] sm:min-h-[240px] bg-[#14341d] rounded-2xl border-2 border-white/90 p-3 flex flex-col justify-between overflow-hidden shadow-inner">
-                            <div class="absolute inset-x-3 inset-y-2 border border-white/80 pointer-events-none"></div>
-                            <div class="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-white flex flex-col justify-between items-center z-10 pointer-events-none">
-                                <div class="w-2 h-2 bg-[#0d2213] border border-white rounded-full -mt-0.5"></div>
-                                <span class="bg-[#0d2213] text-lime-300 font-black text-[7px] px-1 py-0.5 rounded tracking-widest uppercase border border-white/40 rotate-90 my-auto">NET</span>
-                                <div class="w-2 h-2 bg-[#0d2213] border border-white rounded-full -mb-0.5"></div>
+                        <!-- Realistic Padel & Tennis Court Graphic (Authentic Proportions & Lines) -->
+                        <div class="relative w-full aspect-[16/10] min-h-[300px] sm:min-h-[340px] md:min-h-[360px] bg-gradient-to-b from-[#123e22] via-[#10371e] to-[#0c2b17] rounded-3xl border-2 border-white/90 p-4 sm:p-5 flex flex-col justify-between overflow-hidden shadow-lg">
+                            <!-- Outer Safety Boundary Line -->
+                            <div class="absolute inset-3 sm:inset-4 border-2 border-white/85 rounded-xl pointer-events-none shadow-xs"></div>
+                            
+                            <!-- Vertical Service Lines (Left & Right Boxes) -->
+                            <div class="absolute inset-y-3 sm:inset-y-4 left-[28%] w-0.5 bg-white/70 pointer-events-none"></div>
+                            <div class="absolute inset-y-3 sm:inset-y-4 left-[72%] w-0.5 bg-white/70 pointer-events-none"></div>
+
+                            <!-- Center Service T-Line -->
+                            <div class="absolute top-1/2 left-[28%] right-[28%] h-0.5 -translate-y-1/2 bg-white/70 pointer-events-none"></div>
+
+                            <!-- Center Net with Net Posts & Badge -->
+                            <div class="absolute inset-y-0 left-1/2 w-1 -translate-x-1/2 bg-white flex flex-col justify-between items-center z-10 pointer-events-none shadow-md">
+                                <div class="w-3 h-3 bg-[#050608] border-2 border-white rounded-full -mt-1 shadow-xs"></div>
+                                <span class="bg-[#050608]/90 text-[#A8E63A] font-black text-[7.5px] px-1.5 py-0.5 rounded tracking-widest uppercase border border-[#A8E63A]/50 rotate-90 my-auto shadow-xs">NET</span>
+                                <div class="w-3 h-3 bg-[#050608] border-2 border-white rounded-full -mb-1 shadow-xs"></div>
                             </div>
-                            <div class="absolute inset-y-1/2 left-3 right-3 h-0.5 -translate-y-1/2 bg-white/80 pointer-events-none"></div>
 
                             <div class="relative z-20 flex justify-between h-full">
-                                <div class="w-1/2 pr-1.5 flex flex-col justify-between h-full">
-                                    <span class="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/30 w-fit">
+                                <!-- Team A (Left Half) -->
+                                <div class="w-1/2 pr-2 flex flex-col justify-between h-full">
+                                    <span class="text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-black/40 backdrop-blur-xs text-[#A8E63A] border border-[#A8E63A]/40 w-fit shadow-xs">
                                         {{ $tAName }}
                                     </span>
-                                    <div class="flex flex-col justify-around gap-1 my-auto py-1">
+                                    <div class="flex flex-col justify-around gap-2 my-auto py-2 h-full">
                                         @foreach($tAPlayers as $pName)
                                             @php
                                                 $isFemale = preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|dewi|maya|lisa|naykila|sisil/i', $pName);
                                             @endphp
-                                            <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-4 my-1">
-                                                <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full {{ $isFemale ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600' }} text-white border-2 border-white shadow-md flex items-center justify-center text-xs mb-0.5">
+                                            <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-6 my-auto">
+                                                <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full {{ $isFemale ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600' }} text-white border-2 border-white shadow-lg flex items-center justify-center text-xs sm:text-sm mb-1 ring-2 ring-black/20">
                                                     <i class="{{ $isFemale ? 'fa-solid fa-person-dress' : 'fa-solid fa-person' }}"></i>
                                                 </div>
-                                                <p class="text-[10px] sm:text-[11px] font-bold text-white text-center leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] max-w-[90px] sm:max-w-[110px] truncate">
+                                                <span class="text-[10px] sm:text-[11px] font-bold text-white text-center leading-tight bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-white/20 shadow-xs max-w-[95px] sm:max-w-[120px] truncate">
                                                     {{ $pName }}
-                                                </p>
+                                                </span>
                                             </div>
                                         @endforeach
                                     </div>
                                 </div>
 
-                                <div class="w-1/2 pl-1.5 flex flex-col justify-between h-full items-end text-right">
-                                    <span class="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/30 w-fit">
+                                <!-- Team B (Right Half) -->
+                                <div class="w-1/2 pl-2 flex flex-col justify-between h-full items-end text-right">
+                                    <span class="text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-black/40 backdrop-blur-xs text-[#A8E63A] border border-[#A8E63A]/40 w-fit shadow-xs">
                                         {{ $tBName }}
                                     </span>
-                                    <div class="flex flex-col justify-around gap-1 my-auto py-1 items-end">
+                                    <div class="flex flex-col justify-around gap-2 my-auto py-2 h-full items-end w-full">
                                         @foreach($tBPlayers as $pName)
                                             @php
                                                 $isFemale = preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|dewi|maya|lisa|naykila|sisil/i', $pName);
                                             @endphp
-                                            <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-4 my-1">
-                                                <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full {{ $isFemale ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600' }} text-white border-2 border-white shadow-md flex items-center justify-center text-xs mb-0.5">
+                                            <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-6 my-auto">
+                                                <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full {{ $isFemale ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600' }} text-white border-2 border-white shadow-lg flex items-center justify-center text-xs sm:text-sm mb-1 ring-2 ring-black/20">
                                                     <i class="{{ $isFemale ? 'fa-solid fa-person-dress' : 'fa-solid fa-person' }}"></i>
                                                 </div>
-                                                <p class="text-[10px] sm:text-[11px] font-bold text-white text-center leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] max-w-[90px] sm:max-w-[110px] truncate">
+                                                <span class="text-[10px] sm:text-[11px] font-bold text-white text-center leading-tight bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-white/20 shadow-xs max-w-[95px] sm:max-w-[120px] truncate">
                                                     {{ $pName }}
-                                                </p>
+                                                </span>
                                             </div>
                                         @endforeach
                                     </div>
@@ -432,13 +443,13 @@
         const playersAHtml = playersA.map(name => {
             const female = isFemalePlayer(name);
             return `
-                <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-4 my-1">
-                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full ${female ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600'} text-white border-2 border-white shadow-md flex items-center justify-center text-xs mb-0.5">
+                <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-6 my-auto">
+                    <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full ${female ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600'} text-white border-2 border-white shadow-lg flex items-center justify-center text-xs sm:text-sm mb-1 ring-2 ring-black/20">
                         <i class="${female ? 'fa-solid fa-person-dress' : 'fa-solid fa-person'}"></i>
                     </div>
-                    <p class="text-[10px] sm:text-[11px] font-bold text-white text-center leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] max-w-[90px] sm:max-w-[110px] truncate">
+                    <span class="text-[10px] sm:text-[11px] font-bold text-white text-center leading-tight bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-white/20 shadow-xs max-w-[95px] sm:max-w-[120px] truncate">
                         ${name}
-                    </p>
+                    </span>
                 </div>
             `;
         }).join('');
@@ -446,13 +457,13 @@
         const playersBHtml = playersB.map(name => {
             const female = isFemalePlayer(name);
             return `
-                <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-4 my-1">
-                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full ${female ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600'} text-white border-2 border-white shadow-md flex items-center justify-center text-xs mb-0.5">
+                <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-6 my-auto">
+                    <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full ${female ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600'} text-white border-2 border-white shadow-lg flex items-center justify-center text-xs sm:text-sm mb-1 ring-2 ring-black/20">
                         <i class="${female ? 'fa-solid fa-person-dress' : 'fa-solid fa-person'}"></i>
                     </div>
-                    <p class="text-[10px] sm:text-[11px] font-bold text-white text-center leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] max-w-[90px] sm:max-w-[110px] truncate">
+                    <span class="text-[10px] sm:text-[11px] font-bold text-white text-center leading-tight bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-white/20 shadow-xs max-w-[95px] sm:max-w-[120px] truncate">
                         ${name}
-                    </p>
+                    </span>
                 </div>
             `;
         }).join('');
@@ -472,33 +483,42 @@
                     </span>
                 </div>
 
-                <!-- Court Graphic Box -->
-                <div class="relative w-full min-h-[220px] sm:min-h-[240px] bg-[#14341d] rounded-2xl border-2 border-white/90 p-3 flex flex-col justify-between overflow-hidden shadow-inner">
-                    <div class="absolute inset-x-3 inset-y-2 border border-white/80 pointer-events-none"></div>
+                <!-- Realistic Padel & Tennis Court Graphic (Authentic Proportions & Lines) -->
+                <div class="relative w-full aspect-[16/10] min-h-[300px] sm:min-h-[340px] md:min-h-[360px] bg-gradient-to-b from-[#123e22] via-[#10371e] to-[#0c2b17] rounded-3xl border-2 border-white/90 p-4 sm:p-5 flex flex-col justify-between overflow-hidden shadow-lg">
+                    <!-- Outer Safety Boundary Line -->
+                    <div class="absolute inset-3 sm:inset-4 border-2 border-white/85 rounded-xl pointer-events-none shadow-xs"></div>
                     
-                    <div class="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-white flex flex-col justify-between items-center z-10 pointer-events-none">
-                        <div class="w-2 h-2 bg-[#0d2213] border border-white rounded-full -mt-0.5"></div>
-                        <span class="bg-[#0d2213] text-lime-300 font-black text-[7px] px-1 py-0.5 rounded tracking-widest uppercase border border-white/40 rotate-90 my-auto">NET</span>
-                        <div class="w-2 h-2 bg-[#0d2213] border border-white rounded-full -mb-0.5"></div>
+                    <!-- Vertical Service Lines (Left & Right Boxes) -->
+                    <div class="absolute inset-y-3 sm:inset-y-4 left-[28%] w-0.5 bg-white/70 pointer-events-none"></div>
+                    <div class="absolute inset-y-3 sm:inset-y-4 left-[72%] w-0.5 bg-white/70 pointer-events-none"></div>
+
+                    <!-- Center Service T-Line -->
+                    <div class="absolute top-1/2 left-[28%] right-[28%] h-0.5 -translate-y-1/2 bg-white/70 pointer-events-none"></div>
+
+                    <!-- Center Net with Net Posts & Badge -->
+                    <div class="absolute inset-y-0 left-1/2 w-1 -translate-x-1/2 bg-white flex flex-col justify-between items-center z-10 pointer-events-none shadow-md">
+                        <div class="w-3 h-3 bg-[#050608] border-2 border-white rounded-full -mt-1 shadow-xs"></div>
+                        <span class="bg-[#050608]/90 text-[#A8E63A] font-black text-[7.5px] px-1.5 py-0.5 rounded tracking-widest uppercase border border-[#A8E63A]/50 rotate-90 my-auto shadow-xs">NET</span>
+                        <div class="w-3 h-3 bg-[#050608] border-2 border-white rounded-full -mb-1 shadow-xs"></div>
                     </div>
 
-                    <div class="absolute inset-y-1/2 left-3 right-3 h-0.5 -translate-y-1/2 bg-white/80 pointer-events-none"></div>
-
                     <div class="relative z-20 flex justify-between h-full">
-                        <div class="w-1/2 pr-1.5 flex flex-col justify-between h-full">
-                            <span class="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/30 w-fit">
+                        <!-- Team A (Left Half) -->
+                        <div class="w-1/2 pr-2 flex flex-col justify-between h-full">
+                            <span class="text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-black/40 backdrop-blur-xs text-[#A8E63A] border border-[#A8E63A]/40 w-fit shadow-xs">
                                 ${teamAName}
                             </span>
-                            <div class="flex flex-col justify-around gap-1 my-auto py-1">
+                            <div class="flex flex-col justify-around gap-2 my-auto py-2 h-full">
                                 ${playersAHtml}
                             </div>
                         </div>
 
-                        <div class="w-1/2 pl-1.5 flex flex-col justify-between h-full items-end text-right">
-                            <span class="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/30 w-fit">
+                        <!-- Team B (Right Half) -->
+                        <div class="w-1/2 pl-2 flex flex-col justify-between h-full items-end text-right">
+                            <span class="text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-black/40 backdrop-blur-xs text-[#A8E63A] border border-[#A8E63A]/40 w-fit shadow-xs">
                                 ${teamBName}
                             </span>
-                            <div class="flex flex-col justify-around gap-1 my-auto py-1 items-end">
+                            <div class="flex flex-col justify-around gap-2 my-auto py-2 h-full items-end w-full">
                                 ${playersBHtml}
                             </div>
                         </div>
