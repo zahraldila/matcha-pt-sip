@@ -179,6 +179,52 @@
                     </div>
                 </div>
             @endforelse
+
+            {{-- Pagination Navigation --}}
+            @if($hostSessions->hasPages())
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-200/60">
+                    <p class="text-xs text-slate-500">
+                        Menampilkan <span class="font-bold text-slate-800">{{ $hostSessions->firstItem() }}</span> - <span class="font-bold text-slate-800">{{ $hostSessions->lastItem() }}</span> dari <span class="font-bold text-slate-800">{{ $hostSessions->total() }}</span> sesi
+                    </p>
+
+                    <div class="flex items-center gap-1.5 self-center sm:self-auto">
+                        {{-- Previous Button --}}
+                        @if ($hostSessions->onFirstPage())
+                            <span class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-100/60 cursor-not-allowed">
+                                <i class="fa-solid fa-chevron-left mr-1"></i> Prev
+                            </span>
+                        @else
+                            <a href="{{ $hostSessions->previousPageUrl() }}" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 glass-card hover:bg-[#063B00] hover:text-white transition-all shadow-2xs">
+                                <i class="fa-solid fa-chevron-left mr-1"></i> Prev
+                            </a>
+                        @endif
+
+                        {{-- Page Number Links --}}
+                        @foreach ($hostSessions->getUrlRange(max(1, $hostSessions->currentPage() - 2), min($hostSessions->lastPage(), $hostSessions->currentPage() + 2)) as $page => $url)
+                            @if ($page == $hostSessions->currentPage())
+                                <span class="w-8 h-8 rounded-xl text-xs font-bold bg-[#063B00] text-white flex items-center justify-center shadow-xs">
+                                    {{ $page }}
+                                </span>
+                            @else
+                                <a href="{{ $url }}" class="w-8 h-8 rounded-xl text-xs font-bold text-slate-700 glass-card hover:bg-slate-100 flex items-center justify-center transition-all shadow-2xs">
+                                    {{ $page }}
+                                </a>
+                            @endif
+                        @endforeach
+
+                        {{-- Next Button --}}
+                        @if ($hostSessions->hasMorePages())
+                            <a href="{{ $hostSessions->nextPageUrl() }}" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 glass-card hover:bg-[#063B00] hover:text-white transition-all shadow-2xs">
+                                Next <i class="fa-solid fa-chevron-right ml-1"></i>
+                            </a>
+                        @else
+                            <span class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-100/60 cursor-not-allowed">
+                                Next <i class="fa-solid fa-chevron-right ml-1"></i>
+                            </span>
+                        @endif
+                    </div>
+                </div>
+            @endif
         </div>
 
     {{-- ========================================================================= --}}

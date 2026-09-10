@@ -48,7 +48,7 @@ class PlayerController extends Controller
             $completedCount = 0;
             $venueCounts = [];
 
-            $hostSessions = $dbSessions->map(function ($s) use (&$totalPlayers, &$completedCount, &$venueCounts) {
+            $mappedSessions = $dbSessions->map(function ($s) use (&$totalPlayers, &$completedCount, &$venueCounts) {
                 $joinedCount = $s->players->count();
                 $totalPlayers += $joinedCount;
                 
@@ -87,12 +87,26 @@ class PlayerController extends Controller
             arsort($venueCounts);
             $favoriteVenue = !empty($venueCounts) ? array_key_first($venueCounts) : 'Bonang Padel Arena';
 
+            $totalCount = $mappedSessions->count();
             $hostStats = [
-                'total_sessions' => $hostSessions->count(),
+                'total_sessions' => $totalCount,
                 'total_players' => $totalPlayers,
                 'completed_sessions' => $completedCount,
                 'favorite_venue' => $favoriteVenue,
             ];
+
+            // Pagination (5 sesi per halaman)
+            $perPage = 5;
+            $currentPage = (int) $request->input('page', 1);
+            $currentItems = $mappedSessions->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+            $hostSessions = new \Illuminate\Pagination\LengthAwarePaginator(
+                $currentItems,
+                $totalCount,
+                $perPage,
+                $currentPage,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
         }
 
         // 2. Data Rekap Karir Pemain (Personal Career Stats)
