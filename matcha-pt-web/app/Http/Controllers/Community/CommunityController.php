@@ -24,19 +24,19 @@ class CommunityController extends Controller
 {
     public function index()
     {
-        $dbCommunities = Community::with('players')->latest()->get();
+        $dbCommunities = Community::with(['players.user'])->latest()->get();
         if ($dbCommunities->isNotEmpty()) {
             $communities = $dbCommunities->map(function ($c) {
                 return [
                     'id' => $c->community_id,
                     'name' => $c->nama_community,
-                    'sport' => 'Padel & Tennis',
-                    'city' => 'Jakarta',
+                    'sport' => $c->sport,
+                    'city' => str_contains(strtolower($c->nama_community . ' ' . $c->deskripsi), 'bandung') ? 'Bandung' : 'Jakarta',
                     'members_count' => $c->players->count(),
-                    'admin_name' => $c->players->first()?->nama ?? 'Admin',
-                    'image' => $c->logo ?? 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&w=800&q=80',
+                    'admin_name' => $c->admin_name,
+                    'image' => $c->logo ?: asset('images/default-community.jpg'),
                     'tagline' => 'Komunitas Olahraga Matcha',
-                    'description' => $c->deskripsi ?? 'Komunitas mabar Padel & Tennis di Matcha Match Arena.',
+                    'description' => $c->deskripsi ?? ('Komunitas mabar ' . $c->sport . ' di Matcha Match Arena.'),
                     'schedule' => 'Rutin Setiap Pekan',
                     'status' => 'Active',
                 ];
@@ -146,7 +146,7 @@ class CommunityController extends Controller
         $community = Community::create([
             'nama_community' => $validated['nama_community'],
             'deskripsi'      => $validated['deskripsi'],
-            'logo'           => $logoUrl ?: 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&w=800&q=80',
+            'logo'           => $logoUrl ?: null,
         ]);
 
         // Jika pembuat komunitas adalah player, otomatis join ke komunitas ini

@@ -27,6 +27,8 @@
             <div class="flex items-center gap-3.5 mt-2">
                 @if(!empty($community->logo))
                     <img src="{{ $community->logo }}" alt="{{ $community->nama_community }}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200/80 shadow-sm">
+                @else
+                    <img src="{{ asset('images/default-community.jpg') }}" alt="{{ $community->nama_community }}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200/80 shadow-sm">
                 @endif
                 <div>
                     <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">

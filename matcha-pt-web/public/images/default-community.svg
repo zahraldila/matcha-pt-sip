@@ -1,0 +1,179 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient: Rich Matcha Branding -->
+    <linearGradient id="matchaBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#074200"/>
+      <stop offset="50%" stop-color="#053300"/>
+      <stop offset="100%" stop-color="#021f00"/>
+    </linearGradient>
+
+    <!-- Subtle Ambient Glow -->
+    <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#a8e63a" stop-opacity="0.18"/>
+      <stop offset="60%" stop-color="#a8e63a" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#a8e63a" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Tennis Ball Gradient -->
+    <linearGradient id="tennisBallGrad" x1="20%" y1="20%" x2="90%" y2="90%">
+      <stop offset="0%" stop-color="#d9ff38"/>
+      <stop offset="60%" stop-color="#b8f21d"/>
+      <stop offset="100%" stop-color="#88c408"/>
+    </linearGradient>
+
+    <!-- Shadow for Depth -->
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="ballShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Base 1:1 Canvas with Premium Dark Matcha -->
+  <rect width="800" height="800" fill="url(#matchaBg)"/>
+
+  <!-- Subtle Ambient Circle behind Icons -->
+  <circle cx="400" cy="400" r="260" fill="url(#centerGlow)"/>
+
+  <!-- Subtle Decorative Geometric Court Rings (Minimal & Modern) -->
+  <circle cx="400" cy="400" r="230" fill="none" stroke="#a8e63a" stroke-width="1.5" stroke-opacity="0.12" stroke-dasharray="8 8"/>
+  <circle cx="400" cy="400" r="200" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity="0.08"/>
+
+  <!-- MAIN ICON GROUP: Strictly within Y=240 to Y=560 to guarantee no clipping in card (H=44) -->
+  <g id="crossed-equipment" filter="url(#softShadow)">
+
+    <!-- ========================================== -->
+    <!-- LEFT: TENNIS RACKET (White & Matcha Lime)  -->
+    <!-- Center of rotation: (400, 420), angle -25°  -->
+    <!-- ========================================== -->
+    <g transform="translate(400, 420) rotate(-25) translate(-400, -420)">
+      <!-- Strings Mesh -->
+      <g stroke="#ffffff" stroke-width="2.2" stroke-opacity="0.45" stroke-linecap="round">
+        <!-- Vertical Strings -->
+        <line x1="384" y1="248" x2="384" y2="344"/>
+        <line x1="392" y1="242" x2="392" y2="352"/>
+        <line x1="400" y1="240" x2="400" y2="354"/>
+        <line x1="408" y1="242" x2="408" y2="352"/>
+        <line x1="416" y1="248" x2="416" y2="344"/>
+        <!-- Horizontal Strings -->
+        <line x1="378" y1="262" x2="422" y2="262"/>
+        <line x1="372" y1="278" x2="428" y2="278"/>
+        <line x1="368" y1="294" x2="432" y2="294"/>
+        <line x1="368" y1="310" x2="432" y2="310"/>
+        <line x1="372" y1="326" x2="428" y2="326"/>
+        <line x1="378" y1="342" x2="422" y2="342"/>
+      </g>
+
+      <!-- Tennis Head Oval Outer Frame -->
+      <ellipse cx="400" cy="297" rx="42" ry="58" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/>
+      <ellipse cx="400" cy="297" rx="37" ry="53" fill="none" stroke="#a8e63a" stroke-width="2" stroke-opacity="0.6"/>
+
+      <!-- Throat Bridge -->
+      <path d="M380 350 L394 382 L406 382 L420 350" fill="none" stroke="#ffffff" stroke-width="7.5" stroke-linejoin="round" stroke-linecap="round"/>
+      
+      <!-- Shaft & Handle -->
+      <rect x="393.5" y="382" width="13" height="152" rx="4" fill="#042300" stroke="#ffffff" stroke-width="2.5"/>
+
+      <!-- Grip Wrap Stripes (Lime Accent) -->
+      <g stroke="#a8e63a" stroke-width="3" stroke-linecap="round">
+        <line x1="394" y1="404" x2="406" y2="400"/>
+        <line x1="394" y1="422" x2="406" y2="418"/>
+        <line x1="394" y1="440" x2="406" y2="436"/>
+        <line x1="394" y1="458" x2="406" y2="454"/>
+        <line x1="394" y1="476" x2="406" y2="472"/>
+        <line x1="394" y1="494" x2="406" y2="490"/>
+        <line x1="394" y1="512" x2="406" y2="508"/>
+      </g>
+
+      <!-- Butt Cap -->
+      <rect x="391" y="528" width="18" height="8" rx="3" fill="#ffffff"/>
+    </g>
+
+    <!-- ========================================== -->
+    <!-- RIGHT: PADEL PADDLE (Lime & Dark Matcha)   -->
+    <!-- Center of rotation: (400, 420), angle +25°  -->
+    <!-- ========================================== -->
+    <g transform="translate(400, 420) rotate(25) translate(-400, -420)">
+      <!-- Paddle Head Body (Teardrop / Diamond Padel Pala Shape) -->
+      <path d="M354 286 C354 246 372 238 400 238 C428 238 446 246 446 286 C446 322 432 346 414 366 L410 380 L390 380 L386 366 C368 346 354 322 354 286 Z" 
+            fill="#083e02" stroke="#a8e63a" stroke-width="9" stroke-linejoin="round"/>
+
+      <!-- Inner Head Contour Accent -->
+      <path d="M363 286 C363 254 377 247 400 247 C423 247 437 254 437 286 C437 316 425 338 409 356 C391 338 363 316 363 286 Z" 
+            fill="none" stroke="#ffffff" stroke-width="1.8" stroke-opacity="0.4"/>
+
+      <!-- Aerodynamic Throat Aperture (Signature Padel Vent) -->
+      <polygon points="394,374 406,374 400,363" fill="#031d00" stroke="#a8e63a" stroke-width="2.5" stroke-linejoin="round"/>
+
+      <!-- Padel Holes Pattern (Signature Perforated Face) -->
+      <g fill="#021400" stroke="#a8e63a" stroke-width="1" stroke-opacity="0.5">
+        <!-- Row 1 -->
+        <circle cx="388" cy="270" r="3.5"/>
+        <circle cx="400" cy="268" r="3.5"/>
+        <circle cx="412" cy="270" r="3.5"/>
+        <!-- Row 2 -->
+        <circle cx="378" cy="286" r="3.5"/>
+        <circle cx="390" cy="285" r="3.5"/>
+        <circle cx="400" cy="284" r="3.5"/>
+        <circle cx="410" cy="285" r="3.5"/>
+        <circle cx="422" cy="286" r="3.5"/>
+        <!-- Row 3 -->
+        <circle cx="376" cy="303" r="3.5"/>
+        <circle cx="388" cy="302" r="3.5"/>
+        <circle cx="400" cy="301" r="3.5"/>
+        <circle cx="412" cy="302" r="3.5"/>
+        <circle cx="424" cy="303" r="3.5"/>
+        <!-- Row 4 -->
+        <circle cx="380" cy="320" r="3.5"/>
+        <circle cx="392" cy="319" r="3.5"/>
+        <circle cx="400" cy="318" r="3.5"/>
+        <circle cx="408" cy="319" r="3.5"/>
+        <circle cx="420" cy="320" r="3.5"/>
+        <!-- Row 5 -->
+        <circle cx="390" cy="337" r="3.5"/>
+        <circle cx="400" cy="336" r="3.5"/>
+        <circle cx="410" cy="337" r="3.5"/>
+        <!-- Row 6 -->
+        <circle cx="400" cy="351" r="3"/>
+      </g>
+
+      <!-- Padel Shaft & Handle -->
+      <rect x="393" y="380" width="14" height="142" rx="4" fill="#042300" stroke="#a8e63a" stroke-width="2.5"/>
+
+      <!-- Grip Wrap Stripes (White Accent) -->
+      <g stroke="#ffffff" stroke-width="3" stroke-linecap="round">
+        <line x1="394" y1="400" x2="406" y2="404"/>
+        <line x1="394" y1="418" x2="406" y2="422"/>
+        <line x1="394" y1="436" x2="406" y2="440"/>
+        <line x1="394" y1="454" x2="406" y2="458"/>
+        <line x1="394" y1="472" x2="406" y2="476"/>
+        <line x1="394" y1="490" x2="406" y2="494"/>
+        <line x1="394" y1="508" x2="406" y2="512"/>
+      </g>
+
+      <!-- Butt Cap -->
+      <rect x="391" y="518" width="18" height="8" rx="3" fill="#a8e63a"/>
+
+      <!-- Wrist Strap Cord (Signature Padel Feature) -->
+      <path d="M400 526 C400 544 416 548 416 538 C416 530 404 532 404 526" fill="none" stroke="#a8e63a" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+
+    <!-- Center Crossing Badge / Shadow Pivot -->
+    <circle cx="400" cy="420" r="14" fill="#021400" stroke="#a8e63a" stroke-width="2.5" stroke-opacity="0.7"/>
+    <circle cx="400" cy="420" r="5" fill="#ffffff"/>
+
+    <!-- ========================================== -->
+    <!-- TENNIS / PADEL BALL (Center Top)           -->
+    <!-- Positioned at (400, 260), perfectly framed -->
+    <!-- ========================================== -->
+    <g filter="url(#ballShadow)">
+      <!-- Ball Body -->
+      <circle cx="400" cy="262" r="23" fill="url(#tennisBallGrad)" stroke="#ffffff" stroke-width="2.5"/>
+      <!-- Curved Tennis Ball Seams -->
+      <path d="M381 251 C390 258 390 268 381 275" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+      <path d="M419 251 C410 258 410 268 419 275" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+    </g>
+
+  </g>
+</svg>

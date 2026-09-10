@@ -147,7 +147,7 @@ class DashboardController extends Controller
                 'city' => str_contains(strtolower($c->nama_community . ' ' . $c->deskripsi), 'bandung') ? 'Bandung' : 'Jakarta',
                 'members_count' => $c->players->count(),
                 'admin_name' => $c->players->first()?->nama ?? 'Admin Matcha',
-                'image' => $c->logo ?: 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&w=800&q=80',
+                'image' => $c->logo ?: asset('images/default-community.jpg'),
                 'tagline' => 'Komunitas Olahraga Matcha',
                 'description' => $c->deskripsi ?? 'Komunitas mabar Padel & Tennis di Matcha Match Arena.',
                 'schedule' => 'Rutin Setiap Pekan',

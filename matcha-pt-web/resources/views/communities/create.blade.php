@@ -285,10 +285,10 @@
                     <div class="space-y-1">
                         <div class="relative">
                             <div id="logo-dropzone" onclick="document.getElementById('input_logo').click()" class="border-2 border-dashed border-slate-200 hover:border-[#063B00] rounded-2xl p-4 bg-slate-50/50 text-center transition-all cursor-pointer group flex flex-col items-center justify-center">
-                                <img id="logo-preview-img" src="" alt="Preview Logo" class="hidden w-12 h-12 rounded-xl object-cover border border-[#063B00]/30 shadow-xs mb-1.5">
+                                <img id="logo-preview-img" src="" alt="Preview Logo" class="hidden w-full h-36 sm:h-40 rounded-xl object-cover object-center border border-[#063B00]/30 shadow-xs mb-2">
                                 <i id="logo-icon" class="fa-solid fa-image text-slate-400 group-hover:text-[#063B00] text-lg mb-1"></i>
-                                <p id="logo-title" class="text-[11px] font-bold text-slate-800">Upload Logo Komunitas</p>
-                                <p id="logo-filename" class="text-[9px] text-slate-400">Rasio 1:1 format JPG/PNG</p>
+                                <p id="logo-title" class="text-[11px] font-bold text-slate-800">Upload Foto Komunitas</p>
+                                <p id="logo-filename" class="text-[9px] text-slate-400">Rasio horizontal format JPG/PNG</p>
                             </div>
                             <!-- Clear button: muncul hanya saat file dipilih -->
                             <button type="button" id="logo-clear-btn" onclick="clearLogoSelection(event)" class="hidden absolute w-5 h-5 rounded-full bg-slate-200 hover:bg-rose-100 hover:text-rose-600 text-slate-500 flex items-center justify-center transition-all z-10 shadow-sm" style="top: -8px; right: -8px;" title="Batal pilih gambar">
@@ -442,8 +442,8 @@
             previewImg.src = '';
             previewImg.classList.add('hidden');
         }
-        if (titleEl) titleEl.textContent = 'Upload Logo Komunitas';
-        if (filenameEl) filenameEl.textContent = 'Rasio 1:1 format JPG/PNG';
+        if (titleEl) titleEl.textContent = 'Upload Foto Komunitas';
+        if (filenameEl) filenameEl.textContent = 'Rasio horizontal format JPG/PNG';
         if (iconEl) {
             iconEl.className = 'fa-solid fa-image text-slate-400 group-hover:text-[#063B00] text-lg mb-1';
         }
@@ -489,7 +489,7 @@
             previewImg.classList.remove('hidden');
         }
         if (filenameEl) filenameEl.textContent = file.name;
-        if (titleEl) titleEl.textContent = 'Mengunggah logo ke Supabase Storage...';
+        if (titleEl) titleEl.textContent = 'Mengunggah foto ke Supabase Storage...';
         if (iconEl) iconEl.className = 'fa-solid fa-circle-notch fa-spin text-[#063B00] text-lg mb-1';
         if (clearBtn) clearBtn.classList.add('hidden');
         isLogoUploading = true;
@@ -511,7 +511,7 @@
         .then(async response => {
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.message || 'Gagal mengunggah logo ke Supabase Storage.');
+                throw new Error(data.message || 'Gagal mengunggah foto ke Supabase Storage.');
             }
             return data;
         })
@@ -519,7 +519,7 @@
             isLogoUploading = false;
             if (data.success && data.url) {
                 if (logoUrlInput) logoUrlInput.value = data.url;
-                if (titleEl) titleEl.textContent = 'Logo Berhasil Diunggah';
+                if (titleEl) titleEl.textContent = 'Foto Berhasil Diunggah';
                 if (filenameEl) filenameEl.textContent = file.name;
                 if (iconEl) iconEl.className = 'fa-solid fa-circle-check text-[#063B00] text-lg mb-1';
                 if (clearBtn) clearBtn.classList.remove('hidden');
@@ -529,7 +529,7 @@
                 }
                 if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('flex'); }
             } else {
-                throw new Error(data.message || 'Gagal mengunggah logo ke Supabase Storage.');
+                throw new Error(data.message || 'Gagal mengunggah foto ke Supabase Storage.');
             }
         })
         .catch(error => {
@@ -537,7 +537,7 @@
             if (logoUrlInput) logoUrlInput.value = '';
             if (clearBtn) clearBtn.classList.remove('hidden');
             if (previewImg) previewImg.classList.add('hidden');
-            if (titleEl) titleEl.textContent = 'Upload Logo Komunitas';
+            if (titleEl) titleEl.textContent = 'Upload Foto Komunitas';
             if (filenameEl) filenameEl.textContent = file.name;
             if (iconEl) iconEl.className = 'fa-solid fa-image text-rose-500 text-lg mb-1';
             if (errEl) {
