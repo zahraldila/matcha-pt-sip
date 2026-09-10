@@ -17,6 +17,7 @@ class SessionModel extends Model
         'sport_id',
         'venue_id',
         'nama_session',
+        'scoring_system',
         'waktu_session',
         'datetime',
         'status_session',

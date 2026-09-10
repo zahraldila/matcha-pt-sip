@@ -1,4 +1,4 @@
-@props(['sport' => 'Padel', 'teamA' => [], 'teamB' => [], 'resting' => []])
+@props(['sport' => 'Padel', 'teamA' => [], 'teamB' => [], 'resting' => [], 'participantsMap' => []])
 
 <div class="w-full max-w-2xl mx-auto rounded-3xl glass-card p-6 shadow-sm border border-white/80">
     <!-- Header -->
@@ -40,8 +40,14 @@
             <div class="flex flex-col justify-around gap-2 my-auto py-1" id="courtTeamA">
                 @foreach($teamA as $idx => $player)
                     @php
-                        $name = is_array($player) ? ($player['name'] ?? '') : (string)$player;
-                        $isFemale = preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita/i', $name);
+                        $name = is_array($player) ? ($player['name'] ?? ($player['nama'] ?? '')) : (string)$player;
+                        $gender = is_array($player) 
+                            ? ($player['gender'] ?? ($participantsMap[$name]['gender'] ?? null)) 
+                            : ($participantsMap[$name]['gender'] ?? null);
+                        
+                        $isFemale = $gender 
+                            ? in_array(strtolower($gender), ['female', 'perempuan', 'f', 'p', 'wanita']) 
+                            : preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|mau|sekarang|naykila|sisil/i', $name);
                     @endphp
                     <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-110 w-fit mx-auto sm:mx-8">
                         <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full {{ $isFemale ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600' }} text-white border-2 border-white shadow-md flex items-center justify-center text-xs sm:text-sm mb-1">
@@ -66,8 +72,14 @@
             <div class="flex flex-col justify-around gap-2 my-auto py-1 w-full items-center" id="courtTeamB">
                 @foreach($teamB as $idx => $player)
                     @php
-                        $name = is_array($player) ? ($player['name'] ?? '') : (string)$player;
-                        $isFemale = preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita/i', $name);
+                        $name = is_array($player) ? ($player['name'] ?? ($player['nama'] ?? '')) : (string)$player;
+                        $gender = is_array($player) 
+                            ? ($player['gender'] ?? ($participantsMap[$name]['gender'] ?? null)) 
+                            : ($participantsMap[$name]['gender'] ?? null);
+                        
+                        $isFemale = $gender 
+                            ? in_array(strtolower($gender), ['female', 'perempuan', 'f', 'p', 'wanita']) 
+                            : preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|mau|sekarang|naykila|sisil/i', $name);
                     @endphp
                     <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-110 w-fit mx-auto sm:mx-8">
                         <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full {{ $isFemale ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600' }} text-white border-2 border-white shadow-md flex items-center justify-center text-xs sm:text-sm mb-1">
@@ -83,21 +95,19 @@
     </div>
 
     <!-- Resting / Rotation Bench -->
-    @if(count($resting) > 0)
-        <div class="mt-4 pt-3.5 border-t border-slate-200/50">
-            <div class="flex items-center justify-between mb-2 text-xs">
-                <span class="font-semibold text-slate-700 flex items-center gap-1.5">
-                    <i class="fa-solid fa-mug-hot text-amber-500"></i> Bangku Istirahat & Rotasi Ronde Ini:
-                </span>
-                <span class="text-[10px] text-slate-400 bg-white/70 px-2 py-0.5 rounded-full border border-slate-200/60">Main di ronde berikutnya</span>
-            </div>
-            <div class="flex flex-wrap gap-2">
-                @foreach($resting as $restPlayer)
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/80 text-slate-700 text-xs border border-slate-200/70 font-medium shadow-2xs">
-                        <i class="fa-regular fa-clock text-slate-400 text-[10px]"></i> {{ $restPlayer }}
-                    </span>
-                @endforeach
-            </div>
+    <div id="courtVisualRestingSection" class="mt-4 pt-3.5 border-t border-slate-200/50 {{ count($resting) > 0 ? '' : 'hidden' }}">
+        <div class="flex items-center justify-between mb-2 text-xs">
+            <span class="font-semibold text-slate-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-mug-hot text-amber-500"></i> Bangku Istirahat & Rotasi Ronde Ini:
+            </span>
+            <span class="text-[10px] text-slate-400 bg-white/70 px-2 py-0.5 rounded-full border border-slate-200/60">Main di ronde berikutnya</span>
         </div>
-    @endif
+        <div class="flex flex-wrap gap-2" id="courtVisualRestingList">
+            @foreach($resting as $restPlayer)
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/80 text-slate-700 text-xs border border-slate-200/70 font-medium shadow-2xs">
+                    <i class="fa-regular fa-clock text-slate-400 text-[10px]"></i> {{ $restPlayer }}
+                </span>
+            @endforeach
+        </div>
+    </div>
 </div>

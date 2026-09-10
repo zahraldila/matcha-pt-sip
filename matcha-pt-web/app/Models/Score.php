@@ -15,8 +15,16 @@ class Score extends Model
     protected $fillable = [
         'match_id',
         'set_number',
+        'game_number',
+        'point_score_a',
+        'point_score_b',
+        'game_score_a',
+        'game_score_b',
+        'set_score_a',
+        'set_score_b',
         'score_side_a',
         'score_side_b',
+        'scoring_system',
         'status_score',
     ];
 

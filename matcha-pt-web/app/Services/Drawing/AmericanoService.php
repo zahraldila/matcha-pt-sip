@@ -106,7 +106,12 @@ class AmericanoService
             }
 
             // Update partner & opponent histories, and play/rest counts
-            foreach ($matches as $match) {
+            $playingIds = [];
+            foreach ($matches as &$match) {
+                $match['teamA_names'] = $match['team_a_names'];
+                $match['teamB_names'] = $match['team_b_names'];
+                $match['status'] = 'Scheduled';
+
                 // Team A partner
                 $this->recordPair($match['team_a'][0]['id'], $match['team_a'][1]['id'], $partnerHistory);
                 // Team B partner
@@ -114,11 +119,25 @@ class AmericanoService
 
                 // Opponents
                 foreach ($match['team_a'] as $pa) {
+                    $playingIds[$pa['id']] = true;
                     foreach ($match['team_b'] as $pb) {
                         $this->recordOpponent($pa['id'], $pb['id'], $opponentHistory);
                     }
                 }
+                foreach ($match['team_b'] as $pb) {
+                    $playingIds[$pb['id']] = true;
+                }
             }
+            unset($match);
+
+            // Re-identify resting players dynamically: anyone in $normalizedPlayers who is not playing in this round
+            $dynamicResting = [];
+            foreach ($normalizedPlayers as $np) {
+                if (!isset($playingIds[$np['id']])) {
+                    $dynamicResting[] = $np;
+                }
+            }
+            $restingPlayers = $dynamicResting;
 
             foreach ($activePlayers as $p) {
                 $playCounts[$p['_idx']]++;
@@ -142,14 +161,19 @@ class AmericanoService
 
             $rounds[$r] = [
                 'round' => $r,
+                'round_number' => $r,
                 'round_name' => $roundName,
+                'round_title' => $roundName,
                 'court_count' => $activeCourts,
                 'matches' => $matches,
                 'teamA' => $teamANames,
                 'teamB' => $teamBNames,
+                'team_a' => $matches[0]['team_a'] ?? [],
+                'team_b' => $matches[0]['team_b'] ?? [],
+                'team_a_names' => $teamANames,
+                'team_b_names' => $teamBNames,
                 'resting' => $restingNames,
-                'team_a' => $matches[0]['team_a'],
-                'team_b' => $matches[0]['team_b'],
+                'primary_match' => $matches[0] ?? null,
                 'resting_players' => $restingPlayers,
             ];
         }

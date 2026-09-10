@@ -106,7 +106,7 @@ class TeamAmericanoService
      * @return array Struktur jadwal ronde, time slot, dan match
      * @throws InvalidArgumentException|RuntimeException Jika parameter tidak valid atau schedule tidak lengkap
      */
-    public function generateTeamRounds(array $players, int|array $courts = 1): array
+    public function generateTeamRounds(array $players, int|array $courts = 1, ?int $seed = null): array
     {
         // Dukung input integer (courtCount) atau array database courts
         $courtList = [];
@@ -123,8 +123,22 @@ class TeamAmericanoService
             );
         }
 
+        // Bentuk pasangan tim tetap (Fixed Pairs)
         $teams = $this->formFixedTeams($players);
+
+        // Jika ada seed pengacakan, acak urutan TIM tanpa pernah memecah pasangan dalam tim!
+        if ($seed !== null) {
+            mt_srand($seed);
+            shuffle($teams);
+        }
+
         $totalTeams = count($teams);
+
+        // Kumpulkan semua nama pemain untuk perhitungan bangku istirahat
+        $allPlayerNames = [];
+        foreach ($teams as $t) {
+            $allPlayerNames = array_merge($allPlayerNames, $t['player_names']);
+        }
 
         // Siapkan array tim untuk algoritma rotasi circle
         $rotationList = $teams;
@@ -253,9 +267,19 @@ class TeamAmericanoService
 
             $primaryMatch = $roundMatchesFlat[0] ?? null;
 
+            // Hitung resting players untuk slot aktif (Slot 1) dari ronde ini
+            $activeSlotMatches = $slots[0]['matches'] ?? $roundMatchesFlat;
+            $playingInSlot = [];
+            foreach ($activeSlotMatches as $m) {
+                $playingInSlot = array_merge($playingInSlot, $m['teamA_names'] ?? [], $m['teamB_names'] ?? []);
+            }
+            $roundRestingPlayers = array_values(array_diff($allPlayerNames, $playingInSlot));
+
             $rounds[$roundNumber] = [
                 'round_number' => $roundNumber,
+                'round' => $roundNumber,
                 'round_title' => "Ronde {$roundNumber}",
+                'round_name' => "Ronde {$roundNumber}",
                 'slots' => $slots,
                 'matches' => $roundMatchesFlat,
                 'bye_teams' => $byeTeams,
@@ -264,9 +288,13 @@ class TeamAmericanoService
                 'primary_match' => $primaryMatch,
                 'teamA' => $primaryMatch ? $primaryMatch['teamA_names'] : [],
                 'teamB' => $primaryMatch ? $primaryMatch['teamB_names'] : [],
+                'team_a' => $primaryMatch ? $primaryMatch['team_a'] : [],
+                'team_b' => $primaryMatch ? $primaryMatch['team_b'] : [],
+                'team_a_names' => $primaryMatch ? $primaryMatch['teamA_names'] : [],
+                'team_b_names' => $primaryMatch ? $primaryMatch['teamB_names'] : [],
                 'teamA_display' => $primaryMatch ? $primaryMatch['team_a']['display_name'] : '-',
                 'teamB_display' => $primaryMatch ? $primaryMatch['team_b']['display_name'] : '-',
-                'resting' => $byePlayers,
+                'resting' => $roundRestingPlayers,
                 'resting_teams' => $byeTeams,
             ];
 

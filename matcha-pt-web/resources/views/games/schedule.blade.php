@@ -28,7 +28,7 @@
     <!-- Main Glassmorphism Form Card -->
     <div class="glass-card !bg-white/85 !backdrop-blur-2xl rounded-3xl p-6 sm:p-8 space-y-6 border border-white shadow-[0_12px_40px_-10px_rgba(6,59,0,0.08)] relative z-10">
 
-        @if($errors->any())
+        @if(isset($errors) && $errors->any())
             <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs space-y-1">
                 <div class="font-bold flex items-center gap-2">
                     <i class="fa-solid fa-triangle-exclamation"></i>
@@ -95,9 +95,7 @@
                         <label class="block font-bold text-slate-800">Pilih Venue / Tempat</label>
                         <div class="relative">
                             <select name="venue_id" id="venueSelect" onchange="updateCourtsDropdown()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs" required>
-                                @foreach($venues as $venue)
-                                    <option value="{{ $venue->venue_id }}">{{ $venue->nama_venue }} ({{ $venue->alamat }})</option>
-                                @endforeach
+                                <option value="" disabled selected>Pilih venue sesuai olahraga</option>
                             </select>
                             <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
@@ -107,12 +105,7 @@
                         <label class="block font-bold text-slate-800">Pilih Court / Lapangan</label>
                         <div class="relative">
                             <select name="court_id" id="courtSelect" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs" required>
-                                <!-- Populated dynamically by JS based on selected venue -->
-                                @if($venues->first() && $venues->first()->courts)
-                                    @foreach($venues->first()->courts as $court)
-                                        <option value="{{ $court->court_id }}">{{ $court->nama_court }}</option>
-                                    @endforeach
-                                @endif
+                                <option value="" disabled selected>Pilih court</option>
                             </select>
                             <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
@@ -202,27 +195,83 @@
 <script>
     // Venue and Courts mapping
     const venuesData = @json($venues);
+    let currentSportId = parseInt(document.querySelector('input[name="sport_id"]:checked')?.value || 1);
+
+    function filterCourtsBySport(sportId) {
+        currentSportId = parseInt(sportId);
+        const venueSelect = document.getElementById('venueSelect');
+        if (!venueSelect) return;
+
+        venueSelect.innerHTML = '';
+
+        // Filter venues having courts for this sport with status Available
+        const matchingVenues = venuesData.filter(v => {
+            if (!v.courts || !Array.isArray(v.courts)) return false;
+            return v.courts.some(c => parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available');
+        });
+
+        if (matchingVenues.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.disabled = true;
+            opt.selected = true;
+            opt.innerText = 'Tidak ada venue dengan lapangan tersedia untuk cabang olahraga ini';
+            venueSelect.appendChild(opt);
+            updateCourtsDropdown();
+            return;
+        }
+
+        matchingVenues.forEach(v => {
+            const availableCount = v.courts.filter(c => parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available').length;
+            const opt = document.createElement('option');
+            opt.value = v.venue_id;
+            opt.innerText = `${v.nama_venue} (${availableCount} Court Tersedia)`;
+            venueSelect.appendChild(opt);
+        });
+
+        venueSelect.selectedIndex = 0;
+        updateCourtsDropdown();
+    }
 
     function updateCourtsDropdown() {
-        const venueId = parseInt(document.getElementById('venueSelect').value);
+        const venueSelect = document.getElementById('venueSelect');
         const courtSelect = document.getElementById('courtSelect');
         courtSelect.innerHTML = '';
 
+        const venueId = parseInt(venueSelect.value);
         const selectedVenue = venuesData.find(v => v.venue_id === venueId);
+
         if (selectedVenue && selectedVenue.courts && selectedVenue.courts.length > 0) {
-            selectedVenue.courts.forEach(court => {
+            const filteredCourts = selectedVenue.courts.filter(c => 
+                parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available'
+            );
+
+            if (filteredCourts.length > 0) {
+                filteredCourts.forEach(court => {
+                    const opt = document.createElement('option');
+                    opt.value = court.court_id;
+                    opt.innerText = court.nama_court;
+                    courtSelect.appendChild(opt);
+                });
+            } else {
                 const opt = document.createElement('option');
-                opt.value = court.court_id;
-                opt.innerText = court.nama_court;
+                opt.value = '';
+                opt.disabled = true;
+                opt.innerText = 'Tidak ada court yang tersedia untuk olahraga ini';
                 courtSelect.appendChild(opt);
-            });
+            }
         } else {
             const opt = document.createElement('option');
-            opt.value = '1';
-            opt.innerText = 'Court 1 (Default)';
+            opt.value = '';
+            opt.disabled = true;
+            opt.innerText = 'Belum ada lapangan';
             courtSelect.appendChild(opt);
         }
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        filterCourtsBySport(currentSportId);
+    });
 </script>
 @endpush
 @endsection
