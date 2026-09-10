@@ -118,7 +118,7 @@
                     <label class="block font-bold text-slate-800">Cabang Olahraga Utama <span class="text-rose-500">*</span></label>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <label class="cursor-pointer">
-                            <input type="radio" name="sport_focus" value="Padel" class="peer sr-only" checked>
+                            <input type="radio" name="sport" value="padel" class="peer sr-only" {{ old('sport', old('sport_focus', 'padel')) === 'padel' ? 'checked' : '' }}>
                             <div class="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 peer-checked:bg-gradient-to-b peer-checked:from-[#EBF8D8]/80 peer-checked:to-white peer-checked:border-[#063B00] peer-checked:ring-2 peer-checked:ring-[#063B00]/10 transition-all flex flex-col items-center text-center gap-2 group hover:border-slate-300">
                                 <div class="w-10 h-10 rounded-2xl bg-white border border-slate-200/80 flex items-center justify-center text-lg text-[#063B00] shadow-2xs group-hover:scale-105 transition-transform">
                                     <i class="fa-solid fa-table-tennis-paddle-ball"></i>
@@ -131,7 +131,7 @@
                         </label>
 
                         <label class="cursor-pointer">
-                            <input type="radio" name="sport_focus" value="Tennis" class="peer sr-only">
+                            <input type="radio" name="sport" value="tennis" class="peer sr-only" {{ old('sport', old('sport_focus')) === 'tennis' ? 'checked' : '' }}>
                             <div class="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 peer-checked:bg-gradient-to-b peer-checked:from-[#EBF8D8]/80 peer-checked:to-white peer-checked:border-[#063B00] peer-checked:ring-2 peer-checked:ring-[#063B00]/10 transition-all flex flex-col items-center text-center gap-2 group hover:border-slate-300">
                                 <div class="w-10 h-10 rounded-2xl bg-white border border-slate-200/80 flex items-center justify-center text-lg text-[#063B00] shadow-2xs group-hover:scale-105 transition-transform">
                                     <i class="fa-solid fa-baseball"></i>
@@ -144,7 +144,7 @@
                         </label>
 
                         <label class="cursor-pointer">
-                            <input type="radio" name="sport_focus" value="Both" class="peer sr-only">
+                            <input type="radio" name="sport" value="all_racquet" class="peer sr-only" {{ in_array(old('sport', old('sport_focus')), ['all_racquet', 'Both', 'both']) ? 'checked' : '' }}>
                             <div class="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 peer-checked:bg-gradient-to-b peer-checked:from-[#EBF8D8]/80 peer-checked:to-white peer-checked:border-[#063B00] peer-checked:ring-2 peer-checked:ring-[#063B00]/10 transition-all flex flex-col items-center text-center gap-2 group hover:border-slate-300">
                                 <div class="w-10 h-10 rounded-2xl bg-white border border-slate-200/80 flex items-center justify-center text-lg text-[#063B00] shadow-2xs group-hover:scale-105 transition-transform">
                                     <i class="fa-solid fa-layer-group"></i>

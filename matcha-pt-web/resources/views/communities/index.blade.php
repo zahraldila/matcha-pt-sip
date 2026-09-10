@@ -23,7 +23,7 @@
                     <div class="relative h-44 overflow-hidden">
                         <img src="{{ $comm['image'] }}" alt="{{ $comm['name'] }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                         <div class="absolute top-3 left-3">
-                            <x-badge :type="strtolower($comm['sport']) === 'tennis' ? 'tennis' : (in_array(strtolower($comm['sport']), ['all racquet', 'padel & tennis', 'both']) ? 'padel & tennis' : 'padel')">
+                            <x-badge :type="strtolower($comm['sport']) === 'tennis' ? 'tennis' : (in_array(strtolower($comm['sport']), ['all racquet', 'padel & tennis', 'both', 'all_racquet']) ? 'padel & tennis' : 'padel')">
                                 {{ $comm['sport'] }}
                             </x-badge>
                         </div>

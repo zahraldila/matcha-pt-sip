@@ -18,6 +18,7 @@ class Community extends Model
         'logo',
         'jadwal_rutin',
         'sport_utama',
+        'sport',
     ];
 
     public function players()
@@ -26,25 +27,28 @@ class Community extends Model
     }
 
     /**
-     * Resolusi cabang olahraga / sport komunitas dari data asli.
+     * Resolusi cabang olahraga / sport komunitas dari kolom database 'sport' dengan mapping UI yang rapi.
      */
-    public function getSportUtamaAttribute($value = null)
+    public function getSportAttribute($value = null)
     {
-        if (!empty($value)) {
-            return $value;
+        $rawSport = $value ?: ($this->attributes['sport'] ?? null);
+
+        if (!empty($rawSport)) {
+            return match (strtolower(trim($rawSport))) {
+                'tennis' => 'Tennis',
+                'all_racquet', 'both', 'all racquet', 'padel & tennis' => 'Padel & Tennis',
+                default => 'Padel',
+            };
         }
 
-        if (!empty($this->attributes['sport'])) {
-            return $this->attributes['sport'];
-        }
-
+        // Penanganan aman untuk data komunitas lama yang belum memiliki nilai sport
         $text = strtolower(($this->nama_community ?? '') . ' ' . ($this->deskripsi ?? ''));
         $hasPadel = str_contains($text, 'padel');
         $hasTennis = str_contains($text, 'tennis') || str_contains($text, 'tenis');
         $hasBoth = str_contains($text, 'all racquet') || str_contains($text, 'both') || ($hasPadel && $hasTennis) || str_contains($text, 'raket');
 
         if ($hasBoth) {
-            return 'All Racquet';
+            return 'Padel & Tennis';
         }
         if ($hasTennis) {
             return 'Tennis';
@@ -56,18 +60,26 @@ class Community extends Model
         $dummy = collect(\App\Services\MatchaDummyDataService::getCommunities())
             ->first(fn($item) => $item['id'] == $this->community_id || strcasecmp($item['name'], $this->nama_community) === 0);
         if ($dummy && !empty($dummy['sport'])) {
-            return $dummy['sport'];
+            return $dummy['sport'] === 'Tennis' ? 'Tennis' : ($dummy['sport'] === 'Padel' ? 'Padel' : 'Padel & Tennis');
         }
 
         return 'Padel';
     }
 
     /**
-     * Alias sport untuk getSportUtamaAttribute.
+     * Alias sport_utama yang merujuk ke getSportAttribute.
      */
-    public function getSportAttribute()
+    public function getSportUtamaAttribute($value = null)
     {
-        return $this->sport_utama;
+        if (!empty($value)) {
+            return match (strtolower(trim($value))) {
+                'tennis' => 'Tennis',
+                'all_racquet', 'both', 'all racquet', 'padel & tennis' => 'Padel & Tennis',
+                default => 'Padel',
+            };
+        }
+
+        return $this->sport;
     }
 
     /**

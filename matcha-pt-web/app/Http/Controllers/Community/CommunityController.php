@@ -100,7 +100,8 @@ class CommunityController extends Controller
         // Validasi request
         $validated = $request->validate([
             'nama_community'    => 'required|string|max:255',
-            'sport_focus'       => 'required|in:Padel,Tennis,Both',
+            'sport'             => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
+            'sport_focus'       => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
             'deskripsi'         => 'required|string',
             'jadwal_rutin'      => 'nullable|string|max:255',
             'tagline'           => 'nullable|string|max:255',
@@ -115,6 +116,14 @@ class CommunityController extends Controller
             'logo.mimes' => 'Format logo tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.',
             'logo.max'   => 'Ukuran logo maksimal 2 MB.',
         ]);
+
+        // Normalisasi cabang olahraga ke nilai konsisten: padel, tennis, all_racquet
+        $rawSport = $request->input('sport') ?: $request->input('sport_focus', 'padel');
+        $normalizedSport = match (strtolower(trim((string) $rawSport))) {
+            'tennis' => 'tennis',
+            'all_racquet', 'both', 'all racquet', 'padel & tennis' => 'all_racquet',
+            default => 'padel',
+        };
 
         $logoUrl = $validated['logo_url'] ?? null;
 
@@ -147,6 +156,7 @@ class CommunityController extends Controller
             'nama_community' => $validated['nama_community'],
             'deskripsi'      => $validated['deskripsi'],
             'logo'           => $logoUrl ?: null,
+            'sport'          => $normalizedSport,
         ]);
 
         // Jika pembuat komunitas adalah player, otomatis join ke komunitas ini
