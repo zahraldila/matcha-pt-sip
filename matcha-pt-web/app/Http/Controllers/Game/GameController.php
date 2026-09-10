@@ -467,6 +467,19 @@ class GameController extends Controller
             $courtCount = 2;
         }
 
+        // Tangani permintaan acak ulang (shuffle) dengan seed dinamis
+        if ($request->has('shuffle') || $request->has('seed')) {
+            $seed = (int) $request->query('seed', rand(1000, 999999));
+            mt_srand($seed);
+            $keys = array_keys($participants);
+            shuffle($keys);
+            $shuffled = [];
+            foreach ($keys as $k) {
+                $shuffled[] = $participants[$k];
+            }
+            $participants = $shuffled;
+        }
+
         $format = strtolower($game['match_format'] ?? 'americano');
         $rounds = [];
         $drawingData = [];
@@ -513,6 +526,16 @@ class GameController extends Controller
                     'gender' => $pGender,
                 ];
             }
+        }
+
+        // Jika request via AJAX / Fetch JSON
+        if ($request->wantsJson() || $request->ajax() || $request->query('json')) {
+            return response()->json([
+                'success' => true,
+                'drawingData' => $drawingData,
+                'rounds' => $rounds,
+                'participantsMap' => $participantsMap,
+            ]);
         }
 
         return view('games.drawing', compact('game', 'drawingData', 'rounds', 'participantsMap'));

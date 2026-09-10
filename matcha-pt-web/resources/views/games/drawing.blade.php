@@ -159,7 +159,6 @@
             <div class="glass-card rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
                 <span>Format: <strong class="text-[#050608]">{{ $drawingData['format'] ?? ($game['match_format'] ?? 'Team Americano') }} ({{ $drawingData['total_teams'] ?? count($game['participants'] ?? []) }} {{ isset($drawingData['format']) && str_contains(strtolower($drawingData['format']), 'team') ? 'Tim Tetap' : 'Peserta' }})</strong></span>
                 <span>Total {{ $unitLabel }}: <strong class="text-[#050608]">{{ $drawingData['total_rounds'] ?? count($rounds) }} {{ $unitLabel }}</strong></span>
-                <span>Total Match: <strong class="text-[#050608]">{{ $drawingData['total_matches'] ?? array_sum(array_map(fn($r) => count($r['matches'] ?? []), $rounds)) }} Match</strong></span>
                 <span>Scoring: <strong class="text-[#050608]">{{ $game['scoring_system'] }}</strong></span>
             </div>
         </div>
@@ -245,11 +244,14 @@
 
 @push('scripts')
 <script>
-    const roundsData = @json($drawingData['rounds'] ?? []);
-    const participantsMap = @json($participantsMap ?? []);
+    let roundsData = @json($drawingData['rounds'] ?? []);
+    let participantsMap = @json($participantsMap ?? []);
     const unitLabel = @json($unitLabel ?? 'Round');
+    let currentRoundKey = {{ $firstRoundKey }};
 
-    function switchRound(roundNum) {
+    function switchRound(roundNum, notify = true) {
+        currentRoundKey = roundNum;
+
         Object.keys(roundsData).forEach(n => {
             const tab = document.getElementById(`tabRound${n}`);
             if (tab) {
@@ -268,6 +270,12 @@
         const roundTitleElem = document.getElementById('labelCurrentRoundTitle');
         if (roundTitleElem) {
             roundTitleElem.innerText = `${unitLabel} ${roundNum}`;
+        }
+
+        // Update Total Matches label
+        const labelTotalMatches = document.getElementById('labelTotalMatches');
+        if (labelTotalMatches && roundData.matches) {
+            labelTotalMatches.innerText = `${roundData.matches.length} Match Berjalan`;
         }
 
         // Render Matches list
@@ -299,7 +307,7 @@
                 }
 
                 return `
-                    <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 text-xs space-y-1.5">
+                    <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 text-xs space-y-1.5 transition-all hover:bg-white hover:shadow-xs">
                         <div class="flex items-center justify-between border-b border-slate-200/60 pb-1">
                             <div class="flex items-center gap-1.5">
                                 <span class="font-bold text-[#063B00]">${courtLabel}</span>
@@ -324,7 +332,7 @@
         }
 
         renderRoster(roundData);
-        if (typeof showToast === 'function') {
+        if (notify && typeof showToast === 'function') {
             showToast(`Beralih ke ${unitLabel} ${roundNum}`);
         }
     }
@@ -436,20 +444,84 @@
     }
 
     function runDrawingAnimation() {
-        const icon = document.getElementById('shuffleIcon');
-        icon.classList.add('animate-spin');
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        const shuffleIcon = document.getElementById('shuffleIcon');
         
-        setTimeout(() => {
-            icon.classList.remove('animate-spin');
+        if (shuffleBtn) {
+            shuffleBtn.disabled = true;
+            shuffleBtn.classList.add('opacity-60', 'pointer-events-none');
+        }
+        if (shuffleIcon) {
+            shuffleIcon.classList.add('animate-spin');
+        }
+
+        const formatParam = encodeURIComponent('{{ $game['match_format'] ?? 'Americano' }}');
+        const fetchUrl = `{{ route('games.drawing', $game['id']) }}?format=${formatParam}&seed=${Date.now()}&shuffle=1&json=1`;
+
+        fetch(fetchUrl, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data && (data.rounds || (data.drawingData && data.drawingData.rounds))) {
+                roundsData = data.rounds || data.drawingData.rounds;
+                if (data.participantsMap) {
+                    participantsMap = data.participantsMap;
+                }
+
+                // Cek apakah currentRoundKey masih tersedia di ronde baru
+                const roundKeys = Object.keys(roundsData).map(Number);
+                if (!roundKeys.includes(currentRoundKey) && roundKeys.length > 0) {
+                    currentRoundKey = roundKeys[0];
+                }
+
+                // Render ulang ronde aktif tanpa toast perpindahan ronde
+                switchRound(currentRoundKey, false);
+
+                // Animasi flash halus pada court container
+                const courtContainer = document.getElementById('courtContainer');
+                if (courtContainer) {
+                    courtContainer.classList.add('scale-[0.98]', 'transition-all', 'duration-200');
+                    setTimeout(() => {
+                        courtContainer.classList.remove('scale-[0.98]');
+                    }, 200);
+                }
+
+                if (typeof showToast === 'function') {
+                    showToast('Jadwal & rotasi pemain berhasil diacak ulang! 🎲');
+                }
+            } else {
+                window.location.reload();
+            }
+        })
+        .catch(err => {
+            console.warn('Asynchronous shuffle failed, falling back to page reload:', err);
             window.location.reload();
-        }, 400);
+        })
+        .finally(() => {
+            setTimeout(() => {
+                if (shuffleIcon) shuffleIcon.classList.remove('animate-spin');
+                if (shuffleBtn) {
+                    shuffleBtn.classList.remove('opacity-60', 'pointer-events-none');
+                    shuffleBtn.disabled = false;
+                }
+            }, 300);
+        });
     }
 
     // Sinkronisasi otomatis data ronde pertama saat halaman dimuat
     document.addEventListener('DOMContentLoaded', () => {
         const firstKey = {{ $firstRoundKey }};
         if (typeof switchRound === 'function') {
-            switchRound(firstKey);
+            switchRound(firstKey, false);
         }
     });
 </script>
