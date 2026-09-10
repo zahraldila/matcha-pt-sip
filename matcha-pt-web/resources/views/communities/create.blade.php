@@ -62,7 +62,7 @@
             </div>
         @endif
 
-        <form id="communityForm" action="{{ route('communities.store') }}" method="POST" class="space-y-8 text-xs" novalidate onsubmit="validateCommunityForm(event)">
+        <form id="communityForm" action="{{ route('communities.store') }}" method="POST" enctype="multipart/form-data" class="space-y-8 text-xs" novalidate onsubmit="validateCommunityForm(event)">
             @csrf
             
             <!-- SECTION 1: Identitas Komunitas -->
@@ -282,10 +282,22 @@
                     </div>
 
                     <!-- Logo Dropzone -->
-                    <div class="border-2 border-dashed border-slate-200 hover:border-[#063B00] rounded-2xl p-4 bg-slate-50/50 text-center transition-all cursor-pointer group flex flex-col items-center justify-center">
-                        <i class="fa-solid fa-image text-slate-400 group-hover:text-[#063B00] text-lg mb-1"></i>
-                        <p class="text-[11px] font-bold text-slate-800">Upload Logo Komunitas</p>
-                        <p class="text-[9px] text-slate-400">Rasio 1:1 format JPG/PNG</p>
+                    <div class="space-y-1">
+                        <div class="relative">
+                            <div id="logo-dropzone" onclick="document.getElementById('input_logo').click()" class="border-2 border-dashed border-slate-200 hover:border-[#063B00] rounded-2xl p-4 bg-slate-50/50 text-center transition-all cursor-pointer group flex flex-col items-center justify-center">
+                                <i class="fa-solid fa-image text-slate-400 group-hover:text-[#063B00] text-lg mb-1"></i>
+                                <p class="text-[11px] font-bold text-slate-800">Upload Logo Komunitas</p>
+                                <p id="logo-filename" class="text-[9px] text-slate-400">Rasio 1:1 format JPG/PNG</p>
+                            </div>
+                            <!-- Clear button: muncul hanya saat file dipilih -->
+                            <button type="button" id="logo-clear-btn" onclick="clearLogoSelection(event)" class="hidden absolute w-5 h-5 rounded-full bg-slate-200 hover:bg-rose-100 hover:text-rose-600 text-slate-500 flex items-center justify-center transition-all z-10 shadow-sm" style="top: -8px; right: -8px;" title="Batal pilih gambar">
+                                <i class="fa-solid fa-xmark text-[10px]"></i>
+                            </button>
+                        </div>
+                        <input type="file" id="input_logo" name="logo" accept="image/jpeg,image/jpg,image/png" class="sr-only">
+                        <p id="err_logo" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                            <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Format tidak valid.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -360,6 +372,50 @@
         }
     }
 
+    function validateLogoField() {
+        const input = document.getElementById('input_logo');
+        const errEl = document.getElementById('err_logo');
+        const dropzone = document.getElementById('logo-dropzone');
+        if (!input || !errEl || !dropzone) return true;
+
+        // No file selected — logo is optional, so pass
+        if (!input.files || input.files.length === 0) {
+            errEl.classList.add('hidden');
+            errEl.classList.remove('flex');
+            dropzone.classList.remove('border-rose-400', 'bg-rose-50/40');
+            dropzone.classList.add('border-slate-200');
+            return true;
+        }
+
+        const file = input.files[0];
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+        const maxBytes = 2 * 1024 * 1024; // 2 MB
+
+        let logoError = null;
+
+        if (!allowedTypes.includes(file.type.toLowerCase())) {
+            logoError = 'Format logo tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.';
+        } else if (file.size > maxBytes) {
+            logoError = 'Ukuran logo maksimal 2 MB.';
+        }
+
+        if (logoError) {
+            errEl.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> ${logoError}`;
+            errEl.classList.remove('hidden');
+            errEl.classList.add('flex');
+            dropzone.classList.add('border-rose-400', 'bg-rose-50/40');
+            dropzone.classList.remove('border-slate-200');
+            return false;
+        }
+
+        // Valid
+        errEl.classList.add('hidden');
+        errEl.classList.remove('flex');
+        dropzone.classList.remove('border-rose-400', 'bg-rose-50/40');
+        dropzone.classList.add('border-slate-200');
+        return true;
+    }
+
     function validateCommunityForm(e) {
         const nama = document.getElementById('input_nama_community')?.value.trim() || '';
         const kota = document.getElementById('input_kota')?.value.trim() || '';
@@ -370,6 +426,7 @@
         if (setFieldError('input_nama_community', 'err_nama_community', !nama ? 'Nama komunitas / klub wajib diisi.' : null)) hasError = true;
         if (setFieldError('input_kota', 'err_kota', !kota ? 'Kota homebase wajib diisi.' : null)) hasError = true;
         if (setFieldError('input_deskripsi', 'err_deskripsi', !deskripsi ? 'Deskripsi lengkap komunitas wajib diisi.' : null)) hasError = true;
+        if (!validateLogoField()) hasError = true;
 
         if (hasError) {
             e.preventDefault();
@@ -396,11 +453,59 @@
         }
     });
 
+    function clearLogoSelection(e) {
+        e.stopPropagation(); // jangan buka file picker saat klik X
+        const input = document.getElementById('input_logo');
+        const clearBtn = document.getElementById('logo-clear-btn');
+        const filenameEl = document.getElementById('logo-filename');
+        const errEl = document.getElementById('err_logo');
+        const dropzone = document.getElementById('logo-dropzone');
+
+        if (input) input.value = '';
+        if (clearBtn) clearBtn.classList.add('hidden');
+        if (filenameEl) filenameEl.textContent = 'Rasio 1:1 format JPG/PNG';
+        if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('flex'); }
+        if (dropzone) {
+            dropzone.classList.remove('border-rose-400', 'bg-rose-50/40');
+            dropzone.classList.add('border-slate-200');
+        }
+    }
+
+    // Validate logo on file selection change
+    document.getElementById('input_logo')?.addEventListener('change', function() {
+        const filenameEl = document.getElementById('logo-filename');
+        const clearBtn = document.getElementById('logo-clear-btn');
+        if (this.files && this.files.length > 0) {
+            validateLogoField();
+            // Show filename & clear button only when valid
+            const errEl = document.getElementById('err_logo');
+            if (errEl && errEl.classList.contains('hidden')) {
+                if (filenameEl) filenameEl.textContent = this.files[0].name;
+                if (clearBtn) clearBtn.classList.remove('hidden');
+            } else {
+                if (filenameEl) filenameEl.textContent = 'Rasio 1:1 format JPG/PNG';
+                if (clearBtn) clearBtn.classList.add('hidden');
+            }
+        } else {
+            if (filenameEl) filenameEl.textContent = 'Rasio 1:1 format JPG/PNG';
+            if (clearBtn) clearBtn.classList.add('hidden');
+        }
+    });
+
     // Reset error UI on form reset
     document.getElementById('communityForm')?.addEventListener('reset', function() {
         ['input_nama_community', 'input_kota', 'input_deskripsi'].forEach(id => {
             setFieldError(id, 'err_' + id.replace('input_', ''), null);
         });
+        // Reset logo area
+        const errLogo = document.getElementById('err_logo');
+        const dropzone = document.getElementById('logo-dropzone');
+        const filenameEl = document.getElementById('logo-filename');
+        if (errLogo) { errLogo.classList.add('hidden'); errLogo.classList.remove('flex'); }
+        if (dropzone) { dropzone.classList.remove('border-rose-400', 'bg-rose-50/40'); dropzone.classList.add('border-slate-200'); }
+        if (filenameEl) filenameEl.textContent = 'Rasio 1:1 format JPG/PNG';
+        const clearBtn = document.getElementById('logo-clear-btn');
+        if (clearBtn) clearBtn.classList.add('hidden');
     });
 
     function handleCommunityPreview(e) {
