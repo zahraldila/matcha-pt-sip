@@ -18,6 +18,12 @@ class Venue extends Model
         'alamat',
         'foto',
         'fasilitas',
+        'catatan',
+        'kota',
+        'jam_operasional',
+        'hari_buka',
+        'no_whatsapp',
+        'nama_pic',
     ];
 
     public function owner()

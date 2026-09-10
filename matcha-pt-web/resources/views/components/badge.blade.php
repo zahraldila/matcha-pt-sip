@@ -4,6 +4,7 @@
     $classes = match($type) {
         'tennis' => 'bg-[#A8E63A]/25 text-[#050608] border-[#7FAF25]/35 font-semibold',
         'padel' => 'bg-[#7FAF25]/20 text-[#050608] border-[#7FAF25]/35 font-semibold',
+        'multi', 'padel & tennis' => 'bg-emerald-100 text-[#063B00] border-emerald-300 font-semibold',
         'open' => 'bg-[#EBF8D8] text-[#1e4e26] border-[#C4E992] font-semibold',
         'full' => 'bg-slate-100 text-[#666A73] border-slate-200/80',
         'playing' => 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30 font-semibold',
