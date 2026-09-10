@@ -80,17 +80,42 @@ class ScoringService
         $scoringSystem = $game['scoring_system'] ?? '';
         $system = self::detectScoringSystem($scoringSystem);
 
-        // Cek apakah ada minimal 1 skor riil yang berstatus completed
+        // Cek apakah ada minimal 1 skor riil yang berstatus completed atau sesi berstatus finished
         $hasRealCompleted = false;
+        $isFinishedSession = ($sessionScores['_meta']['status'] ?? '') === 'finished';
+
         foreach ($sessionScores as $k => $v) {
-            if ($k !== '_meta' && is_array($v) && ($v['status'] ?? '') === 'completed') {
-                $hasRealCompleted = true;
-                break;
+            if ($k !== '_meta' && is_array($v)) {
+                if (($v['status'] ?? '') === 'completed') {
+                    $hasRealCompleted = true;
+                    break;
+                }
+                if ($isFinishedSession && (
+                    ($v['games_a'] ?? 0) > 0 || ($v['games_b'] ?? 0) > 0 ||
+                    ($v['score_a'] ?? 0) > 0 || ($v['score_b'] ?? 0) > 0 ||
+                    ($v['sets_a'] ?? 0) > 0  || ($v['sets_b'] ?? 0) > 0
+                )) {
+                    $hasRealCompleted = true;
+                    break;
+                }
             }
         }
 
         foreach ($drawing as $roundKey => $round) {
-            if (isset($effective[$roundKey]) && ($effective[$roundKey]['status'] ?? '') === 'completed') {
+            $isCompleted = isset($effective[$roundKey]) && (
+                ($effective[$roundKey]['status'] ?? '') === 'completed' ||
+                ($isFinishedSession && (
+                    ($effective[$roundKey]['games_a'] ?? 0) > 0 ||
+                    ($effective[$roundKey]['games_b'] ?? 0) > 0 ||
+                    ($effective[$roundKey]['sets_a'] ?? 0) > 0 ||
+                    ($effective[$roundKey]['sets_b'] ?? 0) > 0 ||
+                    ($effective[$roundKey]['score_a'] ?? 0) > 0 ||
+                    ($effective[$roundKey]['score_b'] ?? 0) > 0
+                ))
+            );
+
+            if ($isCompleted) {
+                $effective[$roundKey]['status'] = 'completed';
                 if (empty($effective[$roundKey]['team_a'])) {
                     $effective[$roundKey]['team_a'] = $round['team_a'] ?? [];
                 }

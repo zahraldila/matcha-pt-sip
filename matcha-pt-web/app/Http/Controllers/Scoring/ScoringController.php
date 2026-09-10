@@ -151,6 +151,29 @@ class ScoringController extends Controller
         $cacheKey = "scoring.game_{$gameId}";
         $scores   = Cache::get($cacheKey, []);
 
+        // Guard 1: Jika ronde atau sesi sudah berstatus selesai, tolak pembaruan yang terlambat datang (late in-flight AJAX)
+        if (($scores['_meta']['status'] ?? '') === 'finished' || (($scores[$round]['status'] ?? '') === 'completed')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pertandingan sudah selesai. Pembaruan skor diabaikan.',
+                'saved'   => $scores[$round] ?? [],
+            ]);
+        }
+
+        // Guard 2: Cek apakah sesi di database sudah berstatus Finished
+        try {
+            $dbSessionStatus = SessionModel::where('session_id', $gameId)->value('status_session');
+            if (strtolower($dbSessionStatus ?? '') === 'finished') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi pertandingan sudah selesai di database. Pembaruan skor diabaikan.',
+                    'saved'   => $scores[$round] ?? [],
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // Abaikan kegagalan koneksi DB sekunder pada update AJAX realtime
+        }
+
         $scores[$round] = [
             'score_a'         => $request->integer('score_a'),
             'score_b'         => $request->integer('score_b'),
@@ -451,6 +474,81 @@ class ScoringController extends Controller
         // Ambil skor tersimpan dari Cache (shared)
         $cacheKey    = "scoring.game_{$game['id']}";
         $savedScores = Cache::get($cacheKey, []);
+
+        // Fallback Database: Jika Cache kosong atau tidak ada ronde yang berstatus completed, coba muat dari database
+        $hasCompletedInCache = false;
+        foreach ($savedScores as $k => $v) {
+            if ($k !== '_meta' && is_array($v) && ($v['status'] ?? '') === 'completed') {
+                $hasCompletedInCache = true;
+                break;
+            }
+        }
+
+        if (!$hasCompletedInCache) {
+            try {
+                $drawingRecord = Drawing::where('session_id', $game['id'])->first();
+                if ($drawingRecord) {
+                    $matches = GameMatch::with('scores')->where('drawing_id', $drawingRecord->drawing_id)->get();
+                    $dbScoresRecovered = false;
+
+                    foreach ($matches as $match) {
+                        $rKey = "round_{$match->nomor_match}";
+                        $matchScores = $match->scores;
+                        $mSetsA = 0;
+                        $mSetsB = 0;
+                        $mGamesA = 0;
+                        $mGamesB = 0;
+                        $mSetHistory = [];
+
+                        foreach ($matchScores as $sc) {
+                            $mSetsA = max($mSetsA, (int) $sc->set_score_a);
+                            $mSetsB = max($mSetsB, (int) $sc->set_score_b);
+                            $mGamesA += (int) $sc->game_score_a;
+                            $mGamesB += (int) $sc->game_score_b;
+                            if ($scoringSystem['is_sets']) {
+                                $mSetHistory[] = [
+                                    'set'     => (int) $sc->set_number,
+                                    'score_a' => (int) $sc->score_side_a,
+                                    'score_b' => (int) $sc->score_side_b,
+                                ];
+                            }
+                        }
+
+                        if ($matchScores->isNotEmpty() || $match->status_match === 'Completed') {
+                            $dbScoresRecovered = true;
+                            $savedScores[$rKey] = [
+                                'score_a'         => $scoringSystem['is_sets'] ? $mSetsA : $mGamesA,
+                                'score_b'         => $scoringSystem['is_sets'] ? $mSetsB : $mGamesB,
+                                'point_display_a' => '0',
+                                'point_display_b' => '0',
+                                'set_number'      => max(1, count($mSetHistory)),
+                                'sets_a'          => $mSetsA,
+                                'sets_b'          => $mSetsB,
+                                'games_a'         => $mGamesA,
+                                'games_b'         => $mGamesB,
+                                'set_history'     => $mSetHistory,
+                                'scoring_type'    => $scoringSystem['type'],
+                                'scoring_system'  => $scoringSystem['label'],
+                                'winner_team'     => $match->winner_team ?: ($mGamesA >= $mGamesB ? 'Team A' : 'Team B'),
+                                'status'          => 'completed',
+                                'updated_at'      => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
+                            ];
+                            $savedScores['_meta'] = [
+                                'finished_at'    => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
+                                'last_round_key' => $rKey,
+                                'status'         => 'finished',
+                            ];
+                        }
+                    }
+
+                    if ($dbScoresRecovered) {
+                        Cache::put($cacheKey, $savedScores, now()->addHours(4));
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Failed to recover scores from DB in recap: {$e->getMessage()}");
+            }
+        }
 
         // Sinkronisasi effective round scores
         $effectiveScores = ScoringService::getEffectiveScores($game, $savedScores);

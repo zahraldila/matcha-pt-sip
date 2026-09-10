@@ -252,17 +252,13 @@
             <p class="text-xs text-slate-600 font-medium">Pertandingan telah dimenangkan. Klik tombol di bawah untuk menyimpan dan melihat hasil rekap.</p>
         </div>
 
-        <!-- Controls: Reset & Finish Game — hanya untuk Host -->
+        <!-- Controls: Selesaikan Sesi & Lihat Juara — hanya untuk Host -->
         @if($isHost)
         <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200/50">
-            <div class="flex items-center gap-2">
-                <button onclick="resetCurrentGamePoint()" class="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold border border-slate-200/80 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer">
-                    <i class="fa-solid fa-arrow-rotate-left text-[10px]"></i> Reset Poin Game Ini
-                </button>
-                <button onclick="resetFullMatch()" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer">
-                    <i class="fa-solid fa-trash-can text-[10px]"></i> Reset Skor Match
-                </button>
-            </div>
+            <a href="{{ route('scoring.recap', $game['id']) }}"
+               class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-2xs transition-colors flex items-center gap-1.5 w-full sm:w-auto justify-center">
+                <i class="fa-solid fa-ranking-star text-[10px] text-amber-500"></i> Lihat Klasemen Sementara
+            </a>
 
             <form id="finishForm" action="{{ route('scoring.finish') }}" method="POST" class="w-full sm:w-auto">
                 @csrf
@@ -281,7 +277,7 @@
                 <input type="hidden" name="set_history"     id="finishSetHistory" value="{{ json_encode($currentScore['set_history'] ?? []) }}">
                 <input type="hidden" name="winner_team"     id="finishWinnerTeam" value="">
 
-                <button type="submit" onclick="submitFinish(event)"
+                <button type="submit" id="btnFinishSession" onclick="submitFinish(event)"
                     class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-flag-checkered text-[11px] text-[#A8E63A]"></i> Selesaikan Sesi &amp; Lihat Juara
                 </button>
@@ -350,6 +346,9 @@
 
     let matchDone    = {{ (($currentScore['status'] ?? '') === 'completed') ? 'true' : 'false' }};
     let winnerTeam   = {!! json_encode($currentScore['winner_team'] ?? null) !!};
+
+    let isFinishing           = false;
+    let activeAbortController = null;
 
     // ── Point Display Resolution ─────────────────────────────────────────────
     function getPointDisplays() {
@@ -521,37 +520,6 @@
         advantage = null;
     }
 
-    function resetCurrentGamePoint() {
-        resetPoints();
-        updateDisplay();
-        showToast('Poin game ini di-reset ke 0 - 0.');
-        saveScore();
-    }
-
-    function resetFullMatch() {
-        if (!confirm('Yakin ingin mereset seluruh skor match ini dari awal?')) return;
-        resetPoints();
-        gamesA = 0;
-        gamesB = 0;
-        setsA = 0;
-        setsB = 0;
-        setNumber = 1;
-        setHistory = [];
-        matchDone = false;
-        winnerTeam = null;
-
-        const banner = document.getElementById('matchCompletedBanner');
-        if (banner) banner.classList.add('hidden');
-        const bA = document.getElementById('btnAddA');
-        const bB = document.getElementById('btnAddB');
-        if (bA) bA.disabled = false;
-        if (bB) bB.disabled = false;
-
-        updateDisplay();
-        showToast('Seluruh skor match telah di-reset.');
-        saveScore('in_progress');
-    }
-
     // ── Update Display UI ────────────────────────────────────────────────────
     function updateDisplay() {
         const dispA  = document.getElementById('scoreDisplayA');
@@ -633,6 +601,9 @@
         if (matchDone && winnerTeam) {
             showCompletedBanner(winnerTeam);
         }
+
+        // Selalu sinkronkan hidden input form Selesaikan Sesi setiap display berubah
+        syncFinishFormInputs();
     }
 
     // ── Banner Match Selesai ─────────────────────────────────────────────────
@@ -660,6 +631,14 @@
 
     // ── Simpan Skor ke Server (AJAX Polling / Cache) ───────────────────────────
     async function saveScore(status = null) {
+        if (isFinishing) return;
+
+        // Batalkan request AJAX sebelumnya yang masih berjalan agar tidak terjadi race condition
+        if (activeAbortController) {
+            try { activeAbortController.abort(); } catch(e) {}
+        }
+        activeAbortController = new AbortController();
+
         const displays = getPointDisplays();
         const body = {
             game_id         : GAME_ID,
@@ -691,31 +670,38 @@
                     'X-CSRF-TOKEN' : CSRF_TOKEN,
                     'Accept'       : 'application/json',
                 },
+                signal: activeAbortController.signal,
                 body: JSON.stringify(body),
             });
             if (!res.ok) {
                 console.error('Update score failed:', await res.text());
             }
         } catch (err) {
-            console.warn('Gagal simpan skor:', err);
+            if (err.name !== 'AbortError') {
+                console.warn('Gagal simpan skor:', err);
+            }
         }
     }
 
-    // ── Submit Form Finish ────────────────────────────────────────────────────
-    function submitFinish(event) {
-        const finA = document.getElementById('finishScoreA');
-        const finB = document.getElementById('finishScoreB');
-        const finSetsA = document.getElementById('finishSetsA');
-        const finSetsB = document.getElementById('finishSetsB');
-        const finGamesA = document.getElementById('finishGamesA');
-        const finGamesB = document.getElementById('finishGamesB');
-        const finSetNum = document.getElementById('finishSetNumber');
-        const finPDispA = document.getElementById('finishPointDisplayA');
-        const finPDispB = document.getElementById('finishPointDisplayB');
+    // ── Sinkronkan Input Form Finish Tersembunyi ─────────────────────────────
+    function syncFinishFormInputs() {
+        const finA       = document.getElementById('finishScoreA');
+        const finB       = document.getElementById('finishScoreB');
+        const finSetsA   = document.getElementById('finishSetsA');
+        const finSetsB   = document.getElementById('finishSetsB');
+        const finGamesA  = document.getElementById('finishGamesA');
+        const finGamesB  = document.getElementById('finishGamesB');
+        const finSetNum  = document.getElementById('finishSetNumber');
+        const finPDispA  = document.getElementById('finishPointDisplayA');
+        const finPDispB  = document.getElementById('finishPointDisplayB');
         const finHistory = document.getElementById('finishSetHistory');
-        const finWinner = document.getElementById('finishWinnerTeam');
+        const finWinner  = document.getElementById('finishWinnerTeam');
 
         let finalHistory = Array.isArray(setHistory) ? [...setHistory] : [];
+        let curSetsA     = setsA;
+        let curSetsB     = setsB;
+        let curWinner    = winnerTeam;
+
         if (IS_SETS) {
             // Jika ada games di set aktif yang belum tercatat ke history
             const alreadyLogged = finalHistory.some(s => s.set === setNumber);
@@ -740,38 +726,68 @@
                 else calcSetsB = 1;
             }
 
-            setsA = Math.max(setsA, calcSetsA);
-            setsB = Math.max(setsB, calcSetsB);
+            curSetsA = Math.max(setsA, calcSetsA);
+            curSetsB = Math.max(setsB, calcSetsB);
 
-            if (!winnerTeam) {
-                winnerTeam = setsA >= setsB ? 'Team A' : 'Team B';
+            if (!curWinner) {
+                curWinner = curSetsA >= curSetsB ? 'Team A' : 'Team B';
             }
         } else {
-            if (!winnerTeam) {
-                winnerTeam = gamesA >= gamesB ? 'Team A' : 'Team B';
+            if (!curWinner) {
+                curWinner = gamesA >= gamesB ? 'Team A' : 'Team B';
             }
         }
 
         const displays = getPointDisplays();
-        if (finPDispA) finPDispA.value = displays.a;
-        if (finPDispB) finPDispB.value = displays.b;
-        if (finSetsA) finSetsA.value = setsA;
-        if (finSetsB) finSetsB.value = setsB;
-        if (finGamesA) finGamesA.value = gamesA;
-        if (finGamesB) finGamesB.value = gamesB;
-        if (finSetNum) finSetNum.value = setNumber;
+        if (finPDispA)  finPDispA.value  = displays.a;
+        if (finPDispB)  finPDispB.value  = displays.b;
+        if (finSetsA)   finSetsA.value   = curSetsA;
+        if (finSetsB)   finSetsB.value   = curSetsB;
+        if (finGamesA)  finGamesA.value  = gamesA;
+        if (finGamesB)  finGamesB.value  = gamesB;
+        if (finSetNum)  finSetNum.value  = setNumber;
         if (finHistory) finHistory.value = JSON.stringify(finalHistory);
 
         if (IS_SETS) {
-            finA.value = setsA;
-            finB.value = setsB;
+            if (finA) finA.value = curSetsA;
+            if (finB) finB.value = curSetsB;
         } else {
-            finA.value = gamesA;
-            finB.value = gamesB;
+            if (finA) finA.value = gamesA;
+            if (finB) finB.value = gamesB;
         }
-        if (finWinner) finWinner.value = winnerTeam;
+        if (finWinner) finWinner.value = curWinner;
+    }
+
+    // ── Submit Form Finish ────────────────────────────────────────────────────
+    function submitFinish(event) {
+        if (event) {
+            event.preventDefault();
+        }
+
+        // 1. Kunci agar tidak ada lagi AJAX background yang mengirim status in_progress
+        isFinishing = true;
+        if (activeAbortController) {
+            try { activeAbortController.abort(); } catch(e) {}
+        }
+
+        // 2. Pastikan seluruh input hidden terisi akurat dengan nilai terakhir
+        syncFinishFormInputs();
+
+        // 3. Ubah tombol ke state loading & nonaktifkan untuk mencegah klik ganda
+        const btn = document.getElementById('btnFinishSession');
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs text-[#A8E63A]"></i> Menyimpan Sesi &amp; Menghitung Juara...';
+        }
 
         showToast('Menyimpan hasil akhir pertandingan...');
+
+        // 4. Submit form secara bersih
+        const form = document.getElementById('finishForm');
+        if (form) {
+            form.submit();
+        }
     }
 
     // ── Auto-Refresh Realtime untuk Member / Penonton (Polling via fetch) ─────
