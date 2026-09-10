@@ -145,15 +145,19 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                         <div class="space-y-1">
                             <label class="block font-bold text-slate-800">
-                                Jenis Kelamin
+                                Jenis Kelamin <span class="text-rose-500">*</span>
                             </label>
                             <div class="relative">
-                                <select name="gender" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                                <select name="gender" id="input_gender" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                                    <option value="" disabled {{ old('gender') ? '' : 'selected' }}>Pilih Jenis Kelamin</option>
                                     <option value="Male" {{ old('gender') === 'Male' ? 'selected' : '' }}>Laki-laki 🚹</option>
                                     <option value="Female" {{ old('gender') === 'Female' ? 'selected' : '' }}>Perempuan 🚺</option>
                                 </select>
                                 <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                             </div>
+                            <p id="err_gender" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Jenis kelamin wajib dipilih.
+                            </p>
                             <span class="text-[10px] text-slate-400 block font-medium">*Digunakan algoritma format Mixicano / Mix Americano.</span>
                         </div>
 
@@ -161,7 +165,7 @@
                             <label class="block font-bold text-slate-800">
                                 Usia (Tahun) <span class="text-rose-500">*</span>
                             </label>
-                            <input type="number" name="usia" id="input_usia" value="{{ old('usia', 25) }}" min="10" max="85" placeholder="Contoh: 28" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <input type="number" name="usia" id="input_usia" value="{{ old('usia') }}" min="10" max="85" placeholder="Contoh: 28" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                             <p id="err_usia" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
                                 <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Usia wajib diisi.
                             </p>
@@ -169,17 +173,21 @@
 
                         <div class="space-y-1">
                             <label class="block font-bold text-slate-800">
-                                Kategori Skill Level
+                                Kategori Skill Level <span class="text-rose-500">*</span>
                             </label>
                             <div class="relative">
-                                <select name="level" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                                <select name="level" id="input_level" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                                    <option value="" disabled {{ old('level') ? '' : 'selected' }}>Pilih Kategori Skill Level</option>
                                     <option value="Newbie" {{ old('level') === 'Newbie' ? 'selected' : '' }}>Newbie (Baru mulai / belajar)</option>
                                     <option value="Beginner" {{ old('level') === 'Beginner' ? 'selected' : '' }}>Beginner (Rally dasar lancar)</option>
-                                    <option value="Intermediate" {{ old('level', 'Intermediate') === 'Intermediate' ? 'selected' : '' }}>Intermediate (Konsisten match play)</option>
+                                    <option value="Intermediate" {{ old('level') === 'Intermediate' ? 'selected' : '' }}>Intermediate (Konsisten match play)</option>
                                     <option value="Advanced" {{ old('level') === 'Advanced' ? 'selected' : '' }}>Advanced (Turnamen & Kompetitif)</option>
                                 </select>
                                 <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                             </div>
+                            <p id="err_level" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Kategori skill level wajib dipilih.
+                            </p>
                             <span class="text-[10px] text-slate-400 block font-medium">*Membantu sistem menyusun drawing tim yang seimbang.</span>
                         </div>
 
@@ -188,11 +196,16 @@
                                 Pilihan Komunitas (Opsional)
                             </label>
                             <div class="relative">
-                                <select name="community_id" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                                    <option value="none">Personal (Non-Community / Belum Ada)</option>
+                                <select name="community_id" id="input_community_id" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                                    <option value="" {{ old('community_id') ? '' : 'selected' }}>Pilih Komunitas</option>
+                                    <option value="none" {{ old('community_id') === 'none' ? 'selected' : '' }}>Personal (Non-Community / Belum Ada)</option>
                                     @if(isset($communities))
                                         @foreach($communities as $comm)
-                                            <option value="{{ $comm->community_id ?? $comm['id'] }}">{{ $comm->nama_community ?? $comm['name'] }}</option>
+                                            @php
+                                                $cId = $comm->community_id ?? $comm['id'];
+                                                $cName = $comm->nama_community ?? $comm['name'];
+                                            @endphp
+                                            <option value="{{ $cId }}" {{ old('community_id') == $cId ? 'selected' : '' }}>{{ $cName }}</option>
                                         @endforeach
                                     @endif
                                 </select>
@@ -314,7 +327,9 @@
         const nama = document.getElementById('input_nama').value.trim();
         const noHp = document.getElementById('input_no_hp').value.trim();
         const email = document.getElementById('input_email').value.trim();
+        const gender = document.getElementById('input_gender').value.trim();
         const usia = document.getElementById('input_usia').value.trim();
+        const level = document.getElementById('input_level').value.trim();
         const password = document.getElementById('registerPassword').value.trim();
 
         let hasError = false;
@@ -322,7 +337,9 @@
         if (setFieldError('input_nama', 'err_nama', !nama ? 'Nama lengkap wajib diisi.' : null)) hasError = true;
         if (setFieldError('input_no_hp', 'err_no_hp', !noHp ? 'Nomor WhatsApp / HP wajib diisi.' : null)) hasError = true;
         if (setFieldError('input_email', 'err_email', !email ? 'Alamat email wajib diisi.' : null)) hasError = true;
+        if (setFieldError('input_gender', 'err_gender', !gender ? 'Jenis kelamin wajib dipilih.' : null)) hasError = true;
         if (setFieldError('input_usia', 'err_usia', !usia ? 'Usia wajib diisi.' : null)) hasError = true;
+        if (setFieldError('input_level', 'err_level', !level ? 'Kategori skill level wajib dipilih.' : null)) hasError = true;
         
         if (!password) {
             if (setFieldError('registerPassword', 'err_password', 'Password wajib diisi.')) hasError = true;
