@@ -219,9 +219,9 @@
                         ];
                     @endphp
 
-                    @foreach($benefits as $index => $ben)
+                    @foreach($benefits as $ben)
                         <label class="cursor-pointer">
-                            <input type="checkbox" name="benefits[]" value="{{ $ben['name'] }}" class="peer sr-only" {{ $index < 4 ? 'checked' : '' }}>
+                            <input type="checkbox" name="benefits[]" value="{{ $ben['name'] }}" class="peer sr-only" {{ in_array($ben['name'], old('benefits', [])) ? 'checked' : '' }}>
                             <div class="p-3 rounded-2xl border border-slate-200/70 bg-slate-50/50 peer-checked:bg-[#EBF8D8]/70 peer-checked:border-[#063B00] peer-checked:text-[#063B00] transition-all flex items-center gap-2.5 group hover:border-slate-300">
                                 <div class="w-7 h-7 rounded-xl bg-white border border-slate-200/80 flex items-center justify-center text-xs text-slate-600 peer-checked:text-[#063B00] shadow-2xs">
                                     <i class="fa-solid {{ $ben['icon'] }}"></i>
