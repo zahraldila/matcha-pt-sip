@@ -143,6 +143,15 @@ class GameController extends Controller
             'players.*.type' => 'required|in:Host,Member,Guest',
         ]);
 
+        // Validasi format Team Americano: Wajib Genap (2 pemain per tim)
+        if (str_contains(strtolower($request->format), 'team') && count($request->players) % 2 !== 0) {
+            $msg = 'Jumlah pemain Team Americano harus genap (4, 6, 8, dst) karena setiap tim terdiri dari 2 orang pasangan tetap.';
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return back()->withInput()->withErrors(['players' => $msg]);
+        }
+
         try {
             DB::beginTransaction();
 

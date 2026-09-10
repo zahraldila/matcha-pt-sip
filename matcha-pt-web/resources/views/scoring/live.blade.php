@@ -47,7 +47,8 @@
 
     {{-- Round / Set Selector (Set 1, Set 2, Set 3) --}}
     @php
-        $unitTabLabel = 'Set';
+        $isTeamFormat = str_contains(strtolower($game['match_format'] ?? ''), 'team');
+        $unitTabLabel = $isTeamFormat ? 'Ronde' : ($scoringSystem['is_sets'] ? 'Set' : 'Ronde');
         $allRoundsList = $matchContext['all_rounds'] ?? [];
         $currentRIndex = array_search($activeRound, $allRoundsList);
         $nextRoundKey = ($currentRIndex !== false && isset($allRoundsList[$currentRIndex + 1])) ? $allRoundsList[$currentRIndex + 1] : null;

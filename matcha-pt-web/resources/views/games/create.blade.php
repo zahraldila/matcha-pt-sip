@@ -333,12 +333,14 @@
         <div id="step4" class="space-y-6 hidden">
             
             <!-- Summary Header Card -->
-            <div class="glass-card rounded-2xl p-5 border border-[#063B00]/20 bg-gradient-to-r from-[#EBF8D8]/70 via-white/80 to-[#A8E63A]/20 shadow-xs flex items-center justify-between">
-                <div>
-                    <h2 class="text-lg sm:text-xl font-extrabold text-[#050608]" id="summaryGameName">Padel Weekend Mabar</h2>
-                    <p class="text-xs text-slate-500 font-medium" id="summaryGameFormat">Americano &bull; 1 Court &bull; 24 Points</p>
+            <div class="glass-card rounded-2xl p-4 sm:p-5 border border-[#063B00]/20 bg-gradient-to-r from-[#EBF8D8]/70 via-white/80 to-[#A8E63A]/20 shadow-xs flex items-start sm:items-center justify-between gap-3">
+                <div class="space-y-1 min-w-0 flex-1">
+                    <h2 class="text-base sm:text-lg font-extrabold text-[#050608] truncate" id="summaryGameName">Padel Weekend Mabar</h2>
+                    <p class="text-xs text-slate-600 font-medium leading-relaxed" id="summaryGameFormat">Americano &bull; 1 Court &bull; 24 Points</p>
                 </div>
-                <span class="text-[10px] font-bold bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/30 px-3 py-1 rounded-full">Host Mode</span>
+                <span class="shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/30 shadow-2xs">
+                    <i class="fa-solid fa-crown text-[9px] text-[#063B00]"></i> Host Mode
+                </span>
             </div>
 
             <!-- Add Player Action Bar -->
@@ -732,10 +734,11 @@
             const scoreVal = document.getElementById('scoringGeneralValue').value;
 
             const venueSelect = document.getElementById('venueId');
-            const venueName = venueSelect.options[venueSelect.selectedIndex]?.text || 'Venue belum dipilih';
+            const rawVenueName = venueSelect.options[venueSelect.selectedIndex]?.text || 'Venue belum dipilih';
+            const cleanVenueName = rawVenueName.replace(/\s*\(\d+\s*Court.*?\)/i, '').trim();
 
             document.getElementById('summaryGameName').innerText = actName;
-            document.getElementById('summaryGameFormat').innerText = `${selectedGameType} • ${numCourt} Court • ${venueName} • ${scoreVal}`;
+            document.getElementById('summaryGameFormat').innerText = `${selectedGameType} • ${numCourt} Court • ${cleanVenueName} • ${scoreVal}`;
         }
     }
 
@@ -1091,18 +1094,33 @@
 
         container.innerHTML = html;
 
-        if (players.length >= 4) {
-            startBtn.disabled = false;
-            startBtn.className = 'w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer flex items-center justify-center gap-2';
-        } else {
+        const isTeamAmericano = selectedGameType && selectedGameType.toLowerCase().includes('team');
+        const isOddPlayers = (players.length % 2 !== 0);
+
+        if (players.length < 4) {
             startBtn.disabled = true;
             startBtn.className = 'w-full py-3.5 rounded-xl bg-slate-200 text-slate-400 font-black text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2';
+            startBtn.innerHTML = '<i class="fa-solid fa-users"></i> Tambahkan Minimal 4 Pemain';
+        } else if (isTeamAmericano && isOddPlayers) {
+            startBtn.disabled = true;
+            startBtn.className = 'w-full py-3.5 rounded-xl bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2';
+            startBtn.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> Team Americano Butuh Pemain Genap (${players.length} Pemain - Tambah 1 Lagi)`;
+        } else {
+            startBtn.disabled = false;
+            startBtn.className = 'w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer flex items-center justify-center gap-2';
+            startBtn.innerHTML = '<i class="fa-solid fa-shuffle"></i> 🎲 Generate Drawing &amp; Start Game';
         }
     }
 
     async function startDrawingAction() {
         if (players.length < 4) {
             showToast('Minimal 4 pemain untuk generate drawing.');
+            return;
+        }
+
+        const isTeamAmericano = selectedGameType && selectedGameType.toLowerCase().includes('team');
+        if (isTeamAmericano && players.length % 2 !== 0) {
+            showToast('Jumlah pemain Team Americano harus genap (4, 6, 8, dst) karena setiap tim terdiri dari 2 orang pasangan tetap.');
             return;
         }
 
