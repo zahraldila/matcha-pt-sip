@@ -25,6 +25,7 @@ Route::prefix('games')->name('games.')->group(function () {
     Route::get('/', [GameController::class, 'index'])->name('index');
     Route::get('/{id}', [GameController::class, 'show'])->whereNumber('id')->name('show');
     Route::get('/{id}/drawing', [GameController::class, 'drawing'])->whereNumber('id')->name('drawing');
+    Route::post('/{id}/lock', [GameController::class, 'lockDrawing'])->whereNumber('id')->name('lock');
 
     // Protected: Create Game Wizard (Instant Host) & Schedule Sesi Mabar
     Route::middleware('auth')->group(function () {

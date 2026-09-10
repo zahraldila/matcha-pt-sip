@@ -25,11 +25,15 @@ class ScoringController extends Controller
     {
         $game = $this->getGameData($id);
 
+        // Kunci drawing saat live scoring dibuka (match mulai berjalan)
+        Cache::put("drawing.locked_{$id}", true, now()->addHours(6));
+
         // Tentukan round aktif (bisa dari query param atau default round_1)
         $activeRound = request('round', 'round_1');
+        $courtIndex  = (int) request('court', 0);
 
-        // Bangun konteks match (tim A, tim B, istirahat) untuk round aktif
-        $matchContext = ScoringService::buildMatchContext($game, $activeRound);
+        // Bangun konteks match (tim A, tim B, istirahat, court_name, matches) untuk round aktif & court
+        $matchContext = ScoringService::buildMatchContext($game, $activeRound, $courtIndex);
 
         // Deteksi scoring system
         $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? '');
@@ -37,6 +41,9 @@ class ScoringController extends Controller
         // Ambil skor tersimpan dari Cache (shared antar semua user)
         $cacheKey    = "scoring.game_{$game['id']}";
         $savedScores = Cache::get($cacheKey, []);
+        $courtCount  = $matchContext['court_count'] ?? 1;
+        $matchKey    = ($courtCount > 1) ? "{$activeRound}_court_" . ($courtIndex + 1) : $activeRound;
+
         $defaultScore = [
             'score_a'         => 0,
             'score_b'         => 0,
@@ -55,7 +62,7 @@ class ScoringController extends Controller
             'status'          => 'in_progress',
             'winner_team'     => null,
         ];
-        $currentScore = array_merge($defaultScore, $savedScores[$activeRound] ?? []);
+        $currentScore = array_merge($defaultScore, $savedScores[$matchKey] ?? ($savedScores[$activeRound] ?? []));
 
         // Deteksi role: hanya 'host' yang bisa mengedit skor
         $userRole = Auth::check() ? Auth::user()->role : 'guest';
@@ -67,6 +74,8 @@ class ScoringController extends Controller
             'scoringSystem',
             'currentScore',
             'activeRound',
+            'courtIndex',
+            'matchKey',
             'savedScores',
             'isHost',
             'userRole',
@@ -82,11 +91,19 @@ class ScoringController extends Controller
     {
         $cacheKey = "scoring.game_{$gameId}";
         $scores   = Cache::get($cacheKey, []);
-        $score    = $scores[$round] ?? [];
+
+        $matchKey = request('match_key');
+        if (!$matchKey) {
+            $court = request('court_num') ?? (request()->has('court') ? ((int) request('court') + 1) : null);
+            $matchKey = $court ? "{$round}_court_{$court}" : $round;
+        }
+
+        $score = $scores[$matchKey] ?? ($scores[$round] ?? []);
 
         return response()->json([
             'game_id'         => (int) $gameId,
             'round'           => $round,
+            'match_key'       => $matchKey,
             'score_a'         => (int) ($score['score_a'] ?? 0),
             'score_b'         => (int) ($score['score_b'] ?? 0),
             'point_display_a' => (string) ($score['point_display_a'] ?? ($score['score_a'] ?? '0')),
@@ -124,6 +141,8 @@ class ScoringController extends Controller
         $request->validate([
             'game_id'         => 'required|integer',
             'round'           => 'required|string',
+            'match_key'       => 'nullable|string',
+            'court'           => 'nullable|integer',
             'score_a'         => 'required|integer|min:0',
             'score_b'         => 'required|integer|min:0',
             'point_display_a' => 'nullable|string',
@@ -143,8 +162,13 @@ class ScoringController extends Controller
             'winner_team'     => 'nullable|string',
         ]);
 
-        $gameId = $request->integer('game_id');
-        $round  = $request->string('round')->toString();
+        $gameId   = $request->integer('game_id');
+        $round    = $request->string('round')->toString();
+        $matchKey = $request->input('match_key');
+        if (!$matchKey) {
+            $courtNum = $request->integer('court', 0);
+            $matchKey = ($courtNum > 0) ? "{$round}_court_{$courtNum}" : $round;
+        }
         $status = $request->input('status', 'in_progress');
 
         // Simpan ke Cache (TTL 4 jam) agar bisa dibaca semua user
@@ -152,11 +176,12 @@ class ScoringController extends Controller
         $scores   = Cache::get($cacheKey, []);
 
         // Guard 1: Jika ronde atau sesi sudah berstatus selesai, tolak pembaruan yang terlambat datang (late in-flight AJAX)
-        if (($scores['_meta']['status'] ?? '') === 'finished' || (($scores[$round]['status'] ?? '') === 'completed')) {
+        if (($scores['_meta']['status'] ?? '') === 'finished' || (($scores[$matchKey]['status'] ?? '') === 'completed')) {
             return response()->json([
-                'success' => false,
-                'message' => 'Pertandingan sudah selesai. Pembaruan skor diabaikan.',
-                'saved'   => $scores[$round] ?? [],
+                'success'   => false,
+                'message'   => 'Pertandingan sudah selesai. Pembaruan skor diabaikan.',
+                'saved'     => $scores[$matchKey] ?? [],
+                'match_key' => $matchKey,
             ]);
         }
 
@@ -165,16 +190,17 @@ class ScoringController extends Controller
             $dbSessionStatus = SessionModel::where('session_id', $gameId)->value('status_session');
             if (strtolower($dbSessionStatus ?? '') === 'finished') {
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Sesi pertandingan sudah selesai di database. Pembaruan skor diabaikan.',
-                    'saved'   => $scores[$round] ?? [],
+                    'success'   => false,
+                    'message'   => 'Sesi pertandingan sudah selesai di database. Pembaruan skor diabaikan.',
+                    'saved'     => $scores[$matchKey] ?? [],
+                    'match_key' => $matchKey,
                 ]);
             }
         } catch (\Throwable $e) {
             // Abaikan kegagalan koneksi DB sekunder pada update AJAX realtime
         }
 
-        $scores[$round] = [
+        $scorePayload = [
             'score_a'         => $request->integer('score_a'),
             'score_b'         => $request->integer('score_b'),
             'point_display_a' => (string) $request->input('point_display_a', '0'),
@@ -195,12 +221,19 @@ class ScoringController extends Controller
             'updated_at'      => now()->toDateTimeString(),
         ];
 
+        $scores[$matchKey] = $scorePayload;
+        // Simpan juga ke round jika belum ada agar backward-compatible
+        if (!isset($scores[$round])) {
+            $scores[$round] = $scorePayload;
+        }
+
         Cache::put($cacheKey, $scores, now()->addHours(4));
 
         return response()->json([
-            'success' => true,
-            'message' => 'Skor berhasil disimpan.',
-            'saved'   => $scores[$round],
+            'success'   => true,
+            'message'   => 'Skor berhasil disimpan.',
+            'saved'     => $scores[$matchKey],
+            'match_key' => $matchKey,
         ]);
     }
 
@@ -222,6 +255,11 @@ class ScoringController extends Controller
 
         $gameId = $request->integer('game_id');
         $round  = $request->string('round')->toString();
+        $matchKey = $request->input('match_key');
+        if (!$matchKey) {
+            $courtNum = $request->integer('court', 0);
+            $matchKey = ($courtNum > 0) ? "{$round}_court_{$courtNum}" : $round;
+        }
 
         $game = $this->getGameData($gameId);
         $scoringSystemName = $request->input('scoring_system', $game['scoring_system'] ?? 'Total of 3');
@@ -230,7 +268,7 @@ class ScoringController extends Controller
         // Ambil data skor dari request atau fallback ke cache
         $cacheKey = "scoring.game_{$gameId}";
         $scores   = Cache::get($cacheKey, []);
-        $prev     = $scores[$round] ?? [];
+        $prev     = $scores[$matchKey] ?? ($scores[$round] ?? []);
 
         $scoreA   = $request->integer('score_a', $prev['score_a'] ?? 0);
         $scoreB   = $request->integer('score_b', $prev['score_b'] ?? 0);
@@ -292,7 +330,7 @@ class ScoringController extends Controller
         }
 
         // 1. Simpan skor final ke Cache (shared)
-        $scores[$round] = [
+        $scorePayload = [
             'score_a'         => $system['is_sets'] ? $setsA : $gamesA,
             'score_b'         => $system['is_sets'] ? $setsB : $gamesB,
             'point_display_a' => $request->input('point_display_a', $prev['point_display_a'] ?? '0'),
@@ -309,6 +347,11 @@ class ScoringController extends Controller
             'status'          => 'completed',
             'updated_at'      => now()->toDateTimeString(),
         ];
+
+        $scores[$matchKey] = $scorePayload;
+        if (!isset($scores[$round])) {
+            $scores[$round] = $scorePayload;
+        }
 
         // Tandai game sebagai finished
         $scores['_meta'] = [
@@ -726,26 +769,37 @@ class ScoringController extends Controller
             }
             $courtCount = max(1, $dbSession->courts->count());
 
-            try {
-                if (str_contains($format, 'team') && count($participants) >= 4 && count($participants) % 2 === 0) {
-                    $teamService = new \App\Services\Drawing\TeamAmericanoService();
-                    $drawingData = $teamService->generateTeamRounds($participants, $courtCount);
-                    $rounds = $drawingData['rounds'] ?? [];
-                } else {
+            $cachedSchedule = Cache::get("drawing.schedule_{$dbSession->session_id}");
+            if ($cachedSchedule && !empty($cachedSchedule['rounds'])) {
+                $rounds = $cachedSchedule['rounds'];
+                $courtCount = $cachedSchedule['court_count'] ?? $courtCount;
+            } else {
+                try {
+                    if (str_contains($format, 'team') && count($participants) >= 4 && count($participants) % 2 === 0) {
+                        $teamService = new \App\Services\Drawing\TeamAmericanoService();
+                        $drawingData = $teamService->generateTeamRounds($participants, $courtCount);
+                        $rounds = $drawingData['rounds'] ?? [];
+                    } else {
+                        $americanoService = new \App\Services\Drawing\AmericanoService();
+                        $rounds = $americanoService->generateRounds($participants, $courtCount);
+                    }
+                } catch (\Throwable $e) {
                     $americanoService = new \App\Services\Drawing\AmericanoService();
                     $rounds = $americanoService->generateRounds($participants, $courtCount);
                 }
-            } catch (\Throwable $e) {
-                $americanoService = new \App\Services\Drawing\AmericanoService();
-                $rounds = $americanoService->generateRounds($participants, $courtCount);
             }
 
             $drawingMap = [];
             foreach ($rounds as $rNum => $rData) {
                 $drawingMap["round_{$rNum}"] = [
-                    'team_a' => $rData['teamA'] ?? [],
-                    'team_b' => $rData['teamB'] ?? [],
-                    'resting' => $rData['resting'] ?? [],
+                    'round_number' => $rNum,
+                    'team_a'       => $rData['teamA'] ?? ($rData['team_a'] ?? []),
+                    'team_b'       => $rData['teamB'] ?? ($rData['team_b'] ?? []),
+                    'team_a_names' => $rData['teamA_names'] ?? ($rData['team_a_names'] ?? []),
+                    'team_b_names' => $rData['teamB_names'] ?? ($rData['team_b_names'] ?? []),
+                    'resting'      => $rData['resting'] ?? [],
+                    'matches'      => $rData['matches'] ?? [],
+                    'court_count'  => $courtCount,
                 ];
             }
 
@@ -778,6 +832,24 @@ class ScoringController extends Controller
         }
 
         $games = MatchaDummyDataService::getGames();
-        return collect($games)->firstWhere('id', (int) $id) ?? $games[0];
+        $dummyGame = collect($games)->firstWhere('id', (int) $id) ?? $games[0];
+        $cachedSchedule = Cache::get("drawing.schedule_{$id}");
+        if ($cachedSchedule && !empty($cachedSchedule['rounds'])) {
+            $drawingMap = [];
+            foreach ($cachedSchedule['rounds'] as $rNum => $rData) {
+                $drawingMap["round_{$rNum}"] = [
+                    'round_number' => $rNum,
+                    'team_a'       => $rData['teamA'] ?? ($rData['team_a'] ?? []),
+                    'team_b'       => $rData['teamB'] ?? ($rData['team_b'] ?? []),
+                    'team_a_names' => $rData['teamA_names'] ?? ($rData['team_a_names'] ?? []),
+                    'team_b_names' => $rData['teamB_names'] ?? ($rData['team_b_names'] ?? []),
+                    'resting'      => $rData['resting'] ?? [],
+                    'matches'      => $rData['matches'] ?? [],
+                    'court_count'  => $cachedSchedule['court_count'] ?? 1,
+                ];
+            }
+            $dummyGame['drawing'] = $drawingMap;
+        }
+        return $dummyGame;
     }
 }

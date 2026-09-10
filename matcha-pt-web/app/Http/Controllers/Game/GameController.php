@@ -237,9 +237,18 @@ class GameController extends Controller
             // 6. Hubungkan semua player ke session
             $session->players()->sync($playerIds);
 
+            // 7. Simpan drawing awal ke tb_drawing dengan match_format_id yang sesuai
+            $formatId = str_contains(strtolower($request->format), 'team') ? 4 : 1;
+            \App\Models\Drawing::create([
+                'session_id' => $session->session_id,
+                'match_format_id' => $formatId,
+                'tanggal_drawing' => now()->toDateString(),
+                'jam_drawing' => now()->format('H:i:s'),
+            ]);
+
             DB::commit();
 
-            // 7. Redirect ke drawing (support JSON untuk form wizard AJAX)
+            // 8. Redirect ke drawing (support JSON untuk form wizard AJAX)
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
@@ -432,144 +441,215 @@ class GameController extends Controller
                 $participants = array_merge($participants, array_slice($dummy, count($participants)));
             }
 
-            $game = [
-                'id' => $dbSession->session_id,
-                'title' => $dbSession->nama_session,
-                'sport' => $dbSession->sport->nama_sport ?? 'Padel',
-                'venue_id' => $dbSession->venue_id,
-                'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
-                'court_name' => $dbSession->courts->first()->nama_court ?? 'Court 1',
-                'date' => $dbSession->datetime ? $dbSession->datetime->format('Y-m-d') : date('Y-m-d'),
-                'time' => $dbSession->waktu_session ?? '18:30 WIB',
-                'duration' => '2 Jam',
-                'quota' => $quota,
-                'joined_count' => count($participants),
-                'status' => $status,
-                'level_recommendation' => 'All Level Welcome',
-                'match_format' => $request->query('format', 'Americano'),
-                'scoring_system' => $dbSession->scoring_system ?? 'Total of 3',
-                'host' => [
-                    'name' => $dbSession->host->nama ?? 'Host Matcha',
-                    'role' => 'Host Game',
-                    'level' => 'Intermediate',
-                    'phone' => $dbSession->host->no_hp ?? '-',
-                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-                ],
-                'participants' => $participants,
-            ];
-
-            $courtCount = max(1, $dbSession->courts->count());
-        } else {
-            $games = MatchaDummyDataService::getGames();
-            $game = collect($games)->firstWhere('id', (int) $id) ?? $games[0];
-            $game['match_format'] = $request->query('format', $game['match_format'] ?? 'Americano');
-            $participants = $game['participants'] ?? [];
-            $courtCount = 2;
-        }
-
-        // Cek apakah pertandingan sudah dimulai / scoring live sudah berjalan
-        $isLocked = false;
-        $cacheKey = "scoring.game_{$game['id']}";
-        $savedScores = \Illuminate\Support\Facades\Cache::get($cacheKey, []);
-        if (!empty($savedScores) && is_array($savedScores)) {
-            foreach ($savedScores as $k => $v) {
-                if ($k !== '_meta' && is_array($v) && (
-                    ($v['status'] ?? '') === 'in_progress' || 
-                    ($v['status'] ?? '') === 'completed' ||
-                    ($v['games_a'] ?? 0) > 0 || ($v['games_b'] ?? 0) > 0 ||
-                    ($v['score_a'] ?? 0) > 0 || ($v['score_b'] ?? 0) > 0 ||
-                    ($v['sets_a'] ?? 0) > 0 || ($v['sets_b'] ?? 0) > 0
-                )) {
-                    $isLocked = true;
-                    break;
+            $formatQuery = $request->query('format');
+            if (!$formatQuery && $dbSession) {
+                $dbDrawing = \App\Models\Drawing::where('session_id', $dbSession->session_id)->with('matchFormat')->first();
+                if ($dbDrawing && $dbDrawing->matchFormat) {
+                    $formatQuery = $dbDrawing->matchFormat->nama_format;
                 }
             }
-        }
-        if (isset($dbSession->status_session) && in_array($dbSession->status_session, ['in_progress', 'completed', 'finished'])) {
-            $isLocked = true;
-        }
 
-        // Tangani permintaan acak ulang (shuffle) dengan seed dinamis (hanya jika belum terkunci)
-        if (!$isLocked && ($request->has('shuffle') || $request->has('seed'))) {
-            $seed = (int) $request->query('seed', rand(1000, 999999));
-            mt_srand($seed);
-            $keys = array_keys($participants);
-            shuffle($keys);
-            $shuffled = [];
-            foreach ($keys as $k) {
-                $shuffled[] = $participants[$k];
+            $game = [
+                    'id' => $dbSession->session_id,
+                    'title' => $dbSession->nama_session,
+                    'sport' => $dbSession->sport->nama_sport ?? 'Padel',
+                    'venue_id' => $dbSession->venue_id,
+                    'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
+                    'court_name' => $dbSession->courts->first()->nama_court ?? 'Court 1',
+                    'date' => $dbSession->datetime ? $dbSession->datetime->format('Y-m-d') : date('Y-m-d'),
+                    'time' => $dbSession->waktu_session ?? '18:30 WIB',
+                    'duration' => '2 Jam',
+                    'quota' => $quota,
+                    'joined_count' => count($participants),
+                    'status' => $status,
+                    'level_recommendation' => 'All Level Welcome',
+                    'match_format' => $formatQuery ?: 'Americano',
+                    'scoring_system' => $dbSession->scoring_system ?? 'Total of 3',
+                    'host' => [
+                        'name' => $dbSession->host->nama ?? 'Host Matcha',
+                        'role' => 'Host Game',
+                        'level' => 'Intermediate',
+                        'phone' => $dbSession->host->no_hp ?? '-',
+                        'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                    ],
+                    'participants' => $participants,
+                ];
+
+                $courtCount = max(1, $dbSession->courts->count());
+            } else {
+                $games = MatchaDummyDataService::getGames();
+                $game = collect($games)->firstWhere('id', (int) $id) ?? $games[0];
+                $game['match_format'] = $request->query('format', $game['match_format'] ?? 'Americano');
+                $participants = $game['participants'] ?? [];
+                $courtCount = 2;
             }
-            $participants = $shuffled;
-        } elseif ($isLocked && ($request->has('shuffle') || $request->has('seed'))) {
+
+            // Cek apakah pertandingan sudah dimulai / scoring live sudah berjalan
+            $isLocked = false;
+            if (\Illuminate\Support\Facades\Cache::get("drawing.locked_{$game['id']}", false)) {
+                $isLocked = true;
+            }
+            if (isset($dbSession->status_session) && in_array(strtolower($dbSession->status_session), ['in_progress', 'completed', 'finished'])) {
+                $isLocked = true;
+            }
+            $cacheKey = "scoring.game_{$game['id']}";
+            $savedScores = \Illuminate\Support\Facades\Cache::get($cacheKey, []);
+            if (!empty($savedScores) && is_array($savedScores)) {
+                foreach ($savedScores as $k => $v) {
+                    if ($k !== '_meta' && is_array($v) && (
+                        ($v['status'] ?? '') === 'in_progress' || 
+                        ($v['status'] ?? '') === 'completed' ||
+                        ($v['games_a'] ?? 0) > 0 || ($v['games_b'] ?? 0) > 0 ||
+                        ($v['score_a'] ?? 0) > 0 || ($v['score_b'] ?? 0) > 0 ||
+                        ($v['sets_a'] ?? 0) > 0 || ($v['sets_b'] ?? 0) > 0
+                    )) {
+                        $isLocked = true;
+                        break;
+                    }
+                }
+            }
+
+            // Cegah pengacakan ulang jika match sudah terkunci
+            if ($isLocked && ($request->has('shuffle') || $request->has('seed'))) {
+                if ($request->wantsJson() || $request->ajax() || $request->query('json')) {
+                    return response()->json([
+                        'success' => false,
+                        'isLocked' => true,
+                        'message' => 'Pertandingan sudah berjalan! Jadwal tim terkunci dan tidak dapat diacak ulang.',
+                    ], 422);
+                }
+            }
+
+            $format = strtolower($game['match_format'] ?? 'americano');
+            $isTeam = str_contains($format, 'team') && count($participants) >= 4 && count($participants) % 2 === 0;
+
+            // Cek apakah sudah ada jadwal tersimpan di cache
+            $scheduleCacheKey = "drawing.schedule_{$game['id']}";
+            $savedSchedule = \Illuminate\Support\Facades\Cache::get($scheduleCacheKey);
+
+            $needsGeneration = false;
+            if (!$savedSchedule || empty($savedSchedule['rounds'])) {
+                $needsGeneration = true;
+            } elseif (!$isLocked && ($request->has('shuffle') || $request->has('seed'))) {
+                $needsGeneration = true;
+            }
+
+            if ($needsGeneration) {
+                $seed = (int) $request->query('seed', rand(1000, 999999));
+                try {
+                    if ($isTeam) {
+                        // Team Americano Engine (Fixed Pairs). Pengacakan hanya mengacak urutan tim, bukan anggota tim!
+                        $teamService = new TeamAmericanoService();
+                        $drawingData = $teamService->generateTeamRounds($participants, $courtCount, $seed);
+                        $rounds = $drawingData['rounds'] ?? [];
+                    } else {
+                        // Americano Engine (Individual Rotating Pairs)
+                        mt_srand($seed);
+                        $pKeys = array_keys($participants);
+                        shuffle($pKeys);
+                        $shuffled = [];
+                        foreach ($pKeys as $k) {
+                            $shuffled[] = $participants[$k];
+                        }
+                        $americanoService = new AmericanoService();
+                        $rounds = $americanoService->generateRounds($shuffled, $courtCount);
+                        $drawingData = [
+                            'format' => 'Americano',
+                            'total_teams' => count($participants),
+                            'total_rounds' => count($rounds),
+                            'total_matches' => array_sum(array_map(fn($r) => count($r['matches'] ?? []), $rounds)),
+                            'rounds' => $rounds,
+                        ];
+                    }
+                } catch (\Throwable $e) {
+                    $americanoService = new AmericanoService();
+                    $rounds = $americanoService->generateRounds($participants, $courtCount);
+                    $drawingData = [
+                        'format' => 'Americano',
+                        'total_teams' => count($participants),
+                        'total_rounds' => count($rounds),
+                        'total_matches' => array_sum(array_map(fn($r) => count($r['matches'] ?? []), $rounds)),
+                        'rounds' => $rounds,
+                    ];
+                }
+
+                \Illuminate\Support\Facades\Cache::put($scheduleCacheKey, [
+                    'drawingData' => $drawingData,
+                    'rounds' => $rounds,
+                ], now()->addHours(12));
+            } else {
+                $drawingData = $savedSchedule['drawingData'] ?? [];
+                $rounds = $savedSchedule['rounds'] ?? [];
+            }
+
+            $participantsMap = [];
+            foreach ($participants as $p) {
+                $pName = is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->nama ?? $p->name ?? '') : (string)$p);
+                $pGender = is_array($p) ? ($p['gender'] ?? 'Male') : (is_object($p) ? ($p->gender ?? 'Male') : 'Male');
+                if ($pName) {
+                    $participantsMap[$pName] = [
+                        'name' => $pName,
+                        'gender' => $pGender,
+                    ];
+                }
+            }
+
+            // Jika request via AJAX / Fetch JSON
             if ($request->wantsJson() || $request->ajax() || $request->query('json')) {
                 return response()->json([
-                    'success' => false,
-                    'isLocked' => true,
-                    'message' => 'Pertandingan sudah berjalan! Jadwal tim terkunci dan tidak dapat diacak ulang.',
-                ], 422);
-            }
-        }
-
-        $format = strtolower($game['match_format'] ?? 'americano');
-        $rounds = [];
-        $drawingData = [];
-
-        try {
-            // Team Americano butuh jumlah pemain genap (2 pemain per tim)
-            if (str_contains($format, 'team') && count($participants) >= 4 && count($participants) % 2 === 0) {
-                // Eksekusi Team Americano Engine (Fixed Pairs)
-                $teamService = new TeamAmericanoService();
-                $drawingData = $teamService->generateTeamRounds($participants, $courtCount);
-                $rounds = $drawingData['rounds'] ?? [];
-            } else {
-                // Eksekusi Americano Engine (Individual Rotating Pairs)
-                $americanoService = new AmericanoService();
-                $rounds = $americanoService->generateRounds($participants, $courtCount);
-                $drawingData = [
-                    'format' => str_contains($format, 'team') ? 'Americano' : ($game['match_format'] ?? 'Americano'),
-                    'total_teams' => count($participants),
-                    'total_rounds' => count($rounds),
-                    'total_matches' => array_sum(array_map(fn($r) => count($r['matches'] ?? []), $rounds)),
+                    'success' => true,
+                    'isLocked' => $isLocked,
+                    'drawingData' => $drawingData,
                     'rounds' => $rounds,
-                ];
+                    'participantsMap' => $participantsMap,
+                ]);
             }
-        } catch (\Throwable $e) {
-            // Fallback gracefully jika ada masalah algoritma agar tampilan drawing tetap muncul
-            $americanoService = new AmericanoService();
-            $rounds = $americanoService->generateRounds($participants, $courtCount);
-            $drawingData = [
-                'format' => 'Americano',
-                'total_teams' => count($participants),
-                'total_rounds' => count($rounds),
-                'total_matches' => array_sum(array_map(fn($r) => count($r['matches'] ?? []), $rounds)),
-                'rounds' => $rounds,
-            ];
+
+            return view('games.drawing', compact('game', 'drawingData', 'rounds', 'participantsMap', 'isLocked'));
         }
 
-        $participantsMap = [];
-        foreach ($participants as $p) {
-            $pName = is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->nama ?? $p->name ?? '') : (string)$p);
-            $pGender = is_array($p) ? ($p['gender'] ?? 'Male') : (is_object($p) ? ($p->gender ?? 'Male') : 'Male');
-            if ($pName) {
-                $participantsMap[$pName] = [
-                    'name' => $pName,
-                    'gender' => $pGender,
-                ];
+        public function lockDrawing($id, Request $request)
+        {
+            $format = $request->input('format', 'Americano');
+
+            // Kunci status drawing di cache
+            \Illuminate\Support\Facades\Cache::put("drawing.locked_{$id}", true, now()->addHours(12));
+
+            try {
+                $session = SessionModel::find((int) $id);
+                if ($session) {
+                    $session->status_session = 'In Progress';
+                    $session->save();
+
+                    $formatId = str_contains(strtolower($format), 'team') ? 4 : 1;
+                    $drawing = \App\Models\Drawing::firstOrCreate(
+                        ['session_id' => $session->session_id],
+                        [
+                            'match_format_id' => $formatId,
+                            'tanggal_drawing' => now()->toDateString(),
+                            'jam_drawing'     => now()->format('H:i:s'),
+                        ]
+                    );
+                    if ($drawing && $drawing->match_format_id !== $formatId) {
+                        $drawing->match_format_id = $formatId;
+                        $drawing->save();
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Ignore DB error for dummy sessions
             }
-        }
 
-        // Jika request via AJAX / Fetch JSON
-        if ($request->wantsJson() || $request->ajax() || $request->query('json')) {
-            return response()->json([
-                'success' => true,
-                'isLocked' => $isLocked,
-                'drawingData' => $drawingData,
-                'rounds' => $rounds,
-                'participantsMap' => $participantsMap,
-            ]);
-        }
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'isLocked' => true,
+                    'message' => 'Jadwal pertandingan berhasil dikunci. Membuka Live Scoring...',
+                    'redirect' => route('scoring.live', ['id' => $id, 'format' => $format]),
+                ]);
+            }
 
-        return view('games.drawing', compact('game', 'drawingData', 'rounds', 'participantsMap', 'isLocked'));
-    }
+            return redirect()->route('scoring.live', ['id' => $id, 'format' => $format])
+                ->with('success', 'Jadwal pertandingan berhasil dikunci!');
+        }
 }
 

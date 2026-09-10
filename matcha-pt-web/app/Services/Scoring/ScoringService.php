@@ -249,98 +249,118 @@ class ScoringService
 
         // Iterasi tiap round menggunakan $effectiveScores yang sudah sinkron
         foreach ($drawing as $roundKey => $round) {
-            $teamA   = $round['team_a'] ?? [];
-            $teamB   = $round['team_b'] ?? [];
+            $roundMatches = $round['matches'] ?? [
+                [
+                    'court' => 1,
+                    'court_name' => 'Court 1',
+                    'team_a' => $round['team_a'] ?? [],
+                    'team_b' => $round['team_b'] ?? [],
+                    'team_a_names' => $round['team_a'] ?? [],
+                    'team_b_names' => $round['team_b'] ?? [],
+                ]
+            ];
 
-            $roundScore = $effectiveScores[$roundKey] ?? [];
-            $status = $roundScore['status'] ?? 'pending';
+            foreach ($roundMatches as $mIdx => $m) {
+                $mCourt = $m['court'] ?? ($mIdx + 1);
+                $matchScoreKey = "{$roundKey}_court_{$mCourt}";
+                $matchScoreKeyAlt = "{$roundKey}_match_{$mIdx}";
 
-            // Hanya hitung round yang sudah selesai
-            if ($status !== 'completed') {
-                continue;
-            }
+                $matchScore = $effectiveScores[$matchScoreKey] 
+                    ?? ($effectiveScores[$matchScoreKeyAlt] 
+                    ?? ($mIdx === 0 ? ($effectiveScores[$roundKey] ?? []) : []));
 
-            $scoreA = (int) ($roundScore['score_a'] ?? 0);
-            $scoreB = (int) ($roundScore['score_b'] ?? 0);
-            $setsA  = (int) ($roundScore['sets_a'] ?? 0);
-            $setsB  = (int) ($roundScore['sets_b'] ?? 0);
-            $gamesA = (int) ($roundScore['games_a'] ?? 0);
-            $gamesB = (int) ($roundScore['games_b'] ?? 0);
+                $status = $matchScore['status'] ?? ($effectiveScores[$roundKey]['status'] ?? 'pending');
 
-            if ($system['type'] === 'total_of_sets') {
-                if (!empty($roundScore['set_history'])) {
-                    $shSetsA  = 0;
-                    $shSetsB  = 0;
-                    $shGamesA = 0;
-                    $shGamesB = 0;
-                    foreach ($roundScore['set_history'] as $sh) {
-                        $ga = (int) ($sh['score_a'] ?? 0);
-                        $gb = (int) ($sh['score_b'] ?? 0);
-                        $shGamesA += $ga;
-                        $shGamesB += $gb;
-                        if ($ga > $gb) $shSetsA++;
-                        elseif ($gb > $ga) $shSetsB++;
-                    }
-                    if ($setsA === 0 && $setsB === 0) {
-                        $setsA = $shSetsA;
-                        $setsB = $shSetsB;
-                    }
-                    if ($gamesA === 0 && $gamesB === 0) {
-                        $gamesA = $shGamesA;
-                        $gamesB = $shGamesB;
-                    }
-                }
-                if ($setsA === 0 && $setsB === 0 && ($gamesA > 0 || $gamesB > 0)) {
-                    $setsA = $gamesA >= $gamesB ? 1 : 0;
-                    $setsB = $gamesB > $gamesA ? 1 : 0;
+                // Hanya hitung match yang sudah selesai
+                if ($status !== 'completed') {
+                    continue;
                 }
 
-                // Di format sets, winner adalah peraih set terbanyak
-                $winnerSide = $setsA > $setsB ? 'A' : ($setsB > $setsA ? 'B' : ($scoreA > $scoreB ? 'A' : ($scoreB > $scoreA ? 'B' : null)));
-                $ptsForA = $setsA;
-                $ptsForB = $setsB;
-            } else {
-                // Di format first to games, winner adalah peraih game terbanyak
-                $winnerSide = $gamesA > $gamesB ? 'A' : ($gamesB > $gamesA ? 'B' : ($scoreA > $scoreB ? 'A' : ($scoreB > $scoreA ? 'B' : null)));
-                $ptsForA = $gamesA > 0 ? $gamesA : $scoreA;
-                $ptsForB = $gamesB > 0 ? $gamesB : $scoreB;
-            }
+                $scoreA = (int) ($matchScore['score_a'] ?? 0);
+                $scoreB = (int) ($matchScore['score_b'] ?? 0);
+                $setsA  = (int) ($matchScore['sets_a'] ?? 0);
+                $setsB  = (int) ($matchScore['sets_b'] ?? 0);
+                $gamesA = (int) ($matchScore['games_a'] ?? 0);
+                $gamesB = (int) ($matchScore['games_b'] ?? 0);
 
-            foreach ($teamA as $playerName) {
-                $cleanName = self::cleanPlayerName($playerName);
-                if (!isset($stats[$cleanName])) continue;
+                if ($system['type'] === 'total_of_sets') {
+                    if (!empty($matchScore['set_history'])) {
+                        $shSetsA  = 0;
+                        $shSetsB  = 0;
+                        $shGamesA = 0;
+                        $shGamesB = 0;
+                        foreach ($matchScore['set_history'] as $sh) {
+                            $ga = (int) ($sh['score_a'] ?? 0);
+                            $gb = (int) ($sh['score_b'] ?? 0);
+                            $shGamesA += $ga;
+                            $shGamesB += $gb;
+                            if ($ga > $gb) $shSetsA++;
+                            elseif ($gb > $ga) $shSetsB++;
+                        }
+                        if ($setsA === 0 && $setsB === 0) {
+                            $setsA = $shSetsA;
+                            $setsB = $shSetsB;
+                        }
+                        if ($gamesA === 0 && $gamesB === 0) {
+                            $gamesA = $shGamesA;
+                            $gamesB = $shGamesB;
+                        }
+                    }
+                    if ($setsA === 0 && $setsB === 0 && ($gamesA > 0 || $gamesB > 0)) {
+                        $setsA = $gamesA >= $gamesB ? 1 : 0;
+                        $setsB = $gamesB > $gamesA ? 1 : 0;
+                    }
 
-                $stats[$cleanName]['matches']++;
-                $stats[$cleanName]['sets_won']       += $setsA;
-                $stats[$cleanName]['sets_lost']      += $setsB;
-                $stats[$cleanName]['games_won']      += $gamesA;
-                $stats[$cleanName]['games_lost']     += $gamesB;
-                $stats[$cleanName]['points_for']     += $ptsForA;
-                $stats[$cleanName]['points_against'] += $ptsForB;
-
-                if ($winnerSide === 'A') {
-                    $stats[$cleanName]['wins']++;
-                } elseif ($winnerSide === 'B') {
-                    $stats[$cleanName]['losses']++;
+                    $winnerSide = $setsA > $setsB ? 'A' : ($setsB > $setsA ? 'B' : ($gamesA > $gamesB ? 'A' : ($gamesB > $gamesA ? 'B' : ($scoreA > $scoreB ? 'A' : ($scoreB > $scoreA ? 'B' : null)))));
+                    $ptsForA = $gamesA > 0 ? $gamesA : ($scoreA > 0 ? $scoreA : $setsA);
+                    $ptsForB = $gamesB > 0 ? $gamesB : ($scoreB > 0 ? $scoreB : $setsB);
+                } else {
+                    $winnerSide = $gamesA > $gamesB ? 'A' : ($gamesB > $gamesA ? 'B' : ($scoreA > $scoreB ? 'A' : ($scoreB > $scoreA ? 'B' : null)));
+                    $ptsForA = $gamesA > 0 ? $gamesA : $scoreA;
+                    $ptsForB = $gamesB > 0 ? $gamesB : $scoreB;
                 }
-            }
 
-            foreach ($teamB as $playerName) {
-                $cleanName = self::cleanPlayerName($playerName);
-                if (!isset($stats[$cleanName])) continue;
+                $teamA = $m['team_a_names'] ?? ($m['teamA_names'] ?? ($m['team_a'] ?? []));
+                $teamB = $m['team_b_names'] ?? ($m['teamB_names'] ?? ($m['team_b'] ?? []));
 
-                $stats[$cleanName]['matches']++;
-                $stats[$cleanName]['sets_won']       += $setsB;
-                $stats[$cleanName]['sets_lost']      += $setsA;
-                $stats[$cleanName]['games_won']      += $gamesB;
-                $stats[$cleanName]['games_lost']     += $gamesA;
-                $stats[$cleanName]['points_for']     += $ptsForB;
-                $stats[$cleanName]['points_against'] += $ptsForA;
+                foreach ($teamA as $playerItem) {
+                    $playerName = is_array($playerItem) ? ($playerItem['name'] ?? $playerItem['nama'] ?? '') : (is_object($playerItem) ? ($playerItem->name ?? $playerItem->nama ?? '') : (string)$playerItem);
+                    $cleanName = self::cleanPlayerName($playerName);
+                    if (!isset($stats[$cleanName])) continue;
 
-                if ($winnerSide === 'B') {
-                    $stats[$cleanName]['wins']++;
-                } elseif ($winnerSide === 'A') {
-                    $stats[$cleanName]['losses']++;
+                    $stats[$cleanName]['matches']++;
+                    $stats[$cleanName]['sets_won']       += $setsA;
+                    $stats[$cleanName]['sets_lost']      += $setsB;
+                    $stats[$cleanName]['games_won']      += $gamesA;
+                    $stats[$cleanName]['games_lost']     += $gamesB;
+                    $stats[$cleanName]['points_for']     += $ptsForA;
+                    $stats[$cleanName]['points_against'] += $ptsForB;
+
+                    if ($winnerSide === 'A') {
+                        $stats[$cleanName]['wins']++;
+                    } elseif ($winnerSide === 'B') {
+                        $stats[$cleanName]['losses']++;
+                    }
+                }
+
+                foreach ($teamB as $playerItem) {
+                    $playerName = is_array($playerItem) ? ($playerItem['name'] ?? $playerItem['nama'] ?? '') : (is_object($playerItem) ? ($playerItem->name ?? $playerItem->nama ?? '') : (string)$playerItem);
+                    $cleanName = self::cleanPlayerName($playerName);
+                    if (!isset($stats[$cleanName])) continue;
+
+                    $stats[$cleanName]['matches']++;
+                    $stats[$cleanName]['sets_won']       += $setsB;
+                    $stats[$cleanName]['sets_lost']      += $setsA;
+                    $stats[$cleanName]['games_won']      += $gamesB;
+                    $stats[$cleanName]['games_lost']     += $gamesA;
+                    $stats[$cleanName]['points_for']     += $ptsForB;
+                    $stats[$cleanName]['points_against'] += $ptsForA;
+
+                    if ($winnerSide === 'B') {
+                        $stats[$cleanName]['wins']++;
+                    } elseif ($winnerSide === 'A') {
+                        $stats[$cleanName]['losses']++;
+                    }
                 }
             }
         }
@@ -352,19 +372,12 @@ class ScoringService
             $s['set_diff']   = $s['sets_won'] - $s['sets_lost'];
         }
 
-        // Sort: wins DESC, points_for DESC, diff DESC
+        // Sort: Di Americano prioritaskan akumulasi Total Poin/Games, lalu selisih, lalu kemenangan
         $ranked = array_values($stats);
         usort($ranked, function ($a, $b) use ($system) {
+            if ($b['points_for'] !== $a['points_for']) return $b['points_for'] - $a['points_for'];
+            if ($b['point_diff'] !== $a['point_diff']) return $b['point_diff'] - $a['point_diff'];
             if ($b['wins'] !== $a['wins']) return $b['wins'] - $a['wins'];
-
-            if ($system['type'] === 'total_of_sets') {
-                if ($b['sets_won'] !== $a['sets_won']) return $b['sets_won'] - $a['sets_won'];
-                if ($b['set_diff'] !== $a['set_diff']) return $b['set_diff'] - $a['set_diff'];
-                if ($b['games_won'] !== $a['games_won']) return $b['games_won'] - $a['games_won'];
-                return $b['game_diff'] - $a['game_diff'];
-            }
-
-            // First to games:
             if ($b['games_won'] !== $a['games_won']) return $b['games_won'] - $a['games_won'];
             return $b['game_diff'] - $a['game_diff'];
         });
@@ -468,7 +481,7 @@ class ScoringService
     /**
      * Ambil konteks round aktif.
      */
-    public static function buildMatchContext(array $game, string $activeRound = 'round_1'): array
+    public static function buildMatchContext(array $game, string $activeRound = 'round_1', int $courtIndex = 0): array
     {
         $drawing = $game['drawing'] ?? [];
 
@@ -480,6 +493,14 @@ class ScoringService
                     'team_a'  => array_slice($names, 0, min(2, $half)),
                     'team_b'  => array_slice($names, min(2, $half), 2),
                     'resting' => array_slice($names, 4),
+                    'matches' => [
+                        [
+                            'court' => 1,
+                            'court_name' => 'Court 1',
+                            'team_a_names' => array_slice($names, 0, min(2, $half)),
+                            'team_b_names' => array_slice($names, min(2, $half), 2),
+                        ]
+                    ]
                 ],
             ];
         }
@@ -488,22 +509,69 @@ class ScoringService
 
         if (!$round) {
             return [
-                'team_a'       => [],
-                'team_b'       => [],
-                'resting'      => [],
-                'active_round' => $activeRound,
-                'total_rounds' => 0,
-                'all_rounds'   => ['round_1'],
+                'team_a'            => [],
+                'team_b'            => [],
+                'team_a_display'    => 'Team A',
+                'team_b_display'    => 'Team B',
+                'resting'           => [],
+                'matches'           => [],
+                'active_match'      => null,
+                'court_index'       => 0,
+                'court_name'        => 'Court 1',
+                'active_round'      => $activeRound,
+                'total_rounds'      => 0,
+                'all_rounds'        => ['round_1'],
             ];
         }
 
+        $matches = $round['matches'] ?? [];
+        if (empty($matches)) {
+            $matches = [
+                [
+                    'court' => 1,
+                    'court_name' => 'Court 1',
+                    'team_a_names' => $round['team_a'] ?? [],
+                    'team_b_names' => $round['team_b'] ?? [],
+                    'team_a' => $round['team_a'] ?? [],
+                    'team_b' => $round['team_b'] ?? [],
+                ]
+            ];
+        }
+
+        $targetMatch = $matches[$courtIndex] ?? $matches[0];
+        $teamARaw = $targetMatch['team_a_names'] ?? ($targetMatch['teamA_names'] ?? ($targetMatch['team_a'] ?? ($round['team_a'] ?? [])));
+        $teamBRaw = $targetMatch['team_b_names'] ?? ($targetMatch['teamB_names'] ?? ($targetMatch['team_b'] ?? ($round['team_b'] ?? [])));
+
+        $teamAPlayers = array_map(fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->name ?? $p->nama ?? '') : (string)$p), $teamARaw);
+        $teamBPlayers = array_map(fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->name ?? $p->nama ?? '') : (string)$p), $teamBRaw);
+
+        $teamADisplay = null;
+        if (isset($targetMatch['team_a']) && is_array($targetMatch['team_a']) && !empty($targetMatch['team_a']['name'])) {
+            $teamADisplay = $targetMatch['team_a']['name'];
+        } elseif (!empty($targetMatch['teamA_display'])) {
+            $teamADisplay = $targetMatch['teamA_display'];
+        }
+
+        $teamBDisplay = null;
+        if (isset($targetMatch['team_b']) && is_array($targetMatch['team_b']) && !empty($targetMatch['team_b']['name'])) {
+            $teamBDisplay = $targetMatch['team_b']['name'];
+        } elseif (!empty($targetMatch['teamB_display'])) {
+            $teamBDisplay = $targetMatch['teamB_display'];
+        }
+
         return [
-            'team_a'       => $round['team_a'] ?? [],
-            'team_b'       => $round['team_b'] ?? [],
-            'resting'      => $round['resting'] ?? [],
-            'active_round' => $activeRound,
-            'total_rounds' => count($drawing),
-            'all_rounds'   => array_keys($drawing),
+            'team_a'            => $teamAPlayers,
+            'team_b'            => $teamBPlayers,
+            'team_a_display'    => $teamADisplay,
+            'team_b_display'    => $teamBDisplay,
+            'resting'           => $round['resting'] ?? [],
+            'matches'           => $matches,
+            'active_match'      => $targetMatch,
+            'court_index'       => $courtIndex,
+            'court_name'        => $targetMatch['court_name'] ?? ('Court ' . ($courtIndex + 1)),
+            'active_round'      => $activeRound,
+            'total_rounds'      => count($drawing),
+            'all_rounds'        => array_keys($drawing),
         ];
     }
 }
