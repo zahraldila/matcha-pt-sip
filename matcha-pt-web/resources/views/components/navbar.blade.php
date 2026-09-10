@@ -94,9 +94,6 @@
                             <a href="{{ route('player.profile') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
                                 <i class="fa-solid fa-id-card text-slate-400 text-xs"></i> Profil & Rating
                             </a>
-                            <a href="{{ route('player.recap') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
-                                <i class="fa-solid fa-chart-line text-slate-400 text-xs"></i> Rekap Karir
-                            </a>
                             <form id="desktopLogoutForm" action="{{ route('logout') }}" method="POST" class="pt-1 border-t border-slate-100">
                                 @csrf
                                 <button type="button" onclick="confirmLogout('desktopLogoutForm')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 font-bold transition-colors text-left cursor-pointer">
