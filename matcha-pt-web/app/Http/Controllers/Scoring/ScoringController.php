@@ -719,7 +719,11 @@ class ScoringController extends Controller
                 $participants = array_merge($participants, array_slice($dummy, count($participants)));
             }
 
-            $format = strtolower(request('format', 'americano'));
+            $format = strtolower(request('format', ''));
+            if (empty($format)) {
+                $dbDrawing = Drawing::where('session_id', $dbSession->session_id)->with('matchFormat')->first();
+                $format = strtolower($dbDrawing->matchFormat->nama_format ?? 'americano');
+            }
             $courtCount = max(1, $dbSession->courts->count());
 
             try {

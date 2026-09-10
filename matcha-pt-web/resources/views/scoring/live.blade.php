@@ -45,17 +45,27 @@
         </div>
     </div>
 
-    {{-- Round Selector (jika ada multiple rounds) --}}
+    {{-- Round / Set Selector (jika ada multiple rounds) --}}
+    @php
+        $unitTabLabel = $scoringSystem['is_sets'] ? 'Set' : 'Round';
+        $allRoundsList = $matchContext['all_rounds'] ?? [];
+        $currentRIndex = array_search($activeRound, $allRoundsList);
+        $nextRoundKey = ($currentRIndex !== false && isset($allRoundsList[$currentRIndex + 1])) ? $allRoundsList[$currentRIndex + 1] : null;
+    @endphp
     @if(($matchContext['total_rounds'] ?? 0) > 1)
     <div class="flex items-center gap-2 flex-wrap">
-        <span class="text-xs font-semibold text-slate-500">Pilih Round:</span>
-        @foreach(($matchContext['all_rounds'] ?? []) as $rKey)
-            <a href="{{ route('scoring.live', $game['id']) }}?round={{ $rKey }}"
-               class="px-3 py-1 rounded-xl text-xs font-bold border transition-all
+        <span class="text-xs font-semibold text-slate-500">Pilih {{ $unitTabLabel }}:</span>
+        @foreach($allRoundsList as $rKey)
+            @php
+                $rNumber = preg_replace('/[^0-9]/', '', $rKey) ?: '1';
+                $tabDisplayTitle = "{$unitTabLabel} {$rNumber}";
+            @endphp
+            <a href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => $rKey]) }}"
+               class="px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all
                       {{ $activeRound === $rKey
-                           ? 'bg-[#063B00] text-white border-[#063B00]'
-                           : 'bg-white text-slate-600 border-slate-200 hover:border-[#063B00]/40' }}">
-                {{ ucfirst(str_replace('_', ' ', $rKey)) }}
+                           ? 'bg-[#063B00] text-white border-[#063B00] shadow-xs'
+                           : 'bg-white text-slate-600 border-slate-200 hover:border-[#063B00]/40 shadow-2xs' }}">
+                {{ $tabDisplayTitle }}
             </a>
         @endforeach
     </div>
@@ -246,10 +256,20 @@
         </div>
 
         <!-- Match Completed Banner (hidden by default) -->
-        <div id="matchCompletedBanner" class="hidden p-5 rounded-2xl bg-[#EBF8D8] border border-[#063B00]/30 text-center space-y-2 shadow-sm">
+        <div id="matchCompletedBanner" class="hidden p-5 rounded-2xl bg-[#EBF8D8] border border-[#063B00]/30 text-center space-y-3 shadow-sm">
             <div class="text-3xl">🏆</div>
             <p class="text-base font-black text-[#063B00]" id="completedMsg">Match Selesai!</p>
-            <p class="text-xs text-slate-600 font-medium">Pertandingan telah dimenangkan. Klik tombol di bawah untuk menyimpan dan melihat hasil rekap.</p>
+            <p class="text-xs text-slate-600 font-medium">Pertandingan di {{ $unitTabLabel }} ini telah selesai dimenangkan. Poin telah terkunci.</p>
+            
+            @if($nextRoundKey)
+                <div class="pt-1">
+                    <a href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => $nextRoundKey]) }}"
+                       class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95">
+                        <span>Lanjut ke {{ $unitTabLabel }} {{ preg_replace('/[^0-9]/', '', $nextRoundKey) }}</span>
+                        <i class="fa-solid fa-arrow-right text-[10px] text-[#A8E63A]"></i>
+                    </a>
+                </div>
+            @endif
         </div>
 
         <!-- Controls: Selesaikan Sesi & Lihat Juara — hanya untuk Host -->
@@ -600,6 +620,17 @@
 
         if (matchDone && winnerTeam) {
             showCompletedBanner(winnerTeam);
+        } else {
+            const bA = document.getElementById('btnAddA');
+            const bB = document.getElementById('btnAddB');
+            if (bA) {
+                bA.disabled = false;
+                bA.classList.remove('opacity-50', 'pointer-events-none', 'cursor-not-allowed');
+            }
+            if (bB) {
+                bB.disabled = false;
+                bB.classList.remove('opacity-50', 'pointer-events-none', 'cursor-not-allowed');
+            }
         }
 
         // Selalu sinkronkan hidden input form Selesaikan Sesi setiap display berubah
@@ -625,8 +656,14 @@
 
         const bA = document.getElementById('btnAddA');
         const bB = document.getElementById('btnAddB');
-        if (bA) bA.disabled = true;
-        if (bB) bB.disabled = true;
+        if (bA) {
+            bA.disabled = true;
+            bA.classList.add('opacity-50', 'pointer-events-none', 'cursor-not-allowed');
+        }
+        if (bB) {
+            bB.disabled = true;
+            bB.classList.add('opacity-50', 'pointer-events-none', 'cursor-not-allowed');
+        }
     }
 
     // ── Simpan Skor ke Server (AJAX Polling / Cache) ───────────────────────────
