@@ -36,9 +36,10 @@ return [
     ],
 
     'supabase' => [
-        'url' => env('SUPABASE_URL'),
+        'url' => env('SUPABASE_URL', 'https://xkyneehswdqkdgzodwdc.supabase.co'),
         'key' => env('SUPABASE_ANON_KEY', env('SUPABASE_KEY', env('SUPABASE_SERVICE_ROLE_KEY'))),
-        'bucket' => env('SUPABASE_COMMUNITY_BUCKET', 'community-logos'),
+        'bucket' => env('SUPABASE_BUCKET', 'venues'),
+        'community_bucket' => env('SUPABASE_COMMUNITY_BUCKET', 'community-logos'),
     ],
 
 ];

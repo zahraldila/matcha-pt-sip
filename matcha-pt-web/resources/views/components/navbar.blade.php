@@ -91,6 +91,11 @@
                                 <p class="font-extrabold text-slate-900 truncate">{{ Auth::user()->nama }}</p>
                                 <p class="text-[10px] text-slate-400 truncate">{{ Auth::user()->email }}</p>
                             </div>
+                            @if(Auth::user()->role === 'venue_owner')
+                                <a href="{{ route('venues.index', ['tab' => 'my_venues']) }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#063B00] bg-emerald-50/70 hover:bg-emerald-100 font-bold transition-colors">
+                                    <i class="fa-solid fa-crown text-amber-500 text-xs"></i> Kelola Venue Saya
+                                </a>
+                            @endif
                             <a href="{{ route('player.profile') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
                                 <i class="fa-solid fa-id-card text-slate-400 text-xs"></i> Profil & Rating
                             </a>
@@ -129,6 +134,13 @@
         <a href="{{ route('communities.index') }}" class="block px-3 py-2 rounded-xl text-xs font-semibold {{ request()->routeIs('communities.*') ? 'bg-[#063B00] text-white font-bold' : 'text-slate-600 hover:bg-slate-50' }}">
             <i class="fa-solid fa-users mr-2 {{ request()->routeIs('communities.*') ? 'text-white' : 'text-slate-400' }}"></i> Komunitas
         </a>
+        @auth
+            @if(Auth::user()->role === 'venue_owner')
+                <a href="{{ route('venues.index', ['tab' => 'my_venues']) }}" class="block px-3 py-2 rounded-xl text-xs font-semibold text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100">
+                    <i class="fa-solid fa-crown mr-2 text-amber-500"></i> Kelola Venue Saya
+                </a>
+            @endif
+        @endauth
         <a href="{{ route('player.recap') }}" class="block px-3 py-2 rounded-xl text-xs font-semibold {{ request()->routeIs('player.*') ? 'bg-[#063B00] text-white font-bold' : 'text-slate-600 hover:bg-slate-50' }}">
             <i class="fa-solid fa-chart-line mr-2 {{ request()->routeIs('player.*') ? 'text-white' : 'text-slate-400' }}"></i> Match Recap
         </a>

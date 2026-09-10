@@ -10,15 +10,17 @@ use Illuminate\Support\Str;
 class SupabaseStorageService
 {
     protected string $bucket;
+    protected string $communityBucket;
     protected ?string $url;
     protected ?string $apiKey;
     protected string|bool $caBundle;
 
     public function __construct()
     {
-        $this->bucket = config('services.supabase.bucket', 'community-logos');
-        $this->url = config('services.supabase.url') ? rtrim(config('services.supabase.url'), '/') : null;
+        $this->url = config('services.supabase.url') ? rtrim(config('services.supabase.url', 'https://xkyneehswdqkdgzodwdc.supabase.co'), '/') : 'https://xkyneehswdqkdgzodwdc.supabase.co';
         $this->apiKey = config('services.supabase.key');
+        $this->bucket = config('services.supabase.bucket', 'venues');
+        $this->communityBucket = config('services.supabase.community_bucket', 'community-logos');
         $this->caBundle = $this->resolveCaBundle();
     }
 
@@ -45,7 +47,50 @@ class SupabaseStorageService
      */
     public function isConfigured(): bool
     {
-        return !empty($this->url) && !empty($this->apiKey);
+        $cleanKey = trim($this->apiKey ?? '');
+        return !empty($this->url) && !empty($cleanKey) && strlen($cleanKey) >= 20;
+    }
+
+    /**
+     * Upload an uploaded file directly to Supabase Storage Bucket.
+     *
+     * @param UploadedFile $file
+     * @param string $folder
+     * @return string|null Returns the public URL of the uploaded image, or null on failure.
+     */
+    public function upload(UploadedFile $file, string $folder = 'venues'): ?string
+    {
+        if (!$this->isConfigured()) {
+            return null;
+        }
+
+        try {
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = trim($folder, '/') . '/' . $filename;
+            $endpoint = "{$this->url}/storage/v1/object/{$this->bucket}/{$path}";
+            $mimeType = $file->getMimeType() ?: 'application/octet-stream';
+
+            $response = Http::timeout(6)
+                ->connectTimeout(3)
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'apikey'        => $this->apiKey,
+                    'Content-Type'  => $mimeType,
+                ])
+                ->withOptions(['verify' => $this->caBundle])
+                ->withBody(file_get_contents($file->getRealPath()), $mimeType)
+                ->post($endpoint);
+
+            if ($response->successful()) {
+                return "{$this->url}/storage/v1/object/public/{$this->bucket}/{$path}";
+            }
+
+            Log::error('Supabase upload failed (' . $response->status() . '): ' . $response->body());
+            return null;
+        } catch (\Throwable $e) {
+            Log::error('Supabase upload exception: ' . $e->getMessage());
+            return null;
+        }
     }
 
     /**
@@ -56,7 +101,6 @@ class SupabaseStorageService
      */
     public function uploadLogo(UploadedFile $file): array
     {
-        // 1. Validasi format file (hanya JPG, JPEG, PNG)
         $allowedExtensions = ['jpg', 'jpeg', 'png'];
         $ext = strtolower($file->getClientOriginalExtension());
         if (!in_array($ext, $allowedExtensions)) {
@@ -66,7 +110,6 @@ class SupabaseStorageService
             ];
         }
 
-        // 2. Validasi ukuran file (maksimal 2 MB)
         $maxBytes = 2 * 1024 * 1024;
         if ($file->getSize() > $maxBytes) {
             return [
@@ -75,7 +118,6 @@ class SupabaseStorageService
             ];
         }
 
-        // 3. Validasi konfigurasi Supabase
         if (!$this->isConfigured()) {
             return [
                 'success' => false,
@@ -83,28 +125,27 @@ class SupabaseStorageService
             ];
         }
 
-        // 4. Generate nama file unik
         $cleanRandom = Str::random(12);
         $fileName = "logo_{$cleanRandom}_" . time() . ".{$ext}";
-        $endpoint = "{$this->url}/storage/v1/object/{$this->bucket}/{$fileName}";
+        $endpoint = "{$this->url}/storage/v1/object/{$this->communityBucket}/{$fileName}";
 
         try {
             $mimeType = $file->getMimeType() ?: ('image/' . ($ext === 'jpg' ? 'jpeg' : $ext));
             $fileContent = file_get_contents($file->getRealPath());
 
-            // 5. Kirim file fisik ke Supabase Storage API
-            $response = Http::withHeaders([
-                'apikey'        => $this->apiKey,
-                'Authorization' => 'Bearer ' . $this->apiKey,
-                'Content-Type'  => $mimeType,
-            ])
-            ->withOptions(['verify' => $this->caBundle])
-            ->withBody($fileContent, $mimeType)
-            ->post($endpoint);
+            $response = Http::timeout(6)
+                ->connectTimeout(3)
+                ->withHeaders([
+                    'apikey'        => $this->apiKey,
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type'  => $mimeType,
+                ])
+                ->withOptions(['verify' => $this->caBundle])
+                ->withBody($fileContent, $mimeType)
+                ->post($endpoint);
 
-            // 6. Verifikasi respons HTTP dari Supabase Storage
             if ($response->successful()) {
-                $publicUrl = "{$this->url}/storage/v1/object/public/{$this->bucket}/{$fileName}";
+                $publicUrl = "{$this->url}/storage/v1/object/public/{$this->communityBucket}/{$fileName}";
                 return [
                     'success'  => true,
                     'url'      => $publicUrl,
@@ -112,7 +153,6 @@ class SupabaseStorageService
                 ];
             }
 
-            // Tangani error dari Supabase Storage
             $status = $response->status();
             $body = $response->json();
             $errorMsg = $body['message'] ?? $body['error'] ?? "Supabase Storage merespons status {$status}.";
@@ -142,11 +182,15 @@ class SupabaseStorageService
         }
 
         try {
-            $endpoint = "{$this->url}/storage/v1/object/{$this->bucket}/{$fileName}";
-            $response = Http::withHeaders([
-                'apikey'        => $this->apiKey,
-                'Authorization' => 'Bearer ' . $this->apiKey,
-            ])->withOptions(['verify' => $this->caBundle])->delete($endpoint);
+            $endpoint = "{$this->url}/storage/v1/object/{$this->communityBucket}/{$fileName}";
+            $response = Http::timeout(6)
+                ->connectTimeout(3)
+                ->withHeaders([
+                    'apikey'        => $this->apiKey,
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                ])
+                ->withOptions(['verify' => $this->caBundle])
+                ->delete($endpoint);
 
             return $response->successful();
         } catch (\Throwable $e) {
