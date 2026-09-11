@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Venue;
 use App\Services\MatchaDummyDataService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 
 class VenueController extends Controller
@@ -14,10 +16,12 @@ class VenueController extends Controller
     {
         $currentUserId = Auth::id();
         $activeTab = $request->get('tab', 'all');
+        $selectedSport = $request->get('sport', 'all');
+        $search = trim($request->get('q', $request->get('search', '')));
 
         $dbVenues = Venue::with(['courts.sport', 'owner'])->latest()->get();
         if ($dbVenues->isNotEmpty()) {
-            $venues = $dbVenues->map(function ($v) use ($currentUserId) {
+            $allVenues = $dbVenues->map(function ($v) use ($currentUserId) {
                 $rawPhotos = array_filter(array_map('trim', explode(',', $v->foto ?? '')));
                 $resolvedPhotos = array_values(array_map(function ($p) {
                     return str_starts_with($p, 'http') ? $p : asset($p);
@@ -52,15 +56,59 @@ class VenueController extends Controller
                     'description' => $v->alamat,
                     'courts' => $v->courts,
                 ];
-            })->toArray();
+            });
         } else {
-            $venues = MatchaDummyDataService::getVenues();
+            $allVenues = collect(MatchaDummyDataService::getVenues());
         }
 
-        $myVenuesCount = collect($venues)->where('is_mine', true)->count();
-        $totalVenuesCount = count($venues);
+        // Sport filter
+        if ($selectedSport !== 'all') {
+            $allVenues = $allVenues->filter(function ($v) use ($selectedSport) {
+                return str_contains(strtolower($v['sport']), strtolower($selectedSport));
+            });
+        }
 
-        return view('venues.index', compact('venues', 'activeTab', 'myVenuesCount', 'totalVenuesCount'));
+        // Search filter (name, city, address, facilities, pic_name)
+        if ($search !== '') {
+            $searchLower = strtolower($search);
+            $allVenues = $allVenues->filter(function ($v) use ($searchLower) {
+                $inName = str_contains(strtolower($v['name'] ?? ''), $searchLower);
+                $inCity = str_contains(strtolower($v['city'] ?? ''), $searchLower);
+                $inAddress = str_contains(strtolower($v['address'] ?? ''), $searchLower);
+                $inPic = str_contains(strtolower($v['pic_name'] ?? ''), $searchLower);
+                $inFacilities = str_contains(strtolower(implode(' ', $v['facilities'] ?? [])), $searchLower);
+                $inSport = str_contains(strtolower($v['sport'] ?? ''), $searchLower);
+                return $inName || $inCity || $inAddress || $inPic || $inFacilities || $inSport;
+            });
+        }
+
+        // Tab counts (reflecting search results if active)
+        $totalVenuesCount = $allVenues->count();
+        $myVenuesCount = $allVenues->where('is_mine', true)->count();
+
+        // Active tab filter
+        if ($activeTab === 'my_venues') {
+            $filteredVenues = $allVenues->where('is_mine', true)->values();
+        } else {
+            $filteredVenues = $allVenues->values();
+        }
+
+        // Pagination: 6 items per page
+        $perPage = 6;
+        $currentPage = Paginator::resolveCurrentPage('page') ?: 1;
+        $totalItems = $filteredVenues->count();
+        $currentItems = $filteredVenues->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+        $venues = new LengthAwarePaginator(
+            $currentItems,
+            $totalItems,
+            $perPage,
+            $currentPage,
+            ['path' => Paginator::resolveCurrentPath(), 'pageName' => 'page']
+        );
+        $venues->withQueryString();
+
+        return view('venues.index', compact('venues', 'activeTab', 'selectedSport', 'search', 'myVenuesCount', 'totalVenuesCount'));
     }
 
     public function show($id)
