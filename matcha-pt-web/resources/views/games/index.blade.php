@@ -22,7 +22,7 @@
     </div>
 
     <!-- 1. Primary Filter Tabs (Semua Sesi / Sesi di Venue Saya / Mabar Saya / Dikelola Saya) -->
-    <div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-200/50 scrollbar-none text-xs font-semibold">
+    <div class="flex items-center gap-2 overflow-x-auto scrollbar-none text-xs font-semibold">
         <!-- Tab 1: Semua Sesi (Eksplorasi) -->
         <a href="{{ route('games.index', ['tab' => 'all', 'sport' => $selectedSport ?? 'all']) }}" 
            class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? 'all') === 'all' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
@@ -38,23 +38,25 @@
             @if(Auth::user()->role === 'venue_owner' || count($ownedVenueIds ?? []) > 0 || ($countVenue ?? 0) > 0)
                 <a href="{{ route('games.index', ['tab' => 'venue', 'sport' => $selectedSport ?? 'all']) }}" 
                    class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'venue' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
-                    <i class="fa-solid fa-location-dot text-xs {{ ($activeTab ?? '') === 'venue' ? 'text-[#A8E63A]' : 'text-sky-500' }}"></i>
+                    <i class="fa-solid fa-location-dot text-xs {{ ($activeTab ?? '') === 'venue' ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i>
                     <span>Sesi di Venue Saya</span>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'venue' ? 'bg-sky-400 text-sky-950' : 'bg-sky-50 text-sky-800 border border-sky-200' }}">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'venue' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
                         {{ $countVenue ?? 0 }}
                     </span>
                 </a>
             @endif
 
             <!-- Tab 2: Mabar yang Saya Ikuti (Player Scope) -->
-            <a href="{{ route('games.index', ['tab' => 'joined', 'sport' => $selectedSport ?? 'all']) }}" 
-               class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'joined' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
-                <i class="fa-solid fa-circle-check text-xs {{ ($activeTab ?? '') === 'joined' ? 'text-[#A8E63A]' : 'text-emerald-500' }}"></i>
-                <span>Mabar Saya / Diikuti</span>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'joined' ? 'bg-[#A8E63A] text-[#063B00]' : 'bg-emerald-50 text-emerald-800 border border-emerald-200' }}">
-                    {{ $countJoined ?? 0 }}
-                </span>
-            </a>
+            @if(Auth::user()->role !== 'venue_owner')
+                <a href="{{ route('games.index', ['tab' => 'joined', 'sport' => $selectedSport ?? 'all']) }}" 
+                   class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'joined' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
+                    <i class="fa-solid fa-circle-check text-xs {{ ($activeTab ?? '') === 'joined' ? 'text-[#A8E63A]' : 'text-emerald-500' }}"></i>
+                    <span>Mabar Saya / Diikuti</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'joined' ? 'bg-[#A8E63A] text-[#063B00]' : 'bg-emerald-50 text-emerald-800 border border-emerald-200' }}">
+                        {{ $countJoined ?? 0 }}
+                    </span>
+                </a>
+            @endif
 
             <!-- Tab 3: Dikelola Saya (Host Scope) -->
             @if(Auth::user()->role === 'host' || ($countHosted ?? 0) > 0)

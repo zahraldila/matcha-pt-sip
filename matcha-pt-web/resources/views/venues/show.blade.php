@@ -28,11 +28,13 @@
                 </p>
             </div>
 
-            <div class="flex items-center gap-2.5">
-                <a href="{{ route('games.create') }}" class="px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] inline-flex items-center gap-1.5">
-                    <i class="fa-solid fa-plus text-[10px]"></i> Buat Mabar di Sini
-                </a>
-            </div>
+            @if(Auth::check() && Auth::user()->role === 'host')
+                <div class="flex items-center gap-2.5">
+                    <a href="{{ route('games.create', ['venue_id' => $venue['venue_id'] ?? $venue['id'] ?? null]) }}" class="px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] inline-flex items-center gap-1.5">
+                        <i class="fa-solid fa-plus text-[10px]"></i> Buat Mabar di Sini
+                    </a>
+                </div>
+            @endif
         </div>
     </div>
 
