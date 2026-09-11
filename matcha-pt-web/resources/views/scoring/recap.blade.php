@@ -967,9 +967,9 @@
 </div>
 
 @push('scripts')
-<!-- Include html-to-image and html2canvas fallback -->
+<!-- Include html2canvas-pro (supports modern CSS & oklch color) and html-to-image fallback -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas-pro@latest/dist/html2canvas-pro.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
     // Kudos logic
@@ -1198,40 +1198,76 @@
 
         if (!card) return;
 
+        // Save original button states
+        const origShareHtml = btnShare ? btnShare.innerHTML : '';
+        const origDownloadHtml = btnDownload ? btnDownload.innerHTML : '';
+
         // Button Loading State
-        const originalText = btnShare.innerHTML;
-        btnShare.disabled = true;
-        btnShare.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Generating HD Story...</span>';
-        if (btnDownload) btnDownload.disabled = true;
+        if (mode === 'download' && btnDownload) {
+            btnDownload.disabled = true;
+            btnDownload.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Mengunduh HD Story...</span>';
+            if (btnShare) btnShare.disabled = true;
+        } else if (btnShare) {
+            btnShare.disabled = true;
+            btnShare.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Generating HD Story...</span>';
+            if (btnDownload) btnDownload.disabled = true;
+        }
+
+        const resetButtons = () => {
+            if (btnShare) {
+                btnShare.disabled = false;
+                btnShare.innerHTML = origShareHtml;
+            }
+            if (btnDownload) {
+                btnDownload.disabled = false;
+                btnDownload.innerHTML = origDownloadHtml;
+            }
+        };
 
         try {
+            console.log('MATCHA_EXPORT: Starting export mode=', mode);
             let blob = null;
 
-            // Method 1: Try htmlToImage toPng -> Blob
-            if (typeof htmlToImage !== 'undefined' && htmlToImage.toPng) {
+            // Method 1: Primary - html2canvas (html2canvas-pro supports oklch & modern CSS)
+            const h2c = (typeof html2canvas === 'function') 
+                ? html2canvas 
+                : (typeof window !== 'undefined' && window.html2canvas ? (typeof window.html2canvas.default === 'function' ? window.html2canvas.default : window.html2canvas) : null);
+
+            console.log('MATCHA_EXPORT: h2c resolver result =', typeof h2c);
+
+            if (h2c && typeof h2c === 'function') {
                 try {
+                    const canvas = await h2c(card, {
+                        scale: 2.5,
+                        useCORS: true,
+                        allowTaint: false,
+                        backgroundColor: '#090d10',
+                        logging: false,
+                    });
+                    console.log('MATCHA_EXPORT: canvas created, dimensions=', canvas.width, canvas.height);
+                    blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png', 0.95));
+                    console.log('MATCHA_EXPORT: blob created successfully, size=', blob ? blob.size : 0);
+                } catch (e) {
+                    console.warn('MATCHA_EXPORT: html2canvas failed, error=', e);
+                }
+            }
+
+            // Method 2: Fallback htmlToImage
+            if (!blob && typeof htmlToImage !== 'undefined' && htmlToImage.toPng) {
+                try {
+                    console.log('MATCHA_EXPORT: Trying htmlToImage fallback...');
                     const dataUrl = await htmlToImage.toPng(card, {
                         pixelRatio: 2.5,
                         backgroundColor: '#090d10',
                         cacheBust: true,
+                        skipFonts: true,
                     });
                     const res = await fetch(dataUrl);
                     blob = await res.blob();
+                    console.log('MATCHA_EXPORT: htmlToImage blob created, size=', blob ? blob.size : 0);
                 } catch (e) {
-                    console.warn('htmlToImage failed, fallback to html2canvas:', e);
+                    console.warn('MATCHA_EXPORT: htmlToImage fallback failed:', e);
                 }
-            }
-
-            // Method 2: Fallback html2canvas
-            if (!blob && typeof html2canvas !== 'undefined') {
-                const canvas = await html2canvas(card, {
-                    scale: 2.5,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#090d10',
-                    logging: false,
-                });
-                blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95));
             }
 
             if (!blob) {
@@ -1264,21 +1300,18 @@
                 downloadBlob(blob, filename);
             }
 
-            btnShare.disabled = false;
-            btnShare.innerHTML = originalText;
-            if (btnDownload) btnDownload.disabled = false;
+            resetButtons();
 
         } catch (err) {
-            console.error('Export Error:', err);
+            console.error('MATCHA_EXPORT_ERROR:', err);
             const errMsg = err && (err.message || err.toString()) ? (err.message || err.toString()) : 'Gagal memproses gambar';
             alert('Gagal membuat gambar story: ' + errMsg);
-            btnShare.disabled = false;
-            btnShare.innerHTML = originalText;
-            if (btnDownload) btnDownload.disabled = false;
+            resetButtons();
         }
     }
 
     function downloadBlob(blob, filename) {
+        console.log('MATCHA_EXPORT: Triggering download for file=', filename);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -1286,7 +1319,7 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
 
         if (typeof showToast === 'function') {
             showToast('Gambar story berhasil diunduh! 📥');

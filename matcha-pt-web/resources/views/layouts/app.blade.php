@@ -9,10 +9,10 @@
     <!-- Google Fonts: Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" crossorigin="anonymous">
     
     <!-- Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
     
     <!-- Tailwind CSS with Vite -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -73,7 +73,7 @@
     </div>
 
     <!-- Notification Toast Container -->
-    <div id="toast-container" class="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50 flex flex-col space-y-2 pointer-events-none max-w-[calc(100vw-2rem)]"></div>
+    <div id="toast-container" class="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[150] flex flex-col space-y-2 pointer-events-none max-w-[calc(100vw-2rem)]"></div>
 
     <script>
         function showToast(message, type = 'success') {
