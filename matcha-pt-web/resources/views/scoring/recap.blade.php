@@ -498,11 +498,11 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-2 pt-1">
-                    <button onclick="copyWebLink()" class="flex-1 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs">
-                        <i class="fa-solid fa-copy text-slate-400"></i> Salin Link
+                    <button id="btnCopyWebLink" onclick="copyWebLink(this)" class="flex-1 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs">
+                        <i class="fa-solid fa-copy text-slate-400"></i> <span>Salin Link</span>
                     </button>
-                    <button onclick="shareWebDirect()" class="flex-1 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs">
-                        <i class="fa-solid fa-paper-plane text-[#A8E63A]"></i> Bagikan Link
+                    <button id="btnShareWebDirect" onclick="shareWebDirect(this)" class="flex-1 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs">
+                        <i class="fa-solid fa-paper-plane text-[#A8E63A]"></i> <span>Bagikan Link</span>
                     </button>
                 </div>
             </div>
@@ -995,16 +995,29 @@
         document.getElementById('shareOptionsModal').classList.add('hidden');
     }
 
-    function copyWebLink() {
+    function copyWebLink(btn) {
+        const targetBtn = btn || document.getElementById('btnCopyWebLink');
         navigator.clipboard.writeText(window.location.href);
+        
+        if (targetBtn) {
+            const originalHtml = targetBtn.innerHTML;
+            targetBtn.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600"></i> <span class="text-emerald-700 font-extrabold">Tersalin!</span>`;
+            targetBtn.classList.add('!bg-emerald-50', '!border-emerald-300');
+            
+            setTimeout(() => {
+                targetBtn.innerHTML = originalHtml;
+                targetBtn.classList.remove('!bg-emerald-50', '!border-emerald-300');
+            }, 2000);
+        }
+
         if (typeof showToast === 'function') {
-            showToast('Link rekap berhasil disalin ke clipboard!');
+            showToast('Link rekap berhasil disalin ke clipboard! 📋');
         } else {
             alert('Link rekap berhasil disalin ke clipboard!');
         }
     }
 
-    function shareWebDirect() {
+    function shareWebDirect(btn) {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (isMobile && navigator.share) {
             navigator.share({
@@ -1012,10 +1025,10 @@
                 text: 'Cek hasil pertandingan mabar hari ini di MATCHA!',
                 url: window.location.href,
             }).catch(() => {
-                copyWebLink();
+                copyWebLink(btn);
             });
         } else {
-            copyWebLink();
+            copyWebLink(btn);
         }
     }
 

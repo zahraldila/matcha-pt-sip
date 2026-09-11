@@ -72,15 +72,16 @@
         @include('components.footer')
     </div>
 
-    <!-- Notification Toast Container -->
-    <div id="toast-container" class="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[150] flex flex-col space-y-2 pointer-events-none max-w-[calc(100vw-2rem)]"></div>
+    <!-- Notification Toast Container (Always on top of all modals and backdrops) -->
+    <div id="toast-container" class="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[9999] flex flex-col space-y-2 pointer-events-none max-w-[calc(100vw-2rem)]"></div>
 
     <script>
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
+            if (!container) return;
             const toast = document.createElement('div');
-            toast.className = `glass-card !bg-[#111318]/95 !text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 transition-all duration-300 transform translate-y-3 opacity-0 pointer-events-auto border border-white/10 text-xs font-medium`;
-            toast.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-[#A8E63A] shadow-[0_0_8px_#A8E63A]"></span> <span class="text-white">${message}</span>`;
+            toast.className = `glass-card !bg-[#111318]/95 !text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-all duration-300 transform translate-y-3 opacity-0 pointer-events-auto border border-white/15 text-xs font-semibold select-none`;
+            toast.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-[#A8E63A] shadow-[0_0_10px_#A8E63A] shrink-0"></span> <span class="text-white drop-shadow-xs">${message}</span>`;
             container.appendChild(toast);
             
             setTimeout(() => {
