@@ -1018,17 +1018,40 @@
     }
 
     function shareWebDirect(btn) {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile && navigator.share) {
+        const shareTitle = 'Hasil Match MATCHA — {{ addslashes($game["title"] ?? "Mabar Session") }}';
+        const topPlayerName = '{{ addslashes($rankedPlayers[0]["name"] ?? "") }}';
+        const sportName = '{{ addslashes($game["sport"] ?? "Tennis / Padel") }}';
+        const url = window.location.href;
+        
+        let shareText = `🎾 *HASIL MATCH MATCHA* 🏆\n` +
+                        `📌 *Sesi:* {{ addslashes($game["title"] ?? "Matcha Session") }}\n` +
+                        (topPlayerName ? `🥇 *Juara 1:* ${topPlayerName}\n` : '') +
+                        `⚡ *Olahraga:* ${sportName}\n\n` +
+                        `Lihat papan skor & statistik lengkapnya di:\n${url}`;
+
+        // 1. Coba gunakan Native Web Share API (Bisa buka share sheet bawaan OS / WhatsApp / Telegram di HP & Desktop)
+        if (navigator.share) {
             navigator.share({
-                title: 'Hasil Match MATCHA - {{ $game["title"] ?? "Mabar" }}',
-                text: 'Cek hasil pertandingan mabar hari ini di MATCHA!',
-                url: window.location.href,
-            }).catch(() => {
-                copyWebLink(btn);
+                title: shareTitle,
+                text: shareText,
+                url: url,
+            }).then(() => {
+                if (typeof showToast === 'function') {
+                    showToast('Hasil pertandingan berhasil dibagikan! 🚀');
+                }
+            }).catch((err) => {
+                if (err.name !== 'AbortError') {
+                    // Jika share sheet gagal, langsung fallback ke WhatsApp
+                    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`, '_blank');
+                }
             });
         } else {
-            copyWebLink(btn);
+            // 2. Fallback untuk Desktop Browser tanpa native share: Buka WhatsApp Web dengan format hasil match
+            const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+            window.open(waUrl, '_blank');
+            if (typeof showToast === 'function') {
+                showToast('Membuka WhatsApp untuk membagikan hasil mabar... 💬');
+            }
         }
     }
 
