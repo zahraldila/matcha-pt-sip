@@ -20,12 +20,17 @@ class GameController extends Controller
     public function index(Request $request)
     {
         $selectedSport = $request->query('sport', 'all');
-        $activeTab = $request->query('tab', 'all'); // 'all', 'joined', 'hosted'
+        $activeTab = $request->query('tab', 'all'); // 'all', 'joined', 'hosted', 'venue'
         
         $user = Auth::user();
         $userId = $user ? $user->user_id : null;
         $userEmail = $user ? strtolower(trim($user->email ?? '')) : null;
         $userName = $user ? strtolower(trim($user->nama ?? '')) : null;
+
+        $ownedVenueIds = [];
+        if ($user) {
+            $ownedVenueIds = Venue::where('owner_user_id', $userId)->pluck('venue_id')->toArray();
+        }
 
         // Fetch 100% real sessions from Supabase database
         $sessionQuery = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])
@@ -40,7 +45,7 @@ class GameController extends Controller
 
         $allDbSessions = $sessionQuery->get();
 
-        $allMappedGames = $allDbSessions->map(function ($s) use ($userId, $userEmail, $userName) {
+        $allMappedGames = $allDbSessions->map(function ($s) use ($userId, $userEmail, $userName, $ownedVenueIds) {
             $joinedCount = $s->players->count();
             $quota = (int) ($s->jumlah_pemain ?? 6);
             $slotLeft = max(0, $quota - $joinedCount);
@@ -65,6 +70,9 @@ class GameController extends Controller
                 });
             }
 
+            // Check if match session takes place in a venue owned by this user
+            $isAtMyVenue = in_array($s->venue_id, $ownedVenueIds);
+
             return [
                 'id' => $s->session_id,
                 'title' => $s->nama_session,
@@ -83,6 +91,7 @@ class GameController extends Controller
                 'scoring_system' => $s->scoring_system ?? 'Total of 3',
                 'is_hosted_by_me' => $isHostedByMe,
                 'is_joined_by_me' => $isJoinedByMe,
+                'is_at_my_venue' => $isAtMyVenue,
                 'host' => [
                     'name' => $s->host->nama ?? 'Host Matcha',
                     'role' => 'Host Game',
@@ -109,17 +118,20 @@ class GameController extends Controller
         $countAll = $allMappedGames->count();
         $countJoined = $allMappedGames->where('is_joined_by_me', true)->count();
         $countHosted = $allMappedGames->where('is_hosted_by_me', true)->count();
+        $countVenue = $allMappedGames->where('is_at_my_venue', true)->count();
 
         // Apply active tab filter
         if ($activeTab === 'joined') {
             $games = $allMappedGames->where('is_joined_by_me', true)->values()->all();
         } elseif ($activeTab === 'hosted') {
             $games = $allMappedGames->where('is_hosted_by_me', true)->values()->all();
+        } elseif ($activeTab === 'venue') {
+            $games = $allMappedGames->where('is_at_my_venue', true)->values()->all();
         } else {
             $games = $allMappedGames->values()->all();
         }
 
-        return view('games.index', compact('games', 'selectedSport', 'activeTab', 'countAll', 'countJoined', 'countHosted'));
+        return view('games.index', compact('games', 'selectedSport', 'activeTab', 'countAll', 'countJoined', 'countHosted', 'countVenue', 'ownedVenueIds'));
     }
 
     public function create()

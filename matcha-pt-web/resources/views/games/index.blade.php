@@ -21,7 +21,7 @@
         @endif
     </div>
 
-    <!-- 1. Primary Filter Tabs (Semua Sesi / Mabar Saya / Dikelola Saya) -->
+    <!-- 1. Primary Filter Tabs (Semua Sesi / Sesi di Venue Saya / Mabar Saya / Dikelola Saya) -->
     <div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-200/50 scrollbar-none text-xs font-semibold">
         <!-- Tab 1: Semua Sesi (Eksplorasi) -->
         <a href="{{ route('games.index', ['tab' => 'all', 'sport' => $selectedSport ?? 'all']) }}" 
@@ -34,6 +34,18 @@
         </a>
 
         @auth
+            <!-- Tab Khusus Venue Owner: Sesi di Venue Saya -->
+            @if(Auth::user()->role === 'venue_owner' || count($ownedVenueIds ?? []) > 0 || ($countVenue ?? 0) > 0)
+                <a href="{{ route('games.index', ['tab' => 'venue', 'sport' => $selectedSport ?? 'all']) }}" 
+                   class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'venue' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
+                    <i class="fa-solid fa-location-dot text-xs {{ ($activeTab ?? '') === 'venue' ? 'text-[#A8E63A]' : 'text-sky-500' }}"></i>
+                    <span>Sesi di Venue Saya</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'venue' ? 'bg-sky-400 text-sky-950' : 'bg-sky-50 text-sky-800 border border-sky-200' }}">
+                        {{ $countVenue ?? 0 }}
+                    </span>
+                </a>
+            @endif
+
             <!-- Tab 2: Mabar yang Saya Ikuti (Player Scope) -->
             <a href="{{ route('games.index', ['tab' => 'joined', 'sport' => $selectedSport ?? 'all']) }}" 
                class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'joined' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
@@ -81,6 +93,8 @@
                 <span>yang kamu ikuti</span>
             @elseif(($activeTab ?? 'all') === 'hosted')
                 <span>yang kamu kelola</span>
+            @elseif(($activeTab ?? 'all') === 'venue')
+                <span>di venue milikmu</span>
             @endif
         </div>
     </div>
@@ -100,6 +114,8 @@
                     <i class="fa-solid fa-calendar-xmark"></i>
                 @elseif(($activeTab ?? 'all') === 'hosted')
                     <i class="fa-solid fa-crown text-amber-600"></i>
+                @elseif(($activeTab ?? 'all') === 'venue')
+                    <i class="fa-solid fa-location-dot text-sky-600"></i>
                 @else
                     <i class="fa-solid fa-magnifying-glass"></i>
                 @endif
@@ -111,6 +127,8 @@
                         Belum Ada Sesi yang Kamu Ikuti
                     @elseif(($activeTab ?? 'all') === 'hosted')
                         Belum Ada Sesi yang Kamu Kelola
+                    @elseif(($activeTab ?? 'all') === 'venue')
+                        Belum Ada Sesi di Venue Milikmu
                     @else
                         Tidak Ada Sesi Mabar Ditemukan
                     @endif
@@ -120,6 +138,8 @@
                         Kamu belum terdaftar di jadwal mabar manapun. Jelajahi sesi terbuka dan gabung slot sekarang!
                     @elseif(($activeTab ?? 'all') === 'hosted')
                         Kamu belum membuat sesi mabar. Buat sesi mabar barumu untuk mengundang teman dan komunitas!
+                    @elseif(($activeTab ?? 'all') === 'venue')
+                        Belum ada sesi mabar komunitas yang dijadwalkan di venue milikmu saat ini.
                     @else
                         Tidak ada sesi pertandingan yang sesuai dengan kategori atau filter yang dipilih.
                     @endif
@@ -134,6 +154,10 @@
                 @elseif(($activeTab ?? 'all') === 'hosted')
                     <a href="{{ route('games.schedule') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01]">
                         <i class="fa-solid fa-plus text-[#A8E63A]"></i> <span>Buat Sesi Mabar</span>
+                    </a>
+                @elseif(($activeTab ?? 'all') === 'venue')
+                    <a href="{{ route('venues.index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01]">
+                        <i class="fa-solid fa-building text-[#A8E63A]"></i> <span>Kelola Venue & Lapangan</span>
                     </a>
                 @else
                     <a href="{{ route('games.index', ['tab' => 'all', 'sport' => 'all']) }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-200 shadow-xs transition-all">
