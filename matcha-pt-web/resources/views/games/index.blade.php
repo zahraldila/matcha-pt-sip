@@ -22,97 +22,129 @@
     </div>
 
     <!-- 1. Primary Filter Tabs (Semua Sesi / Sesi di Venue Saya / Mabar Saya / Dikelola Saya) -->
-    <div class="flex items-center gap-2 overflow-x-auto scrollbar-none text-xs font-semibold">
-        <!-- Tab 1: Semua Sesi (Eksplorasi) -->
-        <a href="{{ route('games.index', ['tab' => 'all', 'sport' => $selectedSport ?? 'all']) }}" 
-           class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? 'all') === 'all' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
-            <i class="fa-solid fa-earth-americas text-xs {{ ($activeTab ?? 'all') === 'all' ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i>
-            <span>Semua Sesi</span>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? 'all') === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
-                {{ $countAll ?? count($games) }}
-            </span>
-        </a>
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div class="flex items-center gap-2 overflow-x-auto scrollbar-none text-xs font-semibold py-1">
+            <!-- Tab 1: Semua Sesi (Eksplorasi) -->
+            <a href="{{ route('games.index', ['tab' => 'all', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}" 
+               class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? 'all') === 'all' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
+                <i class="fa-solid fa-earth-americas text-xs {{ ($activeTab ?? 'all') === 'all' ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i>
+                <span>Semua Sesi</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? 'all') === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
+                    {{ $countAll ?? $games->total() }}
+                </span>
+            </a>
 
-        @auth
-            <!-- Tab Khusus Venue Owner: Sesi di Venue Saya -->
-            @if(Auth::user()->role === 'venue_owner' || count($ownedVenueIds ?? []) > 0 || ($countVenue ?? 0) > 0)
-                <a href="{{ route('games.index', ['tab' => 'venue', 'sport' => $selectedSport ?? 'all']) }}" 
-                   class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'venue' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
-                    <i class="fa-solid fa-location-dot text-xs {{ ($activeTab ?? '') === 'venue' ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i>
-                    <span>Sesi di Venue Saya</span>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'venue' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
-                        {{ $countVenue ?? 0 }}
-                    </span>
-                </a>
-            @endif
+            @auth
+                <!-- Tab Khusus Venue Owner: Sesi di Venue Saya -->
+                @if(Auth::user()->role === 'venue_owner' || count($ownedVenueIds ?? []) > 0 || ($countVenue ?? 0) > 0)
+                    <a href="{{ route('games.index', ['tab' => 'venue', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}" 
+                       class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'venue' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
+                        <i class="fa-solid fa-location-dot text-xs {{ ($activeTab ?? '') === 'venue' ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i>
+                        <span>Sesi di Venue Saya</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'venue' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
+                            {{ $countVenue ?? 0 }}
+                        </span>
+                    </a>
+                @endif
 
-            <!-- Tab 2: Mabar yang Saya Ikuti (Player Scope) -->
-            @if(Auth::user()->role !== 'venue_owner')
-                <a href="{{ route('games.index', ['tab' => 'joined', 'sport' => $selectedSport ?? 'all']) }}" 
-                   class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'joined' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
-                    <i class="fa-solid fa-circle-check text-xs {{ ($activeTab ?? '') === 'joined' ? 'text-[#A8E63A]' : 'text-emerald-500' }}"></i>
-                    <span>Mabar Saya / Diikuti</span>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'joined' ? 'bg-[#A8E63A] text-[#063B00]' : 'bg-emerald-50 text-emerald-800 border border-emerald-200' }}">
-                        {{ $countJoined ?? 0 }}
-                    </span>
-                </a>
-            @endif
+                <!-- Tab 2: Mabar yang Saya Ikuti (Player Scope) -->
+                @if(Auth::user()->role !== 'venue_owner')
+                    <a href="{{ route('games.index', ['tab' => 'joined', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}" 
+                       class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'joined' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
+                        <i class="fa-solid fa-circle-check text-xs {{ ($activeTab ?? '') === 'joined' ? 'text-[#A8E63A]' : 'text-emerald-500' }}"></i>
+                        <span>Mabar Saya / Diikuti</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'joined' ? 'bg-[#A8E63A] text-[#063B00]' : 'bg-emerald-50 text-emerald-800 border border-emerald-200' }}">
+                            {{ $countJoined ?? 0 }}
+                        </span>
+                    </a>
+                @endif
 
-            <!-- Tab 3: Dikelola Saya (Host Scope) -->
-            @if(Auth::user()->role === 'host' || ($countHosted ?? 0) > 0)
-                <a href="{{ route('games.index', ['tab' => 'hosted', 'sport' => $selectedSport ?? 'all']) }}" 
-                   class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'hosted' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
-                    <i class="fa-solid fa-crown text-xs {{ ($activeTab ?? '') === 'hosted' ? 'text-[#A8E63A]' : 'text-amber-500' }}"></i>
-                    <span>Dikelola Saya (Host)</span>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'hosted' ? 'bg-amber-400 text-amber-950' : 'bg-amber-50 text-amber-800 border border-amber-200' }}">
-                        {{ $countHosted ?? 0 }}
-                    </span>
-                </a>
-            @endif
-        @endauth
+                <!-- Tab 3: Dikelola Saya (Host Scope) -->
+                @if(Auth::user()->role === 'host' || ($countHosted ?? 0) > 0)
+                    <a href="{{ route('games.index', ['tab' => 'hosted', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}" 
+                       class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'hosted' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
+                        <i class="fa-solid fa-crown text-xs {{ ($activeTab ?? '') === 'hosted' ? 'text-[#A8E63A]' : 'text-amber-500' }}"></i>
+                        <span>Dikelola Saya (Host)</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'hosted' ? 'bg-amber-400 text-amber-950' : 'bg-amber-50 text-amber-800 border border-amber-200' }}">
+                            {{ $countHosted ?? 0 }}
+                        </span>
+                    </a>
+                @endif
+            @endauth
+        </div>
+
+        <!-- Search Bar -->
+        <form method="GET" action="{{ route('games.index') }}" class="relative w-full md:w-72 shrink-0">
+            <input type="hidden" name="tab" value="{{ $activeTab ?? 'all' }}">
+            <input type="hidden" name="sport" value="{{ $selectedSport ?? 'all' }}">
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                <input type="text" name="q" value="{{ $search ?? '' }}" placeholder="Cari sesi, venue, host..." 
+                       class="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-white border border-slate-200/90 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00] shadow-2xs transition-all">
+                @if(!empty($search))
+                    <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => $selectedSport ?? 'all']) }}" 
+                       class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                       title="Hapus pencarian">
+                        <i class="fa-solid fa-circle-xmark text-xs"></i>
+                    </a>
+                @endif
+            </div>
+        </form>
     </div>
 
     <!-- 2. Secondary Sub-Filters Bar (Sport Category & Counter) -->
     <div class="glass-card p-3 sm:p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 border border-white/90 shadow-2xs">
         <div class="flex items-center gap-2 overflow-x-auto scrollbar-none py-0.5">
-            <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => 'all']) }}" 
+            <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => 'all', 'q' => $search ?? '']) }}" 
                class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? 'all') === 'all' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
                 Semua Cabang
             </a>
-            <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => 'tennis']) }}" 
+            <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => 'tennis', 'q' => $search ?? '']) }}" 
                class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? '') === 'tennis' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
                 🎾 Tennis
             </a>
-            <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => 'padel']) }}" 
+            <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => 'padel', 'q' => $search ?? '']) }}" 
                class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? '') === 'padel' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
                 🏓 Padel
             </a>
         </div>
 
-        <div class="text-xs text-slate-500">
-            Menampilkan <strong class="text-[#050608]">{{ count($games) }}</strong> sesi
-            @if(($activeTab ?? 'all') === 'joined')
-                <span>yang kamu ikuti</span>
-            @elseif(($activeTab ?? 'all') === 'hosted')
-                <span>yang kamu kelola</span>
-            @elseif(($activeTab ?? 'all') === 'venue')
-                <span>di venue milikmu</span>
+        <div class="text-xs text-slate-500 flex items-center gap-2">
+            @if(!empty($search))
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
+                    <i class="fa-solid fa-magnifying-glass text-[9px]"></i> "{{ $search }}"
+                </span>
             @endif
+            <span>
+                Menampilkan <strong class="text-[#050608]">{{ $games->total() }}</strong> sesi
+                @if(($activeTab ?? 'all') === 'joined')
+                    <span>yang kamu ikuti</span>
+                @elseif(($activeTab ?? 'all') === 'hosted')
+                    <span>yang kamu kelola</span>
+                @elseif(($activeTab ?? 'all') === 'venue')
+                    <span>di venue milikmu</span>
+                @endif
+            </span>
         </div>
     </div>
 
     <!-- 3. Grid of Games or Empty States -->
-    @if(count($games) > 0)
+    @if($games->count() > 0)
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($games as $game)
                 <x-game-card :game="$game" />
             @endforeach
         </div>
+
+        <!-- Pagination Component -->
+        <x-pagination :paginator="$games" />
     @else
         <!-- Rich Clean Empty State -->
         <div class="glass-card rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto border border-white/90 space-y-4 shadow-sm">
             <div class="w-16 h-16 rounded-3xl bg-[#EBF8D8] border border-[#063B00]/20 flex items-center justify-center text-[#063B00] text-2xl mx-auto shadow-xs">
-                @if(($activeTab ?? 'all') === 'joined')
+                @if(!empty($search))
+                    <i class="fa-solid fa-magnifying-glass text-slate-600"></i>
+                @elseif(($activeTab ?? 'all') === 'joined')
                     <i class="fa-solid fa-calendar-xmark"></i>
                 @elseif(($activeTab ?? 'all') === 'hosted')
                     <i class="fa-solid fa-crown text-amber-600"></i>
@@ -125,7 +157,9 @@
 
             <div class="space-y-1.5">
                 <h3 class="text-base sm:text-lg font-bold text-slate-900">
-                    @if(($activeTab ?? 'all') === 'joined')
+                    @if(!empty($search))
+                        Tidak Ditemukan Hasil Pencarian
+                    @elseif(($activeTab ?? 'all') === 'joined')
                         Belum Ada Sesi yang Kamu Ikuti
                     @elseif(($activeTab ?? 'all') === 'hosted')
                         Belum Ada Sesi yang Kamu Kelola
@@ -136,7 +170,9 @@
                     @endif
                 </h3>
                 <p class="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
-                    @if(($activeTab ?? 'all') === 'joined')
+                    @if(!empty($search))
+                        Tidak ada sesi mabar yang cocok dengan kata kunci "<strong>{{ $search }}</strong>". Coba gunakan kata kunci lain atau reset pencarian.
+                    @elseif(($activeTab ?? 'all') === 'joined')
                         Kamu belum terdaftar di jadwal mabar manapun. Jelajahi sesi terbuka dan gabung slot sekarang!
                     @elseif(($activeTab ?? 'all') === 'hosted')
                         Kamu belum membuat sesi mabar. Buat sesi mabar barumu untuk mengundang teman dan komunitas!
@@ -149,7 +185,11 @@
             </div>
 
             <div class="pt-2">
-                @if(($activeTab ?? 'all') === 'joined')
+                @if(!empty($search))
+                    <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => $selectedSport ?? 'all']) }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all">
+                        <i class="fa-solid fa-rotate-left text-[#A8E63A]"></i> <span>Reset Pencarian</span>
+                    </a>
+                @elseif(($activeTab ?? 'all') === 'joined')
                     <a href="{{ route('games.index', ['tab' => 'all']) }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01]">
                         <i class="fa-solid fa-earth-americas text-[#A8E63A]"></i> <span>Jelajahi Semua Sesi</span>
                     </a>

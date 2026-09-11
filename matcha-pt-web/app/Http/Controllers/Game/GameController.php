@@ -12,6 +12,8 @@ use App\Services\MatchaDummyDataService;
 use App\Services\Drawing\TeamAmericanoService;
 use App\Services\Drawing\AmericanoService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -21,6 +23,7 @@ class GameController extends Controller
     {
         $selectedSport = $request->query('sport', 'all');
         $activeTab = $request->query('tab', 'all'); // 'all', 'joined', 'hosted', 'venue'
+        $search = trim($request->query('q', $request->query('search', '')));
         
         $user = Auth::user();
         $userId = $user ? $user->user_id : null;
@@ -114,7 +117,20 @@ class GameController extends Controller
             ];
         });
 
-        // Tab counts
+        // Search filtering across title, venue, court, and host name
+        if ($search !== '') {
+            $searchLower = strtolower($search);
+            $allMappedGames = $allMappedGames->filter(function ($g) use ($searchLower) {
+                $inTitle = str_contains(strtolower($g['title'] ?? ''), $searchLower);
+                $inVenue = str_contains(strtolower($g['venue_name'] ?? ''), $searchLower);
+                $inCourt = str_contains(strtolower($g['court_name'] ?? ''), $searchLower);
+                $inHost = str_contains(strtolower($g['host']['name'] ?? ''), $searchLower);
+                $inSport = str_contains(strtolower($g['sport'] ?? ''), $searchLower);
+                return $inTitle || $inVenue || $inCourt || $inHost || $inSport;
+            });
+        }
+
+        // Tab counts (reflecting search results if search is active)
         $countAll = $allMappedGames->count();
         $countJoined = $allMappedGames->where('is_joined_by_me', true)->count();
         $countHosted = $allMappedGames->where('is_hosted_by_me', true)->count();
@@ -122,16 +138,41 @@ class GameController extends Controller
 
         // Apply active tab filter
         if ($activeTab === 'joined') {
-            $games = $allMappedGames->where('is_joined_by_me', true)->values()->all();
+            $filteredGames = $allMappedGames->where('is_joined_by_me', true)->values();
         } elseif ($activeTab === 'hosted') {
-            $games = $allMappedGames->where('is_hosted_by_me', true)->values()->all();
+            $filteredGames = $allMappedGames->where('is_hosted_by_me', true)->values();
         } elseif ($activeTab === 'venue') {
-            $games = $allMappedGames->where('is_at_my_venue', true)->values()->all();
+            $filteredGames = $allMappedGames->where('is_at_my_venue', true)->values();
         } else {
-            $games = $allMappedGames->values()->all();
+            $filteredGames = $allMappedGames->values();
         }
 
-        return view('games.index', compact('games', 'selectedSport', 'activeTab', 'countAll', 'countJoined', 'countHosted', 'countVenue', 'ownedVenueIds'));
+        // Pagination: 6 items per page
+        $perPage = 6;
+        $currentPage = Paginator::resolveCurrentPage('page') ?: 1;
+        $totalItems = $filteredGames->count();
+        $currentItems = $filteredGames->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+        $games = new LengthAwarePaginator(
+            $currentItems,
+            $totalItems,
+            $perPage,
+            $currentPage,
+            ['path' => Paginator::resolveCurrentPath(), 'pageName' => 'page']
+        );
+        $games->withQueryString();
+
+        return view('games.index', compact(
+            'games',
+            'search',
+            'selectedSport',
+            'activeTab',
+            'countAll',
+            'countJoined',
+            'countHosted',
+            'countVenue',
+            'ownedVenueIds'
+        ));
     }
 
     public function create()
