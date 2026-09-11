@@ -8,6 +8,8 @@ use App\Models\Player;
 use App\Services\MatchaDummyDataService;
 use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use App\Exceptions\ConfigurationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,13 +25,17 @@ use Illuminate\Support\Facades\DB;
  */
 class CommunityController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $activeTab = $request->query('tab', 'all'); // 'all', 'joined'
+        $selectedSport = $request->query('sport', 'all');
+        $search = trim($request->query('q', $request->query('search', '')));
+
         $currentUserCommunityId = Auth::check() ? Player::where('user_id', Auth::id())->value('community_id') : null;
 
         $dbCommunities = Community::with(['players.user', 'creator'])->latest()->get();
         if ($dbCommunities->isNotEmpty()) {
-            $communities = $dbCommunities->map(function ($c) use ($currentUserCommunityId) {
+            $allCommunities = $dbCommunities->map(function ($c) use ($currentUserCommunityId) {
                 return [
                     'id' => $c->community_id,
                     'name' => $c->nama_community,
@@ -44,12 +50,66 @@ class CommunityController extends Controller
                     'status' => $c->status_keanggotaan ?: 'Active',
                     'is_member' => ($currentUserCommunityId && $currentUserCommunityId == $c->community_id),
                 ];
-            })->toArray();
+            });
         } else {
-            $communities = MatchaDummyDataService::getCommunities();
+            $allCommunities = collect(MatchaDummyDataService::getCommunities());
         }
 
-        return view('communities.index', compact('communities'));
+        // Sport filter
+        if ($selectedSport !== 'all') {
+            $allCommunities = $allCommunities->filter(function ($c) use ($selectedSport) {
+                return str_contains(strtolower($c['sport']), strtolower($selectedSport));
+            });
+        }
+
+        // Search filter (name, city, description, admin_name, tagline)
+        if ($search !== '') {
+            $searchLower = strtolower($search);
+            $allCommunities = $allCommunities->filter(function ($c) use ($searchLower) {
+                $inName = str_contains(strtolower($c['name'] ?? ''), $searchLower);
+                $inCity = str_contains(strtolower($c['city'] ?? ''), $searchLower);
+                $inDesc = str_contains(strtolower($c['description'] ?? ''), $searchLower);
+                $inAdmin = str_contains(strtolower($c['admin_name'] ?? ''), $searchLower);
+                $inTagline = str_contains(strtolower($c['tagline'] ?? ''), $searchLower);
+                $inSport = str_contains(strtolower($c['sport'] ?? ''), $searchLower);
+                return $inName || $inCity || $inDesc || $inAdmin || $inTagline || $inSport;
+            });
+        }
+
+        // Tab counts (reflecting search results if active)
+        $totalCommunitiesCount = $allCommunities->count();
+        $myCommunitiesCount = $allCommunities->where('is_member', true)->count();
+
+        // Active tab filter
+        if ($activeTab === 'joined') {
+            $filteredCommunities = $allCommunities->where('is_member', true)->values();
+        } else {
+            $filteredCommunities = $allCommunities->values();
+        }
+
+        // Pagination: 6 items per page
+        $perPage = 6;
+        $currentPage = Paginator::resolveCurrentPage('page') ?: 1;
+        $totalItems = $filteredCommunities->count();
+        $currentItems = $filteredCommunities->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+        $communities = new LengthAwarePaginator(
+            $currentItems,
+            $totalItems,
+            $perPage,
+            $currentPage,
+            ['path' => Paginator::resolveCurrentPath(), 'pageName' => 'page']
+        );
+        $communities->withQueryString();
+
+        return view('communities.index', compact(
+            'communities',
+            'activeTab',
+            'selectedSport',
+            'search',
+            'myCommunitiesCount',
+            'totalCommunitiesCount'
+        ));
     }
 
     public function create()
