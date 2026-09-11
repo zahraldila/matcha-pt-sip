@@ -61,17 +61,19 @@ class SupabaseStorageService
     public function upload(UploadedFile $file, string $folder = 'venues'): ?string
     {
         if (!$this->isConfigured()) {
+            Log::warning('Supabase Storage tidak terkonfigurasi. Pastikan SUPABASE_KEY / SUPABASE_ANON_KEY diisi di .env.');
             return null;
         }
 
         try {
             $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $path = trim($folder, '/') . '/' . $filename;
+            $cleanFolder = trim($folder, '/');
+            $path = ($cleanFolder !== '' && $cleanFolder !== $this->bucket) ? ($cleanFolder . '/' . $filename) : $filename;
             $endpoint = "{$this->url}/storage/v1/object/{$this->bucket}/{$path}";
             $mimeType = $file->getMimeType() ?: 'application/octet-stream';
 
-            $response = Http::timeout(6)
-                ->connectTimeout(3)
+            $response = Http::timeout(10)
+                ->connectTimeout(5)
                 ->withHeaders([
                     'Authorization' => 'Bearer ' . $this->apiKey,
                     'apikey'        => $this->apiKey,
