@@ -284,8 +284,11 @@
                     <!-- Logo Dropzone -->
                     <div class="space-y-1">
                         <div class="relative">
-                            <div id="logo-dropzone" onclick="document.getElementById('input_logo').click()" class="border-2 border-dashed border-slate-200 hover:border-[#063B00] rounded-2xl p-4 bg-slate-50/50 text-center transition-all cursor-pointer group flex flex-col items-center justify-center">
-                                <img id="logo-preview-img" src="" alt="Preview Logo" class="hidden w-full h-36 sm:h-40 rounded-xl object-cover object-center border border-[#063B00]/30 shadow-xs mb-2">
+                            <div id="logo-dropzone" onclick="document.getElementById('input_logo').click()" class="border-2 border-dashed border-slate-200 hover:border-[#063B00] rounded-2xl p-4 bg-slate-50/50 text-center transition-all cursor-pointer group flex flex-col items-center justify-center overflow-hidden min-h-0">
+                                <!-- Fixed-size compact preview container -->
+                                <div id="logo-preview-container" class="hidden w-full max-w-[240px] h-32 rounded-xl overflow-hidden border border-[#063B00]/30 shadow-xs mb-2 shrink-0 bg-slate-100" style="width: 100%; max-width: 240px; height: 128px; max-height: 128px; overflow: hidden;">
+                                    <img id="logo-preview-img" src="" alt="Preview Foto" class="w-full h-full object-cover object-center block" style="width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: cover; display: block;">
+                                </div>
                                 <i id="logo-icon" class="fa-solid fa-image text-slate-400 group-hover:text-[#063B00] text-lg mb-1"></i>
                                 <p id="logo-title" class="text-[11px] font-bold text-slate-800">Upload Foto Komunitas</p>
                                 <p id="logo-filename" class="text-[9px] text-slate-400">Rasio horizontal format JPG/PNG</p>
@@ -430,6 +433,7 @@
         const filenameEl = document.getElementById('logo-filename');
         const titleEl = document.getElementById('logo-title');
         const iconEl = document.getElementById('logo-icon');
+        const previewContainer = document.getElementById('logo-preview-container');
         const previewImg = document.getElementById('logo-preview-img');
         const errEl = document.getElementById('err_logo');
         const dropzone = document.getElementById('logo-dropzone');
@@ -438,6 +442,7 @@
         if (input) input.value = '';
         if (logoUrlInput) logoUrlInput.value = '';
         if (clearBtn) clearBtn.classList.add('hidden');
+        if (previewContainer) previewContainer.classList.add('hidden');
         if (previewImg) {
             previewImg.src = '';
             previewImg.classList.add('hidden');
@@ -460,6 +465,7 @@
         const filenameEl = document.getElementById('logo-filename');
         const titleEl = document.getElementById('logo-title');
         const iconEl = document.getElementById('logo-icon');
+        const previewContainer = document.getElementById('logo-preview-container');
         const previewImg = document.getElementById('logo-preview-img');
         const clearBtn = document.getElementById('logo-clear-btn');
         const errEl = document.getElementById('err_logo');
@@ -471,11 +477,12 @@
             return;
         }
 
-        // 1. Validasi format & ukuran SEBELUM upload ke Supabase Storage
+        // 1. Validasi format & ukuran SEBELUM upload
         const isValid = validateLogoField();
         if (!isValid) {
             if (logoUrlInput) logoUrlInput.value = '';
             if (clearBtn) clearBtn.classList.remove('hidden');
+            if (previewContainer) previewContainer.classList.add('hidden');
             if (previewImg) previewImg.classList.add('hidden');
             if (filenameEl) filenameEl.textContent = this.files[0]?.name || 'File tidak valid';
             if (iconEl) iconEl.className = 'fa-solid fa-image text-rose-500 text-lg mb-1';
@@ -484,17 +491,18 @@
 
         // File valid -> Tampilkan preview & state loading upload
         const file = this.files[0];
+        if (previewContainer) previewContainer.classList.remove('hidden');
         if (previewImg) {
             previewImg.src = URL.createObjectURL(file);
             previewImg.classList.remove('hidden');
         }
         if (filenameEl) filenameEl.textContent = file.name;
-        if (titleEl) titleEl.textContent = 'Mengunggah foto ke Supabase Storage...';
+        if (titleEl) titleEl.textContent = 'Sedang mengunggah foto...';
         if (iconEl) iconEl.className = 'fa-solid fa-circle-notch fa-spin text-[#063B00] text-lg mb-1';
         if (clearBtn) clearBtn.classList.add('hidden');
         isLogoUploading = true;
 
-        // 2. Upload async ke Supabase Storage via backend route
+        // 2. Upload async ke backend route
         const formData = new FormData();
         formData.append('logo', file);
 
@@ -511,7 +519,7 @@
         .then(async response => {
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.message || 'Gagal mengunggah foto ke Supabase Storage.');
+                throw new Error(data.message || 'Gagal mengunggah foto.');
             }
             return data;
         })
@@ -529,13 +537,14 @@
                 }
                 if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('flex'); }
             } else {
-                throw new Error(data.message || 'Gagal mengunggah foto ke Supabase Storage.');
+                throw new Error(data.message || 'Gagal mengunggah foto.');
             }
         })
         .catch(error => {
             isLogoUploading = false;
             if (logoUrlInput) logoUrlInput.value = '';
             if (clearBtn) clearBtn.classList.remove('hidden');
+            if (previewContainer) previewContainer.classList.add('hidden');
             if (previewImg) previewImg.classList.add('hidden');
             if (titleEl) titleEl.textContent = 'Upload Foto Komunitas';
             if (filenameEl) filenameEl.textContent = file.name;
@@ -557,7 +566,7 @@
             e.preventDefault();
             const errEl = document.getElementById('err_logo');
             if (errEl) {
-                errEl.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Logo sedang diunggah ke Supabase Storage, mohon tunggu beberapa saat...`;
+                errEl.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Sedang mengunggah foto, mohon tunggu beberapa saat...`;
                 errEl.classList.remove('hidden');
                 errEl.classList.add('flex');
             }
@@ -569,12 +578,12 @@
         const errLogo = document.getElementById('err_logo');
         const dropzone = document.getElementById('logo-dropzone');
 
-        // Cegah submit jika file dipilih tapi belum/gagal terupload ke Supabase
+        // Cegah submit jika file dipilih tapi belum/gagal terupload
         if (inputLogo && inputLogo.files && inputLogo.files.length > 0 && (!logoUrlInput || !logoUrlInput.value)) {
             e.preventDefault();
             if (errLogo) {
                 if (errLogo.classList.contains('hidden')) {
-                    errLogo.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> Upload logo ke Supabase Storage belum berhasil. Silakan tunggu atau batalkan pilihan logo.`;
+                    errLogo.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> Upload foto belum berhasil. Silakan tunggu atau batalkan pilihan foto.`;
                     errLogo.classList.remove('hidden');
                     errLogo.classList.add('flex');
                 }
