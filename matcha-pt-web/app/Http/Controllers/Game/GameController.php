@@ -20,6 +20,12 @@ class GameController extends Controller
     public function index(Request $request)
     {
         $selectedSport = $request->query('sport', 'all');
+        $activeTab = $request->query('tab', 'all'); // 'all', 'joined', 'hosted'
+        
+        $user = Auth::user();
+        $userId = $user ? $user->user_id : null;
+        $userEmail = $user ? strtolower(trim($user->email ?? '')) : null;
+        $userName = $user ? strtolower(trim($user->nama ?? '')) : null;
 
         // Fetch 100% real sessions from Supabase database
         $sessionQuery = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])
@@ -32,13 +38,32 @@ class GameController extends Controller
             });
         }
 
-        $dbSessions = $sessionQuery->get();
+        $allDbSessions = $sessionQuery->get();
 
-        $games = $dbSessions->map(function ($s) {
+        $allMappedGames = $allDbSessions->map(function ($s) use ($userId, $userEmail, $userName) {
             $joinedCount = $s->players->count();
             $quota = (int) ($s->jumlah_pemain ?? 6);
             $slotLeft = max(0, $quota - $joinedCount);
             $status = $slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)";
+
+            // Check if hosted by logged-in user
+            $isHostedByMe = false;
+            if ($userId && $s->host_user_id == $userId) {
+                $isHostedByMe = true;
+            } elseif ($userName && $s->host && strtolower(trim($s->host->nama ?? '')) === $userName) {
+                $isHostedByMe = true;
+            }
+
+            // Check if joined by logged-in user
+            $isJoinedByMe = false;
+            if ($userId || $userEmail || $userName) {
+                $isJoinedByMe = $s->players->contains(function ($p) use ($userId, $userEmail, $userName) {
+                    if ($userId && $p->user_id && $p->user_id == $userId) return true;
+                    if ($userEmail && $p->email && strtolower(trim($p->email)) === $userEmail) return true;
+                    if ($userName && $p->nama && strtolower(trim($p->nama)) === $userName) return true;
+                    return false;
+                });
+            }
 
             return [
                 'id' => $s->session_id,
@@ -56,6 +81,8 @@ class GameController extends Controller
                 'level_recommendation' => 'All Level Welcome',
                 'match_format' => 'Americano / Double',
                 'scoring_system' => $s->scoring_system ?? 'Total of 3',
+                'is_hosted_by_me' => $isHostedByMe,
+                'is_joined_by_me' => $isJoinedByMe,
                 'host' => [
                     'name' => $s->host->nama ?? 'Host Matcha',
                     'role' => 'Host Game',
@@ -76,9 +103,23 @@ class GameController extends Controller
                 })->toArray(),
                 'drawing' => null,
             ];
-        })->values()->all();
+        });
 
-        return view('games.index', compact('games', 'selectedSport'));
+        // Tab counts
+        $countAll = $allMappedGames->count();
+        $countJoined = $allMappedGames->where('is_joined_by_me', true)->count();
+        $countHosted = $allMappedGames->where('is_hosted_by_me', true)->count();
+
+        // Apply active tab filter
+        if ($activeTab === 'joined') {
+            $games = $allMappedGames->where('is_joined_by_me', true)->values()->all();
+        } elseif ($activeTab === 'hosted') {
+            $games = $allMappedGames->where('is_hosted_by_me', true)->values()->all();
+        } else {
+            $games = $allMappedGames->values()->all();
+        }
+
+        return view('games.index', compact('games', 'selectedSport', 'activeTab', 'countAll', 'countJoined', 'countHosted'));
     }
 
     public function create()

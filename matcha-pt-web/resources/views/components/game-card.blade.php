@@ -15,13 +15,23 @@
     <div>
         <!-- Card Top Bar: Badges -->
         <div class="flex items-center justify-between mb-3.5">
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
                 <x-badge :type="$sportType">
                     {{ $game['sport'] }}
                 </x-badge>
-                <span class="text-[11px] text-slate-500 font-medium px-2 py-0.5 rounded-full bg-white/80 border border-slate-200/50 backdrop-blur-xs">
-                    {{ $game['match_format'] }}
-                </span>
+                @if(!empty($game['is_hosted_by_me']))
+                    <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs inline-flex items-center gap-1">
+                        <i class="fa-solid fa-crown text-amber-500 text-[9px]"></i> Host Anda
+                    </span>
+                @elseif(!empty($game['is_joined_by_me']))
+                    <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs inline-flex items-center gap-1">
+                        <i class="fa-solid fa-circle-check text-emerald-600 text-[9px]"></i> Terdaftar
+                    </span>
+                @else
+                    <span class="text-[11px] text-slate-500 font-medium px-2 py-0.5 rounded-full bg-white/80 border border-slate-200/50 backdrop-blur-xs">
+                        {{ $game['match_format'] }}
+                    </span>
+                @endif
             </div>
             <x-badge :type="$statusType">
                 {{ $game['status'] }}
@@ -91,25 +101,31 @@
         </div>
     </div>
 
-    <!-- Action Buttons with Role Checking -->
+    <!-- Action Buttons with Role & Membership Checking -->
     <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/40">
         <a href="{{ route('games.show', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-white/80 hover:bg-white text-slate-700 text-xs font-semibold transition-all border border-slate-200/60 shadow-xs">
             Detail
         </a>
 
-        @if($isFull)
-            {{-- Kuota Penuh --}}
-            @if(Auth::check() && Auth::user()->role === 'host')
+        @if(!empty($game['is_hosted_by_me']))
+            @if($isFull)
                 <a href="{{ route('games.drawing', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-bold shadow-xs transition-all hover:scale-[1.01]">
                     🎲 Drawing Tim
                 </a>
             @else
-                <button type="button" disabled class="text-center py-2 px-3 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold border border-slate-200/60 cursor-not-allowed">
-                    Slot Penuh
-                </button>
+                <a href="{{ route('games.show', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-bold shadow-xs transition-all hover:scale-[1.01]">
+                    Kelola Sesi
+                </a>
             @endif
+        @elseif(!empty($game['is_joined_by_me']))
+            <a href="{{ route('games.show', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1">
+                <i class="fa-solid fa-circle-check text-[11px] text-[#A8E63A]"></i> Sesi Saya
+            </a>
+        @elseif($isFull)
+            <button type="button" disabled class="text-center py-2 px-3 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold border border-slate-200/60 cursor-not-allowed">
+                Slot Penuh
+            </button>
         @else
-            {{-- Slot Masih Terbuka --}}
             <button onclick="showJoinModal('{{ $game['id'] }}', '{{ $game['title'] }}')" class="text-center py-2 px-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-bold shadow-xs transition-all hover:scale-[1.01] cursor-pointer">
                 Gabung Slot
             </button>
