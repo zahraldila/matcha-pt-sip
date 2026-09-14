@@ -13,6 +13,7 @@ use App\Services\Drawing\AmericanoService;
 use App\Services\Drawing\TeamAmericanoService;
 use App\Services\MatchaDummyDataService;
 use App\Services\Scoring\ScoringService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -1014,8 +1015,8 @@ class ScoringController extends Controller
             $lastScore['round_title'] = ucfirst(str_replace('_', ' ', $lastRoundKey));
         }
 
-        // Data untuk player recap card
-        $playerRecap = MatchaDummyDataService::getPlayerRecap();
+        // Data statistik pemain berdasarkan hasil pertandingan yang tersimpan.
+        $playerRecap = $this->buildPlayerRecap($game, $rankedPlayers);
 
         return view('scoring.recap', compact(
             'game',
@@ -1026,6 +1027,79 @@ class ScoringController extends Controller
             'savedScores',
             'effectiveScores'
         ));
+    }
+
+    private function buildPlayerRecap(array $game, array $rankedPlayers): array
+    {
+        $selectedPlayer = null;
+        $user = Auth::user();
+
+        if ($user) {
+            $selectedPlayer = Player::where('user_id', $user->user_id)->first();
+        }
+
+        $playerName = $selectedPlayer?->nama;
+        $playerStats = collect($rankedPlayers)->first(function (array $player) use ($playerName) {
+            return $playerName && ScoringService::cleanPlayerName($player['name']) === ScoringService::cleanPlayerName($playerName);
+        });
+
+        $playerStats ??= $rankedPlayers[0] ?? [
+            'name' => $playerName ?: 'Pemain Matcha',
+            'points_for' => 0,
+            'matches' => 0,
+            'wins' => 0,
+        ];
+        $playerName = $playerStats['name'];
+
+        $participant = collect($game['participants'] ?? [])->first(function (array $participant) use ($playerName) {
+            return ScoringService::cleanPlayerName($participant['name'] ?? '') === ScoringService::cleanPlayerName($playerName);
+        });
+        $durationMinutes = 0;
+
+        try {
+            $drawing = Drawing::where('session_id', $game['id'])->first();
+            if ($drawing) {
+                $matches = GameMatch::with('participants.player')
+                    ->where('drawing_id', $drawing->drawing_id)
+                    ->where('status_match', 'Completed')
+                    ->get();
+
+                foreach ($matches as $match) {
+                    $isParticipant = $selectedPlayer
+                        ? $match->participants->contains('player_id', $selectedPlayer->player_id)
+                        : $match->participants->contains(function ($matchParticipant) use ($playerName) {
+                            return ScoringService::cleanPlayerName($matchParticipant->player?->nama ?? '')
+                                === ScoringService::cleanPlayerName($playerName);
+                        });
+
+                    if (! $isParticipant || ! $match->waktu_mulai || ! $match->waktu_selesai) {
+                        continue;
+                    }
+
+                    $startedAt = Carbon::parse($match->waktu_mulai);
+                    $finishedAt = Carbon::parse($match->waktu_selesai);
+                    if ($finishedAt->greaterThan($startedAt)) {
+                        $durationMinutes += $startedAt->diffInMinutes($finishedAt);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed to calculate player recap duration: '.$e->getMessage());
+        }
+
+        $matchesPlayed = (int) ($playerStats['matches'] ?? 0);
+        $wins = (int) ($playerStats['wins'] ?? 0);
+
+        return [
+            'player_name' => $playerName,
+            'avatar' => $participant['avatar'] ?? null,
+            'level' => $participant['level'] ?? ($playerStats['level'] ?? 'Intermediate'),
+            'total_points' => (int) ($playerStats['points_for'] ?? 0),
+            'duration_played' => $durationMinutes > 0 ? round($durationMinutes).'m' : '0m',
+            'wins' => $wins,
+            'losses' => max(0, $matchesPlayed - $wins),
+            'win_rate' => $matchesPlayed > 0 ? round(($wins / $matchesPlayed) * 100).'%' : '0%',
+        ];
     }
 
     private function getGameData($id)

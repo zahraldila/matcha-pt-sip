@@ -450,22 +450,18 @@
             </span>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div class="p-3.5 rounded-2xl bg-white/70 border border-slate-200/80 text-center shadow-2xs">
                 <span class="text-xs text-slate-400 font-medium block">Total Poin</span>
-                <span class="text-xl font-black text-slate-900">{{ $playerRecap['total_points'] ?? 24 }}</span>
+                <span class="text-xl font-black text-slate-900">{{ $playerRecap['total_points'] }}</span>
             </div>
             <div class="p-3.5 rounded-2xl bg-white/70 border border-slate-200/80 text-center shadow-2xs">
                 <span class="text-xs text-slate-400 font-medium block">Durasi Main</span>
-                <span class="text-xl font-black text-slate-900">{{ $playerRecap['duration_played'] ?? '1j 45m' }}</span>
-            </div>
-            <div class="p-3.5 rounded-2xl bg-white/70 border border-slate-200/80 text-center shadow-2xs">
-                <span class="text-xs text-slate-400 font-medium block">Kalori Terbakar</span>
-                <span class="text-xl font-black text-slate-900">{{ $playerRecap['calories_burned'] ?? 520 }} <span class="text-xs font-normal text-slate-500">kcal</span></span>
+                <span class="text-xl font-black text-slate-900">{{ $playerRecap['duration_played'] }}</span>
             </div>
             <div class="p-3.5 rounded-2xl bg-white/70 border border-slate-200/80 text-center shadow-2xs">
                 <span class="text-xs text-slate-400 font-medium block">Win Rate</span>
-                <span class="text-xl font-black text-[#063B00]">{{ $playerRecap['win_rate'] ?? '75%' }}</span>
+                <span class="text-xl font-black text-[#063B00]">{{ $playerRecap['win_rate'] }}</span>
             </div>
         </div>
     </div>
@@ -829,25 +825,25 @@
                                 <div class="p-2 rounded-xl bg-white/5 border border-white/5">
                                     <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Total Poin</p>
                                     <p class="text-2xl font-black text-white mt-0.5" id="stravaPoints">
-                                        {{ $rankedPlayers[0]['points_for'] ?? ($playerRecap['total_points'] ?? 24) }}
+                                        {{ $rankedPlayers[0]['points_for'] ?? $playerRecap['total_points'] }}
                                     </p>
                                 </div>
                                 <div class="p-2 rounded-xl bg-[#063B00]/70 border border-[#A8E63A]/40">
                                     <p class="text-[8px] font-bold text-[#A8E63A] uppercase tracking-wider">Win Rate</p>
                                     <p class="text-2xl font-black text-[#A8E63A] mt-0.5" id="stravaWinRate">
-                                        {{ !empty($rankedPlayers[0]['matches']) ? round(($rankedPlayers[0]['wins'] / $rankedPlayers[0]['matches']) * 100) . '%' : ($playerRecap['win_rate'] ?? '75%') }}
+                                        {{ !empty($rankedPlayers[0]['matches']) ? round(($rankedPlayers[0]['wins'] / $rankedPlayers[0]['matches']) * 100) . '%' : $playerRecap['win_rate'] }}
                                     </p>
                                 </div>
                                 <div class="p-2 rounded-xl bg-white/5 border border-white/5">
                                     <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Match Record</p>
                                     <p class="text-base font-black text-slate-200 mt-0.5" id="stravaRecord">
-                                        {{ $rankedPlayers[0]['wins'] ?? 2 }}W - {{ $rankedPlayers[0]['losses'] ?? 1 }}L
+                                        {{ $rankedPlayers[0]['wins'] ?? $playerRecap['wins'] }}W - {{ $rankedPlayers[0]['losses'] ?? $playerRecap['losses'] }}L
                                     </p>
                                 </div>
                                 <div class="p-2 rounded-xl bg-white/5 border border-white/5">
                                     <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Durasi Main</p>
                                     <p class="text-base font-black text-slate-200 mt-0.5" id="stravaCalTime">
-                                        {{ $playerRecap['duration_played'] ?? '1j 45m' }}
+                                        {{ $playerRecap['duration_played'] }}
                                     </p>
                                 </div>
                             </div>
