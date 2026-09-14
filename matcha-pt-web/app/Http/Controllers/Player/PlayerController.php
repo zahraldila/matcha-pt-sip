@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Player;
 use App\Http\Controllers\Controller;
 use App\Models\SessionModel;
 use App\Models\Player;
+use App\Models\Community;
+use App\Models\User;
 use App\Services\MatchaDummyDataService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PlayerController extends Controller
@@ -15,12 +18,126 @@ class PlayerController extends Controller
     public function profile()
     {
         $user = Auth::user();
-        $recap = MatchaDummyDataService::getPlayerRecap($user->nama ?? 'Billy Santoso');
+        $player = null;
+
+        if ($user) {
+            $player = Player::with('community')
+                ->where('user_id', $user->user_id)
+                ->orWhere('email', $user->email)
+                ->first();
+
+            // If player record doesn't exist yet, create one from user details
+            if (!$player) {
+                $player = Player::create([
+                    'user_id' => $user->user_id,
+                    'nama' => $user->nama,
+                    'email' => $user->email,
+                    'no_hp' => $user->no_hp,
+                    'gender' => 'Male',
+                    'usia' => 25,
+                    'level' => 'Intermediate',
+                    'rating' => 1.00,
+                ]);
+            }
+        }
+
+        $communities = Community::all();
+        $recap = MatchaDummyDataService::getPlayerRecap($user->nama ?? 'Pemain Matcha');
         if ($user) {
             $recap['player']['name'] = $user->nama;
             $recap['player']['username'] = '@' . Str::slug($user->nama, '_');
+            $recap['player']['level'] = $player->level ?? 'Intermediate';
+            $recap['player']['community'] = $player->community->nama_community ?? 'Personal (Non-Community)';
+            $recap['player']['role'] = $user->role === 'venue_owner' ? 'Venue Owner' : ($user->role === 'host' ? 'Host Game' : 'Member');
         }
-        return view('players.profile', compact('recap', 'user'));
+
+        return view('players.profile', compact('recap', 'user', 'player', 'communities'));
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        // Sanitize no_hp
+        if ($request->has('no_hp')) {
+            $cleanNoHp = preg_replace('/[^0-9]/', '', (string)$request->no_hp);
+            $request->merge(['no_hp' => $cleanNoHp]);
+        }
+
+        $request->validate([
+            'nama' => 'required|string|max:255',
+            'no_hp' => [
+                'required',
+                'string',
+                'regex:/^[0-9]{9,15}$/',
+                'unique:tb_user,no_hp,' . $user->user_id . ',user_id',
+            ],
+            'gender' => 'required|in:Male,Female',
+            'usia' => 'required|integer|min:10|max:90',
+            'level' => 'required|in:Newbie,Beginner,Intermediate,Advanced',
+            'community_id' => 'nullable',
+        ], [
+            'nama.required' => 'Nama lengkap wajib diisi.',
+            'no_hp.required' => 'Nomor WhatsApp / HP wajib diisi.',
+            'no_hp.regex' => 'Nomor WhatsApp hanya boleh berupa angka (9 - 15 digit).',
+            'no_hp.unique' => 'Nomor WhatsApp ini sudah digunakan oleh akun lain.',
+            'gender.required' => 'Jenis kelamin wajib dipilih.',
+            'usia.required' => 'Usia wajib diisi.',
+            'usia.min' => 'Usia minimal adalah 10 tahun.',
+            'usia.max' => 'Usia maksimal adalah 90 tahun.',
+            'level.required' => 'Kategori skill level wajib dipilih.',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $cleanNoHp = preg_replace('/[^0-9]/', '', (string)$request->no_hp);
+            $communityId = ($request->community_id && $request->community_id !== 'none') ? (int)$request->community_id : null;
+
+            // 1. Update tb_user
+            $user->nama = trim($request->nama);
+            $user->no_hp = $cleanNoHp;
+            $user->save();
+
+            // 2. Update or Create tb_player
+            $player = Player::where('user_id', $user->user_id)
+                ->orWhere('email', $user->email)
+                ->first();
+
+            if ($player) {
+                $player->update([
+                    'user_id' => $user->user_id,
+                    'nama' => trim($request->nama),
+                    'no_hp' => $cleanNoHp,
+                    'gender' => $request->gender,
+                    'usia' => (int)$request->usia,
+                    'level' => $request->level,
+                    'community_id' => $communityId,
+                ]);
+            } else {
+                Player::create([
+                    'user_id' => $user->user_id,
+                    'community_id' => $communityId,
+                    'nama' => trim($request->nama),
+                    'usia' => (int)$request->usia,
+                    'gender' => $request->gender,
+                    'level' => $request->level,
+                    'rating' => 1.00,
+                    'no_hp' => $cleanNoHp,
+                    'email' => strtolower(trim($user->email)),
+                ]);
+            }
+
+            DB::commit();
+
+            return back()->with('success', 'Profil pemain berhasil diperbarui!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Gagal memperbarui profil: ' . $e->getMessage()]);
+        }
     }
 
     public function recap(Request $request)
@@ -110,11 +227,16 @@ class PlayerController extends Controller
         }
 
         // 2. Data Rekap Karir Pemain (Personal Career Stats)
-        $recap = MatchaDummyDataService::getPlayerRecap($user->nama ?? 'Billy Santoso');
+        $recap = MatchaDummyDataService::getPlayerRecap($user->nama ?? 'Pemain Matcha');
         if ($user) {
+            $player = Player::with('community')->where('user_id', $user->user_id)->orWhere('email', $user->email)->first();
             $recap['player']['name'] = $user->nama;
             $recap['player']['username'] = '@' . Str::slug($user->nama, '_');
-            $recap['player']['role'] = ucfirst($user->role ?? 'Member');
+            $recap['player']['role'] = $user->role === 'venue_owner' ? 'Venue Owner' : ($user->role === 'host' ? 'Host Game' : 'Member');
+            if ($player) {
+                $recap['player']['level'] = $player->level ?? 'Intermediate';
+                $recap['player']['community'] = $player->community->nama_community ?? 'Personal (Non-Community)';
+            }
         }
 
         return view('players.recap', compact('user', 'isHost', 'activeTab', 'hostSessions', 'hostStats', 'recap'));
