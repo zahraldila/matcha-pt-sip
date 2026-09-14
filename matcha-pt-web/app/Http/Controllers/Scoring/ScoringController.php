@@ -44,6 +44,17 @@ class ScoringController extends Controller
         // Ambil skor tersimpan dari Cache (shared antar semua user)
         $cacheKey = "scoring.game_{$game['id']}";
         $savedScores = Cache::get($cacheKey, []);
+        $roundAccess = $this->getRoundAccess($game, $scoringSystem, $savedScores);
+        if (! ($roundAccess[$activeRound] ?? false)) {
+            $firstAccessibleRound = array_key_last(array_filter($roundAccess));
+
+            return redirect()->route('scoring.live', [
+                'id' => $game['id'],
+                'format' => request('format', $game['match_format'] ?? 'Americano'),
+                'round' => $firstAccessibleRound ?: 'round_1',
+                'court' => $courtIndex,
+            ]);
+        }
         $courtCount = $matchContext['court_count'] ?? 1;
         $matchKey = ($courtCount > 1) ? "{$activeRound}_court_".($courtIndex + 1) : $activeRound;
 
@@ -118,7 +129,8 @@ class ScoringController extends Controller
             'userRole',
             'userPlayerId',
             'isPlayer',
-            'cacheKey'
+            'cacheKey',
+            'roundAccess'
         ));
     }
 
@@ -289,6 +301,19 @@ class ScoringController extends Controller
         // Simpan ke Cache (TTL 4 jam) agar bisa dibaca semua user
         $cacheKey = "scoring.game_{$gameId}";
         $scores = Cache::get($cacheKey, []);
+        try {
+            $game = $this->getGameData($gameId);
+            $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
+            $roundAccess = $this->getRoundAccess($game, $scoringSystem, $scores);
+            if (! ($roundAccess[$round] ?? false)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ronde sebelumnya belum selesai.',
+                ], 422);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Unable to validate round access before score update: '.$e->getMessage());
+        }
 
         // Guard 1: Jika ronde atau sesi sudah berstatus selesai, tolak pembaruan yang terlambat datang (late in-flight AJAX)
         if (($scores['_meta']['status'] ?? '') === 'finished' || (($scores[$matchKey]['status'] ?? '') === 'completed')) {
@@ -470,6 +495,12 @@ class ScoringController extends Controller
         // Ambil data skor dari request atau fallback ke cache
         $cacheKey = "scoring.game_{$gameId}";
         $scores = Cache::get($cacheKey, []);
+        $roundAccess = $this->getRoundAccess($game, $system, $scores);
+        if (! ($roundAccess[$round] ?? false)) {
+            return redirect()->back()->withErrors([
+                'score' => 'Ronde sebelumnya belum selesai.',
+            ]);
+        }
         $prev = $scores[$matchKey] ?? ($scores[$round] ?? []);
 
         $scoreA = $request->integer('score_a', $prev['score_a'] ?? 0);
@@ -1114,6 +1145,48 @@ class ScoringController extends Controller
         }
 
         return $dummyGame;
+    }
+
+    /**
+     * Determine which scoring rounds are unlocked in sequence.
+     */
+    private function getRoundAccess(array $game, array $scoringSystem, array $savedScores): array
+    {
+        $roundKeys = $scoringSystem['is_sets']
+            ? array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, $scoringSystem['max_sets']))
+            : ['round_1'];
+        $roundAccess = [];
+        $previousRoundCompleted = true;
+
+        foreach ($roundKeys as $roundKey) {
+            $roundAccess[$roundKey] = $previousRoundCompleted;
+            if (! $previousRoundCompleted) {
+                continue;
+            }
+
+            $round = $game['drawing'][$roundKey] ?? [];
+            $matches = $round['matches'] ?? [];
+            $matchCount = count($matches);
+            $previousRoundCompleted = $matchCount > 0;
+
+            foreach ($matches as $matchIndex => $match) {
+                $matchKey = $matchCount > 1
+                    ? "{$roundKey}_court_".($matchIndex + 1)
+                    : $roundKey;
+                $score = $savedScores[$matchKey] ?? null;
+
+                if (! $score) {
+                    $score = $this->getScoreFromDatabase($game['id'], $roundKey, $matchIndex);
+                }
+
+                if (($score['status'] ?? '') !== 'completed') {
+                    $previousRoundCompleted = false;
+                    break;
+                }
+            }
+        }
+
+        return $roundAccess;
     }
 
     /**

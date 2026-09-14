@@ -77,20 +77,28 @@
                         $rNumber = preg_replace('/[^0-9]/', '', $rKey) ?: '1';
                         $tabDisplayTitle = "{$unitTabLabel} {$rNumber}";
                         $isTabActive = ($activeRound === $rKey);
+                        $isRoundAccessible = $roundAccess[$rKey] ?? false;
                         // Cek apakah ronde/set ini sudah completed di savedScores
                         $rScore = $savedScores[$rKey] ?? ($savedScores["{$rKey}_court_1"] ?? []);
                         $isRCompleted = (($rScore['status'] ?? '') === 'completed');
                     @endphp
-                    <a href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => $rKey, 'court' => $courtIndex]) }}"
-                       class="px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5
-                              {{ $isTabActive
-                                   ? 'bg-[#063B00] text-white border-[#063B00] shadow-xs'
-                                   : 'bg-white text-slate-700 border-slate-200 hover:border-[#063B00]/40 shadow-2xs' }}">
-                        <span>{{ $tabDisplayTitle }}</span>
-                        @if($isRCompleted)
-                            <span class="text-[9px] px-1.5 py-0.2 rounded-md {{ $isTabActive ? 'bg-white/20 text-[#A8E63A]' : 'bg-emerald-50 text-emerald-700 border border-emerald-200' }}">✓ Terkunci</span>
-                        @endif
-                    </a>
+                    @if($isRoundAccessible)
+                        <a href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => $rKey, 'court' => $courtIndex]) }}"
+                           class="px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5
+                                  {{ $isTabActive
+                                       ? 'bg-[#063B00] text-white border-[#063B00] shadow-xs'
+                                       : 'bg-white text-slate-700 border-slate-200 hover:border-[#063B00]/40 shadow-2xs' }}">
+                            <span>{{ $tabDisplayTitle }}</span>
+                            @if($isRCompleted)
+                                <span class="text-[9px] px-1.5 py-0.2 rounded-md {{ $isTabActive ? 'bg-white/20 text-[#A8E63A]' : 'bg-emerald-50 text-emerald-700 border border-emerald-200' }}">✓ Terkunci</span>
+                            @endif
+                        </a>
+                    @else
+                        <span class="px-3.5 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed">
+                            <span>{{ $tabDisplayTitle }}</span>
+                            <span class="text-[9px] px-1.5 py-0.2 rounded-md bg-slate-200 text-slate-500">🔒 Terkunci</span>
+                        </span>
+                    @endif
                 @endforeach
             </div>
         </div>
