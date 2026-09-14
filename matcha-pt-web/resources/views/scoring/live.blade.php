@@ -158,20 +158,18 @@
     <div class="glass-card rounded-3xl p-6 sm:p-8 space-y-6 border border-white/90 shadow-sm relative">
         
         <!-- Locked Badge Notification if this set match is completed -->
-        @if($isMCompleted)
-        <div class="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs font-bold flex items-center justify-between shadow-2xs">
+        <div id="lockedBadge_{{ $mIdx }}" class="{{ $isMCompleted ? '' : 'hidden' }} p-3 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs font-bold flex items-center justify-between shadow-2xs">
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-lock text-amber-600 text-sm"></i>
-                Skor {{ $unitTabLabel }} {{ preg_replace('/[^0-9]/', '', $activeRound) ?: '1' }} pada {{ $matchData['court_name'] ?? 'Court 1' }} sudah selesai dan terkunci.
+                <span id="lockedBadgeText_{{ $mIdx }}">Skor {{ $unitTabLabel }} {{ $activeRoundNum }} pada {{ $matchData['court_name'] ?? ('Court ' . ($mIdx + 1)) }} sudah selesai dan terkunci.</span>
             </span>
             <span class="text-[10px] bg-amber-200/80 px-2 py-0.5 rounded-full uppercase tracking-wider font-extrabold text-amber-800">Final Score</span>
         </div>
-        @endif
 
         <!-- Match Info Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 border-b border-slate-200/50 pb-3">
             <div class="flex items-center gap-2 flex-wrap">
-                <strong class="text-slate-800">{{ $game['venue_name'] }}</strong> &bull; <span class="text-[#063B00] font-bold">{{ $matchData['court_name'] ?? 'Court 1' }}</span> &bull; <span class="font-bold text-slate-700">{{ $unitTabLabel }} {{ preg_replace('/[^0-9]/', '', $activeRound) ?: '1' }}</span>
+                <strong class="text-slate-800">{{ $game['venue_name'] }}</strong> &bull; <span class="text-[#063B00] font-bold">{{ $matchData['court_name'] ?? ('Court ' . ($mIdx + 1)) }}</span> &bull; <span class="font-bold text-slate-700">{{ $unitTabLabel }} {{ $activeRoundNum }}</span>
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span>Sync: <strong id="topSyncTimer_{{ $mIdx }}" class="font-black">1.5s</strong></span>
@@ -191,7 +189,7 @@
         <div class="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 text-center space-y-2 shadow-sm relative overflow-hidden">
             <div class="flex items-center justify-between text-xs text-slate-300 border-b border-slate-800 pb-2">
                 <span class="font-bold uppercase tracking-wider text-[#A8E63A] flex items-center gap-1.5">
-                    <i class="fa-solid fa-trophy text-[11px]"></i> {{ $unitTabLabel }} {{ preg_replace('/[^0-9]/', '', $activeRound) ?: '1' }} SCORE
+                    <i class="fa-solid fa-trophy text-[11px]"></i> {{ $unitTabLabel }} {{ $activeRoundNum }} SCORE
                 </span>
                 <span class="font-medium text-slate-400">
                     Target: <strong class="text-white">{{ $scoringSystem['is_sets'] ? '1 Set Padel' : ($scoringSystem['target_games'] . ' Games') }}</strong>
@@ -216,7 +214,7 @@
 
             <div id="setHistoryContainer_{{ $mIdx }}" class="flex items-center justify-center gap-2 flex-wrap pt-1 text-[11px]">
                 <span class="text-slate-400 font-semibold" id="currentSetLabel_{{ $mIdx }}">
-                    Status: <strong>{{ $isMCompleted ? 'Set Selesai' : 'Sedang Berlangsung' }}</strong>
+                    Status: <strong>{{ $isMCompleted ? ($unitTabLabel . ' Selesai') : 'Sedang Berlangsung' }}</strong>
                 </span>
                 <span id="currentSetGamesBadge_{{ $mIdx }}" class="px-2.5 py-0.5 rounded-md bg-white/10 text-[#A8E63A] font-bold border border-white/10">
                     Game Score: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}
@@ -262,8 +260,8 @@
                 <!-- Point Button — hanya tampil untuk Host -->
                 @if($isHost)
                     @if($isMCompleted)
-                        <button disabled class="w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-lock text-xs"></i> Skor Terkunci (Set Selesai)
+                        <button id="btnAddA_{{ $mIdx }}" disabled class="w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-lock text-xs"></i> Skor Terkunci ({{ $unitTabLabel }} Selesai)
                         </button>
                     @else
                         <button id="btnAddA_{{ $mIdx }}" onclick="addPoint('A', {{ $mIdx }})" class="w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
@@ -312,8 +310,8 @@
                 <!-- Point Button — hanya tampil untuk Host -->
                 @if($isHost)
                     @if($isMCompleted)
-                        <button disabled class="w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-lock text-xs"></i> Skor Terkunci (Set Selesai)
+                        <button id="btnAddB_{{ $mIdx }}" disabled class="w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-lock text-xs"></i> Skor Terkunci ({{ $unitTabLabel }} Selesai)
                         </button>
                     @else
                         <button id="btnAddB_{{ $mIdx }}" onclick="addPoint('B', {{ $mIdx }})" class="w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
@@ -331,7 +329,7 @@
         <!-- Score Status Notice -->
         <div id="matchNotice_{{ $mIdx }}" class="p-3.5 bg-white/90 rounded-xl border border-slate-200/70 text-center text-xs font-semibold text-slate-700 shadow-2xs">
             @if($isMCompleted)
-                🔒 <strong>{{ $unitTabLabel }} {{ preg_replace('/[^0-9]/', '', $activeRound) ?: '1' }} Selesai & Terkunci</strong> &bull; Skor: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}
+                🔒 <strong>{{ $unitTabLabel }} {{ $activeRoundNum }} Selesai & Terkunci</strong> &bull; Skor: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}
             @else
                 Point: <strong>0 &mdash; 0</strong> &bull; <em>Game sedang berlangsung</em>
             @endif
@@ -357,7 +355,7 @@
                 <div class="flex items-center justify-center gap-2 text-xs font-bold text-amber-900">
                     <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
                     <span id="waitingOtherCourtsText_{{ $mIdx }}">
-                        Menunggu {{ $otherNamesStr ?: 'court lain' }} menyelesaikan {{ $unitTabLabel }} {{ $activeRoundNum }}...
+                        Menunggu {{ $otherNamesStr ?: 'court lain' }} menyelesaikan {{ $unitTabLabel }} {{ $activeRoundNum }} sebelum melanjutkan ke ronde berikutnya.
                     </span>
                 </div>
             </div>
@@ -384,7 +382,6 @@
         </div>
 
         <!-- Controls: Selesaikan Sesi & Lihat Juara — hanya untuk Host -->
-        <!-- Controls: Selesaikan Sesi & Lihat Juara — hanya untuk Host -->
         @if($isHost)
         <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200/50">
             <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
@@ -393,12 +390,10 @@
                     <i class="fa-solid fa-ranking-star text-[10px] text-amber-500"></i> Lihat Klasemen Sementara
                 </a>
 
-                @if(!$isMCompleted)
-                    <button type="button" onclick="manualCompleteSet({{ $mIdx }})"
-                       class="px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 shadow-2xs transition-colors flex items-center gap-1.5 justify-center cursor-pointer">
-                        <i class="fa-solid fa-lock text-amber-600"></i> Kunci &amp; Selesaikan {{ $unitTabLabel }} Ini
-                    </button>
-                @endif
+                <button type="button" id="btnManualComplete_{{ $mIdx }}" onclick="manualCompleteSet({{ $mIdx }})"
+                   class="{{ $isMCompleted ? 'hidden' : '' }} px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 shadow-2xs transition-colors flex items-center gap-1.5 justify-center cursor-pointer">
+                    <i class="fa-solid fa-lock text-amber-600"></i> Kunci &amp; Selesaikan {{ $unitTabLabel }} Ini
+                </button>
 
                 <div class="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -661,7 +656,7 @@
             st.winnerTeam = setWon;
             st.setsA = (setWon === 'Team A') ? 1 : 0;
             st.setsB = (setWon === 'Team B') ? 1 : 0;
-            showCompletedBanner(setWon, cIdx);
+            updateDisplay(cIdx);
             saveScore(cIdx, 'completed', st.localVersion);
         }
     }
@@ -669,7 +664,8 @@
     function manualCompleteSet(cIdx) {
         let st = courtsState[cIdx];
         if (st.matchDone) return;
-        const conf = confirm(`Apakah Anda yakin ingin menyelesaikan dan mengunci skor pada Court ${st.courtNum}?`);
+        const courtLabel = st.courtName || ('Court ' + st.courtNum);
+        const conf = confirm(`Apakah Anda yakin ingin menyelesaikan dan mengunci skor pada ${courtLabel}?`);
         if (!conf) return;
 
         const tClick = performance.now();
@@ -682,10 +678,9 @@
         st.winnerTeam = (st.gamesA >= st.gamesB) ? 'Team A' : 'Team B';
         st.setsA = (st.winnerTeam === 'Team A') ? 1 : 0;
         st.setsB = (st.winnerTeam === 'Team B') ? 1 : 0;
-        showCompletedBanner(st.winnerTeam, cIdx);
         updateDisplay(cIdx);
         saveScore(cIdx, 'completed', clientSeq, tClick);
-        showToast(`Skor Court ${st.courtNum} berhasil dikunci!`);
+        showToast(`Skor ${courtLabel} berhasil dikunci!`);
     }
 
     function resetPoints(cIdx) {
@@ -707,7 +702,12 @@
         const gameDispB = document.getElementById('displayGameScoreB_' + cIdx);
         const curBadge = document.getElementById('currentSetGamesBadge_' + cIdx);
         const notice = document.getElementById('matchNotice_' + cIdx);
+        const setLbl = document.getElementById('currentSetLabel_' + cIdx);
+        const lockedBadge = document.getElementById('lockedBadge_' + cIdx);
+        const lockedBadgeText = document.getElementById('lockedBadgeText_' + cIdx);
+        const btnManual = document.getElementById('btnManualComplete_' + cIdx);
         const displays = getPointDisplays(cIdx);
+        const courtLabel = st.courtName || ('Court ' + st.courtNum);
 
         if (dispA) dispA.innerText = displays.a;
         if (dispB) dispB.innerText = displays.b;
@@ -717,9 +717,13 @@
         if (subA) subA.innerText = `Games Won: ${st.gamesA} Game`;
         if (subB) subB.innerText = `Games Won: ${st.gamesB} Game`;
 
+        if (setLbl) {
+            setLbl.innerHTML = `Status: <strong>${st.matchDone ? (UNIT_TAB_LABEL + ' Selesai') : 'Sedang Berlangsung'}</strong>`;
+        }
+
         if (notice) {
             if (st.matchDone) {
-                notice.innerHTML = `🔒 <strong>Selesai & Terkunci</strong> &bull; Skor Akhir: <strong>${st.gamesA} — ${st.gamesB}</strong> (${st.winnerTeam || 'Selesai'})`;
+                notice.innerHTML = `🔒 <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Selesai & Terkunci</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB}</strong> (${st.winnerTeam || 'Selesai'})`;
             } else if (st.isDeuce) {
                 if (st.advantage === 'A') {
                     notice.innerHTML = '<strong class="text-[#063B00]">ADVANTAGE TEAM A</strong> &bull; Butuh 1 poin lagi untuk memenangkan game';
@@ -735,29 +739,52 @@
 
         const bA = document.getElementById('btnAddA_' + cIdx);
         const bB = document.getElementById('btnAddB_' + cIdx);
+
         if (st.matchDone) {
+            if (lockedBadge) {
+                lockedBadge.classList.remove('hidden');
+                if (lockedBadgeText) {
+                    lockedBadgeText.textContent = `Skor ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} pada ${courtLabel} sudah selesai dan terkunci.`;
+                }
+            }
+            if (btnManual) {
+                btnManual.classList.add('hidden');
+            }
             showCompletedBanner(st.winnerTeam || 'Pertandingan', cIdx);
             if (bA) {
                 bA.disabled = true;
                 bA.className = 'w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2';
-                bA.innerHTML = '<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci (Set Selesai)';
+                bA.innerHTML = `<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci (${UNIT_TAB_LABEL} Selesai)`;
             }
             if (bB) {
                 bB.disabled = true;
                 bB.className = 'w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2';
-                bB.innerHTML = '<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci (Set Selesai)';
+                bB.innerHTML = `<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci (${UNIT_TAB_LABEL} Selesai)`;
             }
         } else {
+            if (lockedBadge) {
+                lockedBadge.classList.add('hidden');
+            }
+            if (btnManual) {
+                btnManual.classList.remove('hidden');
+            }
+            const banner = document.getElementById('matchCompletedBanner_' + cIdx);
+            if (banner) {
+                banner.classList.add('hidden');
+            }
             if (bA) {
                 bA.disabled = false;
-                bA.classList.remove('opacity-50', 'pointer-events-none', 'cursor-not-allowed');
+                bA.className = 'w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer';
+                bA.innerHTML = '<i class="fa-solid fa-plus text-xs text-[#A8E63A]"></i> Tambah Poin Team A';
             }
             if (bB) {
                 bB.disabled = false;
-                bB.classList.remove('opacity-50', 'pointer-events-none', 'cursor-not-allowed');
+                bB.className = 'w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer';
+                bB.innerHTML = '<i class="fa-solid fa-plus text-xs text-[#A8E63A]"></i> Tambah Poin Team B';
             }
         }
 
+        syncRoundCompletionStatus();
         syncFinishFormInputs(cIdx);
     }
 
@@ -777,12 +804,26 @@
         if (bA) {
             bA.disabled = true;
             bA.className = 'w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2';
-            bA.innerHTML = '<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci';
+            bA.innerHTML = `<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci (${UNIT_TAB_LABEL} Selesai)`;
         }
         if (bB) {
             bB.disabled = true;
             bB.className = 'w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2';
-            bB.innerHTML = '<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci';
+            bB.innerHTML = `<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci (${UNIT_TAB_LABEL} Selesai)`;
+        }
+
+        const lockedBadge = document.getElementById('lockedBadge_' + cIdx);
+        const lockedBadgeText = document.getElementById('lockedBadgeText_' + cIdx);
+        if (lockedBadge) {
+            lockedBadge.classList.remove('hidden');
+            if (lockedBadgeText) {
+                lockedBadgeText.textContent = `Skor ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} pada ${courtLabel} sudah selesai dan terkunci.`;
+            }
+        }
+
+        const btnManual = document.getElementById('btnManualComplete_' + cIdx);
+        if (btnManual) {
+            btnManual.classList.add('hidden');
         }
 
         syncRoundCompletionStatus();
@@ -807,7 +848,7 @@
                     const waitingNames = otherUnfinished.join(', ') || 'court lain';
                     if (waitingBox) waitingBox.classList.remove('hidden');
                     if (waitingText) {
-                        waitingText.textContent = `Menunggu ${waitingNames} menyelesaikan ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM}...`;
+                        waitingText.textContent = `Menunggu ${waitingNames} menyelesaikan ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} sebelum melanjutkan ke ronde berikutnya.`;
                     }
                     if (nextNav) nextNav.classList.add('hidden');
                 } else {
