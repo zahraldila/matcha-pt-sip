@@ -1017,6 +1017,10 @@ class ScoringController extends Controller
 
         // Data statistik pemain berdasarkan hasil pertandingan yang tersimpan.
         $playerRecap = $this->buildPlayerRecap($game, $rankedPlayers);
+        $storyPlayerStats = [];
+        foreach ($rankedPlayers as $rankedPlayer) {
+            $storyPlayerStats[$rankedPlayer['name']] = $this->buildPlayerRecap($game, $rankedPlayers, $rankedPlayer['name']);
+        }
 
         return view('scoring.recap', compact(
             'game',
@@ -1024,21 +1028,24 @@ class ScoringController extends Controller
             'rankedPlayers',
             'lastScore',
             'playerRecap',
+            'storyPlayerStats',
             'savedScores',
             'effectiveScores'
         ));
     }
 
-    private function buildPlayerRecap(array $game, array $rankedPlayers): array
+    private function buildPlayerRecap(array $game, array $rankedPlayers, ?string $requestedPlayerName = null): array
     {
         $selectedPlayer = null;
         $user = Auth::user();
 
-        if ($user) {
+        if ($requestedPlayerName) {
+            $selectedPlayer = Player::where('nama', $requestedPlayerName)->first();
+        } elseif ($user) {
             $selectedPlayer = Player::where('user_id', $user->user_id)->first();
         }
 
-        $playerName = $selectedPlayer?->nama;
+        $playerName = $requestedPlayerName ?: $selectedPlayer?->nama;
         $playerStats = collect($rankedPlayers)->first(function (array $player) use ($playerName) {
             return $playerName && ScoringService::cleanPlayerName($player['name']) === ScoringService::cleanPlayerName($playerName);
         });

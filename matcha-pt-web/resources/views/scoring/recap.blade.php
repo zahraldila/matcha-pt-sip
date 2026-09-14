@@ -843,22 +843,21 @@
                                 <div class="p-2 rounded-xl bg-white/5 border border-white/5">
                                     <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Durasi Main</p>
                                     <p class="text-base font-black text-slate-200 mt-0.5" id="stravaCalTime">
-                                        {{ $playerRecap['duration_played'] }}
+                                        {{ $storyPlayerStats[$rankedPlayers[0]['name']]['duration_played'] ?? $playerRecap['duration_played'] }}
                                     </p>
                                 </div>
                             </div>
 
                             <!-- Kudos Badges Highlight Pills -->
-                            <div class="pt-0.5 flex items-center justify-center gap-1.5 flex-wrap">
-                                <span class="px-2 py-0.5 rounded-full text-[8px] font-bold bg-[#A8E63A]/20 text-[#A8E63A] border border-[#A8E63A]/30">🎾 Super Forehand</span>
-                                <span class="px-2 py-0.5 rounded-full text-[8px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">⭐ MVP Play</span>
+                            <div id="storyKudosBadges" class="pt-0.5 flex items-center justify-center gap-1.5 flex-wrap">
+                                <span class="text-[8px] text-slate-400">Pilih kudos untuk menampilkannya</span>
                             </div>
                         </div>
 
                         <!-- Footer -->
                         <div class="pt-2 text-center border-t border-white/10 flex items-center justify-between text-[8px] text-slate-400">
                             <span>MATCHA Tennis & Padel</span>
-                            <span class="font-bold text-[#A8E63A]">{{ date('d M Y') }}</span>
+                            <span class="font-bold text-[#A8E63A]">{{ \Carbon\Carbon::parse($game['date'])->format('d M Y') }}</span>
                         </div>
                     </div>
                 </div>
@@ -904,11 +903,13 @@
                     </label>
                     <select id="stravaPlayerSelect" onchange="onSelectStravaPlayer(this.value)" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 shadow-2xs focus:outline-none focus:border-[#063B00]">
                         @foreach($rankedPlayers as $rp)
+                        @php($storyStats = $storyPlayerStats[$rp['name']] ?? [])
                         <option value="{{ $rp['name'] }}" 
                             data-points="{{ $rp['points_for'] ?? $rp['games_won'] }}" 
                             data-wins="{{ $rp['wins'] }}" 
                             data-losses="{{ $rp['losses'] }}"
-                            data-matches="{{ $rp['matches'] }}">
+                            data-matches="{{ $rp['matches'] }}"
+                            data-duration="{{ $storyStats['duration_played'] ?? '0m' }}">
                             #{{ $rp['rank'] }} &bull; {{ $rp['name'] }} ({{ $rp['points_for'] ?? $rp['games_won'] }} pts)
                         </option>
                         @endforeach
@@ -976,17 +977,33 @@
 
 <script>
     // Kudos logic
+    const selectedStoryKudos = new Map();
+
+    function renderStoryKudos() {
+        const container = document.getElementById('storyKudosBadges');
+        if (!container) return;
+
+        const badges = Array.from(selectedStoryKudos.values()).slice(0, 2);
+        container.innerHTML = badges.length
+            ? badges.map((badge) => `<span class="px-2 py-0.5 rounded-full bg-[#A8E63A]/20 text-[#A8E63A] border border-[#A8E63A]/30 text-[8px] font-bold">${badge}</span>`).join('')
+            : '<span class="text-[8px] text-slate-400">Pilih kudos untuk menampilkannya</span>';
+    }
+
     function toggleKudos(button, playerName) {
+        const badge = button.textContent.trim();
         if (button.classList.contains('bg-[#063B00]')) {
             button.classList.remove('bg-[#063B00]', 'text-white', 'border-[#063B00]');
             button.classList.add('bg-slate-50', 'text-slate-700', 'border-slate-200');
+            selectedStoryKudos.delete(`${playerName}:${badge}`);
         } else {
             button.classList.add('bg-[#063B00]', 'text-white', 'border-[#063B00]');
             button.classList.remove('bg-slate-50', 'text-slate-700', 'border-slate-200');
+            selectedStoryKudos.set(`${playerName}:${badge}`, badge);
             if (typeof showToast === 'function') {
                 showToast('Kudos untuk ' + (playerName || 'pemain') + ' berhasil diberikan! 👏');
             }
         }
+        renderStoryKudos();
     }
 
     // Modal Control: Share Options Modal
@@ -1212,17 +1229,20 @@
         const wins = parseInt(selectedOpt.getAttribute('data-wins') || '0');
         const losses = parseInt(selectedOpt.getAttribute('data-losses') || '0');
         const matches = parseInt(selectedOpt.getAttribute('data-matches') || '1');
+        const duration = selectedOpt.getAttribute('data-duration') || '0m';
 
         const nameEl = document.getElementById('stravaPlayerName');
         const avatarEl = document.getElementById('stravaAvatarInitial');
         const ptsEl = document.getElementById('stravaPoints');
         const wrEl = document.getElementById('stravaWinRate');
         const recEl = document.getElementById('stravaRecord');
+        const durationEl = document.getElementById('stravaCalTime');
 
         if (nameEl) nameEl.innerText = playerName;
         if (avatarEl) avatarEl.innerText = playerName.charAt(0);
         if (ptsEl) ptsEl.innerText = points;
         if (recEl) recEl.innerText = `${wins}W - ${losses}L`;
+        if (durationEl) durationEl.innerText = duration;
         if (wrEl) {
             const rate = matches > 0 ? Math.round((wins / matches) * 100) : 0;
             wrEl.innerText = `${rate}%`;
