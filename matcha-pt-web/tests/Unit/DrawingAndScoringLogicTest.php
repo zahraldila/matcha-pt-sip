@@ -2,13 +2,73 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use App\Http\Controllers\Scoring\ScoringController;
+use App\Models\Court;
+use App\Models\Drawing;
+use App\Models\GameMatch;
+use App\Models\MatchParticipant;
+use App\Models\Player;
+use App\Models\SessionModel;
+use App\Models\User;
 use App\Services\Drawing\AmericanoService;
 use App\Services\Drawing\TeamAmericanoService;
 use App\Services\Scoring\ScoringService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
 
 class DrawingAndScoringLogicTest extends TestCase
 {
+    public function test_scoring_configuration_uses_expected_set_and_point_targets()
+    {
+        foreach ([
+            'Total of 3' => [3, 2, true, 6],
+            'Total of 4' => [4, 3, true, 6],
+            'Total of 5' => [5, 3, true, 6],
+            'Total of 6' => [6, 4, true, 6],
+            'Total of 7' => [7, 4, true, 6],
+            'First to 8' => [1, 1, false, 8],
+            'First to 11' => [1, 1, false, 11],
+            'First to 15' => [1, 1, false, 15],
+            'First to 21' => [1, 1, false, 21],
+        ] as $label => [$maxSets, $targetSets, $isSets, $targetGames]) {
+            $system = ScoringService::detectScoringSystem($label);
+
+            $this->assertSame($maxSets, $system['max_sets'], $label);
+            $this->assertSame($targetSets, $system['target_sets'], $label);
+            $this->assertSame($isSets, $system['is_sets'], $label);
+            $this->assertSame($targetGames, $system['target_games'], $label);
+        }
+    }
+
+    public function test_americano_explicit_round_count_matches_total_of_configuration_for_single_and_double()
+    {
+        $service = new AmericanoService;
+
+        foreach (['Single' => ['Alice', 'Bob'], 'Double' => ['Alice', 'Bob', 'Charlie', 'David']] as $mode => $players) {
+            foreach ([3, 4, 5, 6, 7] as $roundCount) {
+                $rounds = $service->generateRounds($players, 1, $roundCount, $mode);
+
+                $this->assertCount($roundCount, $rounds, "{$mode} Total of {$roundCount} harus menghasilkan {$roundCount} ronde.");
+            }
+        }
+    }
+
+    public function test_americano_first_to_configuration_generates_one_round()
+    {
+        $service = new AmericanoService;
+
+        foreach ([8, 11, 15, 21] as $target) {
+            $system = ScoringService::detectScoringSystem("First to {$target}");
+            $roundCount = $system['is_sets'] ? $system['max_sets'] : 1;
+
+            $this->assertCount(1, $service->generateRounds(['Alice', 'Bob', 'Charlie', 'David'], 1, $roundCount, 'Double'));
+            $this->assertSame($target, $system['target_games']);
+        }
+    }
+
     /**
      * Test 1: Americano Individual - Partner Rotation Across Sets.
      * Pastikan pasangan selalu berganti di tiap Set (Set 1, Set 2, Set 3).
@@ -16,7 +76,7 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     public function test_americano_partner_rotation_across_sets()
     {
-        $service = new AmericanoService();
+        $service = new AmericanoService;
         $players = ['Alice', 'Bob', 'Charlie', 'David'];
 
         // 4 pemain, 1 court, 3 round (Set)
@@ -46,8 +106,8 @@ class DrawingAndScoringLogicTest extends TestCase
             $pairB = implode('&', $teamB);
 
             // Pastikan pasangan ini belum pernah terjadi di set sebelumnya
-            $this->assertNotContains($pairA, $partnerPairs, "Team A di Round " . ($roundIndex + 1) . " ({$pairA}) tidak boleh mengulang pasangan sebelumnya.");
-            $this->assertNotContains($pairB, $partnerPairs, "Team B di Round " . ($roundIndex + 1) . " ({$pairB}) tidak boleh mengulang pasangan sebelumnya.");
+            $this->assertNotContains($pairA, $partnerPairs, 'Team A di Round '.($roundIndex + 1)." ({$pairA}) tidak boleh mengulang pasangan sebelumnya.");
+            $this->assertNotContains($pairB, $partnerPairs, 'Team B di Round '.($roundIndex + 1)." ({$pairB}) tidak boleh mengulang pasangan sebelumnya.");
 
             $partnerPairs[] = $pairA;
             $partnerPairs[] = $pairB;
@@ -64,7 +124,7 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     public function test_dynamic_bench_calculation_for_odd_or_excess_players()
     {
-        $service = new AmericanoService();
+        $service = new AmericanoService;
         $players = ['Alice', 'Bob', 'Charlie', 'David', 'Eva']; // 5 pemain, 1 court (kapasitas 4)
 
         $rounds = $service->generateRounds($players, 1, 3);
@@ -92,7 +152,7 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     public function test_team_americano_preserves_fixed_pairs()
     {
-        $service = new TeamAmericanoService();
+        $service = new TeamAmericanoService;
         $players = ['Alice', 'Bob', 'Charlie', 'David'];
 
         // Cek pembentukan tim tetap
@@ -213,7 +273,7 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     public function test_americano_single_with_2_players_generates_1v1_match()
     {
-        $service = new AmericanoService();
+        $service = new AmericanoService;
         $players = ['Alice', 'Bob'];
 
         // 2 players, 1 court, 1 round max (N-1 = 1)
@@ -247,7 +307,7 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     public function test_americano_single_with_4_players_and_2_courts_generates_2_simultaneous_matches()
     {
-        $service = new AmericanoService();
+        $service = new AmericanoService;
         $players = ['Alice', 'Bob', 'Charlie', 'David'];
 
         $rounds = $service->generateRounds($players, 2, 3, 'Single');
@@ -279,7 +339,7 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     public function test_americano_single_with_4_players_and_1_court_schedules_matches_sequentially()
     {
-        $service = new AmericanoService();
+        $service = new AmericanoService;
         $players = ['Alice', 'Bob', 'Charlie', 'David'];
 
         $rounds = $service->generateRounds($players, 1, 3, 'Single');
@@ -301,7 +361,7 @@ class DrawingAndScoringLogicTest extends TestCase
     /**
      * Test 8: Americano Single — 3 players (odd), 1 court → fair resting rotation.
      *
-     * Expected rotation (3 players, N-1=2 rounds max, default=min(3,2)=2):
+     * Explicit Total of N continues for the configured number of rounds:
      *   Round 1: A vs B, C resting
      *   Round 2: A vs C (or B vs C), B resting
      *
@@ -310,14 +370,14 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     public function test_americano_single_odd_player_count_bench_handling()
     {
-        $service = new AmericanoService();
+        $service = new AmericanoService;
         $players = ['Alice', 'Bob', 'Charlie'];
 
-        // 3 pemain, 1 court, 3 round diminta → max N-1=2, jadi 2 round
+        // 3 pemain, 1 court, 3 round diminta → tepat 3 round
         $rounds = $service->generateRounds($players, 1, 3, 'Single');
 
         $this->assertNotEmpty($rounds, '3 pemain + 1 court harus menghasilkan minimal 1 round.');
-        $this->assertLessThanOrEqual(2, count($rounds), '3 pemain hanya bisa 2 round unik (N-1).');
+        $this->assertCount(3, $rounds, 'Total of 3 harus menghasilkan tepat 3 round.');
 
         $restingPlayersByRound = [];
         foreach ($rounds as $r => $round) {
@@ -366,14 +426,14 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     public function test_americano_single_opponent_rotation_without_early_repeats()
     {
-        $service = new AmericanoService();
+        $service = new AmericanoService;
 
         // ── Skenario A: 4 pemain + 2 courts (semua aktif setiap round) ──────────
         // Dengan 2 courts, 4 pemain semua bermain setiap round.
         // Round 1: pair1 vs pair2 (Court 1), pair3 vs pair4 (Court 2) — 2 unique pairs per round
         // Dalam 3 round default (N-1=3), pasangan tidak boleh ada yang berulang.
         $players4x2 = ['Alice', 'Bob', 'Charlie', 'David'];
-        $rounds4x2  = $service->generateRounds($players4x2, 2, 3, 'Single');
+        $rounds4x2 = $service->generateRounds($players4x2, 2, 3, 'Single');
 
         $this->assertNotEmpty($rounds4x2, '4 pemain + 2 courts harus menghasilkan rounds.');
 
@@ -382,7 +442,7 @@ class DrawingAndScoringLogicTest extends TestCase
             foreach ($round['matches'] as $match) {
                 $nameA = $match['team_a'][0]['name'];
                 $nameB = $match['team_b'][0]['name'];
-                $pair  = [$nameA, $nameB];
+                $pair = [$nameA, $nameB];
                 sort($pair);
                 $pairKey = implode('|', $pair);
 
@@ -399,16 +459,16 @@ class DrawingAndScoringLogicTest extends TestCase
         // Round 1 dan Round 2 minimal harus memiliki pasangan yang berbeda.
         // Repeat di round ke-3 bisa terjadi karena constraint resting (matematically inevitable).
         $players4x1 = ['Alice', 'Bob', 'Charlie', 'David'];
-        $rounds4x1  = $service->generateRounds($players4x1, 1, 3, 'Single');
+        $rounds4x1 = $service->generateRounds($players4x1, 1, 3, 'Single');
 
         $this->assertNotEmpty($rounds4x1, '4 pemain + 1 court harus menghasilkan rounds.');
 
         $roundValues = array_values($rounds4x1);
         if (count($roundValues) >= 2) {
-            $matchR1   = $roundValues[0]['matches'][0];
-            $matchR2   = $roundValues[1]['matches'][0];
-            $pairR1    = [$matchR1['team_a'][0]['name'], $matchR1['team_b'][0]['name']];
-            $pairR2    = [$matchR2['team_a'][0]['name'], $matchR2['team_b'][0]['name']];
+            $matchR1 = $roundValues[0]['matches'][0];
+            $matchR2 = $roundValues[1]['matches'][0];
+            $pairR1 = [$matchR1['team_a'][0]['name'], $matchR1['team_b'][0]['name']];
+            $pairR2 = [$matchR2['team_a'][0]['name'], $matchR2['team_b'][0]['name']];
             sort($pairR1);
             sort($pairR2);
 
@@ -427,7 +487,7 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     public function test_americano_single_no_array_index_one_access_error()
     {
-        $service = new AmericanoService();
+        $service = new AmericanoService;
         $players = ['Alice', 'Bob', 'Charlie'];
 
         $rounds = $service->generateRounds($players, 1, 2, 'Single');
@@ -461,7 +521,7 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     public function test_legacy_session_without_jenis_permainan_defaults_to_double()
     {
-        $service = new AmericanoService();
+        $service = new AmericanoService;
         $players = ['Alice', 'Bob', 'Charlie', 'David'];
 
         // Panggil tanpa $mode (backward compatible)
@@ -489,7 +549,7 @@ class DrawingAndScoringLogicTest extends TestCase
     {
         $game = [
             'scoring_system' => 'Total of 3',
-            'participants'   => [
+            'participants' => [
                 ['name' => 'Alice'],
                 ['name' => 'Bob'],
             ],
@@ -497,8 +557,8 @@ class DrawingAndScoringLogicTest extends TestCase
                 'round_1' => [
                     'matches' => [
                         [
-                            'court'        => 1,
-                            'court_name'   => 'Court 1',
+                            'court' => 1,
+                            'court_name' => 'Court 1',
                             'team_a_names' => ['Alice'],
                             'team_b_names' => ['Bob'],
                         ],
@@ -509,11 +569,11 @@ class DrawingAndScoringLogicTest extends TestCase
 
         $sessionScores = [
             'round_1_court_1' => [
-                'status'  => 'completed',
+                'status' => 'completed',
                 'games_a' => 6,
                 'games_b' => 2,
-                'sets_a'  => 1,
-                'sets_b'  => 0,
+                'sets_a' => 1,
+                'sets_b' => 0,
             ],
         ];
 
@@ -545,7 +605,7 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     public function test_americano_single_playing_history_partner_is_null_and_opponent_is_valid()
     {
-        $service = new AmericanoService();
+        $service = new AmericanoService;
         $players = [
             ['player_id' => 1, 'name' => 'Alice', 'gender' => 'Female', 'level' => 'Intermediate'],
             ['player_id' => 2, 'name' => 'Bob',   'gender' => 'Male',   'level' => 'Intermediate'],
@@ -574,13 +634,13 @@ class DrawingAndScoringLogicTest extends TestCase
                 // Simulasi logika ScoringController untuk Single:
                 // partner_player_id = null (tidak ada partner)
                 // opponent_player_id = ID pemain lawan
-                $partnerAId   = null;                    // tidak ada partner
-                $opponentAId  = $playerB['id'];          // lawan Player A adalah Player B
-                $partnerBId   = null;
-                $opponentBId  = $playerA['id'];
+                $partnerAId = null;                    // tidak ada partner
+                $opponentAId = $playerB['id'];          // lawan Player A adalah Player B
+                $partnerBId = null;
+                $opponentBId = $playerA['id'];
 
-                $this->assertNull($partnerAId,  "Round {$roundIndex}: Player A tidak boleh punya partner di Single.");
-                $this->assertNull($partnerBId,  "Round {$roundIndex}: Player B tidak boleh punya partner di Single.");
+                $this->assertNull($partnerAId, "Round {$roundIndex}: Player A tidak boleh punya partner di Single.");
+                $this->assertNull($partnerBId, "Round {$roundIndex}: Player B tidak boleh punya partner di Single.");
                 $this->assertEquals($playerB['id'], $opponentAId, "Round {$roundIndex}: opponent Player A harus Player B.");
                 $this->assertEquals($playerA['id'], $opponentBId, "Round {$roundIndex}: opponent Player B harus Player A.");
             }
@@ -592,7 +652,7 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     public function test_scoring_live_view_renders_without_type_error_when_team_contains_arrays()
     {
-        $service = new AmericanoService();
+        $service = new AmericanoService;
         $players = [
             ['player_id' => 1, 'name' => 'Alice', 'gender' => 'Female', 'level' => 'Intermediate'],
             ['player_id' => 2, 'name' => 'Bob',   'gender' => 'Male',   'level' => 'Intermediate'],
@@ -642,6 +702,7 @@ class DrawingAndScoringLogicTest extends TestCase
 
         $this->assertStringContainsString('Alice', $html);
         $this->assertStringContainsString('Bob', $html);
+        $this->assertStringContainsString('Set 3', $html);
     }
 
     /**
@@ -649,8 +710,8 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     protected function setupTestDatabaseSchema()
     {
-        if (!\Illuminate\Support\Facades\Schema::hasTable('tb_user')) {
-            \Illuminate\Support\Facades\Schema::create('tb_user', function ($table) {
+        if (! Schema::hasTable('tb_user')) {
+            Schema::create('tb_user', function ($table) {
                 $table->id('user_id');
                 $table->string('nama')->default('User Test');
                 $table->string('no_hp')->nullable();
@@ -660,8 +721,8 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->timestamps();
             });
         }
-        if (!\Illuminate\Support\Facades\Schema::hasTable('tb_session')) {
-            \Illuminate\Support\Facades\Schema::create('tb_session', function ($table) {
+        if (! Schema::hasTable('tb_session')) {
+            Schema::create('tb_session', function ($table) {
                 $table->id('session_id');
                 $table->unsignedBigInteger('host_user_id')->nullable();
                 $table->unsignedBigInteger('sport_id')->nullable();
@@ -676,21 +737,21 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->timestamps();
             });
         }
-        if (!\Illuminate\Support\Facades\Schema::hasTable('tb_court')) {
-            \Illuminate\Support\Facades\Schema::create('tb_court', function ($table) {
+        if (! Schema::hasTable('tb_court')) {
+            Schema::create('tb_court', function ($table) {
                 $table->id('court_id');
                 $table->string('nama_court');
                 $table->timestamps();
             });
         }
-        if (!\Illuminate\Support\Facades\Schema::hasTable('tb_session_court')) {
-            \Illuminate\Support\Facades\Schema::create('tb_session_court', function ($table) {
+        if (! Schema::hasTable('tb_session_court')) {
+            Schema::create('tb_session_court', function ($table) {
                 $table->unsignedBigInteger('session_id');
                 $table->unsignedBigInteger('court_id');
             });
         }
-        if (!\Illuminate\Support\Facades\Schema::hasTable('tb_player')) {
-            \Illuminate\Support\Facades\Schema::create('tb_player', function ($table) {
+        if (! Schema::hasTable('tb_player')) {
+            Schema::create('tb_player', function ($table) {
                 $table->id('player_id');
                 $table->unsignedBigInteger('user_id')->nullable();
                 $table->unsignedBigInteger('community_id')->nullable();
@@ -704,14 +765,14 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->timestamps();
             });
         }
-        if (!\Illuminate\Support\Facades\Schema::hasTable('tb_session_player')) {
-            \Illuminate\Support\Facades\Schema::create('tb_session_player', function ($table) {
+        if (! Schema::hasTable('tb_session_player')) {
+            Schema::create('tb_session_player', function ($table) {
                 $table->unsignedBigInteger('session_id');
                 $table->unsignedBigInteger('player_id');
             });
         }
-        if (!\Illuminate\Support\Facades\Schema::hasTable('tb_drawing')) {
-            \Illuminate\Support\Facades\Schema::create('tb_drawing', function ($table) {
+        if (! Schema::hasTable('tb_drawing')) {
+            Schema::create('tb_drawing', function ($table) {
                 $table->id('drawing_id');
                 $table->unsignedBigInteger('session_id');
                 $table->unsignedBigInteger('match_format_id')->default(1);
@@ -720,8 +781,8 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->timestamps();
             });
         }
-        if (!\Illuminate\Support\Facades\Schema::hasTable('tb_match')) {
-            \Illuminate\Support\Facades\Schema::create('tb_match', function ($table) {
+        if (! Schema::hasTable('tb_match')) {
+            Schema::create('tb_match', function ($table) {
                 $table->id('match_id');
                 $table->unsignedBigInteger('drawing_id');
                 $table->unsignedBigInteger('court_id')->nullable();
@@ -734,16 +795,16 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->timestamps();
             });
         }
-        if (!\Illuminate\Support\Facades\Schema::hasTable('tb_match_participant')) {
-            \Illuminate\Support\Facades\Schema::create('tb_match_participant', function ($table) {
+        if (! Schema::hasTable('tb_match_participant')) {
+            Schema::create('tb_match_participant', function ($table) {
                 $table->unsignedBigInteger('match_id');
                 $table->unsignedBigInteger('player_id');
                 $table->string('side');
                 $table->primary(['match_id', 'player_id']);
             });
         }
-        if (!\Illuminate\Support\Facades\Schema::hasTable('tb_score')) {
-            \Illuminate\Support\Facades\Schema::create('tb_score', function ($table) {
+        if (! Schema::hasTable('tb_score')) {
+            Schema::create('tb_score', function ($table) {
                 $table->id('score_id');
                 $table->unsignedBigInteger('match_id');
                 $table->integer('set_number')->default(1);
@@ -770,16 +831,16 @@ class DrawingAndScoringLogicTest extends TestCase
     {
         $this->setupTestDatabaseSchema();
 
-        $hostUser = \App\Models\User::create([
+        $hostUser = User::create([
             'nama' => 'Host User',
-            'email' => 'host_' . uniqid() . '@matcha.com',
+            'email' => 'host_'.uniqid().'@matcha.com',
             'role' => 'host',
             'password' => bcrypt('secret'),
         ]);
 
-        $session = \App\Models\SessionModel::create([
+        $session = SessionModel::create([
             'host_user_id' => $hostUser->user_id,
-            'nama_session' => 'Test Americano ' . $jenisPermainan,
+            'nama_session' => 'Test Americano '.$jenisPermainan,
             'scoring_system' => 'Total of 3',
             'status_session' => 'In Progress',
             'jenis_permainan' => $jenisPermainan,
@@ -788,7 +849,7 @@ class DrawingAndScoringLogicTest extends TestCase
 
         // Tambah courts
         for ($c = 1; $c <= $courtCount; $c++) {
-            $court = \App\Models\Court::create(['nama_court' => "Court {$c}"]);
+            $court = Court::create(['nama_court' => "Court {$c}"]);
             \DB::table('tb_session_court')->insert([
                 'session_id' => $session->session_id,
                 'court_id' => $court->court_id,
@@ -796,7 +857,7 @@ class DrawingAndScoringLogicTest extends TestCase
         }
 
         // Tambah players (Host + member players)
-        $hostPlayer = \App\Models\Player::create([
+        $hostPlayer = Player::create([
             'user_id' => $hostUser->user_id,
             'nama' => 'Host User',
             'gender' => 'Male',
@@ -810,13 +871,13 @@ class DrawingAndScoringLogicTest extends TestCase
         $playerCount = $jenisPermainan === 'Single' ? 4 : 8;
         $memberUsers = [];
         for ($p = 2; $p <= $playerCount; $p++) {
-            $mUser = \App\Models\User::create([
+            $mUser = User::create([
                 'nama' => "Player {$p}",
-                'email' => "player_{$p}_" . uniqid() . '@matcha.com',
+                'email' => "player_{$p}_".uniqid().'@matcha.com',
                 'role' => 'member',
                 'password' => bcrypt('secret'),
             ]);
-            $player = \App\Models\Player::create([
+            $player = Player::create([
                 'user_id' => $mUser->user_id,
                 'nama' => "Player {$p}",
                 'gender' => 'Male',
@@ -842,17 +903,17 @@ class DrawingAndScoringLogicTest extends TestCase
 
         $this->actingAs($member);
 
-        $controller = new \App\Http\Controllers\Scoring\ScoringController();
-        $request = new \Illuminate\Http\Request([
-            'game_id'   => $session->session_id,
-            'round'     => 'round_1',
+        $controller = new ScoringController;
+        $request = new Request([
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
             'match_key' => 'round_1_court_1',
-            'court'     => 1,
-            'score_a'   => 3,
-            'score_b'   => 1,
-            'games_a'   => 3,
-            'games_b'   => 1,
-            'status'    => 'in_progress',
+            'court' => 1,
+            'score_a' => 3,
+            'score_b' => 1,
+            'games_a' => 3,
+            'games_b' => 1,
+            'status' => 'in_progress',
         ]);
 
         $updateResp = $controller->updateScore($request);
@@ -877,17 +938,17 @@ class DrawingAndScoringLogicTest extends TestCase
         [$session, $hostUser] = $this->createTestSession('Single', 2);
         $this->actingAs($hostUser);
 
-        $controller = new \App\Http\Controllers\Scoring\ScoringController();
-        $request = new \Illuminate\Http\Request([
-            'game_id'   => $session->session_id,
-            'round'     => 'round_1',
+        $controller = new ScoringController;
+        $request = new Request([
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
             'match_key' => 'round_1_court_1',
-            'court'     => 1,
-            'score_a'   => 5,
-            'score_b'   => 2,
-            'games_a'   => 5,
-            'games_b'   => 2,
-            'status'    => 'in_progress',
+            'court' => 1,
+            'score_a' => 5,
+            'score_b' => 2,
+            'games_a' => 5,
+            'games_b' => 2,
+            'status' => 'in_progress',
         ]);
 
         $updateResp = $controller->updateScore($request);
@@ -910,22 +971,22 @@ class DrawingAndScoringLogicTest extends TestCase
         [$session, $hostUser] = $this->createTestSession('Single', 2);
         $this->actingAs($hostUser);
 
-        $controller = new \App\Http\Controllers\Scoring\ScoringController();
-        $request = new \Illuminate\Http\Request([
-            'game_id'   => $session->session_id,
-            'round'     => 'round_1',
+        $controller = new ScoringController;
+        $request = new Request([
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
             'match_key' => 'round_1_court_1',
-            'court'     => 1,
-            'score_a'   => 4,
-            'score_b'   => 3,
-            'games_a'   => 4,
-            'games_b'   => 3,
-            'status'    => 'in_progress',
+            'court' => 1,
+            'score_a' => 4,
+            'score_b' => 3,
+            'games_a' => 4,
+            'games_b' => 3,
+            'status' => 'in_progress',
         ]);
         $controller->updateScore($request);
 
         // Hapus Cache untuk mensimulasikan cache expire / clear / fresh browser session
-        \Illuminate\Support\Facades\Cache::flush();
+        Cache::flush();
 
         // Saat refresh (GET score), score dipulihkan dari tb_score di database
         \Illuminate\Support\Facades\Request::replace(['match_key' => 'round_1_court_1']);
@@ -944,17 +1005,17 @@ class DrawingAndScoringLogicTest extends TestCase
         [$session, $hostUser] = $this->createTestSession('Single', 2);
         $this->actingAs($hostUser);
 
-        $controller = new \App\Http\Controllers\Scoring\ScoringController();
-        $request = new \Illuminate\Http\Request([
-            'game_id'   => $session->session_id,
-            'round'     => 'round_1',
+        $controller = new ScoringController;
+        $request = new Request([
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
             'match_key' => 'round_1_court_1',
-            'court'     => 1,
-            'score_a'   => 6,
-            'score_b'   => 0,
-            'games_a'   => 6,
-            'games_b'   => 0,
-            'status'    => 'in_progress',
+            'court' => 1,
+            'score_a' => 6,
+            'score_b' => 0,
+            'games_a' => 6,
+            'games_b' => 0,
+            'status' => 'in_progress',
         ]);
         $controller->updateScore($request);
 
@@ -975,17 +1036,17 @@ class DrawingAndScoringLogicTest extends TestCase
         [$session, $hostUser] = $this->createTestSession('Single', 2);
         $this->actingAs($hostUser);
 
-        $controller = new \App\Http\Controllers\Scoring\ScoringController();
-        $request = new \Illuminate\Http\Request([
-            'game_id'   => $session->session_id,
-            'round'     => 'round_1',
+        $controller = new ScoringController;
+        $request = new Request([
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
             'match_key' => 'round_1_court_2',
-            'court'     => 2,
-            'score_a'   => 1,
-            'score_b'   => 5,
-            'games_a'   => 1,
-            'games_b'   => 5,
-            'status'    => 'in_progress',
+            'court' => 2,
+            'score_a' => 1,
+            'score_b' => 5,
+            'games_a' => 1,
+            'games_b' => 5,
+            'status' => 'in_progress',
         ]);
         $controller->updateScore($request);
 
@@ -1006,17 +1067,17 @@ class DrawingAndScoringLogicTest extends TestCase
         [$session, $hostUser] = $this->createTestSession('Single', 2);
         $this->actingAs($hostUser);
 
-        $controller = new \App\Http\Controllers\Scoring\ScoringController();
-        $request = new \Illuminate\Http\Request([
-            'game_id'   => $session->session_id,
-            'round'     => 'round_1',
+        $controller = new ScoringController;
+        $request = new Request([
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
             'match_key' => 'round_1_court_1',
-            'court'     => 1,
-            'score_a'   => 4,
-            'score_b'   => 2,
-            'games_a'   => 4,
-            'games_b'   => 2,
-            'status'    => 'in_progress',
+            'court' => 1,
+            'score_a' => 4,
+            'score_b' => 2,
+            'games_a' => 4,
+            'games_b' => 2,
+            'status' => 'in_progress',
         ]);
         $controller->updateScore($request);
 
@@ -1037,19 +1098,19 @@ class DrawingAndScoringLogicTest extends TestCase
         [$session, $hostUser] = $this->createTestSession('Single', 2);
         $this->actingAs($hostUser);
 
-        $controller = new \App\Http\Controllers\Scoring\ScoringController();
+        $controller = new ScoringController;
 
         // Court 2 memiliki skor
-        $request2 = new \Illuminate\Http\Request([
-            'game_id'   => $session->session_id,
-            'round'     => 'round_1',
+        $request2 = new Request([
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
             'match_key' => 'round_1_court_2',
-            'court'     => 2,
-            'score_a'   => 6,
-            'score_b'   => 6,
-            'games_a'   => 6,
-            'games_b'   => 6,
-            'status'    => 'in_progress',
+            'court' => 2,
+            'score_a' => 6,
+            'score_b' => 6,
+            'games_a' => 6,
+            'games_b' => 6,
+            'status' => 'in_progress',
         ]);
         $controller->updateScore($request2);
 
@@ -1072,14 +1133,14 @@ class DrawingAndScoringLogicTest extends TestCase
         $match = ScoringService::ensureMatchAndParticipants($session, 'round_1', 0);
         $this->assertNotNull($match);
 
-        $sideAPlayers = \App\Models\MatchParticipant::where('match_id', $match->match_id)->where('side', 'A')->get();
-        $sideBPlayers = \App\Models\MatchParticipant::where('match_id', $match->match_id)->where('side', 'B')->get();
+        $sideAPlayers = MatchParticipant::where('match_id', $match->match_id)->where('side', 'A')->get();
+        $sideBPlayers = MatchParticipant::where('match_id', $match->match_id)->where('side', 'B')->get();
 
         $this->assertCount(1, $sideAPlayers, 'Single format Side A harus tepat 1 pemain.');
         $this->assertCount(1, $sideBPlayers, 'Single format Side B harus tepat 1 pemain.');
 
         // Host yang ikut bermain harus memiliki player_id yang sama dengan di tb_player
-        $allParticipantIds = \App\Models\MatchParticipant::where('match_id', $match->match_id)->pluck('player_id')->toArray();
+        $allParticipantIds = MatchParticipant::where('match_id', $match->match_id)->pluck('player_id')->toArray();
         $this->assertContains($hostPlayer->player_id, $allParticipantIds, 'Host player_id harus terdaftar di tb_match_participant.');
     }
 
@@ -1093,14 +1154,14 @@ class DrawingAndScoringLogicTest extends TestCase
         $match = ScoringService::ensureMatchAndParticipants($session, 'round_1', 0);
         $this->assertNotNull($match);
 
-        $sideAPlayers = \App\Models\MatchParticipant::where('match_id', $match->match_id)->where('side', 'A')->get();
-        $sideBPlayers = \App\Models\MatchParticipant::where('match_id', $match->match_id)->where('side', 'B')->get();
+        $sideAPlayers = MatchParticipant::where('match_id', $match->match_id)->where('side', 'A')->get();
+        $sideBPlayers = MatchParticipant::where('match_id', $match->match_id)->where('side', 'B')->get();
 
         $this->assertCount(2, $sideAPlayers, 'Double format Side A harus tepat 2 pemain.');
         $this->assertCount(2, $sideBPlayers, 'Double format Side B harus tepat 2 pemain.');
 
         // Host yang ikut bermain harus memiliki player_id yang sama dengan di tb_player
-        $allParticipantIds = \App\Models\MatchParticipant::where('match_id', $match->match_id)->pluck('player_id')->toArray();
+        $allParticipantIds = MatchParticipant::where('match_id', $match->match_id)->pluck('player_id')->toArray();
         $this->assertContains($hostPlayer->player_id, $allParticipantIds, 'Host player_id harus terdaftar di tb_match_participant.');
     }
 
@@ -1117,11 +1178,11 @@ class DrawingAndScoringLogicTest extends TestCase
             $match = ScoringService::ensureMatchAndParticipants($session, 'round_1', 0);
         }
 
-        $drawing = \App\Models\Drawing::where('session_id', $session->session_id)->first();
+        $drawing = Drawing::where('session_id', $session->session_id)->first();
         $this->assertNotNull($drawing);
 
         // Nomor match deterministik untuk Round 1 Court 1 adalah 1
-        $count = \App\Models\GameMatch::where('drawing_id', $drawing->drawing_id)
+        $count = GameMatch::where('drawing_id', $drawing->drawing_id)
             ->where('nomor_match', 1)
             ->count();
 
@@ -1134,26 +1195,26 @@ class DrawingAndScoringLogicTest extends TestCase
     public function test_rapid_clicks_sequential_monotonic_version_and_correct_final_score()
     {
         [$session, $hostUser] = $this->createTestSession('Single', 2);
-        \Illuminate\Support\Facades\Auth::login($hostUser);
+        Auth::login($hostUser);
 
-        $controller = new \App\Http\Controllers\Scoring\ScoringController();
+        $controller = new ScoringController;
         $matchKey = 'round_1_court_1';
 
         // Simulasikan 5 klik cepat berturut-turut dari user
         $lastVersion = 0;
         for ($click = 1; $click <= 5; $click++) {
-            $req = new \Illuminate\Http\Request([
-                'game_id'        => $session->session_id,
-                'round'          => 'round_1',
-                'match_key'      => $matchKey,
-                'court'          => 1,
-                'score_a'        => $click,
-                'score_b'        => 0,
-                'games_a'        => $click,
-                'games_b'        => 0,
-                'status'         => 'in_progress',
+            $req = new Request([
+                'game_id' => $session->session_id,
+                'round' => 'round_1',
+                'match_key' => $matchKey,
+                'court' => 1,
+                'score_a' => $click,
+                'score_b' => 0,
+                'games_a' => $click,
+                'games_b' => 0,
+                'status' => 'in_progress',
                 'client_version' => $click,
-                'client_seq'     => $click,
+                'client_seq' => $click,
             ]);
 
             $resp = $controller->updateScore($req);
@@ -1180,26 +1241,26 @@ class DrawingAndScoringLogicTest extends TestCase
     public function test_out_of_order_requests_do_not_cause_score_rollback()
     {
         [$session, $hostUser] = $this->createTestSession('Single', 2);
-        \Illuminate\Support\Facades\Auth::login($hostUser);
+        Auth::login($hostUser);
 
-        $controller = new \App\Http\Controllers\Scoring\ScoringController();
+        $controller = new ScoringController;
         $matchKey = 'round_1_court_1';
         $clientId = 'cli_test_tab_1';
 
         // 1. Request baru (klik ke-4) tiba lebih dulu di server
-        $reqNew = new \Illuminate\Http\Request([
-            'game_id'        => $session->session_id,
-            'round'          => 'round_1',
-            'match_key'      => $matchKey,
-            'court'          => 1,
-            'score_a'        => 4,
-            'score_b'        => 0,
-            'games_a'        => 4,
-            'games_b'        => 0,
-            'status'         => 'in_progress',
-            'client_id'      => $clientId,
+        $reqNew = new Request([
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
+            'match_key' => $matchKey,
+            'court' => 1,
+            'score_a' => 4,
+            'score_b' => 0,
+            'games_a' => 4,
+            'games_b' => 0,
+            'status' => 'in_progress',
+            'client_id' => $clientId,
             'client_version' => 4,
-            'client_seq'     => 4,
+            'client_seq' => 4,
         ]);
         $respNew = $controller->updateScore($reqNew);
         $dataNew = $respNew->getData();
@@ -1207,19 +1268,19 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertEquals(1, $dataNew->version);
 
         // 2. Request lama (klik ke-2) mengalami network delay dan tiba terlambat di server dari client yang sama
-        $reqOld = new \Illuminate\Http\Request([
-            'game_id'        => $session->session_id,
-            'round'          => 'round_1',
-            'match_key'      => $matchKey,
-            'court'          => 1,
-            'score_a'        => 2,
-            'score_b'        => 0,
-            'games_a'        => 2,
-            'games_b'        => 0,
-            'status'         => 'in_progress',
-            'client_id'      => $clientId,
+        $reqOld = new Request([
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
+            'match_key' => $matchKey,
+            'court' => 1,
+            'score_a' => 2,
+            'score_b' => 0,
+            'games_a' => 2,
+            'games_b' => 0,
+            'status' => 'in_progress',
+            'client_id' => $clientId,
             'client_version' => 2,
-            'client_seq'     => 2,
+            'client_seq' => 2,
         ]);
         $respOld = $controller->updateScore($reqOld);
         $dataOld = $respOld->getData();
@@ -1229,19 +1290,19 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertEquals(4, $dataOld->saved->games_a, 'Skor yang dikembalikan harus tetap skor terbaru (4), bukan skor lama (2).');
 
         // 3. Request dari client lain (Window/Tab 2) yang mulai dari sequence 1 TIDAK boleh di-block
-        $reqOtherClient = new \Illuminate\Http\Request([
-            'game_id'        => $session->session_id,
-            'round'          => 'round_1',
-            'match_key'      => $matchKey,
-            'court'          => 1,
-            'score_a'        => 4,
-            'score_b'        => 1,
-            'games_a'        => 4,
-            'games_b'        => 1,
-            'status'         => 'in_progress',
-            'client_id'      => 'cli_test_tab_2',
+        $reqOtherClient = new Request([
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
+            'match_key' => $matchKey,
+            'court' => 1,
+            'score_a' => 4,
+            'score_b' => 1,
+            'games_a' => 4,
+            'games_b' => 1,
+            'status' => 'in_progress',
+            'client_id' => 'cli_test_tab_2',
             'client_version' => 1,
-            'client_seq'     => 1,
+            'client_seq' => 1,
         ]);
         $respOther = $controller->updateScore($reqOtherClient);
         $dataOther = $respOther->getData();
@@ -1264,22 +1325,22 @@ class DrawingAndScoringLogicTest extends TestCase
     public function test_version_isolation_independent_per_court()
     {
         [$session, $hostUser] = $this->createTestSession('Single', 2);
-        \Illuminate\Support\Facades\Auth::login($hostUser);
+        Auth::login($hostUser);
 
-        $controller = new \App\Http\Controllers\Scoring\ScoringController();
+        $controller = new ScoringController;
 
         // Update Court 1 tiga kali (version 1 -> 2 -> 3)
         for ($i = 1; $i <= 3; $i++) {
-            $req1 = new \Illuminate\Http\Request([
-                'game_id'        => $session->session_id,
-                'round'          => 'round_1',
-                'match_key'      => 'round_1_court_1',
-                'court'          => 1,
-                'score_a'        => $i,
-                'score_b'        => 0,
-                'games_a'        => $i,
-                'games_b'        => 0,
-                'status'         => 'in_progress',
+            $req1 = new Request([
+                'game_id' => $session->session_id,
+                'round' => 'round_1',
+                'match_key' => 'round_1_court_1',
+                'court' => 1,
+                'score_a' => $i,
+                'score_b' => 0,
+                'games_a' => $i,
+                'games_b' => 0,
+                'status' => 'in_progress',
                 'client_version' => $i,
             ]);
             $resp1 = $controller->updateScore($req1);
@@ -1287,16 +1348,16 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertEquals(3, $resp1->getData()->version, 'Court 1 version harus 3.');
 
         // Update Court 2 satu kali
-        $req2 = new \Illuminate\Http\Request([
-            'game_id'        => $session->session_id,
-            'round'          => 'round_1',
-            'match_key'      => 'round_1_court_2',
-            'court'          => 2,
-            'score_a'        => 1,
-            'score_b'        => 0,
-            'games_a'        => 1,
-            'games_b'        => 0,
-            'status'         => 'in_progress',
+        $req2 = new Request([
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_2',
+            'court' => 2,
+            'score_a' => 1,
+            'score_b' => 0,
+            'games_a' => 1,
+            'games_b' => 0,
+            'status' => 'in_progress',
             'client_version' => 1,
         ]);
         $resp2 = $controller->updateScore($req2);

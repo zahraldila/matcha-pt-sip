@@ -9,11 +9,10 @@ class AmericanoService
      *
      * Routes to Single (1 vs 1) or Double (2 vs 2) algorithm based on $mode.
      *
-     * @param array       $players     Array of player models, associative arrays, or player names
-     * @param int         $courtCount  Number of available courts
-     * @param int|null    $roundCount  Optional number of rounds (defaults to 3, max N-1)
-     * @param string      $mode        'Double' (default) or 'Single'
-     * @return array
+     * @param  array  $players  Array of player models, associative arrays, or player names
+     * @param  int  $courtCount  Number of available courts
+     * @param  int|null  $roundCount  Optional number of rounds (defaults to 3, max N-1)
+     * @param  string  $mode  'Double' (default) or 'Single'
      */
     public function generateRounds(array $players, int $courtCount, ?int $roundCount = null, string $mode = 'Double'): array
     {
@@ -38,10 +37,9 @@ class AmericanoService
      * - If players > courtCount * 4, excess players sit out in 'resting'.
      * - Fair sit-out queue: players resting in round r-1 are prioritized to play in round r.
      *
-     * @param array    $players     Array of player models, associative arrays, or player names
-     * @param int      $courtCount  Number of available courts
-     * @param int|null $roundCount  Optional number of rounds (defaults to 3, max N-1)
-     * @return array
+     * @param  array  $players  Array of player models, associative arrays, or player names
+     * @param  int  $courtCount  Number of available courts
+     * @param  int|null  $roundCount  Optional number of rounds (defaults to 3, max N-1)
      */
     private function generateDoubleRounds(array $players, int $courtCount, ?int $roundCount = null): array
     {
@@ -63,12 +61,12 @@ class AmericanoService
         $restingPerRound = $playerCount - $activePerRound;
 
         // 3. Determine number of rounds to generate
-        // Maximum theoretical rounds where no partner repeats is player count - 1
+        // Keep the historical default, but honor an explicit scoring round count.
         $maxTheoreticalRounds = max(1, $playerCount - 1);
         if ($roundCount === null || $roundCount < 1) {
             $totalRounds = min(3, $maxTheoreticalRounds);
         } else {
-            $totalRounds = min($roundCount, $maxTheoreticalRounds);
+            $totalRounds = $roundCount;
         }
 
         // Tracking structures
@@ -157,7 +155,7 @@ class AmericanoService
             // Re-identify resting players dynamically: anyone in $normalizedPlayers who is not playing in this round
             $dynamicResting = [];
             foreach ($normalizedPlayers as $np) {
-                if (!isset($playingIds[$np['id']])) {
+                if (! isset($playingIds[$np['id']])) {
                     $dynamicResting[] = $np;
                 }
             }
@@ -174,7 +172,7 @@ class AmericanoService
             // Construct round payload
             $teamANames = $matches[0]['team_a_names'];
             $teamBNames = $matches[0]['team_b_names'];
-            $restingNames = array_map(fn($p) => $p['name'], $restingPlayers);
+            $restingNames = array_map(fn ($p) => $p['name'], $restingPlayers);
 
             $roundName = match ($r) {
                 1 => 'Ronde 1 (Pembuka)',
@@ -184,19 +182,19 @@ class AmericanoService
             };
 
             $rounds[$r] = [
-                'round'         => $r,
-                'round_number'  => $r,
-                'round_name'    => $roundName,
-                'round_title'   => $roundName,
-                'court_count'   => $activeCourts,
-                'matches'       => $matches,
-                'teamA'         => $teamANames,
-                'teamB'         => $teamBNames,
-                'team_a'        => $matches[0]['team_a'] ?? [],
-                'team_b'        => $matches[0]['team_b'] ?? [],
-                'team_a_names'  => $teamANames,
-                'team_b_names'  => $teamBNames,
-                'resting'       => $restingNames,
+                'round' => $r,
+                'round_number' => $r,
+                'round_name' => $roundName,
+                'round_title' => $roundName,
+                'court_count' => $activeCourts,
+                'matches' => $matches,
+                'teamA' => $teamANames,
+                'teamB' => $teamBNames,
+                'team_a' => $matches[0]['team_a'] ?? [],
+                'team_b' => $matches[0]['team_b'] ?? [],
+                'team_a_names' => $teamANames,
+                'team_b_names' => $teamBNames,
+                'resting' => $restingNames,
                 'primary_match' => $matches[0] ?? null,
                 'resting_players' => $restingPlayers,
             ];
@@ -219,10 +217,9 @@ class AmericanoService
      *   before all unique pairs have been used (when constraints allow).
      * - No "partner" concept — each match is strictly 1 vs 1.
      *
-     * @param array    $players     Array of player models, associative arrays, or player names
-     * @param int      $courtCount  Number of available courts
-     * @param int|null $roundCount  Optional number of rounds
-     * @return array
+     * @param  array  $players  Array of player models, associative arrays, or player names
+     * @param  int  $courtCount  Number of available courts
+     * @param  int|null  $roundCount  Optional number of rounds
      */
     private function generateSingleRounds(array $players, int $courtCount, ?int $roundCount = null): array
     {
@@ -244,13 +241,12 @@ class AmericanoService
         $restingPerRound = $playerCount - $activePerRound;
 
         // 3. Determine number of rounds
-        // Maximum unique pairings for N players = N*(N-1)/2
-        // But a sensible default is N-1 rounds (round-robin style)
+        // Keep the historical default, but honor an explicit scoring round count.
         $maxTheoreticalRounds = max(1, $playerCount - 1);
         if ($roundCount === null || $roundCount < 1) {
             $totalRounds = min(3, $maxTheoreticalRounds);
         } else {
-            $totalRounds = min($roundCount, $maxTheoreticalRounds);
+            $totalRounds = $roundCount;
         }
 
         // Tracking structures
@@ -321,7 +317,7 @@ class AmericanoService
             // Dynamically recalculate resting (anyone not playing)
             $dynamicResting = [];
             foreach ($normalizedPlayers as $np) {
-                if (!isset($playingIds[$np['id']])) {
+                if (! isset($playingIds[$np['id']])) {
                     $dynamicResting[] = $np;
                 }
             }
@@ -339,7 +335,7 @@ class AmericanoService
             $primaryMatch = $matches[0];
             $teamANames = $primaryMatch['team_a_names'];
             $teamBNames = $primaryMatch['team_b_names'];
-            $restingNames = array_map(fn($p) => $p['name'], $restingPlayers);
+            $restingNames = array_map(fn ($p) => $p['name'], $restingPlayers);
 
             $roundName = match ($r) {
                 1 => 'Ronde 1 (Pembuka)',
@@ -349,20 +345,20 @@ class AmericanoService
             };
 
             $rounds[$r] = [
-                'round'           => $r,
-                'round_number'    => $r,
-                'round_name'      => $roundName,
-                'round_title'     => $roundName,
-                'court_count'     => $activeCourts,
-                'matches'         => $matches,
-                'teamA'           => $teamANames,
-                'teamB'           => $teamBNames,
-                'team_a'          => $primaryMatch['team_a'],
-                'team_b'          => $primaryMatch['team_b'],
-                'team_a_names'    => $teamANames,
-                'team_b_names'    => $teamBNames,
-                'resting'         => $restingNames,
-                'primary_match'   => $primaryMatch,
+                'round' => $r,
+                'round_number' => $r,
+                'round_name' => $roundName,
+                'round_title' => $roundName,
+                'court_count' => $activeCourts,
+                'matches' => $matches,
+                'teamA' => $teamANames,
+                'teamB' => $teamBNames,
+                'team_a' => $primaryMatch['team_a'],
+                'team_b' => $primaryMatch['team_b'],
+                'team_a_names' => $teamANames,
+                'team_b_names' => $teamBNames,
+                'resting' => $restingNames,
+                'primary_match' => $primaryMatch,
                 'resting_players' => $restingPlayers,
             ];
         }
@@ -376,10 +372,10 @@ class AmericanoService
      * Uses a greedy approach: tries all possible 1v1 pairings for active players
      * and picks the assignment with the lowest total opponent-repeat cost.
      *
-     * @param array $activePlayers  Normalized players to match this round
-     * @param int   $courtCount     Number of active courts
-     * @param array $opponentHistory Mutable opponent history reference
-     * @return array|null           Matches array, or null if cannot form any match
+     * @param  array  $activePlayers  Normalized players to match this round
+     * @param  int  $courtCount  Number of active courts
+     * @param  array  $opponentHistory  Mutable opponent history reference
+     * @return array|null Matches array, or null if cannot form any match
      */
     private function findSingleMatchesForRound(array $activePlayers, int $courtCount, array $opponentHistory): ?array
     {
@@ -422,10 +418,10 @@ class AmericanoService
 
                 $courtNum = $c + 1;
                 $matches[] = [
-                    'court'        => $courtNum,
-                    'court_name'   => "Court {$courtNum}",
-                    'team_a'       => [$pA],
-                    'team_b'       => [$pB],
+                    'court' => $courtNum,
+                    'court_name' => "Court {$courtNum}",
+                    'team_a' => [$pA],
+                    'team_b' => [$pB],
                     'team_a_names' => [$pA['name']],
                     'team_b_names' => [$pB['name']],
                 ];
@@ -449,10 +445,10 @@ class AmericanoService
      * Each "pairing" is an ordered flat array of 2*$courtCount players where
      * [0] vs [1] is court 1, [2] vs [3] is court 2, etc.
      *
-     * @param array $remaining   Players not yet assigned
-     * @param array $current     Current flat assignment list
-     * @param array &$results    Collected valid pairings
-     * @param int   $courtCount  How many pairs are needed
+     * @param  array  $remaining  Players not yet assigned
+     * @param  array  $current  Current flat assignment list
+     * @param  array  &$results  Collected valid pairings
+     * @param  int  $courtCount  How many pairs are needed
      */
     private function partitionIntoSinglePairs(array $remaining, array $current, array &$results, int $courtCount): void
     {
@@ -464,6 +460,7 @@ class AmericanoService
         $neededPairs = $courtCount * 2;
         if (count($current) === $neededPairs) {
             $results[] = $current;
+
             return;
         }
 
@@ -502,22 +499,22 @@ class AmericanoService
         array $opponentHistory,
         array $currentSelection
     ): ?array {
-        $active  = $currentSelection['active'];
+        $active = $currentSelection['active'];
         $resting = $currentSelection['resting'];
 
         for ($a = count($active) - 1; $a >= 0; $a--) {
             for ($r = 0; $r < count($resting); $r++) {
-                $newActive  = $active;
+                $newActive = $active;
                 $newResting = $resting;
 
-                $temp           = $newActive[$a];
-                $newActive[$a]  = $newResting[$r];
+                $temp = $newActive[$a];
+                $newActive[$a] = $newResting[$r];
                 $newResting[$r] = $temp;
 
                 $matches = $this->findSingleMatchesForRound($newActive, $courtCount, $opponentHistory);
                 if ($matches !== null) {
                     return [
-                        'active'  => $newActive,
+                        'active' => $newActive,
                         'resting' => $newResting,
                         'matches' => $matches,
                     ];
@@ -542,36 +539,36 @@ class AmericanoService
 
         foreach ($players as $p) {
             if (is_object($p)) {
-                $id     = $p->player_id ?? $p->id ?? ($index + 1);
-                $name   = $p->nama ?? $p->name ?? "Player {$id}";
-                $level  = $p->level ?? 'Intermediate';
+                $id = $p->player_id ?? $p->id ?? ($index + 1);
+                $name = $p->nama ?? $p->name ?? "Player {$id}";
+                $level = $p->level ?? 'Intermediate';
                 $gender = $p->gender ?? 'Male';
-                $phone  = $p->no_hp ?? $p->phone ?? '-';
+                $phone = $p->no_hp ?? $p->phone ?? '-';
                 $avatar = $p->avatar ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
             } elseif (is_array($p)) {
-                $id     = $p['player_id'] ?? $p['id'] ?? ($index + 1);
-                $name   = $p['nama'] ?? $p['name'] ?? "Player {$id}";
-                $level  = $p['level'] ?? 'Intermediate';
+                $id = $p['player_id'] ?? $p['id'] ?? ($index + 1);
+                $name = $p['nama'] ?? $p['name'] ?? "Player {$id}";
+                $level = $p['level'] ?? 'Intermediate';
                 $gender = $p['gender'] ?? 'Male';
-                $phone  = $p['no_hp'] ?? $p['phone'] ?? '-';
+                $phone = $p['no_hp'] ?? $p['phone'] ?? '-';
                 $avatar = $p['avatar'] ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
             } else {
-                $id     = $index + 1;
-                $name   = (string) $p;
-                $level  = 'Intermediate';
+                $id = $index + 1;
+                $name = (string) $p;
+                $level = 'Intermediate';
                 $gender = 'Male';
-                $phone  = '-';
+                $phone = '-';
                 $avatar = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
             }
 
             $normalized[] = [
-                '_idx'     => $index,
-                'id'       => $id,
-                'name'     => $name,
-                'level'    => $level,
-                'gender'   => $gender,
-                'phone'    => $phone,
-                'avatar'   => $avatar,
+                '_idx' => $index,
+                'id' => $id,
+                'name' => $name,
+                'level' => $level,
+                'gender' => $gender,
+                'phone' => $phone,
+                'avatar' => $avatar,
                 'original' => $p,
             ];
             $index++;
@@ -594,7 +591,7 @@ class AmericanoService
     ): array {
         if ($restingCount <= 0) {
             return [
-                'active'  => $players,
+                'active' => $players,
                 'resting' => [],
             ];
         }
@@ -605,8 +602,12 @@ class AmericanoService
             // Players who rested last round are prioritized to play this round
             $aRestedLast = ($lastRestedRound[$a] === $currentRound - 1);
             $bRestedLast = ($lastRestedRound[$b] === $currentRound - 1);
-            if ($aRestedLast && !$bRestedLast) return -1;
-            if (!$aRestedLast && $bRestedLast) return 1;
+            if ($aRestedLast && ! $bRestedLast) {
+                return -1;
+            }
+            if (! $aRestedLast && $bRestedLast) {
+                return 1;
+            }
 
             // Prioritize lowest play count
             if ($playCounts[$a] !== $playCounts[$b]) {
@@ -622,7 +623,7 @@ class AmericanoService
             return ($a + $currentRound) <=> ($b + $currentRound);
         });
 
-        $activeIndices  = array_slice($indices, 0, $activeCount);
+        $activeIndices = array_slice($indices, 0, $activeCount);
         $restingIndices = array_slice($indices, $activeCount);
 
         $active = [];
@@ -636,7 +637,7 @@ class AmericanoService
         }
 
         return [
-            'active'  => $active,
+            'active' => $active,
             'resting' => $resting,
         ];
     }
@@ -655,7 +656,8 @@ class AmericanoService
         $this->partitionIntoPairs($activePlayers, [], $partnerHistory, $allPairings);
 
         if (empty($allPairings)) {
-            return null;
+            // Explicit Total of N configurations may outlive all unique partner combinations.
+            $this->partitionIntoPairs($activePlayers, [], [], $allPairings);
         }
 
         // Step B: From the valid pairings, find the court assignment that minimizes repeated opponents
@@ -682,10 +684,10 @@ class AmericanoService
 
                 $courtNum = $c + 1;
                 $matches[] = [
-                    'court'        => $courtNum,
-                    'court_name'   => "Court {$courtNum}",
-                    'team_a'       => $teamA,
-                    'team_b'       => $teamB,
+                    'court' => $courtNum,
+                    'court_name' => "Court {$courtNum}",
+                    'team_a' => $teamA,
+                    'team_b' => $teamB,
                     'team_a_names' => [$teamA[0]['name'], $teamA[1]['name']],
                     'team_b_names' => [$teamB[0]['name'], $teamB[1]['name']],
                 ];
@@ -720,6 +722,7 @@ class AmericanoService
 
         if (empty($remaining)) {
             $results[] = $currentPairs;
+
             return;
         }
 
@@ -729,16 +732,16 @@ class AmericanoService
         // Try pairing with each of the other remaining players
         $remainingCount = count($remaining);
         for ($i = 0; $i < $remainingCount; $i++) {
-            $p2  = $remaining[$i];
+            $p2 = $remaining[$i];
             $key = $this->pairKey($p1['id'], $p2['id']);
 
             // Constraint: Player must not have partnered with this player before
-            if (!isset($partnerHistory[$key])) {
+            if (! isset($partnerHistory[$key])) {
                 $newRemaining = $remaining;
                 unset($newRemaining[$i]);
                 $newRemaining = array_values($newRemaining);
 
-                $newPairs   = $currentPairs;
+                $newPairs = $currentPairs;
                 $newPairs[] = [$p1, $p2];
 
                 $this->partitionIntoPairs($newRemaining, $newPairs, $partnerHistory, $results);
@@ -759,23 +762,23 @@ class AmericanoService
         array $opponentHistory,
         array $currentSelection
     ): ?array {
-        $active  = $currentSelection['active'];
+        $active = $currentSelection['active'];
         $resting = $currentSelection['resting'];
 
         // Try swapping 1 active player with 1 resting player
         for ($a = count($active) - 1; $a >= 0; $a--) {
             for ($r = 0; $r < count($resting); $r++) {
-                $newActive  = $active;
+                $newActive = $active;
                 $newResting = $resting;
 
-                $temp           = $newActive[$a];
-                $newActive[$a]  = $newResting[$r];
+                $temp = $newActive[$a];
+                $newActive[$a] = $newResting[$r];
                 $newResting[$r] = $temp;
 
                 $matches = $this->findMatchesForRound($newActive, $courtCount, $partnerHistory, $opponentHistory);
                 if ($matches !== null) {
                     return [
-                        'active'  => $newActive,
+                        'active' => $newActive,
                         'resting' => $newResting,
                         'matches' => $matches,
                     ];
@@ -800,7 +803,7 @@ class AmericanoService
 
     private function pairKey(mixed $id1, mixed $id2): string
     {
-        return strcmp((string)$id1, (string)$id2) < 0
+        return strcmp((string) $id1, (string) $id2) < 0
             ? "{$id1}-{$id2}"
             : "{$id2}-{$id1}";
     }

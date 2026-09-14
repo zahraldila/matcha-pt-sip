@@ -49,7 +49,9 @@
     @php
         $isTeamFormat = str_contains(strtolower($game['match_format'] ?? ''), 'team');
         $unitTabLabel = $isTeamFormat ? 'Ronde' : ($scoringSystem['is_sets'] ? 'Set' : 'Ronde');
-        $allRoundsList = $matchContext['all_rounds'] ?? [];
+        $allRoundsList = $scoringSystem['is_sets']
+            ? array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, $scoringSystem['max_sets']))
+            : ['round_1'];
         $currentRIndex = array_search($activeRound, $allRoundsList);
         $nextRoundKey = ($currentRIndex !== false && isset($allRoundsList[$currentRIndex + 1])) ? $allRoundsList[$currentRIndex + 1] : null;
         $isCurrentSetCompleted = (($currentScore['status'] ?? '') === 'completed');
@@ -63,7 +65,7 @@
             : ('Americano ' . ($isLiveSingleMode ? 'Single (1 vs 1)' : 'Double (2 vs 2)'));
     @endphp
 
-    @if(($matchContext['total_rounds'] ?? 0) > 1 || count($allRoundsList) > 1)
+    @if(!empty($allRoundsList))
     <div class="glass-card rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 border border-white/90 shadow-2xs">
         <div class="flex items-center gap-2 flex-wrap">
             <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
@@ -192,7 +194,7 @@
                     <i class="fa-solid fa-trophy text-[11px]"></i> {{ $unitTabLabel }} {{ $activeRoundNum }} SCORE
                 </span>
                 <span class="font-medium text-slate-400">
-                    Target: <strong class="text-white">{{ $scoringSystem['is_sets'] ? '1 Set Padel' : ($scoringSystem['target_games'] . ' Games') }}</strong>
+                    Target: <strong class="text-white">{{ $scoringSystem['is_sets'] ? ($scoringSystem['target_sets'] . ' Set') : ($scoringSystem['target_games'] . ' Games') }}</strong>
                 </span>
             </div>
 
@@ -641,13 +643,15 @@
         let st = courtsState[cIdx];
         let setWon = null;
         
-        if ((st.gamesA >= 6 && st.gamesA - st.gamesB >= 2) || (st.gamesA === 7 && st.gamesB === 6)) {
+        if (!IS_SETS) {
+            if (TARGET_GAMES > 0 && st.gamesA >= TARGET_GAMES) {
+                setWon = 'Team A';
+            } else if (TARGET_GAMES > 0 && st.gamesB >= TARGET_GAMES) {
+                setWon = 'Team B';
+            }
+        } else if ((st.gamesA >= 6 && st.gamesA - st.gamesB >= 2) || (st.gamesA === 7 && st.gamesB === 6)) {
             setWon = 'Team A';
         } else if ((st.gamesB >= 6 && st.gamesB - st.gamesA >= 2) || (st.gamesB === 7 && st.gamesA === 6)) {
-            setWon = 'Team B';
-        } else if (TARGET_GAMES > 0 && st.gamesA >= TARGET_GAMES) {
-            setWon = 'Team A';
-        } else if (TARGET_GAMES > 0 && st.gamesB >= TARGET_GAMES) {
             setWon = 'Team B';
         }
 
@@ -664,6 +668,10 @@
     function manualCompleteSet(cIdx) {
         let st = courtsState[cIdx];
         if (st.matchDone) return;
+        if (!IS_SETS && Math.max(st.gamesA, st.gamesB) < TARGET_GAMES) {
+            showToast(`First to ${TARGET_GAMES} belum mencapai target.`);
+            return;
+        }
         const courtLabel = st.courtName || ('Court ' + st.courtNum);
         const conf = confirm(`Apakah Anda yakin ingin menyelesaikan dan mengunci skor pada ${courtLabel}?`);
         if (!conf) return;
@@ -880,12 +888,12 @@
             score_b         : st.gamesB,
             point_display_a : displays.a,
             point_display_b : displays.b,
-            set_number      : 1,
+            set_number      : Number(ACTIVE_ROUND_NUM),
             sets_a          : (st.gamesA >= st.gamesB && currentStatus === 'completed') ? 1 : 0,
             sets_b          : (st.gamesB > st.gamesA && currentStatus === 'completed') ? 1 : 0,
             games_a         : st.gamesA,
             games_b         : st.gamesB,
-            set_history     : [{ set: 1, score_a: st.gamesA, score_b: st.gamesB }],
+            set_history     : [{ set: Number(ACTIVE_ROUND_NUM), score_a: st.gamesA, score_b: st.gamesB }],
             idx_a           : st.idxA,
             idx_b           : st.idxB,
             is_deuce        : st.isDeuce,
@@ -958,8 +966,8 @@
         if (finSetsB)   finSetsB.value   = (st.gamesB > st.gamesA) ? 1 : 0;
         if (finGamesA)  finGamesA.value  = st.gamesA;
         if (finGamesB)  finGamesB.value  = st.gamesB;
-        if (finSetNum)  finSetNum.value  = 1;
-        if (finHistory) finHistory.value = JSON.stringify([{ set: 1, score_a: st.gamesA, score_b: st.gamesB }]);
+        if (finSetNum)  finSetNum.value  = Number(ACTIVE_ROUND_NUM);
+        if (finHistory) finHistory.value = JSON.stringify([{ set: Number(ACTIVE_ROUND_NUM), score_a: st.gamesA, score_b: st.gamesB }]);
         if (finA)       finA.value       = st.gamesA;
         if (finB)       finB.value       = st.gamesB;
         if (finWinner)  finWinner.value  = curWinner;
