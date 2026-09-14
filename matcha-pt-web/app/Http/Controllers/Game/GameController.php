@@ -76,6 +76,15 @@ class GameController extends Controller
             // Check if match session takes place in a venue owned by this user
             $isAtMyVenue = in_array($s->venue_id, $ownedVenueIds);
 
+            $formatString = 'Americano';
+            $dbDrawing = \App\Models\Drawing::where('session_id', $s->session_id)->with('matchFormat')->first();
+            if ($dbDrawing && $dbDrawing->matchFormat) {
+                $formatString = $dbDrawing->matchFormat->nama_format;
+            }
+            if (!str_contains(strtolower($formatString), 'team')) {
+                $jenis = $s->jenis_permainan ?? 'Double';
+                $formatString .= ' / ' . $jenis;
+            }
             return [
                 'id' => $s->session_id,
                 'title' => $s->nama_session,
@@ -90,7 +99,7 @@ class GameController extends Controller
                 'joined_count' => $joinedCount,
                 'status' => $status,
                 'level_recommendation' => 'All Level Welcome',
-                'match_format' => 'Americano / Double',
+                'match_format' => $formatString,
                 'scoring_system' => $s->scoring_system ?? 'Total of 3',
                 'is_hosted_by_me' => $isHostedByMe,
                 'is_joined_by_me' => $isJoinedByMe,
@@ -219,22 +228,29 @@ class GameController extends Controller
                 ->with('error', 'Akses ditolak: Fitur ini khusus untuk akun Host Game.');
         }
 
-        $request->validate([
-            'nama_session' => 'required|string|max:255',
-            'sport' => 'required|in:Padel,Tennis',
-            'format' => 'required|string',
-            'num_courts' => 'required|integer|min:1|max:4',
-            'venue_id' => 'required|integer|exists:tb_venue,venue_id',
-            'scoring_system' => 'required|string|max:100',
-            'rank_by' => 'required|in:point,win',
+        // Tentukan mode Single/Double untuk Americano
+        $jenisPermainan = $request->input('jenis_permainan', 'Double');
+        $isSingleMode   = strtolower($jenisPermainan) === 'single'
+                          && str_contains(strtolower($request->input('format', '')), 'americano');
+        $minPlayers     = $isSingleMode ? 2 : 4;
 
-            'players' => 'required|array|min:4',
+        $request->validate([
+            'nama_session'     => 'required|string|max:255',
+            'sport'            => 'required|in:Padel,Tennis',
+            'format'           => 'required|string',
+            'num_courts'       => 'required|integer|min:1|max:4',
+            'venue_id'         => 'required|integer|exists:tb_venue,venue_id',
+            'scoring_system'   => 'required|string|max:100',
+            'rank_by'          => 'required|in:point,win',
+            'jenis_permainan'  => 'nullable|in:Single,Double',
+
+            'players'          => "required|array|min:{$minPlayers}",
 
             'players.*.player_id' => 'nullable|integer|exists:tb_player,player_id',
-            'players.*.name' => 'required|string|max:255',
-            'players.*.gender' => 'required|in:Male,Female',
-            'players.*.level' => 'required|string|max:50',
-            'players.*.type' => 'required|in:Host,Member,Guest',
+            'players.*.name'      => 'required|string|max:255',
+            'players.*.gender'    => 'required|in:Male,Female',
+            'players.*.level'     => 'required|string|max:50',
+            'players.*.type'      => 'required|in:Host,Member,Guest',
         ]);
 
         // Validasi format Team Americano: Wajib Genap (2 pemain per tim)
@@ -273,15 +289,16 @@ class GameController extends Controller
 
             // 3. Buat session
             $session = SessionModel::create([
-                'host_user_id' => Auth::id(),
-                'sport_id' => $sport->sport_id,
-                'venue_id' => $request->venue_id,
-                'nama_session' => $request->nama_session,
-                'scoring_system' => $request->scoring_system ?? 'Total of 3',
-                'waktu_session' => now()->format('H:i') . ' WIB',
-                'datetime' => now(),
-                'status_session' => 'Ready for Drawing',
-                'jumlah_pemain' => (string) count($request->players),
+                'host_user_id'    => Auth::id(),
+                'sport_id'        => $sport->sport_id,
+                'venue_id'        => $request->venue_id,
+                'nama_session'    => $request->nama_session,
+                'scoring_system'  => $request->scoring_system ?? 'Total of 3',
+                'waktu_session'   => now()->format('H:i') . ' WIB',
+                'datetime'        => now(),
+                'status_session'  => 'Ready for Drawing',
+                'jumlah_pemain'   => (string) count($request->players),
+                'jenis_permainan' => $jenisPermainan,
             ]);
 
             // 4. Hubungkan court ke session
@@ -415,7 +432,8 @@ class GameController extends Controller
             'tanggal'          => 'required|date|after_or_equal:today',
             'jam'              => 'required|string',
             'durasi'           => 'required|string',
-            'jumlah_pemain'    => 'required|integer|in:4,6,8,12',
+            'jumlah_pemain'    => 'required|integer|min:2',
+            'jenis_permainan'  => 'nullable|in:Single,Double',
             'level_rekomendasi'=> 'nullable|string',
             'deskripsi'        => 'nullable|string',
         ]);
@@ -426,7 +444,6 @@ class GameController extends Controller
             $waktuSession = "{$request->jam} WIB ({$request->durasi})";
             $dateTime = "{$request->tanggal} {$request->jam}:00";
 
-            // 1. Create tb_session
             $session = SessionModel::create([
                 'host_user_id'     => Auth::id(),
                 'sport_id'         => $request->sport_id,
@@ -436,6 +453,7 @@ class GameController extends Controller
                 'datetime'         => $dateTime,
                 'status_session'   => 'Open',
                 'jumlah_pemain'    => (string) $request->jumlah_pemain,
+                'jenis_permainan'  => $request->input('jenis_permainan', 'Double'),
             ]);
 
             // 2. Attach court
@@ -468,6 +486,16 @@ class GameController extends Controller
             $slotLeft = max(0, $quota - $joinedCount);
             $status = $slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)";
 
+            $formatString = 'Americano';
+            $dbDrawing = \App\Models\Drawing::where('session_id', $dbSession->session_id)->with('matchFormat')->first();
+            if ($dbDrawing && $dbDrawing->matchFormat) {
+                $formatString = $dbDrawing->matchFormat->nama_format;
+            }
+            if (!str_contains(strtolower($formatString), 'team')) {
+                $jenis = $dbSession->jenis_permainan ?? 'Double';
+                $formatString .= ' / ' . $jenis;
+            }
+
             $game = [
                 'id' => $dbSession->session_id,
                 'title' => $dbSession->nama_session,
@@ -482,7 +510,7 @@ class GameController extends Controller
                 'joined_count' => $joinedCount,
                 'status' => $status,
                 'level_recommendation' => 'All Level Welcome',
-                'match_format' => 'Americano / Double',
+                'match_format' => $formatString,
                 'scoring_system' => $dbSession->scoring_system ?? 'Total of 3',
                 'host' => [
                     'name' => $dbSession->host->nama ?? 'Host Matcha',
@@ -642,9 +670,14 @@ class GameController extends Controller
                 ];
             })->toArray();
 
-            // Jika peserta kurang dari 4, lengkapi dengan dummy agar drawing bisa di-render
-            if (count($participants) < 4) {
-                $dummy = MatchaDummyDataService::getGames()[0]['participants'];
+            // Ambil jenis_permainan (Single/Double) dari session
+            $jenisPermainan = $dbSession->jenis_permainan ?? 'Double';
+            $isSingleMode   = strtolower($jenisPermainan) === 'single';
+            $minRequired    = $isSingleMode ? 2 : 4;
+
+            // Jika peserta kurang dari minimum, lengkapi dengan dummy agar drawing bisa di-render
+            if (count($participants) < $minRequired) {
+                $dummy        = MatchaDummyDataService::getGames()[0]['participants'];
                 $participants = array_merge($participants, array_slice($dummy, count($participants)));
             }
 
@@ -671,6 +704,7 @@ class GameController extends Controller
                     'status' => $status,
                     'level_recommendation' => 'All Level Welcome',
                     'match_format' => $formatQuery ?: 'Americano',
+                    'jenis_permainan' => $jenisPermainan,
                     'scoring_system' => $dbSession->scoring_system ?? 'Total of 3',
                     'host' => [
                         'name' => $dbSession->host->nama ?? 'Host Matcha',
@@ -750,7 +784,7 @@ class GameController extends Controller
                         $drawingData = $teamService->generateTeamRounds($participants, $courtCount, $seed);
                         $rounds = $drawingData['rounds'] ?? [];
                     } else {
-                        // Americano Engine (Individual Rotating Pairs)
+                        // Americano Engine (Individual Rotating Pairs) — Single atau Double
                         mt_srand($seed);
                         $pKeys = array_keys($participants);
                         shuffle($pKeys);
@@ -758,25 +792,29 @@ class GameController extends Controller
                         foreach ($pKeys as $k) {
                             $shuffled[] = $participants[$k];
                         }
+                        // Ambil jenis_permainan dari session (Single/Double), default Double
+                        $drawingMode     = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
                         $americanoService = new AmericanoService();
-                        $rounds = $americanoService->generateRounds($shuffled, $courtCount);
+                        $rounds = $americanoService->generateRounds($shuffled, $courtCount, null, $drawingMode);
                         $drawingData = [
-                            'format' => 'Americano',
-                            'total_teams' => count($participants),
-                            'total_rounds' => count($rounds),
+                            'format'        => 'Americano ' . $drawingMode,
+                            'mode'          => $drawingMode,
+                            'total_teams'   => count($participants),
+                            'total_rounds'  => count($rounds),
                             'total_matches' => array_sum(array_map(fn($r) => count($r['matches'] ?? []), $rounds)),
-                            'rounds' => $rounds,
+                            'rounds'        => $rounds,
                         ];
                     }
                 } catch (\Throwable $e) {
                     $americanoService = new AmericanoService();
                     $rounds = $americanoService->generateRounds($participants, $courtCount);
                     $drawingData = [
-                        'format' => 'Americano',
-                        'total_teams' => count($participants),
-                        'total_rounds' => count($rounds),
+                        'format'        => 'Americano',
+                        'mode'          => 'Double',
+                        'total_teams'   => count($participants),
+                        'total_rounds'  => count($rounds),
                         'total_matches' => array_sum(array_map(fn($r) => count($r['matches'] ?? []), $rounds)),
-                        'rounds' => $rounds,
+                        'rounds'        => $rounds,
                     ];
                 }
 

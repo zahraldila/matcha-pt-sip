@@ -14,6 +14,16 @@
     ];
     $isSetBased = str_contains(strtolower($game['scoring_system'] ?? ''), 'total of') || str_contains(strtolower($game['scoring_system'] ?? ''), 'best of');
     $unitLabel = $isSetBased ? 'Set' : 'Round';
+
+    // Baca mode Single/Double dari drawingData atau session
+    $drawingMode     = $drawingData['mode'] ?? 'Double';
+    $isSingleMode    = strtolower($drawingMode) === 'single';
+    $modeBadgeLabel  = $isSingleMode ? 'Single (1 vs 1)' : 'Double (2 vs 2)';
+    $matchFormatFull = ($game['match_format'] ?? 'Americano');
+    // Jika Americano (bukan Team Americano), tambahkan mode label
+    if (!str_contains(strtolower($matchFormatFull), 'team')) {
+        $matchFormatFull = 'Americano ' . ($isSingleMode ? 'Single' : 'Double');
+    }
 @endphp
 
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -26,13 +36,15 @@
             </a>
             <div class="flex items-center gap-3">
                 <h1 class="text-2xl font-bold text-slate-900">
-                    Drawing & Jadwal Pertandingan
+                    Drawing &amp; Jadwal Pertandingan
                 </h1>
-                <span class="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    <i class="fa-solid fa-trophy text-[10px]"></i> {{ $game['match_format'] ?? 'Americano' }}
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full
+                    {{ $isSingleMode ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200' }}">
+                    <i class="fa-solid {{ $isSingleMode ? 'fa-person' : 'fa-people-group' }} text-[10px]"></i>
+                    {{ $matchFormatFull }}
                 </span>
             </div>
-            <p class="text-xs text-slate-500 mt-0.5">Sistem drawing pertandingan dan rotasi {{ $isSetBased ? 'Set Permainan' : 'Round-Robin' }}</p>
+            <p class="text-xs text-slate-500 mt-0.5">Sistem drawing pertandingan dan rotasi {{ $isSetBased ? 'Set Permainan' : 'Round-Robin' }} &bull; {{ $modeBadgeLabel }}</p>
         </div>
 
         <div class="flex items-center gap-2.5">
@@ -289,9 +301,17 @@
 
             <!-- Tournament Settings Summary -->
             <div class="glass-card rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-                <span>Format: <strong class="text-[#050608]">{{ $drawingData['format'] ?? ($game['match_format'] ?? 'Team Americano') }} ({{ $drawingData['total_teams'] ?? count($game['participants'] ?? []) }} {{ isset($drawingData['format']) && str_contains(strtolower($drawingData['format']), 'team') ? 'Tim Tetap' : 'Peserta' }})</strong></span>
+                <span>Format: <strong class="text-[#050608]">{{ $matchFormatFull }} ({{ $drawingData['total_teams'] ?? count($game['participants'] ?? []) }} {{ isset($drawingData['format']) && str_contains(strtolower($drawingData['format']), 'team') ? 'Tim Tetap' : 'Peserta' }})</strong></span>
                 <span>Total {{ $unitLabel }}: <strong class="text-[#050608]">{{ $drawingData['total_rounds'] ?? count($rounds) }} {{ $unitLabel }}</strong></span>
                 <span>Scoring: <strong class="text-[#050608]">{{ $game['scoring_system'] }}</strong></span>
+                @if(!str_contains(strtolower($matchFormatFull), 'team'))
+                <span>
+                    Mode:
+                    <strong class="{{ $isSingleMode ? 'text-amber-700' : 'text-indigo-700' }}">
+                        {{ $isSingleMode ? '1 vs 1 (Single)' : '2 vs 2 (Double)' }}
+                    </strong>
+                </span>
+                @endif
             </div>
         </div>
 

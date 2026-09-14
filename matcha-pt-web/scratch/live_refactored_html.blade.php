@@ -99,49 +99,12 @@
     @endif
 
     
-    @php
-        $courtCount = $matchContext['court_count'] ?? count($matchContext['matches'] ?? []);
-    @endphp
-    <div class="grid grid-cols-1 {{ $courtCount > 1 ? 'lg:grid-cols-2' : '' }} gap-6">
+    <div class="grid grid-cols-1 {{ count($matchContext['matches'] ?? []) > 1 ? 'lg:grid-cols-2' : '' }} gap-6">
         @foreach($matchContext['matches'] ?? [] as $mIdx => $matchData)
             @php
-                $mKey = ($courtCount > 1) ? "{$activeRound}_court_" . ($mIdx + 1) : $activeRound;
-                $currentScore = $savedScores[$mKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
+                $mKey = "{{ $activeRound }}_court_" . ($mIdx + 1);
+                $currentScore = $savedScores[$mKey] ?? [];
                 $isMCompleted = (($currentScore['status'] ?? '') === 'completed');
-
-                $tAPlayers = !empty($matchData['team_a_names']) 
-                    ? $matchData['team_a_names'] 
-                    : (!empty($matchData['teamA_names']) 
-                        ? $matchData['teamA_names'] 
-                        : (isset($matchData['team_a']['player_names']) 
-                            ? $matchData['team_a']['player_names'] 
-                            : ($matchData['team_a'] ?? [])));
-                if (!is_array($tAPlayers)) {
-                    $tAPlayers = [$tAPlayers];
-                }
-
-                $tBPlayers = !empty($matchData['team_b_names']) 
-                    ? $matchData['team_b_names'] 
-                    : (!empty($matchData['teamB_names']) 
-                        ? $matchData['teamB_names'] 
-                        : (isset($matchData['team_b']['player_names']) 
-                            ? $matchData['team_b']['player_names'] 
-                            : ($matchData['team_b'] ?? [])));
-                if (!is_array($tBPlayers)) {
-                    $tBPlayers = [$tBPlayers];
-                }
-
-                $tAName = $matchData['team_a_name'] 
-                    ?? ($matchData['team_a']['display_name'] 
-                    ?? ($matchData['team_a']['name'] 
-                    ?? ($matchData['teamA_display'] 
-                    ?? (count($matchContext['matches'] ?? []) > 1 ? "Court " . ($mIdx + 1) . " - Team A" : "TEAM A"))));
-
-                $tBName = $matchData['team_b_name'] 
-                    ?? ($matchData['team_b']['display_name'] 
-                    ?? ($matchData['team_b']['name'] 
-                    ?? ($matchData['teamB_display'] 
-                    ?? (count($matchContext['matches'] ?? []) > 1 ? "Court " . ($mIdx + 1) . " - Team B" : "TEAM B"))));
             @endphp
         <!-- Live Scoreboard Display (Subtle Glass) -->
 
@@ -160,12 +123,8 @@
 
         <!-- Match Info Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 border-b border-slate-200/50 pb-3">
-            <div class="flex items-center gap-2 flex-wrap">
+            <div>
                 <strong class="text-slate-800">{{ $game['venue_name'] }}</strong> &bull; <span class="text-[#063B00] font-bold">{{ $matchData['court_name'] ?? 'Court 1' }}</span> &bull; <span class="font-bold text-slate-700">{{ $unitTabLabel }} {{ preg_replace('/[^0-9]/', '', $activeRound) ?: '1' }}</span>
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Sync: <strong id="topSyncTimer_{{ $mIdx }}" class="font-black">1.5s</strong></span>
-                </span>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="bg-[#063B00] text-white px-2.5 py-1 rounded-full font-bold text-[11px] shadow-2xs">
@@ -220,19 +179,12 @@
             <!-- Team A Side -->
             <div class="bg-white/80 backdrop-blur-md rounded-2xl p-6 border border-slate-200/80 text-center space-y-4 shadow-xs relative">
                 <span class="inline-block px-2.5 py-0.5 rounded-md bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25 font-extrabold text-[10px] uppercase tracking-wider">
-                    {{ $tAName }}
+                    {{ $matchData['team_a_name'] ?? 'TEAM A' }}
                 </span>
                 
                 <div class="space-y-0.5">
-                    @forelse($tAPlayers as $playerItem)
-                        @php
-                            $pName = is_array($playerItem) 
-                                ? ($playerItem['name'] ?? $playerItem['nama'] ?? '') 
-                                : (is_object($playerItem) ? ($playerItem->name ?? $playerItem->nama ?? '') : (string) $playerItem);
-                        @endphp
-                        @if($pName)
-                            <h3 class="text-sm font-bold text-slate-900">{{ $pName }}</h3>
-                        @endif
+                    @forelse($matchData['team_a'] as $playerName)
+                        <h3 class="text-sm font-bold text-slate-900">{{ $playerName }}</h3>
                     @empty
                         <h3 class="text-sm font-bold text-slate-400 italic">Tim A belum ditentukan</h3>
                     @endforelse
@@ -270,19 +222,12 @@
             <!-- Team B Side -->
             <div class="bg-white/80 backdrop-blur-md rounded-2xl p-6 border border-slate-200/80 text-center space-y-4 shadow-xs relative">
                 <span class="inline-block px-2.5 py-0.5 rounded-md bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25 font-extrabold text-[10px] uppercase tracking-wider">
-                    {{ $tBName }}
+                    {{ $matchData['team_b_name'] ?? 'TEAM B' }}
                 </span>
 
                 <div class="space-y-0.5">
-                    @forelse($tBPlayers as $playerItem)
-                        @php
-                            $pName = is_array($playerItem) 
-                                ? ($playerItem['name'] ?? $playerItem['nama'] ?? '') 
-                                : (is_object($playerItem) ? ($playerItem->name ?? $playerItem->nama ?? '') : (string) $playerItem);
-                        @endphp
-                        @if($pName)
-                            <h3 class="text-sm font-bold text-slate-900">{{ $pName }}</h3>
-                        @endif
+                    @forelse($matchData['team_b'] as $playerName)
+                        <h3 class="text-sm font-bold text-slate-900">{{ $playerName }}</h3>
                     @empty
                         <h3 class="text-sm font-bold text-slate-400 italic">Tim B belum ditentukan</h3>
                     @endforelse
@@ -360,7 +305,6 @@
         </div>
 
         <!-- Controls: Selesaikan Sesi & Lihat Juara — hanya untuk Host -->
-        <!-- Controls: Selesaikan Sesi & Lihat Juara — hanya untuk Host -->
         @if($isHost)
         <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200/50">
             <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
@@ -375,19 +319,14 @@
                         <i class="fa-solid fa-lock text-amber-600"></i> Kunci &amp; Selesaikan {{ $unitTabLabel }} Ini
                     </button>
                 @endif
-
-                <div class="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Sinkron realtime: <strong id="hostSyncTimer_{{ $mIdx }}" class="text-emerald-700 font-bold">1.5s</strong></span>
-                </div>
             </div>
 
             <form id="finishForm_{{ $mIdx }}" action="{{ route('scoring.finish') }}" method="POST" class="w-full sm:w-auto">
                 @csrf
                 <input type="hidden" name="game_id"         value="{{ $game['id'] }}">
                 <input type="hidden" name="round"           value="{{ $activeRound }}">
-                <input type="hidden" name="match_key"       value="{{ $mKey }}">
-                <input type="hidden" name="court"           value="{{ $mIdx + 1 }}">
+                <input type="hidden" name="match_key"       value="{{ $matchKey }}">
+                <input type="hidden" name="court"           value="{{ $courtIndex + 1 }}">
                 <input type="hidden" name="scoring_system"  value="{{ $scoringSystem['label'] }}">
                 <input type="hidden" name="score_a"         id="finishScoreA_{{ $mIdx }}" value="0">
                 <input type="hidden" name="score_b"         id="finishScoreB_{{ $mIdx }}" value="0">
@@ -412,7 +351,7 @@
         <div class="flex items-center justify-between pt-3 border-t border-slate-200/50">
             <div class="flex items-center gap-2 text-xs text-slate-500">
                 <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
-                <span>Skor sinkron otomatis realtime setiap <strong id="countdownTimer_{{ $mIdx }}" class="text-sky-700 font-bold">1.5s</strong></span>
+                Skor sinkron otomatis realtime setiap <strong id="countdownTimer_{{ $mIdx }}">2</strong> detik
             </div>
             <a href="{{ route('scoring.recap', $game['id']) }}"
                class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-2xs transition-colors flex items-center gap-1.5">
@@ -454,263 +393,231 @@
     @endif
 </div>
 
-
 @push('scripts')
 <script>
     // ── Config dari PHP ──────────────────────────────────────────────────────
-    const SCORING_TYPE   = '{{ $scoringSystem['type'] }}';
+    const SCORING_TYPE   = '{{ $scoringSystem['type'] }}';       // 'total_of_sets' | 'first_to_games'
     const IS_SETS        = {{ $scoringSystem['is_sets'] ? 'true' : 'false' }};
     const TARGET_SETS    = {{ $scoringSystem['target_sets'] ?? 2 }};
     const MAX_SETS       = {{ $scoringSystem['max_sets'] ?? 3 }};
     const TARGET_GAMES   = {{ $scoringSystem['target_games'] ?? 6 }};
     const GAME_ID        = {{ $game['id'] }};
     const ACTIVE_ROUND   = '{{ $activeRound }}';
+    const COURT_INDEX    = {{ $courtIndex ?? 0 }};
+    const COURT_NUM      = {{ ($courtIndex ?? 0) + 1 }};
+    const MATCH_KEY      = '{{ $matchKey ?? $activeRound }}';
     const UNIT_TAB_LABEL = '{{ $unitTabLabel }}';
     const CSRF_TOKEN     = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
     const UPDATE_URL     = '{{ route('scoring.update-score') }}';
     const IS_HOST        = {{ $isHost ? 'true' : 'false' }};
     const RECAP_URL      = '{{ route('scoring.recap', $game['id']) }}';
-    const CLIENT_ID      = 'cli_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
 
     // ── Point Ladder ─────────────────────────────────────────────────────────
     const tennisPoints = ['0', '15', '30', '40'];
 
-    // ── Multi-Court State ────────────────────────────────────────────────────
-    const courtsState = {};
-    @foreach($matchContext['matches'] ?? [] as $mIdx => $m)
-        @php
-            $courtCount = $matchContext['court_count'] ?? count($matchContext['matches'] ?? []);
-            $mKey = ($courtCount > 1) ? "{$activeRound}_court_" . ($mIdx + 1) : $activeRound;
-            $mScore = $savedScores[$mKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
-        @endphp
-        courtsState[{{ $mIdx }}] = {
-            idxA: {{ (int) ($mScore['idx_a'] ?? 0) }},
-            idxB: {{ (int) ($mScore['idx_b'] ?? 0) }},
-            isDeuce: {{ ($mScore['is_deuce'] ?? false) ? 'true' : 'false' }},
-            advantage: {!! json_encode($mScore['advantage'] ?? null) !!},
-            gamesA: {{ (int) ($mScore['games_a'] ?? ($mScore['score_a'] ?? 0)) }},
-            gamesB: {{ (int) ($mScore['games_b'] ?? ($mScore['score_b'] ?? 0)) }},
-            setNumber: {{ (int) ($mScore['set_number'] ?? 1) }},
-            setsA: {{ (int) ($mScore['sets_a'] ?? 0) }},
-            setsB: {{ (int) ($mScore['sets_b'] ?? 0) }},
-            setHistory: {!! json_encode($mScore['set_history'] ?? []) !!} || [],
-            matchDone: {{ (($mScore['status'] ?? '') === 'completed') ? 'true' : 'false' }},
-            winnerTeam: {!! json_encode($mScore['winner_team'] ?? null) !!},
-            isFinishing: false,
-            courtNum: {{ $mIdx + 1 }},
-            matchKey: '{{ $mKey }}',
-            serverVersion: {{ (int) ($mScore['version'] ?? 0) }},
-            localVersion: {{ (int) ($mScore['version'] ?? 0) }},
-            pendingSaves: 0,
-            lastLocalActionTime: 0
-        };
-    @endforeach
+    // ── State ────────────────────────────────────────────────────────────────
+    let idxA         = {{ (int) ($currentScore['idx_a'] ?? 0) }};
+    let idxB         = {{ (int) ($currentScore['idx_b'] ?? 0) }};
+    let isDeuce      = {{ ($currentScore['is_deuce'] ?? false) ? 'true' : 'false' }};
+    let advantage    = {!! json_encode($currentScore['advantage'] ?? null) !!};
+
+    let gamesA       = {{ (int) ($currentScore['games_a'] ?? ($currentScore['score_a'] ?? 0)) }};
+    let gamesB       = {{ (int) ($currentScore['games_b'] ?? ($currentScore['score_b'] ?? 0)) }};
+
+    let setNumber    = {{ (int) ($currentScore['set_number'] ?? 1) }};
+    let setsA        = {{ (int) ($currentScore['sets_a'] ?? 0) }};
+    let setsB        = {{ (int) ($currentScore['sets_b'] ?? 0) }};
+    let setHistory   = {!! json_encode($currentScore['set_history'] ?? []) !!} || [];
+
+    let matchDone    = {{ (($currentScore['status'] ?? '') === 'completed') ? 'true' : 'false' }};
+    let winnerTeam   = {!! json_encode($currentScore['winner_team'] ?? null) !!};
+
+    let isFinishing           = false;
+    let activeAbortController = null;
 
     // ── Point Display Resolution ─────────────────────────────────────────────
-    function getPointDisplays(cIdx) {
-        let st = courtsState[cIdx];
-        if (st.isDeuce) {
-            if (st.advantage === 'A') return { a: 'ADV', b: '40' };
-            if (st.advantage === 'B') return { a: '40', b: 'ADV' };
+    function getPointDisplays() {
+        if (isDeuce) {
+            if (advantage === 'A') return { a: 'ADV', b: '40' };
+            if (advantage === 'B') return { a: '40', b: 'ADV' };
             return { a: '40', b: '40' };
         }
         return {
-            a: tennisPoints[st.idxA] || '0',
-            b: tennisPoints[st.idxB] || '0',
+            a: tennisPoints[idxA] || '0',
+            b: tennisPoints[idxB] || '0',
         };
     }
 
-    // ── Tambah Poin (Optimistic UI: 0ms render, async save ke server) ───────────
-    function addPoint(team, cIdx) {
-        let st = courtsState[cIdx];
-        if (st.matchDone) {
+    // ── Tambah Poin (0 -> 15 -> 30 -> 40 -> Game) ───────────────────────────
+    function addPoint(team) {
+        if (matchDone) {
             showToast('Skor Set ini sudah selesai dan terkunci.');
             return;
         }
-        const tClick = performance.now();
-        st.lastLocalActionTime = Date.now();
-        st.localVersion = (st.localVersion || 0) + 1;
-        st.pendingSaves = (st.pendingSaves || 0) + 1;
-        st.clientSeq = (st.clientSeq || 0) + 1;
-        const clientSeq = st.clientSeq;
 
-        // 1. Mutasi state lokal
         if (team === 'A') {
-            handlePointWonByA(cIdx);
+            handlePointWonByA();
         } else {
-            handlePointWonByB(cIdx);
+            handlePointWonByB();
         }
 
-        // 2. Optimistic UI update seketika (0ms render time)
-        updateDisplay(cIdx);
-        const tUiDone = performance.now();
-        console.log(`[Optimistic UI] Court ${st.courtNum} +1 ${team} rendered in ${(tUiDone - tClick).toFixed(2)}ms (localVersion=${st.localVersion}, pendingSaves=${st.pendingSaves})`);
-
-        // 3. Simpan asinkron ke server
-        saveScore(cIdx, null, clientSeq, tClick);
+        updateDisplay();
+        saveScore();
     }
 
-    function handlePointWonByA(cIdx) {
-        let st = courtsState[cIdx];
-        if (st.isDeuce) {
-            if (st.advantage === 'A') {
-                gameWonBy('A', cIdx);
-            } else if (st.advantage === 'B') {
-                st.advantage = null;
+    function handlePointWonByA() {
+        if (isDeuce) {
+            if (advantage === 'A') {
+                gameWonBy('A');
+            } else if (advantage === 'B') {
+                advantage = null;
                 showToast('Kembali ke Deuce (40 - 40)!');
             } else {
-                st.advantage = 'A';
+                advantage = 'A';
                 showToast('Advantage Team A!');
             }
         } else {
-            if (st.idxA < 3) {
-                st.idxA++;
-                if (st.idxA === 3 && st.idxB === 3) {
-                    st.isDeuce = true;
-                    st.advantage = null;
+            if (idxA < 3) {
+                idxA++;
+                if (idxA === 3 && idxB === 3) {
+                    isDeuce = true;
+                    advantage = null;
                     showToast('Deuce (40 - 40)!');
                 }
-            } else if (st.idxA === 3 && st.idxB < 3) {
-                gameWonBy('A', cIdx);
+            } else if (idxA === 3 && idxB < 3) {
+                gameWonBy('A');
             }
         }
     }
 
-    function handlePointWonByB(cIdx) {
-        let st = courtsState[cIdx];
-        if (st.isDeuce) {
-            if (st.advantage === 'B') {
-                gameWonBy('B', cIdx);
-            } else if (st.advantage === 'A') {
-                st.advantage = null;
+    function handlePointWonByB() {
+        if (isDeuce) {
+            if (advantage === 'B') {
+                gameWonBy('B');
+            } else if (advantage === 'A') {
+                advantage = null;
                 showToast('Kembali ke Deuce (40 - 40)!');
             } else {
-                st.advantage = 'B';
+                advantage = 'B';
                 showToast('Advantage Team B!');
             }
         } else {
-            if (st.idxB < 3) {
-                st.idxB++;
-                if (st.idxB === 3 && st.idxA === 3) {
-                    st.isDeuce = true;
-                    st.advantage = null;
+            if (idxB < 3) {
+                idxB++;
+                if (idxA === 3 && idxB === 3) {
+                    isDeuce = true;
+                    advantage = null;
                     showToast('Deuce (40 - 40)!');
                 }
-            } else if (st.idxB === 3 && st.idxA < 3) {
-                gameWonBy('B', cIdx);
+            } else if (idxB === 3 && idxA < 3) {
+                gameWonBy('B');
             }
         }
     }
 
     // ── Game Dimenangkan ─────────────────────────────────────────────────────
-    function gameWonBy(team, cIdx) {
-        resetPoints(cIdx);
-        let st = courtsState[cIdx];
+    function gameWonBy(team) {
+        resetPoints();
+
         if (team === 'A') {
-            st.gamesA++;
+            gamesA++;
             showToast('🎉 Game Won by Team A!');
         } else {
-            st.gamesB++;
+            gamesB++;
             showToast('🎉 Game Won by Team B!');
         }
-        checkSetWinner(cIdx);
+
+        checkSetWinner();
     }
 
-    function checkSetWinner(cIdx) {
-        let st = courtsState[cIdx];
+    // Evaluasi apakah set selesai dalam format Americano
+    function checkSetWinner() {
         let setWon = null;
         
-        if ((st.gamesA >= 6 && st.gamesA - st.gamesB >= 2) || (st.gamesA === 7 && st.gamesB === 6)) {
+        // Aturan standar: menang jika mencapai 6 game dengan selisih 2, atau 7-5 / 7-6, atau mencapai TARGET_GAMES
+        if ((gamesA >= 6 && gamesA - gamesB >= 2) || (gamesA === 7 && gamesB === 6)) {
             setWon = 'Team A';
-        } else if ((st.gamesB >= 6 && st.gamesB - st.gamesA >= 2) || (st.gamesB === 7 && st.gamesA === 6)) {
+        } else if ((gamesB >= 6 && gamesB - gamesA >= 2) || (gamesB === 7 && gamesA === 6)) {
             setWon = 'Team B';
-        } else if (TARGET_GAMES > 0 && st.gamesA >= TARGET_GAMES) {
+        } else if (TARGET_GAMES > 0 && gamesA >= TARGET_GAMES) {
             setWon = 'Team A';
-        } else if (TARGET_GAMES > 0 && st.gamesB >= TARGET_GAMES) {
+        } else if (TARGET_GAMES > 0 && gamesB >= TARGET_GAMES) {
             setWon = 'Team B';
         }
 
         if (setWon) {
-            st.matchDone = true;
-            st.winnerTeam = setWon;
-            st.setsA = (setWon === 'Team A') ? 1 : 0;
-            st.setsB = (setWon === 'Team B') ? 1 : 0;
-            showCompletedBanner(setWon, cIdx);
-            saveScore(cIdx, 'completed', st.localVersion);
+            matchDone = true;
+            winnerTeam = setWon;
+            setsA = (setWon === 'Team A') ? 1 : 0;
+            setsB = (setWon === 'Team B') ? 1 : 0;
+            showCompletedBanner(setWon);
+            saveScore('completed');
         }
     }
 
-    function manualCompleteSet(cIdx) {
-        let st = courtsState[cIdx];
-        if (st.matchDone) return;
-        const conf = confirm(`Apakah Anda yakin ingin menyelesaikan dan mengunci skor pada Court ${st.courtNum}?`);
+    // Manual Selesaikan & Kunci Set oleh Host
+    function manualCompleteSet() {
+        if (matchDone) return;
+        const conf = confirm(`Apakah Anda yakin ingin menyelesaikan dan mengunci skor ${UNIT_TAB_LABEL} ini?`);
         if (!conf) return;
 
-        const tClick = performance.now();
-        st.lastLocalActionTime = Date.now();
-        st.localVersion = (st.localVersion || 0) + 1;
-        st.pendingSaves = (st.pendingSaves || 0) + 1;
-        const clientSeq = st.localVersion;
-
-        st.matchDone = true;
-        st.winnerTeam = (st.gamesA >= st.gamesB) ? 'Team A' : 'Team B';
-        st.setsA = (st.winnerTeam === 'Team A') ? 1 : 0;
-        st.setsB = (st.winnerTeam === 'Team B') ? 1 : 0;
-        showCompletedBanner(st.winnerTeam, cIdx);
-        updateDisplay(cIdx);
-        saveScore(cIdx, 'completed', clientSeq, tClick);
-        showToast(`Skor Court ${st.courtNum} berhasil dikunci!`);
+        matchDone = true;
+        winnerTeam = (gamesA >= gamesB) ? 'Team A' : 'Team B';
+        setsA = (winnerTeam === 'Team A') ? 1 : 0;
+        setsB = (winnerTeam === 'Team B') ? 1 : 0;
+        showCompletedBanner(winnerTeam);
+        updateDisplay();
+        saveScore('completed');
+        showToast(`Skor ${UNIT_TAB_LABEL} berhasil dikunci!`);
     }
 
-    function resetPoints(cIdx) {
-        let st = courtsState[cIdx];
-        st.idxA = 0;
-        st.idxB = 0;
-        st.isDeuce = false;
-        st.advantage = null;
+    function resetPoints() {
+        idxA = 0;
+        idxB = 0;
+        isDeuce = false;
+        advantage = null;
     }
 
     // ── Update Display UI ────────────────────────────────────────────────────
-    function updateDisplay(cIdx) {
-        let st = courtsState[cIdx];
-        const dispA  = document.getElementById('scoreDisplayA_' + cIdx);
-        const dispB  = document.getElementById('scoreDisplayB_' + cIdx);
-        const subA   = document.getElementById('subScoreLabelA_' + cIdx);
-        const subB   = document.getElementById('subScoreLabelB_' + cIdx);
-        const gameDispA = document.getElementById('displayGameScoreA_' + cIdx);
-        const gameDispB = document.getElementById('displayGameScoreB_' + cIdx);
-        const curBadge = document.getElementById('currentSetGamesBadge_' + cIdx);
-        const notice = document.getElementById('matchNotice_' + cIdx);
-        const displays = getPointDisplays(cIdx);
+    function updateDisplay() {
+        const dispA  = document.getElementById('scoreDisplayA');
+        const dispB  = document.getElementById('scoreDisplayB');
+        const subA   = document.getElementById('subScoreLabelA');
+        const subB   = document.getElementById('subScoreLabelB');
+        const gameDispA = document.getElementById('displayGameScoreA');
+        const gameDispB = document.getElementById('displayGameScoreB');
+        const curBadge = document.getElementById('currentSetGamesBadge');
+        const notice = document.getElementById('matchNotice');
+        const displays = getPointDisplays();
 
         if (dispA) dispA.innerText = displays.a;
         if (dispB) dispB.innerText = displays.b;
-        if (gameDispA) gameDispA.innerText = st.gamesA;
-        if (gameDispB) gameDispB.innerText = st.gamesB;
-        if (curBadge) curBadge.innerText = `Game Score: ${st.gamesA} — ${st.gamesB}`;
-        if (subA) subA.innerText = `Games Won: ${st.gamesA} Game`;
-        if (subB) subB.innerText = `Games Won: ${st.gamesB} Game`;
+        if (gameDispA) gameDispA.innerText = gamesA;
+        if (gameDispB) gameDispB.innerText = gamesB;
+        if (curBadge) curBadge.innerText = `Game Score: ${gamesA} — ${gamesB}`;
+        if (subA) subA.innerText = `Games Won: ${gamesA} Game`;
+        if (subB) subB.innerText = `Games Won: ${gamesB} Game`;
 
         if (notice) {
-            if (st.matchDone) {
-                notice.innerHTML = `🔒 <strong>Selesai & Terkunci</strong> &bull; Skor Akhir: <strong>${st.gamesA} — ${st.gamesB}</strong> (${st.winnerTeam || 'Selesai'})`;
-            } else if (st.isDeuce) {
-                if (st.advantage === 'A') {
+            if (matchDone) {
+                notice.innerHTML = `🔒 <strong>${UNIT_TAB_LABEL} Selesai & Terkunci</strong> &bull; Skor Akhir: <strong>${gamesA} — ${gamesB}</strong> (${winnerTeam || 'Selesai'})`;
+            } else if (isDeuce) {
+                if (advantage === 'A') {
                     notice.innerHTML = '<strong class="text-[#063B00]">ADVANTAGE TEAM A</strong> &bull; Butuh 1 poin lagi untuk memenangkan game';
-                } else if (st.advantage === 'B') {
+                } else if (advantage === 'B') {
                     notice.innerHTML = '<strong class="text-slate-900">ADVANTAGE TEAM B</strong> &bull; Butuh 1 poin lagi untuk memenangkan game';
                 } else {
                     notice.innerHTML = '<strong class="text-amber-700">DEUCE (40 - 40)</strong> &bull; Perebutan advantage point';
                 }
             } else {
-                notice.innerHTML = `${UNIT_TAB_LABEL} score: <strong>${st.gamesA}</strong> — <strong>${st.gamesB}</strong> &bull; Point: <strong>${displays.a} : ${displays.b}</strong>`;
+                notice.innerHTML = `${UNIT_TAB_LABEL} score: <strong>${gamesA}</strong> — <strong>${gamesB}</strong> &bull; Point: <strong>${displays.a} : ${displays.b}</strong>`;
             }
         }
 
-        const bA = document.getElementById('btnAddA_' + cIdx);
-        const bB = document.getElementById('btnAddB_' + cIdx);
-        if (st.matchDone) {
-            showCompletedBanner(st.winnerTeam || 'Pertandingan', cIdx);
+        const bA = document.getElementById('btnAddA');
+        const bB = document.getElementById('btnAddB');
+        if (matchDone) {
+            showCompletedBanner(winnerTeam || 'Pertandingan');
             if (bA) {
                 bA.disabled = true;
                 bA.className = 'w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2';
@@ -732,65 +639,65 @@
             }
         }
 
-        syncFinishFormInputs(cIdx);
+        syncFinishFormInputs();
     }
 
-    function showCompletedBanner(winner, cIdx) {
-        const banner = document.getElementById('matchCompletedBanner_' + cIdx);
-        const msg    = document.getElementById('completedMsg_' + cIdx);
-        let st = courtsState[cIdx];
-        const scoreSummary = `Skor: ${st.gamesA} — ${st.gamesB} Games`;
+    // ── Banner Match Selesai ─────────────────────────────────────────────────
+    function showCompletedBanner(winner) {
+        const banner = document.getElementById('matchCompletedBanner');
+        const msg    = document.getElementById('completedMsg');
+        const scoreSummary = `Skor: ${gamesA} — ${gamesB} Games`;
 
-        if (msg) msg.textContent = `🏆 ${winner} Memenangkan Match di Court ${st.courtNum}! (${scoreSummary})`;
+        if (msg) msg.textContent = `🏆 ${winner} Memenangkan ${UNIT_TAB_LABEL} Ini! (${scoreSummary})`;
         if (banner) banner.classList.remove('hidden');
 
-        const bA = document.getElementById('btnAddA_' + cIdx);
-        const bB = document.getElementById('btnAddB_' + cIdx);
+        const bA = document.getElementById('btnAddA');
+        const bB = document.getElementById('btnAddB');
         if (bA) {
             bA.disabled = true;
             bA.className = 'w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2';
-            bA.innerHTML = '<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci';
+            bA.innerHTML = '<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci (Set Selesai)';
         }
         if (bB) {
             bB.disabled = true;
             bB.className = 'w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2';
-            bB.innerHTML = '<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci';
+            bB.innerHTML = '<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci (Set Selesai)';
         }
     }
 
-    async function saveScore(cIdx, status = null, clientSeq = null, tClick = null) {
-        let st = courtsState[cIdx];
-        if (st.isFinishing) return;
+    // ── Simpan Skor ke Server (AJAX Polling / Cache) ───────────────────────────
+    async function saveScore(status = null) {
+        if (isFinishing) return;
 
-        st.clientSeq = (st.clientSeq || 0) + 1;
-        const displays = getPointDisplays(cIdx);
-        const currentStatus = status ?? (st.matchDone ? 'completed' : 'in_progress');
-        const reqSeq = clientSeq || st.clientSeq;
+        if (activeAbortController) {
+            try { activeAbortController.abort(); } catch(e) {}
+        }
+        activeAbortController = new AbortController();
+
+        const displays = getPointDisplays();
+        const currentStatus = status ?? (matchDone ? 'completed' : 'in_progress');
         const body = {
             game_id         : GAME_ID,
             round           : ACTIVE_ROUND,
-            match_key       : st.matchKey,
-            court           : st.courtNum,
+            match_key       : MATCH_KEY,
+            court           : COURT_NUM,
             scoring_type    : SCORING_TYPE,
-            score_a         : st.gamesA,
-            score_b         : st.gamesB,
+            score_a         : gamesA,
+            score_b         : gamesB,
             point_display_a : displays.a,
             point_display_b : displays.b,
             set_number      : 1,
-            sets_a          : (st.gamesA >= st.gamesB && currentStatus === 'completed') ? 1 : 0,
-            sets_b          : (st.gamesB > st.gamesA && currentStatus === 'completed') ? 1 : 0,
-            games_a         : st.gamesA,
-            games_b         : st.gamesB,
-            set_history     : [{ set: 1, score_a: st.gamesA, score_b: st.gamesB }],
-            idx_a           : st.idxA,
-            idx_b           : st.idxB,
-            is_deuce        : st.isDeuce,
-            advantage       : st.advantage,
-            winner_team     : st.winnerTeam || (st.gamesA >= st.gamesB ? 'Team A' : 'Team B'),
+            sets_a          : (gamesA >= gamesB && currentStatus === 'completed') ? 1 : 0,
+            sets_b          : (gamesB > gamesA && currentStatus === 'completed') ? 1 : 0,
+            games_a         : gamesA,
+            games_b         : gamesB,
+            set_history     : [{ set: 1, score_a: gamesA, score_b: gamesB }],
+            idx_a           : idxA,
+            idx_b           : idxB,
+            is_deuce        : isDeuce,
+            advantage       : advantage,
+            winner_team     : winnerTeam || (gamesA >= gamesB ? 'Team A' : 'Team B'),
             status          : currentStatus,
-            client_id       : CLIENT_ID,
-            client_version  : reqSeq,
-            client_seq      : reqSeq,
         };
 
         try {
@@ -801,238 +708,135 @@
                     'X-CSRF-TOKEN' : CSRF_TOKEN,
                     'Accept'       : 'application/json',
                 },
+                signal: activeAbortController.signal,
                 body: JSON.stringify(body),
             });
-            if (res.ok) {
-                const data = await res.json();
-                const incomingVer = Number(data.version || 0);
-
-                if (incomingVer > (st.serverVersion || 0)) {
-                    st.serverVersion = incomingVer;
-                }
-                if (incomingVer > (st.localVersion || 0)) {
-                    st.localVersion = incomingVer;
-                }
-
-                if (tClick) {
-                    const roundtripMs = performance.now() - tClick;
-                    console.log(`[Network Roundtrip] Court ${st.courtNum} save roundtrip: ${roundtripMs.toFixed(2)}ms (serverVersion=${st.serverVersion})`);
-                }
-            } else {
-                console.error(`Update score failed for court ${st.courtNum}:`, await res.text());
+            if (!res.ok) {
+                console.error('Update score failed:', await res.text());
             }
         } catch (err) {
-            console.warn(`Gagal simpan skor court ${st.courtNum}:`, err);
-        } finally {
-            st.pendingSaves = Math.max(0, (st.pendingSaves || 1) - 1);
-            if (st.pendingSaves === 0) {
-                st.localVersion = Math.max(st.localVersion || 0, st.serverVersion || 0);
+            if (err.name !== 'AbortError') {
+                console.warn('Gagal simpan skor:', err);
             }
         }
     }
 
-    function syncFinishFormInputs(cIdx) {
-        let st = courtsState[cIdx];
-        const finA       = document.getElementById('finishScoreA_' + cIdx);
-        const finB       = document.getElementById('finishScoreB_' + cIdx);
-        const finSetsA   = document.getElementById('finishSetsA_' + cIdx);
-        const finSetsB   = document.getElementById('finishSetsB_' + cIdx);
-        const finGamesA  = document.getElementById('finishGamesA_' + cIdx);
-        const finGamesB  = document.getElementById('finishGamesB_' + cIdx);
-        const finSetNum  = document.getElementById('finishSetNumber_' + cIdx);
-        const finPDispA  = document.getElementById('finishPointDisplayA_' + cIdx);
-        const finPDispB  = document.getElementById('finishPointDisplayB_' + cIdx);
-        const finHistory = document.getElementById('finishSetHistory_' + cIdx);
-        const finWinner  = document.getElementById('finishWinnerTeam_' + cIdx);
+    // ── Sinkronkan Input Form Finish Tersembunyi ─────────────────────────────
+    function syncFinishFormInputs() {
+        const finA       = document.getElementById('finishScoreA');
+        const finB       = document.getElementById('finishScoreB');
+        const finSetsA   = document.getElementById('finishSetsA');
+        const finSetsB   = document.getElementById('finishSetsB');
+        const finGamesA  = document.getElementById('finishGamesA');
+        const finGamesB  = document.getElementById('finishGamesB');
+        const finSetNum  = document.getElementById('finishSetNumber');
+        const finPDispA  = document.getElementById('finishPointDisplayA');
+        const finPDispB  = document.getElementById('finishPointDisplayB');
+        const finHistory = document.getElementById('finishSetHistory');
+        const finWinner  = document.getElementById('finishWinnerTeam');
 
-        const curWinner  = st.winnerTeam || (st.gamesA >= st.gamesB ? 'Team A' : 'Team B');
-        const displays   = getPointDisplays(cIdx);
+        const curWinner  = winnerTeam || (gamesA >= gamesB ? 'Team A' : 'Team B');
+        const displays   = getPointDisplays();
 
         if (finPDispA)  finPDispA.value  = displays.a;
         if (finPDispB)  finPDispB.value  = displays.b;
-        if (finSetsA)   finSetsA.value   = (st.gamesA >= st.gamesB) ? 1 : 0;
-        if (finSetsB)   finSetsB.value   = (st.gamesB > st.gamesA) ? 1 : 0;
-        if (finGamesA)  finGamesA.value  = st.gamesA;
-        if (finGamesB)  finGamesB.value  = st.gamesB;
+        if (finSetsA)   finSetsA.value   = (gamesA >= gamesB) ? 1 : 0;
+        if (finSetsB)   finSetsB.value   = (gamesB > gamesA) ? 1 : 0;
+        if (finGamesA)  finGamesA.value  = gamesA;
+        if (finGamesB)  finGamesB.value  = gamesB;
         if (finSetNum)  finSetNum.value  = 1;
-        if (finHistory) finHistory.value = JSON.stringify([{ set: 1, score_a: st.gamesA, score_b: st.gamesB }]);
-        if (finA)       finA.value       = st.gamesA;
-        if (finB)       finB.value       = st.gamesB;
+        if (finHistory) finHistory.value = JSON.stringify([{ set: 1, score_a: gamesA, score_b: gamesB }]);
+        if (finA)       finA.value       = gamesA;
+        if (finB)       finB.value       = gamesB;
         if (finWinner)  finWinner.value  = curWinner;
     }
 
-    function submitFinish(event, cIdx) {
-        if (event) event.preventDefault();
-        
-        let st = courtsState[cIdx];
-        st.isFinishing = true;
+    // ── Submit Form Finish ────────────────────────────────────────────────────
+    function submitFinish(event) {
+        if (event) {
+            event.preventDefault();
+        }
 
-        syncFinishFormInputs(cIdx);
+        isFinishing = true;
+        if (activeAbortController) {
+            try { activeAbortController.abort(); } catch(e) {}
+        }
 
-        const btn = document.getElementById('btnFinishSession_' + cIdx);
+        syncFinishFormInputs();
+
+        const btn = document.getElementById('btnFinishSession');
         if (btn) {
             btn.disabled = true;
             btn.classList.add('opacity-75', 'cursor-not-allowed');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs text-[#A8E63A]"></i> Menyimpan Sesi...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs text-[#A8E63A]"></i> Menyimpan Sesi &amp; Menghitung Juara...';
         }
 
-        showToast(`Menyimpan hasil akhir Court ${st.courtNum}...`);
+        showToast('Menyimpan hasil akhir pertandingan...');
 
-        const form = document.getElementById('finishForm_' + cIdx);
-        if (form) form.submit();
+        const form = document.getElementById('finishForm');
+        if (form) {
+            form.submit();
+        }
     }
 
-    // Polling realtime untuk sinkronisasi skor (1.5 detik per siklus)
-    Object.keys(courtsState).forEach(cIdx => {
-        let st = courtsState[cIdx];
-        const POLL_URL = `{{ url('scoring/get-score') }}/${GAME_ID}/${ACTIVE_ROUND}?court=${cIdx}&match_key=${st.matchKey}`;
-        
-        const timerEl = document.getElementById('countdownTimer_' + cIdx);
-        const hostTimerEl = document.getElementById('hostSyncTimer_' + cIdx);
-        const topTimerEl = document.getElementById('topSyncTimer_' + cIdx);
+    // ── Auto-Refresh Realtime untuk Member / Penonton (Polling via fetch) ─────
+    if (!IS_HOST) {
+        const POLL_URL      = `{{ url('scoring/get-score') }}/${GAME_ID}/${ACTIVE_ROUND}?court=${COURT_INDEX}&match_key=${MATCH_KEY}`;
+        const POLL_INTERVAL = 1500;
+        let countdown       = 2;
+        const timerEl       = document.getElementById('countdownTimer');
 
-        let isPolling = false;
-        let nextPollTime = Date.now() + 1500;
+        setInterval(() => {
+            countdown--;
+            if (timerEl) timerEl.textContent = countdown <= 0 ? 2 : countdown;
+            if (countdown <= 0) countdown = 2;
+        }, 1000);
 
-        // Visual countdown ticker yang berjalan halus & valid menghitung mundur dari 1.5s ke 0.0s
-        const updateTimerDisplay = () => {
-            const now = Date.now();
-            const remainingMs = Math.max(0, nextPollTime - now);
-            const secStr = (remainingMs / 1000).toFixed(1) + 's';
-            if (timerEl) timerEl.textContent = secStr;
-            if (hostTimerEl) hostTimerEl.textContent = secStr;
-            if (topTimerEl) topTimerEl.textContent = secStr;
-        };
-
-        setInterval(updateTimerDisplay, 100);
-
-        const executePoll = async () => {
-            if (isPolling) return;
-            isPolling = true;
+        setInterval(async () => {
             try {
-                const pollStart = performance.now();
-                const pollUrlWithTs = `${POLL_URL}&_t=${Date.now()}`;
-                const res = await fetch(pollUrlWithTs, {
-                    cache: 'no-store',
-                    headers: { 'Accept': 'application/json' }
-                });
+                const res = await fetch(POLL_URL, { headers: { 'Accept': 'application/json' } });
                 if (!res.ok) return;
                 const data = await res.json();
-                const pollDuration = performance.now() - pollStart;
 
-                const incomingVer = Number(data.version || 0);
+                // Sinkron state dari server
+                idxA        = data.idx_a ?? 0;
+                idxB        = data.idx_b ?? 0;
+                isDeuce     = !!data.is_deuce;
+                advantage   = data.advantage ?? null;
+                gamesA      = data.games_a ?? (data.score_a ?? 0);
+                gamesB      = data.games_b ?? (data.score_b ?? 0);
+                setsA       = data.sets_a ?? 0;
+                setsB       = data.sets_b ?? 0;
+                setNumber   = 1;
+                setHistory  = data.set_history ?? [];
+                matchDone   = (data.status === 'completed');
+                winnerTeam  = data.winner_team ?? null;
 
-                // Aturan Reconcile & Stale Protection:
-                // 1. Jika ada save lokal in-flight (pendingSaves > 0) dan version polling < localVersion,
-                //    abaikan agar tidak menimpa aksi lokal yang belum selesai tersimpan
-                if ((st.pendingSaves || 0) > 0 && incomingVer < (st.localVersion || 0)) {
-                    return;
+                const dispA  = document.getElementById('scoreDisplayA');
+                const dispB  = document.getElementById('scoreDisplayB');
+                const targetA = String(data.point_display_a ?? '0');
+                const targetB = String(data.point_display_b ?? '0');
+
+                if (dispA && dispA.innerText !== targetA) {
+                    dispA.innerText = targetA;
+                    dispA.classList.add('scale-110');
+                    setTimeout(() => dispA.classList.remove('scale-110'), 300);
+                }
+                if (dispB && dispB.innerText !== targetB) {
+                    dispB.innerText = targetB;
+                    dispB.classList.add('scale-110');
+                    setTimeout(() => dispB.classList.remove('scale-110'), 300);
                 }
 
-                // 2. Jika tidak ada save lokal in-flight, tetapi version polling < serverVersion saat ini,
-                //    abaikan response polling lama/terlambat di jaringan
-                if ((st.pendingSaves || 0) === 0 && incomingVer < (st.serverVersion || 0)) {
-                    return;
-                }
-
-                // 3. Jangan batalkan status matchDone jika lokal sudah completed dan server belum
-                if (st.matchDone && data.status !== 'completed') {
-                    return;
-                }
-
-                // Update serverVersion dan localVersion jika incomingVer >= serverVersion
-                if (incomingVer >= (st.serverVersion || 0)) {
-                    st.serverVersion = incomingVer;
-                    if ((st.pendingSaves || 0) === 0) {
-                        st.localVersion = incomingVer;
-                    }
-                }
-
-                // Cek apakah data berubah sebelum re-render untuk mencegah flicker
-                const newIdxA = data.idx_a ?? 0;
-                const newIdxB = data.idx_b ?? 0;
-                const newIsDeuce = !!data.is_deuce;
-                const newAdv = data.advantage ?? null;
-                const newGamesA = data.games_a ?? (data.score_a ?? 0);
-                const newGamesB = data.games_b ?? (data.score_b ?? 0);
-                const newSetsA = data.sets_a ?? 0;
-                const newSetsB = data.sets_b ?? 0;
-                const newMatchDone = (data.status === 'completed');
-                const newWinner = data.winner_team ?? null;
-
-                const hasChanged = (
-                    st.idxA !== newIdxA ||
-                    st.idxB !== newIdxB ||
-                    st.isDeuce !== newIsDeuce ||
-                    st.advantage !== newAdv ||
-                    st.gamesA !== newGamesA ||
-                    st.gamesB !== newGamesB ||
-                    st.setsA !== newSetsA ||
-                    st.setsB !== newSetsB ||
-                    st.matchDone !== newMatchDone ||
-                    st.winnerTeam !== newWinner
-                );
-
-                if (hasChanged) {
-                    console.log(`[Poll Applied] Court ${st.courtNum} sync to version ${incomingVer} (Games: ${newGamesA}-${newGamesB}, Point: ${data.point_display_a}:${data.point_display_b}) in ${pollDuration.toFixed(1)}ms`);
-                    st.idxA        = newIdxA;
-                    st.idxB        = newIdxB;
-                    st.isDeuce     = newIsDeuce;
-                    st.advantage   = newAdv;
-                    st.gamesA      = newGamesA;
-                    st.gamesB      = newGamesB;
-                    st.setsA       = newSetsA;
-                    st.setsB       = newSetsB;
-                    st.setNumber   = (data.set_number ?? 1);
-                    st.setHistory  = data.set_history ?? [];
-                    st.matchDone   = newMatchDone;
-                    st.winnerTeam  = newWinner;
-
-                    const dispA  = document.getElementById('scoreDisplayA_' + cIdx);
-                    const dispB  = document.getElementById('scoreDisplayB_' + cIdx);
-                    const targetA = String(data.point_display_a ?? '0');
-                    const targetB = String(data.point_display_b ?? '0');
-
-                    if (dispA && dispA.innerText !== targetA) {
-                        dispA.innerText = targetA;
-                        dispA.classList.add('scale-110');
-                        setTimeout(() => dispA.classList.remove('scale-110'), 300);
-                    }
-                    if (dispB && dispB.innerText !== targetB) {
-                        dispB.innerText = targetB;
-                        dispB.classList.add('scale-110');
-                        setTimeout(() => dispB.classList.remove('scale-110'), 300);
-                    }
-
-                    updateDisplay(cIdx);
-                }
-            } catch (err) {
-                // Ignore polling errors
-            } finally {
-                isPolling = false;
-                nextPollTime = Date.now() + 1500;
-                updateTimerDisplay();
+                updateDisplay();
+            } catch (e) {
+                // Ignore network errors
             }
-        };
-
-        // Jalankan polling loop tiap 1.5 detik
-        setInterval(executePoll, 1500);
-
-        // Jalankan polling awal segera (setelah 200ms)
-        setTimeout(executePoll, 200);
-    });
-
-    // Helper Toast (keep as is if defined elsewhere or we can define it)
-    if (typeof showToast !== 'function') {
-        window.showToast = function(msg) {
-            console.log("TOAST:", msg);
-            // fallback toast if needed
-        }
+        }, POLL_INTERVAL);
     }
 
-    // Inisialisasi awal untuk semua court
-    Object.keys(courtsState).forEach(cIdx => {
-        updateDisplay(cIdx);
-    });
+    // Inisialisasi awal
+    updateDisplay();
 </script>
 @endpush
+@endsection

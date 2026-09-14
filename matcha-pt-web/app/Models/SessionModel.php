@@ -22,7 +22,13 @@ class SessionModel extends Model
         'datetime',
         'status_session',
         'jumlah_pemain',
+        'jenis_permainan',
     ];
+
+    public function getJenisPermainanAttribute($value): string
+    {
+        return $value ?: 'Double';
+    }
 
     protected $casts = [
         'datetime' => 'datetime',

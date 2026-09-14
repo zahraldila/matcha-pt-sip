@@ -2,6 +2,13 @@
 
 namespace App\Services\Scoring;
 
+use App\Models\SessionModel;
+use App\Models\Drawing;
+use App\Models\GameMatch;
+use App\Models\MatchParticipant;
+use App\Models\Player;
+use App\Models\Court;
+
 class ScoringService
 {
     /**
@@ -505,7 +512,10 @@ class ScoringService
             ];
         }
 
-        $round = $drawing[$activeRound] ?? ($drawing['round_1'] ?? null);
+        $round = $drawing[$activeRound] 
+            ?? ($drawing['round_1'] 
+            ?? ($drawing[1] 
+            ?? (reset($drawing) ?: null)));
 
         if (!$round) {
             return [
@@ -538,26 +548,43 @@ class ScoringService
             ];
         }
 
-        $targetMatch = $matches[$courtIndex] ?? $matches[0];
-        $teamARaw = $targetMatch['team_a_names'] ?? ($targetMatch['teamA_names'] ?? ($targetMatch['team_a'] ?? ($round['team_a'] ?? [])));
-        $teamBRaw = $targetMatch['team_b_names'] ?? ($targetMatch['teamB_names'] ?? ($targetMatch['team_b'] ?? ($round['team_b'] ?? [])));
+        $normalizedMatches = [];
+        foreach ($matches as $mIdx => $m) {
+            $teamARaw = $m['team_a_names'] ?? ($m['teamA_names'] ?? ($m['team_a']['player_names'] ?? ($m['team_a'] ?? [])));
+            $teamBRaw = $m['team_b_names'] ?? ($m['teamB_names'] ?? ($m['team_b']['player_names'] ?? ($m['team_b'] ?? [])));
 
-        $teamAPlayers = array_map(fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->name ?? $p->nama ?? '') : (string)$p), $teamARaw);
-        $teamBPlayers = array_map(fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->name ?? $p->nama ?? '') : (string)$p), $teamBRaw);
+            if (!is_array($teamARaw)) {
+                $teamARaw = [$teamARaw];
+            }
+            if (!is_array($teamBRaw)) {
+                $teamBRaw = [$teamBRaw];
+            }
 
-        $teamADisplay = null;
-        if (isset($targetMatch['team_a']) && is_array($targetMatch['team_a']) && !empty($targetMatch['team_a']['name'])) {
-            $teamADisplay = $targetMatch['team_a']['name'];
-        } elseif (!empty($targetMatch['teamA_display'])) {
-            $teamADisplay = $targetMatch['teamA_display'];
+            $mTeamAPlayers = array_values(array_filter(array_map(
+                fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->name ?? $p->nama ?? '') : (string)$p),
+                $teamARaw
+            )));
+            $mTeamBPlayers = array_values(array_filter(array_map(
+                fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->name ?? $p->nama ?? '') : (string)$p),
+                $teamBRaw
+            )));
+
+            $mTeamADisplay = $m['team_a_name'] ?? ($m['team_a']['display_name'] ?? ($m['team_a']['name'] ?? ($m['teamA_display'] ?? (count($matches) > 1 ? 'Court ' . ($mIdx + 1) . ' - Team A' : 'TEAM A'))));
+            $mTeamBDisplay = $m['team_b_name'] ?? ($m['team_b']['display_name'] ?? ($m['team_b']['name'] ?? ($m['teamB_display'] ?? (count($matches) > 1 ? 'Court ' . ($mIdx + 1) . ' - Team B' : 'TEAM B'))));
+
+            $m['team_a_names'] = $mTeamAPlayers;
+            $m['team_b_names'] = $mTeamBPlayers;
+            $m['team_a_name']  = $mTeamADisplay;
+            $m['team_b_name']  = $mTeamBDisplay;
+
+            $normalizedMatches[] = $m;
         }
 
-        $teamBDisplay = null;
-        if (isset($targetMatch['team_b']) && is_array($targetMatch['team_b']) && !empty($targetMatch['team_b']['name'])) {
-            $teamBDisplay = $targetMatch['team_b']['name'];
-        } elseif (!empty($targetMatch['teamB_display'])) {
-            $teamBDisplay = $targetMatch['teamB_display'];
-        }
+        $targetMatch = $normalizedMatches[$courtIndex] ?? ($normalizedMatches[0] ?? []);
+        $teamAPlayers = $targetMatch['team_a_names'] ?? [];
+        $teamBPlayers = $targetMatch['team_b_names'] ?? [];
+        $teamADisplay = $targetMatch['team_a_name'] ?? 'TEAM A';
+        $teamBDisplay = $targetMatch['team_b_name'] ?? 'TEAM B';
 
         return [
             'team_a'            => $teamAPlayers,
@@ -565,13 +592,166 @@ class ScoringService
             'team_a_display'    => $teamADisplay,
             'team_b_display'    => $teamBDisplay,
             'resting'           => $round['resting'] ?? [],
-            'matches'           => $matches,
+            'matches'           => $normalizedMatches,
             'active_match'      => $targetMatch,
             'court_index'       => $courtIndex,
             'court_name'        => $targetMatch['court_name'] ?? ('Court ' . ($courtIndex + 1)),
+            'court_count'       => count($normalizedMatches),
             'active_round'      => $activeRound,
             'total_rounds'      => count($drawing),
             'all_rounds'        => array_keys($drawing),
         ];
+    }
+
+    /**
+     * Pastikan record tb_match dan tb_match_participant ada untuk round dan court tertentu.
+     * Menggunakan record yang sudah ada (REUSE) untuk mencegah duplikasi tb_match.
+     * Satu match pada satu round + court hanya memiliki satu match_id unik.
+     */
+    public static function ensureMatchAndParticipants($session, string $round, int $courtIndex = 0, ?array $matchContext = null): ?GameMatch
+    {
+        try {
+            if (!$session instanceof SessionModel) {
+                $session = SessionModel::with(['courts', 'players'])->find((int) $session);
+            }
+            if (!$session) {
+                return null;
+            }
+
+            $drawing = Drawing::firstOrCreate(
+                ['session_id' => $session->session_id],
+                [
+                    'match_format_id' => str_contains(strtolower($session->match_format ?? ''), 'team') ? 4 : 1,
+                    'tanggal_drawing' => now()->toDateString(),
+                    'jam_drawing'     => now()->format('H:i:s'),
+                ]
+            );
+
+            preg_match('/(\d+)/', $round, $roundNumMatch);
+            $rNum = isset($roundNumMatch[1]) ? (int) $roundNumMatch[1] : 1;
+
+            $sessionCourts = $session->courts;
+            $courtCount = max(1, $sessionCourts->count());
+            $court = $sessionCourts->get($courtIndex) ?? $sessionCourts->first();
+            $courtId = $court?->court_id;
+
+            // Nomor match deterministik dan unik per round + court:
+            // Round 1 Court 1 => 1, Round 1 Court 2 => 2, Round 2 Court 1 => 3, dst.
+            $nomorMatch = ($rNum - 1) * $courtCount + ($courtIndex + 1);
+
+            $match = GameMatch::where('drawing_id', $drawing->drawing_id)
+                ->where('nomor_match', $nomorMatch)
+                ->first();
+
+            if (!$match) {
+                $match = GameMatch::create([
+                    'drawing_id'   => $drawing->drawing_id,
+                    'court_id'     => $courtId,
+                    'nomor_match'  => $nomorMatch,
+                    'status_match' => 'In Progress',
+                    'waktu_mulai'  => now(),
+                ]);
+            } elseif ($courtId && !$match->court_id) {
+                $match->court_id = $courtId;
+                $match->save();
+            }
+
+            // Daftarkan participant jika belum terdaftar untuk match_id ini
+            if (!MatchParticipant::where('match_id', $match->match_id)->exists()) {
+                if (!$matchContext) {
+                    $participants = $session->players->map(fn($p) => [
+                        'id' => $p->player_id,
+                        'name' => $p->nama,
+                        'gender' => $p->gender ?? 'Male',
+                        'level' => $p->level ?? 'Intermediate',
+                    ])->toArray();
+
+                    $cachedSchedule = \Illuminate\Support\Facades\Cache::get("drawing.schedule_{$session->session_id}");
+                    if ($cachedSchedule && !empty($cachedSchedule['rounds'])) {
+                        $rounds = $cachedSchedule['rounds'];
+                    } else {
+                        $sessionJenisPermainan = $session->jenis_permainan ?? 'Double';
+                        $format = strtolower($session->match_format ?? 'americano');
+                        if (str_contains($format, 'team') && count($participants) >= 4 && count($participants) % 2 === 0) {
+                            $teamService = new \App\Services\Drawing\TeamAmericanoService();
+                            $drawingData = $teamService->generateTeamRounds($participants, $courtCount);
+                            $rounds = $drawingData['rounds'] ?? [];
+                        } else {
+                            $americanoService = new \App\Services\Drawing\AmericanoService();
+                            $rounds = $americanoService->generateRounds($participants, $courtCount, null, $sessionJenisPermainan);
+                        }
+                    }
+
+                    $drawingMap = [];
+                    foreach ($rounds as $rN => $rD) {
+                        $drawingMap["round_{$rN}"] = [
+                            'round_number' => $rN,
+                            'team_a'       => $rD['teamA'] ?? ($rD['team_a'] ?? []),
+                            'team_b'       => $rD['teamB'] ?? ($rD['team_b'] ?? []),
+                            'team_a_names' => $rD['teamA_names'] ?? ($rD['team_a_names'] ?? []),
+                            'team_b_names' => $rD['teamB_names'] ?? ($rD['team_b_names'] ?? []),
+                            'resting'      => $rD['resting'] ?? [],
+                            'matches'      => $rD['matches'] ?? [],
+                            'court_count'  => $courtCount,
+                        ];
+                    }
+
+                    $game = [
+                        'id' => $session->session_id,
+                        'scoring_system' => $session->scoring_system ?? 'Total of 3',
+                        'drawing' => $drawingMap,
+                        'participants' => $participants,
+                    ];
+                    $matchContext = self::buildMatchContext($game, $round, $courtIndex);
+                }
+
+                $targetMatch = $matchContext['matches'][$courtIndex] ?? ($matchContext['matches'][0] ?? null);
+                if ($targetMatch) {
+                    $teamAPlayers = $targetMatch['team_a'] ?? ($targetMatch['team_a_names'] ?? ($targetMatch['teamA_names'] ?? []));
+                    $teamBPlayers = $targetMatch['team_b'] ?? ($targetMatch['team_b_names'] ?? ($targetMatch['teamB_names'] ?? []));
+
+                    $sessionPlayerMapById = $session->players->keyBy('player_id');
+                    $sessionPlayerMapByName = $session->players->keyBy(fn($p) => self::cleanPlayerName($p->nama));
+
+                    $resolvePlayer = function ($pItem) use ($sessionPlayerMapById, $sessionPlayerMapByName) {
+                        if (is_array($pItem) && !empty($pItem['id'])) {
+                            $found = $sessionPlayerMapById->get($pItem['id']);
+                            if ($found) return $found;
+                        }
+                        if (is_array($pItem) && !empty($pItem['player_id'])) {
+                            $found = $sessionPlayerMapById->get($pItem['player_id']);
+                            if ($found) return $found;
+                        }
+                        $pName = is_array($pItem) ? ($pItem['name'] ?? $pItem['nama'] ?? '') : (is_object($pItem) ? ($pItem->name ?? $pItem->nama ?? '') : (string) $pItem);
+                        return $sessionPlayerMapByName->get(self::cleanPlayerName($pName));
+                    };
+
+                    foreach ($teamAPlayers as $pItem) {
+                        $player = $resolvePlayer($pItem);
+                        if ($player) {
+                            MatchParticipant::firstOrCreate(
+                                ['match_id' => $match->match_id, 'player_id' => $player->player_id],
+                                ['side' => 'A']
+                            );
+                        }
+                    }
+
+                    foreach ($teamBPlayers as $pItem) {
+                        $player = $resolvePlayer($pItem);
+                        if ($player) {
+                            MatchParticipant::firstOrCreate(
+                                ['match_id' => $match->match_id, 'player_id' => $player->player_id],
+                                ['side' => 'B']
+                            );
+                        }
+                    }
+                }
+            }
+
+            return $match;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Failed to ensure match and participants: {$e->getMessage()}");
+            return null;
+        }
     }
 }

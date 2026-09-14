@@ -321,6 +321,31 @@
                     </div>
                 </div>
 
+                <!-- ========= JENIS PERMAINAN (Single/Double) — hanya Americano ========= -->
+                <div class="space-y-1.5" id="jenisPermainanSection" style="display:none">
+                    <label class="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-users-between-lines text-[#063B00] text-[11px]"></i>
+                        Jenis Permainan
+                    </label>
+                    <div class="grid grid-cols-2 gap-2.5 p-1 bg-slate-100/80 rounded-2xl border border-slate-200/60">
+                        <button type="button" onclick="setJenisPermainan('Double')" id="btnJenisDouble"
+                            class="py-3 rounded-xl font-bold text-xs bg-[#063B00] text-white shadow-xs transition-all flex flex-col items-center justify-center gap-0.5">
+                            <i class="fa-solid fa-people-group text-[11px] text-[#A8E63A]"></i>
+                            <span>Double</span>
+                            <span class="text-[9px] font-medium opacity-75">2 vs 2</span>
+                        </button>
+                        <button type="button" onclick="setJenisPermainan('Single')" id="btnJenisSingle"
+                            class="py-3 rounded-xl font-bold text-xs bg-transparent text-slate-600 hover:text-slate-900 transition-all flex flex-col items-center justify-center gap-0.5">
+                            <i class="fa-solid fa-person text-[11px] text-slate-400"></i>
+                            <span>Single</span>
+                            <span class="text-[9px] font-medium opacity-75">1 vs 1</span>
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-slate-400 font-medium" id="jenisPermainanHint">
+                        Double: 4+ pemain dipasangkan 2 vs 2. Single: 2+ pemain bertanding 1 vs 1.
+                    </p>
+                </div>
+
                 <div class="pt-3">
                     <button type="button" onclick="goToStep(4)" class="w-full py-3.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2">
                         <span>Lanjut & Atur Daftar Pemain</span> <i class="fa-solid fa-arrow-right text-[10px] text-[#A8E63A]"></i>
@@ -350,7 +375,7 @@
                         <h3 class="text-sm font-black text-[#050608] flex items-center gap-1.5">
                             Player List (<span id="playerCount">0</span>)
                         </h3>
-                        <p class="text-[11px] text-slate-500">*Minimal 4 pemain untuk generate drawing</p>
+                        <p class="text-[11px] text-slate-500" id="playerMinHint">*Minimal 4 pemain untuk generate drawing</p>
                     </div>
                 </div>
 
@@ -594,6 +619,7 @@
     let selectedGameType = 'Americano';
     let scoringType = 'points'; // 'points' or 'general'
     let rankBy = 'point'; // 'point' or 'win'
+    let jenisPermainan = 'Double'; // 'Single' or 'Double' — hanya berlaku untuk Americano
 
     let players = [
         // Pre-filled with realistic data if Host clicks Add Yourself
@@ -690,7 +716,52 @@
     function selectGameType(format, description) {
         selectedGameType = format;
         document.getElementById('configFormatTitle').innerText = format;
+
+        // Tampilkan selector Single/Double hanya untuk Americano (bukan Team Americano, Mexicano, dll)
+        const isAmericano = format === 'Americano';
+        const jenisSection = document.getElementById('jenisPermainanSection');
+        if (jenisSection) {
+            jenisSection.style.display = isAmericano ? '' : 'none';
+        }
+        // Reset ke Double saat format berubah
+        if (!isAmericano) {
+            jenisPermainan = 'Double';
+        }
+        setJenisPermainan(jenisPermainan); // sync button state
+
         goToStep(3);
+    }
+
+    function setJenisPermainan(mode) {
+        jenisPermainan = mode;
+        const btnDouble = document.getElementById('btnJenisDouble');
+        const btnSingle = document.getElementById('btnJenisSingle');
+        const hint      = document.getElementById('jenisPermainanHint');
+        const minHint   = document.getElementById('playerMinHint');
+        if (!btnDouble || !btnSingle) return;
+
+        const activeClass   = 'py-3 rounded-xl font-bold text-xs bg-[#063B00] text-white shadow-xs transition-all flex flex-col items-center justify-center gap-0.5';
+        const inactiveClass = 'py-3 rounded-xl font-bold text-xs bg-transparent text-slate-600 hover:text-slate-900 transition-all flex flex-col items-center justify-center gap-0.5';
+
+        if (mode === 'Single') {
+            btnSingle.className = activeClass;
+            btnDouble.className = inactiveClass;
+            // Update icon colors
+            btnSingle.querySelector('i').className = 'fa-solid fa-person text-[11px] text-[#A8E63A]';
+            btnDouble.querySelector('i').className = 'fa-solid fa-people-group text-[11px] text-slate-400';
+            if (hint) hint.textContent = 'Single: minimal 2 pemain. Setiap pemain bertanding 1 lawan 1 secara bergantian.';
+            if (minHint) minHint.textContent = '*Minimal 2 pemain untuk Americano Single';
+        } else {
+            jenisPermainan = 'Double';
+            btnDouble.className = activeClass;
+            btnSingle.className = inactiveClass;
+            btnDouble.querySelector('i').className = 'fa-solid fa-people-group text-[11px] text-[#A8E63A]';
+            btnSingle.querySelector('i').className = 'fa-solid fa-person text-[11px] text-slate-400';
+            if (hint) hint.textContent = 'Double: 4+ pemain dipasangkan 2 vs 2. Single: 2+ pemain bertanding 1 vs 1.';
+            if (minHint) minHint.textContent = '*Minimal 4 pemain untuk generate drawing';
+        }
+        // Re-evaluate button after mode change
+        renderPlayers();
     }
 
     function setRankBy(type) {
@@ -737,8 +808,12 @@
             const rawVenueName = venueSelect.options[venueSelect.selectedIndex]?.text || 'Venue belum dipilih';
             const cleanVenueName = rawVenueName.replace(/\s*\(\d+\s*Court.*?\)/i, '').trim();
 
+            // Tampilkan badge Single/Double jika Americano
+            const isAmericano = selectedGameType === 'Americano';
+            const modeBadge = isAmericano ? ` • ${jenisPermainan === 'Single' ? 'Single 1v1' : 'Double 2v2'}` : '';
+
             document.getElementById('summaryGameName').innerText = actName;
-            document.getElementById('summaryGameFormat').innerText = `${selectedGameType} • ${numCourt} Court • ${cleanVenueName} • ${scoreVal}`;
+            document.getElementById('summaryGameFormat').innerText = `${selectedGameType}${modeBadge} • ${numCourt} Court • ${cleanVenueName} • ${scoreVal}`;
         }
     }
 
@@ -1057,7 +1132,7 @@
                     </div>
                     <div class="space-y-1">
                         <h4 class="text-xs font-bold text-slate-800">Great moments are meant to be shared.</h4>
-                        <p class="text-[11px] text-slate-400">Tambahkan minimal 4 pemain untuk memulai pengacakan drawing tim.</p>
+                        <p class="text-[11px] text-slate-400" id="emptyStateHint">Tambahkan minimal 4 pemain untuk memulai pengacakan drawing tim.</p>
                     </div>
                 </div>
             `;
@@ -1095,12 +1170,22 @@
         container.innerHTML = html;
 
         const isTeamAmericano = selectedGameType && selectedGameType.toLowerCase().includes('team');
+        const isAmericanoSingle = selectedGameType === 'Americano' && jenisPermainan === 'Single';
+        const minPlayers = isAmericanoSingle ? 2 : 4;
         const isOddPlayers = (players.length % 2 !== 0);
 
-        if (players.length < 4) {
+        // Update empty state hint
+        const emptyHint = document.getElementById('emptyStateHint');
+        if (emptyHint) {
+            emptyHint.textContent = isAmericanoSingle
+                ? 'Tambahkan minimal 2 pemain untuk Americano Single (1 vs 1).'
+                : 'Tambahkan minimal 4 pemain untuk memulai pengacakan drawing tim.';
+        }
+
+        if (players.length < minPlayers) {
             startBtn.disabled = true;
             startBtn.className = 'w-full py-3.5 rounded-xl bg-slate-200 text-slate-400 font-black text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2';
-            startBtn.innerHTML = '<i class="fa-solid fa-users"></i> Tambahkan Minimal 4 Pemain';
+            startBtn.innerHTML = `<i class="fa-solid fa-users"></i> Tambahkan Minimal ${minPlayers} Pemain${isAmericanoSingle ? ' (Single 1v1)' : ''}`;
         } else if (isTeamAmericano && isOddPlayers) {
             startBtn.disabled = true;
             startBtn.className = 'w-full py-3.5 rounded-xl bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2';
@@ -1108,13 +1193,17 @@
         } else {
             startBtn.disabled = false;
             startBtn.className = 'w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer flex items-center justify-center gap-2';
-            startBtn.innerHTML = '<i class="fa-solid fa-shuffle"></i> 🎲 Generate Drawing &amp; Start Game';
+            const modeLabel = isAmericanoSingle ? ' (Single 1v1)' : (selectedGameType === 'Americano' ? ' (Double 2v2)' : '');
+            startBtn.innerHTML = `<i class="fa-solid fa-shuffle"></i> 🎲 Generate Drawing &amp; Start Game${modeLabel}`;
         }
     }
 
     async function startDrawingAction() {
-        if (players.length < 4) {
-            showToast('Minimal 4 pemain untuk generate drawing.');
+        const isAmericanoSingle = selectedGameType === 'Americano' && jenisPermainan === 'Single';
+        const minPlayers = isAmericanoSingle ? 2 : 4;
+
+        if (players.length < minPlayers) {
+            showToast(`Minimal ${minPlayers} pemain untuk ${isAmericanoSingle ? 'Americano Single' : 'generate drawing'}.`);
             return;
         }
 
@@ -1165,6 +1254,8 @@
             venue_id: parseInt(venueSelect.value),
             scoring_system: document.getElementById('scoringGeneralValue').value,
             rank_by: rankBy,
+            // jenis_permainan: dikirim hanya untuk Americano; format lain tidak menggunakannya
+            jenis_permainan: selectedGameType === 'Americano' ? jenisPermainan : 'Double',
             players: players
         };
 

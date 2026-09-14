@@ -147,17 +147,37 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                     <div class="space-y-1.5">
+                        <label class="block font-bold text-slate-800 flex items-center gap-1.5">
+                            Jenis Permainan
+                        </label>
+                        <div class="grid grid-cols-2 gap-2 p-1 bg-slate-50/80 rounded-2xl border border-slate-200/80">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="jenis_permainan" value="Double" class="peer sr-only" checked onchange="updateQuotaOptions('Double')">
+                                <div class="py-2.5 rounded-xl text-center text-xs font-bold text-slate-600 peer-checked:bg-[#063B00] peer-checked:text-white transition-all">
+                                    <i class="fa-solid fa-people-group mr-1"></i> Double (2v2)
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="jenis_permainan" value="Single" class="peer sr-only" onchange="updateQuotaOptions('Single')">
+                                <div class="py-2.5 rounded-xl text-center text-xs font-bold text-slate-600 peer-checked:bg-[#063B00] peer-checked:text-white transition-all">
+                                    <i class="fa-solid fa-person mr-1"></i> Single (1v1)
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Kuota Maksimal Pemain</label>
                         <div class="relative">
-                            <select name="jumlah_pemain" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                                <option value="4">4 Pemain (1 Court Non-Stop)</option>
-                                <option value="6" selected>6 Pemain (1 Court Rotasi Bench 2 Istirahat)</option>
-                                <option value="8">8 Pemain (1 Court / 2 Court Americano)</option>
-                                <option value="12">12 Pemain (Multi-Court Tournament)</option>
+                            <select name="jumlah_pemain" id="jumlahPemainSelect" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                                <!-- Options will be populated by JS -->
                             </select>
                             <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
                     </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
 
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Rekomendasi Level</label>
@@ -269,8 +289,46 @@
         }
     }
 
+    function updateQuotaOptions(mode) {
+        const select = document.getElementById('jumlahPemainSelect');
+        if (!select) return;
+        select.innerHTML = '';
+        
+        if (mode === 'Single') {
+            const options = [
+                { val: '2', text: '2 Pemain (1 Court Non-Stop 1v1)' },
+                { val: '3', text: '3 Pemain (1 Court Rotasi 1 Istirahat)' },
+                { val: '4', text: '4 Pemain (1 Court / 2 Court Single)' },
+                { val: '5', text: '5 Pemain (Single Rotasi)' },
+                { val: '6', text: '6 Pemain (Single Multi-Court)' }
+            ];
+            options.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.val;
+                opt.innerText = o.text;
+                if (o.val === '2') opt.selected = true;
+                select.appendChild(opt);
+            });
+        } else {
+            const options = [
+                { val: '4', text: '4 Pemain (1 Court Non-Stop 2v2)' },
+                { val: '6', text: '6 Pemain (1 Court Rotasi Bench 2 Istirahat)' },
+                { val: '8', text: '8 Pemain (1 Court / 2 Court Double)' },
+                { val: '12', text: '12 Pemain (Multi-Court Tournament)' }
+            ];
+            options.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.val;
+                opt.innerText = o.text;
+                if (o.val === '6') opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         filterCourtsBySport(currentSportId);
+        updateQuotaOptions('Double');
     });
 </script>
 @endpush
