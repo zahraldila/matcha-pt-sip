@@ -115,9 +115,9 @@
                             <label class="block font-bold text-slate-800">
                                 Nomor WhatsApp / HP <span class="text-rose-500">*</span>
                             </label>
-                            <input type="text" name="no_hp" id="input_no_hp" value="{{ old('no_hp') }}" placeholder="0812-xxxx-xxxx" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
-                            <p id="err_no_hp" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
-                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Nomor WhatsApp / HP wajib diisi.
+                            <input type="tel" name="no_hp" id="input_no_hp" value="{{ old('no_hp') }}" maxlength="15" oninput="this.value = this.value.replace(/[^0-9]/g, '')" placeholder="0812xxxxxxxx (9-15 digit angka)" class="w-full bg-slate-50/80 border @error('no_hp') border-rose-400 bg-rose-50/40 @else border-slate-200/80 @enderror rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <p id="err_no_hp" class="@error('no_hp') flex @else hidden @enderror text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i> <span>{{ $errors->first('no_hp') ?? 'Nomor WhatsApp / HP wajib diisi.' }}</span>
                             </p>
                         </div>
 
@@ -125,9 +125,9 @@
                             <label class="block font-bold text-slate-800">
                                 Alamat Email <span class="text-rose-500">*</span>
                             </label>
-                            <input type="email" name="email" id="input_email" value="{{ old('email') }}" placeholder="nama@email.com" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
-                            <p id="err_email" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
-                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Alamat email wajib diisi.
+                            <input type="email" name="email" id="input_email" value="{{ old('email') }}" placeholder="nama@email.com" class="w-full bg-slate-50/80 border @error('email') border-rose-400 bg-rose-50/40 @else border-slate-200/80 @enderror rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <p id="err_email" class="@error('email') flex @else hidden @enderror text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
+                                <i class="fa-solid fa-circle-exclamation text-[10px]"></i> <span>{{ $errors->first('email') ?? 'Alamat email wajib diisi.' }}</span>
                             </p>
                         </div>
                     </div>
@@ -306,7 +306,7 @@
         if (message) {
             input.classList.add('border-rose-400', 'bg-rose-50/40', 'focus:ring-rose-200', 'focus:border-rose-500');
             input.classList.remove('border-slate-200/80', 'bg-slate-50/80');
-            err.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> ${message}`;
+            err.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> <span>${message}</span>`;
             err.classList.remove('hidden');
             err.classList.add('flex');
             return true;
@@ -334,13 +334,43 @@
 
         let hasError = false;
 
+        // 1. Validasi Nama
         if (setFieldError('input_nama', 'err_nama', !nama ? 'Nama lengkap wajib diisi.' : null)) hasError = true;
-        if (setFieldError('input_no_hp', 'err_no_hp', !noHp ? 'Nomor WhatsApp / HP wajib diisi.' : null)) hasError = true;
-        if (setFieldError('input_email', 'err_email', !email ? 'Alamat email wajib diisi.' : null)) hasError = true;
+
+        // 2. Validasi WhatsApp (Wajib, hanya angka, 9-15 digit)
+        const cleanPhone = noHp.replace(/[^0-9]/g, '');
+        if (!noHp) {
+            if (setFieldError('input_no_hp', 'err_no_hp', 'Nomor WhatsApp / HP wajib diisi.')) hasError = true;
+        } else if (!/^[0-9]+$/.test(cleanPhone) || cleanPhone.length < 9 || cleanPhone.length > 15) {
+            if (setFieldError('input_no_hp', 'err_no_hp', 'Nomor WhatsApp hanya boleh berupa angka (9 - 15 digit).')) hasError = true;
+        } else {
+            setFieldError('input_no_hp', 'err_no_hp', null);
+        }
+
+        // 3. Validasi Email (RFC Standard Regex)
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!email) {
+            if (setFieldError('input_email', 'err_email', 'Alamat email wajib diisi.')) hasError = true;
+        } else if (!emailRegex.test(email)) {
+            if (setFieldError('input_email', 'err_email', 'Format alamat email tidak valid (contoh: nama@domain.com).')) hasError = true;
+        } else {
+            setFieldError('input_email', 'err_email', null);
+        }
+
+        // 4. Validasi Gender, Usia, Level
         if (setFieldError('input_gender', 'err_gender', !gender ? 'Jenis kelamin wajib dipilih.' : null)) hasError = true;
-        if (setFieldError('input_usia', 'err_usia', !usia ? 'Usia wajib diisi.' : null)) hasError = true;
+        
+        if (!usia) {
+            if (setFieldError('input_usia', 'err_usia', 'Usia wajib diisi.')) hasError = true;
+        } else if (parseInt(usia) < 10 || parseInt(usia) > 90) {
+            if (setFieldError('input_usia', 'err_usia', 'Usia harus di antara 10 - 90 tahun.')) hasError = true;
+        } else {
+            setFieldError('input_usia', 'err_usia', null);
+        }
+
         if (setFieldError('input_level', 'err_level', !level ? 'Kategori skill level wajib dipilih.' : null)) hasError = true;
         
+        // 5. Validasi Password
         if (!password) {
             if (setFieldError('registerPassword', 'err_password', 'Password wajib diisi.')) hasError = true;
         } else if (password.length < 6) {
