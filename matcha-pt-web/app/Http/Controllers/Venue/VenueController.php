@@ -113,61 +113,68 @@ class VenueController extends Controller
 
     public function show($id)
     {
-        $dbVenue = Venue::with(['courts.sport', 'owner'])->find((int) $id);
-        if ($dbVenue) {
-            $rawPhotos = array_filter(array_map('trim', explode(',', $dbVenue->foto ?? '')));
-            $resolvedPhotos = array_values(array_map(function ($p) {
-                return str_starts_with($p, 'http') ? $p : asset($p);
-            }, $rawPhotos));
-            $mainPhoto = $resolvedPhotos[0] ?? 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80';
+        $dbVenue = Venue::with(['courts.sport', 'owner'])->findOrFail((int) $id);
 
-            $sports = $dbVenue->courts->pluck('sport.nama_sport')->filter()->unique()->values();
-            if ($sports->count() === 1) {
-                $sportName = $sports->first();
-            } elseif ($sports->count() > 1) {
-                $sportName = 'Padel & Tennis';
+        $rawPhotos = array_values(array_filter(array_map('trim', explode(',', $dbVenue->foto ?? ''))));
+        $validPhotos = [];
+        $validRawPhotos = [];
+
+        foreach ($rawPhotos as $p) {
+            if (str_starts_with($p, 'http://') || str_starts_with($p, 'https://')) {
+                $validPhotos[] = $p;
+                $validRawPhotos[] = $p;
             } else {
-                $sportName = 'Padel';
+                $clean = ltrim($p, '/\\');
+                if ($clean !== '' && file_exists(public_path($clean))) {
+                    $validPhotos[] = asset($clean);
+                    $validRawPhotos[] = $p;
+                }
             }
-
-            $isMine = Auth::check() && ($dbVenue->owner_user_id == Auth::id());
-
-            $venue = [
-                'id' => $dbVenue->venue_id,
-                'owner_user_id' => $dbVenue->owner_user_id,
-                'is_mine' => $isMine,
-                'name' => $dbVenue->nama_venue,
-                'sport' => $sportName,
-                'address' => $dbVenue->alamat,
-                'city' => $dbVenue->kota ?: 'Jakarta',
-                'pic_name' => $dbVenue->nama_pic ?: ($dbVenue->owner->nama ?? 'PIC Venue'),
-                'pic_phone' => $dbVenue->no_whatsapp ?: ($dbVenue->owner->no_hp ?? '-'),
-                'operating_hours' => $dbVenue->jam_operasional ?: '07:00 - 22:00',
-                'hari_buka' => $dbVenue->hari_buka ?: 'Setiap Hari (Senin - Minggu)',
-                'unavailability_note' => $dbVenue->catatan ?: 'Sesuai jadwal ketersediaan lapangan reguler.',
-                'catatan' => $dbVenue->catatan,
-                'image' => $mainPhoto,
-                'gallery' => $resolvedPhotos,
-                'raw_photos' => $rawPhotos,
-                'facilities' => explode(',', $dbVenue->fasilitas ?? 'WC, Kantin, Parkir'),
-                'description' => $dbVenue->alamat,
-                'courts' => $dbVenue->courts->map(fn ($court) => [
-                    'id' => $court->court_id,
-                    'name' => $court->nama_court,
-                    'sport' => $court->sport->nama_sport ?? 'Padel',
-                    'status' => $court->status_ketersediaan ?? 'Available',
-                    'type' => $court->tipe_court ?? 'Tidak ditentukan',
-                ]),
-            ];
-        } else {
-            $venues = MatchaDummyDataService::getVenues();
-            $venue = collect($venues)->firstWhere('id', (int) $id) ?? $venues[0];
-            if (!isset($venue['gallery'])) {
-                $venue['gallery'] = [$venue['image'] ?? 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80'];
-            }
-            $venue['raw_photos'] = $venue['gallery'];
-            $venue['is_mine'] = false;
         }
+
+        $resolvedPhotos = $validPhotos;
+        $mainPhoto = $resolvedPhotos[0] ?? null;
+
+        $sports = $dbVenue->courts->pluck('sport.nama_sport')->filter()->unique()->values();
+        if ($sports->count() === 1) {
+            $sportName = $sports->first();
+        } elseif ($sports->count() > 1) {
+            $sportName = 'Padel & Tennis';
+        } else {
+            $sportName = null;
+        }
+
+        $isMine = Auth::check() && ($dbVenue->owner_user_id == Auth::id());
+
+        $facilities = array_values(array_filter(array_map('trim', explode(',', $dbVenue->fasilitas ?? ''))));
+
+        $venue = [
+            'id' => $dbVenue->venue_id,
+            'owner_user_id' => $dbVenue->owner_user_id,
+            'is_mine' => $isMine,
+            'name' => $dbVenue->nama_venue,
+            'sport' => $sportName,
+            'address' => $dbVenue->alamat,
+            'city' => $dbVenue->kota ?: 'Jakarta',
+            'pic_name' => $dbVenue->nama_pic ?: ($dbVenue->owner->nama ?? 'PIC Venue'),
+            'pic_phone' => $dbVenue->no_whatsapp ?: ($dbVenue->owner->no_hp ?? '-'),
+            'operating_hours' => $dbVenue->jam_operasional ?: '07:00 - 22:00',
+            'hari_buka' => $dbVenue->hari_buka ?: 'Setiap Hari (Senin - Minggu)',
+            'unavailability_note' => $dbVenue->catatan ?: 'Sesuai jadwal ketersediaan lapangan reguler.',
+            'catatan' => $dbVenue->catatan,
+            'image' => $mainPhoto,
+            'gallery' => $resolvedPhotos,
+            'raw_photos' => $validRawPhotos,
+            'facilities' => $facilities,
+            'description' => $dbVenue->alamat,
+            'courts' => $dbVenue->courts->map(fn ($court) => [
+                'id' => $court->court_id,
+                'name' => $court->nama_court,
+                'sport' => $court->sport?->nama_sport,
+                'status' => $court->status_ketersediaan ?? 'Available',
+                'type' => $court->tipe_court ?? 'Tidak ditentukan',
+            ]),
+        ];
 
         return view('venues.show', compact('venue'));
     }

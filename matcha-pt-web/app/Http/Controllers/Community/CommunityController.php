@@ -308,22 +308,7 @@ class CommunityController extends Controller
     public function show($id)
     {
         // Ambil data komunitas beserta daftar anggota
-        $community = Community::with('players')->find((int) $id);
-
-        if (!$community) {
-            $dummyList = MatchaDummyDataService::getCommunities();
-            $dummy = collect($dummyList)->firstWhere('id', (int) $id) ?? $dummyList[0];
-
-            $community = (object) [
-                'community_id' => $dummy['id'],
-                'nama_community' => $dummy['name'],
-                'sport_utama' => $dummy['sport'] ?? 'Padel & Tennis',
-                'deskripsi' => $dummy['description'] ?? 'Komunitas olahraga aktif.',
-                'jadwal_rutin' => $dummy['schedule'] ?? 'Setiap Pekan',
-                'logo' => $dummy['image'] ?? null,
-                'players' => collect([]),
-            ];
-        }
+        $community = Community::with('players.user')->findOrFail((int) $id);
 
         return view('communities.show', compact('community'));
     }

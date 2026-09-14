@@ -101,8 +101,8 @@
             @foreach($communities as $comm)
                 <div class="glass-card rounded-3xl overflow-hidden flex flex-col justify-between group border border-white/90 transition-all duration-200 hover:shadow-md">
                     <div>
-                        <div class="relative h-44 overflow-hidden bg-slate-100">
-                            <img src="{{ $comm['image'] }}" alt="{{ $comm['name'] }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                        <a href="{{ route('communities.show', $comm['id']) }}" class="block relative h-44 overflow-hidden bg-slate-100 group/thumb">
+                            <img src="{{ $comm['image'] }}" alt="{{ $comm['name'] }}" class="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-300">
                             <div class="absolute top-3 left-3">
                                 <x-badge :type="strtolower($comm['sport']) === 'tennis' ? 'tennis' : (in_array(strtolower($comm['sport']), ['all racquet', 'padel & tennis', 'both', 'all_racquet']) ? 'padel & tennis' : 'padel')">
                                     {{ $comm['sport'] }}
@@ -115,11 +115,15 @@
                                     </span>
                                 </div>
                             @endif
-                        </div>
+                        </a>
 
                         <div class="p-5 space-y-3 text-xs">
                             <div>
-                                <h3 class="text-base font-bold text-[#050608] leading-tight">{{ $comm['name'] }}</h3>
+                                <h3 class="text-base font-bold text-[#050608] leading-tight">
+                                    <a href="{{ route('communities.show', $comm['id']) }}" class="hover:text-[#063B00] transition-colors">
+                                        {{ $comm['name'] }}
+                                    </a>
+                                </h3>
                                 <p class="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
                                     <span><i class="fa-solid fa-users text-slate-400 text-[10px]"></i> {{ $comm['members_count'] }} Anggota</span>
                                     <span class="text-slate-300">•</span>
@@ -136,17 +140,16 @@
                         </div>
                     </div>
 
-                    <div class="p-5 pt-0">
+                    <div class="p-5 pt-0 space-y-2">
                         @if(!empty($comm['is_member']))
-                            <div class="w-full py-2.5 rounded-xl bg-green-50 border border-green-200 text-green-700 font-semibold text-xs flex items-center justify-center gap-1.5 shadow-2xs">
+                            <div class="w-full py-2 rounded-xl bg-green-50 border border-green-200 text-green-700 font-semibold text-xs flex items-center justify-center gap-1.5 shadow-2xs">
                                 <i class="fa-solid fa-circle-check text-green-600 text-[11px]"></i>
                                 <span>Anggota Komunitas</span>
                             </div>
-                        @else
-                            <a href="{{ route('communities.show', $comm['id']) }}" class="block text-center w-full py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs transition-all shadow-xs hover:scale-[1.01]">
-                                Gabung Komunitas
-                            </a>
                         @endif
+                        <a href="{{ route('communities.show', $comm['id']) }}" class="block text-center w-full py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs transition-all shadow-xs hover:scale-[1.01]">
+                            Detail Komunitas
+                        </a>
                     </div>
                 </div>
             @endforeach
