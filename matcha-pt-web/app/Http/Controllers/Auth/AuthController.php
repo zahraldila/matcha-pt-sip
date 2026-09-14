@@ -35,14 +35,22 @@ class AuthController extends Controller
         $request->validate([
             'login_id' => 'required|string',
             'password' => 'required|string',
+        ], [
+            'login_id.required' => 'Email atau Nomor WhatsApp wajib diisi.',
+            'password.required' => 'Password wajib diisi.',
         ]);
 
         $loginId = trim($request->input('login_id'));
+        $loginIdLower = strtolower($loginId);
+        $cleanPhone = preg_replace('/[^0-9]/', '', $loginId);
         $password = $request->input('password');
 
-        // Find user by email or no_hp in tb_user
-        $user = User::where('email', $loginId)
+        // Find user by lowercase email or exact/cleaned no_hp in tb_user
+        $user = User::whereRaw('LOWER(email) = ?', [$loginIdLower])
             ->orWhere('no_hp', $loginId)
+            ->when(!empty($cleanPhone), function ($query) use ($cleanPhone) {
+                $query->orWhere('no_hp', $cleanPhone);
+            })
             ->first();
 
         if ($user && Hash::check($password, $user->password)) {
@@ -57,43 +65,97 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        // Sanitize email and phone format
+        if ($request->has('email')) {
+            $request->merge(['email' => strtolower(trim($request->email))]);
+        }
+        if ($request->has('no_hp')) {
+            // Remove extra spaces or dashes
+            $cleanNoHp = preg_replace('/[^0-9]/', '', (string)$request->no_hp);
+            $request->merge(['no_hp' => $cleanNoHp]);
+        }
+
         $request->validate([
             'nama' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:tb_user,email',
-            'no_hp' => 'required|string|max:30',
+            'email' => [
+                'required',
+                'string',
+                'email:rfc,filter',
+                'max:255',
+                'regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/',
+                'unique:tb_user,email',
+            ],
+            'no_hp' => [
+                'required',
+                'string',
+                'regex:/^[0-9]{9,15}$/',
+                'unique:tb_user,no_hp',
+            ],
             'password' => 'required|string|min:6',
             'gender' => 'required|in:Male,Female',
             'usia' => 'required|integer|min:10|max:90',
             'level' => 'required|in:Newbie,Beginner,Intermediate,Advanced',
             'role' => 'required|in:member,host,venue_owner',
             'community_id' => 'nullable',
+        ], [
+            'nama.required' => 'Nama lengkap wajib diisi.',
+            'email.required' => 'Alamat email wajib diisi.',
+            'email.email' => 'Format alamat email tidak valid (contoh: nama@domain.com).',
+            'email.regex' => 'Format alamat email tidak valid (contoh: nama@domain.com).',
+            'email.unique' => 'Alamat email ini sudah terdaftar. Silakan gunakan email lain atau masuk ke akun Anda.',
+            'no_hp.required' => 'Nomor WhatsApp / HP wajib diisi.',
+            'no_hp.regex' => 'Nomor WhatsApp hanya boleh berupa angka (9 - 15 digit).',
+            'no_hp.unique' => 'Nomor WhatsApp ini sudah terdaftar pada akun lain.',
+            'password.required' => 'Password wajib diisi.',
+            'password.min' => 'Password minimal harus 6 karakter.',
+            'gender.required' => 'Jenis kelamin wajib dipilih.',
+            'gender.in' => 'Pilihan jenis kelamin tidak valid.',
+            'usia.required' => 'Usia wajib diisi.',
+            'usia.integer' => 'Usia harus berupa angka.',
+            'usia.min' => 'Usia minimal adalah 10 tahun.',
+            'usia.max' => 'Usia maksimal adalah 90 tahun.',
+            'level.required' => 'Kategori skill level wajib dipilih.',
+            'level.in' => 'Pilihan skill level tidak valid.',
+            'role.required' => 'Pilihan peran wajib ditentukan.',
+            'role.in' => 'Pilihan peran akun tidak valid.',
         ]);
 
         try {
             DB::beginTransaction();
 
+            $emailClean = strtolower(trim($request->email));
+            $noHpClean = preg_replace('/[^0-9]/', '', (string)$request->no_hp);
+
+            // Double check case-insensitive unique email in tb_user
+            if (User::whereRaw('LOWER(email) = ?', [$emailClean])->exists()) {
+                DB::rollBack();
+                return back()->withInput()->withErrors([
+                    'email' => 'Alamat email ini sudah terdaftar. Silakan gunakan email lain.',
+                ]);
+            }
+
             // 1. Create tb_user
             $user = User::create([
-                'nama' => $request->nama,
-                'email' => $request->email,
-                'no_hp' => $request->no_hp,
+                'nama' => trim($request->nama),
+                'email' => $emailClean,
+                'no_hp' => $noHpClean,
                 'password' => Hash::make($request->password),
                 'role' => $request->role,
             ]);
 
-            // 2. Create tb_player
+            // 2. Create tb_player with linked user_id and full user details
             $communityId = ($request->community_id && $request->community_id !== 'none') ? (int) $request->community_id : null;
 
             Player::create([
                 'user_id' => $user->user_id,
                 'community_id' => $communityId,
-                'nama' => $request->nama,
+                'nama' => trim($request->nama),
                 'usia' => (int) $request->usia,
                 'gender' => $request->gender,
                 'level' => $request->level,
                 'rating' => 1.00,
-                'no_hp' => $request->no_hp,
-                'email' => $request->email,
+                'no_hp' => $noHpClean,
+                'email' => $emailClean,
             ]);
 
             DB::commit();
@@ -101,7 +163,7 @@ class AuthController extends Controller
             // Auto-login user
             Auth::login($user);
 
-            return redirect()->route('dashboard')->with('success', 'Pendaftaran member berhasil! Selamat datang di Matcha.');
+            return redirect()->route('dashboard')->with('success', 'Pendaftaran akun member berhasil! Selamat datang di Matcha.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withInput()->withErrors([

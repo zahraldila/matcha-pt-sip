@@ -42,19 +42,33 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
             @php
-                $galleryPhotos = $venue['gallery'] ?? [$venue['image']];
+                $galleryPhotos = !empty($venue['gallery']) ? $venue['gallery'] : (!empty($venue['image']) ? [$venue['image']] : []);
             @endphp
 
             <div class="space-y-3">
                 <!-- Main Featured Photo View -->
                 <div class="relative h-64 sm:h-84 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-900 group">
-                    <img id="mainVenuePhoto" src="{{ $venue['image'] }}" alt="{{ $venue['name'] }}" class="w-full h-full object-cover transition-all duration-300">
-                    
-                    <div class="absolute top-4 left-4 z-10">
-                        <x-badge :type="strtolower($venue['sport']) === 'tennis' ? 'tennis' : (strtolower($venue['sport']) === 'padel' ? 'padel' : 'multi')">
-                            {{ $venue['sport'] }}
-                        </x-badge>
+                    @if(!empty($venue['image']))
+                        <img id="mainVenuePhoto" src="{{ $venue['image'] }}" alt="{{ $venue['name'] }}" class="w-full h-full object-cover transition-all duration-300" onerror="this.classList.add('hidden'); document.getElementById('venuePhotoPlaceholder')?.classList.remove('hidden');">
+                    @endif
+
+                    <div id="venuePhotoPlaceholder" class="{{ !empty($venue['image']) ? 'hidden ' : '' }}w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-[#063B00]/40 text-slate-400 p-6 text-center space-y-3">
+                        <div class="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-[#A8E63A] text-2xl border border-white/10 shadow-inner">
+                            <i class="fa-solid fa-building-flag"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-white">{{ $venue['name'] }}</h4>
+                            <p class="text-xs text-slate-400 mt-1">Belum ada foto venue yang diunggah</p>
+                        </div>
                     </div>
+                    
+                    @if(!empty($venue['sport']))
+                        <div class="absolute top-4 left-4 z-10">
+                            <x-badge :type="strtolower($venue['sport']) === 'tennis' ? 'tennis' : (strtolower($venue['sport']) === 'padel' ? 'padel' : 'multi')">
+                                {{ $venue['sport'] }}
+                            </x-badge>
+                        </div>
+                    @endif
 
                     @if(count($galleryPhotos) > 1)
                         <div class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm">
@@ -76,10 +90,10 @@
                         @foreach($galleryPhotos as $idx => $photoUrl)
                             <button
                                 type="button"
-                                onclick="document.getElementById('mainVenuePhoto').src = '{{ $photoUrl }}'; document.querySelectorAll('.venue-thumb').forEach(el => el.classList.remove('ring-2', 'ring-[#063B00]', 'opacity-100')); this.classList.add('ring-2', 'ring-[#063B00]', 'opacity-100');"
+                                onclick="document.getElementById('mainVenuePhoto').src = '{{ $photoUrl }}'; document.getElementById('mainVenuePhoto')?.classList.remove('hidden'); document.getElementById('venuePhotoPlaceholder')?.classList.add('hidden'); document.querySelectorAll('.venue-thumb').forEach(el => el.classList.remove('ring-2', 'ring-[#063B00]', 'opacity-100')); this.classList.add('ring-2', 'ring-[#063B00]', 'opacity-100');"
                                 class="venue-thumb relative h-16 w-24 sm:h-20 sm:w-28 shrink-0 rounded-xl overflow-hidden border border-slate-200 transition-all cursor-pointer hover:opacity-100 {{ $idx === 0 ? 'ring-2 ring-[#063B00] opacity-100' : 'opacity-70 hover:scale-105' }}"
                             >
-                                <img src="{{ $photoUrl }}" alt="Foto {{ $idx + 1 }}" class="w-full h-full object-cover">
+                                <img src="{{ $photoUrl }}" alt="Foto {{ $idx + 1 }}" class="w-full h-full object-cover" onerror="this.closest('.venue-thumb').style.display='none'">
                                 @if($idx === 0)
                                     <span class="absolute bottom-1 left-1 bg-[#063B00] text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow-xs">
                                         Cover
@@ -115,9 +129,11 @@
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-2">
                                     <span class="font-bold text-xs text-slate-900">{{ $court['name'] }}</span>
-                                    <span class="text-[9px] px-2 py-0.5 rounded-full font-bold {{ strtolower($court['sport']) === 'tennis' ? 'bg-[#A8E63A]/25 text-[#050608] border border-[#7FAF25]/35' : 'bg-[#7FAF25]/20 text-[#050608] border border-[#7FAF25]/35' }}">
-                                        {{ $court['sport'] }}
-                                    </span>
+                                    @if(!empty($court['sport']))
+                                        <span class="text-[9px] px-2 py-0.5 rounded-full font-bold {{ strtolower($court['sport']) === 'tennis' ? 'bg-[#A8E63A]/25 text-[#050608] border border-[#7FAF25]/35' : 'bg-[#7FAF25]/20 text-[#050608] border border-[#7FAF25]/35' }}">
+                                            {{ $court['sport'] }}
+                                        </span>
+                                    @endif
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <span class="text-[10px] px-2 py-0.5 rounded font-semibold {{ $court['status'] === 'Available' ? 'bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25' : 'bg-rose-50 text-rose-800 border border-rose-200' }}">
@@ -185,12 +201,16 @@
                 </h3>
 
                 <ul class="space-y-1.5 text-xs text-slate-600">
-                    @foreach($venue['facilities'] as $facility)
+                    @forelse($venue['facilities'] as $facility)
                         <li class="flex items-center gap-2">
                             <i class="fa-solid fa-check text-[#063B00] text-xs"></i>
                             <span>{{ $facility }}</span>
                         </li>
-                    @endforeach
+                    @empty
+                        <li class="text-slate-400 text-xs italic py-1">
+                            Belum ada informasi fasilitas untuk venue ini.
+                        </li>
+                    @endforelse
                 </ul>
             </div>
         </div>
@@ -233,7 +253,7 @@
                                 $photoDisplay = str_starts_with($rawPhoto, 'http') ? $rawPhoto : asset($rawPhoto);
                             @endphp
                             <div class="existing-photo-item relative group rounded-2xl overflow-hidden border border-slate-200 aspect-video bg-slate-900 shadow-2xs">
-                                <img src="{{ $photoDisplay }}" alt="Foto {{ $pIdx + 1 }}" class="w-full h-full object-cover">
+                                <img src="{{ $photoDisplay }}" alt="Foto {{ $pIdx + 1 }}" class="w-full h-full object-cover" onerror="this.closest('.existing-photo-item').style.display='none'">
                                 
                                 <input type="hidden" name="existing_photos[]" value="{{ $rawPhoto }}" class="existing-photo-input">
 

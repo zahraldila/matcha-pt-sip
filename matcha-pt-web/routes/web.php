@@ -71,6 +71,7 @@ Route::prefix('scoring')->name('scoring.')->group(function () {
 // Protected: Player Profile & Strava-like Recap
 Route::prefix('player')->name('player.')->middleware('auth')->group(function () {
     Route::get('/profile', [PlayerController::class, 'profile'])->name('profile');
+    Route::post('/profile', [PlayerController::class, 'updateProfile'])->name('profile.update');
     Route::get('/recap', [PlayerController::class, 'recap'])->name('recap');
 });
 

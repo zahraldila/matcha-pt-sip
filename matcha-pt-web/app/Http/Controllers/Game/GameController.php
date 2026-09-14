@@ -478,64 +478,59 @@ class GameController extends Controller
 
     public function show($id)
     {
-        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->find((int) $id);
+        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->findOrFail((int) $id);
 
-        if ($dbSession) {
-            $quota = (int) ($dbSession->jumlah_pemain ?? 6);
-            $joinedCount = $dbSession->players->count();
-            $slotLeft = max(0, $quota - $joinedCount);
-            $status = $slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)";
+        $quota = (int) ($dbSession->jumlah_pemain ?? 6);
+        $joinedCount = $dbSession->players->count();
+        $slotLeft = max(0, $quota - $joinedCount);
+        $status = $slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)";
 
-            $formatString = 'Americano';
-            $dbDrawing = \App\Models\Drawing::where('session_id', $dbSession->session_id)->with('matchFormat')->first();
-            if ($dbDrawing && $dbDrawing->matchFormat) {
-                $formatString = $dbDrawing->matchFormat->nama_format;
-            }
-            if (!str_contains(strtolower($formatString), 'team')) {
-                $jenis = $dbSession->jenis_permainan ?? 'Double';
-                $formatString .= ' / ' . $jenis;
-            }
-
-            $game = [
-                'id' => $dbSession->session_id,
-                'title' => $dbSession->nama_session,
-                'sport' => $dbSession->sport->nama_sport ?? 'Padel',
-                'venue_id' => $dbSession->venue_id,
-                'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
-                'court_name' => $dbSession->courts->first()->nama_court ?? 'Court 1',
-                'date' => $dbSession->datetime ? $dbSession->datetime->format('Y-m-d') : date('Y-m-d'),
-                'time' => $dbSession->waktu_session ?? '18:30 WIB',
-                'duration' => '2 Jam',
-                'quota' => $quota,
-                'joined_count' => $joinedCount,
-                'status' => $status,
-                'level_recommendation' => 'All Level Welcome',
-                'match_format' => $formatString,
-                'scoring_system' => $dbSession->scoring_system ?? 'Total of 3',
-                'host' => [
-                    'name' => $dbSession->host->nama ?? 'Host Matcha',
-                    'role' => 'Host Game',
-                    'level' => 'Intermediate',
-                    'phone' => $dbSession->host->no_hp ?? '-',
-                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-                ],
-                'participants' => $dbSession->players->map(function ($p) {
-                    return [
-                        'name' => $p->nama,
-                        'gender' => $p->gender ?? 'Male',
-                        'age' => $p->usia ?? 25,
-                        'level' => $p->level ?? 'Intermediate',
-                        'is_member' => !empty($p->user_id),
-                        'phone' => $p->no_hp,
-                        'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-                    ];
-                })->toArray(),
-                'drawing' => null,
-            ];
-        } else {
-            $games = MatchaDummyDataService::getGames();
-            $game = collect($games)->firstWhere('id', (int) $id) ?? $games[0];
+        $formatString = 'Americano';
+        $dbDrawing = \App\Models\Drawing::where('session_id', $dbSession->session_id)->with('matchFormat')->first();
+        if ($dbDrawing && $dbDrawing->matchFormat) {
+            $formatString = $dbDrawing->matchFormat->nama_format;
         }
+        if (!str_contains(strtolower($formatString), 'team')) {
+            $jenis = $dbSession->jenis_permainan ?? 'Double';
+            $formatString .= ' / ' . $jenis;
+        }
+
+        $game = [
+            'id' => $dbSession->session_id,
+            'title' => $dbSession->nama_session,
+            'sport' => $dbSession->sport->nama_sport ?? 'Padel',
+            'venue_id' => $dbSession->venue_id,
+            'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
+            'court_name' => $dbSession->courts->first()->nama_court ?? 'Court 1',
+            'date' => $dbSession->datetime ? $dbSession->datetime->format('Y-m-d') : date('Y-m-d'),
+            'time' => $dbSession->waktu_session ?? '18:30 WIB',
+            'duration' => '2 Jam',
+            'quota' => $quota,
+            'joined_count' => $joinedCount,
+            'status' => $status,
+            'level_recommendation' => 'All Level Welcome',
+            'match_format' => $formatString,
+            'scoring_system' => $dbSession->scoring_system ?? 'Total of 3',
+            'host' => [
+                'name' => $dbSession->host->nama ?? 'Host Matcha',
+                'role' => 'Host Game',
+                'level' => 'Intermediate',
+                'phone' => $dbSession->host->no_hp ?? '-',
+                'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+            ],
+            'participants' => $dbSession->players->map(function ($p) {
+                return [
+                    'name' => $p->nama,
+                    'gender' => $p->gender ?? 'Male',
+                    'age' => $p->usia ?? 25,
+                    'level' => $p->level ?? 'Intermediate',
+                    'is_member' => !empty($p->user_id),
+                    'phone' => $p->no_hp,
+                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                ];
+            })->toArray(),
+            'drawing' => null,
+        ];
 
         return view('games.show', compact('game'));
     }
