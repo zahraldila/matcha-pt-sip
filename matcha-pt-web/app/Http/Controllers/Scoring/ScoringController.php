@@ -65,13 +65,20 @@ class ScoringController extends Controller
             // Ensure match & participants exist in DB
             ScoringService::ensureMatchAndParticipants($game['id'], $activeRound, $mIdx, $matchContext);
 
-            // If Cache does not have score for this match key, restore from DB
-            if (! isset($savedScores[$mKey])) {
-                $dbScore = $this->getScoreFromDatabase($game['id'], $activeRound, $mIdx);
-                if ($dbScore) {
-                    $savedScores[$mKey] = $dbScore;
-                    $cacheUpdated = true;
+            // Reconcile cache with DB on refresh; completed/newer DB data wins.
+            $dbScore = $this->getScoreFromDatabase($game['id'], $activeRound, $mIdx);
+            $cachedScore = $savedScores[$mKey] ?? null;
+            $dbIsNewer = $dbScore && $cachedScore
+                && (int) ($dbScore['updated_at_ms'] ?? 0) > (int) ($cachedScore['updated_at_ms'] ?? 0);
+            $dbCompleted = $dbScore && ($dbScore['status'] ?? '') === 'completed'
+                && ($cachedScore['status'] ?? '') !== 'completed';
+
+            if ($dbScore && (! $cachedScore || $dbIsNewer || $dbCompleted)) {
+                $savedScores[$mKey] = $dbScore;
+                if ($courtCount === 1) {
+                    $savedScores[$activeRound] = $dbScore;
                 }
+                $cacheUpdated = true;
             }
         }
         if ($cacheUpdated) {
@@ -340,117 +347,127 @@ class ScoringController extends Controller
             // Abaikan kegagalan koneksi DB sekunder pada update AJAX realtime
         }
 
-        // Monotonic version per matchKey
-        $prevVersion = (int) ($scores[$matchKey]['version'] ?? 0);
-        $newVersion = $prevVersion + 1;
-        $serverTimeMs = (int) round(microtime(true) * 1000);
+        // Serialize cache read/compare/write so concurrent requests cannot overwrite a newer snapshot.
+        $scoreLock = Cache::lock("scoring.update.{$gameId}.{$matchKey}", 10);
+        $scoreLock->block(5);
 
-        $clientId = (string) $request->input('client_id', '');
-        $clientSeq = (int) $request->input('client_seq', $request->input('client_version', 0));
-        $prevClientSeq = (int) ($scores[$matchKey]['clients'][$clientId] ?? 0);
-
-        // Jika request berasal dari client yang sama dan datang terlambat (out-of-order),
-        // tolak penimpaan skor agar skor tidak mundur.
-        if (! empty($clientId) && $clientSeq > 0 && $prevClientSeq > 0 && $clientSeq < $prevClientSeq) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Stale update ignored.',
-                'saved' => $scores[$matchKey],
-                'match_key' => $matchKey,
-                'version' => (int) ($scores[$matchKey]['version'] ?? 0),
-                'server_time_ms' => $serverTimeMs,
-                'client_seq' => $clientSeq,
-                'stale_ignored' => true,
-            ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
-        }
-
-        // Pertahankan map client sequences
-        $clientMap = $scores[$matchKey]['clients'] ?? [];
-        if (! empty($clientId)) {
-            $clientMap[$clientId] = max($clientSeq, $prevClientSeq);
-        }
-
-        $scorePayload = [
-            'version' => $newVersion,
-            'updated_at_ms' => $serverTimeMs,
-            'clients' => $clientMap,
-            'score_a' => $request->integer('score_a'),
-            'score_b' => $request->integer('score_b'),
-            'point_display_a' => (string) $request->input('point_display_a', '0'),
-            'point_display_b' => (string) $request->input('point_display_b', '0'),
-            'set_number' => $request->integer('set_number', 1),
-            'sets_a' => $request->integer('sets_a', 0),
-            'sets_b' => $request->integer('sets_b', 0),
-            'games_a' => $request->integer('games_a', 0),
-            'games_b' => $request->integer('games_b', 0),
-            'set_history' => $request->input('set_history', []),
-            'idx_a' => $request->integer('idx_a', 0),
-            'idx_b' => $request->integer('idx_b', 0),
-            'is_deuce' => (bool) $request->input('is_deuce', false),
-            'advantage' => $request->input('advantage', null),
-            'scoring_type' => $request->input('scoring_type', 'total_of_sets'),
-            'status' => $status,
-            'winner_team' => $request->input('winner_team', null),
-            'updated_at' => now()->toDateTimeString(),
-        ];
-
-        $isMultiCourt = str_contains($matchKey, '_court_');
-        $scores[$matchKey] = $scorePayload;
-        // DILARANG fallback / sync ke $scores[$round] untuk multi-court agar tidak terjadi cross-court pollution
-        if (! $isMultiCourt) {
-            $scores[$round] = $scorePayload;
-        }
-
-        Cache::put($cacheKey, $scores, now()->addHours(4));
-
-        // Persistensi ke Database (tb_match, tb_match_participant, tb_score)
         try {
-            $session = SessionModel::with(['players', 'courts'])->find($gameId);
-            if ($session) {
-                $courtIndex = 0;
-                if (preg_match('/court_(\d+)/', $matchKey, $cm)) {
-                    $courtIndex = max(0, ((int) $cm[1]) - 1);
-                } elseif ($request->has('court')) {
-                    $courtIndex = max(0, $request->integer('court') - 1);
-                }
+            $scores = Cache::get($cacheKey, []);
 
-                // Reuse atau create match & participants
-                $match = ScoringService::ensureMatchAndParticipants($session, $round, $courtIndex);
-                if ($match) {
-                    $matchSummary = "Game Score {$scorePayload['games_a']} - {$scorePayload['games_b']}";
-                    $match->status_match = ($status === 'completed') ? 'Completed' : 'In Progress';
-                    $match->hasil_pertandingan = $matchSummary;
-                    if ($status === 'completed' && ! empty($scorePayload['winner_team'])) {
-                        $match->winner_team = $scorePayload['winner_team'];
-                        $match->waktu_selesai = now();
-                    }
-                    $match->save();
+            // Monotonic version per matchKey
+            $prevVersion = (int) ($scores[$matchKey]['version'] ?? 0);
+            $newVersion = $prevVersion + 1;
+            $serverTimeMs = (int) round(microtime(true) * 1000);
 
-                    // Simpan / update ke tb_score
-                    $setNumber = $scorePayload['set_number'] ?? 1;
-                    Score::updateOrCreate(
-                        [
-                            'match_id' => $match->match_id,
-                            'set_number' => $setNumber,
-                        ],
-                        [
-                            'game_number' => 1,
-                            'point_score_a' => $scorePayload['point_display_a'] ?? '0',
-                            'point_score_b' => $scorePayload['point_display_b'] ?? '0',
-                            'game_score_a' => $scorePayload['games_a'],
-                            'game_score_b' => $scorePayload['games_b'],
-                            'set_score_a' => $scorePayload['sets_a'],
-                            'set_score_b' => $scorePayload['sets_b'],
-                            'score_side_a' => $scorePayload['games_a'],
-                            'score_side_b' => $scorePayload['games_b'],
-                            'scoring_system' => $scorePayload['scoring_type'] ?? 'total_of_sets',
-                            'status_score' => ($status === 'completed') ? 'Final' : 'In Progress',
-                        ]
-                    );
-                }
+            $clientId = (string) $request->input('client_id', '');
+            $clientSeq = (int) $request->input('client_seq', $request->input('client_version', 0));
+            $prevClientSeq = (int) ($scores[$matchKey]['clients'][$clientId] ?? 0);
+
+            // Jika request berasal dari client yang sama dan datang terlambat (out-of-order),
+            // tolak penimpaan skor agar skor tidak mundur.
+            if (! empty($clientId) && $clientSeq > 0 && $prevClientSeq > 0 && $clientSeq < $prevClientSeq) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Stale update ignored.',
+                    'saved' => $scores[$matchKey],
+                    'match_key' => $matchKey,
+                    'version' => (int) ($scores[$matchKey]['version'] ?? 0),
+                    'server_time_ms' => $serverTimeMs,
+                    'client_seq' => $clientSeq,
+                    'stale_ignored' => true,
+                ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
             }
-        } catch (\Throwable $e) {
-            Log::warning('Failed to persist live score to database: '.$e->getMessage());
+
+            // Pertahankan map client sequences
+            $clientMap = $scores[$matchKey]['clients'] ?? [];
+            if (! empty($clientId)) {
+                $clientMap[$clientId] = max($clientSeq, $prevClientSeq);
+            }
+
+            $scorePayload = [
+                'version' => $newVersion,
+                'updated_at_ms' => $serverTimeMs,
+                'clients' => $clientMap,
+                'score_a' => $request->integer('score_a'),
+                'score_b' => $request->integer('score_b'),
+                'point_display_a' => (string) $request->input('point_display_a', '0'),
+                'point_display_b' => (string) $request->input('point_display_b', '0'),
+                'set_number' => $request->integer('set_number', 1),
+                'sets_a' => $request->integer('sets_a', 0),
+                'sets_b' => $request->integer('sets_b', 0),
+                'games_a' => $request->integer('games_a', 0),
+                'games_b' => $request->integer('games_b', 0),
+                'set_history' => $request->input('set_history', []),
+                'idx_a' => $request->integer('idx_a', 0),
+                'idx_b' => $request->integer('idx_b', 0),
+                'is_deuce' => (bool) $request->input('is_deuce', false),
+                'advantage' => $request->input('advantage', null),
+                'scoring_type' => $request->input('scoring_type', 'total_of_sets'),
+                'status' => $status,
+                'winner_team' => $request->input('winner_team', null),
+                'updated_at' => now()->toDateTimeString(),
+            ];
+
+            $isMultiCourt = str_contains($matchKey, '_court_');
+            $scores[$matchKey] = $scorePayload;
+            // DILARANG fallback / sync ke $scores[$round] untuk multi-court agar tidak terjadi cross-court pollution
+            if (! $isMultiCourt) {
+                $scores[$round] = $scorePayload;
+            }
+
+            Cache::put($cacheKey, $scores, now()->addHours(4));
+
+            // Persistensi ke Database (tb_match, tb_match_participant, tb_score)
+            try {
+                $session = SessionModel::with(['players', 'courts'])->find($gameId);
+                if ($session) {
+                    $courtIndex = 0;
+                    if (preg_match('/court_(\d+)/', $matchKey, $cm)) {
+                        $courtIndex = max(0, ((int) $cm[1]) - 1);
+                    } elseif ($request->has('court')) {
+                        $courtIndex = max(0, $request->integer('court') - 1);
+                    }
+
+                    // Reuse atau create match & participants
+                    $match = ScoringService::ensureMatchAndParticipants($session, $round, $courtIndex);
+                    if ($match) {
+                        $matchSummary = "Game Score {$scorePayload['games_a']} - {$scorePayload['games_b']}";
+                        $match->status_match = ($status === 'completed') ? 'Completed' : 'In Progress';
+                        $match->hasil_pertandingan = $matchSummary;
+                        if ($status === 'completed' && ! empty($scorePayload['winner_team'])) {
+                            $match->winner_team = $scorePayload['winner_team'];
+                            $match->waktu_selesai = now();
+                        }
+                        $match->save();
+
+                        // Simpan / update ke tb_score
+                        $setNumber = $scorePayload['set_number'] ?? 1;
+                        Score::updateOrCreate(
+                            [
+                                'match_id' => $match->match_id,
+                                'set_number' => $setNumber,
+                            ],
+                            [
+                                'game_number' => 1,
+                                'point_score_a' => $scorePayload['point_display_a'] ?? '0',
+                                'point_score_b' => $scorePayload['point_display_b'] ?? '0',
+                                'game_score_a' => $scorePayload['games_a'],
+                                'game_score_b' => $scorePayload['games_b'],
+                                'set_score_a' => $scorePayload['sets_a'],
+                                'set_score_b' => $scorePayload['sets_b'],
+                                'score_side_a' => $scorePayload['games_a'],
+                                'score_side_b' => $scorePayload['games_b'],
+                                'scoring_system' => $scorePayload['scoring_type'] ?? 'total_of_sets',
+                                'status_score' => ($status === 'completed') ? 'Final' : 'In Progress',
+                            ]
+                        );
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to persist live score to database: '.$e->getMessage());
+            }
+        } finally {
+            $scoreLock->release();
         }
 
         return response()->json([
@@ -800,79 +817,74 @@ class ScoringController extends Controller
         $cacheKey = "scoring.game_{$game['id']}";
         $savedScores = Cache::get($cacheKey, []);
 
-        // Fallback Database: Jika Cache kosong atau tidak ada ronde yang berstatus completed, coba muat dari database
-        $hasCompletedInCache = false;
-        foreach ($savedScores as $k => $v) {
-            if ($k !== '_meta' && is_array($v) && ($v['status'] ?? '') === 'completed') {
-                $hasCompletedInCache = true;
-                break;
-            }
-        }
+        // Lengkapi cache dari database agar ronde yang tidak ada/stale tetap terbaca.
+        try {
+            $drawingRecord = Drawing::where('session_id', $game['id'])->first();
+            if ($drawingRecord) {
+                $matches = GameMatch::with('scores')->where('drawing_id', $drawingRecord->drawing_id)->get();
+                $dbScoresRecovered = false;
+                $session = SessionModel::with('courts')->find($game['id']);
+                $courtCount = $session ? max(1, $session->courts->count()) : 1;
 
-        if (! $hasCompletedInCache) {
-            try {
-                $drawingRecord = Drawing::where('session_id', $game['id'])->first();
-                if ($drawingRecord) {
-                    $matches = GameMatch::with('scores')->where('drawing_id', $drawingRecord->drawing_id)->get();
-                    $dbScoresRecovered = false;
+                foreach ($matches as $match) {
+                    $roundNumber = intdiv(max(0, (int) $match->nomor_match - 1), $courtCount) + 1;
+                    $courtNumber = (($match->nomor_match - 1) % $courtCount) + 1;
+                    $rKey = "round_{$roundNumber}";
+                    $scoreKey = $courtCount > 1 ? "{$rKey}_court_{$courtNumber}" : $rKey;
+                    $matchScores = $match->scores;
+                    $mSetsA = 0;
+                    $mSetsB = 0;
+                    $mGamesA = 0;
+                    $mGamesB = 0;
+                    $mSetHistory = [];
 
-                    foreach ($matches as $match) {
-                        $rKey = "round_{$match->nomor_match}";
-                        $matchScores = $match->scores;
-                        $mSetsA = 0;
-                        $mSetsB = 0;
-                        $mGamesA = 0;
-                        $mGamesB = 0;
-                        $mSetHistory = [];
-
-                        foreach ($matchScores as $sc) {
-                            $mSetsA = max($mSetsA, (int) $sc->set_score_a);
-                            $mSetsB = max($mSetsB, (int) $sc->set_score_b);
-                            $mGamesA += (int) $sc->game_score_a;
-                            $mGamesB += (int) $sc->game_score_b;
-                            if ($scoringSystem['is_sets']) {
-                                $mSetHistory[] = [
-                                    'set' => (int) $sc->set_number,
-                                    'score_a' => (int) $sc->score_side_a,
-                                    'score_b' => (int) $sc->score_side_b,
-                                ];
-                            }
-                        }
-
-                        if ($matchScores->isNotEmpty() || $match->status_match === 'Completed') {
-                            $dbScoresRecovered = true;
-                            $savedScores[$rKey] = [
-                                'score_a' => $scoringSystem['is_sets'] ? $mSetsA : $mGamesA,
-                                'score_b' => $scoringSystem['is_sets'] ? $mSetsB : $mGamesB,
-                                'point_display_a' => '0',
-                                'point_display_b' => '0',
-                                'set_number' => max(1, count($mSetHistory)),
-                                'sets_a' => $mSetsA,
-                                'sets_b' => $mSetsB,
-                                'games_a' => $mGamesA,
-                                'games_b' => $mGamesB,
-                                'set_history' => $mSetHistory,
-                                'scoring_type' => $scoringSystem['type'],
-                                'scoring_system' => $scoringSystem['label'],
-                                'winner_team' => $match->winner_team ?: ($mGamesA >= $mGamesB ? 'Team A' : 'Team B'),
-                                'status' => 'completed',
-                                'updated_at' => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
-                            ];
-                            $savedScores['_meta'] = [
-                                'finished_at' => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
-                                'last_round_key' => $rKey,
-                                'status' => 'finished',
+                    foreach ($matchScores as $sc) {
+                        $mSetsA = max($mSetsA, (int) $sc->set_score_a);
+                        $mSetsB = max($mSetsB, (int) $sc->set_score_b);
+                        $mGamesA += (int) $sc->game_score_a;
+                        $mGamesB += (int) $sc->game_score_b;
+                        if ($scoringSystem['is_sets']) {
+                            $mSetHistory[] = [
+                                'set' => (int) $sc->set_number,
+                                'score_a' => (int) $sc->score_side_a,
+                                'score_b' => (int) $sc->score_side_b,
                             ];
                         }
                     }
 
-                    if ($dbScoresRecovered) {
-                        Cache::put($cacheKey, $savedScores, now()->addHours(4));
+                    if ($matchScores->isNotEmpty() || $match->status_match === 'Completed') {
+                        $dbScoresRecovered = true;
+                        $savedScores[$scoreKey] = [
+                            'score_a' => $scoringSystem['is_sets'] ? $mSetsA : $mGamesA,
+                            'score_b' => $scoringSystem['is_sets'] ? $mSetsB : $mGamesB,
+                            'point_display_a' => '0',
+                            'point_display_b' => '0',
+                            'set_number' => max(1, count($mSetHistory)),
+                            'sets_a' => $mSetsA,
+                            'sets_b' => $mSetsB,
+                            'games_a' => $mGamesA,
+                            'games_b' => $mGamesB,
+                            'set_history' => $mSetHistory,
+                            'scoring_type' => $scoringSystem['type'],
+                            'scoring_system' => $scoringSystem['label'],
+                            'winner_team' => $match->winner_team ?: ($mGamesA >= $mGamesB ? 'Team A' : 'Team B'),
+                            'status' => 'completed',
+                            'updated_at' => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
+                        ];
+                        $savedScores['_meta'] = [
+                            'finished_at' => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
+                            'last_round_key' => $rKey,
+                            'status' => 'finished',
+                        ];
                     }
                 }
-            } catch (\Throwable $e) {
-                Log::warning("Failed to recover scores from DB in recap: {$e->getMessage()}");
+
+                if ($dbScoresRecovered) {
+                    Cache::put($cacheKey, $savedScores, now()->addHours(4));
+                }
             }
+        } catch (\Throwable $e) {
+            Log::warning("Failed to recover scores from DB in recap: {$e->getMessage()}");
         }
 
         // Sinkronisasi effective round scores

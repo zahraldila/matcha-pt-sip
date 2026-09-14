@@ -109,7 +109,14 @@
                 $mCourt = $m['court'] ?? ($mIdx + 1);
                 $mCourtName = $m['court_name'] ?? "Court {$mCourt}";
                 $mKey = "{$rKey}_court_{$mCourt}";
-                $mScore = $effectiveScores[$mKey] ?? ($mIdx === 0 ? ($effectiveScores[$rKey] ?? []) : []);
+                if (count($roundMatches) > 1) {
+                    $mScore = $effectiveScores[$mKey] ?? ($mIdx === 0 ? ($effectiveScores[$rKey] ?? []) : []);
+                } else {
+                    $roundScore = $effectiveScores[$rKey] ?? [];
+                    $mScore = ($roundScore['status'] ?? '') === 'completed'
+                        ? $roundScore
+                        : ($effectiveScores[$mKey] ?? $roundScore);
+                }
                 $isDone = ($mScore['status'] ?? '') === 'completed';
                 $mSetsHist = $mScore['set_history'] ?? [];
                 $mWinner = $mScore['winner_team'] ?? null;

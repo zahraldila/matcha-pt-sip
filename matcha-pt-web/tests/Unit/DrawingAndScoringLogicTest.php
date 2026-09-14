@@ -263,6 +263,48 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertEquals(6, $recapByName['Eva']['games_lost']);
     }
 
+    public function test_single_court_recap_prefers_round_score_over_stale_court_key()
+    {
+        $game = [
+            'scoring_system' => 'Total of 3',
+            'participants' => [
+                ['name' => 'Alice'],
+                ['name' => 'Bob'],
+            ],
+            'drawing' => [
+                'round_1' => [
+                    'matches' => [[
+                        'court' => 1,
+                        'team_a_names' => ['Alice'],
+                        'team_b_names' => ['Bob'],
+                    ]],
+                ],
+            ],
+        ];
+        $sessionScores = [
+            'round_1' => [
+                'status' => 'completed',
+                'games_a' => 6,
+                'games_b' => 3,
+                'sets_a' => 1,
+                'sets_b' => 0,
+            ],
+            'round_1_court_1' => [
+                'status' => 'in_progress',
+                'games_a' => 0,
+                'games_b' => 0,
+            ],
+        ];
+
+        $recap = ScoringService::calculateRecap($game, $sessionScores);
+        $recapByName = collect($recap)->keyBy('name');
+
+        $this->assertSame(6, $recapByName['Alice']['games_won']);
+        $this->assertSame(3, $recapByName['Alice']['games_lost']);
+        $this->assertSame(3, $recapByName['Bob']['games_won']);
+        $this->assertSame(6, $recapByName['Bob']['games_lost']);
+    }
+
     // =========================================================================
     // AMERICANO SINGLE TESTS
     // =========================================================================

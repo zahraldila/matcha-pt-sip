@@ -278,9 +278,16 @@ class ScoringService
                 $matchScoreKey = "{$roundKey}_court_{$mCourt}";
                 $matchScoreKeyAlt = "{$roundKey}_match_{$mIdx}";
 
-                $matchScore = $effectiveScores[$matchScoreKey]
-                    ?? ($effectiveScores[$matchScoreKeyAlt]
-                    ?? ($mIdx === 0 ? ($effectiveScores[$roundKey] ?? []) : []));
+                if (count($roundMatches) > 1) {
+                    $matchScore = $effectiveScores[$matchScoreKey]
+                        ?? ($effectiveScores[$matchScoreKeyAlt]
+                        ?? ($mIdx === 0 ? ($effectiveScores[$roundKey] ?? []) : []));
+                } else {
+                    $roundScore = $effectiveScores[$roundKey] ?? [];
+                    $matchScore = ($roundScore['status'] ?? '') === 'completed'
+                        ? $roundScore
+                        : ($effectiveScores[$matchScoreKey] ?? $roundScore);
+                }
 
                 $status = $matchScore['status'] ?? ($effectiveScores[$roundKey]['status'] ?? 'pending');
 

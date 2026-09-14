@@ -525,6 +525,8 @@
             setsB: {{ (int) ($mScore['sets_b'] ?? 0) }},
             setHistory: {!! json_encode($mScore['set_history'] ?? []) !!} || [],
             matchDone: {{ (($mScore['status'] ?? '') === 'completed') ? 'true' : 'false' }},
+            completionSavePending: false,
+            completionSaveSucceeded: {{ (($mScore['status'] ?? '') === 'completed') ? 'true' : 'false' }},
             winnerTeam: {!! json_encode($mScore['winner_team'] ?? null) !!},
             isFinishing: false,
             courtNum: {{ $mIdx + 1 }},
@@ -533,7 +535,11 @@
             serverVersion: {{ (int) ($mScore['version'] ?? 0) }},
             localVersion: {{ (int) ($mScore['version'] ?? 0) }},
             pendingSaves: 0,
-            lastLocalActionTime: 0
+            lastLocalActionTime: 0,
+            saveQueued: null,
+            saveWorker: null,
+            activeSaveController: null,
+            activeSaveIsCompletion: false
         };
     @endforeach
 
@@ -578,7 +584,9 @@
         console.log(`[Optimistic UI] Court ${st.courtNum} +1 ${team} rendered in ${(tUiDone - tClick).toFixed(2)}ms (localVersion=${st.localVersion}, pendingSaves=${st.pendingSaves})`);
 
         // 3. Simpan asinkron ke server
-        saveScore(cIdx, null, clientSeq, tClick);
+        if (!st.matchDone) {
+            queueScoreSave(cIdx, null, clientSeq, tClick);
+        }
     }
 
     function handlePointWonByA(cIdx) {
@@ -665,11 +673,13 @@
 
         if (setWon) {
             st.matchDone = true;
+            st.completionSavePending = true;
+            st.completionSaveSucceeded = false;
             st.winnerTeam = setWon;
             st.setsA = (setWon === 'Team A') ? 1 : 0;
             st.setsB = (setWon === 'Team B') ? 1 : 0;
             updateDisplay(cIdx);
-            saveScore(cIdx, 'completed', st.localVersion);
+            queueScoreSave(cIdx, 'completed', st.localVersion);
         }
     }
 
@@ -691,11 +701,13 @@
         const clientSeq = st.localVersion;
 
         st.matchDone = true;
+        st.completionSavePending = true;
+        st.completionSaveSucceeded = false;
         st.winnerTeam = (st.gamesA >= st.gamesB) ? 'Team A' : 'Team B';
         st.setsA = (st.winnerTeam === 'Team A') ? 1 : 0;
         st.setsB = (st.winnerTeam === 'Team B') ? 1 : 0;
         updateDisplay(cIdx);
-        saveScore(cIdx, 'completed', clientSeq, tClick);
+        queueScoreSave(cIdx, 'completed', clientSeq, tClick);
         showToast(`Skor ${courtLabel} berhasil dikunci!`);
     }
 
@@ -847,7 +859,11 @@
 
     function syncRoundCompletionStatus() {
         const courtKeys = Object.keys(courtsState);
-        const allCourtsDone = courtKeys.length > 0 && courtKeys.every(k => courtsState[k].matchDone);
+        const allCourtsDone = courtKeys.length > 0 && courtKeys.every(k => (
+            courtsState[k].matchDone &&
+            !courtsState[k].completionSavePending &&
+            courtsState[k].completionSaveSucceeded
+        ));
 
         courtKeys.forEach(k => {
             const st = courtsState[k];
@@ -855,7 +871,7 @@
             const waitingText = document.getElementById('waitingOtherCourtsText_' + k);
             const nextNav = document.getElementById('nextRoundNav_' + k);
 
-            if (st.matchDone) {
+            if (st.matchDone && st.completionSaveSucceeded && !st.completionSavePending) {
                 if (!allCourtsDone) {
                     const otherUnfinished = courtKeys
                         .filter(otherK => otherK !== k && !courtsState[otherK].matchDone)
@@ -878,13 +894,58 @@
         });
     }
 
-    async function saveScore(cIdx, status = null, clientSeq = null, tClick = null) {
+    function queueScoreSave(cIdx, status = null, clientSeq = null, tClick = null) {
+        let st = courtsState[cIdx];
+        const isCompletionSave = status === 'completed';
+        if (isCompletionSave && st.activeSaveController && !st.activeSaveIsCompletion) {
+            st.activeSaveController.abort();
+        }
+        const snapshot = {
+            idxA: st.idxA,
+            idxB: st.idxB,
+            isDeuce: st.isDeuce,
+            advantage: st.advantage,
+            gamesA: st.gamesA,
+            gamesB: st.gamesB,
+            winnerTeam: st.winnerTeam,
+            matchDone: st.matchDone,
+            pointDisplays: getPointDisplays(cIdx),
+        };
+        if (st.saveQueued) {
+            st.pendingSaves = Math.max(0, (st.pendingSaves || 1) - 1);
+        }
+        st.saveQueued = { status, clientSeq, tClick, snapshot };
+
+        if (! st.saveWorker) {
+            st.saveWorker = (async () => {
+                while (st.saveQueued) {
+                    const queued = st.saveQueued;
+                    st.saveQueued = null;
+                    await saveScore(cIdx, queued.status, queued.clientSeq, queued.tClick, queued.snapshot);
+                }
+            })().finally(() => {
+                st.saveWorker = null;
+            });
+        }
+
+        return st.saveWorker;
+    }
+
+    async function saveScore(cIdx, status = null, clientSeq = null, tClick = null, snapshot = null) {
         let st = courtsState[cIdx];
         if (st.isFinishing) return;
 
+        const isCompletionSave = status === 'completed' || (!snapshot && st.matchDone);
+        if (isCompletionSave) {
+            st.completionSavePending = true;
+            st.completionSaveSucceeded = false;
+            syncRoundCompletionStatus();
+        }
+
         st.clientSeq = (st.clientSeq || 0) + 1;
-        const displays = getPointDisplays(cIdx);
-        const currentStatus = status ?? (st.matchDone ? 'completed' : 'in_progress');
+        const scoreState = snapshot || st;
+        const displays = snapshot ? snapshot.pointDisplays : getPointDisplays(cIdx);
+        const currentStatus = status ?? (scoreState.matchDone ? 'completed' : 'in_progress');
         const reqSeq = clientSeq || st.clientSeq;
         const body = {
             game_id         : GAME_ID,
@@ -892,30 +953,36 @@
             match_key       : st.matchKey,
             court           : st.courtNum,
             scoring_type    : SCORING_TYPE,
-            score_a         : st.gamesA,
-            score_b         : st.gamesB,
+            score_a         : scoreState.gamesA,
+            score_b         : scoreState.gamesB,
             point_display_a : displays.a,
             point_display_b : displays.b,
             set_number      : Number(ACTIVE_ROUND_NUM),
-            sets_a          : (st.gamesA >= st.gamesB && currentStatus === 'completed') ? 1 : 0,
-            sets_b          : (st.gamesB > st.gamesA && currentStatus === 'completed') ? 1 : 0,
-            games_a         : st.gamesA,
-            games_b         : st.gamesB,
-            set_history     : [{ set: Number(ACTIVE_ROUND_NUM), score_a: st.gamesA, score_b: st.gamesB }],
-            idx_a           : st.idxA,
-            idx_b           : st.idxB,
-            is_deuce        : st.isDeuce,
-            advantage       : st.advantage,
-            winner_team     : st.winnerTeam || (st.gamesA >= st.gamesB ? 'Team A' : 'Team B'),
+            sets_a          : (scoreState.gamesA >= scoreState.gamesB && currentStatus === 'completed') ? 1 : 0,
+            sets_b          : (scoreState.gamesB > scoreState.gamesA && currentStatus === 'completed') ? 1 : 0,
+            games_a         : scoreState.gamesA,
+            games_b         : scoreState.gamesB,
+            set_history     : [{ set: Number(ACTIVE_ROUND_NUM), score_a: scoreState.gamesA, score_b: scoreState.gamesB }],
+            idx_a           : scoreState.idxA,
+            idx_b           : scoreState.idxB,
+            is_deuce        : scoreState.isDeuce,
+            advantage       : scoreState.advantage,
+            winner_team     : scoreState.winnerTeam || (scoreState.gamesA >= scoreState.gamesB ? 'Team A' : 'Team B'),
             status          : currentStatus,
             client_id       : CLIENT_ID,
             client_version  : reqSeq,
             client_seq      : reqSeq,
         };
 
+        const requestController = new AbortController();
+        st.activeSaveController = requestController;
+        st.activeSaveIsCompletion = isCompletionSave;
+
         try {
             const res = await fetch(UPDATE_URL, {
                 method : 'POST',
+                keepalive: true,
+            signal: requestController.signal,
                 headers: {
                     'Content-Type' : 'application/json',
                     'X-CSRF-TOKEN' : CSRF_TOKEN,
@@ -926,6 +993,14 @@
             if (res.ok) {
                 const data = await res.json();
                 const incomingVer = Number(data.version || 0);
+
+                if (isCompletionSave && data.success !== false) {
+                    st.matchDone = true;
+                    st.completionSaveSucceeded = true;
+                    st.completionSavePending = false;
+                    updateDisplay(cIdx);
+                    syncRoundCompletionStatus();
+                }
 
                 if (incomingVer > (st.serverVersion || 0)) {
                     st.serverVersion = incomingVer;
@@ -942,9 +1017,19 @@
                 console.error(`Update score failed for court ${st.courtNum}:`, await res.text());
             }
         } catch (err) {
-            console.warn(`Gagal simpan skor court ${st.courtNum}:`, err);
+            if (err.name !== 'AbortError') {
+                console.warn(`Gagal simpan skor court ${st.courtNum}:`, err);
+            }
         } finally {
+            if (st.activeSaveController === requestController) {
+                st.activeSaveController = null;
+                st.activeSaveIsCompletion = false;
+            }
             st.pendingSaves = Math.max(0, (st.pendingSaves || 1) - 1);
+            if (isCompletionSave) {
+                st.completionSavePending = false;
+                syncRoundCompletionStatus();
+            }
             if (st.pendingSaves === 0) {
                 st.localVersion = Math.max(st.localVersion || 0, st.serverVersion || 0);
             }
@@ -1107,6 +1192,10 @@
                     st.setHistory  = data.set_history ?? [];
                     st.matchDone   = newMatchDone;
                     st.winnerTeam  = newWinner;
+                    if (newMatchDone) {
+                        st.completionSavePending = false;
+                        st.completionSaveSucceeded = true;
+                    }
 
                     const dispA  = document.getElementById('scoreDisplayA_' + cIdx);
                     const dispB  = document.getElementById('scoreDisplayB_' + cIdx);
