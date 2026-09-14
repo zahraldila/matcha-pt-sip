@@ -905,12 +905,13 @@
                         @foreach($rankedPlayers as $rp)
                         @php($storyStats = $storyPlayerStats[$rp['name']] ?? [])
                         <option value="{{ $rp['name'] }}" 
-                            data-points="{{ $rp['points_for'] ?? $rp['games_won'] }}" 
-                            data-wins="{{ $rp['wins'] }}" 
-                            data-losses="{{ $rp['losses'] }}"
-                            data-matches="{{ $rp['matches'] }}"
+                            data-points="{{ $storyStats['total_points'] ?? 0 }}" 
+                            data-wins="{{ $storyStats['wins'] ?? 0 }}" 
+                            data-losses="{{ $storyStats['losses'] ?? 0 }}"
+                            data-matches="{{ $rp['matches'] ?? 0 }}"
+                            data-win-rate="{{ $storyStats['win_rate'] ?? '0%' }}"
                             data-duration="{{ $storyStats['duration_played'] ?? '0m' }}">
-                            #{{ $rp['rank'] }} &bull; {{ $rp['name'] }} ({{ $rp['points_for'] ?? $rp['games_won'] }} pts)
+                            #{{ $rp['rank'] }} &bull; {{ $storyStats['player_name'] ?? $rp['name'] }} ({{ $storyStats['total_points'] ?? 0 }} pts)
                         </option>
                         @endforeach
                     </select>
@@ -1229,6 +1230,7 @@
         const wins = parseInt(selectedOpt.getAttribute('data-wins') || '0');
         const losses = parseInt(selectedOpt.getAttribute('data-losses') || '0');
         const matches = parseInt(selectedOpt.getAttribute('data-matches') || '1');
+        const winRate = selectedOpt.getAttribute('data-win-rate') || `${matches > 0 ? Math.round((wins / matches) * 100) : 0}%`;
         const duration = selectedOpt.getAttribute('data-duration') || '0m';
 
         const nameEl = document.getElementById('stravaPlayerName');
@@ -1244,8 +1246,7 @@
         if (recEl) recEl.innerText = `${wins}W - ${losses}L`;
         if (durationEl) durationEl.innerText = duration;
         if (wrEl) {
-            const rate = matches > 0 ? Math.round((wins / matches) * 100) : 0;
-            wrEl.innerText = `${rate}%`;
+            wrEl.innerText = winRate;
         }
     }
 
