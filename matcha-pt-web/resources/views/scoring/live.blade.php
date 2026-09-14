@@ -101,6 +101,16 @@
     
     @php
         $courtCount = $matchContext['court_count'] ?? count($matchContext['matches'] ?? []);
+        $activeRoundNum = preg_replace('/[^0-9]/', '', $activeRound) ?: '1';
+        $uncompletedCourtNames = [];
+        foreach ($matchContext['matches'] ?? [] as $checkIdx => $checkMatch) {
+            $checkKey = ($courtCount > 1) ? "{$activeRound}_court_" . ($checkIdx + 1) : $activeRound;
+            $checkScore = $savedScores[$checkKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
+            if (($checkScore['status'] ?? '') !== 'completed') {
+                $uncompletedCourtNames[$checkIdx] = $checkMatch['court_name'] ?? ('Court ' . ($checkIdx + 1));
+            }
+        }
+        $allCourtsCompleted = empty($uncompletedCourtNames);
     @endphp
     <div class="grid grid-cols-1 {{ $courtCount > 1 ? 'lg:grid-cols-2' : '' }} gap-6">
         @foreach($matchContext['matches'] ?? [] as $mIdx => $matchData)
@@ -331,32 +341,46 @@
         <div id="matchCompletedBanner_{{ $mIdx }}" class="{{ $isMCompleted ? '' : 'hidden' }} p-5 rounded-2xl bg-[#EBF8D8] border border-[#063B00]/30 text-center space-y-3 shadow-sm">
             <div class="text-3xl">🏆</div>
             <p class="text-base font-black text-[#063B00]" id="completedMsg_{{ $mIdx }}">
-                {{ $unitTabLabel }} {{ preg_replace('/[^0-9]/', '', $activeRound) ?: '1' }} Selesai! Skor Terkunci.
+                {{ $matchData['court_name'] ?? ('Court ' . ($mIdx + 1)) }} telah selesai pada {{ $unitTabLabel }} {{ $activeRoundNum }}!
             </p>
-            <p class="text-xs text-slate-600 font-medium">
-                Poin pada Set ini telah dicatat dan diakumulasikan ke klasemen pemain.
+            <p class="text-xs text-slate-600 font-medium" id="completedSubMsg_{{ $mIdx }}">
+                Skor Akhir: <strong>{{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }} Games</strong> &bull; Poin telah dicatat ke klasemen.
             </p>
-            
-            @if($nextRoundKey)
-                @php
-                    $nextRoundNum = preg_replace('/[^0-9]/', '', $nextRoundKey) ?: '2';
-                @endphp
-                <div class="pt-2">
+
+            @php
+                $otherUnfinished = array_diff_key($uncompletedCourtNames ?? [], [$mIdx => true]);
+                $otherNamesStr = implode(', ', $otherUnfinished);
+            @endphp
+
+            <!-- Status Tunggu Court Lain (Jika ada court lain yang belum selesai) -->
+            <div id="waitingOtherCourts_{{ $mIdx }}" class="{{ ($isMCompleted && !($allCourtsCompleted ?? false)) ? '' : 'hidden' }} p-3 rounded-xl bg-amber-50 border border-amber-200 text-center">
+                <div class="flex items-center justify-center gap-2 text-xs font-bold text-amber-900">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span id="waitingOtherCourtsText_{{ $mIdx }}">
+                        Menunggu {{ $otherNamesStr ?: 'court lain' }} menyelesaikan {{ $unitTabLabel }} {{ $activeRoundNum }}...
+                    </span>
+                </div>
+            </div>
+
+            <!-- Tombol Navigasi Ronde Berikutnya (Hanya tampil jika SELURUH court telah selesai) -->
+            <div id="nextRoundNav_{{ $mIdx }}" class="{{ ($isMCompleted && ($allCourtsCompleted ?? false)) ? '' : 'hidden' }} pt-2">
+                @if($nextRoundKey)
+                    @php
+                        $nextRoundNum = preg_replace('/[^0-9]/', '', $nextRoundKey) ?: '2';
+                    @endphp
                     <a href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => $nextRoundKey, 'court' => $courtIndex]) }}"
                        class="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95">
                         <span>Lanjut ke {{ $unitTabLabel }} {{ $nextRoundNum }} (Susunan Pasangan Baru)</span>
                         <i class="fa-solid fa-arrow-right text-[10px] text-[#A8E63A]"></i>
                     </a>
-                </div>
-            @else
-                <div class="pt-2">
+                @else
                     <a href="{{ route('scoring.recap', $game['id']) }}"
                        class="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95">
                         <span>🏁 Semua Set Selesai — Buka Klasemen Akhir &amp; Podium</span>
                         <i class="fa-solid fa-trophy text-[10px] text-amber-200"></i>
                     </a>
-                </div>
-            @endif
+                @endif
+            </div>
         </div>
 
         <!-- Controls: Selesaikan Sesi & Lihat Juara — hanya untuk Host -->
@@ -465,6 +489,7 @@
     const TARGET_GAMES   = {{ $scoringSystem['target_games'] ?? 6 }};
     const GAME_ID        = {{ $game['id'] }};
     const ACTIVE_ROUND   = '{{ $activeRound }}';
+    const ACTIVE_ROUND_NUM = '{{ preg_replace('/[^0-9]/', '', $activeRound) ?: '1' }}';
     const UNIT_TAB_LABEL = '{{ $unitTabLabel }}';
     const CSRF_TOKEN     = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
     const UPDATE_URL     = '{{ route('scoring.update-score') }}';
@@ -498,6 +523,7 @@
             winnerTeam: {!! json_encode($mScore['winner_team'] ?? null) !!},
             isFinishing: false,
             courtNum: {{ $mIdx + 1 }},
+            courtName: {!! json_encode($m['court_name'] ?? ('Court ' . ($mIdx + 1))) !!},
             matchKey: '{{ $mKey }}',
             serverVersion: {{ (int) ($mScore['version'] ?? 0) }},
             localVersion: {{ (int) ($mScore['version'] ?? 0) }},
@@ -738,10 +764,12 @@
     function showCompletedBanner(winner, cIdx) {
         const banner = document.getElementById('matchCompletedBanner_' + cIdx);
         const msg    = document.getElementById('completedMsg_' + cIdx);
+        const subMsg = document.getElementById('completedSubMsg_' + cIdx);
         let st = courtsState[cIdx];
-        const scoreSummary = `Skor: ${st.gamesA} — ${st.gamesB} Games`;
+        const courtLabel = st.courtName || ('Court ' + st.courtNum);
 
-        if (msg) msg.textContent = `🏆 ${winner} Memenangkan Match di Court ${st.courtNum}! (${scoreSummary})`;
+        if (msg) msg.textContent = `🏆 ${courtLabel} telah selesai pada ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM}!`;
+        if (subMsg) subMsg.innerHTML = `Skor Akhir: <strong>${st.gamesA} &mdash; ${st.gamesB} Games</strong> (${winner}) &bull; Poin telah dicatat ke klasemen.`;
         if (banner) banner.classList.remove('hidden');
 
         const bA = document.getElementById('btnAddA_' + cIdx);
@@ -756,6 +784,41 @@
             bB.className = 'w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2';
             bB.innerHTML = '<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci';
         }
+
+        syncRoundCompletionStatus();
+    }
+
+    function syncRoundCompletionStatus() {
+        const courtKeys = Object.keys(courtsState);
+        const allCourtsDone = courtKeys.length > 0 && courtKeys.every(k => courtsState[k].matchDone);
+
+        courtKeys.forEach(k => {
+            const st = courtsState[k];
+            const waitingBox = document.getElementById('waitingOtherCourts_' + k);
+            const waitingText = document.getElementById('waitingOtherCourtsText_' + k);
+            const nextNav = document.getElementById('nextRoundNav_' + k);
+
+            if (st.matchDone) {
+                if (!allCourtsDone) {
+                    const otherUnfinished = courtKeys
+                        .filter(otherK => otherK !== k && !courtsState[otherK].matchDone)
+                        .map(otherK => courtsState[otherK].courtName || ('Court ' + courtsState[otherK].courtNum));
+                    
+                    const waitingNames = otherUnfinished.join(', ') || 'court lain';
+                    if (waitingBox) waitingBox.classList.remove('hidden');
+                    if (waitingText) {
+                        waitingText.textContent = `Menunggu ${waitingNames} menyelesaikan ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM}...`;
+                    }
+                    if (nextNav) nextNav.classList.add('hidden');
+                } else {
+                    if (waitingBox) waitingBox.classList.add('hidden');
+                    if (nextNav) nextNav.classList.remove('hidden');
+                }
+            } else {
+                if (waitingBox) waitingBox.classList.add('hidden');
+                if (nextNav) nextNav.classList.add('hidden');
+            }
+        });
     }
 
     async function saveScore(cIdx, status = null, clientSeq = null, tClick = null) {
@@ -1034,5 +1097,8 @@
     Object.keys(courtsState).forEach(cIdx => {
         updateDisplay(cIdx);
     });
+    syncRoundCompletionStatus();
 </script>
 @endpush
+@endsection
+
