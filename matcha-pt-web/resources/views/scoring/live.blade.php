@@ -360,7 +360,7 @@
         </div>
 
         <!-- Match Completed Banner -->
-        <div id="matchCompletedBanner_{{ $mIdx }}" class="{{ $isMCompleted ? '' : 'hidden' }} p-5 rounded-2xl bg-[#EBF8D8] border border-[#063B00]/30 text-center space-y-3 shadow-sm">
+        <div id="matchCompletedBanner_{{ $mIdx }}" class="{{ $isMCompleted ? '' : 'hidden' }} p-5 rounded-2xl bg-[#EBF8D8] border border-[#063B00]/30 text-center space-y-2 shadow-sm">
             <div class="text-3xl">🏆</div>
             <p class="text-base font-black text-[#063B00]" id="completedMsg_{{ $mIdx }}">
                 {{ $matchData['court_name'] ?? ('Court ' . ($mIdx + 1)) }} telah selesai pada {{ $unitTabLabel }} {{ $activeRoundNum }}!
@@ -368,87 +368,20 @@
             <p class="text-xs text-slate-600 font-medium" id="completedSubMsg_{{ $mIdx }}">
                 Skor Akhir: <strong>{{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }} Games</strong> &bull; Poin telah dicatat ke klasemen.
             </p>
-
-            @php
-                $otherUnfinished = array_diff_key($uncompletedCourtNames ?? [], [$mIdx => true]);
-                $otherNamesStr = implode(', ', $otherUnfinished);
-            @endphp
-
-            <!-- Status Tunggu Court Lain (Jika ada court lain yang belum selesai) -->
-            <div id="waitingOtherCourts_{{ $mIdx }}" class="{{ ($isMCompleted && !($allCourtsCompleted ?? false)) ? '' : 'hidden' }} p-3 rounded-xl bg-amber-50 border border-amber-200 text-center">
-                <div class="flex items-center justify-center gap-2 text-xs font-bold text-amber-900">
-                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                    <span id="waitingOtherCourtsText_{{ $mIdx }}">
-                        Menunggu {{ $otherNamesStr ?: 'court lain' }} menyelesaikan {{ $unitTabLabel }} {{ $activeRoundNum }} sebelum melanjutkan ke ronde berikutnya.
-                    </span>
-                </div>
-            </div>
-
-            <!-- Tombol Navigasi Ronde Berikutnya (Hanya tampil jika SELURUH court telah selesai) -->
-            <div id="nextRoundNav_{{ $mIdx }}" class="{{ ($isMCompleted && ($allCourtsCompleted ?? false)) ? '' : 'hidden' }} pt-2">
-                @if($nextRoundKey)
-                    @php
-                        $nextRoundNum = preg_replace('/[^0-9]/', '', $nextRoundKey) ?: '2';
-                    @endphp
-                    <a href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => $nextRoundKey, 'court' => $courtIndex]) }}"
-                       class="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95">
-                        <span>Lanjut ke {{ $unitTabLabel }} {{ $nextRoundNum }} (Pertandingan Berikutnya)</span>
-                        <i class="fa-solid fa-arrow-right text-[10px] text-[#A8E63A]"></i>
-                    </a>
-                @else
-                    <a href="{{ route('scoring.recap', $game['id']) }}"
-                       class="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95">
-                        <span>🏁 Semua {{ $unitTabLabel }} Selesai — Buka Klasemen Akhir &amp; Podium</span>
-                        <i class="fa-solid fa-trophy text-[10px] text-amber-200"></i>
-                    </a>
-                @endif
-            </div>
         </div>
 
-        <!-- Controls: Selesaikan Sesi & Lihat Juara — hanya untuk Host -->
+        <!-- Controls: Kunci & Selesaikan Court Ini — hanya untuk Host -->
         @if($isHost)
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200/50">
-            <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-                <a href="{{ route('scoring.recap', $game['id']) }}"
-                   class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-2xs transition-colors flex items-center gap-1.5 justify-center">
-                    <i class="fa-solid fa-ranking-star text-[10px] text-amber-500"></i> Lihat Klasemen Sementara
-                </a>
+        <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-200/50">
+            <button type="button" id="btnManualComplete_{{ $mIdx }}" onclick="manualCompleteSet({{ $mIdx }})"
+               class="{{ $isMCompleted ? 'hidden' : '' }} px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 shadow-2xs transition-colors flex items-center gap-1.5 justify-center cursor-pointer">
+                <i class="fa-solid fa-lock text-amber-600"></i> Kunci &amp; Selesaikan Court Ini
+            </button>
 
-                <button type="button" id="btnManualComplete_{{ $mIdx }}" onclick="manualCompleteSet({{ $mIdx }})"
-                   class="{{ $isMCompleted ? 'hidden' : '' }} px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 shadow-2xs transition-colors flex items-center gap-1.5 justify-center cursor-pointer">
-                    <i class="fa-solid fa-lock text-amber-600"></i> Kunci &amp; Selesaikan {{ $unitTabLabel }} Ini
-                </button>
-
-                <div class="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Sinkron realtime: <strong id="hostSyncTimer_{{ $mIdx }}" class="text-emerald-700 font-bold">0.8s</strong></span>
-                </div>
+            <div class="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1 ml-auto">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Sinkron realtime: <strong id="hostSyncTimer_{{ $mIdx }}" class="text-emerald-700 font-bold">0.8s</strong></span>
             </div>
-
-            <form id="finishForm_{{ $mIdx }}" action="{{ route('scoring.finish') }}" method="POST" class="w-full sm:w-auto">
-                @csrf
-                <input type="hidden" name="game_id"         value="{{ $game['id'] }}">
-                <input type="hidden" name="round"           value="{{ $activeRound }}">
-                <input type="hidden" name="match_key"       value="{{ $mKey }}">
-                <input type="hidden" name="court"           value="{{ $mIdx + 1 }}">
-                <input type="hidden" name="scoring_system"  value="{{ $scoringSystem['label'] }}">
-                <input type="hidden" name="score_a"         id="finishScoreA_{{ $mIdx }}" value="0">
-                <input type="hidden" name="score_b"         id="finishScoreB_{{ $mIdx }}" value="0">
-                <input type="hidden" name="sets_a"          id="finishSetsA_{{ $mIdx }}" value="{{ $currentScore['sets_a'] ?? 0 }}">
-                <input type="hidden" name="sets_b"          id="finishSetsB_{{ $mIdx }}" value="{{ $currentScore['sets_b'] ?? 0 }}">
-                <input type="hidden" name="games_a"         id="finishGamesA_{{ $mIdx }}" value="{{ $currentScore['games_a'] ?? 0 }}">
-                <input type="hidden" name="games_b"         id="finishGamesB_{{ $mIdx }}" value="{{ $currentScore['games_b'] ?? 0 }}">
-                <input type="hidden" name="set_number"      id="finishSetNumber_{{ $mIdx }}" value="{{ $currentScore['set_number'] ?? 1 }}">
-                <input type="hidden" name="point_display_a" id="finishPointDisplayA_{{ $mIdx }}" value="0">
-                <input type="hidden" name="point_display_b" id="finishPointDisplayB_{{ $mIdx }}" value="0">
-                <input type="hidden" name="set_history"     id="finishSetHistory_{{ $mIdx }}" value="{{ json_encode($currentScore['set_history'] ?? []) }}">
-                <input type="hidden" name="winner_team"     id="finishWinnerTeam_{{ $mIdx }}" value="">
-
-                <button type="submit" id="btnFinishSession_{{ $mIdx }}" onclick="submitFinish(event, {{ $mIdx }})"
-                    class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
-                    <i class="fa-solid fa-flag-checkered text-[11px] text-[#A8E63A]"></i> Selesaikan Sesi &amp; Lihat Juara
-                </button>
-            </form>
         </div>
         @else
         {{-- Member: info bahwa skor diperbarui otomatis --}}
@@ -457,16 +390,91 @@
                 <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
                 <span>Skor sinkron otomatis realtime setiap <strong id="countdownTimer_{{ $mIdx }}" class="text-sky-700 font-bold">0.8s</strong></span>
             </div>
-            <a href="{{ route('scoring.recap', $game['id']) }}"
-               class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-2xs transition-colors flex items-center gap-1.5">
-                <i class="fa-solid fa-ranking-star text-[10px]"></i> Lihat Klasemen Sementara
-            </a>
         </div>
         @endif
     </div>
-
-
         @endforeach
+    </div>
+
+    <!-- Global Session Control & Navigation Bar (Single Unified Control) -->
+    <div id="globalSessionControlBar" class="glass-card rounded-2xl p-5 border border-white/90 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <!-- Status Indicator & Info -->
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-[#063B00] border border-emerald-200 flex items-center justify-center text-base shrink-0 shadow-2xs">
+                <i class="fa-solid fa-flag-checkered"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span id="globalRoundStatusDot" class="w-2.5 h-2.5 rounded-full {{ ($allCourtsCompleted ?? false) ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse' }}"></span>
+                    <h3 id="globalRoundStatusTitle" class="text-sm font-extrabold text-slate-800">
+                        @if($allCourtsCompleted ?? false)
+                            Seluruh Pertandingan {{ $unitTabLabel }} {{ $activeRoundNum }} Selesai!
+                        @else
+                            Status Pertandingan {{ $unitTabLabel }} {{ $activeRoundNum }}
+                        @endif
+                    </h3>
+                </div>
+                <p id="globalRoundStatusDesc" class="text-xs text-slate-500 font-medium mt-0.5">
+                    @if($allCourtsCompleted ?? false)
+                        Semua court telah menyelesaikan pertandingan. Silakan lanjut ke {{ $nextRoundKey ? strtolower($unitTabLabel) . ' berikutnya' : 'hasil akhir & podium' }}.
+                    @else
+                        @php
+                            $uncompletedNames = array_values($uncompletedCourtNames ?? []);
+                            $uncompletedStr = implode(', ', $uncompletedNames);
+                        @endphp
+                        {{ $uncompletedStr ? 'Menunggu ' . $uncompletedStr . ' menyelesaikan pertandingan...' : 'Pertandingan sedang berlangsung pada seluruh court...' }}
+                    @endif
+                </p>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3 flex-wrap justify-end">
+            <a href="{{ route('scoring.recap', $game['id']) }}"
+               class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-2xs transition-colors flex items-center gap-1.5 justify-center">
+                <i class="fa-solid fa-ranking-star text-[11px] text-amber-500"></i> Klasemen Sementara
+            </a>
+
+            @if($nextRoundKey)
+                @php
+                    $nextRoundNum = preg_replace('/[^0-9]/', '', $nextRoundKey) ?: '2';
+                @endphp
+                <a id="btnGlobalNextRound"
+                   href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => $nextRoundKey, 'court' => $courtIndex]) }}"
+                   class="{{ ($allCourtsCompleted ?? false) ? '' : 'hidden' }} inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
+                    <span>Lanjut ke {{ $unitTabLabel }} {{ $nextRoundNum }} (Pertandingan Berikutnya)</span>
+                    <i class="fa-solid fa-arrow-right text-[11px] text-[#A8E63A]"></i>
+                </a>
+            @else
+                @if($isHost)
+                    <form id="globalFinishForm" action="{{ route('scoring.finish') }}" method="POST" class="{{ ($allCourtsCompleted ?? false) ? '' : 'hidden' }} m-0">
+                        @csrf
+                        <input type="hidden" name="game_id"         value="{{ $game['id'] }}">
+                        <input type="hidden" name="round"           value="{{ $activeRound }}">
+                        <input type="hidden" name="scoring_system"  value="{{ $scoringSystem['label'] }}">
+                        <input type="hidden" name="score_a"         id="globalFinishScoreA" value="0">
+                        <input type="hidden" name="score_b"         id="globalFinishScoreB" value="0">
+                        <input type="hidden" name="sets_a"          id="globalFinishSetsA" value="0">
+                        <input type="hidden" name="sets_b"          id="globalFinishSetsB" value="0">
+                        <input type="hidden" name="games_a"         id="globalFinishGamesA" value="0">
+                        <input type="hidden" name="games_b"         id="globalFinishGamesB" value="0">
+                        <input type="hidden" name="set_number"      id="globalFinishSetNumber" value="{{ $activeRoundNum }}">
+                        <input type="hidden" name="winner_team"     id="globalFinishWinnerTeam" value="">
+
+                        <button type="submit" id="btnGlobalFinishSession" onclick="submitGlobalFinish(event)"
+                            class="px-6 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-trophy text-[11px] text-[#A8E63A]"></i> Selesaikan Sesi &amp; Lihat Juara
+                        </button>
+                    </form>
+                @else
+                    <a id="btnGlobalRecap" href="{{ route('scoring.recap', $game['id']) }}"
+                       class="{{ ($allCourtsCompleted ?? false) ? '' : 'hidden' }} inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
+                        <span>🏁 Selesai — Buka Klasemen Akhir &amp; Podium</span>
+                        <i class="fa-solid fa-trophy text-[11px] text-amber-200"></i>
+                    </a>
+                @endif
+            @endif
+        </div>
     </div>
     {{-- Tim Istirahat Set Ini --}}
     @if(!empty($matchContext['resting']))
@@ -827,7 +835,6 @@
         }
 
         syncRoundCompletionStatus();
-        syncFinishFormInputs(cIdx);
     }
 
     function showCompletedBanner(winner, cIdx) {
@@ -879,33 +886,50 @@
             courtsState[k].completionSaveSucceeded
         ));
 
-        courtKeys.forEach(k => {
-            const st = courtsState[k];
-            const waitingBox = document.getElementById('waitingOtherCourts_' + k);
-            const waitingText = document.getElementById('waitingOtherCourtsText_' + k);
-            const nextNav = document.getElementById('nextRoundNav_' + k);
+        const unfinishedCourts = courtKeys
+            .filter(k => !courtsState[k].matchDone)
+            .map(k => courtsState[k].courtName || ('Court ' + courtsState[k].courtNum));
 
-            if (st.matchDone && st.completionSaveSucceeded && !st.completionSavePending) {
-                if (!allCourtsDone) {
-                    const otherUnfinished = courtKeys
-                        .filter(otherK => otherK !== k && !courtsState[otherK].matchDone)
-                        .map(otherK => courtsState[otherK].courtName || ('Court ' + courtsState[otherK].courtNum));
-                    
-                    const waitingNames = otherUnfinished.join(', ') || 'court lain';
-                    if (waitingBox) waitingBox.classList.remove('hidden');
-                    if (waitingText) {
-                        waitingText.textContent = `Menunggu ${waitingNames} menyelesaikan ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} sebelum melanjutkan ke ronde berikutnya.`;
-                    }
-                    if (nextNav) nextNav.classList.add('hidden');
-                } else {
-                    if (waitingBox) waitingBox.classList.add('hidden');
-                    if (nextNav) nextNav.classList.remove('hidden');
-                }
-            } else {
-                if (waitingBox) waitingBox.classList.add('hidden');
-                if (nextNav) nextNav.classList.add('hidden');
+        // Update Global Session Control Bar
+        const globalTitle = document.getElementById('globalRoundStatusTitle');
+        const globalDesc  = document.getElementById('globalRoundStatusDesc');
+        const globalDot   = document.getElementById('globalRoundStatusDot');
+        const btnNext     = document.getElementById('btnGlobalNextRound');
+        const formFinish  = document.getElementById('globalFinishForm');
+        const btnRecap    = document.getElementById('btnGlobalRecap');
+
+        if (allCourtsDone) {
+            if (globalDot) {
+                globalDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
             }
-        });
+            if (globalTitle) {
+                globalTitle.textContent = `Seluruh Pertandingan ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Selesai!`;
+                globalTitle.className = 'text-sm font-extrabold text-[#063B00]';
+            }
+            if (globalDesc) {
+                globalDesc.textContent = `Semua court telah mencatat skor akhir. Silakan lanjut ke ${btnNext ? strtolower(UNIT_TAB_LABEL) + ' berikutnya' : 'hasil akhir & podium'}.`;
+            }
+            if (btnNext) btnNext.classList.remove('hidden');
+            if (formFinish) formFinish.classList.remove('hidden');
+            if (btnRecap) btnRecap.classList.remove('hidden');
+        } else {
+            if (globalDot) {
+                globalDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse';
+            }
+            if (globalTitle) {
+                globalTitle.textContent = `Status Pertandingan ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM}`;
+                globalTitle.className = 'text-sm font-extrabold text-slate-800';
+            }
+            if (globalDesc) {
+                const namesStr = unfinishedCourts.join(', ');
+                globalDesc.textContent = namesStr 
+                    ? `Menunggu ${namesStr} menyelesaikan pertandingan...` 
+                    : `Pertandingan sedang berlangsung pada seluruh court...`;
+            }
+            if (btnNext) btnNext.classList.add('hidden');
+            if (formFinish) formFinish.classList.add('hidden');
+            if (btnRecap) btnRecap.classList.add('hidden');
+        }
     }
 
     function queueScoreSave(cIdx, status = null, clientSeq = null, tClick = null) {
@@ -1050,54 +1074,38 @@
         }
     }
 
-    function syncFinishFormInputs(cIdx) {
-        let st = courtsState[cIdx];
-        const finA       = document.getElementById('finishScoreA_' + cIdx);
-        const finB       = document.getElementById('finishScoreB_' + cIdx);
-        const finSetsA   = document.getElementById('finishSetsA_' + cIdx);
-        const finSetsB   = document.getElementById('finishSetsB_' + cIdx);
-        const finGamesA  = document.getElementById('finishGamesA_' + cIdx);
-        const finGamesB  = document.getElementById('finishGamesB_' + cIdx);
-        const finSetNum  = document.getElementById('finishSetNumber_' + cIdx);
-        const finPDispA  = document.getElementById('finishPointDisplayA_' + cIdx);
-        const finPDispB  = document.getElementById('finishPointDisplayB_' + cIdx);
-        const finHistory = document.getElementById('finishSetHistory_' + cIdx);
-        const finWinner  = document.getElementById('finishWinnerTeam_' + cIdx);
+    function submitGlobalFinish(event) {
+        if (event) event.preventDefault();
 
-        const curWinner  = st.winnerTeam || (st.gamesA >= st.gamesB ? 'Team A' : 'Team B');
-        const displays   = getPointDisplays(cIdx);
+        // Cari snapshot state representatif dari court yang ada
+        const firstCIdx = Object.keys(courtsState)[0] || 0;
+        const st = courtsState[firstCIdx] || {};
 
-        if (finPDispA)  finPDispA.value  = displays.a;
-        if (finPDispB)  finPDispB.value  = displays.b;
+        const finA       = document.getElementById('globalFinishScoreA');
+        const finB       = document.getElementById('globalFinishScoreB');
+        const finSetsA   = document.getElementById('globalFinishSetsA');
+        const finSetsB   = document.getElementById('globalFinishSetsB');
+        const finGamesA  = document.getElementById('globalFinishGamesA');
+        const finGamesB  = document.getElementById('globalFinishGamesB');
+        const finWinner  = document.getElementById('globalFinishWinnerTeam');
+
+        if (finA)       finA.value       = st.gamesA || 0;
+        if (finB)       finB.value       = st.gamesB || 0;
         if (finSetsA)   finSetsA.value   = (st.gamesA >= st.gamesB) ? 1 : 0;
         if (finSetsB)   finSetsB.value   = (st.gamesB > st.gamesA) ? 1 : 0;
-        if (finGamesA)  finGamesA.value  = st.gamesA;
-        if (finGamesB)  finGamesB.value  = st.gamesB;
-        if (finSetNum)  finSetNum.value  = Number(ACTIVE_ROUND_NUM);
-        if (finHistory) finHistory.value = JSON.stringify([{ set: Number(ACTIVE_ROUND_NUM), score_a: st.gamesA, score_b: st.gamesB }]);
-        if (finA)       finA.value       = st.gamesA;
-        if (finB)       finB.value       = st.gamesB;
-        if (finWinner)  finWinner.value  = curWinner;
-    }
+        if (finGamesA)  finGamesA.value  = st.gamesA || 0;
+        if (finGamesB)  finGamesB.value  = st.gamesB || 0;
+        if (finWinner)  finWinner.value  = st.winnerTeam || (st.gamesA >= st.gamesB ? 'Team A' : 'Team B');
 
-    function submitFinish(event, cIdx) {
-        if (event) event.preventDefault();
-        
-        let st = courtsState[cIdx];
-        st.isFinishing = true;
-
-        syncFinishFormInputs(cIdx);
-
-        const btn = document.getElementById('btnFinishSession_' + cIdx);
+        const btn = document.getElementById('btnGlobalFinishSession');
         if (btn) {
             btn.disabled = true;
             btn.classList.add('opacity-75', 'cursor-not-allowed');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs text-[#A8E63A]"></i> Menyimpan Sesi...';
         }
 
-        showToast(`Menyimpan hasil akhir Court ${st.courtNum}...`);
-
-        const form = document.getElementById('finishForm_' + cIdx);
+        showToast('Menyimpan hasil akhir seluruh sesi pertandingan...');
+        const form = document.getElementById('globalFinishForm');
         if (form) form.submit();
     }
 
