@@ -49,9 +49,13 @@
     @php
         $isTeamFormat = str_contains(strtolower($game['match_format'] ?? ''), 'team');
         $unitTabLabel = $isTeamFormat ? 'Ronde' : ($scoringSystem['is_sets'] ? 'Set' : 'Ronde');
-        $allRoundsList = $scoringSystem['is_sets']
-            ? array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, $scoringSystem['max_sets']))
-            : ['round_1'];
+        $drawingRounds = !empty($game['drawing']) ? array_keys($game['drawing']) : [];
+        if ($scoringSystem['is_sets']) {
+            $numSets = max(count($drawingRounds), (int) ($scoringSystem['max_sets'] ?? 1));
+            $allRoundsList = array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, $numSets));
+        } else {
+            $allRoundsList = !empty($drawingRounds) ? $drawingRounds : ['round_1'];
+        }
         $currentRIndex = array_search($activeRound, $allRoundsList);
         $nextRoundKey = ($currentRIndex !== false && isset($allRoundsList[$currentRIndex + 1])) ? $allRoundsList[$currentRIndex + 1] : null;
         $isCurrentSetCompleted = (($currentScore['status'] ?? '') === 'completed');
@@ -224,7 +228,7 @@
 
             <div id="setHistoryContainer_{{ $mIdx }}" class="flex items-center justify-center gap-2 flex-wrap pt-1 text-[11px]">
                 <span class="text-slate-400 font-semibold" id="currentSetLabel_{{ $mIdx }}">
-                    Status: <strong>{{ $isMCompleted ? ($unitTabLabel . ' Selesai') : 'Sedang Berlangsung' }}</strong>
+                    Status: <strong>{{ $isMCompleted ? ($unitTabLabel . ' Selesai & Terkunci') : 'Sedang Berlangsung' }}</strong>
                 </span>
                 <span id="currentSetGamesBadge_{{ $mIdx }}" class="px-2.5 py-0.5 rounded-md bg-white/10 text-[#A8E63A] font-bold border border-white/10">
                     Game Score: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}
@@ -378,13 +382,13 @@
                     @endphp
                     <a href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => $nextRoundKey, 'court' => $courtIndex]) }}"
                        class="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95">
-                        <span>Lanjut ke {{ $unitTabLabel }} {{ $nextRoundNum }} (Susunan Pasangan Baru)</span>
+                        <span>Lanjut ke {{ $unitTabLabel }} {{ $nextRoundNum }} (Pertandingan Berikutnya)</span>
                         <i class="fa-solid fa-arrow-right text-[10px] text-[#A8E63A]"></i>
                     </a>
                 @else
                     <a href="{{ route('scoring.recap', $game['id']) }}"
                        class="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95">
-                        <span>🏁 Semua Set Selesai — Buka Klasemen Akhir &amp; Podium</span>
+                        <span>🏁 Semua {{ $unitTabLabel }} Selesai — Buka Klasemen Akhir &amp; Podium</span>
                         <i class="fa-solid fa-trophy text-[10px] text-amber-200"></i>
                     </a>
                 @endif
@@ -478,11 +482,11 @@
                 </div>
             </div>
         </div>
-        <span class="text-[11px] text-slate-400 font-medium">Rotasi bermain pada Set berikutnya</span>
+        <span class="text-[11px] text-slate-400 font-medium">Rotasi bermain pada {{ $unitTabLabel }} berikutnya</span>
     </div>
     @endif
 </div>
-
+@endsection
 
 @push('scripts')
 <script>
@@ -746,7 +750,7 @@
         if (subB) subB.innerText = `Games Won: ${st.gamesB} Game`;
 
         if (setLbl) {
-            setLbl.innerHTML = `Status: <strong>${st.matchDone ? (UNIT_TAB_LABEL + ' Selesai') : 'Sedang Berlangsung'}</strong>`;
+            setLbl.innerHTML = `Status: <strong>${st.matchDone ? (UNIT_TAB_LABEL + ' Selesai & Terkunci') : 'Sedang Berlangsung'}</strong>`;
         }
 
         if (notice) {
@@ -1246,5 +1250,4 @@
     syncRoundCompletionStatus();
 </script>
 @endpush
-@endsection
 

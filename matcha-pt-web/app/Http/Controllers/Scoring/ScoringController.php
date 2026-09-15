@@ -1245,9 +1245,13 @@ class ScoringController extends Controller
      */
     private function getRoundAccess(array $game, array $scoringSystem, array $savedScores): array
     {
-        $roundKeys = $scoringSystem['is_sets']
-            ? array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, $scoringSystem['max_sets']))
-            : ['round_1'];
+        $drawingRounds = ! empty($game['drawing']) ? array_keys($game['drawing']) : [];
+        if ($scoringSystem['is_sets']) {
+            $numSets = max(count($drawingRounds), (int) ($scoringSystem['max_sets'] ?? 1));
+            $roundKeys = array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, $numSets));
+        } else {
+            $roundKeys = ! empty($drawingRounds) ? $drawingRounds : ['round_1'];
+        }
         $roundAccess = [];
         $previousRoundCompleted = true;
 
