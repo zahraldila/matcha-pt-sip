@@ -566,7 +566,15 @@
     const UPDATE_URL     = '{{ route('scoring.update-score') }}';
     const IS_HOST        = {{ $isHost ? 'true' : 'false' }};
     const RECAP_URL      = '{{ route('scoring.recap', $game['id']) }}';
-    const CLIENT_ID      = 'cli_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+    
+    // OFFLINE QUEUE: Persist CLIENT_ID to prevent client_seq reset on refresh
+    const lsClientIdKey  = `matcha_client_id_${GAME_ID}`;
+    let CLIENT_ID        = localStorage.getItem(lsClientIdKey);
+    if (!CLIENT_ID) {
+        CLIENT_ID = 'cli_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+        try { localStorage.setItem(lsClientIdKey, CLIENT_ID); } catch(e) {}
+    }
+    
     const SUPABASE_URL   = '{{ config('services.supabase.url') }}';
     const SUPABASE_KEY   = '{{ config('services.supabase.key') }}';
 
@@ -581,6 +589,16 @@
             $mKey = ($courtCount > 1) ? "{$activeRound}_court_" . ($mIdx + 1) : $activeRound;
             $mScore = $savedScores[$mKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
         @endphp
+        // OFFLINE QUEUE: Load from localStorage
+        let savedQueue_{{ $mIdx }} = [];
+        let savedSeq_{{ $mIdx }} = 0;
+        try {
+            const rawQueue = localStorage.getItem(`matcha_queue_${GAME_ID}_{{ $mIdx }}`);
+            if (rawQueue) savedQueue_{{ $mIdx }} = JSON.parse(rawQueue);
+            const rawSeq = localStorage.getItem(`matcha_seq_${GAME_ID}_{{ $mIdx }}`);
+            if (rawSeq) savedSeq_{{ $mIdx }} = parseInt(rawSeq, 10);
+        } catch(e) {}
+
         courtsState[{{ $mIdx }}] = {
             matchId: {{ (int) ($m['match_id'] ?? 0) }},
             idxA: {{ (int) ($mScore['idx_a'] ?? 0) }},
@@ -603,15 +621,26 @@
             matchKey: '{{ $mKey }}',
             serverVersion: {{ (int) ($mScore['version'] ?? 0) }},
             localVersion: {{ (int) ($mScore['version'] ?? 0) }},
-            clientSeq: 0,
-            pendingSaves: 0,
+            clientSeq: savedSeq_{{ $mIdx }},
+            pendingSaves: savedQueue_{{ $mIdx }}.length,
             lastLocalActionTime: 0,
-            saveQueue: [],
+            saveQueue: savedQueue_{{ $mIdx }},
+            inFlightQueue: [],
             saveWorker: null,
             activeSaveController: null,
             activeSaveIsCompletion: false
         };
     @endforeach
+
+    // OFFLINE QUEUE: Resume any pending offline saves immediately
+    setTimeout(() => {
+        for (const [cIdx, st] of Object.entries(courtsState)) {
+            if (st.saveQueue.length > 0) {
+                console.log(`[Offline Sync] Recovered ${st.saveQueue.length} pending events for court ${cIdx}. Triggering retry...`);
+                queueScoreSave(cIdx, null, null, null, 'retry_drain');
+            }
+        }
+    }, 500);
 
     // ── Point Display Resolution ─────────────────────────────────────────────
     function getPointDisplays(cIdx) {
@@ -1167,35 +1196,50 @@
     }
 
 
-    function queueScoreSave(cIdx, status = null, clientSeq = null, tClick = null, eventId = null, action = 'add_point', team = null, baseVersion = 0) {
+    // ── Antrean Save Poin ke Server (Debounced & Batched & Offline Persistent) ──
+    function queueScoreSave(cIdx, status, cSeq, tClick, eventId, action, team, baseVersion) {
         let st = courtsState[cIdx];
-        const isCompletionSave = status === 'completed';
+        
+        if (eventId !== 'retry_drain' && eventId != null) {
+            const snapshot = {
+                idxA: st.idxA,
+                idxB: st.idxB,
+                isDeuce: st.isDeuce,
+                advantage: st.advantage,
+                gamesA: st.gamesA,
+                gamesB: st.gamesB,
+                pointDisplays: getPointDisplays(cIdx),
+            };
+
+            st.saveQueue.push({
+                cIdx, status, clientSeq: cSeq, tClick, eventId, action, team, baseVersion, snapshot
+            });
+            st.pendingSaves = (st.pendingSaves || 0) + 1;
+            
+            // OFFLINE QUEUE: Persist to localStorage
+            try {
+                localStorage.setItem(`matcha_seq_${GAME_ID}_${cIdx}`, String(cSeq));
+                localStorage.setItem(`matcha_queue_${GAME_ID}_${cIdx}`, JSON.stringify([...st.inFlightQueue, ...st.saveQueue]));
+            } catch(e) {}
+        }
+
+        const isCompletionSave = status === 'completed' || action === 'completion';
         if (isCompletionSave && st.activeSaveController && !st.activeSaveIsCompletion) {
             st.activeSaveController.abort();
         }
-        const snapshot = {
-            idxA: st.idxA,
-            idxB: st.idxB,
-            isDeuce: st.isDeuce,
-            advantage: st.advantage,
-            gamesA: st.gamesA,
-            gamesB: st.gamesB,
-            winnerTeam: st.winnerTeam,
-            matchDone: st.matchDone,
-            pointDisplays: getPointDisplays(cIdx),
-        };
-        
-        st.saveQueue = st.saveQueue || [];
-        st.saveQueue.push({ status, clientSeq, tClick, eventId, action, team, baseVersion, snapshot });
-        
-        st.pendingSaves = (st.pendingSaves || 0) + 1;
 
         if (!st.saveWorker) {
             st.saveWorker = setTimeout(() => {
                 const batchEvents = [...st.saveQueue];
                 st.saveQueue = [];
-                st.saveWorker = null;
+                st.inFlightQueue = batchEvents;
+                
+                // Keep the combined inFlightQueue + saveQueue in localStorage
+                try {
+                    localStorage.setItem(`matcha_queue_${GAME_ID}_${cIdx}`, JSON.stringify([...st.inFlightQueue, ...st.saveQueue]));
+                } catch(e) {}
 
+                st.saveWorker = null;
                 if (batchEvents.length > 0) {
                     saveScoreBatch(cIdx, batchEvents).catch(e => console.warn(e));
                 }
@@ -1279,6 +1323,8 @@
         st.activeSaveController = requestController;
         st.activeSaveIsCompletion = isCompletionSave;
 
+        let isRetryableError = false;
+
         try {
             const res = await fetch(UPDATE_URL, {
                 method : 'POST',
@@ -1328,6 +1374,24 @@
                         updateDisplay(cIdx);
                     }
                     syncRoundCompletionStatus();
+                } else if (data.saved && !isCompletionSave) {
+                    applyServerScore(cIdx, data.saved, incomingVer);
+                }
+                
+                // Broadcast Realtime (Opsional)
+                if (SUPABASE_URL && SUPABASE_KEY && data.success !== false) {
+                    const lastEventId = batchEvents[batchEvents.length - 1].eventId;
+                    supabase.channel('public:tb_score').send({
+                        type: 'broadcast',
+                        event: 'score_updated',
+                        payload: {
+                            ...data.saved,
+                            match_key: st.matchKey,
+                            court: st.courtNum,
+                            version: incomingVer,
+                            last_event_id: data.last_event_id || lastEventId
+                        }
+                    }).catch(e => console.warn('[Supabase Realtime] broadcast send warning:', e));
                 }
 
                 if (incomingVer > (st.serverVersion || 0)) {
@@ -1359,33 +1423,53 @@
                 }
             } else {
                 console.error(`Update score batch failed for court ${st.courtNum}:`, await res.text());
-                if (isCompletionSave) {
-                    st.completionSavePending = false;
-                    st.completionSaveSucceeded = false;
-                    syncRoundCompletionStatus();
-                }
+                isRetryableError = true;
             }
         } catch (err) {
             if (err.name !== 'AbortError') {
-                console.warn(`Gagal simpan skor batch court ${st.courtNum}:`, err);
-            }
-            if (isCompletionSave) {
-                st.completionSavePending = false;
-                st.completionSaveSucceeded = false;
-                syncRoundCompletionStatus();
+                console.warn(`Gagal simpan skor batch court ${st.courtNum} (Network Offline/RTO):`, err);
+                isRetryableError = true;
             }
         } finally {
             if (st.activeSaveController === requestController) {
                 st.activeSaveController = null;
                 st.activeSaveIsCompletion = false;
             }
-            st.pendingSaves = Math.max(0, (st.pendingSaves || 1) - batchEvents.length);
-            if (isCompletionSave && !st.completionSaveSucceeded) {
-                st.completionSavePending = false;
-                syncRoundCompletionStatus();
-            }
-            if (st.pendingSaves === 0) {
-                st.localVersion = Math.max(st.localVersion || 0, st.serverVersion || 0);
+            
+            if (isRetryableError) {
+                // OFFLINE QUEUE: Kembalikan inFlightQueue ke saveQueue dan pertahankan pendingSaves
+                st.inFlightQueue = [];
+                st.saveQueue = [...batchEvents, ...st.saveQueue];
+                try {
+                    localStorage.setItem(`matcha_queue_${GAME_ID}_${cIdx}`, JSON.stringify(st.saveQueue));
+                } catch(e) {}
+                
+                // Jadwalkan retry otomatis 2 detik kemudian
+                setTimeout(() => {
+                    if (st.saveQueue.length > 0 && !st.saveWorker) {
+                        console.log(`[Offline Sync] Retrying ${st.saveQueue.length} events for court ${cIdx}...`);
+                        queueScoreSave(cIdx, null, null, null, 'retry_drain');
+                    }
+                }, 2000);
+            } else {
+                // Berhasil atau dibatalkan karena ada save baru yang lebih prioritas (AbortError)
+                st.inFlightQueue = [];
+                try {
+                    localStorage.setItem(`matcha_queue_${GAME_ID}_${cIdx}`, JSON.stringify(st.saveQueue));
+                } catch(e) {}
+                
+                if (!isCompletionSave || (isCompletionSave && st.completionSaveSucceeded)) {
+                    st.pendingSaves = Math.max(0, (st.pendingSaves || 1) - batchEvents.length);
+                }
+                
+                if (isCompletionSave && !st.completionSaveSucceeded) {
+                    st.completionSavePending = false;
+                    syncRoundCompletionStatus();
+                }
+                
+                if (st.pendingSaves === 0) {
+                    st.localVersion = Math.max(st.localVersion || 0, st.serverVersion || 0);
+                }
             }
         }
     }
