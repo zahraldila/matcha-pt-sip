@@ -299,77 +299,105 @@
             </div>
         </div>
 
-        <!-- Match History & Head-to-Head Section -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            <!-- Left: Match History List (2 Cols) -->
-            <div class="lg:col-span-2 space-y-3">
-                <h3 class="text-sm font-bold text-slate-900">
-                    Riwayat Pertandingan Terakhir
-                </h3>
-
-                <div class="space-y-2.5">
-                    @foreach($recap['recent_matches'] as $match)
-                        <div class="glass-card p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div class="space-y-1">
-                                <div class="flex items-center gap-2">
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $match['result'] === 'WIN' ? 'bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25' : 'bg-rose-50 text-rose-800 border border-rose-200' }}">
-                                        {{ $match['result'] }}
-                                    </span>
-                                    <span class="font-bold text-xs text-slate-900">{{ $match['sport'] }}</span>
-                                    <span class="text-slate-300">&bull;</span>
-                                    <span class="text-xs text-slate-500">{{ $match['venue'] }}</span>
-                                </div>
-
-                                <p class="text-xs text-slate-600">
-                                    Partner: <strong class="text-slate-800">{{ $match['partner'] }}</strong> 
-                                    vs Lawan: <span>{{ implode(' & ', $match['opponents']) }}</span>
-                                </p>
-                            </div>
-
-                            <div class="text-right sm:border-l sm:border-slate-200/50 sm:pl-4">
-                                <span class="text-[10px] text-slate-400 block">{{ $match['match_date'] }}</span>
-                                <span class="text-sm font-bold text-slate-900">Skor: {{ $match['score'] }}</span>
-                            </div>
-                        </div>
-                    @endforeach
+        @if(!$recap['has_matches'])
+            <!-- Empty State for New Players (BUG-MEM-003) -->
+            <div class="glass-card rounded-3xl p-8 sm:p-12 text-center space-y-4 border border-white/90 shadow-sm">
+                <div class="w-16 h-16 rounded-3xl bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] flex items-center justify-center text-2xl mx-auto shadow-xs">
+                    <i class="fa-solid fa-table-tennis-paddle-ball"></i>
+                </div>
+                <div class="space-y-1.5 max-w-md mx-auto">
+                    <h3 class="text-base font-black text-slate-900">Belum Ada Riwayat Pertandingan</h3>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Anda belum memiliki riwayat pertandingan yang selesai. Ikuti dan selesaikan sesi mabar padel atau tenis untuk mulai mencatat performa karier, win rate, dan statistik bermain Anda di sini!
+                    </p>
+                </div>
+                <div class="pt-2 flex justify-center gap-3">
+                    <a href="{{ route('games.index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.02] cursor-pointer">
+                        <i class="fa-solid fa-calendar-days text-[#A8E63A]"></i>
+                        <span>Jelajahi Jadwal Mabar</span>
+                    </a>
+                    <a href="{{ route('player.profile') }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs shadow-2xs transition-all">
+                        <i class="fa-solid fa-id-card text-slate-400"></i>
+                        <span>Lengkapi Profil</span>
+                    </a>
                 </div>
             </div>
+        @else
+            <!-- Match History & Head-to-Head Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left: Match History List (2 Cols) -->
+                <div class="lg:col-span-2 space-y-3">
+                    <h3 class="text-sm font-bold text-slate-900">
+                        Riwayat Pertandingan Terakhir
+                    </h3>
 
-            <!-- Right: Head-to-Head Stats (1 Col) -->
-            <div class="space-y-3">
-                <h3 class="text-sm font-bold text-slate-900">
-                    Rekor Lawan (Head-to-Head)
-                </h3>
+                    <div class="space-y-2.5">
+                        @foreach($recap['recent_matches'] as $match)
+                            <div class="glass-card p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $match['result'] === 'WIN' ? 'bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25' : ($match['result'] === 'DRAW' ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-rose-50 text-rose-800 border border-rose-200') }}">
+                                            {{ $match['result'] }}
+                                        </span>
+                                        <span class="font-bold text-xs text-slate-900">{{ $match['sport'] }}</span>
+                                        <span class="text-slate-300">&bull;</span>
+                                        <span class="text-xs text-slate-500">{{ $match['venue'] }}</span>
+                                    </div>
 
-                <div class="glass-card rounded-2xl p-4 space-y-3">
-                    <p class="text-xs text-slate-500 leading-relaxed">
-                        Statistik kemenangan vs lawan bermain yang tercatat di sistem:
-                    </p>
-
-                    <div class="space-y-3">
-                        @foreach($recap['head_to_head'] as $h2h)
-                            <div class="bg-white/70 p-3 rounded-xl border border-slate-200/50 space-y-1.5 shadow-2xs">
-                                <div class="flex items-center justify-between text-xs font-semibold">
-                                    <span class="text-slate-800">{{ $h2h['opponent'] }}</span>
-                                    <span class="text-[#063B00] font-bold">{{ $h2h['win'] }}W - {{ $h2h['lose'] }}L</span>
+                                    <p class="text-xs text-slate-600">
+                                        Partner: <strong class="text-slate-800">{{ $match['partner'] }}</strong> 
+                                        vs Lawan: <span>{{ implode(' & ', $match['opponents']) }}</span>
+                                    </p>
                                 </div>
-                                <div class="w-full bg-slate-200/70 rounded-full h-1.5 overflow-hidden">
-                                    @php
-                                        $h2hPercent = ($h2h['win'] / $h2h['played']) * 100;
-                                    @endphp
-                                    <div class="bg-[#063B00] h-1.5 rounded-full" style="width: {{ $h2hPercent }}%"></div>
-                                </div>
-                                <div class="flex justify-between text-[10px] text-slate-400">
-                                    <span>{{ $h2h['played'] }}x main</span>
-                                    <span>{{ round($h2hPercent) }}% win</span>
+
+                                <div class="text-right sm:border-l sm:border-slate-200/50 sm:pl-4">
+                                    <span class="text-[10px] text-slate-400 block">{{ $match['match_date'] }}</span>
+                                    <span class="text-sm font-bold text-slate-900">Skor: {{ $match['score'] }}</span>
                                 </div>
                             </div>
                         @endforeach
                     </div>
                 </div>
+
+                <!-- Right: Head-to-Head Stats (1 Col) -->
+                <div class="space-y-3">
+                    <h3 class="text-sm font-bold text-slate-900">
+                        Rekor Lawan (Head-to-Head)
+                    </h3>
+
+                    <div class="glass-card rounded-2xl p-4 space-y-3">
+                        @if(empty($recap['head_to_head']))
+                            <p class="text-xs text-slate-400 text-center py-4">Belum ada statistik head-to-head lawan.</p>
+                        @else
+                            <p class="text-xs text-slate-500 leading-relaxed">
+                                Statistik kemenangan vs lawan bermain yang tercatat di sistem:
+                            </p>
+
+                            <div class="space-y-3">
+                                @foreach($recap['head_to_head'] as $h2h)
+                                    <div class="bg-white/70 p-3 rounded-xl border border-slate-200/50 space-y-1.5 shadow-2xs">
+                                        <div class="flex items-center justify-between text-xs font-semibold">
+                                            <span class="text-slate-800">{{ $h2h['opponent'] }}</span>
+                                            <span class="text-[#063B00] font-bold">{{ $h2h['win'] }}W - {{ $h2h['lose'] }}L</span>
+                                        </div>
+                                        <div class="w-full bg-slate-200/70 rounded-full h-1.5 overflow-hidden">
+                                            @php
+                                                $h2hPercent = $h2h['played'] > 0 ? ($h2h['win'] / $h2h['played']) * 100 : 0;
+                                            @endphp
+                                            <div class="bg-[#063B00] h-1.5 rounded-full" style="width: {{ $h2hPercent }}%"></div>
+                                        </div>
+                                        <div class="flex justify-between text-[10px] text-slate-400">
+                                            <span>{{ $h2h['played'] }}x main</span>
+                                            <span>{{ round($h2hPercent) }}% win</span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </div>
             </div>
-        </div>
+        @endif
     @endif
 </div>
 
