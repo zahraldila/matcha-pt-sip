@@ -67,7 +67,6 @@
                             <p class="text-xs font-bold text-slate-900">{{ $game['host']['name'] }} <span class="text-slate-500 font-normal">({{ $game['host']['level'] }})</span></p>
                         </div>
                     </div>
-                    <span class="text-xs text-emerald-700 font-semibold">{{ $game['host']['phone'] }}</span>
                 </div>
             </div>
 

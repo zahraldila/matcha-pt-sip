@@ -658,10 +658,16 @@ class GameController extends Controller
 
     public function drawing($id, Request $request)
     {
-        try {
-            $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->find((int) $id);
-        } catch (\Throwable $e) {
-            $dbSession = null;
+        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->findOrFail((int) $id);
+        $isHost = Auth::check()
+            && Auth::user()->role === 'host'
+            && (int) Auth::user()->user_id === (int) $dbSession->host_user_id;
+
+        if (($request->has('shuffle') || $request->has('seed')) && ! $isHost) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. Hanya Host sesi ini yang dapat mengacak drawing.',
+            ], Auth::check() ? 403 : 401);
         }
 
         if ($dbSession) {
@@ -678,7 +684,6 @@ class GameController extends Controller
                     'age' => $p->usia ?? 25,
                     'level' => $p->level ?? 'Intermediate',
                     'is_member' => true,
-                    'phone' => $p->no_hp,
                     'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
                 ];
             })->toArray();
@@ -694,8 +699,8 @@ class GameController extends Controller
                 $participants = array_merge($participants, array_slice($dummy, count($participants)));
             }
 
-            $formatQuery = $request->query('format');
-            if (! $formatQuery && $dbSession) {
+            $formatQuery = $isHost ? $request->query('format') : null;
+            if (! $formatQuery) {
                 $dbDrawing = Drawing::where('session_id', $dbSession->session_id)->with('matchFormat')->first();
                 if ($dbDrawing && $dbDrawing->matchFormat) {
                     $formatQuery = $dbDrawing->matchFormat->nama_format;
@@ -723,7 +728,6 @@ class GameController extends Controller
                     'name' => $dbSession->host->nama ?? 'Host Matcha',
                     'role' => 'Host Game',
                     'level' => 'Intermediate',
-                    'phone' => $dbSession->host->no_hp ?? '-',
                     'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
                 ],
                 'participants' => $participants,
@@ -731,11 +735,7 @@ class GameController extends Controller
 
             $courtCount = max(1, $dbSession->courts->count());
         } else {
-            $games = MatchaDummyDataService::getGames();
-            $game = collect($games)->firstWhere('id', (int) $id) ?? $games[0];
-            $game['match_format'] = $request->query('format', $game['match_format'] ?? 'Americano');
-            $participants = $game['participants'] ?? [];
-            $courtCount = 2;
+            abort(404);
         }
 
         // Cek apakah pertandingan sudah dimulai / scoring live sudah berjalan
@@ -833,10 +833,12 @@ class GameController extends Controller
                 ];
             }
 
-            Cache::put($scheduleCacheKey, [
-                'drawingData' => $drawingData,
-                'rounds' => $rounds,
-            ], now()->addHours(12));
+            if ($isHost) {
+                Cache::put($scheduleCacheKey, [
+                    'drawingData' => $drawingData,
+                    'rounds' => $rounds,
+                ], now()->addHours(12));
+            }
         } else {
             $drawingData = $savedSchedule['drawingData'] ?? [];
             $rounds = $savedSchedule['rounds'] ?? [];
@@ -865,38 +867,44 @@ class GameController extends Controller
             ]);
         }
 
-        return view('games.drawing', compact('game', 'drawingData', 'rounds', 'participantsMap', 'isLocked'));
+        return view('games.drawing', compact('game', 'drawingData', 'rounds', 'participantsMap', 'isLocked', 'isHost'));
     }
 
     public function lockDrawing($id, Request $request)
     {
+        if (! Auth::check() || Auth::user()->role !== 'host') {
+            abort(403);
+        }
+
+        $session = SessionModel::findOrFail((int) $id);
+        if ((int) $session->host_user_id !== (int) Auth::user()->user_id) {
+            abort(403);
+        }
+
         $format = $request->input('format', 'Americano');
 
         // Kunci status drawing di cache
         Cache::put("drawing.locked_{$id}", true, now()->addHours(12));
 
         try {
-            $session = SessionModel::find((int) $id);
-            if ($session) {
-                $session->status_session = 'In Progress';
-                $session->save();
+            $session->status_session = 'In Progress';
+            $session->save();
 
-                $formatId = str_contains(strtolower($format), 'team') ? 4 : 1;
-                $drawing = Drawing::firstOrCreate(
-                    ['session_id' => $session->session_id],
-                    [
-                        'match_format_id' => $formatId,
-                        'tanggal_drawing' => now()->toDateString(),
-                        'jam_drawing' => now()->format('H:i:s'),
-                    ]
-                );
-                if ($drawing && $drawing->match_format_id !== $formatId) {
-                    $drawing->match_format_id = $formatId;
-                    $drawing->save();
-                }
+            $formatId = str_contains(strtolower($format), 'team') ? 4 : 1;
+            $drawing = Drawing::firstOrCreate(
+                ['session_id' => $session->session_id],
+                [
+                    'match_format_id' => $formatId,
+                    'tanggal_drawing' => now()->toDateString(),
+                    'jam_drawing' => now()->format('H:i:s'),
+                ]
+            );
+            if ($drawing->match_format_id !== $formatId) {
+                $drawing->match_format_id = $formatId;
+                $drawing->save();
             }
         } catch (\Throwable $e) {
-            // Ignore DB error for dummy sessions
+            throw $e;
         }
 
         if ($request->wantsJson() || $request->ajax()) {

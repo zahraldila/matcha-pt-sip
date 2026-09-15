@@ -28,9 +28,21 @@ class ScoringController extends Controller
     public function live($id = 1)
     {
         $game = $this->getGameData($id);
-
-        // Kunci drawing saat live scoring dibuka (match mulai berjalan)
-        Cache::put("drawing.locked_{$id}", true, now()->addHours(6));
+        $session = SessionModel::findOrFail((int) $id);
+        $user = Auth::user();
+        $isHost = $this->isHostForSession($session);
+        $userRole = $user ? $user->role : 'guest';
+        $userPlayerId = null;
+        $isPlayer = false;
+        if ($user) {
+            $player = Player::where('user_id', $user->user_id)->first();
+            if ($player) {
+                $userPlayerId = $player->player_id;
+                $isPlayer = collect($game['participants'] ?? [])->contains(function ($p) use ($userPlayerId) {
+                    return ($p['id'] ?? null) == $userPlayerId;
+                });
+            }
+        }
 
         // Tentukan round aktif (bisa dari query param atau default round_1)
         $activeRound = request('round', 'round_1');
@@ -59,27 +71,27 @@ class ScoringController extends Controller
         $courtCount = $matchContext['court_count'] ?? 1;
         $matchKey = ($courtCount > 1) ? "{$activeRound}_court_".($courtIndex + 1) : $activeRound;
 
-        // Restore & Ensure matches for all courts in this round
+        // Hanya host atau participant yang boleh membuat/reconcile record match.
         $cacheUpdated = false;
-        foreach ($matchContext['matches'] as $mIdx => $m) {
-            $mKey = ($courtCount > 1) ? "{$activeRound}_court_".($mIdx + 1) : $activeRound;
-            // Ensure match & participants exist in DB
-            ScoringService::ensureMatchAndParticipants($game['id'], $activeRound, $mIdx, $matchContext);
+        if ($isHost || $isPlayer) {
+            foreach ($matchContext['matches'] as $mIdx => $m) {
+                $mKey = ($courtCount > 1) ? "{$activeRound}_court_".($mIdx + 1) : $activeRound;
+                ScoringService::ensureMatchAndParticipants($game['id'], $activeRound, $mIdx, $matchContext);
 
-            // Reconcile cache with DB on refresh; completed/newer DB data wins.
-            $dbScore = $this->getScoreFromDatabase($game['id'], $activeRound, $mIdx);
-            $cachedScore = $savedScores[$mKey] ?? null;
-            $dbIsNewer = $dbScore && $cachedScore
-                && (int) ($dbScore['updated_at_ms'] ?? 0) > (int) ($cachedScore['updated_at_ms'] ?? 0);
-            $dbCompleted = $dbScore && ($dbScore['status'] ?? '') === 'completed'
-                && ($cachedScore['status'] ?? '') !== 'completed';
+                $dbScore = $this->getScoreFromDatabase($game['id'], $activeRound, $mIdx);
+                $cachedScore = $savedScores[$mKey] ?? null;
+                $dbIsNewer = $dbScore && $cachedScore
+                    && (int) ($dbScore['updated_at_ms'] ?? 0) > (int) ($cachedScore['updated_at_ms'] ?? 0);
+                $dbCompleted = $dbScore && ($dbScore['status'] ?? '') === 'completed'
+                    && ($cachedScore['status'] ?? '') !== 'completed';
 
-            if ($dbScore && (! $cachedScore || $dbIsNewer || $dbCompleted)) {
-                $savedScores[$mKey] = $dbScore;
-                if ($courtCount === 1) {
-                    $savedScores[$activeRound] = $dbScore;
+                if ($dbScore && (! $cachedScore || $dbIsNewer || $dbCompleted)) {
+                    $savedScores[$mKey] = $dbScore;
+                    if ($courtCount === 1) {
+                        $savedScores[$activeRound] = $dbScore;
+                    }
+                    $cacheUpdated = true;
                 }
-                $cacheUpdated = true;
             }
         }
         if ($cacheUpdated) {
@@ -108,22 +120,6 @@ class ScoringController extends Controller
         $matchScore = $savedScores[$matchKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
         $currentScore = array_merge($defaultScore, $matchScore);
 
-        // Deteksi role & player status
-        $user = Auth::user();
-        $userRole = $user ? $user->role : 'guest';
-        $isHost = ($userRole === 'host');
-        $userPlayerId = null;
-        $isPlayer = false;
-        if ($user) {
-            $player = Player::where('user_id', $user->user_id)->first();
-            if ($player) {
-                $userPlayerId = $player->player_id;
-                $isPlayer = collect($game['participants'] ?? [])->contains(function ($p) use ($userPlayerId) {
-                    return ($p['id'] ?? null) == $userPlayerId;
-                });
-            }
-        }
-
         return view('scoring.live', compact(
             'game',
             'matchContext',
@@ -148,6 +144,7 @@ class ScoringController extends Controller
      */
     public function getScore($gameId, $round = 'round_1')
     {
+        SessionModel::findOrFail((int) $gameId);
         $cacheKey = "scoring.game_{$gameId}";
         $scores = Cache::get($cacheKey, []);
 
@@ -238,8 +235,16 @@ class ScoringController extends Controller
         }
 
         $user = Auth::user();
-        $isHost = ($user->role === 'host');
         $gameId = $request->integer('game_id');
+        $session = SessionModel::findOrFail($gameId);
+        $isHost = $this->isHostForSession($session);
+
+        if ($user->role === 'host' && ! $isHost) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. Host hanya dapat mencatat skor pada sesi miliknya.',
+            ], 403);
+        }
 
         // Jika bukan host, cek apakah user merupakan participant/player pada session ini
         if (! $isHost) {
@@ -499,6 +504,11 @@ class ScoringController extends Controller
         ]);
 
         $gameId = $request->integer('game_id');
+        $session = SessionModel::findOrFail($gameId);
+        if (! $this->isHostForSession($session)) {
+            abort(403);
+        }
+
         $round = $request->string('round')->toString();
         $matchKey = $request->input('match_key');
         if (! $matchKey) {
@@ -634,7 +644,7 @@ class ScoringController extends Controller
 
         // 2. Simpan permanen ke Database jika session ada di tb_session
         try {
-            $session = SessionModel::with(['players', 'courts'])->find($gameId);
+            $session = $session->load(['players', 'courts']);
             if ($session) {
                 // Update status session
                 $session->status_session = 'Finished';
@@ -1109,13 +1119,16 @@ class ScoringController extends Controller
         ];
     }
 
+    private function isHostForSession(SessionModel $session): bool
+    {
+        return Auth::check()
+            && Auth::user()->role === 'host'
+            && (int) Auth::user()->user_id === (int) $session->host_user_id;
+    }
+
     private function getGameData($id)
     {
-        try {
-            $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->find((int) $id);
-        } catch (\Throwable $e) {
-            $dbSession = null;
-        }
+        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->findOrFail((int) $id);
 
         if ($dbSession) {
             $participants = $dbSession->players->map(function ($p) {
@@ -1126,7 +1139,6 @@ class ScoringController extends Controller
                     'age' => $p->usia ?? 25,
                     'level' => $p->level ?? 'Intermediate',
                     'is_member' => ! empty($p->user_id),
-                    'phone' => $p->no_hp,
                     'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
                 ];
             })->toArray();
@@ -1142,7 +1154,7 @@ class ScoringController extends Controller
                 $participants = array_merge($participants, array_slice($dummy, count($participants)));
             }
 
-            $format = strtolower(request('format', ''));
+            $format = $this->isHostForSession($dbSession) ? strtolower(request('format', '')) : '';
             if (empty($format)) {
                 $dbDrawing = Drawing::where('session_id', $dbSession->session_id)->with('matchFormat')->first();
                 $format = strtolower($dbDrawing->matchFormat->nama_format ?? 'americano');
@@ -1209,7 +1221,6 @@ class ScoringController extends Controller
                     'name' => $dbSession->host->nama ?? 'Host Matcha',
                     'role' => 'Host Game',
                     'level' => 'Intermediate',
-                    'phone' => $dbSession->host->no_hp ?? '-',
                     'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
                 ],
                 'participants' => $participants,
@@ -1217,27 +1228,7 @@ class ScoringController extends Controller
             ];
         }
 
-        $games = MatchaDummyDataService::getGames();
-        $dummyGame = collect($games)->firstWhere('id', (int) $id) ?? $games[0];
-        $cachedSchedule = Cache::get("drawing.schedule_{$id}");
-        if ($cachedSchedule && ! empty($cachedSchedule['rounds'])) {
-            $drawingMap = [];
-            foreach ($cachedSchedule['rounds'] as $rNum => $rData) {
-                $drawingMap["round_{$rNum}"] = [
-                    'round_number' => $rNum,
-                    'team_a' => $rData['teamA'] ?? ($rData['team_a'] ?? []),
-                    'team_b' => $rData['teamB'] ?? ($rData['team_b'] ?? []),
-                    'team_a_names' => $rData['teamA_names'] ?? ($rData['team_a_names'] ?? []),
-                    'team_b_names' => $rData['teamB_names'] ?? ($rData['team_b_names'] ?? []),
-                    'resting' => $rData['resting'] ?? [],
-                    'matches' => $rData['matches'] ?? [],
-                    'court_count' => $cachedSchedule['court_count'] ?? 1,
-                ];
-            }
-            $dummyGame['drawing'] = $drawingMap;
-        }
-
-        return $dummyGame;
+        abort(404);
     }
 
     /**

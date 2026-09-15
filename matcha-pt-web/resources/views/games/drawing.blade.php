@@ -53,7 +53,7 @@
                 <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold shadow-2xs" title="Pertandingan sudah dimulai, jadwal tim tidak dapat diacak ulang">
                     <i class="fa-solid fa-lock text-amber-600"></i> Tim Terkunci (Match Berjalan)
                 </span>
-            @else
+            @elseif($isHost ?? false)
                 <button id="shuffleBtn" onclick="runDrawingAnimation()" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white border border-slate-200/80 text-slate-800 font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 hover:border-[#063B00] cursor-pointer">
                     <i class="fa-solid fa-arrows-rotate text-slate-500" id="shuffleIcon"></i> Acak Ulang Jadwal
                 </button>
@@ -391,7 +391,7 @@
                     <a href="{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano']) }}" class="block text-center py-3.5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
                         <i class="fa-solid fa-lock mr-1.5"></i> <span>Buka Scoring Live (Match Sedang Berjalan)</span> <i class="fa-solid fa-arrow-right text-[10px] ml-1"></i>
                     </a>
-                @else
+                @elseif($isHost ?? false)
                     <form method="POST" action="{{ route('games.lock', $game['id']) }}" class="block">
                         @csrf
                         <input type="hidden" name="format" value="{{ $game['match_format'] ?? 'Americano' }}">
@@ -399,6 +399,10 @@
                             <span>Kunci Tim & Buka Scoring Live</span> <i class="fa-solid fa-arrow-right text-[10px] text-[#A8E63A] ml-1"></i>
                         </button>
                     </form>
+                @else
+                    <div class="w-full text-center py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-500 font-semibold text-xs">
+                        <i class="fa-solid fa-eye mr-1"></i> Mode Penonton: drawing hanya dapat dilihat
+                    </div>
                 @endif
             </div>
         </div>

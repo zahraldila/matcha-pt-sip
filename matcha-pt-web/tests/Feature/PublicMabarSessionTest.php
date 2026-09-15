@@ -225,4 +225,89 @@ class PublicMabarSessionTest extends TestCase
         $response2 = $this->get('/games/abc');
         $response2->assertStatus(404);
     }
+
+    public function test_guest_can_view_drawing_but_cannot_shuffle_or_lock_it(): void
+    {
+        $session = $this->createValidSession();
+
+        $this->get('/games/'.$session->session_id.'/drawing')->assertOk();
+        $this->getJson('/games/'.$session->session_id.'/drawing?shuffle=1&seed=123')->assertUnauthorized();
+        $this->post('/games/'.$session->session_id.'/lock')->assertForbidden();
+    }
+
+    public function test_invalid_public_drawing_live_score_and_recap_ids_return_404(): void
+    {
+        $this->get('/games/999999/drawing')->assertNotFound();
+        $this->get('/scoring/live/999999')->assertNotFound();
+        $this->get('/scoring/get-score/999999/round_1')->assertNotFound();
+        $this->get('/scoring/recap/999999')->assertNotFound();
+    }
+
+    public function test_public_recap_is_available_without_login_for_valid_session(): void
+    {
+        $session = $this->createValidSession('Recap Publik');
+
+        $this->get('/scoring/recap/'.$session->session_id)
+            ->assertOk()
+            ->assertSee('Recap Publik');
+    }
+
+    public function test_guest_cannot_update_score_or_finish_session(): void
+    {
+        $session = $this->createValidSession();
+
+        $this->postJson('/scoring/update-score', [
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
+            'score_a' => 1,
+            'score_b' => 0,
+        ])->assertUnauthorized();
+
+        $this->post('/scoring/finish', [
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
+        ])->assertRedirect();
+    }
+
+    public function test_session_host_can_still_lock_own_drawing(): void
+    {
+        $session = $this->createValidSession();
+        $host = User::findOrFail($session->host_user_id);
+
+        $this->actingAs($host)
+            ->post('/games/'.$session->session_id.'/lock')
+            ->assertRedirectToRoute('scoring.live', ['id' => $session->session_id, 'format' => 'Americano']);
+
+        $this->assertDatabaseHas('tb_session', [
+            'session_id' => $session->session_id,
+            'status_session' => 'In Progress',
+        ]);
+    }
+
+    public function test_host_cannot_mutate_another_hosts_session(): void
+    {
+        $ownedSession = $this->createValidSession();
+        $otherSession = $this->createValidSession();
+        $owner = User::findOrFail($ownedSession->host_user_id);
+
+        $this->actingAs($owner)
+            ->post('/games/'.$otherSession->session_id.'/lock')
+            ->assertForbidden();
+
+        $this->actingAs($owner)
+            ->postJson('/scoring/update-score', [
+                'game_id' => $otherSession->session_id,
+                'round' => 'round_1',
+                'score_a' => 1,
+                'score_b' => 0,
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($owner)
+            ->post('/scoring/finish', [
+                'game_id' => $otherSession->session_id,
+                'round' => 'round_1',
+            ])
+            ->assertForbidden();
+    }
 }
