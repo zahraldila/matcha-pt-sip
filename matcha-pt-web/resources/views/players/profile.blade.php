@@ -16,7 +16,7 @@
                     Profil Member Pemain
                 </h1>
                 <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
-                    Kelola data identitas, kontak WhatsApp, skill level, dan keanggotaan komunitas Anda
+                    Kelola data identitas, kontak WhatsApp, skill level, dan status keanggotaan Host Anda
                 </p>
             </div>
             <div class="flex items-center gap-2">
@@ -25,6 +25,20 @@
                 </a>
             </div>
         </div>
+
+        @if(session('info') || request('notice') === 'host_required')
+            <div id="hostNoticeAlert" class="p-4 rounded-2xl bg-[#EBF8D8] border border-[#063B00]/30 text-[#063B00] text-xs flex items-start gap-3 shadow-xs animate-in fade-in duration-300">
+                <div class="w-7 h-7 rounded-xl bg-[#063B00] text-[#A8E63A] flex items-center justify-center text-xs shrink-0 mt-0.5 shadow-2xs">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+                <div class="space-y-0.5">
+                    <h4 class="font-extrabold text-[#050608] text-xs">Aktifkan Mode Host untuk Membuat Game</h4>
+                    <p class="text-[11px] text-slate-600 leading-relaxed">
+                        {{ session('info') ?? 'Untuk membuat sesi mabar baru, bagan drawing, atau live scoring, silakan aktifkan status Host Game pada tombol di bawah ini.' }}
+                    </p>
+                </div>
+            </div>
+        @endif
 
         @if(session('success'))
             <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2.5 shadow-2xs">
@@ -46,6 +60,50 @@
                 </ul>
             </div>
         @endif
+
+        <!-- ================================================================= -->
+        <!-- CARD TOGGLE STATUS HOST (PENAMBAHAN BARU)                        -->
+        <!-- ================================================================= -->
+        <div class="glass-card rounded-3xl p-5 sm:p-6 border {{ (request('notice') === 'host_required' || session('info')) && !$user->is_host ? 'border-[#063B00] ring-2 ring-[#063B00]/20 shadow-md' : 'border-white/90 shadow-sm' }} bg-gradient-to-r from-emerald-50/50 via-white to-slate-50/50 transition-all">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-800">Status Akses Host Game:</span>
+                        @if($user->is_host)
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                                <i class="fa-solid fa-circle text-[8px] text-emerald-500 animate-pulse"></i> Host Game Active
+                            </span>
+                        @else
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-600 border border-slate-200">
+                                Pemain / Member Only
+                            </span>
+                        @endif
+                    </div>
+                    <p class="text-[11px] text-slate-500">
+                        @if($user->is_host)
+                            Mode Host Aktif. Kamu diizinkan untuk membuat jadwal mabar baru, mengelola drawing tim, dan live scoring.
+                        @else
+                            Aktifkan status Host untuk mendapatkan akses membuat sesi mabar, bagan drawing, dan pencatatan poin langsung.
+                        @endif
+                    </p>
+                </div>
+
+                <form action="{{ route('player.profile.toggle-host') }}" method="POST" class="shrink-0 w-full sm:w-auto">
+                    @csrf
+                    @if($user->is_host)
+                        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-xs border border-rose-200 transition-all cursor-pointer">
+                            <i class="fa-solid fa-power-off text-rose-500"></i>
+                            <span>Nonaktifkan Mode Host</span>
+                        </button>
+                    @else
+                        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-bolt text-[#A8E63A]"></i>
+                            <span>Aktifkan Mode Host</span>
+                        </button>
+                    @endif
+                </form>
+            </div>
+        </div>
 
         <div class="glass-card rounded-3xl p-6 sm:p-8 space-y-6 border border-white/90 shadow-sm">
             <!-- Profile Edit Form (Includes Avatar Uploader) -->
@@ -79,8 +137,8 @@
                     <div class="text-center sm:text-left space-y-2 flex-1 min-w-0">
                         <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                             <h2 class="text-lg font-bold text-slate-900 truncate">{{ $user->nama }}</h2>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border {{ $user->role === 'host' ? 'bg-amber-50 text-amber-800 border-amber-200' : ($user->role === 'venue_owner' ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200') }}">
-                                {{ $user->role === 'venue_owner' ? '🏢 Venue Owner' : ($user->role === 'host' ? '👑 Host Game' : '🎾 Member Pemain') }}
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border {{ $user->is_host ? 'bg-amber-50 text-amber-800 border-amber-200' : ($user->role === 'venue_owner' ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200') }}">
+                                {{ $user->role === 'venue_owner' ? '🏢 Venue Owner' : ($user->is_host ? '👑 Host Game & Player' : '🎾 Member Pemain') }}
                             </span>
                         </div>
                         <p class="text-xs text-slate-500 font-medium">
@@ -293,4 +351,3 @@
     }
 </script>
 @endsection
-

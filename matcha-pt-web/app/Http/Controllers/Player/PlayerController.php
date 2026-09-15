@@ -50,7 +50,7 @@ class PlayerController extends Controller
             $recap['player']['username'] = '@'.Str::slug($user->nama, '_');
             $recap['player']['level'] = $player->level ?? 'Intermediate';
             $recap['player']['community'] = $player->community->nama_community ?? 'Personal (Non-Community)';
-            $recap['player']['role'] = $user->role === 'venue_owner' ? 'Venue Owner' : ($user->role === 'host' ? 'Host Game' : 'Member');
+            $recap['player']['role'] = $user->role === 'venue_owner' ? 'Venue Owner' : ($user->is_host ? 'Host Game' : 'Member');
         }
 
         return view('players.profile', compact('recap', 'user', 'player', 'communities'));
@@ -177,7 +177,7 @@ class PlayerController extends Controller
     public function recap(Request $request)
     {
         $user = Auth::user();
-        $isHost = $user && ($user->role === 'host');
+        $isHost = $user && (bool) $user->is_host;
         $activeTab = $request->query('tab', $isHost ? 'host' : 'career');
 
         // 1. Data Riwayat Hosting (Untuk Host Game)
@@ -266,7 +266,7 @@ class PlayerController extends Controller
             $player = Player::with('community')->where('user_id', $user->user_id)->orWhere('email', $user->email)->first();
             $recap['player']['name'] = $user->nama;
             $recap['player']['username'] = '@'.Str::slug($user->nama, '_');
-            $recap['player']['role'] = $user->role === 'venue_owner' ? 'Venue Owner' : ($user->role === 'host' ? 'Host Game' : 'Member');
+            $recap['player']['role'] = $user->role === 'venue_owner' ? 'Venue Owner' : ($user->is_host ? 'Host Game' : 'Member');
             if (! empty($user->foto)) {
                 $recap['player']['avatar'] = $user->foto;
             }
@@ -280,5 +280,23 @@ class PlayerController extends Controller
         }
 
         return view('players.recap', compact('user', 'isHost', 'activeTab', 'hostSessions', 'hostStats', 'recap'));
+    }
+
+    public function toggleHost(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        // Balikkan nilai boolean is_host
+        $user->is_host = ! $user->is_host;
+        $user->save();
+
+        $statusMsg = $user->is_host
+            ? 'Mode Host berhasil diaktifkan! Sekarang kamu bisa membuat pertandingan.'
+            : 'Mode Host dinonaktifkan. Status kamu kembali menjadi Pemain biasa.';
+
+        return back()->with('success', $statusMsg);
     }
 }

@@ -20,6 +20,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'is_host', // <--- Tambahkan ini
         'foto',
     ];
 
@@ -32,6 +33,7 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'is_host' => 'boolean', // <--- Tambahkan ini
         ];
     }
 

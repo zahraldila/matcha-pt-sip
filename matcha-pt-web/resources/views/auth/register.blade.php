@@ -51,7 +51,7 @@
                         </h3>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <!-- Member / Player -->
                         <label class="cursor-pointer">
                             <input type="radio" name="role" value="member" class="peer sr-only" checked>
@@ -61,18 +61,6 @@
                                 </div>
                                 <h4 class="font-extrabold text-slate-900 text-xs">Pemain / Member</h4>
                                 <p class="text-[10px] text-slate-500 leading-tight">Ikut mabar & rekap statistik</p>
-                            </div>
-                        </label>
-
-                        <!-- Host Game -->
-                        <label class="cursor-pointer">
-                            <input type="radio" name="role" value="host" class="peer sr-only">
-                            <div class="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 peer-checked:bg-gradient-to-b peer-checked:from-[#EBF8D8]/80 peer-checked:to-white peer-checked:border-[#063B00] peer-checked:shadow-sm transition-all text-center space-y-1 hover:border-slate-300">
-                                <div class="w-8 h-8 mx-auto rounded-xl bg-white border border-slate-200/70 flex items-center justify-center text-sm text-[#063B00] shadow-2xs">
-                                    <i class="fa-solid fa-trophy"></i>
-                                </div>
-                                <h4 class="font-extrabold text-slate-900 text-xs">Host Game</h4>
-                                <p class="text-[10px] text-slate-500 leading-tight">Buat mabar, drawing & scoring</p>
                             </div>
                         </label>
 

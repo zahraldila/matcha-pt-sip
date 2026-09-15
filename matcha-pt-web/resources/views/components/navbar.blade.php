@@ -46,14 +46,15 @@
                     <a href="{{ route('register') }}" class="hidden sm:inline-flex text-xs font-bold text-[#063B00] bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 px-3.5 py-1.5 rounded-xl transition-all shadow-2xs">
                         Daftar
                     </a>
-                    <a href="{{ route('games.create') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
+                    <a href="{{ route('player.profile') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]" title="Aktifkan Mode Host di Profil">
                         <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span>Host Game</span>
                     </a>
                 @endguest
 
                 @auth
-                    <!-- Role-Based Action Button (Desktop Only) -->
-                    @if(Auth::user()->role === 'host')
+                    <!-- Role & Host State Action Buttons (Desktop Only) -->
+                    @if(Auth::user()->is_host)
+                        <!-- Mode Host Aktif -> Langsung Buka Form Buat Game -->
                         <a href="{{ route('games.create') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
                             <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span>Host Game</span>
                         </a>
@@ -62,9 +63,9 @@
                             <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span>Tambah Venue</span>
                         </a>
                     @else
-                        <!-- Role: member (Pemain) -->
-                        <a href="{{ route('communities.create') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-2xs hover:scale-[1.02]">
-                            <i class="fa-solid fa-plus text-[10px]"></i> <span>Komunitas</span>
+                        <!-- Mode Host Non-Aktif -> Arahkan ke Profil untuk Aktifkan Host -->
+                        <a href="{{ route('player.profile', ['notice' => 'host_required']) }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-2xs hover:scale-[1.02]" title="Aktifkan Mode Host di Profil untuk Membuat Game">
+                            <i class="fa-solid fa-bolt text-[10px]"></i> <span>Jadi Host Game</span>
                         </a>
                     @endif
 
@@ -82,8 +83,8 @@
                                 <span class="text-xs font-extrabold text-[#050608] leading-tight block truncate max-w-[110px]">
                                     {{ Auth::user()->nama }}
                                 </span>
-                                <span class="text-[9px] font-bold uppercase tracking-wider {{ Auth::user()->role === 'host' ? 'text-amber-700' : (Auth::user()->role === 'venue_owner' ? 'text-sky-700' : 'text-[#063B00]') }} block">
-                                    {{ Auth::user()->role === 'venue_owner' ? 'Venue Owner' : (Auth::user()->role === 'host' ? 'Host Game' : 'Member') }}
+                                <span class="text-[9px] font-bold uppercase tracking-wider {{ Auth::user()->is_host ? 'text-emerald-700 font-extrabold' : (Auth::user()->role === 'venue_owner' ? 'text-sky-700' : 'text-slate-500') }} block">
+                                    {{ Auth::user()->role === 'venue_owner' ? 'Venue Owner' : (Auth::user()->is_host ? 'Host Game' : 'Member') }}
                                 </span>
                             </div>
                             <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 group-hover:text-slate-600 transition-transform"></i>
@@ -102,8 +103,8 @@
                                 <div class="min-w-0 flex-1">
                                     <p class="font-extrabold text-slate-900 truncate leading-tight">{{ Auth::user()->nama }}</p>
                                     <p class="text-[10px] text-slate-400 truncate">{{ Auth::user()->email }}</p>
-                                    <span class="inline-block mt-0.5 text-[9px] font-bold px-2 py-0.5 rounded-full {{ Auth::user()->role === 'host' ? 'bg-amber-50 text-amber-800' : (Auth::user()->role === 'venue_owner' ? 'bg-sky-50 text-sky-800' : 'bg-emerald-50 text-emerald-800') }}">
-                                        {{ Auth::user()->role === 'venue_owner' ? 'Venue Owner' : (Auth::user()->role === 'host' ? 'Host Game' : 'Member') }}
+                                    <span class="inline-block mt-0.5 text-[9px] font-bold px-2 py-0.5 rounded-full {{ Auth::user()->is_host ? 'bg-emerald-100 text-emerald-800' : (Auth::user()->role === 'venue_owner' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-600') }}">
+                                        {{ Auth::user()->role === 'venue_owner' ? 'Venue Owner' : (Auth::user()->is_host ? 'Host Game & Player' : 'Member Pemain') }}
                                     </span>
                                 </div>
                             </div>
@@ -116,7 +117,7 @@
                                 <i class="fa-solid fa-users text-slate-400 text-xs"></i> Komunitas
                             </a>
                             <a href="{{ route('player.profile') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
-                                <i class="fa-solid fa-id-card text-slate-400 text-xs"></i> Profil &amp; Rating
+                                <i class="fa-solid fa-id-card text-slate-400 text-xs"></i> Profil &amp; Status Host
                             </a>
                             <form id="desktopLogoutForm" action="{{ route('logout') }}" method="POST" class="pt-1 border-t border-slate-100">
                                 @csrf

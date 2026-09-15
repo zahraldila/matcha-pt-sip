@@ -1167,7 +1167,7 @@ class ScoringController extends Controller
     private function isHostForSession(SessionModel $session): bool
     {
         return Auth::check()
-            && Auth::user()->role === 'host'
+            && (bool) Auth::user()->is_host
             && (int) Auth::user()->user_id === (int) $session->host_user_id;
     }
 

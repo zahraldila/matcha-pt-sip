@@ -14,11 +14,17 @@
             <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Temukan sesi mabar aktif, pantau sesi yang kamu ikuti, atau kelola jadwal turnamenmu.</p>
         </div>
 
-        @if(Auth::check() && Auth::user()->role === 'host')
-            <a href="{{ route('games.schedule') }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01] shrink-0">
-                <i class="fa-solid fa-plus text-[#A8E63A] text-xs"></i> <span>Buat Sesi Mabar Baru</span>
-            </a>
-        @endif
+        @auth
+            @if(Auth::user()->is_host)
+                <a href="{{ route('games.schedule') }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01] shrink-0">
+                    <i class="fa-solid fa-plus text-[#A8E63A] text-xs"></i> <span>Buat Sesi Mabar Baru</span>
+                </a>
+            @elseif(Auth::user()->role !== 'venue_owner')
+                <a href="{{ route('player.profile', ['notice' => 'host_required']) }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-bold text-xs shadow-2xs transition-all hover:scale-[1.01] shrink-0" title="Aktifkan Mode Host untuk Membuat Sesi Mabar">
+                    <i class="fa-solid fa-bolt text-[11px]"></i> <span>Jadi Host untuk Buat Mabar</span>
+                </a>
+            @endif
+        @endauth
     </div>
 
     <!-- 1. Primary Filter Tabs (Semua Sesi / Sesi di Venue Saya / Mabar Saya / Dikelola Saya) -->
@@ -60,7 +66,7 @@
                 @endif
 
                 <!-- Tab 3: Dikelola Saya (Host Scope) -->
-                @if(Auth::user()->role === 'host' || ($countHosted ?? 0) > 0)
+                @if(Auth::user()->is_host || ($countHosted ?? 0) > 0)
                     <a href="{{ route('games.index', ['tab' => 'hosted', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}" 
                        class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'hosted' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
                         <i class="fa-solid fa-crown text-xs {{ ($activeTab ?? '') === 'hosted' ? 'text-[#A8E63A]' : 'text-amber-500' }}"></i>
