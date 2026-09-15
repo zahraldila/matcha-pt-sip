@@ -196,7 +196,7 @@
                 <strong class="text-slate-800">{{ $game['venue_name'] }}</strong> &bull; <span class="text-[#063B00] font-bold">{{ $matchData['court_name'] ?? ('Court ' . ($mIdx + 1)) }}</span> &bull; <span class="font-bold text-slate-700">{{ $unitTabLabel }} {{ $activeRoundNum }}</span>
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Sync: <strong id="topSyncTimer_{{ $mIdx }}" class="font-black">1.5s</strong></span>
+                    <span>Sync: <strong id="topSyncTimer_{{ $mIdx }}" class="font-black">0.8s</strong></span>
                 </span>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
@@ -421,7 +421,7 @@
 
                 <div class="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Sinkron realtime: <strong id="hostSyncTimer_{{ $mIdx }}" class="text-emerald-700 font-bold">1.5s</strong></span>
+                    <span>Sinkron realtime: <strong id="hostSyncTimer_{{ $mIdx }}" class="text-emerald-700 font-bold">0.8s</strong></span>
                 </div>
             </div>
 
@@ -455,7 +455,7 @@
         <div class="flex items-center justify-between pt-3 border-t border-slate-200/50">
             <div class="flex items-center gap-2 text-xs text-slate-500">
                 <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
-                <span>Skor sinkron otomatis realtime setiap <strong id="countdownTimer_{{ $mIdx }}" class="text-sky-700 font-bold">1.5s</strong></span>
+                <span>Skor sinkron otomatis realtime setiap <strong id="countdownTimer_{{ $mIdx }}" class="text-sky-700 font-bold">0.8s</strong></span>
             </div>
             <a href="{{ route('scoring.recap', $game['id']) }}"
                class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-2xs transition-colors flex items-center gap-1.5">
@@ -1101,7 +1101,8 @@
         if (form) form.submit();
     }
 
-    // Polling realtime untuk sinkronisasi skor (1.5 detik per siklus)
+    // Polling realtime untuk sinkronisasi skor (0.8 detik per siklus)
+    const POLL_INTERVAL_MS = 800;
     Object.keys(courtsState).forEach(cIdx => {
         let st = courtsState[cIdx];
         const POLL_URL = `{{ url('scoring/get-score') }}/${GAME_ID}/${ACTIVE_ROUND}?court=${cIdx}&match_key=${st.matchKey}`;
@@ -1111,9 +1112,9 @@
         const topTimerEl = document.getElementById('topSyncTimer_' + cIdx);
 
         let isPolling = false;
-        let nextPollTime = Date.now() + 1500;
+        let nextPollTime = Date.now() + POLL_INTERVAL_MS;
 
-        // Visual countdown ticker yang berjalan halus & valid menghitung mundur dari 1.5s ke 0.0s
+        // Visual countdown ticker yang berjalan halus & valid menghitung mundur dari 0.8s ke 0.0s
         const updateTimerDisplay = () => {
             const now = Date.now();
             const remainingMs = Math.max(0, nextPollTime - now);
@@ -1233,16 +1234,16 @@
                 // Ignore polling errors
             } finally {
                 isPolling = false;
-                nextPollTime = Date.now() + 1500;
+                nextPollTime = Date.now() + POLL_INTERVAL_MS;
                 updateTimerDisplay();
             }
         };
 
-        // Jalankan polling loop tiap 1.5 detik
-        setInterval(executePoll, 1500);
+        // Jalankan polling loop tiap 0.8 detik
+        setInterval(executePoll, POLL_INTERVAL_MS);
 
-        // Jalankan polling awal segera (setelah 200ms)
-        setTimeout(executePoll, 200);
+        // Jalankan polling awal secara bertahap (staggered) agar tidak bertabrakan
+        setTimeout(executePoll, 100 + (Number(cIdx) * 150));
     });
 
     // Helper Toast (keep as is if defined elsewhere or we can define it)

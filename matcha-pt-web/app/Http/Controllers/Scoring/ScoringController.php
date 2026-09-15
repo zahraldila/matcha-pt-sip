@@ -152,6 +152,9 @@ class ScoringController extends Controller
         $courtIndex = 0;
         if ($matchKey && preg_match('/court_(\d+)/', $matchKey, $mC)) {
             $courtIndex = max(0, ((int) $mC[1]) - 1);
+        } elseif ($matchKey) {
+            // matchKey explicitly provided (misal 'round_1' pada single-court)
+            $courtIndex = (int) request('court', 0);
         } elseif (request()->has('court_num')) {
             $courtNum = (int) request('court_num');
             $courtIndex = max(0, $courtNum - 1);
@@ -172,12 +175,59 @@ class ScoringController extends Controller
         // 1. Cache match-specific
         $score = $scores[$matchKey] ?? null;
 
+        // Fallback konsistensi untuk single-court jika key ada di format round_1 atau round_1_court_1
+        if (! $score && ! $isMultiCourt && isset($scores["{$matchKey}_court_1"])) {
+            $score = $scores["{$matchKey}_court_1"];
+        } elseif (! $score && $isMultiCourt && ($courtIndex === 0) && isset($scores[$round])) {
+            $score = $scores[$round];
+        }
+
+        // Jika pada single-court ada data di kedua format, selalu pilih yang versinya lebih baru (newer version wins)
+        if (! $isMultiCourt && isset($scores["{$matchKey}_court_1"]) && isset($scores[$matchKey])) {
+            if ((int) ($scores["{$matchKey}_court_1"]['version'] ?? 0) > (int) ($scores[$matchKey]['version'] ?? 0)) {
+                $score = $scores["{$matchKey}_court_1"];
+            }
+        } elseif ($isMultiCourt && ($courtIndex === 0) && isset($scores[$round]) && isset($scores[$matchKey])) {
+            if ((int) ($scores[$round]['version'] ?? 0) > (int) ($scores[$matchKey]['version'] ?? 0)) {
+                $score = $scores[$round];
+            }
+        }
+
         // 2. Jika tidak ada di Cache: ambil dari tb_score via match_id di database
         if (! $score) {
             $dbScore = $this->getScoreFromDatabase($gameId, $round, $courtIndex);
             if ($dbScore) {
                 $score = $dbScore;
                 $scores[$matchKey] = $dbScore;
+                Cache::put($cacheKey, $scores, now()->addHours(4));
+            } else {
+                // Inisialisasi default score ke dalam cache agar request polling berikutnya
+                // tidak memicu query berulang ke Supabase (Cache Hit)
+                $score = [
+                    'version' => 0,
+                    'updated_at_ms' => (int) round(microtime(true) * 1000),
+                    'score_a' => 0,
+                    'score_b' => 0,
+                    'point_display_a' => '0',
+                    'point_display_b' => '0',
+                    'set_number' => 1,
+                    'sets_a' => 0,
+                    'sets_b' => 0,
+                    'games_a' => 0,
+                    'games_b' => 0,
+                    'set_history' => [],
+                    'idx_a' => 0,
+                    'idx_b' => 0,
+                    'is_deuce' => false,
+                    'advantage' => null,
+                    'scoring_type' => 'total_of_sets',
+                    'status' => 'in_progress',
+                    'winner_team' => null,
+                ];
+                $scores[$matchKey] = $score;
+                if (! $isMultiCourt) {
+                    $scores[$round] = $score;
+                }
                 Cache::put($cacheKey, $scores, now()->addHours(4));
             }
         }
@@ -418,6 +468,10 @@ class ScoringController extends Controller
             $scores[$matchKey] = $scorePayload;
             // DILARANG fallback / sync ke $scores[$round] untuk multi-court agar tidak terjadi cross-court pollution
             if (! $isMultiCourt) {
+                $scores[$round] = $scorePayload;
+                $scores["{$round}_court_1"] = $scorePayload;
+            } elseif (preg_match('/_court_1$/', $matchKey)) {
+                // Jika single-court disimpan dengan format round_X_court_1, pastikan juga sync ke round_X
                 $scores[$round] = $scorePayload;
             }
 
