@@ -1186,48 +1186,75 @@
             matchDone: st.matchDone,
             pointDisplays: getPointDisplays(cIdx),
         };
+        
         st.saveQueue = st.saveQueue || [];
         st.saveQueue.push({ status, clientSeq, tClick, eventId, action, team, baseVersion, snapshot });
+        
+        st.pendingSaves = (st.pendingSaves || 0) + 1;
 
-        if (! st.saveWorker) {
-            st.saveWorker = (async () => {
-                while (st.saveQueue && st.saveQueue.length > 0) {
-                    const queued = st.saveQueue.shift();
-                    await saveScore(cIdx, queued.status, queued.clientSeq, queued.tClick, queued.snapshot, queued.eventId, queued.action, queued.team, queued.baseVersion);
-                }
-            })().finally(() => {
+        if (!st.saveWorker) {
+            st.saveWorker = setTimeout(() => {
+                const batchEvents = [...st.saveQueue];
+                st.saveQueue = [];
                 st.saveWorker = null;
-            });
-        }
 
-        return st.saveWorker;
+                if (batchEvents.length > 0) {
+                    saveScoreBatch(cIdx, batchEvents).catch(e => console.warn(e));
+                }
+            }, 100);
+        }
     }
 
-    async function saveScore(cIdx, status = null, clientSeq = null, tClick = null, snapshot = null, eventId = null, action = 'add_point', team = null, baseVersion = 0) {
+    async function saveScoreBatch(cIdx, batchEvents) {
         let st = courtsState[cIdx];
         if (st.isFinishing) return;
 
-        const isCompletionSave = status === 'completed' || (!snapshot && st.matchDone);
+        let isCompletionSave = false;
+        let lastClientSeq = 1;
+        let lastBaseVersion = 0;
+        let lastEventId = null;
+        let latestSnapshot = null;
+        let latestTClick = null;
+
+        const backendEvents = batchEvents.map(e => {
+            if (e.status === 'completed' || e.action === 'completion') {
+                isCompletionSave = true;
+            }
+            lastClientSeq = Math.max(lastClientSeq, e.clientSeq || 1);
+            lastBaseVersion = Math.max(lastBaseVersion, e.baseVersion || 0);
+            lastEventId = e.eventId;
+            latestSnapshot = e.snapshot;
+            latestTClick = Math.max(latestTClick || 0, e.tClick || 0);
+            return {
+                action: e.action || 'add_point',
+                team: e.team,
+                event_id: e.eventId,
+                tClick: e.tClick,
+                status: e.status
+            };
+        });
+
+        isCompletionSave = isCompletionSave || (!latestSnapshot && st.matchDone);
+
         if (isCompletionSave) {
             st.completionSavePending = true;
             st.completionSaveSucceeded = false;
             syncRoundCompletionStatus();
         }
 
-        const scoreState = snapshot || st;
-        const displays = snapshot ? snapshot.pointDisplays : getPointDisplays(cIdx);
-        const currentStatus = status ?? (scoreState.matchDone ? 'completed' : 'in_progress');
-        const reqSeq = clientSeq || st.clientSeq || 1;
-        const reqBaseVer = baseVersion || st.serverVersion || 0;
+        const scoreState = latestSnapshot || st;
+        const displays = latestSnapshot ? latestSnapshot.pointDisplays : getPointDisplays(cIdx);
+        const currentStatus = isCompletionSave ? 'completed' : (scoreState.matchDone ? 'completed' : 'in_progress');
+        const reqSeq = lastClientSeq || st.clientSeq || 1;
+        const reqBaseVer = lastBaseVersion || st.serverVersion || 0;
         const body = {
             game_id         : GAME_ID,
             round           : ACTIVE_ROUND,
             match_key       : st.matchKey,
             court           : st.courtNum,
             scoring_type    : SCORING_TYPE,
-            event_id        : eventId,
-            action          : action || 'add_point',
-            point_won_by    : team,
+            action          : 'batch_events',
+            events          : backendEvents,
             base_version    : reqBaseVer,
             score_a         : scoreState.gamesA,
             score_b         : scoreState.gamesB,
@@ -1323,17 +1350,17 @@
                             match_key: st.matchKey,
                             server_version: incomingVer,
                             version: incomingVer,
-                            last_event_id: data.last_event_id || eventId
+                            last_event_id: data.last_event_id || lastEventId
                         }
                     }).catch(e => console.warn('[Supabase Realtime] broadcast send warning:', e));
                 }
 
-                if (tClick) {
-                    const roundtripMs = performance.now() - tClick;
-                    console.log(`[Network Roundtrip] Court ${st.courtNum} save roundtrip: ${roundtripMs.toFixed(2)}ms (serverVersion=${st.serverVersion})`);
+                if (latestTClick) {
+                    const roundtripMs = performance.now() - latestTClick;
+                    console.log(`[Network Roundtrip] Court ${st.courtNum} save batch (${batchEvents.length} events) roundtrip: ${roundtripMs.toFixed(2)}ms (serverVersion=${st.serverVersion})`);
                 }
             } else {
-                console.error(`Update score failed for court ${st.courtNum}:`, await res.text());
+                console.error(`Update score batch failed for court ${st.courtNum}:`, await res.text());
                 if (isCompletionSave) {
                     st.completionSavePending = false;
                     st.completionSaveSucceeded = false;
@@ -1342,7 +1369,7 @@
             }
         } catch (err) {
             if (err.name !== 'AbortError') {
-                console.warn(`Gagal simpan skor court ${st.courtNum}:`, err);
+                console.warn(`Gagal simpan skor batch court ${st.courtNum}:`, err);
             }
             if (isCompletionSave) {
                 st.completionSavePending = false;
@@ -1354,7 +1381,7 @@
                 st.activeSaveController = null;
                 st.activeSaveIsCompletion = false;
             }
-            st.pendingSaves = Math.max(0, (st.pendingSaves || 1) - 1);
+            st.pendingSaves = Math.max(0, (st.pendingSaves || 1) - batchEvents.length);
             if (isCompletionSave && !st.completionSaveSucceeded) {
                 st.completionSavePending = false;
                 syncRoundCompletionStatus();
