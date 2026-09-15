@@ -1414,4 +1414,79 @@ class DrawingAndScoringLogicTest extends TestCase
         $get2 = $controller->getScore($session->session_id, 'round_1')->getData();
         $this->assertEquals(1, $get2->version, 'Court 2 version harus tetap 1.');
     }
+
+    /**
+     * Test 14: Team Americano with Total of 7 Sets generates full 7 rounds of cyclical schedule
+     */
+    public function test_team_americano_with_target_rounds_7_generates_cyclical_schedule()
+    {
+        $service = new TeamAmericanoService;
+        $players = ['Alpha1', 'Alpha2', 'Beta1', 'Beta2', 'Gamma1', 'Gamma2', 'Delta1', 'Delta2'];
+        $courts = 2;
+        $targetRounds = 7;
+
+        $drawingData = $service->generateTeamRounds($players, $courts, null, $targetRounds);
+
+        $this->assertEquals('Team Americano', $drawingData['format']);
+        $this->assertEquals(4, $drawingData['total_teams']);
+        $this->assertEquals(7, $drawingData['total_rounds']);
+        $this->assertCount(7, $drawingData['rounds']);
+
+        // Check each round has 2 matches for the 2 courts
+        foreach ($drawingData['rounds'] as $rNum => $round) {
+            $this->assertEquals($rNum, $round['round_number']);
+            $this->assertCount(2, $round['matches'], "Set {$rNum} harus memiliki 2 match untuk 2 court.");
+            $this->assertNotEmpty($round['matches'][0]['team_a']['players']);
+            $this->assertNotEmpty($round['matches'][0]['team_b']['players']);
+            $this->assertNotEmpty($round['matches'][1]['team_a']['players']);
+            $this->assertNotEmpty($round['matches'][1]['team_b']['players']);
+        }
+    }
+
+    /**
+     * Test 15: ScoringController getRoundAccess unlocks Set 5 smoothly when Set 4 is completed for Total of 7
+     */
+    public function test_team_americano_scoring_round_access_for_7_sets()
+    {
+        [$session, $hostUser] = $this->createTestSession('Double', 2);
+        $session->scoring_system = 'Total of 7';
+        $session->save();
+
+        Auth::login($hostUser);
+        request()->merge(['format' => 'Team Americano']);
+
+        $controller = new ScoringController;
+        $game = $this->invokeMethod($controller, 'getGameData', [$session->session_id]);
+        $scoringSystem = ScoringService::detectScoringSystem('Total of 7');
+
+        // Initial: Round 1 open, Round 2..7 locked
+        $access1 = $this->invokeMethod($controller, 'getRoundAccess', [$game, $scoringSystem, []]);
+        $this->assertTrue($access1['round_1']);
+        $this->assertFalse($access1['round_2']);
+        $this->assertFalse($access1['round_5']);
+
+        // Complete Round 1 to 4 in savedScores
+        $savedScores = [];
+        for ($r = 1; $r <= 4; $r++) {
+            $savedScores["round_{$r}_court_1"] = ['status' => 'completed', 'games_a' => 6, 'games_b' => 4];
+            $savedScores["round_{$r}_court_2"] = ['status' => 'completed', 'games_a' => 6, 'games_b' => 3];
+        }
+
+        $accessAfter4 = $this->invokeMethod($controller, 'getRoundAccess', [$game, $scoringSystem, $savedScores]);
+        $this->assertTrue($accessAfter4['round_1']);
+        $this->assertTrue($accessAfter4['round_2']);
+        $this->assertTrue($accessAfter4['round_3']);
+        $this->assertTrue($accessAfter4['round_4']);
+        $this->assertTrue($accessAfter4['round_5'], 'Set 5 harus otomatis terbuka setelah Set 4 selesai pada Total of 7!');
+        $this->assertFalse($accessAfter4['round_6'], 'Set 6 harus tetap terkunci sebelum Set 5 selesai.');
+    }
+
+    protected function invokeMethod(&$object, $methodName, array $parameters = [])
+    {
+        $reflection = new \ReflectionClass(get_class($object));
+        $method = $reflection->getMethod($methodName);
+        $method->setAccessible(true);
+
+        return $method->invokeArgs($object, $parameters);
+    }
 }

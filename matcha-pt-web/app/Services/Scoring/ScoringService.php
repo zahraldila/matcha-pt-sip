@@ -701,13 +701,15 @@ class ScoringService
                     } else {
                         $sessionJenisPermainan = $session->jenis_permainan ?? 'Double';
                         $format = strtolower($session->match_format ?? 'americano');
+                        $scoringSystem = self::detectScoringSystem($session->scoring_system ?? 'Total of 3');
+                        $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
                         if (str_contains($format, 'team') && count($participants) >= 4 && count($participants) % 2 === 0) {
                             $teamService = new TeamAmericanoService;
-                            $drawingData = $teamService->generateTeamRounds($participants, $courtCount);
+                            $drawingData = $teamService->generateTeamRounds($participants, $courtCount, null, $roundCount);
                             $rounds = $drawingData['rounds'] ?? [];
                         } else {
                             $americanoService = new AmericanoService;
-                            $rounds = $americanoService->generateRounds($participants, $courtCount, null, $sessionJenisPermainan);
+                            $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan);
                         }
                     }
 

@@ -793,8 +793,10 @@ class GameController extends Controller
             try {
                 if ($isTeam) {
                     // Team Americano Engine (Fixed Pairs). Pengacakan hanya mengacak urutan tim, bukan anggota tim!
+                    $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
+                    $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
                     $teamService = new TeamAmericanoService;
-                    $drawingData = $teamService->generateTeamRounds($participants, $courtCount, $seed);
+                    $drawingData = $teamService->generateTeamRounds($participants, $courtCount, $seed, $roundCount);
                     $rounds = $drawingData['rounds'] ?? [];
                 } else {
                     // Americano Engine (Individual Rotating Pairs) — Single atau Double

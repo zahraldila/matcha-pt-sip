@@ -103,10 +103,12 @@ class TeamAmericanoService
      *
      * @param array $players Daftar pemain
      * @param int|array $courts Jumlah lapangan aktif (int) atau array database courts
+     * @param int|null $seed Seed pengacakan urutan tim
+     * @param int|null $targetRounds Jumlah ronde/set target yang diinginkan (misal dari scoring system Total of 5/6/7)
      * @return array Struktur jadwal ronde, time slot, dan match
      * @throws InvalidArgumentException|RuntimeException Jika parameter tidak valid atau schedule tidak lengkap
      */
-    public function generateTeamRounds(array $players, int|array $courts = 1, ?int $seed = null): array
+    public function generateTeamRounds(array $players, int|array $courts = 1, ?int $seed = null, ?int $targetRounds = null): array
     {
         // Dukung input integer (courtCount) atau array database courts
         $courtList = [];
@@ -306,9 +308,71 @@ class TeamAmericanoService
             $rotationList = array_merge([$first], $tail);
         }
 
-        // 5. Safeguard Runtime Assertion
-        $expectedTotalMatches = (int) (($totalTeams * ($totalTeams - 1)) / 2);
-        if ($totalMatchesCount !== $expectedTotalMatches) {
+        // 5. Expand cyclical rounds jika targetRounds ditentukan dan lebih besar dari totalRounds dasar
+        if ($targetRounds !== null && $targetRounds > $totalRounds && $totalRounds > 0) {
+            $baseRoundCount = $totalRounds;
+            for ($r = $baseRoundCount + 1; $r <= $targetRounds; $r++) {
+                $baseRoundNum = (($r - 1) % $baseRoundCount) + 1;
+                $baseRound = $rounds[$baseRoundNum];
+
+                $cycSlots = [];
+                $cycMatchesFlat = [];
+
+                foreach ($baseRound['slots'] as $sIdx => $slot) {
+                    $slotNumber = $slot['slot_number'];
+                    $cycSlotMatches = [];
+
+                    foreach ($slot['matches'] as $cIdx => $m) {
+                        $courtNumber = $m['court_number'];
+                        $cycMatch = $m;
+                        $cycMatch['schedule_key'] = "R{$r}-S{$slotNumber}-C{$courtNumber}";
+                        $cycMatch['match_number'] = $globalMatchCounter++;
+                        $cycMatch['round_number'] = $r;
+                        $cycMatch['status'] = 'Scheduled';
+
+                        $cycSlotMatches[] = $cycMatch;
+                        $cycMatchesFlat[] = $cycMatch;
+                        $totalMatchesCount++;
+                    }
+
+                    $cycSlot = $slot;
+                    $cycSlot['matches'] = $cycSlotMatches;
+                    $cycSlots[] = $cycSlot;
+                }
+
+                $cycPrimary = $cycMatchesFlat[0] ?? null;
+
+                $rounds[$r] = [
+                    'round_number' => $r,
+                    'round' => $r,
+                    'round_title' => "Ronde {$r}",
+                    'round_name' => "Ronde {$r}",
+                    'slots' => $cycSlots,
+                    'matches' => $cycMatchesFlat,
+                    'bye_teams' => $baseRound['bye_teams'] ?? [],
+                    'bye_players' => $baseRound['bye_players'] ?? [],
+                    'primary_match' => $cycPrimary,
+                    'teamA' => $cycPrimary ? $cycPrimary['teamA_names'] : [],
+                    'teamB' => $cycPrimary ? $cycPrimary['teamB_names'] : [],
+                    'team_a' => $cycPrimary ? $cycPrimary['team_a'] : [],
+                    'team_b' => $cycPrimary ? $cycPrimary['team_b'] : [],
+                    'team_a_names' => $cycPrimary ? $cycPrimary['teamA_names'] : [],
+                    'team_b_names' => $cycPrimary ? $cycPrimary['teamB_names'] : [],
+                    'teamA_display' => $cycPrimary ? ($cycPrimary['team_a']['display_name'] ?? '-') : '-',
+                    'teamB_display' => $cycPrimary ? ($cycPrimary['team_b']['display_name'] ?? '-') : '-',
+                    'resting' => $baseRound['resting'] ?? [],
+                    'resting_teams' => $baseRound['resting_teams'] ?? [],
+                ];
+            }
+            $totalRounds = $targetRounds;
+        }
+
+        // 6. Safeguard Runtime Assertion
+        $expectedTotalMatches = ($targetRounds !== null && $targetRounds > ($numParticipants - 1))
+            ? $totalMatchesCount
+            : (int) (($totalTeams * ($totalTeams - 1)) / 2);
+
+        if ($totalMatchesCount < $expectedTotalMatches) {
             throw new RuntimeException(
                 "Schedule Team Americano tidak lengkap. Expected {$expectedTotalMatches} match, generated {$totalMatchesCount}."
             );
