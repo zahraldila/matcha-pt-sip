@@ -744,7 +744,7 @@ class DrawingAndScoringLogicTest extends TestCase
 
         $this->assertStringContainsString('Alice', $html);
         $this->assertStringContainsString('Bob', $html);
-        $this->assertStringContainsString('Set 3', $html);
+        $this->assertStringContainsString('Ronde 3', $html);
     }
 
     /**
