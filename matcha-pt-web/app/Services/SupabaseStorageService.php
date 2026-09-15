@@ -10,9 +10,15 @@ use Illuminate\Support\Str;
 class SupabaseStorageService
 {
     protected string $bucket;
+
     protected string $communityBucket;
+
+    protected string $avatarBucket;
+
     protected ?string $url;
+
     protected ?string $apiKey;
+
     protected string|bool $caBundle;
 
     public function __construct()
@@ -21,6 +27,7 @@ class SupabaseStorageService
         $this->apiKey = config('services.supabase.key');
         $this->bucket = config('services.supabase.bucket', 'venues');
         $this->communityBucket = config('services.supabase.community_bucket', 'community-logos');
+        $this->avatarBucket = config('services.supabase.avatar_bucket', 'avatars');
         $this->caBundle = $this->resolveCaBundle();
     }
 
@@ -48,36 +55,36 @@ class SupabaseStorageService
     public function isConfigured(): bool
     {
         $cleanKey = trim($this->apiKey ?? '');
-        return !empty($this->url) && !empty($cleanKey) && strlen($cleanKey) >= 20;
+
+        return ! empty($this->url) && ! empty($cleanKey) && strlen($cleanKey) >= 20;
     }
 
     /**
      * Upload an uploaded file directly to Supabase Storage Bucket.
      *
-     * @param UploadedFile $file
-     * @param string $folder
      * @return string|null Returns the public URL of the uploaded image, or null on failure.
      */
     public function upload(UploadedFile $file, string $folder = 'venues'): ?string
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             Log::warning('Supabase Storage tidak terkonfigurasi. Pastikan SUPABASE_KEY / SUPABASE_ANON_KEY diisi di .env.');
+
             return null;
         }
 
         try {
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $filename = time().'_'.uniqid().'.'.$file->getClientOriginalExtension();
             $cleanFolder = trim($folder, '/');
-            $path = ($cleanFolder !== '' && $cleanFolder !== $this->bucket) ? ($cleanFolder . '/' . $filename) : $filename;
+            $path = ($cleanFolder !== '' && $cleanFolder !== $this->bucket) ? ($cleanFolder.'/'.$filename) : $filename;
             $endpoint = "{$this->url}/storage/v1/object/{$this->bucket}/{$path}";
             $mimeType = $file->getMimeType() ?: 'application/octet-stream';
 
             $response = Http::timeout(5)
                 ->connectTimeout(2)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
-                    'apikey'        => $this->apiKey,
-                    'Content-Type'  => $mimeType,
+                    'Authorization' => 'Bearer '.$this->apiKey,
+                    'apikey' => $this->apiKey,
+                    'Content-Type' => $mimeType,
                 ])
                 ->withOptions(['verify' => $this->caBundle])
                 ->withBody(file_get_contents($file->getRealPath()), $mimeType)
@@ -87,10 +94,12 @@ class SupabaseStorageService
                 return "{$this->url}/storage/v1/object/public/{$this->bucket}/{$path}";
             }
 
-            Log::error('Supabase upload failed (' . $response->status() . '): ' . $response->body());
+            Log::error('Supabase upload failed ('.$response->status().'): '.$response->body());
+
             return null;
         } catch (\Throwable $e) {
-            Log::error('Supabase upload exception: ' . $e->getMessage());
+            Log::error('Supabase upload exception: '.$e->getMessage());
+
             return null;
         }
     }
@@ -98,14 +107,13 @@ class SupabaseStorageService
     /**
      * Upload logo komunitas ke Supabase Storage bucket community-logos
      *
-     * @param UploadedFile $file
      * @return array ['success' => bool, 'url' => ?string, 'filename' => ?string, 'message' => ?string]
      */
     public function uploadLogo(UploadedFile $file): array
     {
         $allowedExtensions = ['jpg', 'jpeg', 'png'];
         $ext = strtolower($file->getClientOriginalExtension());
-        if (!in_array($ext, $allowedExtensions)) {
+        if (! in_array($ext, $allowedExtensions)) {
             return [
                 'success' => false,
                 'message' => 'Format logo tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.',
@@ -120,7 +128,7 @@ class SupabaseStorageService
             ];
         }
 
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return [
                 'success' => false,
                 'message' => 'Konfigurasi Supabase Storage belum lengkap di environment (.env). Pastikan SUPABASE_URL dan SUPABASE_ANON_KEY telah diatur.',
@@ -128,19 +136,19 @@ class SupabaseStorageService
         }
 
         $cleanRandom = Str::random(12);
-        $fileName = "logo_{$cleanRandom}_" . time() . ".{$ext}";
+        $fileName = "logo_{$cleanRandom}_".time().".{$ext}";
         $endpoint = "{$this->url}/storage/v1/object/{$this->communityBucket}/{$fileName}";
 
         try {
-            $mimeType = $file->getMimeType() ?: ('image/' . ($ext === 'jpg' ? 'jpeg' : $ext));
+            $mimeType = $file->getMimeType() ?: ('image/'.($ext === 'jpg' ? 'jpeg' : $ext));
             $fileContent = file_get_contents($file->getRealPath());
 
             $response = Http::timeout(6)
                 ->connectTimeout(3)
                 ->withHeaders([
-                    'apikey'        => $this->apiKey,
-                    'Authorization' => 'Bearer ' . $this->apiKey,
-                    'Content-Type'  => $mimeType,
+                    'apikey' => $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
+                    'Content-Type' => $mimeType,
                 ])
                 ->withOptions(['verify' => $this->caBundle])
                 ->withBody($fileContent, $mimeType)
@@ -148,9 +156,10 @@ class SupabaseStorageService
 
             if ($response->successful()) {
                 $publicUrl = "{$this->url}/storage/v1/object/public/{$this->communityBucket}/{$fileName}";
+
                 return [
-                    'success'  => true,
-                    'url'      => $publicUrl,
+                    'success' => true,
+                    'url' => $publicUrl,
                     'filename' => $fileName,
                 ];
             }
@@ -159,17 +168,18 @@ class SupabaseStorageService
             $body = $response->json();
             $errorMsg = $body['message'] ?? $body['error'] ?? "Supabase Storage merespons status {$status}.";
 
-            Log::error("Supabase Storage upload failed ({$status}): " . $response->body());
+            Log::error("Supabase Storage upload failed ({$status}): ".$response->body());
 
             return [
                 'success' => false,
-                'message' => 'Gagal mengunggah logo ke Supabase Storage: ' . $errorMsg,
+                'message' => 'Gagal mengunggah logo ke Supabase Storage: '.$errorMsg,
             ];
         } catch (\Throwable $e) {
-            Log::error('Supabase Storage exception: ' . $e->getMessage());
+            Log::error('Supabase Storage exception: '.$e->getMessage());
+
             return [
                 'success' => false,
-                'message' => 'Kendala koneksi ke Supabase Storage: ' . $e->getMessage(),
+                'message' => 'Kendala koneksi ke Supabase Storage: '.$e->getMessage(),
             ];
         }
     }
@@ -179,7 +189,7 @@ class SupabaseStorageService
      */
     public function deleteLogo(string $fileName): bool
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return false;
         }
 
@@ -188,15 +198,146 @@ class SupabaseStorageService
             $response = Http::timeout(6)
                 ->connectTimeout(3)
                 ->withHeaders([
-                    'apikey'        => $this->apiKey,
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'apikey' => $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
                 ])
                 ->withOptions(['verify' => $this->caBundle])
                 ->delete($endpoint);
 
             return $response->successful();
         } catch (\Throwable $e) {
-            Log::warning('Supabase Storage delete exception: ' . $e->getMessage());
+            Log::warning('Supabase Storage delete exception: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
+    /**
+     * Upload foto profil user / pemain ke Supabase Storage bucket avatars
+     *
+     * @return array ['success' => bool, 'url' => ?string, 'filename' => ?string, 'message' => ?string]
+     */
+    public function uploadAvatar(UploadedFile $file): array
+    {
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+        $ext = strtolower($file->getClientOriginalExtension());
+        if (! in_array($ext, $allowedExtensions)) {
+            return [
+                'success' => false,
+                'message' => 'Format foto tidak valid. Hanya JPG, JPEG, PNG, atau WEBP yang diperbolehkan.',
+            ];
+        }
+
+        $maxBytes = 2 * 1024 * 1024;
+        if ($file->getSize() > $maxBytes) {
+            return [
+                'success' => false,
+                'message' => 'Ukuran foto profil maksimal 2 MB.',
+            ];
+        }
+
+        $cleanRandom = Str::random(12);
+        $fileName = "avatar_{$cleanRandom}_".time().".{$ext}";
+
+        // 1. Coba upload ke Supabase Storage jika terkonfigurasi
+        if ($this->isConfigured()) {
+            $endpoint = "{$this->url}/storage/v1/object/{$this->avatarBucket}/{$fileName}";
+
+            try {
+                $mimeType = $file->getMimeType() ?: ('image/'.($ext === 'jpg' ? 'jpeg' : $ext));
+                $fileContent = file_get_contents($file->getRealPath());
+
+                $response = Http::timeout(6)
+                    ->connectTimeout(3)
+                    ->withHeaders([
+                        'apikey' => $this->apiKey,
+                        'Authorization' => 'Bearer '.$this->apiKey,
+                        'Content-Type' => $mimeType,
+                    ])
+                    ->withOptions(['verify' => $this->caBundle])
+                    ->withBody($fileContent, $mimeType)
+                    ->post($endpoint);
+
+                if ($response->successful()) {
+                    $publicUrl = "{$this->url}/storage/v1/object/public/{$this->avatarBucket}/{$fileName}";
+
+                    return [
+                        'success' => true,
+                        'url' => $publicUrl,
+                        'filename' => $fileName,
+                    ];
+                }
+
+                $status = $response->status();
+                Log::warning("Supabase Storage avatar upload status ({$status}): ".$response->body().'. Beralih ke fallback penyimpanan lokal.');
+            } catch (\Throwable $e) {
+                Log::warning('Supabase Storage avatar upload exception: '.$e->getMessage().'. Beralih ke fallback penyimpanan lokal.');
+            }
+        }
+
+        // 2. Fallback: Simpan ke direktori publik lokal jika Supabase offline/unreachable
+        try {
+            $localDir = public_path('uploads/avatars');
+            if (! file_exists($localDir)) {
+                mkdir($localDir, 0755, true);
+            }
+
+            $file->move($localDir, $fileName);
+            $localUrl = asset('uploads/avatars/'.$fileName);
+
+            return [
+                'success' => true,
+                'url' => $localUrl,
+                'filename' => $fileName,
+            ];
+        } catch (\Throwable $localEx) {
+            Log::error('Local avatar upload fallback failed: '.$localEx->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Gagal menyimpan foto profil: '.$localEx->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Hapus file avatar dari bucket Supabase Storage atau penyimpanan lokal
+     */
+    public function deleteAvatar(string $fileNameOrUrl): bool
+    {
+        if (empty($fileNameOrUrl)) {
+            return false;
+        }
+
+        // Ambil nama file murni jika yang dioper adalah full URL
+        $fileName = basename(parse_url($fileNameOrUrl, PHP_URL_PATH));
+
+        // 1. Cek & hapus dari lokal jika ada
+        $localPath = public_path('uploads/avatars/'.$fileName);
+        if (file_exists($localPath)) {
+            @unlink($localPath);
+        }
+
+        // 2. Hapus dari Supabase Storage jika terkonfigurasi
+        if (! $this->isConfigured()) {
+            return true;
+        }
+
+        try {
+            $endpoint = "{$this->url}/storage/v1/object/{$this->avatarBucket}/{$fileName}";
+            $response = Http::timeout(6)
+                ->connectTimeout(3)
+                ->withHeaders([
+                    'apikey' => $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
+                ])
+                ->withOptions(['verify' => $this->caBundle])
+                ->delete($endpoint);
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::warning('Supabase Storage avatar delete exception: '.$e->getMessage());
+
             return false;
         }
     }
@@ -209,5 +350,10 @@ class SupabaseStorageService
     public function getBucket(): string
     {
         return $this->bucket;
+    }
+
+    public function getAvatarBucket(): string
+    {
+        return $this->avatarBucket;
     }
 }

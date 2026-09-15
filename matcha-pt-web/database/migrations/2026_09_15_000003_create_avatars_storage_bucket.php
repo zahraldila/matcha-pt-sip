@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 return new class extends Migration
 {
@@ -11,6 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         try {
+            // Cek apakah database PostgreSQL dan schema storage tersedia
+            $driver = DB::connection()->getDriverName();
+            if ($driver !== 'pgsql') {
+                return;
+            }
+
             // 1. Buat bucket 'avatars' pada storage.buckets
             DB::statement("
                 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -27,7 +34,7 @@ return new class extends Migration
                     allowed_mime_types = ARRAY['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
             ");
 
-            // 2. Buat Storage Policies minimal hanya untuk bucket avatars
+            // 2. Storage Policies untuk bucket avatars
             // Public Read
             DB::statement("
                 DO $$
@@ -43,7 +50,7 @@ return new class extends Migration
                 END $$;
             ");
 
-            // Upload (Insert)
+            // Upload
             DB::statement("
                 DO $$
                 BEGIN
@@ -58,23 +65,7 @@ return new class extends Migration
                 END $$;
             ");
 
-            // Update
-            DB::statement("
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM pg_policies 
-                        WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow update avatars'
-                    ) THEN
-                        CREATE POLICY \"Allow update avatars\"
-                        ON storage.objects FOR UPDATE
-                        USING (bucket_id = 'avatars')
-                        WITH CHECK (bucket_id = 'avatars');
-                    END IF;
-                END $$;
-            ");
-
-            // Delete
+            // Delete / Update
             DB::statement("
                 DO $$
                 BEGIN
@@ -89,8 +80,7 @@ return new class extends Migration
                 END $$;
             ");
         } catch (Throwable $e) {
-            // Jika berjalan di lingkungan MySQL atau driver non-PostgreSQL / non-Supabase direct storage, abaikan exception
-            report($e);
+            Log::warning('Migrasi storage bucket avatars dilewati atau gagal: '.$e->getMessage());
         }
     }
 
@@ -100,13 +90,17 @@ return new class extends Migration
     public function down(): void
     {
         try {
+            $driver = DB::connection()->getDriverName();
+            if ($driver !== 'pgsql') {
+                return;
+            }
+
             DB::statement('DROP POLICY IF EXISTS "Public read avatars" ON storage.objects;');
             DB::statement('DROP POLICY IF EXISTS "Allow upload avatars" ON storage.objects;');
-            DB::statement('DROP POLICY IF EXISTS "Allow update avatars" ON storage.objects;');
             DB::statement('DROP POLICY IF EXISTS "Allow delete avatars" ON storage.objects;');
             DB::statement("DELETE FROM storage.buckets WHERE id = 'avatars';");
         } catch (Throwable $e) {
-            report($e);
+            Log::warning('Rollback storage bucket avatars dilewati: '.$e->getMessage());
         }
     }
 };
