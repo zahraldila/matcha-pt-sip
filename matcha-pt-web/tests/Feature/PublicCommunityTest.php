@@ -2,11 +2,12 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\User;
 use App\Models\Community;
 use App\Models\Player;
+use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
 
 class PublicCommunityTest extends TestCase
 {
@@ -18,7 +19,7 @@ class PublicCommunityTest extends TestCase
 
     protected function setupTestDatabaseSchema(): void
     {
-        if (!Schema::hasTable('tb_user')) {
+        if (! Schema::hasTable('tb_user')) {
             Schema::create('tb_user', function ($table) {
                 $table->id('user_id');
                 $table->string('nama')->default('User Test');
@@ -30,7 +31,7 @@ class PublicCommunityTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('tb_community')) {
+        if (! Schema::hasTable('tb_community')) {
             Schema::create('tb_community', function ($table) {
                 $table->id('community_id');
                 $table->string('nama_community');
@@ -49,7 +50,7 @@ class PublicCommunityTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('tb_player')) {
+        if (! Schema::hasTable('tb_player')) {
             Schema::create('tb_player', function ($table) {
                 $table->id('player_id');
                 $table->unsignedBigInteger('user_id')->nullable();
@@ -69,12 +70,12 @@ class PublicCommunityTest extends TestCase
     protected function createCommunity(array $attributes = []): Community
     {
         return Community::create(array_merge([
-            'nama_community'     => 'Matcha Padel Bandung',
-            'deskripsi'          => 'Komunitas padel asik dan seru di Bandung.',
-            'sport'              => 'padel',
-            'kota_homebase'      => 'Bandung',
+            'nama_community' => 'Matcha Padel Bandung',
+            'deskripsi' => 'Komunitas padel asik dan seru di Bandung.',
+            'sport' => 'padel',
+            'kota_homebase' => 'Bandung',
             'status_keanggotaan' => 'Open',
-            'jadwal_rutin'       => 'Setiap Sabtu Pagi',
+            'jadwal_rutin' => 'Setiap Sabtu Pagi',
         ], $attributes));
     }
 
@@ -134,18 +135,18 @@ class PublicCommunityTest extends TestCase
     public function test_member_still_has_detail_community_button_and_member_badge(): void
     {
         $user = User::create([
-            'nama'     => 'Member User',
-            'email'    => 'member@example.com',
+            'nama' => 'Member User',
+            'email' => 'member@example.com',
             'password' => bcrypt('secret'),
-            'role'     => 'member',
+            'role' => 'member',
         ]);
 
         $community = $this->createCommunity(['nama_community' => 'Member Padel Club']);
 
         Player::create([
-            'user_id'      => $user->user_id,
+            'user_id' => $user->user_id,
             'community_id' => $community->community_id,
-            'nama'         => 'Member User',
+            'nama' => 'Member User',
         ]);
 
         $response = $this->actingAs($user)->get('/communities');
@@ -165,10 +166,10 @@ class PublicCommunityTest extends TestCase
     {
         $community = $this->createCommunity([
             'nama_community' => 'Bandung Racquet Society',
-            'deskripsi'      => 'Deskripsi lengkap komunitas raket.',
+            'deskripsi' => 'Deskripsi lengkap komunitas raket.',
         ]);
 
-        $response = $this->get('/communities/' . $community->community_id);
+        $response = $this->get('/communities/'.$community->community_id);
 
         $response->assertStatus(200);
         $response->assertSee('Bandung Racquet Society');
@@ -196,7 +197,7 @@ class PublicCommunityTest extends TestCase
     {
         $community = $this->createCommunity();
 
-        $response = $this->post('/communities/' . $community->community_id . '/join');
+        $response = $this->post('/communities/'.$community->community_id.'/join');
 
         // Guest harus diredirect ke login
         $response->assertRedirect('/login');
@@ -208,28 +209,28 @@ class PublicCommunityTest extends TestCase
     public function test_authenticated_user_can_join_community_successfully(): void
     {
         $user = User::create([
-            'nama'     => 'Player Joinee',
-            'email'    => 'joinee@example.com',
+            'nama' => 'Player Joinee',
+            'email' => 'joinee@example.com',
             'password' => bcrypt('secret'),
-            'role'     => 'member',
+            'role' => 'member',
         ]);
 
         $community = $this->createCommunity(['nama_community' => 'Club to Join']);
 
         // User membuka halaman detail terlebih dahulu
-        $detailResponse = $this->actingAs($user)->get('/communities/' . $community->community_id);
+        $detailResponse = $this->actingAs($user)->get('/communities/'.$community->community_id);
         $detailResponse->assertStatus(200);
         $detailResponse->assertSee('Bergabung Sekarang');
 
         // User menekan aksi Join
-        $joinResponse = $this->actingAs($user)->post('/communities/' . $community->community_id . '/join');
+        $joinResponse = $this->actingAs($user)->post('/communities/'.$community->community_id.'/join');
 
         $joinResponse->assertRedirect(route('communities.show', $community->community_id));
         $joinResponse->assertSessionHas('success', 'Berhasil bergabung ke komunitas!');
 
         // Verifikasi di database bahwa player terdaftar di komunitas
         $this->assertDatabaseHas('tb_player', [
-            'user_id'      => $user->user_id,
+            'user_id' => $user->user_id,
             'community_id' => $community->community_id,
         ]);
     }
@@ -241,16 +242,16 @@ class PublicCommunityTest extends TestCase
     public function test_join_with_invalid_or_nonexistent_id_returns_404_and_does_not_modify_membership(): void
     {
         $user = User::create([
-            'nama'     => 'Player Invalid Join',
-            'email'    => 'invalidjoin@example.com',
+            'nama' => 'Player Invalid Join',
+            'email' => 'invalidjoin@example.com',
             'password' => bcrypt('secret'),
-            'role'     => 'member',
+            'role' => 'member',
         ]);
 
         $player = Player::create([
-            'user_id'      => $user->user_id,
+            'user_id' => $user->user_id,
             'community_id' => null,
-            'nama'         => 'Player Invalid Join',
+            'nama' => 'Player Invalid Join',
         ]);
 
         // Request join ke ID yang tidak ada
@@ -268,22 +269,22 @@ class PublicCommunityTest extends TestCase
     public function test_join_community_without_csrf_is_rejected(): void
     {
         $user = User::create([
-            'nama'     => 'Player CSRF Test',
-            'email'    => 'csrftest@example.com',
+            'nama' => 'Player CSRF Test',
+            'email' => 'csrftest@example.com',
             'password' => bcrypt('secret'),
-            'role'     => 'member',
+            'role' => 'member',
         ]);
 
         $community = $this->createCommunity(['nama_community' => 'CSRF Guarded Club']);
 
         // 1. Verifikasi halaman detail menampilkan token CSRF di dalam form join
-        $response = $this->actingAs($user)->get('/communities/' . $community->community_id);
+        $response = $this->actingAs($user)->get('/communities/'.$community->community_id);
         $response->assertStatus(200);
         $response->assertSee('name="_token"', false);
 
         // 2. Verifikasi route terdaftar dengan middleware group 'web' yang berisi ValidateCsrfToken
         $route = app('router')->getRoutes()->match(
-            \Illuminate\Http\Request::create('/communities/' . $community->community_id . '/join', 'POST')
+            Request::create('/communities/'.$community->community_id.'/join', 'POST')
         );
         $this->assertContains('web', $route->middleware());
     }
@@ -305,16 +306,16 @@ class PublicCommunityTest extends TestCase
     }
 
     /**
-     * Test 12 (BUG-COMM-004): User yang sudah terdaftar di Komunitas A tidak boleh otomatis pindah
-     * saat mencoba join ke Komunitas B tanpa keluar dari Komunitas A terlebih dahulu.
+     * Test 12 (BUG-COMM-004): User dapat menjadi anggota beberapa komunitas tanpa
+     * memindahkan membership yang sudah ada.
      */
-    public function test_user_cannot_join_another_community_without_leaving_first(): void
+    public function test_user_can_join_multiple_communities_without_moving_existing_membership(): void
     {
         $user = User::create([
-            'nama'     => 'Dual Member Player',
-            'email'    => 'dualmember@example.com',
+            'nama' => 'Dual Member Player',
+            'email' => 'dualmember@example.com',
             'password' => bcrypt('secret'),
-            'role'     => 'member',
+            'role' => 'member',
         ]);
 
         $communityA = $this->createCommunity(['nama_community' => 'Komunitas Asal']);
@@ -322,21 +323,32 @@ class PublicCommunityTest extends TestCase
 
         // User terdaftar di Komunitas A
         $player = Player::create([
-            'user_id'      => $user->user_id,
+            'user_id' => $user->user_id,
             'community_id' => $communityA->community_id,
-            'nama'         => 'Dual Member Player',
+            'nama' => 'Dual Member Player',
         ]);
 
-        // User mencoba join ke Komunitas B
-        $response = $this->actingAs($user)->post('/communities/' . $communityB->community_id . '/join');
+        // User bergabung ke Komunitas B tanpa keluar dari Komunitas A
+        $response = $this->actingAs($user)->post('/communities/'.$communityB->community_id.'/join');
 
-        // Harus diredirect kembali dengan pesan error peringatan
         $response->assertRedirect(route('communities.show', $communityB->community_id));
-        $response->assertSessionHas('error');
+        $response->assertSessionHas('success', 'Berhasil bergabung ke komunitas!');
 
-        // Pastikan player tetap berada di Komunitas A dan tidak otomatis berganti ke Komunitas B
-        $player->refresh();
-        $this->assertEquals($communityA->community_id, $player->community_id);
+        $this->assertDatabaseHas('tb_player', [
+            'user_id' => $user->user_id,
+            'community_id' => $communityA->community_id,
+        ]);
+        $this->assertDatabaseHas('tb_player', [
+            'user_id' => $user->user_id,
+            'community_id' => $communityB->community_id,
+        ]);
+
+        // Join ulang ke Komunitas B tidak membuat membership kedua.
+        $duplicateResponse = $this->actingAs($user)->post('/communities/'.$communityB->community_id.'/join');
+        $duplicateResponse->assertSessionHas('info', 'Anda sudah menjadi bagian dari komunitas ini.');
+        $this->assertSame(1, Player::where('user_id', $user->user_id)
+            ->where('community_id', $communityB->community_id)
+            ->count());
     }
 
     /**
@@ -345,21 +357,21 @@ class PublicCommunityTest extends TestCase
     public function test_duplicate_join_to_same_community_returns_info_message(): void
     {
         $user = User::create([
-            'nama'     => 'Same Member Player',
-            'email'    => 'samemember@example.com',
+            'nama' => 'Same Member Player',
+            'email' => 'samemember@example.com',
             'password' => bcrypt('secret'),
-            'role'     => 'member',
+            'role' => 'member',
         ]);
 
         $community = $this->createCommunity(['nama_community' => 'Same Club']);
 
         Player::create([
-            'user_id'      => $user->user_id,
+            'user_id' => $user->user_id,
             'community_id' => $community->community_id,
-            'nama'         => 'Same Member Player',
+            'nama' => 'Same Member Player',
         ]);
 
-        $response = $this->actingAs($user)->post('/communities/' . $community->community_id . '/join');
+        $response = $this->actingAs($user)->post('/communities/'.$community->community_id.'/join');
 
         $response->assertRedirect(route('communities.show', $community->community_id));
         $response->assertSessionHas('info', 'Anda sudah menjadi bagian dari komunitas ini.');
@@ -371,21 +383,21 @@ class PublicCommunityTest extends TestCase
     public function test_user_can_leave_community(): void
     {
         $user = User::create([
-            'nama'     => 'Leaving Player',
-            'email'    => 'leaving@example.com',
+            'nama' => 'Leaving Player',
+            'email' => 'leaving@example.com',
             'password' => bcrypt('secret'),
-            'role'     => 'member',
+            'role' => 'member',
         ]);
 
         $community = $this->createCommunity(['nama_community' => 'Leave Club']);
 
         $player = Player::create([
-            'user_id'      => $user->user_id,
+            'user_id' => $user->user_id,
             'community_id' => $community->community_id,
-            'nama'         => 'Leaving Player',
+            'nama' => 'Leaving Player',
         ]);
 
-        $response = $this->actingAs($user)->post('/communities/' . $community->community_id . '/leave');
+        $response = $this->actingAs($user)->post('/communities/'.$community->community_id.'/leave');
 
         $response->assertRedirect(route('communities.index'));
         $response->assertSessionHas('success');

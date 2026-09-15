@@ -10,9 +10,9 @@ use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
-use App\Exceptions\ConfigurationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * CommunityController — SMK 3
@@ -31,24 +31,28 @@ class CommunityController extends Controller
         $selectedSport = $request->query('sport', 'all');
         $search = trim($request->query('q', $request->query('search', '')));
 
-        $currentUserCommunityId = Auth::check() ? Player::where('user_id', Auth::id())->value('community_id') : null;
+        $currentUserId = Auth::check() ? Auth::id() : null;
 
         $dbCommunities = Community::with(['players.user', 'creator'])->latest()->get();
         if ($dbCommunities->isNotEmpty()) {
-            $allCommunities = $dbCommunities->map(function ($c) use ($currentUserCommunityId) {
+            $allCommunities = $dbCommunities->map(function ($c) use ($currentUserId) {
+                $isMember = $currentUserId !== null && Player::where('user_id', $currentUserId)
+                    ->where('community_id', $c->community_id)
+                    ->exists();
+
                 return [
                     'id' => $c->community_id,
                     'name' => $c->nama_community,
                     'sport' => $c->sport,
-                    'city' => $c->kota_homebase ?: (str_contains(strtolower($c->nama_community . ' ' . $c->deskripsi), 'bandung') ? 'Bandung' : 'Jakarta'),
+                    'city' => $c->kota_homebase ?: (str_contains(strtolower($c->nama_community.' '.$c->deskripsi), 'bandung') ? 'Bandung' : 'Jakarta'),
                     'members_count' => $c->players->count(),
                     'admin_name' => $c->admin_name,
                     'image' => $c->logo ?: asset('images/default-community.jpg'),
                     'tagline' => $c->tagline ?: 'Komunitas Olahraga Matcha',
-                    'description' => $c->deskripsi ?? ('Komunitas mabar ' . $c->sport . ' di Matcha Match Arena.'),
+                    'description' => $c->deskripsi ?? ('Komunitas mabar '.$c->sport.' di Matcha Match Arena.'),
                     'schedule' => $c->jadwal_rutin ?: 'Rutin Setiap Pekan',
                     'status' => $c->status_keanggotaan ?: 'Active',
-                    'is_member' => ($currentUserCommunityId && $currentUserCommunityId == $c->community_id),
+                    'is_member' => $isMember,
                 ];
             });
         } else {
@@ -72,6 +76,7 @@ class CommunityController extends Controller
                 $inAdmin = str_contains(strtolower($c['admin_name'] ?? ''), $searchLower);
                 $inTagline = str_contains(strtolower($c['tagline'] ?? ''), $searchLower);
                 $inSport = str_contains(strtolower($c['sport'] ?? ''), $searchLower);
+
                 return $inName || $inCity || $inDesc || $inAdmin || $inTagline || $inSport;
             });
         }
@@ -127,21 +132,22 @@ class CommunityController extends Controller
             'logo' => 'required|file|mimes:jpeg,jpg,png|max:2048',
         ], [
             'logo.required' => 'File logo belum dipilih.',
-            'logo.mimes'    => 'Format logo tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.',
-            'logo.max'      => 'Ukuran logo maksimal 2 MB.',
+            'logo.mimes' => 'Format logo tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.',
+            'logo.max' => 'Ukuran logo maksimal 2 MB.',
         ]);
 
         try {
             $result = $storageService->uploadLogo($request->file('logo'));
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Logo upload error: ' . $e->getMessage());
+            Log::error('Logo upload error: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal memproses file logo: ' . $e->getMessage(),
+                'message' => 'Gagal memproses file logo: '.$e->getMessage(),
             ], 500);
         }
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return response()->json([
                 'success' => false,
                 'message' => $result['message'],
@@ -149,8 +155,8 @@ class CommunityController extends Controller
         }
 
         return response()->json([
-            'success'  => true,
-            'url'      => $result['url'],
+            'success' => true,
+            'url' => $result['url'],
             'filename' => $result['filename'],
         ]);
     }
@@ -163,25 +169,25 @@ class CommunityController extends Controller
     {
         // Validasi request
         $validated = $request->validate([
-            'nama_community'     => 'required|string|max:255',
-            'sport'              => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
-            'sport_focus'        => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
-            'deskripsi'          => 'required|string',
-            'jadwal_rutin'       => 'nullable|string|max:255',
-            'tagline'            => 'nullable|string|max:255',
-            'kota_homebase'      => 'nullable|string|max:255',
-            'kota'               => 'nullable|string|max:255',
-            'target_level'       => 'nullable|string|max:100',
+            'nama_community' => 'required|string|max:255',
+            'sport' => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
+            'sport_focus' => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
+            'deskripsi' => 'required|string',
+            'jadwal_rutin' => 'nullable|string|max:255',
+            'tagline' => 'nullable|string|max:255',
+            'kota_homebase' => 'nullable|string|max:255',
+            'kota' => 'nullable|string|max:255',
+            'target_level' => 'nullable|string|max:100',
             'status_keanggotaan' => 'nullable|string|max:100',
-            'membership_status'  => 'nullable|string|max:100',
-            'benefits'           => 'nullable|array',
-            'homebase_venue'     => 'nullable|string|max:255',
-            'venue_utama'        => 'nullable|string|max:255',
-            'logo_url'           => 'nullable|string',
-            'logo'               => 'nullable|file|mimes:jpeg,jpg,png|max:2048',
+            'membership_status' => 'nullable|string|max:100',
+            'benefits' => 'nullable|array',
+            'homebase_venue' => 'nullable|string|max:255',
+            'venue_utama' => 'nullable|string|max:255',
+            'logo_url' => 'nullable|string',
+            'logo' => 'nullable|file|mimes:jpeg,jpg,png|max:2048',
         ], [
             'logo.mimes' => 'Format logo tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.',
-            'logo.max'   => 'Ukuran logo maksimal 2 MB.',
+            'logo.max' => 'Ukuran logo maksimal 2 MB.',
         ]);
 
         // Normalisasi cabang olahraga ke nilai konsisten: padel, tennis, all_racquet
@@ -217,7 +223,7 @@ class CommunityController extends Controller
             $key = strtolower(trim((string) $b));
             if (isset($benefitMap[$key])) {
                 $normalizedBenefits[] = $benefitMap[$key];
-            } else if (!empty($key)) {
+            } elseif (! empty($key)) {
                 $normalizedBenefits[] = $key;
             }
         }
@@ -226,7 +232,7 @@ class CommunityController extends Controller
         $logoUrl = $validated['logo_url'] ?? null;
 
         // Fallback: Jika logo diunggah langsung bersamaan dengan form submit
-        if (!$logoUrl && $request->hasFile('logo')) {
+        if (! $logoUrl && $request->hasFile('logo')) {
             try {
                 $uploadResult = $storageService->uploadLogo($request->file('logo'));
                 if ($uploadResult['success']) {
@@ -237,15 +243,16 @@ class CommunityController extends Controller
                         ->withErrors(['logo' => $uploadResult['message']]);
                 }
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Logo upload error during store: ' . $e->getMessage());
+                Log::error('Logo upload error during store: '.$e->getMessage());
+
                 return redirect()->back()
                     ->withInput()
-                    ->withErrors(['logo' => 'Gagal mengunggah logo: ' . $e->getMessage()]);
+                    ->withErrors(['logo' => 'Gagal mengunggah logo: '.$e->getMessage()]);
             }
         }
 
         // Hanya simpan logo jika benar-benar berasal dari Supabase Storage public object
-        if ($logoUrl && !str_contains($logoUrl, '/storage/v1/object/public/')) {
+        if ($logoUrl && ! str_contains($logoUrl, '/storage/v1/object/public/')) {
             $logoUrl = null;
         }
 
@@ -255,35 +262,35 @@ class CommunityController extends Controller
 
             // Buat community baru dengan seluruh field yang valid di database
             $community = Community::create([
-                'nama_community'     => $validated['nama_community'],
-                'tagline'            => $request->input('tagline') ?: null,
-                'kota_homebase'      => $request->input('kota_homebase') ?: ($request->input('kota') ?: null),
-                'sport'              => $normalizedSport,
-                'target_level'       => $request->input('target_level') ?: null,
+                'nama_community' => $validated['nama_community'],
+                'tagline' => $request->input('tagline') ?: null,
+                'kota_homebase' => $request->input('kota_homebase') ?: ($request->input('kota') ?: null),
+                'sport' => $normalizedSport,
+                'target_level' => $request->input('target_level') ?: null,
                 'status_keanggotaan' => $request->input('status_keanggotaan') ?: ($request->input('membership_status') ?: 'Open'),
-                'deskripsi'          => $validated['deskripsi'],
-                'jadwal_rutin'       => $request->input('jadwal_rutin') ?: null,
-                'homebase_venue'     => $request->input('homebase_venue') ?: ($request->input('venue_utama') ?: null),
-                'benefits'           => !empty($normalizedBenefits) ? $normalizedBenefits : null,
-                'created_by'         => Auth::id(),
-                'logo'               => $logoUrl ?: null,
+                'deskripsi' => $validated['deskripsi'],
+                'jadwal_rutin' => $request->input('jadwal_rutin') ?: null,
+                'homebase_venue' => $request->input('homebase_venue') ?: ($request->input('venue_utama') ?: null),
+                'benefits' => ! empty($normalizedBenefits) ? $normalizedBenefits : null,
+                'created_by' => Auth::id(),
+                'logo' => $logoUrl ?: null,
             ]);
 
             // Daftarkan authenticated creator sebagai member komunitas (menggunakan struktur membership tb_player)
             if (Auth::check()) {
                 $user = Auth::user();
-                $player = Player::where('user_id', $user->user_id)->first();
-                if ($player) {
-                    $player->community_id = $community->community_id;
-                    $player->save();
-                } else {
+                $alreadyMember = Player::where('user_id', $user->user_id)
+                    ->where('community_id', $community->community_id)
+                    ->exists();
+
+                if (! $alreadyMember) {
                     Player::create([
-                        'user_id'      => $user->user_id,
+                        'user_id' => $user->user_id,
                         'community_id' => $community->community_id,
-                        'nama'         => $user->nama,
-                        'rating'       => 1.00,
-                        'no_hp'        => $user->no_hp,
-                        'email'        => $user->email,
+                        'nama' => $user->nama,
+                        'rating' => 1.00,
+                        'no_hp' => $user->no_hp,
+                        'email' => $user->email,
                     ]);
                 }
             }
@@ -291,10 +298,11 @@ class CommunityController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            \Illuminate\Support\Facades\Log::error('Create community error: ' . $e->getMessage());
+            Log::error('Create community error: '.$e->getMessage());
+
             return redirect()->back()
                 ->withInput()
-                ->withErrors(['error' => 'Gagal membuat komunitas: ' . $e->getMessage()]);
+                ->withErrors(['error' => 'Gagal membuat komunitas: '.$e->getMessage()]);
         }
 
         return redirect()->route('communities.show', $community->community_id)
@@ -307,7 +315,7 @@ class CommunityController extends Controller
      */
     public function show($id)
     {
-        if (!is_numeric($id) || (int) $id <= 0) {
+        if (! is_numeric($id) || (int) $id <= 0) {
             abort(404, 'Komunitas tidak ditemukan.');
         }
 
@@ -323,11 +331,11 @@ class CommunityController extends Controller
      */
     public function join(Request $request, $id)
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu untuk bergabung ke komunitas.');
         }
 
-        if (!is_numeric($id) || (int) $id <= 0) {
+        if (! is_numeric($id) || (int) $id <= 0) {
             abort(404, 'Komunitas tidak ditemukan.');
         }
 
@@ -335,37 +343,24 @@ class CommunityController extends Controller
         $community = Community::findOrFail((int) $id);
 
         $user = Auth::user();
-        $player = Player::where('user_id', $user->user_id)->first();
+        $player = Player::where('user_id', $user->user_id)
+            ->where('community_id', (int) $id)
+            ->first();
 
         // Cek jika sudah menjadi anggota di komunitas yang sama (BUG-COMM-004)
-        if ($player && (int) $player->community_id === (int) $id) {
+        if ($player) {
             return redirect()->route('communities.show', $id)
                 ->with('info', 'Anda sudah menjadi bagian dari komunitas ini.');
         }
 
-        // Cek jika sudah terdaftar di komunitas lain (Mencegah duplicate/automatic switch - BUG-COMM-004)
-        if ($player && !empty($player->community_id) && (int) $player->community_id !== (int) $id) {
-            $currentCommunity = Community::find($player->community_id);
-            $currentCommunityName = $currentCommunity ? $currentCommunity->nama_community : 'komunitas lain';
-
-            return redirect()->route('communities.show', $id)
-                ->with('error', "Anda saat ini masih terdaftar di komunitas '{$currentCommunityName}'. Harap keluar dari komunitas tersebut terlebih dahulu sebelum bergabung ke komunitas baru.");
-        }
-
-        // Jika belum memiliki record Player, buatkan
-        if (!$player) {
-            Player::create([
-                'user_id'      => $user->user_id,
-                'community_id' => (int) $id,
-                'nama'         => $user->nama,
-                'rating'       => 1.00,
-                'no_hp'        => $user->no_hp,
-                'email'        => $user->email,
-            ]);
-        } else {
-            // Update field community_id pada tb_player milik Auth::user()
-            $player->update(['community_id' => (int) $id]);
-        }
+        Player::create([
+            'user_id' => $user->user_id,
+            'community_id' => (int) $id,
+            'nama' => $user->nama,
+            'rating' => 1.00,
+            'no_hp' => $user->no_hp,
+            'email' => $user->email,
+        ]);
 
         return redirect()->route('communities.show', $id)
             ->with('success', 'Berhasil bergabung ke komunitas!');
@@ -377,11 +372,11 @@ class CommunityController extends Controller
      */
     public function leave(Request $request, $id)
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return redirect()->route('login');
         }
 
-        if (!is_numeric($id) || (int) $id <= 0) {
+        if (! is_numeric($id) || (int) $id <= 0) {
             abort(404, 'Komunitas tidak ditemukan.');
         }
 

@@ -167,8 +167,9 @@
         <div class="lg:col-span-1 relative z-10">
             <!-- Join/Leave Card -->
             @php
-                $userPlayer = Auth::check() ? \App\Models\Player::where('user_id', Auth::id())->first() : null;
-                $isMember = $userPlayer && $userPlayer->community_id == $community->community_id;
+                $isMember = Auth::check() && \App\Models\Player::where('user_id', Auth::id())
+                    ->where('community_id', $community->community_id)
+                    ->exists();
             @endphp
 
             <div class="backdrop-blur-2xl bg-white/80 border border-white/90 rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(6,59,0,0.06)] space-y-4 sticky top-20">
@@ -188,38 +189,6 @@
                                 <button type="submit" class="w-full px-4 py-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs transition-all border border-red-200 flex items-center justify-center gap-2 cursor-pointer">
                                     <i class="fa-solid fa-sign-out-alt"></i>
                                     Keluar dari Komunitas
-                                </button>
-                            </form>
-                        </div>
-                    @elseif($userPlayer && !empty($userPlayer->community_id))
-                        <!-- Already in another community notice -->
-                        @php
-                            $otherComm = \App\Models\Community::find($userPlayer->community_id);
-                        @endphp
-                        <div class="space-y-3">
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Status Keanggotaan</p>
-                            <div class="p-3 rounded-2xl bg-amber-50 border border-amber-200 space-y-1.5">
-                                <div class="flex items-center gap-2 text-amber-800 text-xs font-bold">
-                                    <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
-                                    <span>Terdaftar di Komunitas Lain</span>
-                                </div>
-                                <p class="text-[11px] text-amber-700 leading-relaxed">
-                                    Anda saat ini terdaftar di <strong class="font-bold">{{ $otherComm->nama_community ?? 'Komunitas Lain' }}</strong>. Harap keluar dari komunitas tersebut terlebih dahulu jika ingin bergabung ke sini.
-                                </p>
-                            </div>
-
-                            @if($otherComm)
-                                <a href="{{ route('communities.show', $otherComm->community_id) }}" class="w-full px-4 py-2.5 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs transition-all border border-amber-300 flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                    Lihat Komunitas Aktif Anda
-                                </a>
-                            @endif
-
-                            <form action="{{ route('communities.join', $community->community_id) }}" method="POST">
-                                @csrf
-                                <button type="submit" class="w-full px-4 py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition-all border border-slate-300 flex items-center justify-center gap-2 cursor-pointer">
-                                    <i class="fa-solid fa-user-plus"></i>
-                                    <span>Gabung Komunitas Ini</span>
                                 </button>
                             </form>
                         </div>
