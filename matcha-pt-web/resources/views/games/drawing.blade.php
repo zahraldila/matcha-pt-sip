@@ -13,7 +13,8 @@
         'matches' => [],
     ];
     $isSetBased = str_contains(strtolower($game['scoring_system'] ?? ''), 'total of') || str_contains(strtolower($game['scoring_system'] ?? ''), 'best of');
-    $unitLabel = $isSetBased ? 'Set' : 'Round';
+    $isTeamFormat = str_contains(strtolower($game['match_format'] ?? ''), 'team');
+    $unitLabel = 'Ronde';
 
     // Baca mode Single/Double dari drawingData atau session
     $drawingMode     = $drawingData['mode'] ?? 'Double';
