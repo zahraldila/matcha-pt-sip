@@ -643,22 +643,20 @@
         const baseVersion = st.serverVersion || 0;
         const eventId = 'evt_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
 
-        // 1. Mutasi state lokal
+        // 1. Simpan ke antrean SEBELUM state lokal dieksekusi agar event point terakhir tidak tertinggal
+        queueScoreSave(cIdx, null, clientSeq, tClick, eventId, 'add_point', team, baseVersion);
+
+        // 2. Mutasi state lokal
         if (team === 'A') {
             handlePointWonByA(cIdx, clientSeq, tClick, baseVersion, eventId);
         } else {
             handlePointWonByB(cIdx, clientSeq, tClick, baseVersion, eventId);
         }
 
-        // 2. Optimistic UI update seketika (0ms render time)
+        // 3. Optimistic UI update seketika (0ms render time)
         updateDisplay(cIdx);
         const tUiDone = performance.now();
         console.log(`[Optimistic UI] Court ${st.courtNum} +1 ${team} rendered in ${(tUiDone - tClick).toFixed(2)}ms (clientSeq=${clientSeq}, baseVersion=${baseVersion}, eventId=${eventId})`);
-
-        // 3. Simpan asinkron ke server jika belum selesai (jika selesai, checkSetWinner sudah memicu queueScoreSave)
-        if (!st.matchDone) {
-            queueScoreSave(cIdx, null, clientSeq, tClick, eventId, 'add_point', team, baseVersion);
-        }
     }
 
     function handlePointWonByA(cIdx, clientSeq, tClick, baseVersion, eventId) {

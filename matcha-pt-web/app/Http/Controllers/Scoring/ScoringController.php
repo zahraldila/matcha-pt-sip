@@ -549,7 +549,31 @@ class ScoringController extends Controller
             }
 
             $isMerged = false;
-            if ($action === 'add_point' && ! empty($pointWonBy) && in_array($pointWonBy, ['A', 'B']) && ($currentState['status'] ?? '') !== 'completed') {
+            
+            if ($action === 'batch_events') {
+                $batchEvents = $request->input('events', []);
+                $scorePayload = $currentState;
+                foreach ($batchEvents as $ev) {
+                    $evAction = $ev['action'] ?? 'add_point';
+                    $evEventId = $ev['event_id'] ?? '';
+                    $evTeam = $ev['team'] ?? '';
+                    
+                    if (!empty($evEventId) && isset($processedEvents[$evEventId])) {
+                        continue;
+                    }
+                    
+                    if ($evAction === 'add_point' && !empty($evTeam) && in_array($evTeam, ['A', 'B']) && ($scorePayload['status'] ?? '') !== 'completed') {
+                        $scorePayload = $this->applyPointDeltaToState($scorePayload, $evTeam, $scoringSystem);
+                    } elseif ($evAction === 'completion' || ($ev['status'] ?? '') === 'completed') {
+                        $scorePayload = $this->applyCompletionToState($scorePayload, $scoringSystem, $ev['team'] ?? null);
+                    }
+                    
+                    if (!empty($evEventId)) {
+                        $processedEvents[$evEventId] = true; // Temporary mark to prevent intra-batch dupes
+                    }
+                }
+                $isMerged = ($baseVersion < $prevVersion);
+            } elseif ($action === 'add_point' && ! empty($pointWonBy) && in_array($pointWonBy, ['A', 'B']) && ($currentState['status'] ?? '') !== 'completed') {
                 $scorePayload = $this->applyPointDeltaToState($currentState, $pointWonBy, $scoringSystem);
                 $isMerged = ($baseVersion < $prevVersion);
             } elseif ($isCompletion) {
