@@ -19,6 +19,8 @@ class Court extends Model
         'status_ketersediaan',
         'image_url',
         'deskripsi',
+        'tipe_court',
+        'harga_per_jam',
     ];
 
     public function venue()

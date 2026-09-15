@@ -67,6 +67,7 @@ class PublicVenueTest extends TestCase
                 $table->text('image_url')->nullable();
                 $table->text('deskripsi')->nullable();
                 $table->string('tipe_court')->nullable();
+                $table->decimal('harga_per_jam', 12, 2)->default(0)->nullable();
                 $table->timestamps();
             });
         }
@@ -356,5 +357,208 @@ class PublicVenueTest extends TestCase
         $response->assertSee('<span>Kantin Sehat</span>', false);
         $response->assertSee('<span>Ruang Ganti</span>', false);
     }
+
+    /**
+     * Test BUG-VEN-001, BUG-VEN-002, BUG-VEN-003: Menambahkan court tipe Indoor, Outdoor, & Semi-Indoor tersimpan & tampil dengan benar.
+     */
+    public function test_court_registration_saves_and_displays_court_types_correctly(): void
+    {
+        $venue = $this->createValidVenue('Venue Lapangan Lengkap');
+        $owner = User::find($venue->owner_user_id);
+
+        $this->actingAs($owner);
+
+        // Batch registration of 3 courts: Indoor, Outdoor, Semi-Indoor
+        $response = $this->post("/venues/{$venue->venue_id}/courts", [
+            'courts' => [
+                [
+                    'nama_court' => 'Court 1 - Indoor',
+                    'tipe_court' => 'Indoor',
+                    'harga_per_jam' => 150000,
+                ],
+                [
+                    'nama_court' => 'Court 2 - Outdoor',
+                    'tipe_court' => 'Outdoor',
+                    'harga_per_jam' => 120000,
+                ],
+                [
+                    'nama_court' => 'Court 3 - Semi',
+                    'tipe_court' => 'Semi-Indoor',
+                    'harga_per_jam' => 140000,
+                ],
+            ]
+        ]);
+
+        $response->assertRedirect("/venues/{$venue->venue_id}");
+
+        // Assert database values
+        $this->assertDatabaseHas('tb_court', [
+            'venue_id' => $venue->venue_id,
+            'nama_court' => 'Court 1 - Indoor',
+            'tipe_court' => 'Indoor',
+        ]);
+        $this->assertDatabaseHas('tb_court', [
+            'venue_id' => $venue->venue_id,
+            'nama_court' => 'Court 2 - Outdoor',
+            'tipe_court' => 'Outdoor',
+        ]);
+        $this->assertDatabaseHas('tb_court', [
+            'venue_id' => $venue->venue_id,
+            'nama_court' => 'Court 3 - Semi',
+            'tipe_court' => 'Semi-Indoor',
+        ]);
+
+        // Assert show page renders court types correctly
+        $showResponse = $this->get("/venues/{$venue->venue_id}");
+        $showResponse->assertStatus(200);
+        $showResponse->assertSee('Tipe: <strong class="text-slate-700">Indoor</strong>', false);
+        $showResponse->assertSee('Tipe: <strong class="text-slate-700">Outdoor</strong>', false);
+        $showResponse->assertSee('Tipe: <strong class="text-slate-700">Semi-Indoor</strong>', false);
+        $showResponse->assertDontSee('Tidak ditentukan');
+    }
+
+    /**
+     * Test BUG-VEN-004: Mengirim tipe court yang tidak valid ditolak oleh sistem dengan error validasi.
+     */
+    public function test_court_registration_rejects_invalid_court_type(): void
+    {
+        $venue = $this->createValidVenue('Venue Test Invalid Type');
+        $owner = User::find($venue->owner_user_id);
+        $this->actingAs($owner);
+
+        $response = $this->post("/venues/{$venue->venue_id}/courts", [
+            'courts' => [
+                [
+                    'nama_court' => 'Court A',
+                    'tipe_court' => 'SuperIndoor', // Invalid type
+                    'harga_per_jam' => 100000,
+                ],
+            ]
+        ]);
+
+        $response->assertSessionHasErrors(['courts.0.tipe_court']);
+    }
+
+    /**
+     * Test BUG-VEN-005: Harga per jam tersimpan & tampil di kartu court detail venue.
+     */
+    public function test_court_registration_displays_hourly_price_on_court_card(): void
+    {
+        $venue = $this->createValidVenue('Venue Price Card');
+        $owner = User::find($venue->owner_user_id);
+        $this->actingAs($owner);
+
+        $this->post("/venues/{$venue->venue_id}/courts", [
+            'courts' => [
+                [
+                    'nama_court' => 'Court Utama',
+                    'tipe_court' => 'Indoor',
+                    'harga_per_jam' => 175000,
+                ],
+            ]
+        ]);
+
+        $response = $this->get("/venues/{$venue->venue_id}");
+        $response->assertStatus(200);
+        $response->assertSee('175,000');
+        $response->assertSee('/jam');
+    }
+
+    /**
+     * Test BUG-VEN-006: Memastikan pesan sukses dikirim ke session setelah penambahan court.
+     */
+    public function test_court_registration_shows_success_flash_message(): void
+    {
+        $venue = $this->createValidVenue('Venue Flash Feedback');
+        $owner = User::find($venue->owner_user_id);
+        $this->actingAs($owner);
+
+        $response = $this->post("/venues/{$venue->venue_id}/courts", [
+            'courts' => [
+                [
+                    'nama_court' => 'Court 1',
+                    'tipe_court' => 'Indoor',
+                    'harga_per_jam' => 100000,
+                ],
+            ]
+        ]);
+
+        $response->assertRedirect("/venues/{$venue->venue_id}");
+        $response->assertSessionHas('success');
+    }
+
+    /**
+     * Test BUG-VEN-007: Nama venue > 100 karakter ditolak oleh sistem validasi.
+     */
+    public function test_venue_registration_validates_max_venue_name_length(): void
+    {
+        $owner = User::create([
+            'nama' => 'Owner Max Length',
+            'email' => 'owner_maxlen_' . uniqid() . '@matcha.com',
+            'role' => 'venue_owner',
+            'password' => bcrypt('secret'),
+        ]);
+        $this->actingAs($owner);
+
+        $longName = str_repeat('A', 101);
+
+        $response = $this->post('/venues', [
+            'nama_venue' => $longName,
+            'alamat' => 'Jl. Panjang No. 1',
+        ]);
+
+        $response->assertSessionHasErrors(['nama_venue']);
+    }
+
+    /**
+     * Test BUG-VEN-008: Nama court > 100 karakter ditolak oleh sistem validasi.
+     */
+    public function test_court_registration_validates_max_court_name_length(): void
+    {
+        $venue = $this->createValidVenue('Venue Max Court Name');
+        $owner = User::find($venue->owner_user_id);
+        $this->actingAs($owner);
+
+        $longCourtName = str_repeat('C', 101);
+
+        $response = $this->post("/venues/{$venue->venue_id}/courts", [
+            'courts' => [
+                [
+                    'nama_court' => $longCourtName,
+                    'tipe_court' => 'Indoor',
+                    'harga_per_jam' => 100000,
+                ],
+            ]
+        ]);
+
+        $response->assertSessionHasErrors(['courts.0.nama_court']);
+    }
+
+    /**
+     * Test Duplicate Venue Name: Mendaftarkan nama venue yang sudah ada ditolak oleh validasi unik.
+     */
+    public function test_venue_registration_rejects_duplicate_venue_name(): void
+    {
+        $existingVenue = $this->createValidVenue('Gelora Padel Indonesia');
+
+        $owner = User::create([
+            'nama' => 'Owner Lain',
+            'email' => 'owner_lain_' . uniqid() . '@matcha.com',
+            'role' => 'venue_owner',
+            'password' => bcrypt('secret'),
+        ]);
+        $this->actingAs($owner);
+
+        $response = $this->post('/venues', [
+            'nama_venue' => 'Gelora Padel Indonesia',
+            'alamat' => 'Jl. Kebon Jeruk No. 2',
+        ]);
+
+        $response->assertSessionHasErrors(['nama_venue']);
+    }
 }
+
+
+
+
 

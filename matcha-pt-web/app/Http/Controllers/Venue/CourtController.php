@@ -43,11 +43,26 @@ class CourtController extends Controller
             'catatan' => $venueModel->catatan,
             'image' => $venueModel->foto ?? 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80',
             'facilities' => explode(',', $venueModel->fasilitas ?: 'Belum dicatat'),
-            'courts' => $venueModel->courts->map(fn (Court $court) => [
-                'name' => $court->nama_court,
-                'status' => $court->status_ketersediaan ?? 'Available',
-                'type' => $court->tipe_court ?? 'Tidak ditentukan',
-            ]),
+            'courts' => $venueModel->courts->map(function (Court $court) {
+                $type = $court->tipe_court;
+                if (empty($type) && !empty($court->deskripsi)) {
+                    if (preg_match('/Tipe:\s*(Indoor|Outdoor|Semi-Indoor)/i', $court->deskripsi, $matches)) {
+                        $type = $matches[1];
+                    }
+                }
+                $harga = $court->harga_per_jam;
+                if (empty($harga) && !empty($court->deskripsi)) {
+                    if (preg_match('/(?:Rp|IDR)\s*([\d\.,]+)/i', $court->deskripsi, $pMatches)) {
+                        $harga = (float) str_replace(['.', ','], '', $pMatches[1]);
+                    }
+                }
+                return [
+                    'name' => $court->nama_court,
+                    'status' => $court->status_ketersediaan ?? 'Available',
+                    'type' => $type ?? 'Tidak ditentukan',
+                    'harga_per_jam' => (float) ($harga ?? 0),
+                ];
+            }),
         ];
 
         return view('venues.show', compact('venue'));
@@ -86,7 +101,7 @@ class CourtController extends Controller
                 'courts.*.nama_court'    => 'required|string|max:100',
                 'courts.*.sport_id'      => 'nullable',
                 'courts.*.sport_name'    => 'nullable|string',
-                'courts.*.tipe_court'    => 'required|in:Indoor,Outdoor,Semi-Indoor',
+                'courts.*.tipe_court'    => 'required|string|in:Indoor,Outdoor,Semi-Indoor',
                 'courts.*.harga_per_jam' => 'required|numeric|min:0',
             ]);
 
@@ -109,6 +124,8 @@ class CourtController extends Controller
                     'sport_id'            => $targetSportId,
                     'nama_court'          => $c['nama_court'],
                     'status_ketersediaan' => 'Available',
+                    'tipe_court'          => $c['tipe_court'],
+                    'harga_per_jam'       => $c['harga_per_jam'],
                     'deskripsi'           => "Tipe: {$c['tipe_court']} • Rp " . number_format($c['harga_per_jam']) . "/jam",
                 ]);
             }
@@ -120,7 +137,7 @@ class CourtController extends Controller
         // Fallback untuk single court
         $validated = $request->validate([
             'nama_court'    => 'required|string|max:100',
-            'tipe_court'    => 'required|in:Indoor,Outdoor,Semi-Indoor',
+            'tipe_court'    => 'required|string|in:Indoor,Outdoor,Semi-Indoor',
             'harga_per_jam' => 'required|numeric|min:0',
             'sport_id'      => 'nullable',
             'sport_name'    => 'nullable|string',
@@ -139,6 +156,8 @@ class CourtController extends Controller
             'sport_id'            => $sportId,
             'nama_court'          => $validated['nama_court'],
             'status_ketersediaan' => 'Available',
+            'tipe_court'          => $validated['tipe_court'],
+            'harga_per_jam'       => $validated['harga_per_jam'],
             'deskripsi'           => "Tipe: {$validated['tipe_court']} • Rp " . number_format($validated['harga_per_jam']) . "/jam",
         ]);
 

@@ -914,9 +914,9 @@
             }
             if (globalDesc) {
                 if (IS_HOST) {
-                    globalDesc.textContent = `Semua court telah mencatat skor akhir. Silakan lanjut ke ${btnNext ? strtolower(UNIT_TAB_LABEL) + ' berikutnya' : 'hasil akhir & podium'}.`;
+                    globalDesc.textContent = `Semua court telah mencatat skor akhir. Silakan lanjut ke ${btnNext ? UNIT_TAB_LABEL.toLowerCase() + ' berikutnya' : 'hasil akhir & podium'}.`;
                 } else {
-                    globalDesc.textContent = `Semua court telah selesai. Menunggu Host ${btnNext ? 'memulai ' + strtolower(UNIT_TAB_LABEL) + ' berikutnya' : 'menyelesaikan sesi'}...`;
+                    globalDesc.textContent = `Semua court telah selesai. Menunggu Host ${btnNext ? 'memulai ' + UNIT_TAB_LABEL.toLowerCase() + ' berikutnya' : 'menyelesaikan sesi'}...`;
                 }
             }
             if (btnNext) btnNext.classList.remove('hidden');

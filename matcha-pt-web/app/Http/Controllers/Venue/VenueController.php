@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class VenueController extends Controller
 {
@@ -113,6 +114,7 @@ class VenueController extends Controller
 
     public function show($id)
     {
+        @set_time_limit(120);
         $dbVenue = Venue::with(['courts.sport', 'owner'])->findOrFail((int) $id);
 
         $rawPhotos = array_values(array_filter(array_map('trim', explode(',', $dbVenue->foto ?? ''))));
@@ -125,7 +127,7 @@ class VenueController extends Controller
                 $validRawPhotos[] = $p;
             } else {
                 $clean = ltrim($p, '/\\');
-                if ($clean !== '' && file_exists(public_path($clean))) {
+                if ($clean !== '' && !str_contains($clean, '\\\\') && !str_contains($clean, ':') && file_exists(public_path($clean))) {
                     $validPhotos[] = asset($clean);
                     $validRawPhotos[] = $p;
                 }
@@ -167,13 +169,28 @@ class VenueController extends Controller
             'raw_photos' => $validRawPhotos,
             'facilities' => $facilities,
             'description' => $dbVenue->alamat,
-            'courts' => $dbVenue->courts->map(fn ($court) => [
-                'id' => $court->court_id,
-                'name' => $court->nama_court,
-                'sport' => $court->sport?->nama_sport,
-                'status' => $court->status_ketersediaan ?? 'Available',
-                'type' => $court->tipe_court ?? 'Tidak ditentukan',
-            ]),
+            'courts' => $dbVenue->courts->map(function ($court) {
+                $type = $court->tipe_court;
+                if (empty($type) && !empty($court->deskripsi)) {
+                    if (preg_match('/Tipe:\s*(Indoor|Outdoor|Semi-Indoor)/i', $court->deskripsi, $matches)) {
+                        $type = $matches[1];
+                    }
+                }
+                $harga = $court->harga_per_jam;
+                if (empty($harga) && !empty($court->deskripsi)) {
+                    if (preg_match('/(?:Rp|IDR)\s*([\d\.,]+)/i', $court->deskripsi, $pMatches)) {
+                        $harga = (float) str_replace(['.', ','], '', $pMatches[1]);
+                    }
+                }
+                return [
+                    'id' => $court->court_id,
+                    'name' => $court->nama_court,
+                    'sport' => $court->sport?->nama_sport,
+                    'status' => $court->status_ketersediaan ?? 'Available',
+                    'type' => $type ?? 'Tidak ditentukan',
+                    'harga_per_jam' => (float) ($harga ?? 0),
+                ];
+            }),
         ];
 
         return view('venues.show', compact('venue'));
@@ -228,7 +245,7 @@ class VenueController extends Controller
         }
 
         $fotoString = !empty($finalPhotos) ? implode(', ', $finalPhotos) : null;
-        $venue->update(['foto' => $fotoString]);
+        Venue::where('venue_id', $venue->venue_id)->update(['foto' => $fotoString]);
 
         return redirect()->route('venues.show', $venue->venue_id)
             ->with('success', 'Galeri foto venue berhasil diperbarui!');
@@ -257,7 +274,7 @@ class VenueController extends Controller
         }
 
         $validated = $request->validate([
-            'nama_venue'      => 'required|string|max:255',
+            'nama_venue'      => 'required|string|max:100|unique:tb_venue,nama_venue',
             'alamat'          => 'required|string',
             'kota_wilayah'    => 'nullable|string|max:150',
             'kota'            => 'nullable|string|max:150',
@@ -273,6 +290,9 @@ class VenueController extends Controller
             'foto'            => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
             'fotos'           => 'nullable|array|max:12',
             'fotos.*'         => 'image|mimes:jpeg,png,jpg,webp|max:5120',
+        ], [
+            'nama_venue.unique' => 'Nama venue sudah terdaftar. Silakan gunakan nama venue yang lain.',
+            'nama_venue.max'    => 'Nama venue maksimal 100 karakter.',
         ]);
 
         $savedPaths = [];
