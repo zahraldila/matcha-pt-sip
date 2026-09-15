@@ -71,8 +71,12 @@
                     <!-- Authenticated User Profile Dropdown (Mobile & Desktop) -->
                     <div class="relative flex items-center pl-2 border-l border-slate-200/60">
                         <div class="flex items-center gap-2 cursor-pointer group" onclick="toggleUserDropdown()">
-                            <div class="w-8 h-8 rounded-full bg-[#063B00] border-2 border-[#A8E63A]/40 flex items-center justify-center text-white text-xs font-black shadow-xs">
-                                {{ strtoupper(substr(Auth::user()->nama ?? 'U', 0, 1)) }}
+                            <div class="w-8 h-8 rounded-full bg-[#063B00] border-2 border-[#A8E63A]/40 flex items-center justify-center text-white text-xs font-black shadow-xs overflow-hidden">
+                                @if(!empty(Auth::user()->foto))
+                                    <img src="{{ Auth::user()->foto }}" alt="{{ Auth::user()->nama }}" class="w-full h-full object-cover">
+                                @else
+                                    {{ strtoupper(substr(Auth::user()->nama ?? 'U', 0, 1)) }}
+                                @endif
                             </div>
                             <div class="hidden lg:block text-left">
                                 <span class="text-xs font-extrabold text-[#050608] leading-tight block truncate max-w-[110px]">
@@ -86,13 +90,22 @@
                         </div>
 
                         <!-- Dropdown Menu -->
-                        <div id="userDropdown" class="hidden absolute right-0 top-11 w-52 bg-white/95 backdrop-blur-2xl rounded-2xl p-2 border border-slate-200/80 shadow-xl space-y-1 text-xs z-50">
-                            <div class="px-3 py-2 border-b border-slate-100">
-                                <p class="font-extrabold text-slate-900 truncate">{{ Auth::user()->nama }}</p>
-                                <p class="text-[10px] text-slate-400 truncate">{{ Auth::user()->email }}</p>
-                                <span class="inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full {{ Auth::user()->role === 'host' ? 'bg-amber-50 text-amber-800' : (Auth::user()->role === 'venue_owner' ? 'bg-sky-50 text-sky-800' : 'bg-emerald-50 text-emerald-800') }}">
-                                    {{ Auth::user()->role === 'venue_owner' ? 'Venue Owner' : (Auth::user()->role === 'host' ? 'Host Game' : 'Member') }}
-                                </span>
+                        <div id="userDropdown" class="hidden absolute right-0 top-11 w-56 bg-white/95 backdrop-blur-2xl rounded-2xl p-2 border border-slate-200/80 shadow-xl space-y-1 text-xs z-50">
+                            <div class="px-3 py-2.5 border-b border-slate-100 flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-full bg-[#063B00] border border-[#A8E63A]/40 flex items-center justify-center text-white text-xs font-black shadow-xs overflow-hidden shrink-0">
+                                    @if(!empty(Auth::user()->foto))
+                                        <img src="{{ Auth::user()->foto }}" alt="{{ Auth::user()->nama }}" class="w-full h-full object-cover">
+                                    @else
+                                        {{ strtoupper(substr(Auth::user()->nama ?? 'U', 0, 1)) }}
+                                    @endif
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <p class="font-extrabold text-slate-900 truncate leading-tight">{{ Auth::user()->nama }}</p>
+                                    <p class="text-[10px] text-slate-400 truncate">{{ Auth::user()->email }}</p>
+                                    <span class="inline-block mt-0.5 text-[9px] font-bold px-2 py-0.5 rounded-full {{ Auth::user()->role === 'host' ? 'bg-amber-50 text-amber-800' : (Auth::user()->role === 'venue_owner' ? 'bg-sky-50 text-sky-800' : 'bg-emerald-50 text-emerald-800') }}">
+                                        {{ Auth::user()->role === 'venue_owner' ? 'Venue Owner' : (Auth::user()->role === 'host' ? 'Host Game' : 'Member') }}
+                                    </span>
+                                </div>
                             </div>
                             @if(Auth::user()->role === 'venue_owner')
                                 <a href="{{ route('venues.index', ['tab' => 'my_venues']) }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#063B00] bg-emerald-50/70 hover:bg-emerald-100 font-bold transition-colors">
