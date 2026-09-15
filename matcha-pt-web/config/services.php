@@ -40,6 +40,7 @@ return [
         'key' => env('SUPABASE_ANON_KEY', env('SUPABASE_KEY', env('SUPABASE_SERVICE_ROLE_KEY'))),
         'bucket' => env('SUPABASE_BUCKET', 'venues'),
         'community_bucket' => env('SUPABASE_COMMUNITY_BUCKET', 'community-logos'),
+        'avatar_bucket' => env('SUPABASE_AVATAR_BUCKET', 'avatars'),
     ],
 
 ];

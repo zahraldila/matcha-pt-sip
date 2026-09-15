@@ -198,8 +198,10 @@ class GameController extends Controller
 
     public function create()
     {
-        if (Auth::user()->role !== 'host') {
-            return redirect()->route('games.index')->with('error', 'Akses ditolak: Fitur ini khusus untuk akun Host Game.');
+        // PENYESUAIAN: Cek flag is_host
+        if (! Auth::user()->is_host) {
+            return redirect()->route('player.profile', ['notice' => 'host_required'])
+                ->with('info', 'Silakan aktifkan Mode Host pada kartu di bawah ini untuk mulai membuat sesi mabar.');
         }
 
         $venues = Venue::with('courts.sport')->get();
@@ -235,9 +237,10 @@ class GameController extends Controller
 
     public function store(Request $request)
     {
-        if (Auth::user()->role !== 'host') {
-            return redirect()->route('games.index')
-                ->with('error', 'Akses ditolak: Fitur ini khusus untuk akun Host Game.');
+        // PENYESUAIAN: Cek flag is_host
+        if (! Auth::user()->is_host) {
+            return redirect()->route('player.profile')
+                ->with('error', 'Akses ditolak: Silakan aktifkan Mode Host di halaman profil Anda terlebih dahulu.');
         }
 
         // Tentukan mode Single/Double untuk Americano
@@ -422,8 +425,10 @@ class GameController extends Controller
 
     public function createSchedule()
     {
-        if (Auth::user()->role !== 'host') {
-            return redirect()->route('games.index')->with('error', 'Akses ditolak: Fitur pembukaan sesi mabar khusus untuk akun Host Game.');
+        // PENYESUAIAN: Cek flag is_host
+        if (! Auth::user()->is_host) {
+            return redirect()->route('player.profile', ['notice' => 'host_required'])
+                ->with('info', 'Silakan aktifkan Mode Host pada kartu di bawah ini untuk mulai membuat sesi mabar.');
         }
 
         $venues = Venue::with('courts.sport')->get();
@@ -434,8 +439,10 @@ class GameController extends Controller
 
     public function storeSchedule(Request $request)
     {
-        if (Auth::user()->role !== 'host') {
-            return redirect()->route('games.index')->with('error', 'Akses ditolak: Fitur pembukaan sesi mabar khusus untuk akun Host Game.');
+        // PENYESUAIAN: Cek flag is_host
+        if (! Auth::user()->is_host) {
+            return redirect()->route('player.profile')
+                ->with('error', 'Akses ditolak: Silakan aktifkan Mode Host di halaman profil Anda terlebih dahulu.');
         }
 
         $request->validate([
@@ -684,8 +691,10 @@ class GameController extends Controller
     public function drawing($id, Request $request)
     {
         $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->findOrFail((int) $id);
+        
+        // PENYESUAIAN: Cek flag is_host dan kepemilikan host_user_id
         $isHost = Auth::check()
-            && Auth::user()->role === 'host'
+            && Auth::user()->is_host
             && (int) Auth::user()->user_id === (int) $dbSession->host_user_id;
 
         if (($request->has('shuffle') || $request->has('seed')) && ! $isHost) {
@@ -899,7 +908,8 @@ class GameController extends Controller
 
     public function lockDrawing($id, Request $request)
     {
-        if (! Auth::check() || Auth::user()->role !== 'host') {
+        // PENYESUAIAN: Cek flag is_host
+        if (! Auth::check() || ! Auth::user()->is_host) {
             abort(403);
         }
 

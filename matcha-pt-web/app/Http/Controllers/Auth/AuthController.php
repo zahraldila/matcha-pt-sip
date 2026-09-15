@@ -95,7 +95,7 @@ class AuthController extends Controller
             'gender' => 'required|in:Male,Female',
             'usia' => 'required|integer|min:10|max:90',
             'level' => 'required|in:Newbie,Beginner,Intermediate,Advanced',
-            'role' => 'required|in:member,host,venue_owner',
+            'role' => 'required|in:member,venue_owner',
             'community_id' => 'nullable',
         ], [
             'nama.required' => 'Nama lengkap wajib diisi.',
@@ -141,6 +141,7 @@ class AuthController extends Controller
                 'no_hp' => $noHpClean,
                 'password' => Hash::make($request->password),
                 'role' => $request->role,
+                'is_host' => false,
             ]);
 
             // 2. Create tb_player with linked user_id and full user details

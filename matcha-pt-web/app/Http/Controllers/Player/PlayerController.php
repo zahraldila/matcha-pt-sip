@@ -170,7 +170,7 @@ class PlayerController extends Controller
     public function recap(Request $request)
     {
         $user = Auth::user();
-        $isHost = $user && ($user->role === 'host');
+        $isHost = $user && (bool) $user->is_host;
         $activeTab = $request->query('tab', $isHost ? 'host' : 'career');
 
         // 1. Data Riwayat Hosting (Untuk Host Game)
@@ -281,7 +281,7 @@ class PlayerController extends Controller
 
         $playerLevel = $player->level ?? 'Intermediate';
         $communityName = $player->community->nama_community ?? 'Personal (Non-Community)';
-        $roleName = ($user && $user->role === 'venue_owner') ? 'Venue Owner' : (($user && $user->role === 'host') ? 'Host Game' : 'Member');
+        $roleName = ($user && $user->role === 'venue_owner') ? 'Venue Owner' : (($user && $user->is_host) ? 'Host Game' : 'Member');
 
         if (! $player) {
             return [
@@ -451,5 +451,23 @@ class PlayerController extends Controller
             'head_to_head' => $headToHead,
             'has_matches' => $totalMatches > 0,
         ];
+    }
+
+    public function toggleHost(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        // Balikkan nilai boolean is_host
+        $user->is_host = ! $user->is_host;
+        $user->save();
+
+        $statusMsg = $user->is_host
+            ? 'Mode Host berhasil diaktifkan! Sekarang kamu bisa membuat pertandingan.'
+            : 'Mode Host dinonaktifkan. Status kamu kembali menjadi Pemain biasa.';
+
+        return back()->with('success', $statusMsg);
     }
 }

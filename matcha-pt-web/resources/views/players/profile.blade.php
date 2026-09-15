@@ -16,7 +16,7 @@
                     Profil Member Pemain
                 </h1>
                 <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
-                    Kelola data identitas, kontak WhatsApp, skill level, dan keanggotaan komunitas Anda
+                    Kelola data identitas, kontak WhatsApp, skill level, dan status keanggotaan Host Anda
                 </p>
             </div>
             <div class="flex items-center gap-2">
@@ -25,6 +25,20 @@
                 </a>
             </div>
         </div>
+
+        @if(session('info') || request('notice') === 'host_required')
+            <div id="hostNoticeAlert" class="p-4 rounded-2xl bg-[#EBF8D8] border border-[#063B00]/30 text-[#063B00] text-xs flex items-start gap-3 shadow-xs animate-in fade-in duration-300">
+                <div class="w-7 h-7 rounded-xl bg-[#063B00] text-[#A8E63A] flex items-center justify-center text-xs shrink-0 mt-0.5 shadow-2xs">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+                <div class="space-y-0.5">
+                    <h4 class="font-extrabold text-[#050608] text-xs">Aktifkan Mode Host untuk Membuat Game</h4>
+                    <p class="text-[11px] text-slate-600 leading-relaxed">
+                        {{ session('info') ?? 'Untuk membuat sesi mabar baru, bagan drawing, atau live scoring, silakan aktifkan status Host Game pada tombol di bawah ini.' }}
+                    </p>
+                </div>
+            </div>
+        @endif
 
         @if(session('success'))
             <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2.5 shadow-2xs">
@@ -47,41 +61,118 @@
             </div>
         @endif
 
-        <div class="glass-card rounded-3xl p-6 sm:p-8 space-y-6 border border-white/90 shadow-sm">
-            <!-- Profile Banner & Badges -->
-            <div class="flex flex-col sm:flex-row items-center gap-5 pb-6 border-b border-slate-200/60">
-                <div class="w-20 h-20 rounded-full bg-[#063B00] border-4 border-[#A8E63A]/40 flex items-center justify-center text-white text-2xl font-black shadow-md shrink-0">
-                    {{ strtoupper(substr($user->nama ?? 'U', 0, 1)) }}
-                </div>
-                <div class="text-center sm:text-left space-y-1.5 flex-1 min-w-0">
-                    <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                        <h2 class="text-lg font-bold text-slate-900 truncate">{{ $user->nama }}</h2>
-                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border {{ $user->role === 'host' ? 'bg-amber-50 text-amber-800 border-amber-200' : ($user->role === 'venue_owner' ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200') }}">
-                            {{ $user->role === 'venue_owner' ? '🏢 Venue Owner' : ($user->role === 'host' ? '👑 Host Game' : '🎾 Member Pemain') }}
-                        </span>
-                    </div>
-                    <p class="text-xs text-slate-500 font-medium">
-                        {{ '@' . \Illuminate\Support\Str::slug($user->nama, '_') }} &bull; {{ $user->email }}
-                    </p>
-                    <div class="flex flex-wrap gap-1.5 pt-0.5 justify-center sm:justify-start">
-                        <span class="px-2.5 py-0.5 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200">
-                            ⭐ Skill: <strong class="text-[#063B00]">{{ $player->level ?? 'Intermediate' }}</strong>
-                        </span>
-                        <span class="px-2.5 py-0.5 rounded-xl bg-[#EBF8D8] text-[#063B00] text-[11px] font-semibold border border-[#063B00]/20">
-                            👥 Komunitas: <strong>{{ $player->community->nama_community ?? 'Personal' }}</strong>
-                        </span>
-                        @if(!empty($player->usia))
-                            <span class="px-2.5 py-0.5 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-semibold border border-slate-200">
-                                🎂 Usia: {{ $player->usia }} thn
+        <!-- ================================================================= -->
+        <!-- CARD TOGGLE STATUS HOST (PENAMBAHAN BARU)                        -->
+        <!-- ================================================================= -->
+        <div class="glass-card rounded-3xl p-5 sm:p-6 border {{ (request('notice') === 'host_required' || session('info')) && !$user->is_host ? 'border-[#063B00] ring-2 ring-[#063B00]/20 shadow-md' : 'border-white/90 shadow-sm' }} bg-gradient-to-r from-emerald-50/50 via-white to-slate-50/50 transition-all">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-800">Status Akses Host Game:</span>
+                        @if($user->is_host)
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                                <i class="fa-solid fa-circle text-[8px] text-emerald-500 animate-pulse"></i> Host Game Active
+                            </span>
+                        @else
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-600 border border-slate-200">
+                                Pemain / Member Only
                             </span>
                         @endif
                     </div>
+                    <p class="text-[11px] text-slate-500">
+                        @if($user->is_host)
+                            Mode Host Aktif. Kamu diizinkan untuk membuat jadwal mabar baru, mengelola drawing tim, dan live scoring.
+                        @else
+                            Aktifkan status Host untuk mendapatkan akses membuat sesi mabar, bagan drawing, dan pencatatan poin langsung.
+                        @endif
+                    </p>
                 </div>
-            </div>
 
-            <!-- Profile Edit Form -->
-            <form action="{{ route('player.profile.update') }}" method="POST" class="space-y-4 text-xs">
+                <form action="{{ route('player.profile.toggle-host') }}" method="POST" class="shrink-0 w-full sm:w-auto">
+                    @csrf
+                    @if($user->is_host)
+                        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-xs border border-rose-200 transition-all cursor-pointer">
+                            <i class="fa-solid fa-power-off text-rose-500"></i>
+                            <span>Nonaktifkan Mode Host</span>
+                        </button>
+                    @else
+                        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-bolt text-[#A8E63A]"></i>
+                            <span>Aktifkan Mode Host</span>
+                        </button>
+                    @endif
+                </form>
+            </div>
+        </div>
+
+        <div class="glass-card rounded-3xl p-6 sm:p-8 space-y-6 border border-white/90 shadow-sm">
+            <!-- Profile Edit Form (Includes Avatar Uploader) -->
+            <form action="{{ route('player.profile.update') }}" method="POST" enctype="multipart/form-data" class="space-y-6 text-xs">
                 @csrf
+
+                <!-- Hidden inputs for avatar file and delete flag -->
+                <input type="file" id="avatarFileInput" name="foto" accept="image/jpeg,image/png,image/jpg,image/webp" class="hidden" onchange="previewAvatar(event)">
+                <input type="hidden" id="hapusFotoInput" name="hapus_foto" value="0">
+
+                <!-- Profile Banner & Interactive Avatar -->
+                <div class="flex flex-col sm:flex-row items-center gap-5 pb-6 border-b border-slate-200/60">
+                    <!-- Interactive Avatar with Camera Overlay -->
+                    <div class="relative group shrink-0">
+                        <div id="avatarContainer" class="w-24 h-24 rounded-full bg-[#063B00] border-4 border-[#A8E63A]/40 flex items-center justify-center text-white text-3xl font-black shadow-md overflow-hidden relative">
+                            @if(!empty($user->foto))
+                                <img id="avatarImage" src="{{ $user->foto }}" alt="{{ $user->nama }}" class="w-full h-full object-cover">
+                                <span id="avatarInitial" class="hidden">{{ strtoupper(substr($user->nama ?? 'U', 0, 1)) }}</span>
+                            @else
+                                <img id="avatarImage" src="" alt="{{ $user->nama }}" class="w-full h-full object-cover hidden">
+                                <span id="avatarInitial">{{ strtoupper(substr($user->nama ?? 'U', 0, 1)) }}</span>
+                            @endif
+                        </div>
+
+                        <!-- Camera Action Button Overlay -->
+                        <button type="button" onclick="document.getElementById('avatarFileInput').click()" title="Ubah Foto Profil" class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#063B00] hover:bg-[#042a00] border-2 border-white text-[#A8E63A] flex items-center justify-center text-xs shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
+                    </div>
+
+                    <div class="text-center sm:text-left space-y-2 flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                            <h2 class="text-lg font-bold text-slate-900 truncate">{{ $user->nama }}</h2>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border {{ $user->is_host ? 'bg-amber-50 text-amber-800 border-amber-200' : ($user->role === 'venue_owner' ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200') }}">
+                                {{ $user->role === 'venue_owner' ? '🏢 Venue Owner' : ($user->is_host ? '👑 Host Game & Player' : '🎾 Member Pemain') }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 font-medium">
+                            {{ '@' . \Illuminate\Support\Str::slug($user->nama, '_') }} &bull; {{ $user->email }}
+                        </p>
+
+                        <!-- Avatar Action Buttons -->
+                        <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-0.5">
+                            <button type="button" onclick="document.getElementById('avatarFileInput').click()" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-200/80 transition-colors cursor-pointer">
+                                <i class="fa-solid fa-cloud-arrow-up text-[#063B00]"></i> <span>Pilih Foto</span>
+                            </button>
+                            <button type="button" id="btnHapusFoto" onclick="removeAvatar()" class="{{ empty($user->foto) ? 'hidden' : 'inline-flex' }} items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[11px] border border-rose-200 transition-colors cursor-pointer">
+                                <i class="fa-solid fa-trash-can text-xs"></i> <span>Hapus Foto</span>
+                            </button>
+                            <span id="fotoBadgeAlert" class="hidden px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 font-semibold text-[10px] border border-amber-200 animate-pulse">
+                                Foto baru terpilih &bull; Klik Simpan
+                            </span>
+                        </div>
+
+                        <div class="flex flex-wrap gap-1.5 pt-1 justify-center sm:justify-start">
+                            <span class="px-2.5 py-0.5 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200">
+                                ⭐ Skill: <strong class="text-[#063B00]">{{ $player->level ?? 'Intermediate' }}</strong>
+                            </span>
+                            <span class="px-2.5 py-0.5 rounded-xl bg-[#EBF8D8] text-[#063B00] text-[11px] font-semibold border border-[#063B00]/20">
+                                👥 Komunitas: <strong>{{ $player->community->nama_community ?? 'Personal' }}</strong>
+                            </span>
+                            @if(!empty($player->usia))
+                                <span class="px-2.5 py-0.5 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-semibold border border-slate-200">
+                                    🎂 Usia: {{ $player->usia }} thn
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <!-- Nama Lengkap -->
@@ -184,4 +275,79 @@
         </div>
     </div>
 </div>
+
+<script>
+    function previewAvatar(event) {
+        const input = event.target;
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            
+            // Validasi ukuran frontend (2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('Ukuran file foto maksimal adalah 2 MB.');
+                input.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('avatarImage');
+                const initial = document.getElementById('avatarInitial');
+                const btnHapus = document.getElementById('btnHapusFoto');
+                const badgeAlert = document.getElementById('fotoBadgeAlert');
+                const hapusInput = document.getElementById('hapusFotoInput');
+
+                if (img) {
+                    img.src = e.target.result;
+                    img.classList.remove('hidden');
+                }
+                if (initial) {
+                    initial.classList.add('hidden');
+                }
+                if (btnHapus) {
+                    btnHapus.classList.remove('hidden');
+                    btnHapus.classList.add('inline-flex');
+                }
+                if (badgeAlert) {
+                    badgeAlert.classList.remove('hidden');
+                }
+                if (hapusInput) {
+                    hapusInput.value = '0';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function removeAvatar() {
+        const img = document.getElementById('avatarImage');
+        const initial = document.getElementById('avatarInitial');
+        const input = document.getElementById('avatarFileInput');
+        const hapusInput = document.getElementById('hapusFotoInput');
+        const btnHapus = document.getElementById('btnHapusFoto');
+        const badgeAlert = document.getElementById('fotoBadgeAlert');
+
+        if (input) {
+            input.value = '';
+        }
+        if (hapusInput) {
+            hapusInput.value = '1';
+        }
+        if (img) {
+            img.src = '';
+            img.classList.add('hidden');
+        }
+        if (initial) {
+            initial.classList.remove('hidden');
+        }
+        if (btnHapus) {
+            btnHapus.classList.add('hidden');
+            btnHapus.classList.remove('inline-flex');
+        }
+        if (badgeAlert) {
+            badgeAlert.classList.remove('hidden');
+            badgeAlert.textContent = 'Foto akan dihapus saat disimpan';
+        }
+    }
+</script>
 @endsection

@@ -28,13 +28,21 @@
                 </p>
             </div>
 
-            @if(Auth::check() && Auth::user()->role === 'host')
-                <div class="flex items-center gap-2.5">
-                    <a href="{{ route('games.create', ['venue_id' => $venue['venue_id'] ?? $venue['id'] ?? null]) }}" class="px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] inline-flex items-center gap-1.5">
-                        <i class="fa-solid fa-plus text-[10px]"></i> Buat Mabar di Sini
-                    </a>
-                </div>
-            @endif
+            @auth
+                @if(Auth::user()->is_host)
+                    <div class="flex items-center gap-2.5">
+                        <a href="{{ route('games.create', ['venue_id' => $venue['venue_id'] ?? $venue['id'] ?? null]) }}" class="px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] inline-flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus text-[10px]"></i> Buat Mabar di Sini
+                        </a>
+                    </div>
+                @elseif(Auth::user()->role !== 'venue_owner')
+                    <div class="flex items-center gap-2.5">
+                        <a href="{{ route('player.profile', ['notice' => 'host_required']) }}" class="px-4 py-2 rounded-xl bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-semibold text-xs shadow-2xs transition-all hover:scale-[1.01] inline-flex items-center gap-1.5" title="Aktifkan Mode Host untuk Membuat Mabar">
+                            <i class="fa-solid fa-bolt text-[10px]"></i> Jadi Host untuk Buat Mabar
+                        </a>
+                    </div>
+                @endif
+            @endauth
         </div>
     </div>
 

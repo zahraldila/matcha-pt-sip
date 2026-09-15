@@ -11,6 +11,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $table = 'tb_user';
+
     protected $primaryKey = 'user_id';
 
     protected $fillable = [
@@ -19,6 +20,8 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'is_host', // <--- Tambahkan ini
+        'foto',
     ];
 
     protected $hidden = [
@@ -30,6 +33,7 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'is_host' => 'boolean', // <--- Tambahkan ini
         ];
     }
 

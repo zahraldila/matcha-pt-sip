@@ -10,6 +10,7 @@ class Player extends Model
     use HasFactory;
 
     protected $table = 'tb_player';
+
     protected $primaryKey = 'player_id';
 
     protected $fillable = [
@@ -22,6 +23,7 @@ class Player extends Model
         'rating',
         'no_hp',
         'email',
+        'foto',
     ];
 
     protected $casts = [
