@@ -555,7 +555,48 @@ class GameController extends Controller
      */
     public function joinSession($id, Request $request)
     {
-        $session = SessionModel::with('players')->findOrFail((int) $id);
+        if (! Auth::check()) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Autentikasi diperlukan. Silakan masuk terlebih dahulu untuk bergabung ke sesi mabar.',
+                ], 401);
+            }
+
+            return redirect()->route('login')->with('error', 'Silakan masuk terlebih dahulu untuk bergabung ke sesi mabar.');
+        }
+
+        $session = null;
+        try {
+            $session = SessionModel::with('players')->find((int) $id);
+        } catch (\Throwable $e) {
+            $session = null;
+        }
+
+        if (! $session) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi mabar tidak ditemukan atau ID sesi tidak valid.',
+                ], 404);
+            }
+
+            return redirect()->route('games.index')->with('error', 'Sesi mabar tidak ditemukan atau ID sesi tidak valid.');
+        }
+
+        $statusLower = strtolower($session->status_session ?? '');
+        if (in_array($statusLower, ['in progress', 'completed', 'finished'])) {
+            $statusMsg = 'Pendaftaran ditutup: Sesi mabar ini sudah berlangsung atau telah selesai.';
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $statusMsg,
+                ], 422);
+            }
+
+            return back()->with('error', $statusMsg);
+        }
+
         $quota = (int) ($session->jumlah_pemain ?? 6);
         $currentJoined = $session->players->count();
 
@@ -571,7 +612,7 @@ class GameController extends Controller
         }
 
         $request->validate([
-            'nama' => 'required|string|max:255',
+            'nama' => 'nullable|string|max:255',
             'gender' => 'nullable|in:Male,Female',
             'level' => 'nullable|string|max:50',
             'no_hp' => 'nullable|string|max:30',
@@ -580,37 +621,21 @@ class GameController extends Controller
         try {
             DB::beginTransaction();
 
-            $player = null;
+            $user = Auth::user();
+            $player = Player::where('user_id', $user->user_id)
+                ->orWhere('email', $user->email)
+                ->first();
 
-            if (Auth::check()) {
-                $user = Auth::user();
-                $player = Player::where('user_id', $user->user_id)->first();
-                if (! $player) {
-                    $player = Player::create([
-                        'user_id' => $user->user_id,
-                        'nama' => $request->nama ?: $user->nama,
-                        'gender' => $request->gender ?: 'Male',
-                        'level' => $request->level ?: 'Intermediate',
-                        'rating' => 3.0,
-                        'no_hp' => $request->no_hp ?: ($user->no_hp ?? null),
-                        'email' => $user->email,
-                    ]);
-                }
-            } else {
-                // Cari atau buat player guest berdasarkan nomor HP atau Nama
-                if ($request->filled('no_hp')) {
-                    $player = Player::where('no_hp', $request->no_hp)->first();
-                }
-                if (! $player) {
-                    $player = Player::create([
-                        'user_id' => null,
-                        'nama' => $request->nama,
-                        'gender' => $request->gender ?: 'Male',
-                        'level' => $request->level ?: 'Intermediate',
-                        'rating' => 3.0,
-                        'no_hp' => $request->no_hp,
-                    ]);
-                }
+            if (! $player) {
+                $player = Player::create([
+                    'user_id' => $user->user_id,
+                    'nama' => $request->nama ?: $user->nama,
+                    'gender' => $request->gender ?: 'Male',
+                    'level' => $request->level ?: 'Intermediate',
+                    'rating' => 3.0,
+                    'no_hp' => $request->no_hp ?: ($user->no_hp ?? null),
+                    'email' => $user->email,
+                ]);
             }
 
             // Periksa apakah sudah bergabung
@@ -649,10 +674,10 @@ class GameController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             if ($request->wantsJson() || $request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'Gagal bergabung: '.$e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Gagal bergabung ke sesi mabar: '.$e->getMessage()], 500);
             }
 
-            return back()->with('error', 'Gagal bergabung: '.$e->getMessage());
+            return back()->with('error', 'Gagal bergabung ke sesi mabar: '.$e->getMessage());
         }
     }
 

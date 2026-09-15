@@ -1,14 +1,14 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Community\CommunityController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Game\GameController;
-use App\Http\Controllers\Venue\VenueController;
-use App\Http\Controllers\Venue\CourtController;       // [SMK 2] Court management
+use App\Http\Controllers\Player\PlayerController;       // [SMK 2] Court management
 use App\Http\Controllers\Scoring\ScoringController;
-use App\Http\Controllers\Player\PlayerController;
-use App\Http\Controllers\Community\CommunityController;
-use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Venue\CourtController;
+use App\Http\Controllers\Venue\VenueController;
+use Illuminate\Support\Facades\Route;
 
 // Auth Routes (Login, Register, Logout)
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -25,21 +25,17 @@ Route::prefix('games')->name('games.')->group(function () {
     Route::get('/', [GameController::class, 'index'])->name('index');
     Route::get('/{id}', [GameController::class, 'show'])->whereNumber('id')->name('show');
     Route::get('/{id}/drawing', [GameController::class, 'drawing'])->whereNumber('id')->name('drawing');
-    Route::post('/{id}/join', [GameController::class, 'joinSession'])->whereNumber('id')->name('join');
-    Route::post('/{id}/lock', [GameController::class, 'lockDrawing'])->whereNumber('id')->name('lock');
 
-    // Protected: Create Game Wizard (Instant Host) & Schedule Sesi Mabar
+    // Protected: Join Session, Lock Drawing, Create Game Wizard, Schedule Sesi Mabar
     Route::middleware('auth')->group(function () {
-    Route::get('/create', [GameController::class, 'create'])->name('create');
-
-    Route::get('/players/search', [GameController::class, 'searchPlayers'])
-        ->name('players.search');
-
-    Route::post('/', [GameController::class, 'store'])->name('store');
-
-    Route::get('/schedule', [GameController::class, 'createSchedule'])->name('schedule');
-    Route::post('/schedule', [GameController::class, 'storeSchedule'])->name('schedule.post');
-});
+        Route::post('/{id}/join', [GameController::class, 'joinSession'])->whereNumber('id')->name('join');
+        Route::post('/{id}/lock', [GameController::class, 'lockDrawing'])->whereNumber('id')->name('lock');
+        Route::get('/create', [GameController::class, 'create'])->name('create');
+        Route::get('/players/search', [GameController::class, 'searchPlayers'])->name('players.search');
+        Route::post('/', [GameController::class, 'store'])->name('store');
+        Route::get('/schedule', [GameController::class, 'createSchedule'])->name('schedule');
+        Route::post('/schedule', [GameController::class, 'storeSchedule'])->name('schedule.post');
+    });
 });
 
 // Venues & Courts
@@ -94,9 +90,9 @@ Route::prefix('communities')->name('communities.')->group(function () {
 });
 
 Route::get('/community/{id?}', function ($id = null) {
-    if (!$id || !is_numeric($id)) {
+    if (! $id || ! is_numeric($id)) {
         abort(404, 'Komunitas tidak ditemukan.');
     }
+
     return redirect()->route('communities.show', (int) $id);
 });
-

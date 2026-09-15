@@ -59,6 +59,11 @@
     }
 
     function showJoinModal(gameId, gameTitle) {
+        @guest
+            window.location.href = "{{ route('login') }}";
+            return;
+        @endguest
+
         currentJoinGameId = gameId;
         const titleEl = document.getElementById('modalGameTitle');
         if (titleEl) titleEl.innerText = gameTitle;
@@ -99,6 +104,11 @@
                 },
                 body: formData
             });
+
+            if (res.status === 401) {
+                window.location.href = "{{ route('login') }}";
+                return;
+            }
 
             const data = await res.json();
 
