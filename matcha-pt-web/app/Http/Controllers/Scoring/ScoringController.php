@@ -178,18 +178,12 @@ class ScoringController extends Controller
         // Fallback konsistensi untuk single-court jika key ada di format round_1 atau round_1_court_1
         if (! $score && ! $isMultiCourt && isset($scores["{$matchKey}_court_1"])) {
             $score = $scores["{$matchKey}_court_1"];
-        } elseif (! $score && $isMultiCourt && ($courtIndex === 0) && isset($scores[$round])) {
-            $score = $scores[$round];
         }
 
         // Jika pada single-court ada data di kedua format, selalu pilih yang versinya lebih baru (newer version wins)
         if (! $isMultiCourt && isset($scores["{$matchKey}_court_1"]) && isset($scores[$matchKey])) {
             if ((int) ($scores["{$matchKey}_court_1"]['version'] ?? 0) > (int) ($scores[$matchKey]['version'] ?? 0)) {
                 $score = $scores["{$matchKey}_court_1"];
-            }
-        } elseif ($isMultiCourt && ($courtIndex === 0) && isset($scores[$round]) && isset($scores[$matchKey])) {
-            if ((int) ($scores[$round]['version'] ?? 0) > (int) ($scores[$matchKey]['version'] ?? 0)) {
-                $score = $scores[$round];
             }
         }
 
@@ -470,9 +464,6 @@ class ScoringController extends Controller
             if (! $isMultiCourt) {
                 $scores[$round] = $scorePayload;
                 $scores["{$round}_court_1"] = $scorePayload;
-            } elseif (preg_match('/_court_1$/', $matchKey)) {
-                // Jika single-court disimpan dengan format round_X_court_1, pastikan juga sync ke round_X
-                $scores[$round] = $scorePayload;
             }
 
             Cache::put($cacheKey, $scores, now()->addHours(4));

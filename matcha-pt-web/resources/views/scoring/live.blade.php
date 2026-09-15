@@ -907,7 +907,7 @@
                 globalTitle.className = 'text-sm font-extrabold text-[#063B00]';
             }
             if (globalDesc) {
-                globalDesc.textContent = `Semua court telah mencatat skor akhir. Silakan lanjut ke ${btnNext ? strtolower(UNIT_TAB_LABEL) + ' berikutnya' : 'hasil akhir & podium'}.`;
+                globalDesc.textContent = `Semua court telah mencatat skor akhir. Silakan lanjut ke ${btnNext ? UNIT_TAB_LABEL.toLowerCase() + ' berikutnya' : 'hasil akhir & podium'}.`;
             }
             if (btnNext) btnNext.classList.remove('hidden');
             if (formFinish) formFinish.classList.remove('hidden');
