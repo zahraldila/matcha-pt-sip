@@ -79,6 +79,8 @@ Route::prefix('player')->name('player.')->middleware('auth')->group(function () 
 // Community
 Route::prefix('communities')->name('communities.')->group(function () {
     Route::get('/', [CommunityController::class, 'index'])->name('index');
+    Route::get('/show', fn () => abort(404, 'ID Komunitas diperlukan.'))->name('show.empty');
+    Route::get('/detail', fn () => abort(404, 'ID Komunitas diperlukan.'))->name('detail.empty');
     Route::get('/{id}', [CommunityController::class, 'show'])->whereNumber('id')->name('show'); // [SMK 3] Detail komunitas
 
     // Protected: SMK 3 — Community Manager
@@ -90,3 +92,11 @@ Route::prefix('communities')->name('communities.')->group(function () {
         Route::post('/{id}/leave', [CommunityController::class, 'leave'])->whereNumber('id')->name('leave'); // [SMK 3] Leave komunitas
     });
 });
+
+Route::get('/community/{id?}', function ($id = null) {
+    if (!$id || !is_numeric($id)) {
+        abort(404, 'Komunitas tidak ditemukan.');
+    }
+    return redirect()->route('communities.show', (int) $id);
+});
+

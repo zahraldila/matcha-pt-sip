@@ -307,6 +307,10 @@ class CommunityController extends Controller
      */
     public function show($id)
     {
+        if (!is_numeric($id) || (int) $id <= 0) {
+            abort(404, 'Komunitas tidak ditemukan.');
+        }
+
         // Ambil data komunitas beserta daftar anggota
         $community = Community::with('players.user')->findOrFail((int) $id);
 
@@ -323,13 +327,29 @@ class CommunityController extends Controller
             return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu untuk bergabung ke komunitas.');
         }
 
+        if (!is_numeric($id) || (int) $id <= 0) {
+            abort(404, 'Komunitas tidak ditemukan.');
+        }
+
+        // Validasi keberadaan komunitas (BUG-COMM-001)
+        $community = Community::findOrFail((int) $id);
+
         $user = Auth::user();
         $player = Player::where('user_id', $user->user_id)->first();
 
-        // Cek apakah user sudah menjadi anggota komunitas ini (termasuk creator)
-        if ($player && $player->community_id == (int) $id) {
+        // Cek jika sudah menjadi anggota di komunitas yang sama (BUG-COMM-004)
+        if ($player && (int) $player->community_id === (int) $id) {
             return redirect()->route('communities.show', $id)
-                ->with('info', 'Anda sudah menjadi bagian dari komunitas.');
+                ->with('info', 'Anda sudah menjadi bagian dari komunitas ini.');
+        }
+
+        // Cek jika sudah terdaftar di komunitas lain (Mencegah duplicate/automatic switch - BUG-COMM-004)
+        if ($player && !empty($player->community_id) && (int) $player->community_id !== (int) $id) {
+            $currentCommunity = Community::find($player->community_id);
+            $currentCommunityName = $currentCommunity ? $currentCommunity->nama_community : 'komunitas lain';
+
+            return redirect()->route('communities.show', $id)
+                ->with('error', "Anda saat ini masih terdaftar di komunitas '{$currentCommunityName}'. Harap keluar dari komunitas tersebut terlebih dahulu sebelum bergabung ke komunitas baru.");
         }
 
         // Jika belum memiliki record Player, buatkan
@@ -361,8 +381,17 @@ class CommunityController extends Controller
             return redirect()->route('login');
         }
 
-        // Set community_id = null pada tb_player milik Auth::user()
-        Player::where('user_id', Auth::id())->update(['community_id' => null]);
+        if (!is_numeric($id) || (int) $id <= 0) {
+            abort(404, 'Komunitas tidak ditemukan.');
+        }
+
+        // Validasi keberadaan komunitas (BUG-COMM-001)
+        $community = Community::findOrFail((int) $id);
+
+        // Set community_id = null pada tb_player milik Auth::user() jika saat ini tergabung
+        Player::where('user_id', Auth::id())
+            ->where('community_id', (int) $id)
+            ->update(['community_id' => null]);
 
         return redirect()->route('communities.index')
             ->with('success', 'Anda telah meninggalkan komunitas.');

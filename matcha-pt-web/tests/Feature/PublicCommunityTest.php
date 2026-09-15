@@ -233,4 +233,164 @@ class PublicCommunityTest extends TestCase
             'community_id' => $community->community_id,
         ]);
     }
+
+    /**
+     * Test 9 (BUG-COMM-001): Join komunitas dengan ID invalid / tidak ada menghasilkan HTTP 404
+     * dan tidak membuat atau mengubah relasi membership di database.
+     */
+    public function test_join_with_invalid_or_nonexistent_id_returns_404_and_does_not_modify_membership(): void
+    {
+        $user = User::create([
+            'nama'     => 'Player Invalid Join',
+            'email'    => 'invalidjoin@example.com',
+            'password' => bcrypt('secret'),
+            'role'     => 'member',
+        ]);
+
+        $player = Player::create([
+            'user_id'      => $user->user_id,
+            'community_id' => null,
+            'nama'         => 'Player Invalid Join',
+        ]);
+
+        // Request join ke ID yang tidak ada
+        $response = $this->actingAs($user)->post('/communities/999999/join');
+        $response->assertStatus(404);
+
+        // Pastikan membership player tidak berubah
+        $player->refresh();
+        $this->assertNull($player->community_id);
+    }
+
+    /**
+     * Test 10 (BUG-COMM-002): Memastikan route Join komunitas terproteksi middleware CSRF dan form menyertakan token CSRF.
+     */
+    public function test_join_community_without_csrf_is_rejected(): void
+    {
+        $user = User::create([
+            'nama'     => 'Player CSRF Test',
+            'email'    => 'csrftest@example.com',
+            'password' => bcrypt('secret'),
+            'role'     => 'member',
+        ]);
+
+        $community = $this->createCommunity(['nama_community' => 'CSRF Guarded Club']);
+
+        // 1. Verifikasi halaman detail menampilkan token CSRF di dalam form join
+        $response = $this->actingAs($user)->get('/communities/' . $community->community_id);
+        $response->assertStatus(200);
+        $response->assertSee('name="_token"', false);
+
+        // 2. Verifikasi route terdaftar dengan middleware group 'web' yang berisi ValidateCsrfToken
+        $route = app('router')->getRoutes()->match(
+            \Illuminate\Http\Request::create('/communities/' . $community->community_id . '/join', 'POST')
+        );
+        $this->assertContains('web', $route->middleware());
+    }
+
+    /**
+     * Test 11 (BUG-COMM-003): Mengakses route detail tanpa ID (misal /communities/show atau /communities/detail atau /community)
+     * memberikan respons 404 yang jelas.
+     */
+    public function test_accessing_detail_route_without_id_returns_404(): void
+    {
+        $responseShow = $this->get('/communities/show');
+        $responseShow->assertStatus(404);
+
+        $responseDetail = $this->get('/communities/detail');
+        $responseDetail->assertStatus(404);
+
+        $responseCommunity = $this->get('/community');
+        $responseCommunity->assertStatus(404);
+    }
+
+    /**
+     * Test 12 (BUG-COMM-004): User yang sudah terdaftar di Komunitas A tidak boleh otomatis pindah
+     * saat mencoba join ke Komunitas B tanpa keluar dari Komunitas A terlebih dahulu.
+     */
+    public function test_user_cannot_join_another_community_without_leaving_first(): void
+    {
+        $user = User::create([
+            'nama'     => 'Dual Member Player',
+            'email'    => 'dualmember@example.com',
+            'password' => bcrypt('secret'),
+            'role'     => 'member',
+        ]);
+
+        $communityA = $this->createCommunity(['nama_community' => 'Komunitas Asal']);
+        $communityB = $this->createCommunity(['nama_community' => 'Komunitas Tujuan']);
+
+        // User terdaftar di Komunitas A
+        $player = Player::create([
+            'user_id'      => $user->user_id,
+            'community_id' => $communityA->community_id,
+            'nama'         => 'Dual Member Player',
+        ]);
+
+        // User mencoba join ke Komunitas B
+        $response = $this->actingAs($user)->post('/communities/' . $communityB->community_id . '/join');
+
+        // Harus diredirect kembali dengan pesan error peringatan
+        $response->assertRedirect(route('communities.show', $communityB->community_id));
+        $response->assertSessionHas('error');
+
+        // Pastikan player tetap berada di Komunitas A dan tidak otomatis berganti ke Komunitas B
+        $player->refresh();
+        $this->assertEquals($communityA->community_id, $player->community_id);
+    }
+
+    /**
+     * Test 13: User yang sudah terdaftar di komunitas yang sama mendapatkan notifikasi info saat menekan join lagi.
+     */
+    public function test_duplicate_join_to_same_community_returns_info_message(): void
+    {
+        $user = User::create([
+            'nama'     => 'Same Member Player',
+            'email'    => 'samemember@example.com',
+            'password' => bcrypt('secret'),
+            'role'     => 'member',
+        ]);
+
+        $community = $this->createCommunity(['nama_community' => 'Same Club']);
+
+        Player::create([
+            'user_id'      => $user->user_id,
+            'community_id' => $community->community_id,
+            'nama'         => 'Same Member Player',
+        ]);
+
+        $response = $this->actingAs($user)->post('/communities/' . $community->community_id . '/join');
+
+        $response->assertRedirect(route('communities.show', $community->community_id));
+        $response->assertSessionHas('info', 'Anda sudah menjadi bagian dari komunitas ini.');
+    }
+
+    /**
+     * Test 14: User dapat leave komunitas dengan benar.
+     */
+    public function test_user_can_leave_community(): void
+    {
+        $user = User::create([
+            'nama'     => 'Leaving Player',
+            'email'    => 'leaving@example.com',
+            'password' => bcrypt('secret'),
+            'role'     => 'member',
+        ]);
+
+        $community = $this->createCommunity(['nama_community' => 'Leave Club']);
+
+        $player = Player::create([
+            'user_id'      => $user->user_id,
+            'community_id' => $community->community_id,
+            'nama'         => 'Leaving Player',
+        ]);
+
+        $response = $this->actingAs($user)->post('/communities/' . $community->community_id . '/leave');
+
+        $response->assertRedirect(route('communities.index'));
+        $response->assertSessionHas('success');
+
+        $player->refresh();
+        $this->assertNull($player->community_id);
+    }
 }
