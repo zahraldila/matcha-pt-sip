@@ -416,7 +416,11 @@
                 </div>
                 <p id="globalRoundStatusDesc" class="text-xs text-slate-500 font-medium mt-0.5">
                     @if($allCourtsCompleted ?? false)
-                        Semua court telah menyelesaikan pertandingan. Silakan lanjut ke {{ $nextRoundKey ? strtolower($unitTabLabel) . ' berikutnya' : 'hasil akhir & podium' }}.
+                        @if($isHost)
+                            Semua court telah menyelesaikan pertandingan. Silakan lanjut ke {{ $nextRoundKey ? strtolower($unitTabLabel) . ' berikutnya' : 'hasil akhir & podium' }}.
+                        @else
+                            Semua court telah menyelesaikan pertandingan. Menunggu Host {{ $nextRoundKey ? 'memulai ' . strtolower($unitTabLabel) . ' berikutnya' : 'menyelesaikan sesi' }}...
+                        @endif
                     @else
                         @php
                             $uncompletedNames = array_values($uncompletedCourtNames ?? []);
@@ -436,15 +440,17 @@
             </a>
 
             @if($nextRoundKey)
-                @php
-                    $nextRoundNum = preg_replace('/[^0-9]/', '', $nextRoundKey) ?: '2';
-                @endphp
-                <a id="btnGlobalNextRound"
-                   href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => $nextRoundKey, 'court' => $courtIndex]) }}"
-                   class="{{ ($allCourtsCompleted ?? false) ? '' : 'hidden' }} inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
-                    <span>Lanjut ke {{ $unitTabLabel }} {{ $nextRoundNum }} (Pertandingan Berikutnya)</span>
-                    <i class="fa-solid fa-arrow-right text-[11px] text-[#A8E63A]"></i>
-                </a>
+                @if($isHost)
+                    @php
+                        $nextRoundNum = preg_replace('/[^0-9]/', '', $nextRoundKey) ?: '2';
+                    @endphp
+                    <a id="btnGlobalNextRound"
+                       href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => $nextRoundKey, 'court' => $courtIndex]) }}"
+                       class="{{ ($allCourtsCompleted ?? false) ? '' : 'hidden' }} inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
+                        <span>Lanjut ke {{ $unitTabLabel }} {{ $nextRoundNum }} (Pertandingan Berikutnya)</span>
+                        <i class="fa-solid fa-arrow-right text-[11px] text-[#A8E63A]"></i>
+                    </a>
+                @endif
             @else
                 @if($isHost)
                     <form id="globalFinishForm" action="{{ route('scoring.finish') }}" method="POST" class="{{ ($allCourtsCompleted ?? false) ? '' : 'hidden' }} m-0">
@@ -907,7 +913,11 @@
                 globalTitle.className = 'text-sm font-extrabold text-[#063B00]';
             }
             if (globalDesc) {
-                globalDesc.textContent = `Semua court telah mencatat skor akhir. Silakan lanjut ke ${btnNext ? strtolower(UNIT_TAB_LABEL) + ' berikutnya' : 'hasil akhir & podium'}.`;
+                if (IS_HOST) {
+                    globalDesc.textContent = `Semua court telah mencatat skor akhir. Silakan lanjut ke ${btnNext ? strtolower(UNIT_TAB_LABEL) + ' berikutnya' : 'hasil akhir & podium'}.`;
+                } else {
+                    globalDesc.textContent = `Semua court telah selesai. Menunggu Host ${btnNext ? 'memulai ' + strtolower(UNIT_TAB_LABEL) + ' berikutnya' : 'menyelesaikan sesi'}...`;
+                }
             }
             if (btnNext) btnNext.classList.remove('hidden');
             if (formFinish) formFinish.classList.remove('hidden');
