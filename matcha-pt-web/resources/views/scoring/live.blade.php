@@ -1201,7 +1201,7 @@
                 if (batchEvents.length > 0) {
                     saveScoreBatch(cIdx, batchEvents).catch(e => console.warn(e));
                 }
-            }, 100);
+            }, 50);
         }
     }
 
