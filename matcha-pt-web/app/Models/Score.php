@@ -26,6 +26,8 @@ class Score extends Model
         'score_side_b',
         'scoring_system',
         'status_score',
+        'version',
+        'last_event_id',
     ];
 
     public function match()

@@ -29,11 +29,15 @@
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50/90 text-rose-800 border border-rose-200/60 text-xs font-semibold shadow-xs">
                 <span class="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span> MATCH LIVE
             </span>
-            {{-- Badge role --}}
-            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold
-                @if($isHost) bg-[#063B00] text-[#A8E63A]
-                @elseif($userRole === 'member') bg-sky-50 text-sky-700 border border-sky-200
-                @else bg-slate-100 text-slate-500 border border-slate-200 @endif">
+            <div class="flex items-center gap-1.5">
+                <span id="realtimeSyncBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Realtime Active
+                </span>
+                {{-- Badge role --}}
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold
+                    @if($isHost) bg-[#063B00] text-[#A8E63A]
+                    @elseif($userRole === 'member') bg-sky-50 text-sky-700 border border-sky-200
+                    @else bg-slate-100 text-slate-500 border border-slate-200 @endif">
                 @if($isHost)
                     <i class="fa-solid fa-crown text-[9px]"></i> Host
                 @elseif($userRole === 'member')
@@ -41,9 +45,34 @@
                 @else
                     <i class="fa-solid fa-user text-[9px]"></i> {{ ucfirst($userRole) }}
                 @endif
-            </span>
+                </span>
+            </div>
         </div>
     </div>
+
+    {{-- Flash Notifications (Warning, Error, Success) --}}
+    @if(session('warning') || session('error') || session('success'))
+        <div class="space-y-2">
+            @if(session('warning'))
+                <div class="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-3 shadow-xs">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-600 text-base shrink-0"></i>
+                    <span>{{ session('warning') }}</span>
+                </div>
+            @endif
+            @if(session('error'))
+                <div class="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs font-bold flex items-center gap-3 shadow-xs">
+                    <i class="fa-solid fa-circle-exclamation text-rose-600 text-base shrink-0"></i>
+                    <span>{{ session('error') }}</span>
+                </div>
+            @endif
+            @if(session('success'))
+                <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-[#063B00] text-xs font-bold flex items-center gap-3 shadow-xs">
+                    <i class="fa-solid fa-circle-check text-emerald-600 text-base shrink-0"></i>
+                    <span>{{ session('success') }}</span>
+                </div>
+            @endif
+        </div>
+    @endif
 
     {{-- Round / Set Selector (Set 1, Set 2, Set 3) --}}
     @php
@@ -129,7 +158,7 @@
         $uncompletedCourtNames = [];
         foreach ($matchContext['matches'] ?? [] as $checkIdx => $checkMatch) {
             $checkKey = ($courtCount > 1) ? "{$activeRound}_court_" . ($checkIdx + 1) : $activeRound;
-            $checkScore = $savedScores[$checkKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
+            $checkScore = $savedScores[$checkKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? ($savedScores["{$activeRound}_court_1"] ?? [])));
             if (($checkScore['status'] ?? '') !== 'completed') {
                 $uncompletedCourtNames[$checkIdx] = $checkMatch['court_name'] ?? ('Court ' . ($checkIdx + 1));
             }
@@ -444,12 +473,20 @@
                     @php
                         $nextRoundNum = preg_replace('/[^0-9]/', '', $nextRoundKey) ?: '2';
                     @endphp
-                    <a id="btnGlobalNextRound"
-                       href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => $nextRoundKey, 'court' => $courtIndex]) }}"
-                       class="{{ ($allCourtsCompleted ?? false) ? '' : 'hidden' }} inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
-                        <span>Lanjut ke {{ $unitTabLabel }} {{ $nextRoundNum }} (Pertandingan Berikutnya)</span>
-                        <i class="fa-solid fa-arrow-right text-[11px] text-[#A8E63A]"></i>
-                    </a>
+                    <form id="globalNextRoundForm" action="{{ route('scoring.next-round') }}" method="POST" class="{{ ($allCourtsCompleted ?? false) ? '' : 'hidden' }} m-0">
+                        @csrf
+                        <input type="hidden" name="game_id" value="{{ $game['id'] }}">
+                        <input type="hidden" name="current_round" value="{{ $activeRound }}">
+                        <input type="hidden" name="next_round" value="{{ $nextRoundKey }}">
+                        <input type="hidden" name="format" value="{{ request('format', $game['match_format'] ?? 'Americano') }}">
+                        <input type="hidden" name="court" value="{{ $courtIndex }}">
+
+                        <button type="submit" id="btnGlobalNextRound" onclick="submitNextRound(event)"
+                            class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer">
+                            <span id="btnNextRoundText">Lanjut ke {{ $unitTabLabel }} {{ $nextRoundNum }} (Pertandingan Berikutnya)</span>
+                            <i id="btnNextRoundIcon" class="fa-solid fa-arrow-right text-[11px] text-[#A8E63A]"></i>
+                        </button>
+                    </form>
                 @endif
             @else
                 @if($isHost)
@@ -513,6 +550,7 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
     // ── Config dari PHP ──────────────────────────────────────────────────────
     const SCORING_TYPE   = '{{ $scoringSystem['type'] }}';
@@ -529,6 +567,8 @@
     const IS_HOST        = {{ $isHost ? 'true' : 'false' }};
     const RECAP_URL      = '{{ route('scoring.recap', $game['id']) }}';
     const CLIENT_ID      = 'cli_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+    const SUPABASE_URL   = '{{ config('services.supabase.url') }}';
+    const SUPABASE_KEY   = '{{ config('services.supabase.key') }}';
 
     // ── Point Ladder ─────────────────────────────────────────────────────────
     const tennisPoints = ['0', '15', '30', '40'];
@@ -542,6 +582,7 @@
             $mScore = $savedScores[$mKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
         @endphp
         courtsState[{{ $mIdx }}] = {
+            matchId: {{ (int) ($m['match_id'] ?? 0) }},
             idxA: {{ (int) ($mScore['idx_a'] ?? 0) }},
             idxB: {{ (int) ($mScore['idx_b'] ?? 0) }},
             isDeuce: {{ ($mScore['is_deuce'] ?? false) ? 'true' : 'false' }},
@@ -562,9 +603,10 @@
             matchKey: '{{ $mKey }}',
             serverVersion: {{ (int) ($mScore['version'] ?? 0) }},
             localVersion: {{ (int) ($mScore['version'] ?? 0) }},
+            clientSeq: 0,
             pendingSaves: 0,
             lastLocalActionTime: 0,
-            saveQueued: null,
+            saveQueue: [],
             saveWorker: null,
             activeSaveController: null,
             activeSaveIsCompletion: false
@@ -596,32 +638,34 @@
         st.lastLocalActionTime = Date.now();
         st.localVersion = (st.localVersion || 0) + 1;
         st.pendingSaves = (st.pendingSaves || 0) + 1;
-        st.clientSeq = (st.clientSeq || 0) + 1;
+        st.clientSeq = (st.clientSeq || 0) + 1; // Increment SATU KALI per aksi
         const clientSeq = st.clientSeq;
+        const baseVersion = st.serverVersion || 0;
+        const eventId = 'evt_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
 
         // 1. Mutasi state lokal
         if (team === 'A') {
-            handlePointWonByA(cIdx);
+            handlePointWonByA(cIdx, clientSeq, tClick, baseVersion, eventId);
         } else {
-            handlePointWonByB(cIdx);
+            handlePointWonByB(cIdx, clientSeq, tClick, baseVersion, eventId);
         }
 
         // 2. Optimistic UI update seketika (0ms render time)
         updateDisplay(cIdx);
         const tUiDone = performance.now();
-        console.log(`[Optimistic UI] Court ${st.courtNum} +1 ${team} rendered in ${(tUiDone - tClick).toFixed(2)}ms (localVersion=${st.localVersion}, pendingSaves=${st.pendingSaves})`);
+        console.log(`[Optimistic UI] Court ${st.courtNum} +1 ${team} rendered in ${(tUiDone - tClick).toFixed(2)}ms (clientSeq=${clientSeq}, baseVersion=${baseVersion}, eventId=${eventId})`);
 
-        // 3. Simpan asinkron ke server
+        // 3. Simpan asinkron ke server jika belum selesai (jika selesai, checkSetWinner sudah memicu queueScoreSave)
         if (!st.matchDone) {
-            queueScoreSave(cIdx, null, clientSeq, tClick);
+            queueScoreSave(cIdx, null, clientSeq, tClick, eventId, 'add_point', team, baseVersion);
         }
     }
 
-    function handlePointWonByA(cIdx) {
+    function handlePointWonByA(cIdx, clientSeq, tClick, baseVersion, eventId) {
         let st = courtsState[cIdx];
         if (st.isDeuce) {
             if (st.advantage === 'A') {
-                gameWonBy('A', cIdx);
+                gameWonBy('A', cIdx, clientSeq, tClick, baseVersion, eventId);
             } else if (st.advantage === 'B') {
                 st.advantage = null;
                 showToast('Kembali ke Deuce (40 - 40)!');
@@ -638,16 +682,16 @@
                     showToast('Deuce (40 - 40)!');
                 }
             } else if (st.idxA === 3 && st.idxB < 3) {
-                gameWonBy('A', cIdx);
+                gameWonBy('A', cIdx, clientSeq, tClick, baseVersion, eventId);
             }
         }
     }
 
-    function handlePointWonByB(cIdx) {
+    function handlePointWonByB(cIdx, clientSeq, tClick, baseVersion, eventId) {
         let st = courtsState[cIdx];
         if (st.isDeuce) {
             if (st.advantage === 'B') {
-                gameWonBy('B', cIdx);
+                gameWonBy('B', cIdx, clientSeq, tClick, baseVersion, eventId);
             } else if (st.advantage === 'A') {
                 st.advantage = null;
                 showToast('Kembali ke Deuce (40 - 40)!');
@@ -664,13 +708,13 @@
                     showToast('Deuce (40 - 40)!');
                 }
             } else if (st.idxB === 3 && st.idxA < 3) {
-                gameWonBy('B', cIdx);
+                gameWonBy('B', cIdx, clientSeq, tClick, baseVersion, eventId);
             }
         }
     }
 
     // ── Game Dimenangkan ─────────────────────────────────────────────────────
-    function gameWonBy(team, cIdx) {
+    function gameWonBy(team, cIdx, clientSeq, tClick, baseVersion, eventId) {
         resetPoints(cIdx);
         let st = courtsState[cIdx];
         if (team === 'A') {
@@ -680,10 +724,10 @@
             st.gamesB++;
             showToast('🎉 Game Won by Team B!');
         }
-        checkSetWinner(cIdx);
+        checkSetWinner(cIdx, clientSeq, tClick, baseVersion, team, eventId);
     }
 
-    function checkSetWinner(cIdx) {
+    function checkSetWinner(cIdx, clientSeq = null, tClick = null, baseVersion = 0, teamWon = null, eventId = null) {
         let st = courtsState[cIdx];
         let setWon = null;
         
@@ -707,7 +751,12 @@
             st.setsA = (setWon === 'Team A') ? 1 : 0;
             st.setsB = (setWon === 'Team B') ? 1 : 0;
             updateDisplay(cIdx);
-            queueScoreSave(cIdx, 'completed', st.localVersion);
+            syncRoundCompletionStatus();
+
+            const cSeq = clientSeq || st.clientSeq || 1;
+            const bVer = baseVersion || st.serverVersion || 0;
+            const compEventId = eventId || ('evt_comp_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8));
+            queueScoreSave(cIdx, 'completed', cSeq, tClick, compEventId, 'completion', (setWon === 'Team A' ? 'A' : 'B'), bVer);
         }
     }
 
@@ -726,16 +775,22 @@
         st.lastLocalActionTime = Date.now();
         st.localVersion = (st.localVersion || 0) + 1;
         st.pendingSaves = (st.pendingSaves || 0) + 1;
-        const clientSeq = st.localVersion;
+        st.clientSeq = (st.clientSeq || 0) + 1; // Increment SATU KALI per aksi manual
+        const clientSeq = st.clientSeq;
+        const baseVersion = st.serverVersion || 0;
+        const winnerTeam = (st.gamesA >= st.gamesB) ? 'Team A' : 'Team B';
 
         st.matchDone = true;
         st.completionSavePending = true;
         st.completionSaveSucceeded = false;
-        st.winnerTeam = (st.gamesA >= st.gamesB) ? 'Team A' : 'Team B';
-        st.setsA = (st.winnerTeam === 'Team A') ? 1 : 0;
-        st.setsB = (st.winnerTeam === 'Team B') ? 1 : 0;
+        st.winnerTeam = winnerTeam;
+        st.setsA = (winnerTeam === 'Team A') ? 1 : 0;
+        st.setsB = (winnerTeam === 'Team B') ? 1 : 0;
         updateDisplay(cIdx);
-        queueScoreSave(cIdx, 'completed', clientSeq, tClick);
+        syncRoundCompletionStatus();
+
+        const compEventId = 'evt_manual_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+        queueScoreSave(cIdx, 'completed', clientSeq, tClick, compEventId, 'completion', (winnerTeam === 'Team A' ? 'A' : 'B'), baseVersion);
         showToast(`Skor ${courtLabel} berhasil dikunci!`);
     }
 
@@ -900,6 +955,7 @@
         const globalTitle = document.getElementById('globalRoundStatusTitle');
         const globalDesc  = document.getElementById('globalRoundStatusDesc');
         const globalDot   = document.getElementById('globalRoundStatusDot');
+        const formNext    = document.getElementById('globalNextRoundForm');
         const btnNext     = document.getElementById('btnGlobalNextRound');
         const formFinish  = document.getElementById('globalFinishForm');
         const btnRecap    = document.getElementById('btnGlobalRecap');
@@ -914,14 +970,20 @@
             }
             if (globalDesc) {
                 if (IS_HOST) {
-                    globalDesc.textContent = `Semua court telah mencatat skor akhir. Silakan lanjut ke ${btnNext ? UNIT_TAB_LABEL.toLowerCase() + ' berikutnya' : 'hasil akhir & podium'}.`;
+                    globalDesc.textContent = `Semua court telah mencatat skor akhir. Silakan lanjut ke ${formNext ? UNIT_TAB_LABEL.toLowerCase() + ' berikutnya' : 'hasil akhir & podium'}.`;
                 } else {
-                    globalDesc.textContent = `Semua court telah selesai. Menunggu Host ${btnNext ? 'memulai ' + UNIT_TAB_LABEL.toLowerCase() + ' berikutnya' : 'menyelesaikan sesi'}...`;
+                    globalDesc.textContent = `Semua court telah selesai. Menunggu Host ${formNext ? 'memulai ' + UNIT_TAB_LABEL.toLowerCase() + ' berikutnya' : 'menyelesaikan sesi'}...`;
                 }
             }
-            if (btnNext) btnNext.classList.remove('hidden');
-            if (formFinish) formFinish.classList.remove('hidden');
-            if (btnRecap) btnRecap.classList.remove('hidden');
+            if (IS_HOST) {
+                if (formNext) formNext.classList.remove('hidden');
+                if (formFinish) formFinish.classList.remove('hidden');
+                if (btnRecap) btnRecap.classList.add('hidden');
+            } else {
+                if (formNext) formNext.classList.add('hidden');
+                if (formFinish) formFinish.classList.add('hidden');
+                if (btnRecap) btnRecap.classList.remove('hidden');
+            }
         } else {
             if (globalDot) {
                 globalDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse';
@@ -936,13 +998,178 @@
                     ? `Menunggu ${namesStr} menyelesaikan pertandingan...` 
                     : `Pertandingan sedang berlangsung pada seluruh court...`;
             }
-            if (btnNext) btnNext.classList.add('hidden');
+            if (formNext) formNext.classList.add('hidden');
             if (formFinish) formFinish.classList.add('hidden');
             if (btnRecap) btnRecap.classList.add('hidden');
         }
     }
 
-    function queueScoreSave(cIdx, status = null, clientSeq = null, tClick = null) {
+    function applyServerScore(cIdx, data, incomingVer) {
+        let st = courtsState[cIdx];
+        if (!st || !data) return;
+
+        const newIdxA = data.idx_a ?? 0;
+        const newIdxB = data.idx_b ?? 0;
+        const newIsDeuce = !!data.is_deuce;
+        const newAdv = data.advantage ?? null;
+        const newGamesA = data.games_a ?? (data.score_a ?? 0);
+        const newGamesB = data.games_b ?? (data.score_b ?? 0);
+        const newSetsA = data.sets_a ?? 0;
+        const newSetsB = data.sets_b ?? 0;
+        const newMatchDone = (data.status === 'completed');
+        const newWinner = data.winner_team ?? null;
+
+        const hasChanged = (
+            st.idxA !== newIdxA ||
+            st.idxB !== newIdxB ||
+            st.isDeuce !== newIsDeuce ||
+            st.advantage !== newAdv ||
+            st.gamesA !== newGamesA ||
+            st.gamesB !== newGamesB ||
+            st.setsA !== newSetsA ||
+            st.setsB !== newSetsB ||
+            st.matchDone !== newMatchDone ||
+            st.winnerTeam !== newWinner ||
+            incomingVer > (st.serverVersion || 0)
+        );
+
+        if (hasChanged) {
+            st.idxA        = newIdxA;
+            st.idxB        = newIdxB;
+            st.isDeuce     = newIsDeuce;
+            st.advantage   = newAdv;
+            st.gamesA      = newGamesA;
+            st.gamesB      = newGamesB;
+            st.setsA       = newSetsA;
+            st.setsB       = newSetsB;
+            st.setNumber   = (data.set_number ?? 1);
+            st.setHistory  = data.set_history ?? [];
+            st.matchDone   = newMatchDone;
+            st.winnerTeam  = newWinner;
+            if (incomingVer > (st.serverVersion || 0)) {
+                st.serverVersion = incomingVer;
+            }
+            if ((st.pendingSaves || 0) === 0 && incomingVer > (st.localVersion || 0)) {
+                st.localVersion = incomingVer;
+            }
+            if (newMatchDone) {
+                st.completionSavePending = false;
+                st.completionSaveSucceeded = true;
+            }
+
+            const dispA  = document.getElementById('scoreDisplayA_' + cIdx);
+            const dispB  = document.getElementById('scoreDisplayB_' + cIdx);
+            const defaultDispA = newIsDeuce ? (newAdv === 'A' ? 'ADV' : '40') : (tennisPoints[newIdxA] || '0');
+            const defaultDispB = newIsDeuce ? (newAdv === 'B' ? 'ADV' : '40') : (tennisPoints[newIdxB] || '0');
+            const targetA = String(data.point_display_a ?? defaultDispA);
+            const targetB = String(data.point_display_b ?? defaultDispB);
+
+            if (dispA && dispA.innerText !== targetA) {
+                dispA.innerText = targetA;
+                dispA.classList.add('scale-110');
+                setTimeout(() => dispA.classList.remove('scale-110'), 300);
+            }
+            if (dispB && dispB.innerText !== targetB) {
+                dispB.innerText = targetB;
+                dispB.classList.add('scale-110');
+                setTimeout(() => dispB.classList.remove('scale-110'), 300);
+            }
+
+            updateDisplay(cIdx);
+        }
+    }
+
+    // Helper untuk mencocokkan incoming event (Realtime/Polling/Postgres) ke court index
+    function findCourtIndex(payload) {
+        if (!payload) return null;
+
+        // 1. Direct match dengan index state lokal
+        if (payload.court !== undefined && courtsState[payload.court] !== undefined) {
+            return payload.court;
+        }
+
+        // 2. Match berdasarkan match_key (contoh: round_1_court_1 atau round_1)
+        if (payload.match_key) {
+            for (const [idx, st] of Object.entries(courtsState)) {
+                if (st.matchKey === payload.match_key) return idx;
+            }
+        }
+
+        // 3. Match berdasarkan match_id (ID di database tb_match)
+        if (payload.match_id) {
+            for (const [idx, st] of Object.entries(courtsState)) {
+                if (st.matchId && Number(st.matchId) === Number(payload.match_id)) return idx;
+            }
+        }
+
+        // 4. Match berdasarkan courtNum (1-indexed)
+        if (payload.court_num !== undefined) {
+            for (const [idx, st] of Object.entries(courtsState)) {
+                if (Number(st.courtNum) === Number(payload.court_num)) return idx;
+            }
+        }
+        if (payload.court !== undefined) {
+            for (const [idx, st] of Object.entries(courtsState)) {
+                if (Number(st.courtNum) === Number(payload.court)) return idx;
+            }
+        }
+
+        // Fallback jika hanya terdapat 1 court pada match
+        const keys = Object.keys(courtsState);
+        if (keys.length === 1) return keys[0];
+
+        return null;
+    }
+
+    // Handler Utama Seluruh Scoring Event (Supabase Realtime + Polling Fallback)
+    // Menjalankan Aturan Monotonic & Stale Protection (Requirement 6)
+    function handleIncomingScoreEvent(payload, sourceName = 'Realtime') {
+        if (!payload) return;
+        const cIdx = findCourtIndex(payload);
+        if (cIdx === null || courtsState[cIdx] === undefined) return;
+
+        let st = courtsState[cIdx];
+        const incomingVer = Number(payload.server_version ?? payload.version ?? 0);
+        const localVer = Number(st.serverVersion || 0);
+
+        // Aturan Reconcile & Stale Protection:
+        // 1. incoming server_version < local server_version -> IGNORE (mencegah rollback skor)
+        if (incomingVer < localVer) {
+            console.log(`[${sourceName}] Stale IGNORE: incoming version (${incomingVer}) < local serverVersion (${localVer})`);
+            return;
+        }
+
+        // 2. incoming server_version == local server_version -> IGNORE (idempotent, data sudah sinkron)
+        if (incomingVer === localVer) {
+            if (payload.status === 'completed' && !st.matchDone) {
+                st.matchDone = true;
+                st.completionSaveSucceeded = true;
+                st.completionSavePending = false;
+                syncRoundCompletionStatus();
+            }
+            return;
+        }
+
+        // 3. Jika ada local scoring event yang belum mendapat konfirmasi server (pendingSaves > 0)
+        //    dan incomingVer <= localVer -> JANGAN overwrite optimistic state dengan snapshot lama
+        if ((st.pendingSaves || 0) > 0 && incomingVer <= (st.serverVersion || 0)) {
+            console.log(`[${sourceName}] Pending Save Protection: incomingVer (${incomingVer}) <= serverVersion (${st.serverVersion})`);
+            return;
+        }
+
+        // 4. Jika match lokal sudah matchDone dan pendingSaves > 0, jangan biarkan server status != completed membatalkan
+        if (st.matchDone && (st.pendingSaves || 0) > 0 && payload.status !== 'completed') {
+            return;
+        }
+
+        // 5. incoming server_version > local server_version -> APPLY mutasi terbaru
+        console.log(`[${sourceName}] APPLY: Court ${st.courtNum} version updated (${localVer} -> ${incomingVer})`);
+        applyServerScore(cIdx, payload, incomingVer);
+        syncRoundCompletionStatus();
+    }
+
+
+    function queueScoreSave(cIdx, status = null, clientSeq = null, tClick = null, eventId = null, action = 'add_point', team = null, baseVersion = 0) {
         let st = courtsState[cIdx];
         const isCompletionSave = status === 'completed';
         if (isCompletionSave && st.activeSaveController && !st.activeSaveIsCompletion) {
@@ -959,17 +1186,14 @@
             matchDone: st.matchDone,
             pointDisplays: getPointDisplays(cIdx),
         };
-        if (st.saveQueued) {
-            st.pendingSaves = Math.max(0, (st.pendingSaves || 1) - 1);
-        }
-        st.saveQueued = { status, clientSeq, tClick, snapshot };
+        st.saveQueue = st.saveQueue || [];
+        st.saveQueue.push({ status, clientSeq, tClick, eventId, action, team, baseVersion, snapshot });
 
         if (! st.saveWorker) {
             st.saveWorker = (async () => {
-                while (st.saveQueued) {
-                    const queued = st.saveQueued;
-                    st.saveQueued = null;
-                    await saveScore(cIdx, queued.status, queued.clientSeq, queued.tClick, queued.snapshot);
+                while (st.saveQueue && st.saveQueue.length > 0) {
+                    const queued = st.saveQueue.shift();
+                    await saveScore(cIdx, queued.status, queued.clientSeq, queued.tClick, queued.snapshot, queued.eventId, queued.action, queued.team, queued.baseVersion);
                 }
             })().finally(() => {
                 st.saveWorker = null;
@@ -979,7 +1203,7 @@
         return st.saveWorker;
     }
 
-    async function saveScore(cIdx, status = null, clientSeq = null, tClick = null, snapshot = null) {
+    async function saveScore(cIdx, status = null, clientSeq = null, tClick = null, snapshot = null, eventId = null, action = 'add_point', team = null, baseVersion = 0) {
         let st = courtsState[cIdx];
         if (st.isFinishing) return;
 
@@ -990,17 +1214,21 @@
             syncRoundCompletionStatus();
         }
 
-        st.clientSeq = (st.clientSeq || 0) + 1;
         const scoreState = snapshot || st;
         const displays = snapshot ? snapshot.pointDisplays : getPointDisplays(cIdx);
         const currentStatus = status ?? (scoreState.matchDone ? 'completed' : 'in_progress');
-        const reqSeq = clientSeq || st.clientSeq;
+        const reqSeq = clientSeq || st.clientSeq || 1;
+        const reqBaseVer = baseVersion || st.serverVersion || 0;
         const body = {
             game_id         : GAME_ID,
             round           : ACTIVE_ROUND,
             match_key       : st.matchKey,
             court           : st.courtNum,
             scoring_type    : SCORING_TYPE,
+            event_id        : eventId,
+            action          : action || 'add_point',
+            point_won_by    : team,
+            base_version    : reqBaseVer,
             score_a         : scoreState.gamesA,
             score_b         : scoreState.gamesB,
             point_display_a : displays.a,
@@ -1030,7 +1258,7 @@
             const res = await fetch(UPDATE_URL, {
                 method : 'POST',
                 keepalive: true,
-            signal: requestController.signal,
+                signal: requestController.signal,
                 headers: {
                     'Content-Type' : 'application/json',
                     'X-CSRF-TOKEN' : CSRF_TOKEN,
@@ -1042,11 +1270,38 @@
                 const data = await res.json();
                 const incomingVer = Number(data.version || 0);
 
+                // 1. Cek penolakan stale / duplicate (Requirement 1 & 7)
+                if (data.stale_ignored || data.duplicate) {
+                    if (isCompletionSave) {
+                        st.completionSavePending = false;
+                        st.completionSaveSucceeded = (data.saved?.status === 'completed');
+                        if (data.saved) {
+                            applyServerScore(cIdx, data.saved, incomingVer);
+                        }
+                        syncRoundCompletionStatus();
+                        return;
+                    }
+                    if (data.saved) {
+                        applyServerScore(cIdx, data.saved, incomingVer);
+                    }
+                    return;
+                }
+
+                // 2. Cek mutasi concurrent yang digabung di server (Requirement 3 & 5)
+                if (data.merged && data.saved) {
+                    applyServerScore(cIdx, data.saved, incomingVer);
+                }
+
+                // 3. Normal Completion Success (Requirement 7)
                 if (isCompletionSave && data.success !== false) {
                     st.matchDone = true;
                     st.completionSaveSucceeded = true;
                     st.completionSavePending = false;
-                    updateDisplay(cIdx);
+                    if (data.saved) {
+                        applyServerScore(cIdx, data.saved, incomingVer);
+                    } else {
+                        updateDisplay(cIdx);
+                    }
                     syncRoundCompletionStatus();
                 }
 
@@ -1057,16 +1312,42 @@
                     st.localVersion = incomingVer;
                 }
 
+                // Broadcast state terbaru via Supabase Realtime Channel client-side (near 0ms peer broadcast)
+                if (realtimeChannel && data.saved) {
+                    realtimeChannel.send({
+                        type: 'broadcast',
+                        event: 'score_update',
+                        payload: {
+                            ...data.saved,
+                            court: cIdx,
+                            match_key: st.matchKey,
+                            server_version: incomingVer,
+                            version: incomingVer,
+                            last_event_id: data.last_event_id || eventId
+                        }
+                    }).catch(e => console.warn('[Supabase Realtime] broadcast send warning:', e));
+                }
+
                 if (tClick) {
                     const roundtripMs = performance.now() - tClick;
                     console.log(`[Network Roundtrip] Court ${st.courtNum} save roundtrip: ${roundtripMs.toFixed(2)}ms (serverVersion=${st.serverVersion})`);
                 }
             } else {
                 console.error(`Update score failed for court ${st.courtNum}:`, await res.text());
+                if (isCompletionSave) {
+                    st.completionSavePending = false;
+                    st.completionSaveSucceeded = false;
+                    syncRoundCompletionStatus();
+                }
             }
         } catch (err) {
             if (err.name !== 'AbortError') {
                 console.warn(`Gagal simpan skor court ${st.courtNum}:`, err);
+            }
+            if (isCompletionSave) {
+                st.completionSavePending = false;
+                st.completionSaveSucceeded = false;
+                syncRoundCompletionStatus();
             }
         } finally {
             if (st.activeSaveController === requestController) {
@@ -1074,7 +1355,7 @@
                 st.activeSaveIsCompletion = false;
             }
             st.pendingSaves = Math.max(0, (st.pendingSaves || 1) - 1);
-            if (isCompletionSave) {
+            if (isCompletionSave && !st.completionSaveSucceeded) {
                 st.completionSavePending = false;
                 syncRoundCompletionStatus();
             }
@@ -1082,6 +1363,82 @@
                 st.localVersion = Math.max(st.localVersion || 0, st.serverVersion || 0);
             }
         }
+    }
+
+    let isSubmittingNextRound = false;
+    async function submitNextRound(event) {
+        if (event) event.preventDefault();
+        if (isSubmittingNextRound) return;
+
+        // Requirement 8: Next Round HARUS menunggu seluruh pending save selesai dan completion terkonfirmasi server
+        const courtKeys = Object.keys(courtsState);
+        const hasPending = courtKeys.some(k => (
+            (courtsState[k].pendingSaves || 0) > 0 ||
+            courtsState[k].completionSavePending === true
+        ));
+        const allCompletedAndSucceeded = courtKeys.length > 0 && courtKeys.every(k => (
+            courtsState[k].matchDone &&
+            courtsState[k].completionSaveSucceeded === true
+        ));
+
+        if (hasPending || !allCompletedAndSucceeded) {
+            showToast('Menunggu konfirmasi penyimpanan skor akhir ke server...');
+            const btn = document.getElementById('btnGlobalNextRound');
+            const text = document.getElementById('btnNextRoundText');
+            const icon = document.getElementById('btnNextRoundIcon');
+            if (icon) icon.className = 'fa-solid fa-spinner fa-spin text-xs text-[#A8E63A]';
+            if (text) text.textContent = 'Menyimpan skor akhir...';
+
+            const drainStart = Date.now();
+            while (Date.now() - drainStart < 3000) {
+                await new Promise(r => setTimeout(r, 100));
+                const stillPending = courtKeys.some(k => (
+                    (courtsState[k].pendingSaves || 0) > 0 ||
+                    courtsState[k].completionSavePending === true
+                ));
+                const nowSucceeded = courtKeys.every(k => (
+                    courtsState[k].matchDone &&
+                    courtsState[k].completionSaveSucceeded === true
+                ));
+                if (!stillPending && nowSucceeded) {
+                    break;
+                }
+            }
+        }
+
+        // Re-check final status
+        const canSubmit = courtKeys.length > 0 && courtKeys.every(k => (
+            (courtsState[k].pendingSaves || 0) === 0 &&
+            !courtsState[k].completionSavePending &&
+            courtsState[k].completionSaveSucceeded === true
+        ));
+
+        if (!canSubmit) {
+            showToast('Skor belum terkonfirmasi tersimpan di server. Silakan coba lagi.');
+            const text = document.getElementById('btnNextRoundText');
+            const icon = document.getElementById('btnNextRoundIcon');
+            if (icon) icon.className = 'fa-solid fa-arrow-right text-[11px] text-[#A8E63A]';
+            if (text) text.textContent = 'Lanjut ke {{ $unitTabLabel }} {{ $nextRoundNum ?? "Berikutnya" }}';
+            return;
+        }
+
+        isSubmittingNextRound = true;
+        const btn = document.getElementById('btnGlobalNextRound');
+        const text = document.getElementById('btnNextRoundText');
+        const icon = document.getElementById('btnNextRoundIcon');
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed', 'pointer-events-none');
+            if (icon) {
+                icon.className = 'fa-solid fa-spinner fa-spin text-xs text-[#A8E63A]';
+            }
+            if (text) {
+                text.textContent = 'Membuka {{ $unitTabLabel }} {{ $nextRoundNum ?? "Berikutnya" }}...';
+            }
+        }
+        showToast('Membuka {{ $unitTabLabel }} {{ $nextRoundNum ?? "Berikutnya" }}...');
+        const form = document.getElementById('globalNextRoundForm');
+        if (form) form.submit();
     }
 
     function submitGlobalFinish(event) {
@@ -1119,7 +1476,72 @@
         if (form) form.submit();
     }
 
-    // Polling realtime untuk sinkronisasi skor (0.8 detik per siklus)
+    // Supabase Realtime Client & Channel
+    let supabaseClient = null;
+    let realtimeChannel = null;
+
+    function initSupabaseRealtime() {
+        if (!window.supabase || !SUPABASE_URL || !SUPABASE_KEY) {
+            console.warn('[Supabase Realtime] Supabase credentials or SDK missing. Using Polling Fallback.');
+            const badge = document.getElementById('realtimeSyncBadge');
+            if (badge) {
+                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Polling Fallback';
+                badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold';
+            }
+            return;
+        }
+
+        try {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+                realtime: {
+                    params: {
+                        eventsPerSecond: 10
+                    }
+                }
+            });
+
+            const channelName = 'session_' + GAME_ID;
+            realtimeChannel = supabaseClient.channel(channelName);
+
+            realtimeChannel
+                .on('broadcast', { event: 'score_update' }, ({ payload }) => {
+                    console.log('[Supabase Realtime] score_update broadcast received:', payload);
+                    handleIncomingScoreEvent(payload, 'Realtime Broadcast');
+                })
+                .on('broadcast', { event: 'match_status_update' }, ({ payload }) => {
+                    console.log('[Supabase Realtime] match_status_update received:', payload);
+                    handleIncomingScoreEvent(payload, 'Realtime Status');
+                })
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'tb_score',
+                    filter: `game_id=eq.${GAME_ID}`
+                }, (payload) => {
+                    console.log('[Supabase Realtime] postgres_changes tb_score:', payload);
+                    if (payload.new) {
+                        handleIncomingScoreEvent(payload.new, 'Realtime DB Changes');
+                    }
+                })
+                .subscribe((status) => {
+                    console.log('[Supabase Realtime] Status:', status);
+                    const badge = document.getElementById('realtimeSyncBadge');
+                    if (badge) {
+                        if (status === 'SUBSCRIBED') {
+                            badge.innerHTML = '<i class="fa-solid fa-bolt text-emerald-500 text-[9px]"></i> Realtime Active';
+                            badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold';
+                        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                            badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Polling Fallback';
+                            badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold';
+                        }
+                    }
+                });
+        } catch (err) {
+            console.warn('[Supabase Realtime] Init exception:', err);
+        }
+    }
+
+    // Polling realtime untuk sinkronisasi skor (0.8 detik per siklus) — WAJIB TETAP ADA SEBAGAI FALLBACK/RECONCILIATION
     const POLL_INTERVAL_MS = 800;
     Object.keys(courtsState).forEach(cIdx => {
         let st = courtsState[cIdx];
@@ -1148,7 +1570,6 @@
             if (isPolling) return;
             isPolling = true;
             try {
-                const pollStart = performance.now();
                 const pollUrlWithTs = `${POLL_URL}&_t=${Date.now()}`;
                 const res = await fetch(pollUrlWithTs, {
                     cache: 'no-store',
@@ -1156,100 +1577,13 @@
                 });
                 if (!res.ok) return;
                 const data = await res.json();
-                const pollDuration = performance.now() - pollStart;
+                data.court = cIdx;
+                data.match_key = st.matchKey;
 
-                const incomingVer = Number(data.version || 0);
-
-                // Aturan Reconcile & Stale Protection:
-                // 1. Jika ada save lokal in-flight (pendingSaves > 0) dan version polling < localVersion,
-                //    abaikan agar tidak menimpa aksi lokal yang belum selesai tersimpan
-                if ((st.pendingSaves || 0) > 0 && incomingVer < (st.localVersion || 0)) {
-                    return;
-                }
-
-                // 2. Jika tidak ada save lokal in-flight, tetapi version polling < serverVersion saat ini,
-                //    abaikan response polling lama/terlambat di jaringan
-                if ((st.pendingSaves || 0) === 0 && incomingVer < (st.serverVersion || 0)) {
-                    return;
-                }
-
-                // 3. Jangan batalkan status matchDone jika lokal sudah completed dan server belum
-                if (st.matchDone && data.status !== 'completed') {
-                    return;
-                }
-
-                // Update serverVersion dan localVersion jika incomingVer >= serverVersion
-                if (incomingVer >= (st.serverVersion || 0)) {
-                    st.serverVersion = incomingVer;
-                    if ((st.pendingSaves || 0) === 0) {
-                        st.localVersion = incomingVer;
-                    }
-                }
-
-                // Cek apakah data berubah sebelum re-render untuk mencegah flicker
-                const newIdxA = data.idx_a ?? 0;
-                const newIdxB = data.idx_b ?? 0;
-                const newIsDeuce = !!data.is_deuce;
-                const newAdv = data.advantage ?? null;
-                const newGamesA = data.games_a ?? (data.score_a ?? 0);
-                const newGamesB = data.games_b ?? (data.score_b ?? 0);
-                const newSetsA = data.sets_a ?? 0;
-                const newSetsB = data.sets_b ?? 0;
-                const newMatchDone = (data.status === 'completed');
-                const newWinner = data.winner_team ?? null;
-
-                const hasChanged = (
-                    st.idxA !== newIdxA ||
-                    st.idxB !== newIdxB ||
-                    st.isDeuce !== newIsDeuce ||
-                    st.advantage !== newAdv ||
-                    st.gamesA !== newGamesA ||
-                    st.gamesB !== newGamesB ||
-                    st.setsA !== newSetsA ||
-                    st.setsB !== newSetsB ||
-                    st.matchDone !== newMatchDone ||
-                    st.winnerTeam !== newWinner
-                );
-
-                if (hasChanged) {
-                    console.log(`[Poll Applied] Court ${st.courtNum} sync to version ${incomingVer} (Games: ${newGamesA}-${newGamesB}, Point: ${data.point_display_a}:${data.point_display_b}) in ${pollDuration.toFixed(1)}ms`);
-                    st.idxA        = newIdxA;
-                    st.idxB        = newIdxB;
-                    st.isDeuce     = newIsDeuce;
-                    st.advantage   = newAdv;
-                    st.gamesA      = newGamesA;
-                    st.gamesB      = newGamesB;
-                    st.setsA       = newSetsA;
-                    st.setsB       = newSetsB;
-                    st.setNumber   = (data.set_number ?? 1);
-                    st.setHistory  = data.set_history ?? [];
-                    st.matchDone   = newMatchDone;
-                    st.winnerTeam  = newWinner;
-                    if (newMatchDone) {
-                        st.completionSavePending = false;
-                        st.completionSaveSucceeded = true;
-                    }
-
-                    const dispA  = document.getElementById('scoreDisplayA_' + cIdx);
-                    const dispB  = document.getElementById('scoreDisplayB_' + cIdx);
-                    const targetA = String(data.point_display_a ?? '0');
-                    const targetB = String(data.point_display_b ?? '0');
-
-                    if (dispA && dispA.innerText !== targetA) {
-                        dispA.innerText = targetA;
-                        dispA.classList.add('scale-110');
-                        setTimeout(() => dispA.classList.remove('scale-110'), 300);
-                    }
-                    if (dispB && dispB.innerText !== targetB) {
-                        dispB.innerText = targetB;
-                        dispB.classList.add('scale-110');
-                        setTimeout(() => dispB.classList.remove('scale-110'), 300);
-                    }
-
-                    updateDisplay(cIdx);
-                }
+                // Salurkan seluruh response polling melalui handler monotonic yang sama (Requirement 6)
+                handleIncomingScoreEvent(data, 'Polling 0.8s');
             } catch (err) {
-                // Ignore polling errors
+                // Ignore network polling error
             } finally {
                 isPolling = false;
                 nextPollTime = Date.now() + POLL_INTERVAL_MS;
@@ -1264,19 +1598,18 @@
         setTimeout(executePoll, 100 + (Number(cIdx) * 150));
     });
 
-    // Helper Toast (keep as is if defined elsewhere or we can define it)
+    // Helper Toast
     if (typeof showToast !== 'function') {
         window.showToast = function(msg) {
             console.log("TOAST:", msg);
-            // fallback toast if needed
         }
     }
 
-    // Inisialisasi awal untuk semua court
+    // Inisialisasi awal untuk semua court & Realtime
     Object.keys(courtsState).forEach(cIdx => {
         updateDisplay(cIdx);
     });
     syncRoundCompletionStatus();
+    initSupabaseRealtime();
 </script>
 @endpush
-
