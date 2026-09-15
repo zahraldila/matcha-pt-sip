@@ -173,18 +173,8 @@ class ScoringService
                     $effective[$roundKey]['score_a'] = $eSetsA;
                     $effective[$roundKey]['score_b'] = $eSetsB;
                 }
-            } elseif (! $hasRealCompleted) {
-                // Hanya generate skor dummy jika TIDAK ADA satu pun match riil yang selesai
-                $dummy = self::generateDummyScore($roundKey, $scoringSystem);
-                $effective[$roundKey] = array_merge([
-                    'status' => 'completed',
-                    'team_a' => $round['team_a'] ?? [],
-                    'team_b' => $round['team_b'] ?? [],
-                    'round_title' => ucfirst(str_replace('_', ' ', $roundKey)),
-                    'scoring_type' => $system['type'],
-                ], $dummy);
             } else {
-                // Ada match riil yang selesai, maka round yang belum dimainkan berstatus pending
+                // Round yang belum dimainkan / selesai berstatus pending dengan skor 0
                 $effective[$roundKey] = [
                     'score_a' => 0,
                     'score_b' => 0,
@@ -399,7 +389,7 @@ class ScoringService
             $s['set_diff'] = $s['sets_won'] - $s['sets_lost'];
         }
 
-        // Sort: Di Americano prioritaskan akumulasi Total Poin/Games, lalu selisih, lalu kemenangan
+        // Sort: Di Americano prioritaskan akumulasi Total Poin/Games, lalu selisih poin, lalu kemenangan, lalu selisih game, lalu abjad (deterministic tie-break)
         $ranked = array_values($stats);
         usort($ranked, function ($a, $b) {
             if ($b['points_for'] !== $a['points_for']) {
@@ -414,8 +404,11 @@ class ScoringService
             if ($b['games_won'] !== $a['games_won']) {
                 return $b['games_won'] - $a['games_won'];
             }
+            if ($b['game_diff'] !== $a['game_diff']) {
+                return $b['game_diff'] - $a['game_diff'];
+            }
 
-            return $b['game_diff'] - $a['game_diff'];
+            return strcasecmp((string) $a['name'], (string) $b['name']);
         });
 
         // Tambahkan rank & medal

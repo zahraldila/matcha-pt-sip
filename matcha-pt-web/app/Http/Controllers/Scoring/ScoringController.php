@@ -949,12 +949,38 @@ class ScoringController extends Controller
         // Hitung ranking semua pemain
         $rankedPlayers = ScoringService::calculateRecap($game, $effectiveScores);
 
+        // Cek status sesi dari database & jumlah match selesai
+        $sessionModel = SessionModel::find($game['id']);
+        $sessionStatus = strtolower($sessionModel->status_session ?? '');
+
+        $totalMatchesCount = 0;
+        $completedMatchesCount = 0;
+        $drawingRecord = Drawing::where('session_id', $game['id'])->first();
+        if ($drawingRecord) {
+            $dbMatches = GameMatch::where('drawing_id', $drawingRecord->drawing_id)->get();
+            $totalMatchesCount = $dbMatches->count();
+            $completedMatchesCount = $dbMatches->where('status_match', 'Completed')->count();
+        }
+
+        // Cek apakah ada skor yang selesai dicatat
+        $hasScores = $completedMatchesCount > 0;
+        if (! $hasScores) {
+            foreach ($savedScores as $k => $v) {
+                if ($k !== '_meta' && is_array($v) && ($v['status'] ?? '') === 'completed') {
+                    $hasScores = true;
+                    $completedMatchesCount++;
+                }
+            }
+        }
+
+        $isFinished = in_array($sessionStatus, ['finished', 'completed']) || ($totalMatchesCount > 0 && $completedMatchesCount >= $totalMatchesCount);
+
         // Tentukan winner & scoreboard match yang ditampilkan
         $lastRoundKey = null;
         $lastScore = null;
         $drawing = $game['drawing'] ?? [];
 
-        if (! empty($drawing)) {
+        if (! empty($drawing) && $hasScores) {
             $targetRoundKey = null;
 
             if (! empty($savedScores['_meta']['last_round_key']) && isset($drawing[$savedScores['_meta']['last_round_key']])) {
@@ -978,96 +1004,22 @@ class ScoringController extends Controller
                 }
             }
 
-            if (! $targetRoundKey) {
-                $targetRoundKey = array_key_first($drawing);
-            }
+            if ($targetRoundKey) {
+                $lastRoundKey = $targetRoundKey;
+                $lastRound = $drawing[$lastRoundKey] ?? [];
 
-            $lastRoundKey = $targetRoundKey;
-            $lastRound = $drawing[$lastRoundKey] ?? [];
-
-            if (isset($savedScores[$lastRoundKey]) && ($savedScores[$lastRoundKey]['status'] ?? '') === 'completed') {
-                $lastScore = $savedScores[$lastRoundKey];
-            } else {
-                $lastScore = $effectiveScores[$lastRoundKey] ?? null;
-            }
-
-            if (! $lastScore) {
-                if ($scoringSystem['is_sets']) {
-                    $lastScore = [
-                        'score_a' => 2,
-                        'score_b' => 1,
-                        'sets_a' => 2,
-                        'sets_b' => 1,
-                        'games_a' => 14,
-                        'games_b' => 11,
-                        'set_history' => [
-                            ['set' => 1, 'score_a' => 6, 'score_b' => 3],
-                            ['set' => 2, 'score_a' => 4, 'score_b' => 6],
-                            ['set' => 3, 'score_a' => 6, 'score_b' => 2],
-                        ],
-                        'status' => 'completed',
-                    ];
+                if (isset($savedScores[$lastRoundKey]) && ($savedScores[$lastRoundKey]['status'] ?? '') === 'completed') {
+                    $lastScore = $savedScores[$lastRoundKey];
                 } else {
-                    $target = $scoringSystem['target_games'] ?? 8;
-                    $lastScore = [
-                        'score_a' => $target,
-                        'score_b' => (int) ($target * 0.6),
-                        'sets_a' => 1,
-                        'sets_b' => 0,
-                        'games_a' => $target,
-                        'games_b' => (int) ($target * 0.6),
-                        'set_history' => [],
-                        'status' => 'completed',
-                    ];
+                    $lastScore = $effectiveScores[$lastRoundKey] ?? null;
+                }
+
+                if ($lastScore) {
+                    $lastScore['team_a'] = $lastRound['team_a'] ?? [];
+                    $lastScore['team_b'] = $lastRound['team_b'] ?? [];
+                    $lastScore['round_title'] = ucfirst(str_replace('_', ' ', $lastRoundKey));
                 }
             }
-
-            if ($scoringSystem['is_sets'] && $lastScore) {
-                $sHist = $lastScore['set_history'] ?? [];
-                $sA = (int) ($lastScore['sets_a'] ?? 0);
-                $sB = (int) ($lastScore['sets_b'] ?? 0);
-                $gA = (int) ($lastScore['games_a'] ?? 0);
-                $gB = (int) ($lastScore['games_b'] ?? 0);
-
-                if (empty($sHist)) {
-                    if ($gA > 0 || $gB > 0) {
-                        $sHist = [
-                            ['set' => 1, 'score_a' => $gA, 'score_b' => $gB],
-                        ];
-                        if ($sA === 0 && $sB === 0) {
-                            $sA = $gA >= $gB ? 1 : 0;
-                            $sB = $gB > $gA ? 1 : 0;
-                        }
-                    } elseif ($sA > 0 || $sB > 0) {
-                        $sHist = [];
-                        for ($i = 1; $i <= ($sA + $sB); $i++) {
-                            $aWins = ($i <= $sA);
-                            $sHist[] = [
-                                'set' => $i,
-                                'score_a' => $aWins ? 6 : 3,
-                                'score_b' => $aWins ? 3 : 6,
-                            ];
-                        }
-                    } else {
-                        $sA = 2;
-                        $sB = 1;
-                        $sHist = [
-                            ['set' => 1, 'score_a' => 6, 'score_b' => 3],
-                            ['set' => 2, 'score_a' => 4, 'score_b' => 6],
-                            ['set' => 3, 'score_a' => 6, 'score_b' => 2],
-                        ];
-                    }
-                    $lastScore['set_history'] = $sHist;
-                    $lastScore['sets_a'] = $sA;
-                    $lastScore['sets_b'] = $sB;
-                    $lastScore['score_a'] = $sA;
-                    $lastScore['score_b'] = $sB;
-                }
-            }
-
-            $lastScore['team_a'] = $lastRound['team_a'] ?? [];
-            $lastScore['team_b'] = $lastRound['team_b'] ?? [];
-            $lastScore['round_title'] = ucfirst(str_replace('_', ' ', $lastRoundKey));
         }
 
         // Data statistik pemain berdasarkan hasil pertandingan yang tersimpan.
@@ -1085,7 +1037,11 @@ class ScoringController extends Controller
             'playerRecap',
             'storyPlayerStats',
             'savedScores',
-            'effectiveScores'
+            'effectiveScores',
+            'hasScores',
+            'isFinished',
+            'completedMatchesCount',
+            'totalMatchesCount'
         ));
     }
 

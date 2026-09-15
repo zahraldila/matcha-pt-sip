@@ -9,9 +9,19 @@
             <i class="fa-solid fa-arrow-left"></i> Kembali ke Daftar Mabar
         </a>
         <div class="flex items-center gap-2">
-            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25">
-                <i class="fa-solid fa-circle-check text-[#063B00]"></i> Match Finished
-            </span>
+            @if($isFinished ?? true)
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25">
+                    <i class="fa-solid fa-circle-check text-[#063B00]"></i> Match Finished
+                </span>
+            @elseif($hasScores ?? false)
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                    <i class="fa-solid fa-bolt text-amber-600"></i> In Progress ({{ $completedMatchesCount ?? 0 }}/{{ max(1, $totalMatchesCount ?? 1) }})
+                </span>
+            @else
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                    <i class="fa-solid fa-clock text-slate-500"></i> Belum Dimulai
+                </span>
+            @endif
             <button onclick="openShareModal()" class="px-3.5 py-1.5 rounded-xl bg-[#063B00] text-white hover:bg-[#042a00] text-xs font-bold shadow-xs hover:shadow-sm transition-all flex items-center gap-2 cursor-pointer">
                 <i class="fa-solid fa-share-nodes text-[#A8E63A]"></i> <span>Bagikan</span>
             </button>
@@ -33,24 +43,42 @@
         <div class="relative space-y-3">
             @php
                 $isSets = $scoringSystem['is_sets'] ?? true;
-                $topPlayer = $rankedPlayers[0] ?? null;
+                $topPlayer = ($hasScores ?? false) ? ($rankedPlayers[0] ?? null) : null;
             @endphp
 
-            @if($topPlayer)
-            <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-100/80 border border-amber-200 text-amber-900 text-xs font-bold shadow-2xs">
-                <i class="fa-solid fa-trophy text-amber-600"></i> Juara 1 &bull; {{ $topPlayer['name'] }}
-            </div>
+            @if($isFinished ?? true)
+                @if($topPlayer)
+                <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-100/80 border border-amber-200 text-amber-900 text-xs font-bold shadow-2xs">
+                    <i class="fa-solid fa-trophy text-amber-600"></i> Juara 1 &bull; {{ $topPlayer['name'] }}
+                </div>
+                @else
+                <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#EBF8D8] border border-[#063B00]/25 text-[#063B00] text-xs font-bold shadow-2xs">
+                    <i class="fa-solid fa-circle-check text-[#063B00]"></i> Pertandingan Selesai
+                </div>
+                @endif
+            @elseif($hasScores ?? false)
+                <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold shadow-2xs">
+                    <i class="fa-solid fa-chart-simple text-amber-600"></i> Klasemen Sementara &bull; Sesi Masih Berlangsung
+                </div>
             @else
-            <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#EBF8D8] border border-[#063B00]/25 text-[#063B00] text-xs font-bold shadow-2xs">
-                <i class="fa-solid fa-circle-check text-[#063B00]"></i> Pertandingan Selesai
-            </div>
+                <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold shadow-2xs">
+                    <i class="fa-solid fa-info-circle text-slate-500"></i> Rekapitulasi Skor Belum Tersedia
+                </div>
             @endif
 
             <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                 {{ $game['title'] ?? 'Matcha Session' }}
             </h1>
             <p class="text-xs text-slate-500">
-                <span class="font-bold text-slate-700">{{ count($game['drawing'] ?? []) }} Ronde Selesai</span> &bull; 
+                <span class="font-bold text-slate-700">
+                    @if($isFinished ?? true)
+                        {{ count($game['drawing'] ?? []) }} Ronde Selesai
+                    @elseif($hasScores ?? false)
+                        {{ $completedMatchesCount ?? 0 }} Match Selesai (Sesi Berjalan)
+                    @else
+                        Belum Ada Match Selesai
+                    @endif
+                </span> &bull; 
                 {{ $game['venue_name'] ?? 'Arena Olahraga' }} &bull; 
                 <span class="bg-white/80 px-2 py-0.5 rounded-md border border-slate-200 text-slate-700 font-semibold">{{ $game['sport'] }} &bull; {{ $scoringSystem['label'] }}</span>
             </p>
@@ -63,9 +91,19 @@
                 <span class="px-3 py-1 rounded-full bg-white/80 border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs">
                     <i class="fa-solid fa-flag-checkered text-slate-400 mr-1"></i> {{ count($game['drawing'] ?? []) }} Ronde
                 </span>
-                <span class="px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#063B00]/25 text-[#063B00] text-xs font-bold shadow-2xs">
-                    <i class="fa-solid fa-circle-check mr-1 text-[#063B00]"></i> Rekap Final Selesai
-                </span>
+                @if($isFinished ?? true)
+                    <span class="px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#063B00]/25 text-[#063B00] text-xs font-bold shadow-2xs">
+                        <i class="fa-solid fa-circle-check mr-1 text-[#063B00]"></i> Rekap Final Selesai
+                    </span>
+                @elseif($hasScores ?? false)
+                    <span class="px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold shadow-2xs">
+                        <i class="fa-solid fa-rotate mr-1 text-amber-600"></i> Klasemen Sementara
+                    </span>
+                @else
+                    <span class="px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-semibold shadow-2xs">
+                        <i class="fa-solid fa-hourglass-start mr-1 text-slate-500"></i> Menunggu Live Scoring
+                    </span>
+                @endif
             </div>
         </div>
     </div>
