@@ -72,8 +72,8 @@ class SupabaseStorageService
             $endpoint = "{$this->url}/storage/v1/object/{$this->bucket}/{$path}";
             $mimeType = $file->getMimeType() ?: 'application/octet-stream';
 
-            $response = Http::timeout(10)
-                ->connectTimeout(5)
+            $response = Http::timeout(5)
+                ->connectTimeout(2)
                 ->withHeaders([
                     'Authorization' => 'Bearer ' . $this->apiKey,
                     'apikey'        => $this->apiKey,

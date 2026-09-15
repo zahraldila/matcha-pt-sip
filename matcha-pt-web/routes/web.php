@@ -52,6 +52,7 @@ Route::prefix('venues')->name('venues.')->group(function () {
         Route::get('/create', [VenueController::class, 'create'])->name('create');
         Route::post('/', [VenueController::class, 'store'])->name('store');             // [SMK 2] Simpan venue baru ke DB
         Route::post('/{id}/photos', [VenueController::class, 'updatePhotos'])->whereNumber('id')->name('photos.update'); // Tambah/Hapus foto venue
+        Route::get('/{id}/photos', fn ($id) => redirect()->route('venues.show', $id)); // Graceful fallback if opened via GET
         Route::get('/{id}/courts', [CourtController::class, 'index'])->whereNumber('id')->name('courts.index');   // [SMK 2] List court per venue
         Route::get('/{id}/courts/create', [CourtController::class, 'create'])->whereNumber('id')->name('courts.create'); // [SMK 2] Form tambah court
         Route::post('/{id}/courts', [CourtController::class, 'store'])->whereNumber('id')->name('courts.store');  // [SMK 2] Simpan court baru ke DB

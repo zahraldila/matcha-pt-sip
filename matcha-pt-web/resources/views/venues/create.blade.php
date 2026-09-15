@@ -123,6 +123,7 @@
                                 id="venueName"
                                 name="nama_venue"
                                 value="{{ old('nama_venue') }}"
+                                maxlength="100"
                                 placeholder="Contoh: Gelora Racquet & Padel Club"
                                 class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
                             >
@@ -131,6 +132,9 @@
                         <p id="venueNameError" class="hidden text-[10px] font-semibold text-rose-500">
                             Nama venue wajib diisi.
                         </p>
+                        @error('nama_venue')
+                            <p class="text-[10px] font-semibold text-rose-500 mt-1">{{ $message }}</p>
+                        @enderror
                     </div>
 
 

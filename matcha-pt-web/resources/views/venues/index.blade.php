@@ -129,7 +129,7 @@
                         <div class="p-5 space-y-3 text-xs">
                             <div>
                                 <div class="flex items-center justify-between gap-2">
-                                    <h3 class="text-base font-bold text-[#050608] leading-tight truncate">{{ $venue['name'] }}</h3>
+                                    <h3 class="text-base font-bold text-[#050608] leading-tight truncate break-words">{{ $venue['name'] }}</h3>
                                     @if(!empty($venue['is_mine']))
                                         <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 shrink-0">
                                             Milik Anda

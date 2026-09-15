@@ -17,6 +17,27 @@
             Kembali ke Detail Venue
         </a>
 
+        <!-- Flash Messages -->
+        @if(session('success'))
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-xs font-bold text-emerald-800 flex items-center justify-between shadow-xs">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
+                    <span>{{ session('success') }}</span>
+                </div>
+                <button type="button" onclick="this.parentElement.remove()" class="text-emerald-600 hover:text-emerald-800"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="rounded-2xl border border-rose-200 bg-rose-50/90 px-4 py-3 text-xs font-bold text-rose-800 flex items-center justify-between shadow-xs">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation text-rose-600 text-sm"></i>
+                    <span>{{ session('error') }}</span>
+                </div>
+                <button type="button" onclick="this.parentElement.remove()" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        @endif
+
         <!-- Main Card -->
         <div class="rounded-3xl border border-white/90 bg-white/85 p-6 sm:p-10 shadow-[0_20px_50px_rgba(6,59,0,0.08)] backdrop-blur-2xl space-y-8">
 
@@ -37,8 +58,8 @@
                         Daftarkan Lapangan / Court
                     </h1>
 
-                    <p class="mt-1 text-xs sm:text-sm text-slate-500">
-                        Lengkapi rincian lapangan untuk venue <strong class="text-[#063B00] font-extrabold">{{ $venue->nama_venue }}</strong>.
+                    <p class="mt-1 text-xs sm:text-sm text-slate-500 break-all break-words max-w-full leading-relaxed">
+                        Lengkapi rincian lapangan untuk venue <strong class="text-[#063B00] font-extrabold break-all break-words">{{ $venue->nama_venue }}</strong>.
                     </p>
                 </div>
 
@@ -47,14 +68,6 @@
                     <span>Total <span id="courtCounter">{{ $count ?? 1 }}</span> Lapangan</span>
                 </div>
             </div>
-
-            <!-- Flash Success / Error Messages -->
-            @if(session('success'))
-                <div class="rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-xs font-bold text-emerald-800 flex items-center gap-2.5">
-                    <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
-                    <span>{{ session('success') }}</span>
-                </div>
-            @endif
 
             @if($errors->any())
                 <div class="rounded-2xl border border-rose-200 bg-rose-50/90 px-4 py-3 text-xs text-rose-700 space-y-1">

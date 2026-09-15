@@ -19,8 +19,8 @@
             <i class="fa-solid fa-arrow-left"></i> Kembali ke Semua Venue
         </a>
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-[#050608]">
+            <div class="min-w-0 max-w-full">
+                <h1 class="text-2xl font-bold text-[#050608] break-all break-words line-clamp-2 max-w-full" title="{{ $venue['name'] }}">
                     {{ $venue['name'] }}
                 </h1>
                 <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
@@ -57,7 +57,7 @@
                             <i class="fa-solid fa-building-flag"></i>
                         </div>
                         <div>
-                            <h4 class="text-sm font-bold text-white">{{ $venue['name'] }}</h4>
+                            <h4 class="text-sm font-bold text-white break-all break-words line-clamp-2 max-w-md px-4 mx-auto">{{ $venue['name'] }}</h4>
                             <p class="text-xs text-slate-400 mt-1">Belum ada foto venue yang diunggah</p>
                         </div>
                     </div>
@@ -127,8 +127,8 @@
                     @forelse($venue['courts'] as $court)
                         <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 hover:border-[#063B00]/40 transition-all group relative">
                             <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-bold text-xs text-slate-900">{{ $court['name'] }}</span>
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="font-bold text-xs text-slate-900 break-words line-clamp-1 max-w-[160px] sm:max-w-[200px]" title="{{ $court['name'] }}">{{ $court['name'] }}</span>
                                     @if(!empty($court['sport']))
                                         <span class="text-[9px] px-2 py-0.5 rounded-full font-bold {{ strtolower($court['sport']) === 'tennis' ? 'bg-[#A8E63A]/25 text-[#050608] border border-[#7FAF25]/35' : 'bg-[#7FAF25]/20 text-[#050608] border border-[#7FAF25]/35' }}">
                                             {{ $court['sport'] }}
@@ -150,9 +150,15 @@
                                     @endif
                                 </div>
                             </div>
-                            <div class="text-xs text-slate-500 flex items-center justify-between">
+                            <div class="text-xs text-slate-500 flex items-center justify-between gap-2">
                                 <span>Tipe: <strong class="text-slate-700">{{ $court['type'] }}</strong></span>
-                                <span class="text-[#063B00] text-[11px] font-semibold">Siap Pakai</span>
+                                @if(!empty($court['harga_per_jam']))
+                                    <span class="text-[#063B00] font-bold text-xs">
+                                        Rp {{ number_format($court['harga_per_jam']) }}<span class="text-[10px] font-normal text-slate-500">/jam</span>
+                                    </span>
+                                @else
+                                    <span class="text-[#063B00] text-[11px] font-semibold">Siap Pakai</span>
+                                @endif
                             </div>
                         </div>
                     @empty
