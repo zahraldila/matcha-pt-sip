@@ -593,15 +593,17 @@
             $mKey = ($courtCount > 1) ? "{$activeRound}_court_" . ($mIdx + 1) : $activeRound;
             $mScore = $savedScores[$mKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
         @endphp
-        // OFFLINE QUEUE: Load from localStorage
+        // OFFLINE QUEUE: Load from localStorage only if Host
         let savedQueue_{{ $mIdx }} = [];
         let savedSeq_{{ $mIdx }} = 0;
-        try {
-            const rawQueue = localStorage.getItem(`matcha_queue_${GAME_ID}_{{ $mIdx }}`);
-            if (rawQueue) savedQueue_{{ $mIdx }} = JSON.parse(rawQueue);
-            const rawSeq = localStorage.getItem(`matcha_seq_${GAME_ID}_{{ $mIdx }}`);
-            if (rawSeq) savedSeq_{{ $mIdx }} = parseInt(rawSeq, 10);
-        } catch(e) {}
+        if (IS_HOST) {
+            try {
+                const rawQueue = localStorage.getItem(`matcha_queue_${GAME_ID}_{{ $mIdx }}`);
+                if (rawQueue) savedQueue_{{ $mIdx }} = JSON.parse(rawQueue);
+                const rawSeq = localStorage.getItem(`matcha_seq_${GAME_ID}_{{ $mIdx }}`);
+                if (rawSeq) savedSeq_{{ $mIdx }} = parseInt(rawSeq, 10);
+            } catch(e) {}
+        }
 
         courtsState[{{ $mIdx }}] = {
             matchId: {{ (int) ($m['match_id'] ?? 0) }},
@@ -636,15 +638,17 @@
         };
     @endforeach
 
-    // OFFLINE QUEUE: Resume any pending offline saves immediately
-    setTimeout(() => {
-        for (const [cIdx, st] of Object.entries(courtsState)) {
-            if (st.saveQueue.length > 0) {
-                console.log(`[Offline Sync] Recovered ${st.saveQueue.length} pending events for court ${cIdx}. Triggering retry...`);
-                queueScoreSave(cIdx, null, null, null, 'retry_drain');
+    // OFFLINE QUEUE: Resume any pending offline saves immediately (Host only)
+    if (IS_HOST) {
+        setTimeout(() => {
+            for (const [cIdx, st] of Object.entries(courtsState)) {
+                if (st.saveQueue && st.saveQueue.length > 0) {
+                    console.log(`[Offline Sync] Recovered ${st.saveQueue.length} pending events for court ${cIdx}. Triggering retry...`);
+                    queueScoreSave(cIdx, null, null, null, 'retry_drain');
+                }
             }
-        }
-    }, 500);
+        }, 500);
+    }
 
     // ── Point Display Resolution ─────────────────────────────────────────────
     function getPointDisplays(cIdx) {
@@ -1226,6 +1230,7 @@
 
     // ── Antrean Save Poin ke Server (Debounced & Batched & Offline Persistent) ──
     function queueScoreSave(cIdx, status, cSeq, tClick, eventId, action, team, baseVersion) {
+        if (!IS_HOST) return;
         let st = courtsState[cIdx];
         
         if (eventId !== 'retry_drain' && eventId != null) {
@@ -1277,6 +1282,7 @@
     }
 
     async function saveScoreBatch(cIdx, batchEvents) {
+        if (!IS_HOST) return;
         let st = courtsState[cIdx];
         if (st.isFinishing) return;
 

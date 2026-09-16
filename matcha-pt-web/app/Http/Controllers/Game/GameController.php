@@ -55,7 +55,10 @@ class GameController extends Controller
             $joinedCount = $s->players->count();
             $quota = (int) ($s->jumlah_pemain ?? 6);
             $slotLeft = max(0, $quota - $joinedCount);
-            $status = $slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)";
+            $isFinished = in_array(strtolower(trim((string) $s->status_session)), ['finished', 'completed'], true);
+            $status = $isFinished
+                ? 'Selesai Mabar'
+                : ($slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)");
 
             // Check if hosted by logged-in user
             $isHostedByMe = false;
@@ -109,6 +112,7 @@ class GameController extends Controller
                 'quota' => $quota,
                 'joined_count' => $joinedCount,
                 'status' => $status,
+                'is_finished' => $isFinished,
                 'level_recommendation' => 'All Level Welcome',
                 'match_format' => $formatString,
                 'scoring_system' => $s->scoring_system ?? 'Total of 3',
