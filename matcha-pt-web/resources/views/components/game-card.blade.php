@@ -3,12 +3,14 @@
 @php
     $sportType = strtolower($game['sport']) === 'tennis' ? 'tennis' : 'padel';
     $statusType = match(true) {
+        str_contains(strtolower($game['status']), 'selesai') || !empty($game['is_finished']) => 'finished',
         str_contains(strtolower($game['status']), 'in progress') => 'playing',
         str_contains(strtolower($game['status']), 'ready') => 'full',
         str_contains(strtolower($game['status']), 'open') => 'open',
         default => 'default',
     };
     $isFull = $game['joined_count'] >= $game['quota'];
+    $isFinished = !empty($game['is_finished']) || str_contains(strtolower($game['status']), 'selesai');
 @endphp
 
 <div class="glass-card rounded-2xl p-5 flex flex-col justify-between group">
@@ -107,7 +109,16 @@
 
     <!-- Action Buttons with Role & Membership Checking -->
     <div class="pt-2 border-t border-slate-200/40">
-        @if(!empty($game['is_hosted_by_me']))
+        @if($isFinished)
+            <div class="grid grid-cols-2 gap-2">
+                <a href="{{ route('games.show', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-white/80 hover:bg-white text-slate-700 text-xs font-semibold transition-all border border-slate-200/60 shadow-xs">
+                    Detail
+                </a>
+                <a href="{{ route('games.show', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold border border-slate-200/60">
+                    Mabar Selesai
+                </a>
+            </div>
+        @elseif(!empty($game['is_hosted_by_me']))
             <div class="grid grid-cols-2 gap-2">
                 <a href="{{ route('games.show', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-white/80 hover:bg-white text-slate-700 text-xs font-semibold transition-all border border-slate-200/60 shadow-xs">
                     Detail
