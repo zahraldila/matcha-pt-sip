@@ -42,10 +42,10 @@
                     <!-- Guest State: Masuk & Daftar -->
                     @if(request()->routeIs('login'))
                         <a href="{{ route('register') }}" class="text-xs font-bold text-[#063B00] bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 px-3.5 py-1.5 rounded-xl transition-all shadow-2xs">
-                            Daftar Member
+                            Daftar
                         </a>
                     @elseif(request()->routeIs('register'))
-                        <a href="{{ route('login') }}" class="text-xs font-bold text-[#063B00] bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 px-3.5 py-1.5 rounded-xl transition-all shadow-2xs">
+                        <a href="{{ route('login') }}" class="text-xs font-bold text-slate-700 hover:text-[#063B00] px-3 py-1.5 rounded-xl hover:bg-white/60 transition-colors">
                             Masuk
                         </a>
                     @else

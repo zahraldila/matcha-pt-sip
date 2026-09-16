@@ -50,7 +50,10 @@ class DashboardController extends Controller
             $joinedCount = $s->players->count();
             $quota = (int) ($s->jumlah_pemain ?? 6);
             $slotLeft = max(0, $quota - $joinedCount);
-            $status = $slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)";
+            $isFinished = in_array(strtolower(trim((string) $s->status_session)), ['finished', 'completed'], true);
+            $status = $isFinished
+                ? 'Selesai Mabar'
+                : ($slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)");
             $isJoinedByMe = $s->players->contains(function ($p) use ($userId, $userEmail, $userName) {
                 if ($userId && $p->user_id && $p->user_id == $userId) {
                     return true;
@@ -79,6 +82,7 @@ class DashboardController extends Controller
                 'joined_count' => $joinedCount,
                 'is_joined_by_me' => $isJoinedByMe,
                 'status' => $status,
+                'is_finished' => $isFinished,
                 'level_recommendation' => 'All Level Welcome',
                 'match_format' => 'Americano / Double',
                 'scoring_system' => $s->scoring_system ?? 'Total of 3',

@@ -1,13 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="min-h-[calc(100dvh-5rem)] flex items-center justify-center px-3.5 sm:px-6 lg:px-8 py-6 sm:py-10 relative">
+<div class="min-h-[calc(100dvh-5rem)] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-6 sm:py-10 relative w-full">
 
-    <!-- Ambient Glowing Orb behind Glass Card -->
-    <div class="absolute w-72 h-72 bg-[#A8E63A]/20 rounded-full blur-3xl pointer-events-none -top-10 -left-10"></div>
-    <div class="absolute w-72 h-72 bg-[#063B00]/15 rounded-full blur-3xl pointer-events-none -bottom-10 -right-10"></div>
-
-    <div class="max-w-md w-full space-y-5 sm:space-y-6 relative z-10">
+    <div class="max-w-md w-full space-y-5 sm:space-y-6 relative z-10 mx-auto">
         
         <!-- Header -->
         <div class="text-center space-y-1.5 sm:space-y-2">
