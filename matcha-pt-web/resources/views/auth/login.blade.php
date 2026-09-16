@@ -1,29 +1,29 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="min-h-[calc(100vh-12rem)] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-10 relative">
+<div class="min-h-[calc(100dvh-5rem)] flex items-center justify-center px-3.5 sm:px-6 lg:px-8 py-6 sm:py-10 relative">
 
     <!-- Ambient Glowing Orb behind Glass Card -->
     <div class="absolute w-72 h-72 bg-[#A8E63A]/20 rounded-full blur-3xl pointer-events-none -top-10 -left-10"></div>
     <div class="absolute w-72 h-72 bg-[#063B00]/15 rounded-full blur-3xl pointer-events-none -bottom-10 -right-10"></div>
 
-    <div class="max-w-md w-full space-y-6 relative z-10">
+    <div class="max-w-md w-full space-y-5 sm:space-y-6 relative z-10">
         
         <!-- Header -->
-        <div class="text-center space-y-2">
-            <div class="w-14 h-14 mx-auto rounded-2xl bg-[#063B00] border border-[#063B00]/30 flex items-center justify-center text-white text-2xl shadow-md">
+        <div class="text-center space-y-1.5 sm:space-y-2">
+            <div class="w-12 h-12 sm:w-14 sm:h-14 mx-auto rounded-2xl bg-[#063B00] border border-[#063B00]/30 flex items-center justify-center text-white text-xl sm:text-2xl shadow-md">
                 <i class="fa-solid fa-table-tennis-paddle-ball text-[#A8E63A]"></i>
             </div>
-            <h1 class="text-2xl sm:text-3xl font-black text-[#050608] tracking-tight">
+            <h1 class="text-xl sm:text-3xl font-black text-[#050608] tracking-tight">
                 Masuk ke Akun
             </h1>
-            <p class="text-xs text-slate-500 max-w-xs mx-auto">
+            <p class="text-[11px] sm:text-xs text-slate-500 max-w-xs mx-auto">
                 Akses jadwal mabar, pimpin scoring pertandingan, dan simpan statistik karir Anda
             </p>
         </div>
 
         <!-- Glassmorphism Login Card -->
-        <div class="glass-card !bg-white/85 !backdrop-blur-2xl rounded-3xl p-6 sm:p-8 space-y-5 border border-white shadow-[0_12px_40px_-10px_rgba(6,59,0,0.08)]">
+        <div class="glass-card !bg-white/90 !backdrop-blur-2xl rounded-3xl p-5 sm:p-8 space-y-4 sm:space-y-5 border border-white shadow-[0_12px_40px_-10px_rgba(6,59,0,0.08)]">
             
             @if($errors->any())
                 <div class="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5">
