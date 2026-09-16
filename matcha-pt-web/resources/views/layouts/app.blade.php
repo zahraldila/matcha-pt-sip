@@ -59,21 +59,27 @@
     <!-- Navbar Component -->
     @include('components.navbar')
 
+    @php
+        $isAuthPage = request()->routeIs('login') || request()->routeIs('register');
+    @endphp
+
     <!-- Main Content Area -->
-    <main class="flex-grow pb-24 md:pb-8">
+    <main class="flex-grow {{ $isAuthPage ? 'pb-8' : 'pb-24 md:pb-8' }}">
         @yield('content')
     </main>
 
-    <!-- Mobile Bottom Navigation Bar (Visible only on mobile/tablet) -->
-    @include('components.mobile-bottom-nav')
+    <!-- Mobile Bottom Navigation Bar (Visible only on mobile/tablet, hidden on Auth pages) -->
+    @unless($isAuthPage)
+        @include('components.mobile-bottom-nav')
+    @endunless
 
     <!-- Footer Component -->
-    <div class="mb-20 md:mb-0">
+    <div class="{{ $isAuthPage ? 'mb-0' : 'mb-20 md:mb-0' }}">
         @include('components.footer')
     </div>
 
     <!-- Notification Toast Container (Always on top of all modals and backdrops) -->
-    <div id="toast-container" class="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[9999] flex flex-col space-y-2 pointer-events-none max-w-[calc(100vw-2rem)]"></div>
+    <div id="toast-container" class="fixed {{ $isAuthPage ? 'bottom-6' : 'bottom-24 md:bottom-6' }} right-4 md:right-6 z-[9999] flex flex-col space-y-2 pointer-events-none max-w-[calc(100vw-2rem)]"></div>
 
     <script>
         function showToast(message, type = 'success') {

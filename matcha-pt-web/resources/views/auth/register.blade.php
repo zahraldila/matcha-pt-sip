@@ -1,29 +1,29 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative">
+<div class="max-w-2xl mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-10 relative">
 
     <!-- Ambient Glow Effects -->
     <div class="absolute w-80 h-80 bg-[#A8E63A]/20 rounded-full blur-3xl pointer-events-none -top-12 -left-16"></div>
     <div class="absolute w-80 h-80 bg-[#063B00]/15 rounded-full blur-3xl pointer-events-none bottom-10 -right-16"></div>
 
-    <div class="space-y-6 relative z-10">
+    <div class="space-y-5 sm:space-y-6 relative z-10">
         
         <!-- Header -->
-        <div class="text-center space-y-2">
+        <div class="text-center space-y-1.5 sm:space-y-2">
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] text-[10px] font-black uppercase tracking-widest">
                 <i class="fa-solid fa-sparkles text-[#063B00]"></i> Matcha Member Hub
             </div>
-            <h1 class="text-2xl sm:text-3xl font-black text-[#050608] tracking-tight">
+            <h1 class="text-xl sm:text-3xl font-black text-[#050608] tracking-tight">
                 Pendaftaran Akun Baru
             </h1>
-            <p class="text-xs text-slate-500 max-w-md mx-auto">
+            <p class="text-[11px] sm:text-xs text-slate-500 max-w-md mx-auto">
                 Daftarkan akun dan profil pemain Anda untuk sinkronisasi otomatis saat drawing, live scoring, dan pencatatan rating
             </p>
         </div>
 
         <!-- Glassmorphism Registration Card -->
-        <div class="glass-card !bg-white/85 !backdrop-blur-2xl rounded-3xl p-6 sm:p-9 space-y-6 border border-white shadow-[0_12px_40px_-10px_rgba(6,59,0,0.08)]">
+        <div class="glass-card !bg-white/90 !backdrop-blur-2xl rounded-3xl p-5 sm:p-9 space-y-5 sm:space-y-6 border border-white shadow-[0_12px_40px_-10px_rgba(6,59,0,0.08)]">
             
             @if($errors->any())
                 <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs space-y-1">
