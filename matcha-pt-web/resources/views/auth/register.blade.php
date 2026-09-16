@@ -1,11 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-2xl mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-10 relative">
-
-    <!-- Ambient Glow Effects -->
-    <div class="absolute w-80 h-80 bg-[#A8E63A]/20 rounded-full blur-3xl pointer-events-none -top-12 -left-16"></div>
-    <div class="absolute w-80 h-80 bg-[#063B00]/15 rounded-full blur-3xl pointer-events-none bottom-10 -right-16"></div>
+<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 relative w-full">
 
     <div class="space-y-5 sm:space-y-6 relative z-10">
         
