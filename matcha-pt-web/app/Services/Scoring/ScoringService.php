@@ -695,7 +695,7 @@ class ScoringService
                         $sessionJenisPermainan = $session->jenis_permainan ?? 'Double';
                         $format = strtolower($session->match_format ?? 'americano');
                         $scoringSystem = self::detectScoringSystem($session->scoring_system ?? 'Total of 3');
-                        $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
+                        $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : null;
                         if (str_contains($format, 'team') && count($participants) >= 4 && count($participants) % 2 === 0) {
                             $teamService = new TeamAmericanoService;
                             $drawingData = $teamService->generateTeamRounds($participants, $courtCount, null, $roundCount);
