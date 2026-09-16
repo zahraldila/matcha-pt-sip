@@ -105,17 +105,20 @@ class ScoringController extends Controller
         $courtCount = $matchContext['court_count'] ?? 1;
         $matchKey = ($courtCount > 1) ? "{$activeRound}_court_".($courtIndex + 1) : $activeRound;
 
-        // Hanya host atau participant yang boleh membuat/reconcile record match.
+        // Hanya host yang boleh membuat/reconcile record match dan menginisialisasi cache.
         $cacheUpdated = false;
-        if ($isHost || $isPlayer) {
+        if ($isHost) {
             foreach ($matchContext['matches'] as $mIdx => $m) {
                 $mKey = ($courtCount > 1) ? "{$activeRound}_court_".($mIdx + 1) : $activeRound;
                 ScoringService::ensureMatchAndParticipants($game['id'], $activeRound, $mIdx, $matchContext);
 
                 $dbScore = $this->getScoreFromDatabase($game['id'], $activeRound, $mIdx);
                 $cachedScore = $savedScores[$mKey] ?? null;
+                $cachedVersion = (int) ($cachedScore['version'] ?? 0);
+                $dbVersion = (int) ($dbScore['version'] ?? 0);
                 $dbIsNewer = $dbScore && $cachedScore
-                    && (int) ($dbScore['updated_at_ms'] ?? 0) > (int) ($cachedScore['updated_at_ms'] ?? 0);
+                    && (int) ($dbScore['updated_at_ms'] ?? 0) > (int) ($cachedScore['updated_at_ms'] ?? 0)
+                    && $dbVersion >= $cachedVersion;
                 $dbCompleted = $dbScore && ($dbScore['status'] ?? '') === 'completed'
                     && ($cachedScore['status'] ?? '') !== 'completed';
 
