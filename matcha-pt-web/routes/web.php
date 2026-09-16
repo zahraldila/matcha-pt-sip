@@ -11,6 +11,7 @@ use App\Http\Controllers\Venue\VenueController;
 use Illuminate\Support\Facades\Route;
 
 // Auth Routes (Login, Register, Logout)
+Route::get('/csrf-token', fn () => response()->json(['token' => csrf_token()]))->name('csrf.token');
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');

@@ -79,8 +79,10 @@
             const container = document.getElementById('toast-container');
             if (!container) return;
             const toast = document.createElement('div');
+            const isError = type === 'error';
+            const dotColor = isError ? 'bg-rose-500 shadow-[0_0_10px_#f43f5e]' : 'bg-[#A8E63A] shadow-[0_0_10px_#A8E63A]';
             toast.className = `glass-card !bg-[#111318]/95 !text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-all duration-300 transform translate-y-3 opacity-0 pointer-events-auto border border-white/15 text-xs font-semibold select-none`;
-            toast.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-[#A8E63A] shadow-[0_0_10px_#A8E63A] shrink-0"></span> <span class="text-white drop-shadow-xs">${message}</span>`;
+            toast.innerHTML = `<span class="w-2.5 h-2.5 rounded-full ${dotColor} shrink-0"></span> <span class="text-white drop-shadow-xs">${message}</span>`;
             container.appendChild(toast);
             
             setTimeout(() => {
@@ -90,9 +92,79 @@
             setTimeout(() => {
                 toast.classList.add('opacity-0', 'translate-y-2');
                 setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            }, 3500);
         }
+
+        // Auto-refresh CSRF token and keep session alive on tab reactivation or periodic interval
+        (function() {
+            let lastActivityTime = Date.now();
+            let isRefreshing = false;
+
+            async function refreshCsrfToken() {
+                if (isRefreshing) return;
+                isRefreshing = true;
+                try {
+                    const res = await fetch('{{ route('csrf.token') }}', {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.token) {
+                            // Update meta tag
+                            const meta = document.querySelector('meta[name="csrf-token"]');
+                            if (meta) meta.setAttribute('content', data.token);
+
+                            // Update all hidden _token form inputs
+                            document.querySelectorAll('input[name="_token"]').forEach(input => {
+                                input.value = data.token;
+                            });
+
+                            // Update axios default header if present
+                            if (window.axios) {
+                                window.axios.defaults.headers.common['X-CSRF-TOKEN'] = data.token;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.debug('CSRF keep-alive check skipped:', e);
+                } finally {
+                    isRefreshing = false;
+                }
+            }
+
+            // Refresh when user returns to the tab after 3+ minutes
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    const elapsed = Date.now() - lastActivityTime;
+                    if (elapsed > 3 * 60 * 1000) {
+                        refreshCsrfToken();
+                    }
+                    lastActivityTime = Date.now();
+                }
+            });
+
+            window.addEventListener('focus', function() {
+                const elapsed = Date.now() - lastActivityTime;
+                if (elapsed > 3 * 60 * 1000) {
+                    refreshCsrfToken();
+                }
+                lastActivityTime = Date.now();
+            });
+
+            // Keep session alive every 15 minutes if page stays active
+            setInterval(function() {
+                refreshCsrfToken();
+                lastActivityTime = Date.now();
+            }, 15 * 60 * 1000);
+        })();
     </script>
+    @if(session('toast'))
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                showToast("{{ session('toast') }}");
+            });
+        </script>
+    @endif
     @stack('scripts')
 </body>
 </html>

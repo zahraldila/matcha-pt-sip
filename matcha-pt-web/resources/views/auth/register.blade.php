@@ -22,7 +22,7 @@
         <div class="glass-card !bg-white/90 !backdrop-blur-2xl rounded-3xl p-5 sm:p-9 space-y-5 sm:space-y-6 border border-white shadow-[0_12px_40px_-10px_rgba(6,59,0,0.08)]">
             
             @if($errors->any())
-                <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs space-y-1">
+                <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs space-y-1 shadow-2xs">
                     <div class="font-bold flex items-center gap-2">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <span>Mohon periksa data yang belum sesuai:</span>
@@ -32,6 +32,27 @@
                             <li>{{ $error }}</li>
                         @endforeach
                     </ul>
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5 shadow-2xs">
+                    <i class="fa-solid fa-circle-exclamation shrink-0 text-rose-500"></i>
+                    <span class="leading-relaxed">{{ session('error') }}</span>
+                </div>
+            @endif
+
+            @if(session('warning'))
+                <div class="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2.5 shadow-2xs">
+                    <i class="fa-solid fa-triangle-exclamation shrink-0 text-amber-500"></i>
+                    <span class="leading-relaxed">{{ session('warning') }}</span>
+                </div>
+            @endif
+
+            @if(session('success'))
+                <div class="p-3.5 rounded-2xl bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] text-xs flex items-center gap-2.5 shadow-2xs">
+                    <i class="fa-solid fa-circle-check shrink-0 text-[#063B00]"></i>
+                    <span class="leading-relaxed">{{ session('success') }}</span>
                 </div>
             @endif
 
