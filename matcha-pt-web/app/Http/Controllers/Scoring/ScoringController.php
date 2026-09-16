@@ -273,9 +273,13 @@ class ScoringController extends Controller
             $score = [];
         }
 
+        $sessionActiveRound = $scores['_meta']['active_round'] ?? $round;
+
         return response()->json([
             'game_id' => (int) $gameId,
             'round' => $round,
+            'session_active_round' => (string) $sessionActiveRound,
+            'is_session_round_active' => ($round === $sessionActiveRound),
             'match_key' => $matchKey,
             'version' => (int) ($score['version'] ?? 0),
             'server_version' => (int) ($score['version'] ?? 0),
@@ -794,6 +798,9 @@ class ScoringController extends Controller
             'updated_at' => now()->toDateTimeString(),
         ]);
         Cache::put($cacheKey, $savedScores, now()->addHours(4));
+
+        // 4. Broadcast perpindahan ronde ke seluruh penonton/player via Supabase Realtime
+        $this->broadcastRoundAdvancedRealtime($gameId, $currentRound, $nextRound);
 
         $isTeamFormat = str_contains(strtolower($game['match_format'] ?? ''), 'team');
         $unitLabel = $isTeamFormat ? 'Set' : 'Ronde';
@@ -1918,6 +1925,45 @@ class ScoringController extends Controller
                 ]);
         } catch (\Throwable $e) {
             Log::debug("Supabase realtime broadcast skipped: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Broadcast perpindahan ronde / set ke Supabase Realtime Channel.
+     */
+    protected function broadcastRoundAdvancedRealtime(int $gameId, string $currentRound, string $nextRound): void
+    {
+        try {
+            $url = rtrim(config('services.supabase.url', ''), '/').'/realtime/v1/api/broadcast';
+            $key = config('services.supabase.key');
+            if (empty($url) || empty($key)) {
+                return;
+            }
+
+            Http::withoutVerifying()
+                ->withHeaders([
+                    'apikey' => $key,
+                    'Authorization' => 'Bearer '.$key,
+                    'Content-Type' => 'application/json',
+                ])
+                ->timeout(2)
+                ->post($url, [
+                    'messages' => [
+                        [
+                            'topic' => "session_{$gameId}",
+                            'event' => 'round_advanced',
+                            'payload' => [
+                                'session_id' => $gameId,
+                                'previous_round' => $currentRound,
+                                'next_round' => $nextRound,
+                                'active_round' => $nextRound,
+                                'timestamp' => now()->toIso8601String(),
+                            ],
+                        ],
+                    ],
+                ]);
+        } catch (\Throwable $e) {
+            Log::debug("Supabase realtime round advanced broadcast skipped: {$e->getMessage()}");
         }
     }
 }

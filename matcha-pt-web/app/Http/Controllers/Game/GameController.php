@@ -940,6 +940,8 @@ class GameController extends Controller
                 $drawing->match_format_id = $formatId;
                 $drawing->save();
             }
+            // Broadcast lock event via Supabase Realtime
+            $this->broadcastDrawingLockedRealtime((int) $id, $format);
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -955,5 +957,44 @@ class GameController extends Controller
 
         return redirect()->route('scoring.live', ['id' => $id, 'format' => $format])
             ->with('success', 'Jadwal pertandingan berhasil dikunci!');
+    }
+
+    /**
+     * Broadcast status drawing terkunci ke channel Supabase Realtime.
+     */
+    protected function broadcastDrawingLockedRealtime(int $gameId, string $format): void
+    {
+        try {
+            $url = rtrim(config('services.supabase.url', ''), '/').'/realtime/v1/api/broadcast';
+            $key = config('services.supabase.key');
+            if (empty($url) || empty($key)) {
+                return;
+            }
+
+            \Illuminate\Support\Facades\Http::withoutVerifying()
+                ->withHeaders([
+                    'apikey' => $key,
+                    'Authorization' => 'Bearer '.$key,
+                    'Content-Type' => 'application/json',
+                ])
+                ->timeout(2)
+                ->post($url, [
+                    'messages' => [
+                        [
+                            'topic' => "session_{$gameId}",
+                            'event' => 'drawing_locked',
+                            'payload' => [
+                                'session_id' => $gameId,
+                                'is_locked' => true,
+                                'status_session' => 'In Progress',
+                                'format' => $format,
+                                'redirect_url' => route('scoring.live', ['id' => $gameId, 'format' => $format]),
+                            ],
+                        ],
+                    ],
+                ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::debug("Supabase realtime drawing locked broadcast skipped: {$e->getMessage()}");
+        }
     }
 }

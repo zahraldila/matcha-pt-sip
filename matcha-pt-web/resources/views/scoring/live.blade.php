@@ -1168,8 +1168,36 @@
 
     // Handler Utama Seluruh Scoring Event (Supabase Realtime + Polling Fallback)
     // Menjalankan Aturan Monotonic & Stale Protection (Requirement 6)
+    let isTransitioningRound = false;
+    function handleRoundAdvancedEvent(payload, sourceName = 'Realtime') {
+        if (!payload || isTransitioningRound) return;
+        const newRound = payload.next_round || payload.active_round || payload.session_active_round;
+        if (!newRound || newRound === ACTIVE_ROUND) return;
+
+        const currentRoundNum = parseInt(ACTIVE_ROUND_NUM, 10) || 1;
+        const nextRoundNum = parseInt(newRound.replace(/[^0-9]/g, ''), 10) || 1;
+
+        if (nextRoundNum > currentRoundNum) {
+            isTransitioningRound = true;
+            console.log(`[${sourceName}] Host advanced round (${ACTIVE_ROUND} -> ${newRound})! Auto-transitioning...`);
+            if (typeof showToast === 'function') {
+                showToast(`🏆 Host telah memulai ${UNIT_TAB_LABEL} ${nextRoundNum}! Membuka pertandingan...`);
+            }
+            setTimeout(() => {
+                const targetUrl = `{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'court' => $courtIndex]) }}&round=${newRound}`;
+                window.location.href = targetUrl;
+            }, 600);
+        }
+    }
+
     function handleIncomingScoreEvent(payload, sourceName = 'Realtime') {
         if (!payload) return;
+
+        // Auto-Transition ke ronde/set baru jika Host sudah memajukan sesi
+        if (payload.session_active_round && payload.session_active_round !== ACTIVE_ROUND) {
+            handleRoundAdvancedEvent(payload, sourceName);
+        }
+
         const cIdx = findCourtIndex(payload);
         if (cIdx === null || courtsState[cIdx] === undefined) return;
 
@@ -1661,6 +1689,10 @@
                 .on('broadcast', { event: 'match_status_update' }, ({ payload }) => {
                     console.log('[Supabase Realtime] match_status_update received:', payload);
                     handleIncomingScoreEvent(payload, 'Realtime Status');
+                })
+                .on('broadcast', { event: 'round_advanced' }, ({ payload }) => {
+                    console.log('[Supabase Realtime] round_advanced broadcast received:', payload);
+                    handleRoundAdvancedEvent(payload, 'Realtime Broadcast');
                 })
                 .on('postgres_changes', {
                     event: '*',

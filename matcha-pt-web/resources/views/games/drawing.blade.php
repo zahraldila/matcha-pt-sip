@@ -411,6 +411,7 @@
 </div>
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
     let roundsData = @json($drawingData['rounds'] ?? []);
     let participantsMap = @json($participantsMap ?? []);
@@ -418,6 +419,61 @@
     const unitLabel = @json($unitLabel ?? 'Round');
     let currentRoundKey = {{ $firstRoundKey }};
     const isSessionLocked = @json($isLocked ?? false);
+    const isHostUser = @json($isHost ?? false);
+    const gameSessionId = {{ (int) $game['id'] }};
+    const liveScoringUrl = '{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano']) }}';
+    const supabaseUrl = '{{ config('services.supabase.url') }}';
+    const supabaseKey = '{{ config('services.supabase.key') }}';
+
+    // ── Realtime Drawing Lock Detector (Untuk Penonton / Player) ──────────────
+    if (!isSessionLocked && !isHostUser) {
+        let isRedirecting = false;
+        const triggerRedirectToLive = (url) => {
+            if (isRedirecting) return;
+            isRedirecting = true;
+            if (typeof showToast === 'function') {
+                showToast('🏆 Host telah mengunci tim & memulai pertandingan! Membuka Live Scoring...');
+            }
+            setTimeout(() => {
+                window.location.href = url || liveScoringUrl;
+            }, 600);
+        };
+
+        // 1. Supabase Realtime Listener
+        if (window.supabase && supabaseUrl && supabaseKey) {
+            try {
+                const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+                sb.channel('session_' + gameSessionId)
+                    .on('broadcast', { event: 'drawing_locked' }, ({ payload }) => {
+                        console.log('[Drawing Realtime] Drawing locked event received:', payload);
+                        triggerRedirectToLive(payload?.redirect_url);
+                    })
+                    .subscribe();
+            } catch (err) {
+                console.warn('[Drawing Realtime] Init error:', err);
+            }
+        }
+
+        // 2. Polling Fallback (setiap 2 detik)
+        const checkLockInterval = setInterval(async () => {
+            if (isRedirecting) {
+                clearInterval(checkLockInterval);
+                return;
+            }
+            try {
+                const res = await fetch(`{{ route('games.drawing', $game['id']) }}?json=1&_t=${Date.now()}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.isLocked) {
+                        clearInterval(checkLockInterval);
+                        triggerRedirectToLive();
+                    }
+                }
+            } catch (e) {}
+        }, 2000);
+    }
 
     function cleanPlayerName(n) {
         if (!n) return '';
