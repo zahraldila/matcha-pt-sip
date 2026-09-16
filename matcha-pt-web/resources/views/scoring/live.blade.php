@@ -671,15 +671,16 @@
         const baseVersion = st.serverVersion || 0;
         const eventId = 'evt_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
 
-        // 1. Simpan ke antrean SEBELUM state lokal dieksekusi agar event point terakhir tidak tertinggal
-        queueScoreSave(cIdx, null, clientSeq, tClick, eventId, 'add_point', team, baseVersion);
-
-        // 2. Mutasi state lokal
+        // 1. Mutasi state lokal terlebih dahulu agar snapshot antrean akurat
         if (team === 'A') {
             handlePointWonByA(cIdx, clientSeq, tClick, baseVersion, eventId);
         } else {
             handlePointWonByB(cIdx, clientSeq, tClick, baseVersion, eventId);
         }
+
+        // 2. Simpan ke antrean DENGAN snapshot state yang sudah ter-update
+        const isCompleted = st.matchDone;
+        queueScoreSave(cIdx, isCompleted ? 'completed' : null, clientSeq, tClick, eventId, isCompleted ? 'completion' : 'add_point', team, baseVersion);
 
         // 3. Optimistic UI update seketika (0ms render time)
         updateDisplay(cIdx);
@@ -778,11 +779,6 @@
             st.setsB = (setWon === 'Team B') ? 1 : 0;
             updateDisplay(cIdx);
             syncRoundCompletionStatus();
-
-            const cSeq = clientSeq || st.clientSeq || 1;
-            const bVer = baseVersion || st.serverVersion || 0;
-            const compEventId = eventId || ('evt_comp_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8));
-            queueScoreSave(cIdx, 'completed', cSeq, tClick, compEventId, 'completion', (setWon === 'Team A' ? 'A' : 'B'), bVer);
         }
     }
 
@@ -1033,6 +1029,22 @@
         let st = courtsState[cIdx];
         if (!st || !data) return;
 
+        // HOST PROTECTION: Jika Host sedang memiliki antrean klik atau baru saja beraksi, tahan perubahan UI
+        if (IS_HOST) {
+            const hasPending = (
+                (st.saveQueue && st.saveQueue.length > 0) ||
+                (st.inFlightQueue && st.inFlightQueue.length > 0) ||
+                (st.pendingSaves || 0) > 0 ||
+                (st.lastLocalActionTime && (Date.now() - st.lastLocalActionTime < 1500))
+            );
+            if (hasPending) {
+                if (incomingVer > (st.serverVersion || 0)) {
+                    st.serverVersion = incomingVer;
+                }
+                return;
+            }
+        }
+
         const newIdxA = data.idx_a ?? 0;
         const newIdxB = data.idx_b ?? 0;
         const newIsDeuce = !!data.is_deuce;
@@ -1175,10 +1187,24 @@
             return;
         }
 
-        // 3. Jika ada local scoring event yang belum mendapat konfirmasi server (pendingSaves > 0)
-        //    dan incomingVer <= localVer -> JANGAN overwrite optimistic state dengan snapshot lama
-        if ((st.pendingSaves || 0) > 0 && incomingVer <= (st.serverVersion || 0)) {
-            console.log(`[${sourceName}] Pending Save Protection: incomingVer (${incomingVer}) <= serverVersion (${st.serverVersion})`);
+        // 3. HOST PROTECTION SHIELD (Sinkronisasi terjadi di balik layar):
+        //    Jika peran adalah Host dan masih ada antrean simpan lokal atau user baru saja menekan tombol dalam 1.5 detik terakhir,
+        //    update serverVersion di background tanpa menimpa tampilan layar Host (mencegah glitch rollback).
+        const hasPendingLocalActions = (
+            (st.saveQueue && st.saveQueue.length > 0) ||
+            (st.inFlightQueue && st.inFlightQueue.length > 0) ||
+            (st.pendingSaves || 0) > 0 ||
+            (st.lastLocalActionTime && (Date.now() - st.lastLocalActionTime < 1500))
+        );
+
+        if (IS_HOST && hasPendingLocalActions) {
+            console.log(`[${sourceName}] Host Active Queue Shield: Server version updated (${localVer} -> ${incomingVer}) in background, preserving local optimistic UI.`);
+            st.serverVersion = incomingVer;
+            if (payload.status === 'completed' && st.matchDone) {
+                st.completionSaveSucceeded = true;
+                st.completionSavePending = false;
+                syncRoundCompletionStatus();
+            }
             return;
         }
 
@@ -1187,7 +1213,7 @@
             return;
         }
 
-        // 5. incoming server_version > local server_version -> APPLY mutasi terbaru
+        // 5. incoming server_version > local server_version -> APPLY mutasi terbaru (untuk Member/penonton atau Host idle)
         console.log(`[${sourceName}] APPLY: Court ${st.courtNum} version updated (${localVer} -> ${incomingVer})`);
         applyServerScore(cIdx, payload, incomingVer);
         syncRoundCompletionStatus();
@@ -1346,36 +1372,40 @@
                         st.completionSavePending = false;
                         st.completionSaveSucceeded = true;
                         st.matchDone = true;
-                        if (data.saved) {
+                        if (!IS_HOST && data.saved) {
                             applyServerScore(cIdx, data.saved, incomingVer);
                         }
                         syncRoundCompletionStatus();
                         return;
                     }
-                    if (data.saved) {
+                    if (!IS_HOST && data.saved) {
                         applyServerScore(cIdx, data.saved, incomingVer);
                     }
                     return;
                 }
 
-                // 2. Cek mutasi concurrent yang digabung di server (Requirement 3 & 5)
-                if (data.merged && data.saved) {
-                    applyServerScore(cIdx, data.saved, incomingVer);
-                }
-
-                // 3. Normal Completion Success (Requirement 7)
+                // 2. Normal Completion Success (Requirement 7)
                 if (isCompletionSave && data.success !== false) {
                     st.matchDone = true;
                     st.completionSaveSucceeded = true;
                     st.completionSavePending = false;
+                    syncRoundCompletionStatus();
+                }
+
+                // 3. UI Synchronization:
+                // Untuk HOST: respon server disinkronkan di balik layar jika ada antrean klik lanjutan
+                const hasPendingQueue = (st.saveQueue && st.saveQueue.length > 0);
+                const isHostRecentlyActive = (st.lastLocalActionTime && (Date.now() - st.lastLocalActionTime < 1500));
+
+                if (!IS_HOST) {
                     if (data.saved) {
                         applyServerScore(cIdx, data.saved, incomingVer);
-                    } else {
-                        updateDisplay(cIdx);
                     }
-                    syncRoundCompletionStatus();
-                } else if (data.saved && !isCompletionSave) {
-                    applyServerScore(cIdx, data.saved, incomingVer);
+                } else {
+                    // Host: Hanya terapkan jika ada merge conflict dari host lain dan user sedang idle
+                    if (data.merged && data.saved && !hasPendingQueue && !isHostRecentlyActive) {
+                        applyServerScore(cIdx, data.saved, incomingVer);
+                    }
                 }
                 
                 // Broadcast Realtime (Opsional)
