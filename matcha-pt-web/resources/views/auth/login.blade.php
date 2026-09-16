@@ -28,10 +28,24 @@
                 </div>
             @endif
 
+            @if(session('error'))
+                <div class="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5 shadow-2xs">
+                    <i class="fa-solid fa-circle-exclamation shrink-0 text-rose-500"></i>
+                    <span class="leading-relaxed">{{ session('error') }}</span>
+                </div>
+            @endif
+
+            @if(session('warning'))
+                <div class="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2.5 shadow-2xs">
+                    <i class="fa-solid fa-triangle-exclamation shrink-0 text-amber-500"></i>
+                    <span class="leading-relaxed">{{ session('warning') }}</span>
+                </div>
+            @endif
+
             @if(session('success'))
-                <div class="p-3.5 rounded-2xl bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] text-xs flex items-center gap-2.5">
+                <div class="p-3.5 rounded-2xl bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] text-xs flex items-center gap-2.5 shadow-2xs">
                     <i class="fa-solid fa-circle-check shrink-0 text-[#063B00]"></i>
-                    <span>{{ session('success') }}</span>
+                    <span class="leading-relaxed">{{ session('success') }}</span>
                 </div>
             @endif
 
