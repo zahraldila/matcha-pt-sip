@@ -1208,37 +1208,25 @@
 
         let st = courtsState[cIdx];
         const incomingVer = Number(payload.server_version ?? payload.version ?? 0);
-        const localVer = Number(st.serverVersion || 0);
+        const effectiveLocalVer = Math.max(Number(st.localVersion || 0), Number(st.serverVersion || 0));
 
-        // Aturan Reconcile & Stale Protection:
-        // 1. incoming server_version < local server_version -> IGNORE (mencegah rollback skor)
-        if (incomingVer < localVer) {
-            console.log(`[${sourceName}] Stale IGNORE: incoming version (${incomingVer}) < local serverVersion (${localVer})`);
-            return;
-        }
-
-        // 2. incoming server_version == local server_version -> IGNORE (idempotent, data sudah sinkron)
-        if (incomingVer === localVer) {
-            if (payload.status === 'completed' && !st.matchDone) {
-                st.matchDone = true;
-                st.completionSaveSucceeded = true;
-                st.completionSavePending = false;
-                syncRoundCompletionStatus();
-            }
-            return;
-        }
-
-        // 3. HOST PROTECTION SHIELD (Sinkronisasi terjadi di balik layar):
-        //    Jika peran adalah Host dan masih ada antrean simpan lokal atau user baru saja menekan tombol dalam 1.5 detik terakhir,
-        //    update serverVersion di background tanpa menimpa tampilan layar Host (mencegah glitch rollback).
-        const hasPendingLocalActions = (
-            (st.saveQueue && st.saveQueue.length > 0) ||
-            (st.inFlightQueue && st.inFlightQueue.length > 0) ||
-            (st.pendingSaves || 0) > 0 ||
-            (st.lastLocalActionTime && (Date.now() - st.lastLocalActionTime < 1500))
-        );
-
+        // 1. HOST SPECIFIC LOGIC (Master Scorer Protection):
         if (IS_HOST) {
+            // Jika payload berasal dari perangkat Host ini sendiri atau versinya <= versi aksi lokal Host:
+            // Cukup update serverVersion di background. DILARANG memanggil applyServerScore agar poin tidak rollback!
+            if (incomingVer <= effectiveLocalVer || (payload.client_id && payload.client_id === CLIENT_ID)) {
+                if (incomingVer > (st.serverVersion || 0)) {
+                    st.serverVersion = incomingVer;
+                }
+                if (payload.status === 'completed' && st.matchDone) {
+                    st.completionSaveSucceeded = true;
+                    st.completionSavePending = false;
+                    syncRoundCompletionStatus();
+                }
+                return;
+            }
+
+            // Anti-Downgrade Games Shield (untuk sinkronisasi antar multi-host):
             const incomingGamesA = Number(payload.games_a ?? payload.score_a ?? 0);
             const incomingGamesB = Number(payload.games_b ?? payload.score_b ?? 0);
             const localGamesA = Number(st.gamesA || 0);
@@ -1246,14 +1234,20 @@
             const incomingTotalGames = incomingGamesA + incomingGamesB;
             const localTotalGames = localGamesA + localGamesB;
 
-            // Host Score Shield: Jangan izinkan penurunan skor jika game lokal lebih tinggi dari server
             if (incomingTotalGames < localTotalGames || (incomingGamesA < localGamesA && incomingGamesB <= localGamesB) || (incomingGamesB < localGamesB && incomingGamesA <= localGamesA)) {
                 console.log(`[${sourceName}] Host Score Shield: Incoming games (${incomingGamesA}-${incomingGamesB}) < local (${localGamesA}-${localGamesB}). Preserving Host state.`);
                 return;
             }
 
+            const hasPendingLocalActions = (
+                (st.saveQueue && st.saveQueue.length > 0) ||
+                (st.inFlightQueue && st.inFlightQueue.length > 0) ||
+                (st.pendingSaves || 0) > 0 ||
+                (st.lastLocalActionTime && (Date.now() - st.lastLocalActionTime < 1500))
+            );
+
             if (hasPendingLocalActions) {
-                console.log(`[${sourceName}] Host Active Queue Shield: Server version updated (${localVer} -> ${incomingVer}) in background, preserving local optimistic UI.`);
+                console.log(`[${sourceName}] Host Active Queue Shield: Server version updated (${effectiveLocalVer} -> ${incomingVer}) in background.`);
                 st.serverVersion = incomingVer;
                 if (payload.status === 'completed' && st.matchDone) {
                     st.completionSaveSucceeded = true;
@@ -1264,13 +1258,32 @@
             }
         }
 
-        // 4. Jika match lokal sudah matchDone dan pendingSaves > 0, jangan biarkan server status != completed membatalkan
+        // 2. NON-HOST / SPECTATOR / RECONCILE RULES:
+        // Aturan Reconcile & Stale Protection:
+        // a. incoming server_version < effectiveLocalVer -> IGNORE (mencegah rollback skor)
+        if (incomingVer < effectiveLocalVer) {
+            console.log(`[${sourceName}] Stale IGNORE: incoming version (${incomingVer}) < local effectiveVersion (${effectiveLocalVer})`);
+            return;
+        }
+
+        // b. incoming server_version == effectiveLocalVer -> IGNORE (idempotent, data sudah sinkron)
+        if (incomingVer === effectiveLocalVer) {
+            if (payload.status === 'completed' && !st.matchDone) {
+                st.matchDone = true;
+                st.completionSaveSucceeded = true;
+                st.completionSavePending = false;
+                syncRoundCompletionStatus();
+            }
+            return;
+        }
+
+        // c. Jika match lokal sudah matchDone dan pendingSaves > 0, jangan biarkan server status != completed membatalkan
         if (st.matchDone && (st.pendingSaves || 0) > 0 && payload.status !== 'completed') {
             return;
         }
 
-        // 5. incoming server_version > local server_version -> APPLY mutasi terbaru (untuk Member/penonton atau Host idle)
-        console.log(`[${sourceName}] APPLY: Court ${st.courtNum} version updated (${localVer} -> ${incomingVer})`);
+        // d. incoming server_version > effectiveLocalVer -> APPLY mutasi terbaru (untuk Member/penonton atau Host idle saat ada Host lain)
+        console.log(`[${sourceName}] APPLY: Court ${st.courtNum} version updated (${effectiveLocalVer} -> ${incomingVer})`);
         applyServerScore(cIdx, payload, incomingVer);
         syncRoundCompletionStatus();
     }

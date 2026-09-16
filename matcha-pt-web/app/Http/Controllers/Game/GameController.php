@@ -832,7 +832,7 @@ class GameController extends Controller
                 if ($isTeam) {
                     // Team Americano Engine (Fixed Pairs). Pengacakan hanya mengacak urutan tim, bukan anggota tim!
                     $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
-                    $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
+                    $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : null;
                     $teamService = new TeamAmericanoService;
                     $drawingData = $teamService->generateTeamRounds($participants, $courtCount, $seed, $roundCount);
                     $rounds = $drawingData['rounds'] ?? [];
@@ -848,7 +848,7 @@ class GameController extends Controller
                     // Ambil jenis_permainan dari session (Single/Double), default Double
                     $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
                     $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
-                    $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
+                    $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : null;
                     $americanoService = new AmericanoService;
                     $rounds = $americanoService->generateRounds($shuffled, $courtCount, $roundCount, $drawingMode);
                     $drawingData = [

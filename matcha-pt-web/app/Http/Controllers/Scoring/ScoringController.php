@@ -1438,20 +1438,20 @@ class ScoringController extends Controller
                     if (str_contains($format, 'team') && count($participants) >= 4 && count($participants) % 2 === 0) {
                         $teamService = new TeamAmericanoService;
                         $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
-                        $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
+                        $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : null;
                         $drawingData = $teamService->generateTeamRounds($participants, $courtCount, null, $roundCount);
                         $rounds = $drawingData['rounds'] ?? [];
                     } else {
                         // Gunakan jenis_permainan dari session agar Single/Double benar
                         $americanoService = new AmericanoService;
                         $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
-                        $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
+                        $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : null;
                         $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan ?? 'Double');
                     }
                 } catch (\Throwable $e) {
                     $americanoService = new AmericanoService;
                     $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
-                    $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
+                    $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : null;
                     $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan ?? 'Double');
                 }
             }
