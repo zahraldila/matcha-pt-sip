@@ -593,7 +593,7 @@
             $mKey = ($courtCount > 1) ? "{$activeRound}_court_" . ($mIdx + 1) : $activeRound;
             $mScore = $savedScores[$mKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
         @endphp
-        // OFFLINE QUEUE: Load from localStorage only if Host
+        // OFFLINE QUEUE: Load from localStorage only if Host; Purge if Player
         let savedQueue_{{ $mIdx }} = [];
         let savedSeq_{{ $mIdx }} = 0;
         if (IS_HOST) {
@@ -602,6 +602,11 @@
                 if (rawQueue) savedQueue_{{ $mIdx }} = JSON.parse(rawQueue);
                 const rawSeq = localStorage.getItem(`matcha_seq_${GAME_ID}_{{ $mIdx }}`);
                 if (rawSeq) savedSeq_{{ $mIdx }} = parseInt(rawSeq, 10);
+            } catch(e) {}
+        } else {
+            try {
+                localStorage.removeItem(`matcha_queue_${GAME_ID}_{{ $mIdx }}`);
+                localStorage.removeItem(`matcha_seq_${GAME_ID}_{{ $mIdx }}`);
             } catch(e) {}
         }
 
@@ -1233,15 +1238,30 @@
             (st.lastLocalActionTime && (Date.now() - st.lastLocalActionTime < 1500))
         );
 
-        if (IS_HOST && hasPendingLocalActions) {
-            console.log(`[${sourceName}] Host Active Queue Shield: Server version updated (${localVer} -> ${incomingVer}) in background, preserving local optimistic UI.`);
-            st.serverVersion = incomingVer;
-            if (payload.status === 'completed' && st.matchDone) {
-                st.completionSaveSucceeded = true;
-                st.completionSavePending = false;
-                syncRoundCompletionStatus();
+        if (IS_HOST) {
+            const incomingGamesA = Number(payload.games_a ?? payload.score_a ?? 0);
+            const incomingGamesB = Number(payload.games_b ?? payload.score_b ?? 0);
+            const localGamesA = Number(st.gamesA || 0);
+            const localGamesB = Number(st.gamesB || 0);
+            const incomingTotalGames = incomingGamesA + incomingGamesB;
+            const localTotalGames = localGamesA + localGamesB;
+
+            // Host Score Shield: Jangan izinkan penurunan skor jika game lokal lebih tinggi dari server
+            if (incomingTotalGames < localTotalGames || (incomingGamesA < localGamesA && incomingGamesB <= localGamesB) || (incomingGamesB < localGamesB && incomingGamesA <= localGamesA)) {
+                console.log(`[${sourceName}] Host Score Shield: Incoming games (${incomingGamesA}-${incomingGamesB}) < local (${localGamesA}-${localGamesB}). Preserving Host state.`);
+                return;
             }
-            return;
+
+            if (hasPendingLocalActions) {
+                console.log(`[${sourceName}] Host Active Queue Shield: Server version updated (${localVer} -> ${incomingVer}) in background, preserving local optimistic UI.`);
+                st.serverVersion = incomingVer;
+                if (payload.status === 'completed' && st.matchDone) {
+                    st.completionSaveSucceeded = true;
+                    st.completionSavePending = false;
+                    syncRoundCompletionStatus();
+                }
+                return;
+            }
         }
 
         // 4. Jika match lokal sudah matchDone dan pendingSaves > 0, jangan biarkan server status != completed membatalkan
@@ -1701,7 +1721,7 @@
                     filter: `game_id=eq.${GAME_ID}`
                 }, (payload) => {
                     console.log('[Supabase Realtime] postgres_changes tb_score:', payload);
-                    if (payload.new) {
+                    if (payload.new && Number(payload.new.version ?? 0) > 0) {
                         handleIncomingScoreEvent(payload.new, 'Realtime DB Changes');
                     }
                 })

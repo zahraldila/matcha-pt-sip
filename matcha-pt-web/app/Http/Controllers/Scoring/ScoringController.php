@@ -224,16 +224,13 @@ class ScoringController extends Controller
             }
         }
 
-        // 2. Jika tidak ada di Cache: ambil dari tb_score via match_id di database
+        // 2. Jika tidak ada di Cache: ambil dari tb_score via match_id di database (Pure READ-ONLY, DILARANG menimpa Cache)
         if (! $score) {
             $dbScore = $this->getScoreFromDatabase($gameId, $round, $courtIndex);
             if ($dbScore) {
                 $score = $dbScore;
-                $scores[$matchKey] = $dbScore;
-                Cache::put($cacheKey, $scores, now()->addHours(4));
             } else {
-                // Inisialisasi default score ke dalam cache agar request polling berikutnya
-                // tidak memicu query berulang ke Supabase (Cache Hit)
+                // Inisialisasi default score murni untuk payload response (DILARANG Cache::put di GET request)
                 $score = [
                     'version' => 0,
                     'updated_at_ms' => (int) round(microtime(true) * 1000),
@@ -255,11 +252,6 @@ class ScoringController extends Controller
                     'status' => 'in_progress',
                     'winner_team' => null,
                 ];
-                $scores[$matchKey] = $score;
-                if (! $isMultiCourt) {
-                    $scores[$round] = $score;
-                }
-                Cache::put($cacheKey, $scores, now()->addHours(4));
             }
         }
 
@@ -313,7 +305,7 @@ class ScoringController extends Controller
      */
     public function updateScore(Request $request)
     {
-        // Auth check: Host atau participant/player dalam sesi ini
+        // Auth check: HANYA Host yang dapat mencatat atau mengubah skor
         if (! Auth::check()) {
             return response()->json([
                 'success' => false,
@@ -326,29 +318,18 @@ class ScoringController extends Controller
         $session = SessionModel::findOrFail($gameId);
         $isHost = $this->isHostForSession($session);
 
+        if (! $isHost && $user->role !== 'host') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. Hanya Host yang dapat mencatat atau memperbarui skor pertandingan.',
+            ], 403);
+        }
+
         if ($user->role === 'host' && ! $isHost) {
             return response()->json([
                 'success' => false,
                 'message' => 'Akses ditolak. Host hanya dapat mencatat skor pada sesi miliknya.',
             ], 403);
-        }
-
-        // Jika bukan host, cek apakah user merupakan participant/player pada session ini
-        if (! $isHost) {
-            $isParticipant = false;
-            $player = Player::where('user_id', $user->user_id)->first();
-            if ($player) {
-                $isParticipant = \DB::table('tb_session_player')
-                    ->where('session_id', $gameId)
-                    ->where('player_id', $player->player_id)
-                    ->exists();
-            }
-            if (! $isParticipant) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Akses ditolak. Hanya Host atau pemain dalam sesi ini yang dapat mencatat skor.',
-                ], 403);
-            }
         }
 
         // score_a / score_b are only required for snapshot-based saves (fallback).
