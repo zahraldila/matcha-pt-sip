@@ -666,7 +666,6 @@
         const tClick = performance.now();
         st.lastLocalActionTime = Date.now();
         st.localVersion = (st.localVersion || 0) + 1;
-        st.pendingSaves = (st.pendingSaves || 0) + 1;
         st.clientSeq = (st.clientSeq || 0) + 1; // Increment SATU KALI per aksi
         const clientSeq = st.clientSeq;
         const baseVersion = st.serverVersion || 0;
@@ -801,7 +800,6 @@
         const tClick = performance.now();
         st.lastLocalActionTime = Date.now();
         st.localVersion = (st.localVersion || 0) + 1;
-        st.pendingSaves = (st.pendingSaves || 0) + 1;
         st.clientSeq = (st.clientSeq || 0) + 1; // Increment SATU KALI per aksi manual
         const clientSeq = st.clientSeq;
         const baseVersion = st.serverVersion || 0;
@@ -1214,7 +1212,7 @@
             st.saveQueue.push({
                 cIdx, status, clientSeq: cSeq, tClick, eventId, action, team, baseVersion, snapshot
             });
-            st.pendingSaves = (st.pendingSaves || 0) + 1;
+            st.pendingSaves = st.saveQueue.length + (st.inFlightQueue ? st.inFlightQueue.length : 0);
             
             // OFFLINE QUEUE: Persist to localStorage
             try {
@@ -1233,6 +1231,7 @@
                 const batchEvents = [...st.saveQueue];
                 st.saveQueue = [];
                 st.inFlightQueue = batchEvents;
+                st.pendingSaves = st.inFlightQueue.length;
                 
                 // Keep the combined inFlightQueue + saveQueue in localStorage
                 try {
@@ -1341,11 +1340,12 @@
                 const data = await res.json();
                 const incomingVer = Number(data.version || 0);
 
-                // 1. Cek penolakan stale / duplicate (Requirement 1 & 7)
-                if (data.stale_ignored || data.duplicate) {
-                    if (isCompletionSave) {
+                // 1. Cek penolakan stale / duplicate / already completed (Requirement 1 & 7)
+                if (data.stale_ignored || data.duplicate || data.already_completed || data.saved?.status === 'completed') {
+                    if (isCompletionSave || data.saved?.status === 'completed' || data.already_completed) {
                         st.completionSavePending = false;
-                        st.completionSaveSucceeded = (data.saved?.status === 'completed');
+                        st.completionSaveSucceeded = true;
+                        st.matchDone = true;
                         if (data.saved) {
                             applyServerScore(cIdx, data.saved, incomingVer);
                         }
@@ -1440,6 +1440,7 @@
                 // OFFLINE QUEUE: Kembalikan inFlightQueue ke saveQueue dan pertahankan pendingSaves
                 st.inFlightQueue = [];
                 st.saveQueue = [...batchEvents, ...st.saveQueue];
+                st.pendingSaves = st.saveQueue.length;
                 try {
                     localStorage.setItem(`matcha_queue_${GAME_ID}_${cIdx}`, JSON.stringify(st.saveQueue));
                 } catch(e) {}
@@ -1454,15 +1455,12 @@
             } else {
                 // Berhasil atau dibatalkan karena ada save baru yang lebih prioritas (AbortError)
                 st.inFlightQueue = [];
+                st.pendingSaves = st.saveQueue.length;
                 try {
                     localStorage.setItem(`matcha_queue_${GAME_ID}_${cIdx}`, JSON.stringify(st.saveQueue));
                 } catch(e) {}
                 
-                if (!isCompletionSave || (isCompletionSave && st.completionSaveSucceeded)) {
-                    st.pendingSaves = Math.max(0, (st.pendingSaves || 1) - batchEvents.length);
-                }
-                
-                if (isCompletionSave && !st.completionSaveSucceeded) {
+                if (isCompletionSave && !st.completionSaveSucceeded && !st.matchDone) {
                     st.completionSavePending = false;
                     syncRoundCompletionStatus();
                 }
@@ -1482,12 +1480,13 @@
         // Requirement 8: Next Round HARUS menunggu seluruh pending save selesai dan completion terkonfirmasi server
         const courtKeys = Object.keys(courtsState);
         const hasPending = courtKeys.some(k => (
-            (courtsState[k].pendingSaves || 0) > 0 ||
+            (courtsState[k].saveQueue?.length || 0) > 0 ||
+            (courtsState[k].inFlightQueue?.length || 0) > 0 ||
             courtsState[k].completionSavePending === true
         ));
         const allCompletedAndSucceeded = courtKeys.length > 0 && courtKeys.every(k => (
             courtsState[k].matchDone &&
-            courtsState[k].completionSaveSucceeded === true
+            (courtsState[k].completionSaveSucceeded === true || ((courtsState[k].saveQueue?.length || 0) === 0 && (courtsState[k].inFlightQueue?.length || 0) === 0))
         ));
 
         if (hasPending || !allCompletedAndSucceeded) {
@@ -1502,12 +1501,13 @@
             while (Date.now() - drainStart < 3000) {
                 await new Promise(r => setTimeout(r, 100));
                 const stillPending = courtKeys.some(k => (
-                    (courtsState[k].pendingSaves || 0) > 0 ||
+                    (courtsState[k].saveQueue?.length || 0) > 0 ||
+                    (courtsState[k].inFlightQueue?.length || 0) > 0 ||
                     courtsState[k].completionSavePending === true
                 ));
                 const nowSucceeded = courtKeys.every(k => (
                     courtsState[k].matchDone &&
-                    courtsState[k].completionSaveSucceeded === true
+                    (courtsState[k].completionSaveSucceeded === true || ((courtsState[k].saveQueue?.length || 0) === 0 && (courtsState[k].inFlightQueue?.length || 0) === 0))
                 ));
                 if (!stillPending && nowSucceeded) {
                     break;
@@ -1517,9 +1517,10 @@
 
         // Re-check final status
         const canSubmit = courtKeys.length > 0 && courtKeys.every(k => (
-            (courtsState[k].pendingSaves || 0) === 0 &&
+            (courtsState[k].saveQueue?.length || 0) === 0 &&
+            (courtsState[k].inFlightQueue?.length || 0) === 0 &&
             !courtsState[k].completionSavePending &&
-            courtsState[k].completionSaveSucceeded === true
+            courtsState[k].matchDone
         ));
 
         if (!canSubmit) {

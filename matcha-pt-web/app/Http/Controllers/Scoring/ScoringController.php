@@ -351,33 +351,33 @@ class ScoringController extends Controller
             ($actionField === 'completion');
 
         $request->validate([
-            'game_id'        => 'required|integer',
-            'round'          => 'required|string',
-            'match_key'      => 'nullable|string',
-            'court'          => 'nullable|integer',
-            'score_a'        => ($hasEventAction ? 'nullable' : 'required') . '|integer|min:0',
-            'score_b'        => ($hasEventAction ? 'nullable' : 'required') . '|integer|min:0',
+            'game_id' => 'required|integer',
+            'round' => 'required|string',
+            'match_key' => 'nullable|string',
+            'court' => 'nullable|integer',
+            'score_a' => ($hasEventAction ? 'nullable' : 'required').'|integer|min:0',
+            'score_b' => ($hasEventAction ? 'nullable' : 'required').'|integer|min:0',
             'point_display_a' => 'nullable|string',
             'point_display_b' => 'nullable|string',
-            'set_number'     => 'nullable|integer|min:1',
-            'sets_a'         => 'nullable|integer|min:0',
-            'sets_b'         => 'nullable|integer|min:0',
-            'games_a'        => 'nullable|integer|min:0',
-            'games_b'        => 'nullable|integer|min:0',
-            'set_history'    => 'nullable|array',
-            'idx_a'          => 'nullable|integer|min:0',
-            'idx_b'          => 'nullable|integer|min:0',
-            'is_deuce'       => 'nullable|boolean',
-            'advantage'      => 'nullable|string',
-            'scoring_type'   => 'nullable|string',
-            'status'         => 'nullable|string|in:in_progress,completed',
-            'winner_team'    => 'nullable|string',
-            'client_id'      => 'nullable|string',
-            'client_seq'     => 'nullable|integer',
-            'event_id'       => 'nullable|string',
-            'action'         => 'nullable|string',
-            'point_won_by'   => 'nullable|string|in:A,B',
-            'base_version'   => 'nullable|integer',
+            'set_number' => 'nullable|integer|min:1',
+            'sets_a' => 'nullable|integer|min:0',
+            'sets_b' => 'nullable|integer|min:0',
+            'games_a' => 'nullable|integer|min:0',
+            'games_b' => 'nullable|integer|min:0',
+            'set_history' => 'nullable|array',
+            'idx_a' => 'nullable|integer|min:0',
+            'idx_b' => 'nullable|integer|min:0',
+            'is_deuce' => 'nullable|boolean',
+            'advantage' => 'nullable|string',
+            'scoring_type' => 'nullable|string',
+            'status' => 'nullable|string|in:in_progress,completed',
+            'winner_team' => 'nullable|string',
+            'client_id' => 'nullable|string',
+            'client_seq' => 'nullable|integer',
+            'event_id' => 'nullable|string',
+            'action' => 'nullable|string',
+            'point_won_by' => 'nullable|string|in:A,B',
+            'base_version' => 'nullable|integer',
         ]);
 
         $round = $request->string('round')->toString();
@@ -429,10 +429,13 @@ class ScoringController extends Controller
         // Guard 1: Jika ronde atau sesi sudah berstatus selesai, tolak pembaruan yang terlambat datang (late in-flight AJAX)
         if (($scores['_meta']['status'] ?? '') === 'finished' || (($scores[$matchKey]['status'] ?? '') === 'completed')) {
             return response()->json([
-                'success' => false,
+                'success' => true,
+                'duplicate' => true,
+                'already_completed' => true,
                 'message' => 'Pertandingan sudah selesai. Pembaruan skor diabaikan.',
                 'saved' => $scores[$matchKey] ?? [],
                 'match_key' => $matchKey,
+                'version' => (int) ($scores[$matchKey]['version'] ?? 0),
             ]);
         }
 
@@ -549,7 +552,7 @@ class ScoringController extends Controller
             }
 
             $isMerged = false;
-            
+
             if ($action === 'batch_events') {
                 $batchEvents = $request->input('events', []);
                 $scorePayload = $currentState;
@@ -557,18 +560,18 @@ class ScoringController extends Controller
                     $evAction = $ev['action'] ?? 'add_point';
                     $evEventId = $ev['event_id'] ?? '';
                     $evTeam = $ev['team'] ?? '';
-                    
-                    if (!empty($evEventId) && isset($processedEvents[$evEventId])) {
+
+                    if (! empty($evEventId) && isset($processedEvents[$evEventId])) {
                         continue;
                     }
-                    
-                    if ($evAction === 'add_point' && !empty($evTeam) && in_array($evTeam, ['A', 'B']) && ($scorePayload['status'] ?? '') !== 'completed') {
+
+                    if ($evAction === 'add_point' && ! empty($evTeam) && in_array($evTeam, ['A', 'B']) && ($scorePayload['status'] ?? '') !== 'completed') {
                         $scorePayload = $this->applyPointDeltaToState($scorePayload, $evTeam, $scoringSystem);
                     } elseif ($evAction === 'completion' || ($ev['status'] ?? '') === 'completed') {
                         $scorePayload = $this->applyCompletionToState($scorePayload, $scoringSystem, $ev['team'] ?? null);
                     }
-                    
-                    if (!empty($evEventId)) {
+
+                    if (! empty($evEventId)) {
                         $processedEvents[$evEventId] = true; // Temporary mark to prevent intra-batch dupes
                     }
                 }
@@ -1390,9 +1393,14 @@ class ScoringController extends Controller
 
     private function isHostForSession(SessionModel $session): bool
     {
-        return Auth::check()
-            && (bool) Auth::user()->is_host
-            && (int) Auth::user()->user_id === (int) $session->host_user_id;
+        if (! Auth::check()) {
+            return false;
+        }
+
+        $user = Auth::user();
+        $isHostRole = (bool) ($user->is_host ?? false) || ($user->role === 'host');
+
+        return $isHostRole && (int) $user->user_id === (int) $session->host_user_id;
     }
 
     private function getGameData($id)
@@ -1703,20 +1711,20 @@ class ScoringController extends Controller
             }
 
             return array_merge($currentState, [
-                'score_a'         => $gamesA,
-                'score_b'         => $gamesB,
-                'games_a'         => $gamesA,
-                'games_b'         => $gamesB,
+                'score_a' => $gamesA,
+                'score_b' => $gamesB,
+                'games_a' => $gamesA,
+                'games_b' => $gamesB,
                 'point_display_a' => (string) $gamesA,
                 'point_display_b' => (string) $gamesB,
-                'idx_a'           => 0,
-                'idx_b'           => 0,
-                'is_deuce'        => false,
-                'advantage'       => null,
-                'sets_a'          => $setsA,
-                'sets_b'          => $setsB,
-                'status'          => $status,
-                'winner_team'     => $winnerTeam,
+                'idx_a' => 0,
+                'idx_b' => 0,
+                'is_deuce' => false,
+                'advantage' => null,
+                'sets_a' => $setsA,
+                'sets_b' => $setsB,
+                'status' => $status,
+                'winner_team' => $winnerTeam,
             ]);
         }
 
@@ -1868,7 +1876,7 @@ class ScoringController extends Controller
     protected function broadcastScoreUpdateRealtime(int $gameId, string $matchKey, array $scorePayload): void
     {
         try {
-            $url = rtrim(config('services.supabase.url', ''), '/') . '/realtime/v1/api/broadcast';
+            $url = rtrim(config('services.supabase.url', ''), '/').'/realtime/v1/api/broadcast';
             $key = config('services.supabase.key');
             if (empty($url) || empty($key)) {
                 return;
@@ -1877,7 +1885,7 @@ class ScoringController extends Controller
             Http::withoutVerifying()
                 ->withHeaders([
                     'apikey' => $key,
-                    'Authorization' => 'Bearer ' . $key,
+                    'Authorization' => 'Bearer '.$key,
                     'Content-Type' => 'application/json',
                 ])
                 ->timeout(2)
@@ -1910,5 +1918,3 @@ class ScoringController extends Controller
         }
     }
 }
-
-

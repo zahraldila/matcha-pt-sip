@@ -834,6 +834,8 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->dateTime('waktu_selesai')->nullable();
                 $table->string('hasil_pertandingan')->nullable();
                 $table->string('winner_team')->nullable();
+                $table->integer('version')->nullable();
+                $table->string('last_event_id')->nullable();
                 $table->timestamps();
             });
         }
@@ -861,6 +863,8 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->integer('score_side_b')->default(0);
                 $table->string('scoring_system')->default('Total of 3');
                 $table->string('status_score')->default('In Progress');
+                $table->integer('version')->nullable();
+                $table->string('last_event_id')->nullable();
                 $table->timestamps();
             });
         }
