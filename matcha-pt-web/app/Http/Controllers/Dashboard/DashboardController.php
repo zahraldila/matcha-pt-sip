@@ -7,6 +7,7 @@ use App\Models\SessionModel;
 use App\Models\Venue;
 use App\Models\Community;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
@@ -40,11 +41,29 @@ class DashboardController extends Controller
 
         $dbSessions = $sessionQuery->take(6)->get();
 
-        $games = $dbSessions->map(function ($s) {
+        $user = Auth::user();
+        $userId = $user?->user_id;
+        $userEmail = $user ? strtolower(trim($user->email ?? '')) : null;
+        $userName = $user ? strtolower(trim($user->nama ?? '')) : null;
+
+        $games = $dbSessions->map(function ($s) use ($userId, $userEmail, $userName) {
             $joinedCount = $s->players->count();
             $quota = (int) ($s->jumlah_pemain ?? 6);
             $slotLeft = max(0, $quota - $joinedCount);
             $status = $slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)";
+            $isJoinedByMe = $s->players->contains(function ($p) use ($userId, $userEmail, $userName) {
+                if ($userId && $p->user_id && $p->user_id == $userId) {
+                    return true;
+                }
+                if ($userEmail && $p->email && strtolower(trim($p->email)) === $userEmail) {
+                    return true;
+                }
+                if ($userName && $p->nama && strtolower(trim($p->nama)) === $userName) {
+                    return true;
+                }
+
+                return false;
+            });
 
             return [
                 'id' => $s->session_id,
@@ -58,6 +77,7 @@ class DashboardController extends Controller
                 'duration' => '2 Jam',
                 'quota' => $quota,
                 'joined_count' => $joinedCount,
+                'is_joined_by_me' => $isJoinedByMe,
                 'status' => $status,
                 'level_recommendation' => 'All Level Welcome',
                 'match_format' => 'Americano / Double',
