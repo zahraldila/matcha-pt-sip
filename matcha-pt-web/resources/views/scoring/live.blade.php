@@ -221,8 +221,12 @@
 
         <!-- Match Info Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 border-b border-slate-200/50 pb-3">
-            <div class="flex items-center gap-2 flex-wrap">
-                <strong class="text-slate-800">{{ $game['venue_name'] }}</strong> &bull; <span class="text-[#063B00] font-bold">{{ $matchData['court_name'] ?? ('Court ' . ($mIdx + 1)) }}</span> &bull; <span class="font-bold text-slate-700">{{ $unitTabLabel }} {{ $activeRoundNum }}</span>
+            <div class="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+                <strong class="min-w-0 max-w-[45%] truncate whitespace-nowrap text-slate-800" title="{{ $game['venue_name'] }}">{{ $game['venue_name'] }}</strong>
+                <span class="shrink-0">&bull;</span>
+                <span class="min-w-0 max-w-[30%] truncate whitespace-nowrap text-[#063B00] font-bold" title="{{ $matchData['court_name'] ?? ('Court ' . ($mIdx + 1)) }}">{{ $matchData['court_name'] ?? ('Court ' . ($mIdx + 1)) }}</span>
+                <span class="shrink-0">&bull;</span>
+                <span class="shrink-0 font-bold text-slate-700">{{ $unitTabLabel }} {{ $activeRoundNum }}</span>
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span>Sync: <strong id="topSyncTimer_{{ $mIdx }}" class="font-black">0.8s</strong></span>

@@ -269,7 +269,7 @@
                         <select
                             id="venueId"
                             onchange="onVenueChanged()"
-                            class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none appearance-none transition-all shadow-2xs"
+                            class="sr-only"
                             required
                         >
                             <option value="" selected disabled>Pilih venue</option>
@@ -280,7 +280,12 @@
                             @endforeach
                         </select>
 
-                        <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                        <button type="button" id="venueDropdownTrigger" onclick="toggleVenueDropdown()"
+                            class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold text-left focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none transition-all shadow-2xs flex items-center justify-between gap-3">
+                            <span id="venueDropdownLabel" class="min-w-0 truncate">Pilih venue</span>
+                            <i id="venueDropdownIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 shrink-0"></i>
+                        </button>
+                        <div id="venueDropdownMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
                     </div>
                 </div>
 
@@ -361,7 +366,7 @@
             <div class="glass-card rounded-2xl p-4 sm:p-5 border border-[#063B00]/20 bg-gradient-to-r from-[#EBF8D8]/70 via-white/80 to-[#A8E63A]/20 shadow-xs flex items-start sm:items-center justify-between gap-3">
                 <div class="space-y-1 min-w-0 flex-1">
                     <h2 class="text-base sm:text-lg font-extrabold text-[#050608] truncate" id="summaryGameName">Padel Weekend Mabar</h2>
-                    <p class="text-xs text-slate-600 font-medium leading-relaxed" id="summaryGameFormat">Americano &bull; 1 Court &bull; 24 Points</p>
+                    <p class="text-xs text-slate-600 font-medium truncate whitespace-nowrap overflow-hidden" id="summaryGameFormat" title="Americano • 1 Court • 24 Points">Americano &bull; 1 Court &bull; 24 Points</p>
                 </div>
                 <span class="shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/30 shadow-2xs">
                     <i class="fa-solid fa-crown text-[9px] text-[#063B00]"></i> Host Mode
@@ -625,6 +630,55 @@
         // Pre-filled with realistic data if Host clicks Add Yourself
     ];
 
+    function renderVenueDropdown() {
+        const venueSelect = document.getElementById('venueId');
+        const menu = document.getElementById('venueDropdownMenu');
+        const label = document.getElementById('venueDropdownLabel');
+        if (!venueSelect || !menu || !label) return;
+
+        menu.innerHTML = '';
+        Array.from(venueSelect.options).forEach(option => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.disabled = option.disabled;
+            item.className = option.disabled
+                ? 'w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-400 cursor-not-allowed'
+                : 'w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-[#EBF8D8] hover:text-[#063B00] transition-colors truncate whitespace-nowrap';
+            item.textContent = option.textContent;
+            item.title = option.textContent;
+            if (!option.disabled) {
+                item.onclick = () => selectVenueOption(option.value);
+            }
+            menu.appendChild(item);
+        });
+
+        const selected = venueSelect.options[venueSelect.selectedIndex];
+        label.textContent = selected?.value ? selected.textContent : (venueSelect.options[0]?.textContent || 'Pilih venue');
+        label.title = label.textContent;
+    }
+
+    function toggleVenueDropdown() {
+        const menu = document.getElementById('venueDropdownMenu');
+        const icon = document.getElementById('venueDropdownIcon');
+        if (!menu) return;
+        const isHidden = menu.classList.toggle('hidden');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-down', isHidden);
+            icon.classList.toggle('fa-chevron-up', !isHidden);
+        }
+    }
+
+    function selectVenueOption(value) {
+        const venueSelect = document.getElementById('venueId');
+        const menu = document.getElementById('venueDropdownMenu');
+        if (!venueSelect) return;
+        venueSelect.value = value;
+        onVenueChanged();
+        renderVenueDropdown();
+        menu?.classList.add('hidden');
+        document.getElementById('venueDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+    }
+
     function filterVenuesBySport() {
         const venueSelect = document.getElementById('venueId');
         const badge = document.getElementById('venueSportBadge');
@@ -653,6 +707,7 @@
             opt.textContent = `Tidak ada venue dengan court ${selectedSport} yang tersedia`;
             venueSelect.appendChild(opt);
             updateNumCourts(0);
+            renderVenueDropdown();
             return;
         }
 
@@ -680,6 +735,7 @@
         // Auto select the first matching venue
         venueSelect.selectedIndex = 1;
         onVenueChanged();
+        renderVenueDropdown();
     }
 
     function onVenueChanged() {
@@ -813,7 +869,10 @@
             const modeBadge = isAmericano ? ` • ${jenisPermainan === 'Single' ? 'Single 1v1' : 'Double 2v2'}` : '';
 
             document.getElementById('summaryGameName').innerText = actName;
-            document.getElementById('summaryGameFormat').innerText = `${selectedGameType}${modeBadge} • ${numCourt} Court • ${cleanVenueName} • ${scoreVal}`;
+            const summaryGameFormat = document.getElementById('summaryGameFormat');
+            const summaryText = `${selectedGameType}${modeBadge} • ${numCourt} Court • ${cleanVenueName} • ${scoreVal}`;
+            summaryGameFormat.innerText = summaryText;
+            summaryGameFormat.title = summaryText;
         }
     }
 

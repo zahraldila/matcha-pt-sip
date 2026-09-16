@@ -33,10 +33,10 @@
                 </h3>
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 min-w-0">
                         <span class="text-slate-500 block mb-0.5">Venue</span>
-                        <strong class="text-slate-900 block truncate">{{ $game['venue_name'] }}</strong>
-                        <span class="text-emerald-700 text-[11px] font-medium">{{ $game['court_name'] }}</span>
+                        <strong class="text-slate-900 block min-w-0 truncate whitespace-nowrap" title="{{ $game['venue_name'] }}">{{ $game['venue_name'] }}</strong>
+                        <span class="text-emerald-700 text-[11px] font-medium block min-w-0 truncate whitespace-nowrap" title="{{ $game['court_name'] }}">{{ $game['court_name'] }}</span>
                     </div>
                     <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
                         <span class="text-slate-500 block mb-0.5">Jadwal</span>

@@ -40,12 +40,22 @@
                 
                 @guest
                     <!-- Guest State: Masuk & Daftar -->
-                    <a href="{{ route('login') }}" class="text-xs font-bold text-slate-700 hover:text-[#063B00] px-3 py-1.5 rounded-xl hover:bg-white/60 transition-colors">
-                        Masuk
-                    </a>
-                    <a href="{{ route('register') }}" class="hidden sm:inline-flex text-xs font-bold text-[#063B00] bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 px-3.5 py-1.5 rounded-xl transition-all shadow-2xs">
-                        Daftar
-                    </a>
+                    @if(request()->routeIs('login'))
+                        <a href="{{ route('register') }}" class="text-xs font-bold text-[#063B00] bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 px-3.5 py-1.5 rounded-xl transition-all shadow-2xs">
+                            Daftar Member
+                        </a>
+                    @elseif(request()->routeIs('register'))
+                        <a href="{{ route('login') }}" class="text-xs font-bold text-[#063B00] bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 px-3.5 py-1.5 rounded-xl transition-all shadow-2xs">
+                            Masuk
+                        </a>
+                    @else
+                        <a href="{{ route('login') }}" class="text-xs font-bold text-slate-700 hover:text-[#063B00] px-3 py-1.5 rounded-xl hover:bg-white/60 transition-colors">
+                            Masuk
+                        </a>
+                        <a href="{{ route('register') }}" class="hidden sm:inline-flex text-xs font-bold text-[#063B00] bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 px-3.5 py-1.5 rounded-xl transition-all shadow-2xs">
+                            Daftar
+                        </a>
+                    @endif
                     <a href="{{ route('player.profile') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]" title="Aktifkan Mode Host di Profil">
                         <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span>Host Game</span>
                     </a>
