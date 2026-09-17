@@ -265,7 +265,7 @@
                         <span class="text-[10px] text-[#063B00] font-semibold" id="venueSportBadge">Sesuai Cabang Olahraga</span>
                     </label>
 
-                    <div class="relative">
+                    <div class="relative z-40">
                         <select
                             id="venueId"
                             onchange="onVenueChanged()"
