@@ -3,14 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Court;
-use App\Models\Drawing;
-use App\Models\GameMatch;
 use App\Models\Player;
 use App\Models\SessionModel;
 use App\Models\Sport;
 use App\Models\User;
 use App\Models\Venue;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;

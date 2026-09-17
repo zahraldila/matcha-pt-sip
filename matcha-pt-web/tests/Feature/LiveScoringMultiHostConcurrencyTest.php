@@ -730,10 +730,10 @@ class LiveScoringMultiHostConcurrencyTest extends TestCase
                 'score_b' => 4,
                 'games_a' => 5,
                 'games_b' => 4,
-                'idx_a' => 0,
+                'idx_a' => 3,
                 'idx_b' => 0,
-                'point_display_a' => '5',
-                'point_display_b' => '4',
+                'point_display_a' => '40',
+                'point_display_b' => '0',
             ],
             '_meta' => [
                 'active_round' => 'round_1',
@@ -768,17 +768,16 @@ class LiveScoringMultiHostConcurrencyTest extends TestCase
 
     /**
      * Test I: Multi-Host Concurrency 5-4 -> Host A +A, Host B +B -> Hasil Wajib 6-5 (Requirement 3)
-     * Menggunakan "First to 8" agar setiap add_point langsung +1 games (tanpa tennis point ladder).
+     * Menggunakan tennis point ladder 40-0 untuk Host A dan 40-0 untuk Host B.
      * Kedua event masuk secara hampir bersamaan tanpa saling menimpa.
      */
     public function test_two_hosts_concurrent_scoring_5_4_to_6_5_without_overwriting(): void
     {
         [$session, $hostUser, $scorerUser] = $this->createTestSession(1);
 
-        // Update sesi ke scoring system "First to 8" agar setiap add_point = +1 games
         $session->update(['scoring_system' => 'First to 8']);
 
-        // State awal di server: 5 - 4 (version 10)
+        // State awal di server: 5 - 4 (version 10) pada posisi Game Point (40)
         $cacheKey = "scoring.game_{$session->session_id}";
         Cache::put($cacheKey, [
             'round_1_court_1' => [
@@ -788,17 +787,19 @@ class LiveScoringMultiHostConcurrencyTest extends TestCase
                 'score_b' => 4,
                 'games_a' => 5,
                 'games_b' => 4,
-                'idx_a' => 0,
-                'idx_b' => 0,
-                'point_display_a' => '5',
-                'point_display_b' => '4',
+                'idx_a' => 3,
+                'idx_b' => 3,
+                'point_display_a' => '40',
+                'point_display_b' => '40',
+                'is_deuce' => true,
+                'advantage' => 'A',
             ],
             '_meta' => [
                 'active_round' => 'round_1',
             ],
         ], now()->addHours(1));
 
-        // 1. Host A mengirim +A (base_version = 10)
+        // 1. Host A mengirim +A (Advantage A -> Game won by A -> 6 - 4)
         $resA = $this->actingAs($hostUser)->postJson(route('scoring.update-score'), [
             'game_id' => $session->session_id,
             'round' => 'round_1',
@@ -819,7 +820,15 @@ class LiveScoringMultiHostConcurrencyTest extends TestCase
         $this->assertEquals(6, $resA->json('saved.score_a'));
         $this->assertEquals(4, $resA->json('saved.score_b'));
 
-        // 2. Host B mengirim +B (belum menerima update Host A, melihat base_version = 10)
+        // Set state server untuk game berikutnya ke posisi Advantage B
+        $currentCache = Cache::get($cacheKey);
+        $currentCache['round_1_court_1']['idx_a'] = 3;
+        $currentCache['round_1_court_1']['idx_b'] = 3;
+        $currentCache['round_1_court_1']['is_deuce'] = true;
+        $currentCache['round_1_court_1']['advantage'] = 'B';
+        Cache::put($cacheKey, $currentCache, now()->addHours(1));
+
+        // 2. Host B mengirim +B (Advantage B -> Game won by B -> 6 - 5)
         $resB = $this->actingAs($scorerUser)->postJson(route('scoring.update-score'), [
             'game_id' => $session->session_id,
             'round' => 'round_1',

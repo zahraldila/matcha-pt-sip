@@ -1097,6 +1097,9 @@
     }
 
     function showCompletedBanner(winner, cIdx) {
+        try {
+            localStorage.removeItem('matcha_queue_' + GAME_ID + '_' + cIdx);
+        } catch(e) {}
         const banner = document.getElementById('matchCompletedBanner_' + cIdx);
         const msg    = document.getElementById('completedMsg_' + cIdx);
         const subMsg = document.getElementById('completedSubMsg_' + cIdx);
