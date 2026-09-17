@@ -165,6 +165,8 @@
                     ? (($mScore['games_b'] ?? $mScore['score_b'] ?? ($mLastSet['score_b'] ?? 0)))
                     : (($mScore['games_b'] ?? $mScore['score_b'] ?? 0));
                 $mWinner = $mScore['winner_team'] ?? null;
+                if ($mWinner === 'A') $mWinner = 'Team A';
+                if ($mWinner === 'B') $mWinner = 'Team B';
                 if ($isDone && !$mWinner) {
                     if ($isSets) {
                         $mWinner = ($mScore['sets_a'] ?? 0) >= ($mScore['sets_b'] ?? 0) ? 'Team A' : 'Team B';
@@ -882,26 +884,26 @@
                                 <div class="p-2 rounded-xl bg-white/5 border border-white/5">
                                     <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Total Poin</p>
                                     <p class="text-2xl font-black text-white mt-0.5" id="stravaPoints">
-                                        {{ $rankedPlayers[0]['points_for'] ?? $playerRecap['total_points'] }}
+                                        {{ isset($rankedPlayers[0]) ? ($rankedPlayers[0]['points_for'] ?? $playerRecap['total_points']) : $playerRecap['total_points'] }}
                                     </p>
                                 </div>
                                 <div class="p-2 rounded-xl bg-[#063B00]/70 border border-[#A8E63A]/40">
                                     <p class="text-[8px] font-bold text-[#A8E63A] uppercase tracking-wider">Win Rate</p>
                                     <p class="text-2xl font-black text-[#A8E63A] mt-0.5" id="stravaWinRate">
-                                        {{ !empty($rankedPlayers[0]['matches']) ? round(($rankedPlayers[0]['wins'] / $rankedPlayers[0]['matches']) * 100) . '%' : $playerRecap['win_rate'] }}
+                                        {{ isset($rankedPlayers[0]) && !empty($rankedPlayers[0]['matches']) ? round(($rankedPlayers[0]['wins'] / $rankedPlayers[0]['matches']) * 100) . '%' : $playerRecap['win_rate'] }}
                                     </p>
                                 </div>
                                 <div class="p-2 rounded-xl bg-white/5 border border-white/5">
                                     <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Match Record</p>
                                     <p class="text-base font-black text-slate-200 mt-0.5" id="stravaRecord">
-                                        {{ $rankedPlayers[0]['wins'] ?? $playerRecap['wins'] }}W - {{ $rankedPlayers[0]['losses'] ?? $playerRecap['losses'] }}L
+                                        {{ isset($rankedPlayers[0]) ? ($rankedPlayers[0]['wins'] ?? $playerRecap['wins']) : $playerRecap['wins'] }}W - {{ isset($rankedPlayers[0]) ? ($rankedPlayers[0]['losses'] ?? $playerRecap['losses']) : $playerRecap['losses'] }}L
                                     </p>
                                 </div>
                                 <div class="p-2 rounded-xl bg-white/5 border border-white/5">
                                     <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Durasi Main</p>
                                     <p class="text-base font-black text-slate-200 mt-0.5" id="stravaCalTime">
                                         @php
-                                            $topPlayerName = $rankedPlayers[0]['name'] ?? null;
+                                            $topPlayerName = isset($rankedPlayers[0]) ? ($rankedPlayers[0]['name'] ?? null) : null;
                                         @endphp
                                         {{ $topPlayerName && isset($storyPlayerStats[$topPlayerName]) ? ($storyPlayerStats[$topPlayerName]['duration_played'] ?? $playerRecap['duration_played']) : $playerRecap['duration_played'] }}
                                     </p>

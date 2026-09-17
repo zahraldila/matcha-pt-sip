@@ -2117,6 +2117,10 @@ class ScoringController extends Controller
     {
         $gamesA = $incomingGamesA !== null ? $incomingGamesA : (int) ($currentState['games_a'] ?? ($currentState['score_a'] ?? 0));
         $gamesB = $incomingGamesB !== null ? $incomingGamesB : (int) ($currentState['games_b'] ?? ($currentState['score_b'] ?? 0));
+        
+        if ($explicitWinner === 'A') $explicitWinner = 'Team A';
+        if ($explicitWinner === 'B') $explicitWinner = 'Team B';
+        
         $winner = $explicitWinner ?: ($gamesA >= $gamesB ? 'Team A' : 'Team B');
         $setsA = ($winner === 'Team A') ? 1 : 0;
         $setsB = ($winner === 'Team B') ? 1 : 0;
