@@ -643,7 +643,9 @@ class ScoringController extends Controller
                     if ($evAction === 'add_point' && ! empty($evTeam) && in_array($evTeam, ['A', 'B']) && ($scorePayload['status'] ?? '') !== 'completed') {
                         $scorePayload = $this->applyPointDeltaToState($scorePayload, $evTeam, $scoringSystem);
                     } elseif ($evAction === 'completion' || ($ev['status'] ?? '') === 'completed') {
-                        $scorePayload = $this->applyCompletionToState($scorePayload, $scoringSystem, $ev['team'] ?? null);
+                        $evGamesA = isset($ev['games_a']) ? (int) $ev['games_a'] : null;
+                        $evGamesB = isset($ev['games_b']) ? (int) $ev['games_b'] : null;
+                        $scorePayload = $this->applyCompletionToState($scorePayload, $scoringSystem, $ev['team'] ?? null, $evGamesA, $evGamesB);
                     }
 
                     if (! empty($evEventId)) {
@@ -655,7 +657,9 @@ class ScoringController extends Controller
                 $scorePayload = $this->applyPointDeltaToState($currentState, $pointWonBy, $scoringSystem);
                 $isMerged = ($baseVersion < $prevVersion);
             } elseif ($isCompletion) {
-                $scorePayload = $this->applyCompletionToState($currentState, $scoringSystem, $request->input('winner_team'));
+                $incGamesA = $request->has('games_a') ? $request->integer('games_a') : null;
+                $incGamesB = $request->has('games_b') ? $request->integer('games_b') : null;
+                $scorePayload = $this->applyCompletionToState($currentState, $scoringSystem, $request->input('winner_team'), $incGamesA, $incGamesB);
             } else {
                 // Fallback snapshot hanya jika action/point_won_by tidak tersedia
                 $scorePayload = [
@@ -2027,10 +2031,10 @@ class ScoringController extends Controller
     /**
      * Tandai state match sebagai completed secara konsisten di server.
      */
-    protected function applyCompletionToState(array $currentState, array $scoringSystem, ?string $explicitWinner = null): array
+    protected function applyCompletionToState(array $currentState, array $scoringSystem, ?string $explicitWinner = null, ?int $incomingGamesA = null, ?int $incomingGamesB = null): array
     {
-        $gamesA = (int) ($currentState['games_a'] ?? ($currentState['score_a'] ?? 0));
-        $gamesB = (int) ($currentState['games_b'] ?? ($currentState['score_b'] ?? 0));
+        $gamesA = $incomingGamesA !== null ? $incomingGamesA : (int) ($currentState['games_a'] ?? ($currentState['score_a'] ?? 0));
+        $gamesB = $incomingGamesB !== null ? $incomingGamesB : (int) ($currentState['games_b'] ?? ($currentState['score_b'] ?? 0));
         $winner = $explicitWinner ?: ($gamesA >= $gamesB ? 'Team A' : 'Team B');
         $setsA = ($winner === 'Team A') ? 1 : 0;
         $setsB = ($winner === 'Team B') ? 1 : 0;
