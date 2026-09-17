@@ -246,28 +246,57 @@ class ScoringService
 
         $effectiveScores = self::getEffectiveScores($game, $sessionScores);
 
-        // Init stats tiap pemain
+        // Check if format is team-based
+        $format = strtolower(trim($game['format'] ?? ''));
+        $isPerTeam = in_array($format, ['team americano', 'team mexicano', 'mixicano']);
+
+        // Init stats
         $stats = [];
-        foreach ($players as $p) {
-            $name = $p['name'];
-            $stats[$name] = [
-                'name' => $name,
-                'avatar' => $p['avatar'] ?? null,
-                'level' => $p['level'] ?? '-',
-                'is_member' => $p['is_member'] ?? false,
-                'matches' => 0,
-                'wins' => 0,
-                'losses' => 0,
-                'sets_won' => 0,
-                'sets_lost' => 0,
-                'games_won' => 0,
-                'games_lost' => 0,
-                'points_for' => 0,   // Sets won (Total of Sets) atau Games won (First to Games)
-                'points_against' => 0,
-                'point_diff' => 0,
-                'game_diff' => 0,
-                'set_diff' => 0,
-            ];
+        if ($isPerTeam && !empty($game['drawing']['teams'])) {
+            foreach ($game['drawing']['teams'] as $team) {
+                $name = $team['display_name'] ?? $team['name'] ?? 'Tim';
+                $stats[$name] = [
+                    'name' => $name,
+                    'team_identity' => $team['name'] ?? null, // e.g. "Tim A"
+                    'avatar' => null,
+                    'level' => '-',
+                    'is_member' => false,
+                    'matches' => 0,
+                    'wins' => 0,
+                    'losses' => 0,
+                    'sets_won' => 0,
+                    'sets_lost' => 0,
+                    'games_won' => 0,
+                    'games_lost' => 0,
+                    'points_for' => 0,
+                    'points_against' => 0,
+                    'point_diff' => 0,
+                    'game_diff' => 0,
+                    'set_diff' => 0,
+                ];
+            }
+        } else {
+            foreach ($players as $p) {
+                $name = $p['name'];
+                $stats[$name] = [
+                    'name' => $name,
+                    'avatar' => $p['avatar'] ?? null,
+                    'level' => $p['level'] ?? '-',
+                    'is_member' => $p['is_member'] ?? false,
+                    'matches' => 0,
+                    'wins' => 0,
+                    'losses' => 0,
+                    'sets_won' => 0,
+                    'sets_lost' => 0,
+                    'games_won' => 0,
+                    'games_lost' => 0,
+                    'points_for' => 0,   // Sets won (Total of Sets) atau Games won (First to Games)
+                    'points_against' => 0,
+                    'point_diff' => 0,
+                    'game_diff' => 0,
+                    'set_diff' => 0,
+                ];
+            }
         }
 
         if (empty($drawing)) {
@@ -360,47 +389,83 @@ class ScoringService
                 $teamA = $m['team_a_names'] ?? ($m['teamA_names'] ?? ($m['team_a'] ?? []));
                 $teamB = $m['team_b_names'] ?? ($m['teamB_names'] ?? ($m['team_b'] ?? []));
 
-                foreach ($teamA as $playerItem) {
-                    $playerName = is_array($playerItem) ? ($playerItem['name'] ?? $playerItem['nama'] ?? '') : (is_object($playerItem) ? ($playerItem->name ?? $playerItem->nama ?? '') : (string) $playerItem);
-                    $cleanName = self::cleanPlayerName($playerName);
-                    if (! isset($stats[$cleanName])) {
-                        continue;
+                if ($isPerTeam) {
+                    $teamAName = $m['team_a']['display_name'] ?? $m['team_a']['name'] ?? '';
+                    if (isset($stats[$teamAName])) {
+                        $stats[$teamAName]['matches']++;
+                        $stats[$teamAName]['sets_won'] += $setsA;
+                        $stats[$teamAName]['sets_lost'] += $setsB;
+                        $stats[$teamAName]['games_won'] += $gamesA;
+                        $stats[$teamAName]['games_lost'] += $gamesB;
+                        $stats[$teamAName]['points_for'] += $ptsForA;
+                        $stats[$teamAName]['points_against'] += $ptsForB;
+
+                        if ($winnerSide === 'A') {
+                            $stats[$teamAName]['wins']++;
+                        } elseif ($winnerSide === 'B') {
+                            $stats[$teamAName]['losses']++;
+                        }
                     }
 
-                    $stats[$cleanName]['matches']++;
-                    $stats[$cleanName]['sets_won'] += $setsA;
-                    $stats[$cleanName]['sets_lost'] += $setsB;
-                    $stats[$cleanName]['games_won'] += $gamesA;
-                    $stats[$cleanName]['games_lost'] += $gamesB;
-                    $stats[$cleanName]['points_for'] += $ptsForA;
-                    $stats[$cleanName]['points_against'] += $ptsForB;
+                    $teamBName = $m['team_b']['display_name'] ?? $m['team_b']['name'] ?? '';
+                    if (isset($stats[$teamBName])) {
+                        $stats[$teamBName]['matches']++;
+                        $stats[$teamBName]['sets_won'] += $setsB;
+                        $stats[$teamBName]['sets_lost'] += $setsA;
+                        $stats[$teamBName]['games_won'] += $gamesB;
+                        $stats[$teamBName]['games_lost'] += $gamesA;
+                        $stats[$teamBName]['points_for'] += $ptsForB;
+                        $stats[$teamBName]['points_against'] += $ptsForA;
 
-                    if ($winnerSide === 'A') {
-                        $stats[$cleanName]['wins']++;
-                    } elseif ($winnerSide === 'B') {
-                        $stats[$cleanName]['losses']++;
+                        if ($winnerSide === 'B') {
+                            $stats[$teamBName]['wins']++;
+                        } elseif ($winnerSide === 'A') {
+                            $stats[$teamBName]['losses']++;
+                        }
                     }
-                }
+                } else {
+                    foreach ($teamA as $playerItem) {
+                        $playerName = is_array($playerItem) ? ($playerItem['name'] ?? $playerItem['nama'] ?? '') : (is_object($playerItem) ? ($playerItem->name ?? $playerItem->nama ?? '') : (string) $playerItem);
+                        $cleanName = self::cleanPlayerName($playerName);
+                        if (! isset($stats[$cleanName])) {
+                            continue;
+                        }
 
-                foreach ($teamB as $playerItem) {
-                    $playerName = is_array($playerItem) ? ($playerItem['name'] ?? $playerItem['nama'] ?? '') : (is_object($playerItem) ? ($playerItem->name ?? $playerItem->nama ?? '') : (string) $playerItem);
-                    $cleanName = self::cleanPlayerName($playerName);
-                    if (! isset($stats[$cleanName])) {
-                        continue;
+                        $stats[$cleanName]['matches']++;
+                        $stats[$cleanName]['sets_won'] += $setsA;
+                        $stats[$cleanName]['sets_lost'] += $setsB;
+                        $stats[$cleanName]['games_won'] += $gamesA;
+                        $stats[$cleanName]['games_lost'] += $gamesB;
+                        $stats[$cleanName]['points_for'] += $ptsForA;
+                        $stats[$cleanName]['points_against'] += $ptsForB;
+
+                        if ($winnerSide === 'A') {
+                            $stats[$cleanName]['wins']++;
+                        } elseif ($winnerSide === 'B') {
+                            $stats[$cleanName]['losses']++;
+                        }
                     }
 
-                    $stats[$cleanName]['matches']++;
-                    $stats[$cleanName]['sets_won'] += $setsB;
-                    $stats[$cleanName]['sets_lost'] += $setsA;
-                    $stats[$cleanName]['games_won'] += $gamesB;
-                    $stats[$cleanName]['games_lost'] += $gamesA;
-                    $stats[$cleanName]['points_for'] += $ptsForB;
-                    $stats[$cleanName]['points_against'] += $ptsForA;
+                    foreach ($teamB as $playerItem) {
+                        $playerName = is_array($playerItem) ? ($playerItem['name'] ?? $playerItem['nama'] ?? '') : (is_object($playerItem) ? ($playerItem->name ?? $playerItem->nama ?? '') : (string) $playerItem);
+                        $cleanName = self::cleanPlayerName($playerName);
+                        if (! isset($stats[$cleanName])) {
+                            continue;
+                        }
 
-                    if ($winnerSide === 'B') {
-                        $stats[$cleanName]['wins']++;
-                    } elseif ($winnerSide === 'A') {
-                        $stats[$cleanName]['losses']++;
+                        $stats[$cleanName]['matches']++;
+                        $stats[$cleanName]['sets_won'] += $setsB;
+                        $stats[$cleanName]['sets_lost'] += $setsA;
+                        $stats[$cleanName]['games_won'] += $gamesB;
+                        $stats[$cleanName]['games_lost'] += $gamesA;
+                        $stats[$cleanName]['points_for'] += $ptsForB;
+                        $stats[$cleanName]['points_against'] += $ptsForA;
+
+                        if ($winnerSide === 'B') {
+                            $stats[$cleanName]['wins']++;
+                        } elseif ($winnerSide === 'A') {
+                            $stats[$cleanName]['losses']++;
+                        }
                     }
                 }
             }

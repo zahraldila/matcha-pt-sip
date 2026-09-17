@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Game\GameController;
 use App\Models\SessionModel;
 use App\Models\Venue;
 use App\Models\Community;
@@ -76,8 +77,8 @@ class DashboardController extends Controller
                 'venue_name' => $s->venue->nama_venue ?? 'Arena Olahraga',
                 'court_name' => $s->courts->first()->nama_court ?? 'Court 1',
                 'date' => $s->datetime ? $s->datetime->format('Y-m-d') : date('Y-m-d'),
-                'time' => $s->waktu_session ?? '18:30 WIB',
-                'duration' => '2 Jam',
+                'time' => GameController::resolveSessionDisplayTime($s),
+                'duration' => GameController::resolveSessionDuration($s),
                 'quota' => $quota,
                 'joined_count' => $joinedCount,
                 'is_joined_by_me' => $isJoinedByMe,

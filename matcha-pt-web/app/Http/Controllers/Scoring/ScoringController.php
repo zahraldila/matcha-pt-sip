@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Scoring;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Game\GameController;
 use App\Models\Drawing;
 use App\Models\GameMatch;
 use App\Models\Player;
@@ -1628,8 +1629,8 @@ class ScoringController extends Controller
                 'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
                 'court_name' => $dbSession->courts->first()->nama_court ?? 'Court 1',
                 'date' => $dbSession->datetime ? $dbSession->datetime->format('Y-m-d') : date('Y-m-d'),
-                'time' => $dbSession->waktu_session ?? '18:30 WIB',
-                'duration' => '2 Jam',
+                'time' => GameController::resolveSessionDisplayTime($dbSession),
+                'duration' => GameController::resolveSessionDuration($dbSession),
                 'quota' => (int) ($dbSession->jumlah_pemain ?? count($participants)),
                 'joined_count' => count($participants),
                 'status' => 'In Progress',
