@@ -157,6 +157,13 @@
                 }
                 $isDone = ($mScore['status'] ?? '') === 'completed';
                 $mSetsHist = $mScore['set_history'] ?? [];
+                $mLastSet = !empty($mSetsHist) ? $mSetsHist[array_key_last($mSetsHist)] : [];
+                $mPrimaryScoreA = $isSets
+                    ? (($mScore['games_a'] ?? $mScore['score_a'] ?? ($mLastSet['score_a'] ?? 0)))
+                    : (($mScore['games_a'] ?? $mScore['score_a'] ?? 0));
+                $mPrimaryScoreB = $isSets
+                    ? (($mScore['games_b'] ?? $mScore['score_b'] ?? ($mLastSet['score_b'] ?? 0)))
+                    : (($mScore['games_b'] ?? $mScore['score_b'] ?? 0));
                 $mWinner = $mScore['winner_team'] ?? null;
                 if ($isDone && !$mWinner) {
                     if ($isSets) {
@@ -199,7 +206,7 @@
                         </div>
                         <span class="font-black text-sm {{ $isDone && $mWinner === 'Team A' ? 'text-[#063B00]' : 'text-slate-600' }} shrink-0">
                             @if($isDone)
-                                {{ $isSets ? ($mScore['sets_a'] ?? 0) : ($mScore['games_a'] ?? $mScore['score_a'] ?? 0) }}
+                                {{ $mPrimaryScoreA }}
                             @else
                                 -
                             @endif
@@ -217,7 +224,7 @@
                         </div>
                         <span class="font-black text-sm {{ $isDone && $mWinner === 'Team B' ? 'text-[#063B00]' : 'text-slate-600' }} shrink-0">
                             @if($isDone)
-                                {{ $isSets ? ($mScore['sets_b'] ?? 0) : ($mScore['games_b'] ?? $mScore['score_b'] ?? 0) }}
+                                {{ $mPrimaryScoreB }}
                             @else
                                 -
                             @endif
@@ -798,8 +805,9 @@
                                 $mWinner = $mScore['winner_team'] ?? 'Team A';
                                 $teamA = $rData['team_a'] ?? ['Team A'];
                                 $teamB = $rData['team_b'] ?? ['Team B'];
-                                $scoreStrA = $isSets ? ($mScore['sets_a'] ?? 0) : ($mScore['games_a'] ?? $mScore['score_a'] ?? 0);
-                                $scoreStrB = $isSets ? ($mScore['sets_b'] ?? 0) : ($mScore['games_b'] ?? $mScore['score_b'] ?? 0);
+                                $mPreviewSet = !empty($mScore['set_history'] ?? []) ? $mScore['set_history'][array_key_last($mScore['set_history'])] : [];
+                                $scoreStrA = $isSets ? (($mScore['games_a'] ?? $mScore['score_a'] ?? ($mPreviewSet['score_a'] ?? 0))) : (($mScore['games_a'] ?? $mScore['score_a'] ?? 0));
+                                $scoreStrB = $isSets ? (($mScore['games_b'] ?? $mScore['score_b'] ?? ($mPreviewSet['score_b'] ?? 0))) : (($mScore['games_b'] ?? $mScore['score_b'] ?? 0));
                             @endphp
                             <div class="bg-black/65 backdrop-blur-xl border border-white/15 rounded-xl p-2 sm:p-2.5 shadow-md space-y-1.5">
                                 <div class="flex items-center justify-between text-[9px] font-black text-[#A8E63A]">
