@@ -1044,18 +1044,15 @@
     const KUDOS_TOGGLE_URL = '{{ route('scoring.kudos.toggle') }}';
 
     // Inisialisasi awal kudos yang sudah tersimpan di database untuk card preview
-    @if(!empty($userGivenKudos))
-        @foreach($userGivenKudos as $kKey => $v)
-            @php
-                $parts = explode(':', $kKey, 2);
-                $pName = $parts[0] ?? '';
-                $pBadge = $parts[1] ?? '';
-            @endphp
-            @if($pName && $pBadge)
-                selectedStoryKudos.set('{{ addslashes($kKey) }}', '{{ addslashes($pBadge) }}');
-            @endif
-        @endforeach
-    @endif
+    const initialUserGivenKudos = @json($userGivenKudos ?? []);
+    if (initialUserGivenKudos && typeof initialUserGivenKudos === 'object') {
+        Object.keys(initialUserGivenKudos).forEach(kKey => {
+            const parts = kKey.split(':');
+            if (parts.length >= 2) {
+                selectedStoryKudos.set(kKey, parts.slice(1).join(':'));
+            }
+        });
+    }
 
     function renderStoryKudos() {
         const container = document.getElementById('storyKudosBadges');
