@@ -73,7 +73,7 @@ class TeamAmericanoService
         // 4. Pembentukan Fixed Teams
         $teams = [];
         $teamIndex = 1;
-        $teamLabels = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 'Iota', 'Kappa'];
+        $teamLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 
         for ($i = 0; $i < $totalPlayers; $i += 2) {
             $p1 = $normalizedPlayers[$i];
@@ -84,11 +84,11 @@ class TeamAmericanoService
             $teams[] = [
                 'id' => $teamIndex,
                 'code' => "T{$teamIndex}",
-                'name' => "Team {$label}",
-                'short_name' => "Team {$teamIndex}",
+                'name' => "Tim {$label}",
+                'short_name' => "Tim {$teamIndex}",
                 'players' => [$p1, $p2],
                 'player_names' => [$p1['name'], $p2['name']],
-                'display_name' => "Team {$label} [{$p1['name']} & {$p2['name']}]",
+                'display_name' => "Tim {$label} [{$p1['name']} & {$p2['name']}]",
             ];
             $teamIndex++;
         }

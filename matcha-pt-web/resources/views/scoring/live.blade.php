@@ -165,12 +165,60 @@
         }
         $allCourtsCompleted = empty($uncompletedCourtNames);
     @endphp
-    <div class="grid grid-cols-1 {{ $courtCount > 1 ? 'lg:grid-cols-2' : '' }} gap-6">
+    @if($courtCount > 1)
+    <!-- Court Tab Selector (Ketika Sesi Menggunakan > 1 Court) -->
+    <div class="glass-card rounded-2xl p-4 border border-white/90 shadow-2xs space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/50 pb-2.5">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <i class="fa-solid fa-table-tennis-paddle-ball text-[#063B00]"></i> Pilih Lapangan (Court):
+                </span>
+                <span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                    {{ $courtCount }} Lapangan
+                </span>
+            </div>
+            <span class="text-[11px] text-slate-500 font-semibold">
+                Klik tab lapangan di bawah untuk berganti tampilan scoring
+            </span>
+        </div>
+
+        <!-- Court Tab Buttons -->
+        <div class="flex flex-wrap items-center gap-2.5" id="courtTabsContainer">
+            @foreach($matchContext['matches'] ?? [] as $tabIdx => $tabMatch)
+                @php
+                    $tabKey = "{$activeRound}_court_" . ($tabIdx + 1);
+                    $tabScore = $savedScores[$tabKey] ?? [];
+                    $isTabDone = (($tabScore['status'] ?? '') === 'completed');
+                    $tabGamesA = $tabScore['games_a'] ?? ($tabScore['score_a'] ?? 0);
+                    $tabGamesB = $tabScore['games_b'] ?? ($tabScore['score_b'] ?? 0);
+                    $isCurrentTabActive = ($tabIdx === (int) request('court', 0));
+                    $cTabName = $tabMatch['court_name'] ?? ('Court ' . ($tabIdx + 1));
+                @endphp
+                <button type="button" onclick="switchActiveCourtTab({{ $tabIdx }})" id="btnCourtTab_{{ $tabIdx }}"
+                    class="court-tab-btn px-4 py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 shadow-2xs cursor-pointer hover:scale-[1.01] active:scale-95
+                           {{ $isCurrentTabActive ? 'bg-[#063B00] text-white border-[#063B00] shadow-xs ring-2 ring-[#063B00]/20' : 'bg-white text-slate-700 border-slate-200 hover:border-[#063B00]/50 hover:bg-slate-50' }}">
+                    <i class="fa-solid fa-table-tennis-paddle-ball text-[10px] {{ $isCurrentTabActive ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i>
+                    <span>{{ $cTabName }}</span>
+                    <span id="tabMiniBadge_{{ $tabIdx }}" class="text-[10px] px-2 py-0.5 rounded-md font-extrabold {{ $isTabDone ? ($isCurrentTabActive ? 'bg-white/20 text-[#A8E63A]' : 'bg-emerald-50 text-emerald-700 border border-emerald-200') : ($isCurrentTabActive ? 'bg-black/20 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200') }}">
+                        @if($isTabDone)
+                            ✓ Selesai ({{ $tabGamesA }} - {{ $tabGamesB }})
+                        @else
+                            {{ $tabGamesA }} - {{ $tabGamesB }}
+                        @endif
+                    </span>
+                </button>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
+    <div id="courtBoardsWrapper" class="space-y-6">
         @foreach($matchContext['matches'] ?? [] as $mIdx => $matchData)
             @php
                 $mKey = ($courtCount > 1) ? "{$activeRound}_court_" . ($mIdx + 1) : $activeRound;
                 $currentScore = $savedScores[$mKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
                 $isMCompleted = (($currentScore['status'] ?? '') === 'completed');
+                $isCourtVisible = ($courtCount <= 1 || $mIdx === (int) request('court', 0));
 
                 $tAPlayers = !empty($matchData['team_a_names']) 
                     ? $matchData['team_a_names'] 
@@ -198,17 +246,17 @@
                     ?? ($matchData['team_a']['display_name'] 
                     ?? ($matchData['team_a']['name'] 
                     ?? ($matchData['teamA_display'] 
-                    ?? (count($matchContext['matches'] ?? []) > 1 ? "Court " . ($mIdx + 1) . " - Team A" : "TEAM A"))));
+                    ?? (count($matchContext['matches'] ?? []) > 1 ? "Court " . ($mIdx + 1) . " - Tim A" : "TIM A"))));
 
                 $tBName = $matchData['team_b_name'] 
                     ?? ($matchData['team_b']['display_name'] 
                     ?? ($matchData['team_b']['name'] 
                     ?? ($matchData['teamB_display'] 
-                    ?? (count($matchContext['matches'] ?? []) > 1 ? "Court " . ($mIdx + 1) . " - Team B" : "TEAM B"))));
+                    ?? (count($matchContext['matches'] ?? []) > 1 ? "Court " . ($mIdx + 1) . " - Tim B" : "TIM B"))));
             @endphp
         <!-- Live Scoreboard Display (Subtle Glass) -->
 
-    <div class="glass-card rounded-3xl p-6 sm:p-8 space-y-6 border border-white/90 shadow-sm relative">
+        <div id="courtBoardContainer_{{ $mIdx }}" class="court-board-pane {{ $isCourtVisible ? '' : 'hidden' }} glass-card rounded-3xl p-6 sm:p-8 space-y-6 border border-white/90 shadow-sm relative">
         
         <!-- Locked Badge Notification if this set match is completed -->
         <div id="lockedBadge_{{ $mIdx }}" class="{{ $isMCompleted ? '' : 'hidden' }} p-3 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs font-bold flex items-center justify-between shadow-2xs">
@@ -255,14 +303,14 @@
 
             <div class="flex items-center justify-center gap-6 sm:gap-10 py-1">
                 <div class="text-center">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Games Team A</span>
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Games Tim A</span>
                     <span id="displayGameScoreA_{{ $mIdx }}" class="text-3xl sm:text-4xl font-black text-white">
                         {{ $currentScore['games_a'] ?? ($currentScore['score_a'] ?? 0) }}
                     </span>
                 </div>
                 <div class="text-slate-500 font-black text-2xl sm:text-3xl">&mdash;</div>
                 <div class="text-center">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Games Team B</span>
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Games Tim B</span>
                     <span id="displayGameScoreB_{{ $mIdx }}" class="text-3xl sm:text-4xl font-black text-white">
                         {{ $currentScore['games_b'] ?? ($currentScore['score_b'] ?? 0) }}
                     </span>
@@ -322,7 +370,7 @@
                         </button>
                     @else
                         <button id="btnAddA_{{ $mIdx }}" onclick="addPoint('A', {{ $mIdx }})" class="w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
-                            <i class="fa-solid fa-plus text-xs text-[#A8E63A]"></i> Tambah Poin Team A
+                            <i class="fa-solid fa-plus text-xs text-[#A8E63A]"></i> Tambah Poin Tim A
                         </button>
                     @endif
                 @else
@@ -372,7 +420,7 @@
                         </button>
                     @else
                         <button id="btnAddB_{{ $mIdx }}" onclick="addPoint('B', {{ $mIdx }})" class="w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
-                            <i class="fa-solid fa-plus text-xs text-[#A8E63A]"></i> Tambah Poin Team B
+                            <i class="fa-solid fa-plus text-xs text-[#A8E63A]"></i> Tambah Poin Tim B
                         </button>
                     @endif
                 @else
@@ -657,6 +705,51 @@
         }, 500);
     }
 
+    // ── Court Tab Switching ──────────────────────────────────────────────────
+    function switchActiveCourtTab(courtIdx) {
+        // 1. Update tab button styles
+        document.querySelectorAll('.court-tab-btn').forEach((btn, idx) => {
+            const miniBadge = document.getElementById(`tabMiniBadge_${idx}`);
+            const isDone = miniBadge && miniBadge.textContent.includes('Selesai');
+            const icon = btn.querySelector('i');
+            if (idx === courtIdx) {
+                btn.className = 'court-tab-btn px-4 py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 shadow-xs ring-2 ring-[#063B00]/20 bg-[#063B00] text-white border-[#063B00] cursor-pointer hover:scale-[1.01] active:scale-95';
+                if (icon) icon.className = 'fa-solid fa-table-tennis-paddle-ball text-[10px] text-[#A8E63A]';
+                if (miniBadge) {
+                    miniBadge.className = `text-[10px] px-2 py-0.5 rounded-md font-extrabold ${isDone ? 'bg-white/20 text-[#A8E63A]' : 'bg-black/20 text-white'}`;
+                }
+            } else {
+                btn.className = 'court-tab-btn px-4 py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 shadow-2xs bg-white text-slate-700 border-slate-200 hover:border-[#063B00]/50 hover:bg-slate-50 cursor-pointer hover:scale-[1.01] active:scale-95';
+                if (icon) icon.className = 'fa-solid fa-table-tennis-paddle-ball text-[10px] text-slate-400';
+                if (miniBadge) {
+                    miniBadge.className = `text-[10px] px-2 py-0.5 rounded-md font-extrabold ${isDone ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200'}`;
+                }
+            }
+        });
+
+        // 2. Show selected board container, hide others
+        document.querySelectorAll('.court-board-pane').forEach((pane, idx) => {
+            if (idx === courtIdx) {
+                pane.classList.remove('hidden');
+            } else {
+                pane.classList.add('hidden');
+            }
+        });
+
+        // 3. Update hidden input on nextRound form
+        const courtInput = document.querySelector('form#globalNextRoundForm input[name="court"]');
+        if (courtInput) {
+            courtInput.value = courtIdx;
+        }
+
+        // 4. Update browser URL search param without full reload
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('court', courtIdx);
+            window.history.replaceState({}, '', url.toString());
+        } catch(e) {}
+    }
+
     // ── Point Display Resolution ─────────────────────────────────────────────
     function getPointDisplays(cIdx) {
         let st = courtsState[cIdx];
@@ -675,7 +768,7 @@
     function addPoint(team, cIdx) {
         let st = courtsState[cIdx];
         if (st.matchDone) {
-            showToast('Skor Set ini sudah selesai dan terkunci.');
+            showToast('Skor pertandingan ini sudah selesai dan terkunci.');
             return;
         }
         if (st.isGameSyncing) {
@@ -699,7 +792,7 @@
         const baseVersion = st.serverVersion || 0;
         const eventId = 'evt_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
 
-        // 1. Mutasi state lokal terlebih dahulu agar snapshot antrean akurat
+        // 1. Mutasi state lokal terlebih dahulu (Tennis point ladder 0 -> 15 -> 30 -> 40 -> Game)
         if (team === 'A') {
             handlePointWonByA(cIdx, clientSeq, tClick, baseVersion, eventId);
         } else {
@@ -726,7 +819,7 @@
                 showToast('Kembali ke Deuce (40 - 40)!');
             } else {
                 st.advantage = 'A';
-                showToast('Advantage Team A!');
+                showToast('Advantage Tim A!');
             }
         } else {
             if (st.idxA < 3) {
@@ -752,7 +845,7 @@
                 showToast('Kembali ke Deuce (40 - 40)!');
             } else {
                 st.advantage = 'B';
-                showToast('Advantage Team B!');
+                showToast('Advantage Tim B!');
             }
         } else {
             if (st.idxB < 3) {
@@ -782,7 +875,8 @@
 
         if (!st.matchDone) {
             st.isGameSyncing = true;
-            showToast(`🎉 Game Won by Team ${team}! Menyinkronkan data...`);
+            const displayTeam = team === 'A' ? 'Tim A' : 'Tim B';
+            showToast(`🎉 Game Won by ${displayTeam}! Menyinkronkan data...`);
             // Safety timeout agar lock tidak pernah macet jika offline
             setTimeout(() => {
                 if (st.isGameSyncing && !st.matchDone) {
@@ -791,14 +885,14 @@
                 }
             }, 1200);
         } else {
-            showToast(`🎉 Set Won by Team ${team}!`);
+            const displayTeam = team === 'A' ? 'Tim A' : 'Tim B';
+            showToast(`🎉 Set Won by ${displayTeam}!`);
         }
     }
 
     function checkSetWinner(cIdx, clientSeq = null, tClick = null, baseVersion = 0, teamWon = null, eventId = null) {
         let st = courtsState[cIdx];
         let setWon = null;
-        
         if (!IS_SETS) {
             if (TARGET_GAMES > 0 && st.gamesA >= TARGET_GAMES) {
                 setWon = 'Team A';
@@ -886,9 +980,17 @@
         if (dispB) dispB.innerText = displays.b;
         if (gameDispA) gameDispA.innerText = st.gamesA;
         if (gameDispB) gameDispB.innerText = st.gamesB;
-        if (curBadge) curBadge.innerText = `Game Score: ${st.gamesA} — ${st.gamesB}`;
-        if (subA) subA.innerText = `Games Won: ${st.gamesA} Game`;
-        if (subB) subB.innerText = `Games Won: ${st.gamesB} Game`;
+        if (curBadge) {
+            curBadge.innerText = IS_SETS 
+                ? `Game Score: ${st.gamesA} — ${st.gamesB}` 
+                : `Target: ${TARGET_GAMES} Games (Score: ${st.gamesA} — ${st.gamesB})`;
+        }
+        if (subA) {
+            subA.innerText = `Games Won: ${st.gamesA} Game`;
+        }
+        if (subB) {
+            subB.innerText = `Games Won: ${st.gamesB} Game`;
+        }
 
         if (setLbl) {
             setLbl.innerHTML = `Status: <strong>${st.matchDone ? (UNIT_TAB_LABEL + ' Selesai & Terkunci') : 'Sedang Berlangsung'}</strong>`;
@@ -896,7 +998,7 @@
 
         if (notice) {
             if (st.matchDone) {
-                notice.innerHTML = `🔒 <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Selesai & Terkunci</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB}</strong> (${st.winnerTeam || 'Selesai'})`;
+                notice.innerHTML = `🔒 <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Selesai & Terkunci</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB} Games</strong> (${st.winnerTeam || 'Selesai'})`;
             } else if (st.isDeuce) {
                 if (st.advantage === 'A') {
                     notice.innerHTML = '<strong class="text-[#063B00]">ADVANTAGE TEAM A</strong> &bull; Butuh 1 poin lagi untuk memenangkan game';
@@ -948,12 +1050,12 @@
             if (bA) {
                 bA.disabled = true;
                 bA.className = 'w-full py-3.5 rounded-xl bg-amber-500/20 text-amber-900 font-bold text-sm border border-amber-300 cursor-wait flex items-center justify-center gap-2 transition-all';
-                bA.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs text-amber-700"></i> Menyinkronkan Game ${st.gamesA + st.gamesB}...`;
+                bA.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs text-amber-700"></i> Menyinkronkan ${IS_SETS ? 'Game ' + (st.gamesA + st.gamesB) : 'Poin'}...`;
             }
             if (bB) {
                 bB.disabled = true;
                 bB.className = 'w-full py-3.5 rounded-xl bg-amber-500/20 text-amber-900 font-bold text-sm border border-amber-300 cursor-wait flex items-center justify-center gap-2 transition-all';
-                bB.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs text-amber-700"></i> Menyinkronkan Game ${st.gamesA + st.gamesB}...`;
+                bB.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs text-amber-700"></i> Menyinkronkan ${IS_SETS ? 'Game ' + (st.gamesA + st.gamesB) : 'Poin'}...`;
             }
         } else {
             if (lockedBadge) {
@@ -978,6 +1080,19 @@
             }
         }
 
+        // Update Court Tab Mini Badge if exists
+        const tabMiniBadge = document.getElementById('tabMiniBadge_' + cIdx);
+        if (tabMiniBadge) {
+            const isTabActive = !document.getElementById('courtBoardContainer_' + cIdx)?.classList.contains('hidden');
+            if (st.matchDone) {
+                tabMiniBadge.innerText = `✓ Selesai (${st.gamesA} - ${st.gamesB})`;
+                tabMiniBadge.className = `text-[10px] px-2 py-0.5 rounded-md font-extrabold ${isTabActive ? 'bg-white/20 text-[#A8E63A]' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`;
+            } else {
+                tabMiniBadge.innerText = `${st.gamesA} - ${st.gamesB}`;
+                tabMiniBadge.className = `text-[10px] px-2 py-0.5 rounded-md font-extrabold ${isTabActive ? 'bg-black/20 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200'}`;
+            }
+        }
+
         syncRoundCompletionStatus();
     }
 
@@ -987,9 +1102,10 @@
         const subMsg = document.getElementById('completedSubMsg_' + cIdx);
         let st = courtsState[cIdx];
         const courtLabel = st.courtName || ('Court ' + st.courtNum);
+        const scoreUnit = IS_SETS ? 'Games' : 'Poin';
 
         if (msg) msg.textContent = `🏆 ${courtLabel} telah selesai pada ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM}!`;
-        if (subMsg) subMsg.innerHTML = `Skor Akhir: <strong>${st.gamesA} &mdash; ${st.gamesB} Games</strong> (${winner}) &bull; Poin telah dicatat ke klasemen.`;
+        if (subMsg) subMsg.innerHTML = `Skor Akhir: <strong>${st.gamesA} &mdash; ${st.gamesB} ${scoreUnit}</strong> (${winner}) &bull; Poin telah dicatat ke klasemen.`;
         if (banner) banner.classList.remove('hidden');
 
         const bA = document.getElementById('btnAddA_' + cIdx);
@@ -1033,6 +1149,22 @@
         const unfinishedCourts = courtKeys
             .filter(k => !courtsState[k].matchDone)
             .map(k => courtsState[k].courtName || ('Court ' + courtsState[k].courtNum));
+
+        // Update all Court Tab Mini Badges
+        courtKeys.forEach(k => {
+            const tabMiniBadge = document.getElementById('tabMiniBadge_' + k);
+            if (tabMiniBadge) {
+                const isTabActive = !document.getElementById('courtBoardContainer_' + k)?.classList.contains('hidden');
+                const stK = courtsState[k];
+                if (stK.matchDone) {
+                    tabMiniBadge.innerText = `✓ Selesai (${stK.gamesA} - ${stK.gamesB})`;
+                    tabMiniBadge.className = `text-[10px] px-2 py-0.5 rounded-md font-extrabold ${isTabActive ? 'bg-white/20 text-[#A8E63A]' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`;
+                } else {
+                    tabMiniBadge.innerText = `${stK.gamesA} - ${stK.gamesB}`;
+                    tabMiniBadge.className = `text-[10px] px-2 py-0.5 rounded-md font-extrabold ${isTabActive ? 'bg-black/20 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200'}`;
+                }
+            }
+        });
 
         // Update Global Session Control Bar
         const globalTitle = document.getElementById('globalRoundStatusTitle');
