@@ -146,32 +146,56 @@ class ScoringService
                     $eGamesB = (int) ($effective[$roundKey]['games_b'] ?? 0);
                     $eHist = $effective[$roundKey]['set_history'] ?? [];
 
-                    if (empty($eHist)) {
-                        if ($eGamesA > 0 || $eGamesB > 0) {
-                            $eHist = [
-                                ['set' => 1, 'score_a' => $eGamesA, 'score_b' => $eGamesB],
-                            ];
-                            if ($eSetsA === 0 && $eSetsB === 0) {
-                                $eSetsA = $eGamesA >= $eGamesB ? 1 : 0;
-                                $eSetsB = $eGamesB > $eGamesA ? 1 : 0;
-                            }
-                        } elseif ($eSetsA > 0 || $eSetsB > 0) {
-                            $eHist = [];
-                            for ($i = 1; $i <= ($eSetsA + $eSetsB); $i++) {
-                                $aWins = ($i <= $eSetsA);
-                                $eHist[] = [
-                                    'set' => $i,
-                                    'score_a' => $aWins ? 6 : 3,
-                                    'score_b' => $aWins ? 3 : 6,
-                                ];
+                    if (! empty($eHist)) {
+                        $lastSet = $eHist[array_key_last($eHist)];
+                        $lastGameA = (int) ($lastSet['score_a'] ?? 0);
+                        $lastGameB = (int) ($lastSet['score_b'] ?? 0);
+
+                        if (($eGamesA === 0 && $eGamesB === 0) && ($lastGameA > 0 || $lastGameB > 0)) {
+                            $eGamesA = $lastGameA;
+                            $eGamesB = $lastGameB;
+                        }
+
+                        if (($eSetsA === 0 && $eSetsB === 0) || empty($eHist)) {
+                            $eSetsA = 0;
+                            $eSetsB = 0;
+                            foreach ($eHist as $set) {
+                                $ga = (int) ($set['score_a'] ?? 0);
+                                $gb = (int) ($set['score_b'] ?? 0);
+                                if ($ga > $gb) {
+                                    $eSetsA++;
+                                } elseif ($gb > $ga) {
+                                    $eSetsB++;
+                                }
                             }
                         }
+                    } elseif ($eGamesA > 0 || $eGamesB > 0) {
+                        $eHist = [
+                            ['set' => 1, 'score_a' => $eGamesA, 'score_b' => $eGamesB],
+                        ];
+                        if ($eSetsA === 0 && $eSetsB === 0) {
+                            $eSetsA = $eGamesA >= $eGamesB ? 1 : 0;
+                            $eSetsB = $eGamesB > $eGamesA ? 1 : 0;
+                        }
+                    } elseif ($eSetsA > 0 || $eSetsB > 0) {
+                        $eHist = [];
+                        for ($i = 1; $i <= ($eSetsA + $eSetsB); $i++) {
+                            $aWins = ($i <= $eSetsA);
+                            $eHist[] = [
+                                'set' => $i,
+                                'score_a' => $aWins ? 6 : 3,
+                                'score_b' => $aWins ? 3 : 6,
+                            ];
+                        }
                     }
+
                     $effective[$roundKey]['set_history'] = $eHist;
                     $effective[$roundKey]['sets_a'] = $eSetsA;
                     $effective[$roundKey]['sets_b'] = $eSetsB;
-                    $effective[$roundKey]['score_a'] = $eSetsA;
-                    $effective[$roundKey]['score_b'] = $eSetsB;
+                    $effective[$roundKey]['games_a'] = $eGamesA;
+                    $effective[$roundKey]['games_b'] = $eGamesB;
+                    $effective[$roundKey]['score_a'] = $eGamesA;
+                    $effective[$roundKey]['score_b'] = $eGamesB;
                 }
             } else {
                 // Round yang belum dimainkan / selesai berstatus pending dengan skor 0

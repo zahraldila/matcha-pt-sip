@@ -768,7 +768,7 @@
     function addPoint(team, cIdx) {
         let st = courtsState[cIdx];
         if (st.matchDone) {
-            showToast('Skor Set ini sudah selesai dan terkunci.');
+            showToast('Skor pertandingan ini sudah selesai dan terkunci.');
             return;
         }
         if (st.isGameSyncing) {
@@ -792,7 +792,7 @@
         const baseVersion = st.serverVersion || 0;
         const eventId = 'evt_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
 
-        // 1. Mutasi state lokal terlebih dahulu agar snapshot antrean akurat
+        // 1. Mutasi state lokal terlebih dahulu (Tennis point ladder 0 -> 15 -> 30 -> 40 -> Game)
         if (team === 'A') {
             handlePointWonByA(cIdx, clientSeq, tClick, baseVersion, eventId);
         } else {
@@ -979,9 +979,17 @@
         if (dispB) dispB.innerText = displays.b;
         if (gameDispA) gameDispA.innerText = st.gamesA;
         if (gameDispB) gameDispB.innerText = st.gamesB;
-        if (curBadge) curBadge.innerText = `Game Score: ${st.gamesA} — ${st.gamesB}`;
-        if (subA) subA.innerText = `Games Won: ${st.gamesA} Game`;
-        if (subB) subB.innerText = `Games Won: ${st.gamesB} Game`;
+        if (curBadge) {
+            curBadge.innerText = IS_SETS 
+                ? `Game Score: ${st.gamesA} — ${st.gamesB}` 
+                : `Target: ${TARGET_GAMES} Games (Score: ${st.gamesA} — ${st.gamesB})`;
+        }
+        if (subA) {
+            subA.innerText = `Games Won: ${st.gamesA} Game`;
+        }
+        if (subB) {
+            subB.innerText = `Games Won: ${st.gamesB} Game`;
+        }
 
         if (setLbl) {
             setLbl.innerHTML = `Status: <strong>${st.matchDone ? (UNIT_TAB_LABEL + ' Selesai & Terkunci') : 'Sedang Berlangsung'}</strong>`;
@@ -989,7 +997,7 @@
 
         if (notice) {
             if (st.matchDone) {
-                notice.innerHTML = `🔒 <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Selesai & Terkunci</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB}</strong> (${st.winnerTeam || 'Selesai'})`;
+                notice.innerHTML = `🔒 <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Selesai & Terkunci</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB} Games</strong> (${st.winnerTeam || 'Selesai'})`;
             } else if (st.isDeuce) {
                 if (st.advantage === 'A') {
                     notice.innerHTML = '<strong class="text-[#063B00]">ADVANTAGE TEAM A</strong> &bull; Butuh 1 poin lagi untuk memenangkan game';
@@ -1041,12 +1049,12 @@
             if (bA) {
                 bA.disabled = true;
                 bA.className = 'w-full py-3.5 rounded-xl bg-amber-500/20 text-amber-900 font-bold text-sm border border-amber-300 cursor-wait flex items-center justify-center gap-2 transition-all';
-                bA.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs text-amber-700"></i> Menyinkronkan Game ${st.gamesA + st.gamesB}...`;
+                bA.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs text-amber-700"></i> Menyinkronkan ${IS_SETS ? 'Game ' + (st.gamesA + st.gamesB) : 'Poin'}...`;
             }
             if (bB) {
                 bB.disabled = true;
                 bB.className = 'w-full py-3.5 rounded-xl bg-amber-500/20 text-amber-900 font-bold text-sm border border-amber-300 cursor-wait flex items-center justify-center gap-2 transition-all';
-                bB.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs text-amber-700"></i> Menyinkronkan Game ${st.gamesA + st.gamesB}...`;
+                bB.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs text-amber-700"></i> Menyinkronkan ${IS_SETS ? 'Game ' + (st.gamesA + st.gamesB) : 'Poin'}...`;
             }
         } else {
             if (lockedBadge) {
@@ -1093,9 +1101,10 @@
         const subMsg = document.getElementById('completedSubMsg_' + cIdx);
         let st = courtsState[cIdx];
         const courtLabel = st.courtName || ('Court ' + st.courtNum);
+        const scoreUnit = IS_SETS ? 'Games' : 'Poin';
 
         if (msg) msg.textContent = `🏆 ${courtLabel} telah selesai pada ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM}!`;
-        if (subMsg) subMsg.innerHTML = `Skor Akhir: <strong>${st.gamesA} &mdash; ${st.gamesB} Games</strong> (${winner}) &bull; Poin telah dicatat ke klasemen.`;
+        if (subMsg) subMsg.innerHTML = `Skor Akhir: <strong>${st.gamesA} &mdash; ${st.gamesB} ${scoreUnit}</strong> (${winner}) &bull; Poin telah dicatat ke klasemen.`;
         if (banner) banner.classList.remove('hidden');
 
         const bA = document.getElementById('btnAddA_' + cIdx);

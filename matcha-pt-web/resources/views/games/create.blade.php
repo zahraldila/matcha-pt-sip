@@ -248,7 +248,7 @@
                         Numbers of Court
                     </label>
                     <div class="relative">
-                        <select id="numCourts" class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none appearance-none transition-all shadow-2xs">
+                        <select id="numCourts" onchange="renderPlayers()" class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none appearance-none transition-all shadow-2xs">
                             <option value="1">1 Court</option>
                             <option value="2">2 Court</option>
                             <option value="3">3 Court</option>
@@ -296,7 +296,7 @@
                     </label>
                     
                     <div class="relative">
-                        <select id="scoringGeneralValue" class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none appearance-none transition-all shadow-2xs">
+                        <select id="scoringGeneralValue" onchange="renderPlayers()" class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none appearance-none transition-all shadow-2xs">
                             <option value="Total of 3" selected>Total of 3</option>
                             <option value="Total of 4">Total of 4</option>
                             <option value="Total of 5">Total of 5</option>
@@ -900,6 +900,17 @@
     }
 
     function openAddPlayerModal() {
+        const scoringSystem = document.getElementById('scoringGeneralValue')?.value || 'Total of 3';
+        const isFirstTo = scoringSystem.toLowerCase().startsWith('first to');
+        const numCourts = parseInt(document.getElementById('numCourts')?.value) || 1;
+        const isAmericanoSingle = (selectedGameType === 'Americano' && jenisPermainan === 'Single');
+        const requiredCount = isAmericanoSingle ? (numCourts * 2) : (numCourts * 4);
+
+        if (isFirstTo && players.length >= requiredCount) {
+            showToast(`Kapasitas pemain untuk ${scoringSystem} (${isAmericanoSingle ? 'Single' : 'Double'}, ${numCourts} court) sudah pas (${requiredCount} pemain).`);
+            return;
+        }
+
         const searchInput = document.getElementById('playerSearchInput');
         const manualName = document.getElementById('manualPlayerName');
 
@@ -1228,20 +1239,43 @@
 
         container.innerHTML = html;
 
+        const scoringSystem = document.getElementById('scoringGeneralValue')?.value || 'Total of 3';
+        const isFirstTo = scoringSystem.toLowerCase().startsWith('first to');
+        const numCourts = parseInt(document.getElementById('numCourts')?.value) || 1;
         const isTeamAmericano = selectedGameType && selectedGameType.toLowerCase().includes('team');
         const isAmericanoSingle = selectedGameType === 'Americano' && jenisPermainan === 'Single';
         const minPlayers = isAmericanoSingle ? 2 : 4;
         const isOddPlayers = (players.length % 2 !== 0);
+        const requiredFirstToPlayers = isAmericanoSingle ? (numCourts * 2) : (numCourts * 4);
 
         // Update empty state hint
         const emptyHint = document.getElementById('emptyStateHint');
         if (emptyHint) {
-            emptyHint.textContent = isAmericanoSingle
-                ? 'Tambahkan minimal 2 pemain untuk Americano Single (1 vs 1).'
-                : 'Tambahkan minimal 4 pemain untuk memulai pengacakan drawing tim.';
+            if (isFirstTo) {
+                emptyHint.textContent = `Format ${scoringSystem} (${isAmericanoSingle ? 'Single' : 'Double'}, ${numCourts} court) membutuhkan tepat ${requiredFirstToPlayers} pemain.`;
+            } else if (isAmericanoSingle) {
+                emptyHint.textContent = 'Tambahkan minimal 2 pemain untuk Americano Single (1 vs 1).';
+            } else {
+                emptyHint.textContent = 'Tambahkan minimal 4 pemain untuk memulai pengacakan drawing tim.';
+            }
         }
 
-        if (players.length < minPlayers) {
+        if (isFirstTo) {
+            if (players.length < requiredFirstToPlayers) {
+                startBtn.disabled = true;
+                startBtn.className = 'w-full py-3.5 rounded-xl bg-slate-200 text-slate-400 font-black text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2';
+                startBtn.innerHTML = `<i class="fa-solid fa-users"></i> ${scoringSystem}: Butuh ${requiredFirstToPlayers - players.length} Pemain Lagi (${players.length}/${requiredFirstToPlayers} Pemain)`;
+            } else if (players.length > requiredFirstToPlayers) {
+                startBtn.disabled = true;
+                startBtn.className = 'w-full py-3.5 rounded-xl bg-rose-100 text-rose-800 border border-rose-300 font-bold text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2';
+                startBtn.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose-600"></i> ${scoringSystem}: Kelebihan ${players.length - requiredFirstToPlayers} Pemain (Wajib Tepat ${requiredFirstToPlayers} Pemain)`;
+            } else {
+                startBtn.disabled = false;
+                startBtn.className = 'w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer flex items-center justify-center gap-2';
+                const modeLabel = isAmericanoSingle ? ' (Single 1v1)' : ' (Double 2v2)';
+                startBtn.innerHTML = `<i class="fa-solid fa-shuffle"></i> 🎲 Generate Drawing &amp; Start Game (${scoringSystem}${modeLabel})`;
+            }
+        } else if (players.length < minPlayers) {
             startBtn.disabled = true;
             startBtn.className = 'w-full py-3.5 rounded-xl bg-slate-200 text-slate-400 font-black text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2';
             startBtn.innerHTML = `<i class="fa-solid fa-users"></i> Tambahkan Minimal ${minPlayers} Pemain${isAmericanoSingle ? ' (Single 1v1)' : ''}`;
@@ -1258,8 +1292,17 @@
     }
 
     async function startDrawingAction() {
+        const scoringSystem = document.getElementById('scoringGeneralValue')?.value || 'Total of 3';
+        const isFirstTo = scoringSystem.toLowerCase().startsWith('first to');
+        const numCourts = parseInt(document.getElementById('numCourts')?.value) || 1;
         const isAmericanoSingle = selectedGameType === 'Americano' && jenisPermainan === 'Single';
         const minPlayers = isAmericanoSingle ? 2 : 4;
+        const requiredFirstToPlayers = isAmericanoSingle ? (numCourts * 2) : (numCourts * 4);
+
+        if (isFirstTo && players.length !== requiredFirstToPlayers) {
+            showToast(`Untuk format ${scoringSystem} (${isAmericanoSingle ? 'Single' : 'Double'}) dengan ${numCourts} court, jumlah pemain harus tepat ${requiredFirstToPlayers} orang.`);
+            return;
+        }
 
         if (players.length < minPlayers) {
             showToast(`Minimal ${minPlayers} pemain untuk ${isAmericanoSingle ? 'Americano Single' : 'generate drawing'}.`);

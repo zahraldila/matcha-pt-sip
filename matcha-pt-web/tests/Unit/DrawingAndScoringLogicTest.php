@@ -69,6 +69,44 @@ class DrawingAndScoringLogicTest extends TestCase
         }
     }
 
+    public function test_effective_scores_use_set_history_for_primary_score_when_set_totals_are_zero()
+    {
+        $game = [
+            'scoring_system' => 'Total of 3',
+            'drawing' => [
+                'round_1' => [
+                    'team_a' => ['Alice', 'Bob'],
+                    'team_b' => ['Charlie', 'David'],
+                ],
+            ],
+        ];
+
+        $sessionScores = [
+            'round_1' => [
+                'status' => 'completed',
+                'score_a' => 0,
+                'score_b' => 0,
+                'sets_a' => 0,
+                'sets_b' => 1,
+                'games_a' => 0,
+                'games_b' => 0,
+                'set_history' => [
+                    ['set' => 1, 'score_a' => 2, 'score_b' => 5],
+                ],
+                'winner_team' => 'Team B',
+            ],
+        ];
+
+        $effective = ScoringService::getEffectiveScores($game, $sessionScores);
+
+        $this->assertSame(2, $effective['round_1']['games_a']);
+        $this->assertSame(5, $effective['round_1']['games_b']);
+        $this->assertSame(2, $effective['round_1']['score_a']);
+        $this->assertSame(5, $effective['round_1']['score_b']);
+        $this->assertSame(0, $effective['round_1']['sets_a']);
+        $this->assertSame(1, $effective['round_1']['sets_b']);
+    }
+
     /**
      * Test 1: Americano Individual - Partner Rotation Across Sets.
      * Pastikan pasangan selalu berganti di tiap Set (Set 1, Set 2, Set 3).
