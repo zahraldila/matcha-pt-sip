@@ -247,38 +247,58 @@ class ScoringService
         $effectiveScores = self::getEffectiveScores($game, $sessionScores);
 
         // Check if format is team-based
-        $format = strtolower(trim($game['format'] ?? ''));
+        $format = strtolower(trim($game['match_format'] ?? $game['format'] ?? ''));
         $isPerTeam = in_array($format, ['team americano', 'team mexicano', 'mixicano']);
 
         // Init stats
         $stats = [];
-        if ($isPerTeam && !empty($game['drawing']['teams'])) {
-            foreach ($game['drawing']['teams'] as $team) {
-                $name = $team['display_name'] ?? $team['name'] ?? 'Tim';
-                $stats[$name] = [
-                    'name' => $name,
-                    'team_identity' => $team['name'] ?? null, // e.g. "Tim A"
-                    'avatar' => null,
-                    'level' => '-',
-                    'is_member' => false,
-                    'matches' => 0,
-                    'wins' => 0,
-                    'losses' => 0,
-                    'sets_won' => 0,
-                    'sets_lost' => 0,
-                    'games_won' => 0,
-                    'games_lost' => 0,
-                    'points_for' => 0,
-                    'points_against' => 0,
-                    'point_diff' => 0,
-                    'game_diff' => 0,
-                    'set_diff' => 0,
-                ];
+        if ($isPerTeam) {
+            foreach ($drawing as $rKey => $round) {
+                if ($rKey === 'teams') continue;
+                $roundMatches = $round['matches'] ?? [ $round ];
+                foreach ($roundMatches as $m) {
+                    foreach (['a', 'b'] as $side) {
+                        $team = $m["team_{$side}"] ?? [];
+                        if (!empty($team)) {
+                            if (is_array($team) && isset($team['name'])) {
+                                $name = $team['display_name'] ?? $team['name'] ?? 'Tim';
+                                $teamIdentity = $team['name'] ?? null;
+                            } else {
+                                $mTeam = $m["team_{$side}_names"] ?? ($m["team" . strtoupper($side) . "_names"] ?? $team);
+                                $name = implode(' & ', is_array($mTeam) ? $mTeam : [$mTeam]);
+                                if (empty($name)) $name = "Tim {$side}";
+                                $teamIdentity = $name;
+                            }
+                            if (!isset($stats[$name])) {
+                                $stats[$name] = [
+                                    'name' => $name,
+                                    'team_identity' => $teamIdentity,
+                                    'avatar' => null,
+                                    'level' => '-',
+                                    'is_member' => false,
+                                    'matches' => 0,
+                                    'wins' => 0,
+                                    'losses' => 0,
+                                    'sets_won' => 0,
+                                    'sets_lost' => 0,
+                                    'games_won' => 0,
+                                    'games_lost' => 0,
+                                    'points_for' => 0,
+                                    'points_against' => 0,
+                                    'point_diff' => 0,
+                                    'game_diff' => 0,
+                                    'set_diff' => 0,
+                                ];
+                            }
+                        }
+                    }
+                }
             }
         } else {
             foreach ($players as $p) {
                 $name = $p['name'];
-                $stats[$name] = [
+                $cleanName = self::cleanPlayerName($name);
+                $stats[$cleanName] = [
                     'name' => $name,
                     'avatar' => $p['avatar'] ?? null,
                     'level' => $p['level'] ?? '-',
@@ -298,7 +318,6 @@ class ScoringService
                 ];
             }
         }
-
         if (empty($drawing)) {
             return array_values($stats);
         }
@@ -390,7 +409,14 @@ class ScoringService
                 $teamB = $m['team_b_names'] ?? ($m['teamB_names'] ?? ($m['team_b'] ?? []));
 
                 if ($isPerTeam) {
-                    $teamAName = $m['team_a']['display_name'] ?? $m['team_a']['name'] ?? '';
+                    $teamAObj = $m['team_a'] ?? [];
+                    if (is_array($teamAObj) && isset($teamAObj['name'])) {
+                        $teamAName = $teamAObj['display_name'] ?? $teamAObj['name'];
+                    } else {
+                        $teamAName = implode(' & ', is_array($teamA) ? $teamA : [$teamA]);
+                        if (empty($teamAName)) $teamAName = "Tim a";
+                    }
+
                     if (isset($stats[$teamAName])) {
                         $stats[$teamAName]['matches']++;
                         $stats[$teamAName]['sets_won'] += $setsA;
@@ -407,7 +433,14 @@ class ScoringService
                         }
                     }
 
-                    $teamBName = $m['team_b']['display_name'] ?? $m['team_b']['name'] ?? '';
+                    $teamBObj = $m['team_b'] ?? [];
+                    if (is_array($teamBObj) && isset($teamBObj['name'])) {
+                        $teamBName = $teamBObj['display_name'] ?? $teamBObj['name'];
+                    } else {
+                        $teamBName = implode(' & ', is_array($teamB) ? $teamB : [$teamB]);
+                        if (empty($teamBName)) $teamBName = "Tim b";
+                    }
+
                     if (isset($stats[$teamBName])) {
                         $stats[$teamBName]['matches']++;
                         $stats[$teamBName]['sets_won'] += $setsB;
@@ -820,8 +853,23 @@ class ScoringService
 
                 $targetMatch = $matchContext['matches'][$courtIndex] ?? ($matchContext['matches'][0] ?? null);
                 if ($targetMatch) {
-                    $teamAPlayers = $targetMatch['team_a'] ?? ($targetMatch['team_a_names'] ?? ($targetMatch['teamA_names'] ?? []));
-                    $teamBPlayers = $targetMatch['team_b'] ?? ($targetMatch['team_b_names'] ?? ($targetMatch['teamB_names'] ?? []));
+                    $extractPlayers = function ($match, $side) {
+                        $team = $match["team_{$side}"] ?? [];
+                        if (isset($team['players']) && is_array($team['players'])) {
+                            return $team['players'];
+                        }
+                        if (isset($match["team_{$side}_names"]) && is_array($match["team_{$side}_names"])) {
+                            return $match["team_{$side}_names"];
+                        }
+                        $sideUpper = strtoupper($side);
+                        if (isset($match["team{$sideUpper}_names"]) && is_array($match["team{$sideUpper}_names"])) {
+                            return $match["team{$sideUpper}_names"];
+                        }
+                        return is_array($team) ? $team : [];
+                    };
+
+                    $teamAPlayers = $extractPlayers($targetMatch, 'a');
+                    $teamBPlayers = $extractPlayers($targetMatch, 'b');
 
                     $sessionPlayerMapById = $session->players->keyBy('player_id');
                     $sessionPlayerMapByName = $session->players->keyBy(fn ($p) => self::cleanPlayerName($p->nama));

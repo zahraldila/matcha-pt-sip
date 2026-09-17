@@ -889,7 +889,10 @@
                                 <div class="p-2 rounded-xl bg-white/5 border border-white/5">
                                     <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Durasi Main</p>
                                     <p class="text-base font-black text-slate-200 mt-0.5" id="stravaCalTime">
-                                        {{ $storyPlayerStats[$rankedPlayers[0]['name']]['duration_played'] ?? $playerRecap['duration_played'] }}
+                                        @php
+                                            $topPlayerName = $rankedPlayers[0]['name'] ?? null;
+                                        @endphp
+                                        {{ $topPlayerName && isset($storyPlayerStats[$topPlayerName]) ? ($storyPlayerStats[$topPlayerName]['duration_played'] ?? $playerRecap['duration_played']) : $playerRecap['duration_played'] }}
                                     </p>
                                 </div>
                             </div>
