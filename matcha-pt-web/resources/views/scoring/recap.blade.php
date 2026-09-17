@@ -467,9 +467,20 @@
 
                 <div class="flex flex-wrap items-center gap-1.5">
                     @foreach($kudosBadges as $badge)
-                    <button type="button" onclick="toggleKudos(this, '{{ addslashes($player['name']) }}')"
-                        class="px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00] transition-all cursor-pointer">
-                        {{ $badge }}
+                    @php
+                        $kKey = "{$player['name']}:{$badge}";
+                        $isGiven = !empty($userGivenKudos[$kKey]);
+                        $kCount = $savedKudos[$kKey] ?? 0;
+                    @endphp
+                    <button type="button" 
+                        onclick="toggleKudos(this, '{{ addslashes($player['name']) }}', '{{ addslashes($badge) }}', {{ $player['id'] ?? ($player['player_id'] ?? 'null') }})"
+                        data-player-name="{{ $player['name'] }}"
+                        data-badge="{{ $badge }}"
+                        class="kudos-btn px-2.5 py-1 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer inline-flex items-center gap-1.5 {{ $isGiven ? 'bg-[#063B00] text-white border-[#063B00] shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00]' }}">
+                        <span>{{ $badge }}</span>
+                        <span class="kudos-badge-count text-[9px] px-1.5 py-0.2 rounded-full {{ $isGiven ? 'bg-[#A8E63A] text-[#063B00] font-black' : ($kCount > 0 ? 'bg-slate-200 text-slate-700 font-bold' : 'hidden') }}">
+                            {{ $kCount > 0 ? $kCount : '' }}
+                        </span>
                     </button>
                     @endforeach
                 </div>
@@ -1026,8 +1037,25 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
 
 <script>
-    // Kudos logic
+    // Kudos logic & Permanent DB Sync
     const selectedStoryKudos = new Map();
+    const SESSION_ID = {{ (int) $game['id'] }};
+    const CSRF_TOKEN = '{{ csrf_token() }}';
+    const KUDOS_TOGGLE_URL = '{{ route('scoring.kudos.toggle') }}';
+
+    // Inisialisasi awal kudos yang sudah tersimpan di database untuk card preview
+    @if(!empty($userGivenKudos))
+        @foreach($userGivenKudos as $kKey => $v)
+            @php
+                $parts = explode(':', $kKey, 2);
+                $pName = $parts[0] ?? '';
+                $pBadge = $parts[1] ?? '';
+            @endphp
+            @if($pName && $pBadge)
+                selectedStoryKudos.set('{{ addslashes($kKey) }}', '{{ addslashes($pBadge) }}');
+            @endif
+        @endforeach
+    @endif
 
     function renderStoryKudos() {
         const container = document.getElementById('storyKudosBadges');
@@ -1039,21 +1067,90 @@
             : '<span class="text-[8px] text-slate-400">Pilih kudos untuk menampilkannya</span>';
     }
 
-    function toggleKudos(button, playerName) {
-        const badge = button.textContent.trim();
-        if (button.classList.contains('bg-[#063B00]')) {
-            button.classList.remove('bg-[#063B00]', 'text-white', 'border-[#063B00]');
+    renderStoryKudos();
+
+    async function toggleKudos(button, playerName, badge, playerId = null) {
+        if (!badge) {
+            badge = button.innerText.trim();
+        }
+        const kudosKey = `${playerName}:${badge}`;
+        const isCurrentlyActive = button.classList.contains('bg-[#063B00]');
+        const countSpan = button.querySelector('.kudos-badge-count');
+
+        // 1. Optimistic UI update
+        if (isCurrentlyActive) {
+            button.classList.remove('bg-[#063B00]', 'text-white', 'border-[#063B00]', 'shadow-2xs');
             button.classList.add('bg-slate-50', 'text-slate-700', 'border-slate-200');
-            selectedStoryKudos.delete(`${playerName}:${badge}`);
+            selectedStoryKudos.delete(kudosKey);
+            if (countSpan) {
+                let currentCount = parseInt(countSpan.textContent.trim(), 10) || 1;
+                let newCount = Math.max(0, currentCount - 1);
+                countSpan.textContent = newCount > 0 ? newCount : '';
+                countSpan.className = `kudos-badge-count text-[9px] px-1.5 py-0.2 rounded-full ${newCount > 0 ? 'bg-slate-200 text-slate-700 font-bold' : 'hidden'}`;
+            }
         } else {
-            button.classList.add('bg-[#063B00]', 'text-white', 'border-[#063B00]');
+            button.classList.add('bg-[#063B00]', 'text-white', 'border-[#063B00]', 'shadow-2xs');
             button.classList.remove('bg-slate-50', 'text-slate-700', 'border-slate-200');
-            selectedStoryKudos.set(`${playerName}:${badge}`, badge);
+            selectedStoryKudos.set(kudosKey, badge);
+            if (countSpan) {
+                let currentCount = parseInt(countSpan.textContent.trim(), 10) || 0;
+                let newCount = currentCount + 1;
+                countSpan.textContent = newCount;
+                countSpan.className = 'kudos-badge-count text-[9px] px-1.5 py-0.2 rounded-full bg-[#A8E63A] text-[#063B00] font-black';
+            }
             if (typeof showToast === 'function') {
-                showToast('Kudos untuk ' + (playerName || 'pemain') + ' berhasil diberikan! 👏');
+                showToast('Kudos untuk ' + (playerName || 'pemain') + ' berhasil disimpan! 👏');
             }
         }
         renderStoryKudos();
+
+        // 2. Kirim request AJAX ke backend untuk simpan permanen ke tb_kudos
+        try {
+            const res = await fetch(KUDOS_TOGGLE_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    session_id: SESSION_ID,
+                    player_name: playerName,
+                    player_id: playerId,
+                    badge: badge
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (countSpan && typeof data.count === 'number') {
+                    countSpan.textContent = data.count > 0 ? data.count : '';
+                    if (data.active) {
+                        countSpan.className = 'kudos-badge-count text-[9px] px-1.5 py-0.2 rounded-full bg-[#A8E63A] text-[#063B00] font-black';
+                    } else {
+                        countSpan.className = `kudos-badge-count text-[9px] px-1.5 py-0.2 rounded-full ${data.count > 0 ? 'bg-slate-200 text-slate-700 font-bold' : 'hidden'}`;
+                    }
+                }
+            } else {
+                console.warn('Gagal simpan kudos ke database:', await res.text());
+                // Rollback jika terjadi kesalahan server
+                if (isCurrentlyActive) {
+                    button.classList.add('bg-[#063B00]', 'text-white', 'border-[#063B00]');
+                    button.classList.remove('bg-slate-50', 'text-slate-700', 'border-slate-200');
+                    selectedStoryKudos.set(kudosKey, badge);
+                } else {
+                    button.classList.remove('bg-[#063B00]', 'text-white', 'border-[#063B00]');
+                    button.classList.add('bg-slate-50', 'text-slate-700', 'border-slate-200');
+                    selectedStoryKudos.delete(kudosKey);
+                }
+                renderStoryKudos();
+                if (typeof showToast === 'function') {
+                    showToast('Gagal menyimpan kudos ke server. Silakan coba lagi.');
+                }
+            }
+        } catch (e) {
+            console.warn('Network error saving kudos:', e);
+        }
     }
 
     // Modal Control: Share Options Modal
