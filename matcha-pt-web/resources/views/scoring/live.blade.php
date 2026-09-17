@@ -635,6 +635,8 @@
             clientSeq: savedSeq_{{ $mIdx }},
             pendingSaves: savedQueue_{{ $mIdx }}.length,
             lastLocalActionTime: 0,
+            lastClickTime: 0,
+            isGameSyncing: false,
             saveQueue: savedQueue_{{ $mIdx }},
             inFlightQueue: [],
             saveWorker: null,
@@ -669,13 +671,26 @@
         };
     }
 
-    // ── Tambah Poin (Optimistic UI: 0ms render, async save ke server) ───────────
+    // ── Tambah Poin (Optimistic UI: 0ms render, 300ms micro-debounce, async save ke server) ───────────
     function addPoint(team, cIdx) {
         let st = courtsState[cIdx];
         if (st.matchDone) {
             showToast('Skor Set ini sudah selesai dan terkunci.');
             return;
         }
+        if (st.isGameSyncing) {
+            showToast(`Sedang menyinkronkan Game ${st.gamesA + st.gamesB}...`);
+            return;
+        }
+
+        // Micro-Debounce (300ms): Mencegah double tap pada layar sentuh
+        const now = performance.now();
+        if (st.lastClickTime && (now - st.lastClickTime < 300)) {
+            console.log(`[Micro-Debounce] 300ms throttle on court ${st.courtNum}`);
+            return;
+        }
+        st.lastClickTime = now;
+
         const tClick = performance.now();
         st.lastLocalActionTime = Date.now();
         st.localVersion = (st.localVersion || 0) + 1;
@@ -753,18 +768,31 @@
         }
     }
 
-    // ── Game Dimenangkan ─────────────────────────────────────────────────────
+    // ── Game Dimenangkan (Sinkronisasi Skor Besar) ──────────────────────────
     function gameWonBy(team, cIdx, clientSeq, tClick, baseVersion, eventId) {
         resetPoints(cIdx);
         let st = courtsState[cIdx];
         if (team === 'A') {
             st.gamesA++;
-            showToast('🎉 Game Won by Team A!');
         } else {
             st.gamesB++;
-            showToast('🎉 Game Won by Team B!');
         }
+        
         checkSetWinner(cIdx, clientSeq, tClick, baseVersion, team, eventId);
+
+        if (!st.matchDone) {
+            st.isGameSyncing = true;
+            showToast(`🎉 Game Won by Team ${team}! Menyinkronkan data...`);
+            // Safety timeout agar lock tidak pernah macet jika offline
+            setTimeout(() => {
+                if (st.isGameSyncing && !st.matchDone) {
+                    st.isGameSyncing = false;
+                    updateDisplay(cIdx);
+                }
+            }, 1200);
+        } else {
+            showToast(`🎉 Set Won by Team ${team}!`);
+        }
     }
 
     function checkSetWinner(cIdx, clientSeq = null, tClick = null, baseVersion = 0, teamWon = null, eventId = null) {
@@ -905,6 +933,27 @@
                 bB.disabled = true;
                 bB.className = 'w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2';
                 bB.innerHTML = `<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci (${UNIT_TAB_LABEL} Selesai)`;
+            }
+        } else if (st.isGameSyncing) {
+            if (lockedBadge) {
+                lockedBadge.classList.add('hidden');
+            }
+            if (btnManual) {
+                btnManual.classList.add('hidden');
+            }
+            const banner = document.getElementById('matchCompletedBanner_' + cIdx);
+            if (banner) {
+                banner.classList.add('hidden');
+            }
+            if (bA) {
+                bA.disabled = true;
+                bA.className = 'w-full py-3.5 rounded-xl bg-amber-500/20 text-amber-900 font-bold text-sm border border-amber-300 cursor-wait flex items-center justify-center gap-2 transition-all';
+                bA.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs text-amber-700"></i> Menyinkronkan Game ${st.gamesA + st.gamesB}...`;
+            }
+            if (bB) {
+                bB.disabled = true;
+                bB.className = 'w-full py-3.5 rounded-xl bg-amber-500/20 text-amber-900 font-bold text-sm border border-amber-300 cursor-wait flex items-center justify-center gap-2 transition-all';
+                bB.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs text-amber-700"></i> Menyinkronkan Game ${st.gamesA + st.gamesB}...`;
             }
         } else {
             if (lockedBadge) {
@@ -1537,6 +1586,12 @@
                 st.activeSaveIsCompletion = false;
             }
             
+            // Lepas Game Won sync lock saat save batch selesai
+            if (st.isGameSyncing && !st.matchDone) {
+                st.isGameSyncing = false;
+                updateDisplay(cIdx);
+            }
+
             if (isRetryableError) {
                 // OFFLINE QUEUE: Kembalikan inFlightQueue ke saveQueue dan pertahankan pendingSaves
                 st.inFlightQueue = [];

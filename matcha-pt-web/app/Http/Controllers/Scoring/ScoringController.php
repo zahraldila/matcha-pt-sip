@@ -318,18 +318,29 @@ class ScoringController extends Controller
         $session = SessionModel::findOrFail($gameId);
         $isHost = $this->isHostForSession($session);
 
-        if (! $isHost && $user->role !== 'host') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Akses ditolak. Hanya Host yang dapat mencatat atau memperbarui skor pertandingan.',
-            ], 403);
-        }
-
         if ($user->role === 'host' && ! $isHost) {
             return response()->json([
                 'success' => false,
                 'message' => 'Akses ditolak. Host hanya dapat mencatat skor pada sesi miliknya.',
             ], 403);
+        }
+
+        // Jika bukan host, cek apakah user merupakan participant/player pada session ini
+        if (! $isHost) {
+            $isParticipant = false;
+            $player = Player::where('user_id', $user->user_id)->first();
+            if ($player) {
+                $isParticipant = \DB::table('tb_session_player')
+                    ->where('session_id', $gameId)
+                    ->where('player_id', $player->player_id)
+                    ->exists();
+            }
+            if (! $isParticipant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak. Hanya Host atau pemain dalam sesi ini yang dapat mencatat skor.',
+                ], 403);
+            }
         }
 
         // score_a / score_b are only required for snapshot-based saves (fallback).
