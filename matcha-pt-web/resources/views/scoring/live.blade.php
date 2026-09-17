@@ -914,6 +914,16 @@
             st.setsB = (setWon === 'Team B') ? 1 : 0;
             updateDisplay(cIdx);
             syncRoundCompletionStatus();
+
+            const tClickAuto = performance.now();
+            st.lastLocalActionTime = Date.now();
+            st.localVersion = (st.localVersion || 0) + 1;
+            st.clientSeq = (st.clientSeq || 0) + 1;
+            const clientSeqAuto = st.clientSeq;
+            const baseVersionAuto = st.serverVersion || 0;
+            const compEventId = 'evt_auto_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+            
+            queueScoreSave(cIdx, 'completed', clientSeqAuto, tClickAuto, compEventId, 'auto_completion', (setWon === 'Team A' ? 'A' : 'B'), baseVersionAuto);
         }
     }
 
