@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Scoring;
 use App\Http\Controllers\Controller;
 use App\Models\Drawing;
 use App\Models\GameMatch;
+use App\Models\MatchParticipant;
 use App\Models\Player;
 use App\Models\PlayingHistory;
 use App\Models\Score;
@@ -1140,6 +1141,7 @@ class ScoringController extends Controller
     public function recap($id = 1)
     {
         $game = $this->getGameData($id);
+        $game['drawing'] = $this->resolveActualMatchHistory((int) $id, $game['drawing'] ?? []);
         $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? '');
 
         // Ambil skor tersimpan dari Cache (shared)
@@ -1316,6 +1318,69 @@ class ScoringController extends Controller
             'completedMatchesCount',
             'totalMatchesCount'
         ));
+    }
+
+    private function resolveActualMatchHistory(int $sessionId, array $fallbackDrawing): array
+    {
+        $drawing = Drawing::where('session_id', $sessionId)->first();
+        if (! $drawing) {
+            return $fallbackDrawing;
+        }
+
+        $session = SessionModel::with('courts')->find($sessionId);
+        $courtCount = $session ? max(1, $session->courts->count()) : 1;
+
+        $matches = GameMatch::where('drawing_id', $drawing->drawing_id)
+            ->with(['participants.player', 'scores'])
+            ->orderBy('nomor_match')
+            ->get();
+
+        if ($matches->isEmpty()) {
+            return $fallbackDrawing;
+        }
+
+        $rounds = [];
+        foreach ($matches as $match) {
+            $nomorMatch = (int) ($match->nomor_match ?? 1);
+            $roundNumber = intdiv(max(0, $nomorMatch - 1), $courtCount) + 1;
+            $courtNumber = (($nomorMatch - 1) % $courtCount) + 1;
+            $roundKey = "round_{$roundNumber}";
+
+            $teamA = $match->participants
+                ->filter(fn ($participant) => strtoupper((string) ($participant->side ?? '')) === 'A')
+                ->map(fn ($participant) => $participant->player?->nama ?? '')
+                ->filter()
+                ->values()
+                ->all();
+
+            $teamB = $match->participants
+                ->filter(fn ($participant) => strtoupper((string) ($participant->side ?? '')) === 'B')
+                ->map(fn ($participant) => $participant->player?->nama ?? '')
+                ->filter()
+                ->values()
+                ->all();
+
+            if (empty($teamA) && $match->participants->isNotEmpty()) {
+                $teamA = $match->participants->take((int) ceil($match->participants->count() / 2))->map(fn ($participant) => $participant->player?->nama ?? '')->filter()->values()->all();
+            }
+
+            if (empty($teamB) && $match->participants->isNotEmpty()) {
+                $teamB = $match->participants->skip((int) ceil($match->participants->count() / 2))->map(fn ($participant) => $participant->player?->nama ?? '')->filter()->values()->all();
+            }
+
+            $rounds[$roundKey]['team_a'] ??= $teamA;
+            $rounds[$roundKey]['team_b'] ??= $teamB;
+            $rounds[$roundKey]['matches'][] = [
+                'court' => $courtNumber,
+                'court_name' => "Court {$courtNumber}",
+                'team_a' => $teamA,
+                'team_b' => $teamB,
+                'team_a_names' => $teamA,
+                'team_b_names' => $teamB,
+            ];
+        }
+
+        return $rounds ?: $fallbackDrawing;
     }
 
     private function buildPlayerRecap(array $game, array $rankedPlayers, ?string $requestedPlayerName = null): array
