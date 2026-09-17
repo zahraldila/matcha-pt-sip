@@ -644,8 +644,8 @@ class ScoringController extends Controller
                     if ($evAction === 'add_point' && ! empty($evTeam) && in_array($evTeam, ['A', 'B']) && ($scorePayload['status'] ?? '') !== 'completed') {
                         $scorePayload = $this->applyPointDeltaToState($scorePayload, $evTeam, $scoringSystem);
                     } elseif ($evAction === 'completion' || ($ev['status'] ?? '') === 'completed') {
-                        $evGamesA = isset($ev['games_a']) ? (int) $ev['games_a'] : null;
-                        $evGamesB = isset($ev['games_b']) ? (int) $ev['games_b'] : null;
+                        $evGamesA = isset($ev['games_a']) ? (int) $ev['games_a'] : (isset($ev['snapshot']['gamesA']) ? (int) $ev['snapshot']['gamesA'] : null);
+                        $evGamesB = isset($ev['games_b']) ? (int) $ev['games_b'] : (isset($ev['snapshot']['gamesB']) ? (int) $ev['snapshot']['gamesB'] : null);
                         $scorePayload = $this->applyCompletionToState($scorePayload, $scoringSystem, $ev['team'] ?? null, $evGamesA, $evGamesB);
                     }
 
