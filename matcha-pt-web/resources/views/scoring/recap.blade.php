@@ -803,8 +803,8 @@
                                 $mScore = $effectiveScores[$rKey] ?? [];
                                 $isDone = ($mScore['status'] ?? '') === 'completed';
                                 $mWinner = $mScore['winner_team'] ?? 'Team A';
-                                $teamA = $rData['team_a'] ?? ['Team A'];
-                                $teamB = $rData['team_b'] ?? ['Team B'];
+                                $teamA = $rData['team_a'] ?? ['Tim A'];
+                                $teamB = $rData['team_b'] ?? ['Tim B'];
                                 $mPreviewSet = !empty($mScore['set_history'] ?? []) ? $mScore['set_history'][array_key_last($mScore['set_history'])] : [];
                                 $scoreStrA = $isSets ? (($mScore['games_a'] ?? $mScore['score_a'] ?? ($mPreviewSet['score_a'] ?? 0))) : (($mScore['games_a'] ?? $mScore['score_a'] ?? 0));
                                 $scoreStrB = $isSets ? (($mScore['games_b'] ?? $mScore['score_b'] ?? ($mPreviewSet['score_b'] ?? 0))) : (($mScore['games_b'] ?? $mScore['score_b'] ?? 0));

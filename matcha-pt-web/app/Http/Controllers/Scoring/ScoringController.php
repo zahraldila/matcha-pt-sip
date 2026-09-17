@@ -386,6 +386,8 @@ class ScoringController extends Controller
             $matchKey = ($courtNum > 0) ? "{$round}_court_{$courtNum}" : $round;
         }
         $status = $request->input('status', 'in_progress');
+        $requestedCourt = $request->integer('court', 0);
+        $courtIndex = $requestedCourt > 0 ? max(0, $requestedCourt - 1) : 0;
 
         if ($status === 'completed') {
             $scoringSystemName = SessionModel::where('session_id', $gameId)->value('scoring_system')
@@ -527,7 +529,7 @@ class ScoringController extends Controller
             // Otoritas skor dihitung oleh server berdasarkan scoring event (bukan snapshot client).
             $currentState = $scores[$matchKey] ?? [];
             if (empty($currentState)) {
-                $dbScore = $this->getScoreFromDatabase($gameId, $round, $request->integer('court', 0));
+                $dbScore = $this->getScoreFromDatabase($gameId, $round, $courtIndex);
                 $currentState = $dbScore ?: [
                     'score_a' => 0,
                     'score_b' => 0,
@@ -548,6 +550,56 @@ class ScoringController extends Controller
                     'winner_team' => null,
                     'version' => $prevVersion,
                 ];
+            }
+
+            // Final resmi bersifat monotonic: snapshot stale dari client lama tidak boleh menurunkan
+            // skor yang sudah selesai di cache atau database. Jaga skor 6-4 tetap 6-4 meski request lama 5-4 datang.
+            $officialCompletedState = $currentState;
+            if (($officialCompletedState['status'] ?? '') !== 'completed') {
+                $dbScore = $this->getScoreFromDatabase($gameId, $round, $courtIndex);
+                if ($dbScore && ($dbScore['status'] ?? '') === 'completed') {
+                    $officialCompletedState = $dbScore;
+                }
+            }
+
+            if (($officialCompletedState['status'] ?? '') !== 'completed') {
+                $rawFinalScore = $this->getOfficialCompletedScoreFromDatabase($gameId, $round, $courtIndex);
+                if ($rawFinalScore) {
+                    $officialCompletedState = $rawFinalScore;
+                }
+            }
+
+            $incomingGamesA = (int) $request->input('games_a', $currentState['games_a'] ?? ($currentState['score_a'] ?? 0));
+            $incomingGamesB = (int) $request->input('games_b', $currentState['games_b'] ?? ($currentState['score_b'] ?? 0));
+            $officialGamesA = (int) ($officialCompletedState['games_a'] ?? ($officialCompletedState['score_a'] ?? 0));
+            $officialGamesB = (int) ($officialCompletedState['games_b'] ?? ($officialCompletedState['score_b'] ?? 0));
+            $currentOfficialCompleted = (($officialCompletedState['status'] ?? '') === 'completed')
+                || (($scores['_meta']['status'] ?? '') === 'finished')
+                || (($scores[$matchKey]['status'] ?? '') === 'completed');
+            $staleCompletionWouldDowngrade = $currentOfficialCompleted && (
+                ($incomingGamesA + $incomingGamesB) < ($officialGamesA + $officialGamesB)
+                || ($incomingGamesA < $officialGamesA && $incomingGamesB <= $officialGamesB)
+                || ($incomingGamesB < $officialGamesB && $incomingGamesA <= $officialGamesA)
+            );
+            if ($staleCompletionWouldDowngrade) {
+                return response()->json([
+                    'success' => true,
+                    'duplicate' => true,
+                    'already_completed' => true,
+                    'message' => 'Skor final sudah resmi tersimpan. Pembaruan stale diabaikan.',
+                    'score_a' => $officialGamesA,
+                    'score_b' => $officialGamesB,
+                    'games_a' => $officialGamesA,
+                    'games_b' => $officialGamesB,
+                    'point_display_a' => (string) ($officialCompletedState['point_display_a'] ?? '0'),
+                    'point_display_b' => (string) ($officialCompletedState['point_display_b'] ?? '0'),
+                    'saved' => $officialCompletedState,
+                    'match_key' => $matchKey,
+                    'version' => (int) ($officialCompletedState['version'] ?? $prevVersion),
+                    'server_version' => (int) ($officialCompletedState['version'] ?? $prevVersion),
+                    'status' => $officialCompletedState['status'] ?? 'completed',
+                    'winner_team' => $officialCompletedState['winner_team'] ?? null,
+                ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
             }
 
             $isMerged = false;
@@ -1677,12 +1729,17 @@ class ScoringController extends Controller
                 return null;
             }
 
-            $scores = Score::where('match_id', $match->match_id)->orderBy('set_number', 'asc')->get();
+            $scores = Score::where('match_id', $match->match_id)->orderBy('set_number', 'asc')->orderBy('version', 'desc')->orderBy('score_id', 'desc')->get();
             if ($scores->isEmpty() && strtolower($match->status_match) !== 'completed') {
                 return null;
             }
 
-            $lastScore = $scores->last();
+            $officialScore = $scores
+                ->filter(fn ($sc) => in_array(strtolower((string) ($sc->status_score ?? '')), ['final', 'completed'], true))
+                ->sortByDesc('version')
+                ->sortByDesc('score_id')
+                ->first();
+            $lastScore = $officialScore ?: $scores->last();
             $setHistory = [];
             $setsA = 0;
             $setsB = 0;
@@ -1704,6 +1761,8 @@ class ScoringController extends Controller
             if ($lastScore) {
                 $gamesA = (int) $lastScore->game_score_a;
                 $gamesB = (int) $lastScore->game_score_b;
+                $setsA = max($setsA, (int) $lastScore->set_score_a);
+                $setsB = max($setsB, (int) $lastScore->set_score_b);
             }
 
             $status = strtolower($match->status_match) === 'completed' ? 'completed' : 'in_progress';
@@ -1735,6 +1794,74 @@ class ScoringController extends Controller
 
             return null;
         }
+    }
+
+    protected function getOfficialCompletedScoreFromDatabase($gameId, $round, $courtIndex = 0): ?array
+    {
+        $drawing = DB::table('tb_drawing')->where('session_id', (int) $gameId)->first();
+        if (! $drawing) {
+            return null;
+        }
+
+        $session = SessionModel::with('courts')->find((int) $gameId);
+        $courtCount = $session ? max(1, $session->courts->count()) : 1;
+        preg_match('/(\d+)/', $round, $rMatch);
+        $rNum = isset($rMatch[1]) ? (int) $rMatch[1] : 1;
+        $nomorMatch = ($rNum - 1) * $courtCount + ($courtIndex + 1);
+
+        $match = DB::table('tb_match')
+            ->where('drawing_id', $drawing->drawing_id)
+            ->where('nomor_match', $nomorMatch)
+            ->first();
+
+        if (! $match) {
+            return null;
+        }
+
+        $row = DB::table('tb_score')
+            ->where('match_id', $match->match_id)
+            ->where(function ($query) {
+                $query->where('status_score', 'Final')->orWhere('status_score', 'Completed');
+            })
+            ->orderByDesc('version')
+            ->orderByDesc('score_id')
+            ->first();
+
+        if (! $row && strtolower((string) ($match->status_match ?? '')) !== 'completed') {
+            return null;
+        }
+
+        $row = $row ?: DB::table('tb_score')->where('match_id', $match->match_id)->orderByDesc('version')->orderByDesc('score_id')->first();
+        if (! $row) {
+            return null;
+        }
+
+        return [
+            'match_id' => (int) $match->match_id,
+            'version' => (int) ($row->version ?? 1),
+            'updated_at_ms' => (int) round((strtotime((string) ($match->updated_at ?? now()->toDateTimeString())) * 1000)),
+            'score_a' => (int) ($row->set_score_a ?? 0),
+            'score_b' => (int) ($row->set_score_b ?? 0),
+            'point_display_a' => (string) ($row->point_score_a ?? '0'),
+            'point_display_b' => (string) ($row->point_score_b ?? '0'),
+            'set_number' => (int) ($row->set_number ?? 1),
+            'sets_a' => (int) ($row->set_score_a ?? 0),
+            'sets_b' => (int) ($row->set_score_b ?? 0),
+            'games_a' => (int) ($row->game_score_a ?? 0),
+            'games_b' => (int) ($row->game_score_b ?? 0),
+            'set_history' => [[
+                'set' => (int) ($row->set_number ?? 1),
+                'score_a' => (int) ($row->score_side_a ?? 0),
+                'score_b' => (int) ($row->score_side_b ?? 0),
+            ]],
+            'idx_a' => 0,
+            'idx_b' => 0,
+            'is_deuce' => false,
+            'advantage' => null,
+            'scoring_type' => (string) ($row->scoring_system ?? 'total_of_sets'),
+            'status' => strtolower((string) ($match->status_match ?? '')) === 'completed' ? 'completed' : 'in_progress',
+            'winner_team' => $match->winner_team,
+        ];
     }
 
     /**

@@ -8,7 +8,6 @@ use App\Models\SessionModel;
 use App\Models\Sport;
 use App\Models\User;
 use App\Models\Venue;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -844,6 +843,88 @@ class LiveScoringMultiHostConcurrencyTest extends TestCase
     }
 
     /**
+     * Test J: Stale snapshot dari client lama tidak boleh menurunkan skor final yang sudah selesai.
+     */
+    public function test_completed_final_score_is_not_overwritten_by_stale_snapshot_when_cache_is_empty(): void
+    {
+        [$session, $hostUser] = $this->createTestSession(1);
+
+        $drawingId = DB::table('tb_drawing')->insertGetId([
+            'session_id' => $session->session_id,
+            'match_format_id' => null,
+            'status_drawing' => 'Locked',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $matchId = DB::table('tb_match')->insertGetId([
+            'drawing_id' => $drawingId,
+            'court_id' => 1,
+            'nomor_match' => 1,
+            'status_match' => 'Completed',
+            'waktu_mulai' => now(),
+            'waktu_selesai' => now(),
+            'hasil_pertandingan' => 'Set Score 6 - 4',
+            'winner_team' => 'Team A',
+            'version' => 9,
+            'last_event_id' => 'evt_final_6_4',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('tb_score')->insert([
+            'match_id' => $matchId,
+            'set_number' => 1,
+            'game_number' => 1,
+            'point_score_a' => '40',
+            'point_score_b' => '15',
+            'game_score_a' => 6,
+            'game_score_b' => 4,
+            'set_score_a' => 1,
+            'set_score_b' => 0,
+            'score_side_a' => 6,
+            'score_side_b' => 4,
+            'scoring_system' => 'Total of 3',
+            'status_score' => 'Final',
+            'version' => 9,
+            'last_event_id' => 'evt_final_6_4',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $cacheKey = "scoring.game_{$session->session_id}";
+        Cache::forget($cacheKey);
+
+        $res = $this->actingAs($hostUser)->postJson(route('scoring.update-score'), [
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'score_a' => 5,
+            'score_b' => 4,
+            'point_display_a' => '40',
+            'point_display_b' => '15',
+            'games_a' => 5,
+            'games_b' => 4,
+            'sets_a' => 1,
+            'sets_b' => 0,
+            'set_number' => 1,
+            'status' => 'completed',
+            'winner_team' => 'Team A',
+            'client_id' => 'stale_client',
+            'client_seq' => 1,
+            'event_id' => 'evt_stale_snapshot_5_4',
+            'base_version' => 0,
+            'scoring_type' => 'total_of_sets',
+        ]);
+
+        $res->assertOk();
+        $this->assertSame(6, $res->json('saved.games_a'));
+        $this->assertSame(4, $res->json('saved.games_b'));
+        $this->assertSame('completed', $res->json('saved.status'));
+    }
+
+    /**
      * Test J: Database Persistence Atomic dengan version dan last_event_id (Requirement 7)
      */
     public function test_atomic_database_persistence_with_version_and_last_event_id(): void
@@ -882,7 +963,7 @@ class LiveScoringMultiHostConcurrencyTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $eventId = 'evt_atomic_db_uuid_' . uniqid();
+        $eventId = 'evt_atomic_db_uuid_'.uniqid();
 
         $res = $this->actingAs($hostUser)->postJson(route('scoring.update-score'), [
             'game_id' => $session->session_id,

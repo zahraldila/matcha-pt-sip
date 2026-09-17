@@ -246,13 +246,13 @@
                     ?? ($matchData['team_a']['display_name'] 
                     ?? ($matchData['team_a']['name'] 
                     ?? ($matchData['teamA_display'] 
-                    ?? (count($matchContext['matches'] ?? []) > 1 ? "Court " . ($mIdx + 1) . " - Team A" : "TEAM A"))));
+                    ?? (count($matchContext['matches'] ?? []) > 1 ? "Court " . ($mIdx + 1) . " - Tim A" : "TIM A"))));
 
                 $tBName = $matchData['team_b_name'] 
                     ?? ($matchData['team_b']['display_name'] 
                     ?? ($matchData['team_b']['name'] 
                     ?? ($matchData['teamB_display'] 
-                    ?? (count($matchContext['matches'] ?? []) > 1 ? "Court " . ($mIdx + 1) . " - Team B" : "TEAM B"))));
+                    ?? (count($matchContext['matches'] ?? []) > 1 ? "Court " . ($mIdx + 1) . " - Tim B" : "TIM B"))));
             @endphp
         <!-- Live Scoreboard Display (Subtle Glass) -->
 
@@ -303,14 +303,14 @@
 
             <div class="flex items-center justify-center gap-6 sm:gap-10 py-1">
                 <div class="text-center">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Games Team A</span>
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Games Tim A</span>
                     <span id="displayGameScoreA_{{ $mIdx }}" class="text-3xl sm:text-4xl font-black text-white">
                         {{ $currentScore['games_a'] ?? ($currentScore['score_a'] ?? 0) }}
                     </span>
                 </div>
                 <div class="text-slate-500 font-black text-2xl sm:text-3xl">&mdash;</div>
                 <div class="text-center">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Games Team B</span>
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Games Tim B</span>
                     <span id="displayGameScoreB_{{ $mIdx }}" class="text-3xl sm:text-4xl font-black text-white">
                         {{ $currentScore['games_b'] ?? ($currentScore['score_b'] ?? 0) }}
                     </span>
@@ -370,7 +370,7 @@
                         </button>
                     @else
                         <button id="btnAddA_{{ $mIdx }}" onclick="addPoint('A', {{ $mIdx }})" class="w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
-                            <i class="fa-solid fa-plus text-xs text-[#A8E63A]"></i> Tambah Poin Team A
+                            <i class="fa-solid fa-plus text-xs text-[#A8E63A]"></i> Tambah Poin Tim A
                         </button>
                     @endif
                 @else
@@ -420,7 +420,7 @@
                         </button>
                     @else
                         <button id="btnAddB_{{ $mIdx }}" onclick="addPoint('B', {{ $mIdx }})" class="w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
-                            <i class="fa-solid fa-plus text-xs text-[#A8E63A]"></i> Tambah Poin Team B
+                            <i class="fa-solid fa-plus text-xs text-[#A8E63A]"></i> Tambah Poin Tim B
                         </button>
                     @endif
                 @else
@@ -819,7 +819,7 @@
                 showToast('Kembali ke Deuce (40 - 40)!');
             } else {
                 st.advantage = 'A';
-                showToast('Advantage Team A!');
+                showToast('Advantage Tim A!');
             }
         } else {
             if (st.idxA < 3) {
@@ -845,7 +845,7 @@
                 showToast('Kembali ke Deuce (40 - 40)!');
             } else {
                 st.advantage = 'B';
-                showToast('Advantage Team B!');
+                showToast('Advantage Tim B!');
             }
         } else {
             if (st.idxB < 3) {
@@ -875,7 +875,8 @@
 
         if (!st.matchDone) {
             st.isGameSyncing = true;
-            showToast(`🎉 Game Won by Team ${team}! Menyinkronkan data...`);
+            const displayTeam = team === 'A' ? 'Tim A' : 'Tim B';
+            showToast(`🎉 Game Won by ${displayTeam}! Menyinkronkan data...`);
             // Safety timeout agar lock tidak pernah macet jika offline
             setTimeout(() => {
                 if (st.isGameSyncing && !st.matchDone) {
@@ -884,14 +885,14 @@
                 }
             }, 1200);
         } else {
-            showToast(`🎉 Set Won by Team ${team}!`);
+            const displayTeam = team === 'A' ? 'Tim A' : 'Tim B';
+            showToast(`🎉 Set Won by ${displayTeam}!`);
         }
     }
 
     function checkSetWinner(cIdx, clientSeq = null, tClick = null, baseVersion = 0, teamWon = null, eventId = null) {
         let st = courtsState[cIdx];
         let setWon = null;
-        
         if (!IS_SETS) {
             if (TARGET_GAMES > 0 && st.gamesA >= TARGET_GAMES) {
                 setWon = 'Team A';
