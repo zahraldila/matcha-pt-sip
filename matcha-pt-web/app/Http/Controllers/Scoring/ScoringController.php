@@ -106,30 +106,42 @@ class ScoringController extends Controller
         $courtCount = $matchContext['court_count'] ?? 1;
         $matchKey = ($courtCount > 1) ? "{$activeRound}_court_".($courtIndex + 1) : $activeRound;
 
-        // Hanya host yang boleh membuat/reconcile record match dan menginisialisasi cache.
+        // Sinkronisasi record match dan verifikasi skor resmi dari DB
         $cacheUpdated = false;
-        if ($isHost) {
-            foreach ($matchContext['matches'] as $mIdx => $m) {
-                $mKey = ($courtCount > 1) ? "{$activeRound}_court_".($mIdx + 1) : $activeRound;
+        foreach ($matchContext['matches'] as $mIdx => $m) {
+            $mKey = ($courtCount > 1) ? "{$activeRound}_court_".($mIdx + 1) : $activeRound;
+            if ($isHost) {
                 ScoringService::ensureMatchAndParticipants($game['id'], $activeRound, $mIdx, $matchContext);
+            }
 
-                $dbScore = $this->getScoreFromDatabase($game['id'], $activeRound, $mIdx);
-                $cachedScore = $savedScores[$mKey] ?? null;
-                $cachedVersion = (int) ($cachedScore['version'] ?? 0);
-                $dbVersion = (int) ($dbScore['version'] ?? 0);
-                $dbIsNewer = $dbScore && $cachedScore
-                    && (int) ($dbScore['updated_at_ms'] ?? 0) > (int) ($cachedScore['updated_at_ms'] ?? 0)
-                    && $dbVersion >= $cachedVersion;
-                $dbCompleted = $dbScore && ($dbScore['status'] ?? '') === 'completed'
-                    && ($cachedScore['status'] ?? '') !== 'completed';
+            $officialDbScore = $this->getOfficialCompletedScoreFromDatabase($game['id'], $activeRound, $mIdx);
+            $dbScore = $officialDbScore ?: $this->getScoreFromDatabase($game['id'], $activeRound, $mIdx);
+            $cachedScore = $savedScores[$mKey] ?? null;
+            $cachedVersion = (int) ($cachedScore['version'] ?? 0);
+            $dbVersion = (int) ($dbScore['version'] ?? 0);
+            $dbIsNewer = $dbScore && $cachedScore
+                && (int) ($dbScore['updated_at_ms'] ?? 0) > (int) ($cachedScore['updated_at_ms'] ?? 0)
+                && $dbVersion >= $cachedVersion;
+            $dbCompleted = $dbScore && ($dbScore['status'] ?? '') === 'completed';
+            $cachedCompleted = $cachedScore && ($cachedScore['status'] ?? '') === 'completed';
 
-                if ($dbScore && (! $cachedScore || $dbIsNewer || $dbCompleted)) {
-                    $savedScores[$mKey] = $dbScore;
-                    if ($courtCount === 1) {
-                        $savedScores[$activeRound] = $dbScore;
-                    }
-                    $cacheUpdated = true;
+            $cachedTotalGames = (int) ($cachedScore['games_a'] ?? ($cachedScore['score_a'] ?? 0)) + (int) ($cachedScore['games_b'] ?? ($cachedScore['score_b'] ?? 0));
+            $dbTotalGames = (int) ($dbScore['games_a'] ?? ($dbScore['score_a'] ?? 0)) + (int) ($dbScore['games_b'] ?? ($dbScore['score_b'] ?? 0));
+
+            // Authoritative Completed DB Score Protection:
+            // Jika DB sudah resmi Completed/Final, skor DB tidak boleh kalah oleh stale cache dengan skor lebih rendah.
+            $shouldUseDb = $dbScore && (
+                ! $cachedScore
+                || ($dbCompleted && (! $cachedCompleted || $dbTotalGames >= $cachedTotalGames))
+                || $dbIsNewer
+            );
+
+            if ($shouldUseDb) {
+                $savedScores[$mKey] = $dbScore;
+                if ($courtCount === 1) {
+                    $savedScores[$activeRound] = $dbScore;
                 }
+                $cacheUpdated = true;
             }
         }
         if ($cacheUpdated) {
@@ -225,34 +237,25 @@ class ScoringController extends Controller
             }
         }
 
-        // 2. Jika tidak ada di Cache: ambil dari tb_score via match_id di database (Pure READ-ONLY, DILARANG menimpa Cache)
-        if (! $score) {
-            $dbScore = $this->getScoreFromDatabase($gameId, $round, $courtIndex);
-            if ($dbScore) {
+        // 2. Authoritative Database Reconciliation:
+        // Jika database memiliki skor resmi yang sudah Completed/Final, pastikan skor tidak rollback dari snapshot cache lama.
+        $officialDbScore = $this->getOfficialCompletedScoreFromDatabase($gameId, $round, $courtIndex);
+        $dbScore = $officialDbScore ?: $this->getScoreFromDatabase($gameId, $round, $courtIndex);
+
+        if ($dbScore) {
+            $cachedTotalGames = (int) ($score['games_a'] ?? ($score['score_a'] ?? 0)) + (int) ($score['games_b'] ?? ($score['score_b'] ?? 0));
+            $dbTotalGames = (int) ($dbScore['games_a'] ?? ($dbScore['score_a'] ?? 0)) + (int) ($dbScore['games_b'] ?? ($dbScore['score_b'] ?? 0));
+            $dbCompleted = ($dbScore['status'] ?? '') === 'completed';
+            $cachedCompleted = ($score['status'] ?? '') === 'completed';
+
+            if (! $score || ($dbCompleted && (! $cachedCompleted || $dbTotalGames >= $cachedTotalGames))) {
                 $score = $dbScore;
-            } else {
-                // Inisialisasi default score murni untuk payload response (DILARANG Cache::put di GET request)
-                $score = [
-                    'version' => 0,
-                    'updated_at_ms' => (int) round(microtime(true) * 1000),
-                    'score_a' => 0,
-                    'score_b' => 0,
-                    'point_display_a' => '0',
-                    'point_display_b' => '0',
-                    'set_number' => 1,
-                    'sets_a' => 0,
-                    'sets_b' => 0,
-                    'games_a' => 0,
-                    'games_b' => 0,
-                    'set_history' => [],
-                    'idx_a' => 0,
-                    'idx_b' => 0,
-                    'is_deuce' => false,
-                    'advantage' => null,
-                    'scoring_type' => 'total_of_sets',
-                    'status' => 'in_progress',
-                    'winner_team' => null,
-                ];
+                $scores[$matchKey] = $score;
+                if (! $isMultiCourt) {
+                    $scores[$round] = $score;
+                    $scores["{$round}_court_1"] = $score;
+                }
+                Cache::put($cacheKey, $scores, now()->addHours(4));
             }
         }
 
@@ -263,7 +266,27 @@ class ScoringController extends Controller
 
         // 4. Default state jika masih kosong (DILARANG fallback ke court atau round lain untuk multi-court)
         if (! $score) {
-            $score = [];
+            $score = [
+                'version' => 0,
+                'updated_at_ms' => (int) round(microtime(true) * 1000),
+                'score_a' => 0,
+                'score_b' => 0,
+                'point_display_a' => '0',
+                'point_display_b' => '0',
+                'set_number' => 1,
+                'sets_a' => 0,
+                'sets_b' => 0,
+                'games_a' => 0,
+                'games_b' => 0,
+                'set_history' => [],
+                'idx_a' => 0,
+                'idx_b' => 0,
+                'is_deuce' => false,
+                'advantage' => null,
+                'scoring_type' => 'total_of_sets',
+                'status' => 'in_progress',
+                'winner_team' => null,
+            ];
         }
 
         $sessionActiveRound = $scores['_meta']['active_round'] ?? $round;
@@ -789,7 +812,7 @@ class ScoringController extends Controller
     public function nextRound(Request $request)
     {
         if (! Auth::check()) {
-            abort(401, 'Akses ditolak. Silakan login terlebih dahulu.');
+            abort(403, 'Akses ditolak. Silakan login terlebih dahulu.');
         }
 
         $request->validate([
@@ -1740,7 +1763,7 @@ class ScoringController extends Controller
                 ->sortByDesc('version')
                 ->sortByDesc('score_id')
                 ->first();
-            $lastScore = $officialScore ?: $scores->last();
+            $lastScore = $officialScore ?: $scores->sortByDesc('version')->sortByDesc('score_id')->first();
             $setHistory = [];
             $setsA = 0;
             $setsB = 0;
@@ -1750,18 +1773,16 @@ class ScoringController extends Controller
             foreach ($scores as $sc) {
                 $setsA = max($setsA, (int) $sc->set_score_a);
                 $setsB = max($setsB, (int) $sc->set_score_b);
-                $gamesA = (int) $sc->game_score_a;
-                $gamesB = (int) $sc->game_score_b;
                 $setHistory[] = [
                     'set' => (int) $sc->set_number,
-                    'score_a' => (int) $sc->score_side_a,
-                    'score_b' => (int) $sc->score_side_b,
+                    'score_a' => (int) ($sc->game_score_a ?? $sc->score_side_a ?? 0),
+                    'score_b' => (int) ($sc->game_score_b ?? $sc->score_side_b ?? 0),
                 ];
             }
 
             if ($lastScore) {
-                $gamesA = (int) $lastScore->game_score_a;
-                $gamesB = (int) $lastScore->game_score_b;
+                $gamesA = (int) ($lastScore->game_score_a ?? $lastScore->score_side_a ?? 0);
+                $gamesB = (int) ($lastScore->game_score_b ?? $lastScore->score_side_b ?? 0);
                 $setsA = max($setsA, (int) $lastScore->set_score_a);
                 $setsB = max($setsB, (int) $lastScore->set_score_b);
             }
@@ -1841,26 +1862,26 @@ class ScoringController extends Controller
             'match_id' => (int) $match->match_id,
             'version' => (int) ($row->version ?? 1),
             'updated_at_ms' => (int) round((strtotime((string) ($match->updated_at ?? now()->toDateTimeString())) * 1000)),
-            'score_a' => (int) ($row->set_score_a ?? 0),
-            'score_b' => (int) ($row->set_score_b ?? 0),
+            'score_a' => (int) ($row->game_score_a ?? $row->score_side_a ?? $row->set_score_a ?? 0),
+            'score_b' => (int) ($row->game_score_b ?? $row->score_side_b ?? $row->set_score_b ?? 0),
             'point_display_a' => (string) ($row->point_score_a ?? '0'),
             'point_display_b' => (string) ($row->point_score_b ?? '0'),
             'set_number' => (int) ($row->set_number ?? 1),
             'sets_a' => (int) ($row->set_score_a ?? 0),
             'sets_b' => (int) ($row->set_score_b ?? 0),
-            'games_a' => (int) ($row->game_score_a ?? 0),
-            'games_b' => (int) ($row->game_score_b ?? 0),
+            'games_a' => (int) ($row->game_score_a ?? $row->score_side_a ?? 0),
+            'games_b' => (int) ($row->game_score_b ?? $row->score_side_b ?? 0),
             'set_history' => [[
                 'set' => (int) ($row->set_number ?? 1),
-                'score_a' => (int) ($row->score_side_a ?? 0),
-                'score_b' => (int) ($row->score_side_b ?? 0),
+                'score_a' => (int) ($row->game_score_a ?? $row->score_side_a ?? 0),
+                'score_b' => (int) ($row->game_score_b ?? $row->score_side_b ?? 0),
             ]],
             'idx_a' => 0,
             'idx_b' => 0,
             'is_deuce' => false,
             'advantage' => null,
             'scoring_type' => (string) ($row->scoring_system ?? 'total_of_sets'),
-            'status' => strtolower((string) ($match->status_match ?? '')) === 'completed' ? 'completed' : 'in_progress',
+            'status' => strtolower((string) ($match->status_match ?? '')) === 'completed' || in_array(strtolower((string) ($row->status_score ?? '')), ['final', 'completed'], true) ? 'completed' : 'in_progress',
             'winner_team' => $match->winner_team,
         ];
     }
