@@ -64,7 +64,9 @@
             <div class="flex items-center gap-2 text-[11px]">
                 <i class="fa-regular fa-clock text-slate-400 w-3.5 text-center"></i>
                 <span class="font-semibold text-[#050608]">{{ $game['time'] }} WIB</span>
-                <span class="text-slate-400">({{ $game['duration'] }})</span>
+                @if(!empty($game['duration']) && $game['duration'] !== '-')
+                    <span class="text-slate-400">({{ $game['duration'] }})</span>
+                @endif
             </div>
         </div>
 

@@ -45,7 +45,7 @@
                     </div>
                     <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
                         <span class="text-slate-500 block mb-0.5">Durasi & Kuota</span>
-                        <strong class="text-slate-900 block">{{ $game['duration'] }}</strong>
+                        <strong class="text-slate-900 block">{{ $game['duration'] ?? '-' }}</strong>
                         <span class="text-slate-700 font-semibold text-[11px]">{{ $game['joined_count'] }} / {{ $game['quota'] }} Pemain</span>
                     </div>
                     <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">

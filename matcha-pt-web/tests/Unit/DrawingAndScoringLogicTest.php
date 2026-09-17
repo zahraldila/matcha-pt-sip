@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Http\Controllers\Game\GameController;
 use App\Http\Controllers\Scoring\ScoringController;
 use App\Models\Court;
 use App\Models\Drawing;
@@ -21,6 +22,52 @@ use Tests\TestCase;
 
 class DrawingAndScoringLogicTest extends TestCase
 {
+    public function test_session_duration_is_hidden_until_game_is_completed_and_uses_real_match_duration_afterward()
+    {
+        $this->setupTestDatabaseSchema();
+
+        $session = SessionModel::create([
+            'host_user_id' => 1,
+            'sport_id' => 1,
+            'venue_id' => 1,
+            'nama_session' => 'Mabar Uji Durasi',
+            'scoring_system' => 'Total of 3',
+            'waktu_session' => '08:00 WIB (2 Jam)',
+            'datetime' => '2026-09-17 08:00:00',
+            'status_session' => 'Open',
+            'jumlah_pemain' => '4',
+            'jenis_permainan' => 'Double',
+        ]);
+
+        $this->assertSame('08:00', GameController::resolveSessionDisplayTime($session));
+        $this->assertSame('Ready for Drawing', GameController::resolveSessionStatus($session, 0));
+        $this->assertSame('-', GameController::resolveSessionDuration($session));
+
+        $session->update(['status_session' => 'Finished']);
+        $this->assertSame('Selesai Mabar', GameController::resolveSessionStatus($session, 0));
+
+        $drawing = Drawing::create([
+            'session_id' => $session->session_id,
+            'match_format_id' => 1,
+            'tanggal_drawing' => '2026-09-17',
+            'jam_drawing' => '08:00:00',
+        ]);
+
+        GameMatch::create([
+            'drawing_id' => $drawing->drawing_id,
+            'court_id' => 1,
+            'nomor_match' => 1,
+            'status_match' => 'Completed',
+            'waktu_mulai' => '2026-09-17 08:00:00',
+            'waktu_selesai' => '2026-09-17 10:30:00',
+            'hasil_pertandingan' => '7-5',
+            'winner_team' => 'A',
+            'version' => 1,
+        ]);
+
+        $this->assertSame('2 Jam 30 Menit', GameController::resolveSessionDuration($session));
+    }
+
     public function test_scoring_configuration_uses_expected_set_and_point_targets()
     {
         foreach ([

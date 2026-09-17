@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Game;
 use App\Http\Controllers\Controller;
 use App\Models\Court;
 use App\Models\Drawing;
+use App\Models\GameMatch;
 use App\Models\Player;
 use App\Models\SessionModel;
+use Carbon\Carbon;
 use App\Models\Sport;
 use App\Models\Venue;
 use App\Services\Drawing\AmericanoService;
@@ -24,6 +26,111 @@ use Illuminate\Support\Facades\Log;
 
 class GameController extends Controller
 {
+    public static function resolveSessionDisplayTime(SessionModel $session): string
+    {
+        $raw = trim((string) ($session->waktu_session ?? ''));
+        if ($raw === '') {
+            return '18:30';
+        }
+
+        $normalized = preg_replace('/\s*\([^)]*\)\s*$/', '', $raw);
+        $normalized = preg_replace('/\s*WIB\s*$/i', '', $normalized ?? $raw);
+
+        return trim($normalized !== null && $normalized !== '' ? $normalized : $raw);
+    }
+
+    public static function resolveSessionStatus(SessionModel $session, int $slotLeft = 0): string
+    {
+        $status = strtolower(trim((string) ($session->status_session ?? '')));
+
+        if (in_array($status, ['finished', 'completed'], true)) {
+            return 'Selesai Mabar';
+        }
+
+        if (in_array($status, ['in_progress', 'in progress'], true)) {
+            return 'Sedang Berlangsung';
+        }
+
+        return $slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)";
+    }
+
+    public static function resolveSessionDuration(SessionModel $session): string
+    {
+        $status = strtolower(trim((string) ($session->status_session ?? '')));
+        if (! in_array($status, ['finished', 'completed'], true)) {
+            return '-';
+        }
+
+        $drawingIds = Drawing::where('session_id', $session->session_id)
+            ->pluck('drawing_id')
+            ->all();
+
+        if (! empty($drawingIds)) {
+            $matches = GameMatch::whereIn('drawing_id', $drawingIds)
+                ->whereIn('status_match', ['Completed', 'Finished'])
+                ->get();
+
+            $startedAt = null;
+            $finishedAt = null;
+
+            foreach ($matches as $match) {
+                if (empty($match->waktu_mulai) || empty($match->waktu_selesai)) {
+                    continue;
+                }
+
+                $matchStartedAt = Carbon::parse($match->waktu_mulai);
+                $matchFinishedAt = Carbon::parse($match->waktu_selesai);
+
+                if ($matchFinishedAt->lessThanOrEqualTo($matchStartedAt)) {
+                    continue;
+                }
+
+                if ($startedAt === null || $matchStartedAt->lessThan($startedAt)) {
+                    $startedAt = $matchStartedAt;
+                }
+
+                if ($finishedAt === null || $matchFinishedAt->greaterThan($finishedAt)) {
+                    $finishedAt = $matchFinishedAt;
+                }
+            }
+
+            if ($startedAt && $finishedAt) {
+                $totalMinutes = (int) $startedAt->diffInMinutes($finishedAt, false);
+                if ($totalMinutes > 0) {
+                    return self::formatDurationMinutes($totalMinutes);
+                }
+            }
+        }
+
+        $scheduledValue = trim((string) ($session->waktu_session ?? ''));
+        if ($scheduledValue !== '') {
+            if (preg_match('/\(([^)]+)\)/', $scheduledValue, $match)) {
+                $parsed = trim($match[1]);
+                if ($parsed !== '') {
+                    return $parsed;
+                }
+            }
+        }
+
+        return '-';
+    }
+
+    private static function formatDurationMinutes(int $minutes): string
+    {
+        $hours = intdiv($minutes, 60);
+        $remainingMinutes = $minutes % 60;
+
+        if ($hours > 0 && $remainingMinutes > 0) {
+            return $hours.' Jam '. $remainingMinutes.' Menit';
+        }
+
+        if ($hours > 0) {
+            return $hours.' Jam';
+        }
+
+        return $remainingMinutes.' Menit';
+    }
+
     public function index(Request $request)
     {
         $selectedSport = $request->query('sport', 'all');
@@ -58,9 +165,7 @@ class GameController extends Controller
             $quota = (int) ($s->jumlah_pemain ?? 6);
             $slotLeft = max(0, $quota - $joinedCount);
             $isFinished = in_array(strtolower(trim((string) $s->status_session)), ['finished', 'completed'], true);
-            $status = $isFinished
-                ? 'Selesai Mabar'
-                : ($slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)");
+            $status = self::resolveSessionStatus($s, $slotLeft);
 
             // Check if hosted by logged-in user
             $isHostedByMe = false;
@@ -109,8 +214,8 @@ class GameController extends Controller
                 'venue_name' => $s->venue->nama_venue ?? 'Arena Olahraga',
                 'court_name' => $s->courts->first()->nama_court ?? 'Court 1',
                 'date' => $s->datetime ? $s->datetime->format('Y-m-d') : date('Y-m-d'),
-                'time' => $s->waktu_session ?? '18:30 WIB',
-                'duration' => '2 Jam',
+                'time' => self::resolveSessionDisplayTime($s),
+                'duration' => self::resolveSessionDuration($s),
                 'quota' => $quota,
                 'joined_count' => $joinedCount,
                 'status' => $status,
@@ -329,6 +434,9 @@ class GameController extends Controller
                 );
             }
 
+            $scheduledDate = $request->input('tanggal') ?: now()->toDateString();
+            $scheduledTime = $request->input('jam') ?: now()->format('H:i');
+
             // 3. Buat session
             $session = SessionModel::create([
                 'host_user_id' => Auth::id(),
@@ -336,8 +444,8 @@ class GameController extends Controller
                 'venue_id' => $request->venue_id,
                 'nama_session' => $request->nama_session,
                 'scoring_system' => $request->scoring_system ?? 'Total of 3',
-                'waktu_session' => now()->format('H:i').' WIB',
-                'datetime' => now(),
+                'waktu_session' => $scheduledTime.' WIB',
+                'datetime' => $scheduledDate.' '.$scheduledTime.':00',
                 'status_session' => 'Ready for Drawing',
                 'jumlah_pemain' => (string) count($request->players),
                 'jenis_permainan' => $jenisPermainan,
@@ -531,7 +639,7 @@ class GameController extends Controller
         $quota = (int) ($dbSession->jumlah_pemain ?? 6);
         $joinedCount = $dbSession->players->count();
         $slotLeft = max(0, $quota - $joinedCount);
-        $status = $slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)";
+        $status = self::resolveSessionStatus($dbSession, $slotLeft);
 
         $formatString = 'Americano';
         $dbDrawing = Drawing::where('session_id', $dbSession->session_id)->with('matchFormat')->first();
@@ -551,8 +659,8 @@ class GameController extends Controller
             'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
             'court_name' => $dbSession->courts->first()->nama_court ?? 'Court 1',
             'date' => $dbSession->datetime ? $dbSession->datetime->format('Y-m-d') : date('Y-m-d'),
-            'time' => $dbSession->waktu_session ?? '18:30 WIB',
-            'duration' => '2 Jam',
+            'time' => self::resolveSessionDisplayTime($dbSession),
+            'duration' => self::resolveSessionDuration($dbSession),
             'quota' => $quota,
             'joined_count' => $joinedCount,
             'status' => $status,
@@ -775,8 +883,8 @@ class GameController extends Controller
                 'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
                 'court_name' => $dbSession->courts->first()->nama_court ?? 'Court 1',
                 'date' => $dbSession->datetime ? $dbSession->datetime->format('Y-m-d') : date('Y-m-d'),
-                'time' => $dbSession->waktu_session ?? '18:30 WIB',
-                'duration' => '2 Jam',
+                'time' => self::resolveSessionDisplayTime($dbSession),
+                'duration' => self::resolveSessionDuration($dbSession),
                 'quota' => $quota,
                 'joined_count' => count($participants),
                 'status' => $status,
