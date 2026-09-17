@@ -735,8 +735,8 @@ class ScoringController extends Controller
      */
     public function nextRound(Request $request)
     {
-        if (! Auth::check() || Auth::user()->role !== 'host') {
-            abort(403, 'Akses ditolak. Hanya Host yang dapat melanjutkan ke set/ronde berikutnya.');
+        if (! Auth::check()) {
+            abort(401, 'Akses ditolak. Silakan login terlebih dahulu.');
         }
 
         $request->validate([
@@ -748,7 +748,7 @@ class ScoringController extends Controller
         $gameId = $request->integer('game_id');
         $session = SessionModel::findOrFail($gameId);
         if (! $this->isHostForSession($session)) {
-            abort(403, 'Akses ditolak. Anda bukan Host untuk sesi pertandingan ini.');
+            abort(403, 'Akses ditolak. Hanya Host yang dapat melanjutkan ke set/ronde berikutnya.');
         }
 
         $currentRoundRaw = $request->string('current_round')->toString();
@@ -812,8 +812,8 @@ class ScoringController extends Controller
     public function finishSession(Request $request)
     {
         // Hanya host yang boleh menyelesaikan sesi
-        if (! Auth::check() || Auth::user()->role !== 'host') {
-            return redirect()->back()->withErrors(['auth' => 'Akses ditolak. Hanya Host yang dapat menyelesaikan sesi.']);
+        if (! Auth::check()) {
+            return redirect()->back()->withErrors(['auth' => 'Akses ditolak. Silakan login terlebih dahulu.']);
         }
 
         $request->validate([
@@ -824,7 +824,7 @@ class ScoringController extends Controller
         $gameId = $request->integer('game_id');
         $session = SessionModel::findOrFail($gameId);
         if (! $this->isHostForSession($session)) {
-            abort(403);
+            return redirect()->back()->withErrors(['auth' => 'Akses ditolak. Hanya Host yang dapat menyelesaikan sesi.']);
         }
 
         $round = $request->string('round')->toString();
