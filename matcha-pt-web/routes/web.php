@@ -65,6 +65,7 @@ Route::prefix('scoring')->name('scoring.')->group(function () {
     Route::post('/update-score', [ScoringController::class, 'updateScore'])->name('update-score'); // AJAX endpoint
     Route::post('/next-round', [ScoringController::class, 'nextRound'])->name('next-round');       // Lanjut ke set/ronde berikutnya
     Route::post('/finish', [ScoringController::class, 'finishSession'])->name('finish');           // Selesaikan sesi
+    Route::post('/kudos/toggle', [ScoringController::class, 'toggleKudos'])->name('kudos.toggle'); // Simpan / Cabut Kudos permanen ke DB
 });
 
 // Protected: Player Profile & Strava-like Recap

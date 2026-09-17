@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Game\GameController;
 use App\Models\Drawing;
 use App\Models\GameMatch;
+use App\Models\Kudos;
 use App\Models\Player;
 use App\Models\PlayingHistory;
 use App\Models\Score;
@@ -1383,6 +1384,21 @@ class ScoringController extends Controller
             $storyPlayerStats[$rankedPlayer['name']] = $this->buildPlayerRecap($game, $rankedPlayers, $rankedPlayer['name']);
         }
 
+        // Ambil data Kudos yang tersimpan permanen di database tb_kudos
+        $kudosList = Kudos::where('session_id', (int) $id)->get();
+        $savedKudos = [];
+        $currentUserId = Auth::id();
+        $userGivenKudos = [];
+        foreach ($kudosList as $k) {
+            $key = "{$k->recipient_name}:{$k->badge}";
+            $savedKudos[$key] = ($savedKudos[$key] ?? 0) + 1;
+            if ($currentUserId && $k->giver_user_id === $currentUserId) {
+                $userGivenKudos[$key] = true;
+            } elseif (! $currentUserId) {
+                $userGivenKudos[$key] = true;
+            }
+        }
+
         return view('scoring.recap', compact(
             'game',
             'scoringSystem',
@@ -1395,8 +1411,74 @@ class ScoringController extends Controller
             'hasScores',
             'isFinished',
             'completedMatchesCount',
-            'totalMatchesCount'
+            'totalMatchesCount',
+            'savedKudos',
+            'userGivenKudos'
         ));
+    }
+
+    /**
+     * Berikan / Cabut Kudos untuk pemain pada suatu sesi pertandingan (Disimpan permanen ke tb_kudos).
+     */
+    public function toggleKudos(Request $request)
+    {
+        $request->validate([
+            'session_id' => 'required|integer',
+            'player_name' => 'required|string|max:255',
+            'player_id' => 'nullable|integer',
+            'badge' => 'required|string|max:100',
+        ]);
+
+        $sessionId = $request->integer('session_id');
+        $playerName = trim($request->string('player_name')->toString());
+        $playerId = $request->input('player_id');
+        $badge = trim($request->string('badge')->toString());
+        $currentUserId = Auth::id();
+
+        $query = Kudos::where('session_id', $sessionId)
+            ->where('recipient_name', $playerName)
+            ->where('badge', $badge);
+
+        if ($currentUserId) {
+            $query->where('giver_user_id', $currentUserId);
+        }
+
+        $existing = $query->first();
+
+        if ($existing) {
+            $existing->delete();
+            $action = 'removed';
+            $isActive = false;
+        } else {
+            if (! $playerId) {
+                $playerId = Player::where('nama', $playerName)->value('player_id');
+            }
+
+            Kudos::create([
+                'session_id' => $sessionId,
+                'giver_user_id' => $currentUserId,
+                'recipient_player_id' => $playerId,
+                'recipient_name' => $playerName,
+                'badge' => $badge,
+            ]);
+            $action = 'added';
+            $isActive = true;
+        }
+
+        $totalBadgeCount = Kudos::where('session_id', $sessionId)
+            ->where('recipient_name', $playerName)
+            ->where('badge', $badge)
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'action' => $action,
+            'active' => $isActive,
+            'count' => $totalBadgeCount,
+            'player_name' => $playerName,
+            'badge' => $badge,
+            'message' => $isActive ? "Kudos untuk {$playerName} berhasil disimpan!" : "Kudos untuk {$playerName} dicabut.",
+        ]);
     }
 
     private function resolveActualMatchHistory(int $sessionId, array $fallbackDrawing): array
