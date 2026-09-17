@@ -19,6 +19,8 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class GameController extends Controller
 {
@@ -280,6 +282,26 @@ class GameController extends Controller
             }
 
             return back()->withInput()->withErrors(['players' => $msg]);
+        }
+
+        // Validasi format First to X (Single & Double): Jumlah pemain harus tepat sesuai kapasitas court
+        $scoringSystemInput = $request->input('scoring_system', '');
+        $isFirstToSystem = str_starts_with(strtolower(trim($scoringSystemInput)), 'first to');
+        $numCourts = (int) $request->input('num_courts', 1);
+        $playerCount = count($request->input('players', []));
+
+        if ($isFirstToSystem) {
+            $requiredPlayers = $isSingleMode ? ($numCourts * 2) : ($numCourts * 4);
+            $modeLabel = $isSingleMode ? 'Single (1 vs 1)' : 'Double (2 vs 2)';
+
+            if ($playerCount !== $requiredPlayers) {
+                $msg = "Untuk format {$scoringSystemInput} ({$modeLabel}) dengan {$numCourts} court, jumlah pemain harus tepat {$requiredPlayers} orang (tidak boleh kurang atau lebih).";
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json(['success' => false, 'message' => $msg], 422);
+                }
+
+                return back()->withInput()->withErrors(['players' => $msg]);
+            }
         }
 
         try {
@@ -695,7 +717,7 @@ class GameController extends Controller
     public function drawing($id, Request $request)
     {
         $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->findOrFail((int) $id);
-        
+
         // PENYESUAIAN: Cek flag is_host dan kepemilikan host_user_id
         $isHost = Auth::check()
             && Auth::user()->is_host
@@ -975,7 +997,7 @@ class GameController extends Controller
                 return;
             }
 
-            \Illuminate\Support\Facades\Http::withoutVerifying()
+            Http::withoutVerifying()
                 ->withHeaders([
                     'apikey' => $key,
                     'Authorization' => 'Bearer '.$key,
@@ -998,7 +1020,7 @@ class GameController extends Controller
                     ],
                 ]);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::debug("Supabase realtime drawing locked broadcast skipped: {$e->getMessage()}");
+            Log::debug("Supabase realtime drawing locked broadcast skipped: {$e->getMessage()}");
         }
     }
 }
