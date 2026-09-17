@@ -8,8 +8,8 @@
         'teamA' => [],
         'teamB' => [],
         'resting' => [],
-        'team_a' => ['name' => 'Team A'],
-        'team_b' => ['name' => 'Team B'],
+        'team_a' => ['name' => 'Tim A'],
+        'team_b' => ['name' => 'Tim B'],
         'matches' => [],
     ];
     $isSetBased = str_contains(strtolower($game['scoring_system'] ?? ''), 'total of') || str_contains(strtolower($game['scoring_system'] ?? ''), 'best of');
@@ -129,8 +129,8 @@
                         if (empty($tBPlayers) && is_array($m['team_b'])) {
                             $tBPlayers = array_map(fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (string)$p, $m['team_b']);
                         }
-                        $tAName = $m['team_a']['name'] ?? ($m['team_a_name'] ?? (count($initMatches) > 1 ? "Court " . ($mIdx + 1) . " - Team A" : "Team A"));
-                        $tBName = $m['team_b']['name'] ?? ($m['team_b_name'] ?? (count($initMatches) > 1 ? "Court " . ($mIdx + 1) . " - Team B" : "Team B"));
+                        $tAName = $m['team_a']['name'] ?? ($m['team_a_name'] ?? (count($initMatches) > 1 ? "Court " . ($mIdx + 1) . " - Tim A" : "Tim A"));
+                        $tBName = $m['team_b']['name'] ?? ($m['team_b_name'] ?? (count($initMatches) > 1 ? "Court " . ($mIdx + 1) . " - Tim B" : "Tim B"));
                     @endphp
 
                     <div class="rounded-3xl glass-card p-4 sm:p-5 shadow-sm border border-white/80 space-y-3">
@@ -266,8 +266,8 @@
                         @php
                             $courtLabel = $m['court_name'] ?? ('Court ' . ($m['court'] ?? ($mIdx + 1)));
                             $statusLabel = $m['status'] ?? 'Scheduled';
-                            $teamAName = $m['team_a']['name'] ?? ($m['team_a_name'] ?? 'Team A');
-                            $teamBName = $m['team_b']['name'] ?? ($m['team_b_name'] ?? 'Team B');
+                            $teamAName = $m['team_a']['name'] ?? ($m['team_a_name'] ?? 'Tim A');
+                            $teamBName = $m['team_b']['name'] ?? ($m['team_b_name'] ?? 'Tim B');
                             $teamAPlayers = !empty($m['team_a_names']) ? $m['team_a_names'] : (is_array($m['team_a']) ? array_column($m['team_a'], 'name') : []);
                             $teamBPlayers = !empty($m['team_b_names']) ? $m['team_b_names'] : (is_array($m['team_b']) ? array_column($m['team_b'], 'name') : []);
                         @endphp
@@ -331,7 +331,7 @@
                 <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2 shadow-2xs">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-extrabold text-[#063B00]" id="labelTeamAName">
-                            {{ $activeRound['primary_match']['team_a']['name'] ?? ($activeRound['team_a']['name'] ?? 'TEAM ALPHA') }}
+                            {{ $activeRound['primary_match']['team_a']['name'] ?? ($activeRound['team_a']['name'] ?? 'TIM A') }}
                         </span>
                         <span class="text-[10px] font-semibold text-slate-400">Court 1 (Sisi Kiri)</span>
                     </div>
@@ -351,7 +351,7 @@
                 <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2 shadow-2xs">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-extrabold text-slate-800" id="labelTeamBName">
-                            {{ $activeRound['primary_match']['team_b']['name'] ?? ($activeRound['team_b']['name'] ?? 'TEAM BETA') }}
+                            {{ $activeRound['primary_match']['team_b']['name'] ?? ($activeRound['team_b']['name'] ?? 'TIM B') }}
                         </span>
                         <span class="text-[10px] font-semibold text-slate-400">Court 1 (Sisi Kanan)</span>
                     </div>
@@ -509,15 +509,15 @@
         const courtName = match.court_name || `Court ${match.court || (matchIdx + 1)}`;
         const slotBadge = match.slot_number ? `<span class="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">Slot ${match.slot_number}</span>` : '';
         
-        let teamAName = 'Team A';
+        let teamAName = 'Tim A';
         if (match.team_a && match.team_a.name) teamAName = match.team_a.name;
         else if (match.team_a_name) teamAName = match.team_a_name;
-        else if (totalMatches > 1) teamAName = `${courtName} - Team A`;
+        else if (totalMatches > 1) teamAName = `${courtName} - Tim A`;
         
-        let teamBName = 'Team B';
+        let teamBName = 'Tim B';
         if (match.team_b && match.team_b.name) teamBName = match.team_b.name;
         else if (match.team_b_name) teamBName = match.team_b_name;
-        else if (totalMatches > 1) teamBName = `${courtName} - Team B`;
+        else if (totalMatches > 1) teamBName = `${courtName} - Tim B`;
 
         const playersA = extractMatchPlayers(match.team_a, match.team_a_names);
         const playersB = extractMatchPlayers(match.team_b, match.team_b_names);

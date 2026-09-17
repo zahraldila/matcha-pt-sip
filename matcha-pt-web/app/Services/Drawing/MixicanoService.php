@@ -183,18 +183,7 @@ class MixicanoService
         $teams = [];
 
         $teamLabels = [
-            'Alpha',
-            'Beta',
-            'Gamma',
-            'Delta',
-            'Epsilon',
-            'Zeta',
-            'Eta',
-            'Theta',
-            'Iota',
-            'Kappa',
-            'Lambda',
-            'Mu',
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
         ];
 
         // Randomize pasangan Male + Female
@@ -224,8 +213,8 @@ class MixicanoService
                 'index' => $teamIndex,
                 'stable_id' => $stableTeamId,
                 'code' => "T{$teamIndex}",
-                'name' => "Team {$label}",
-                'short_name' => "Team {$teamIndex}",
+                'name' => "Tim {$label}",
+                'short_name' => "Tim {$teamIndex}",
 
                 'players' => [$male, $female],
 
@@ -235,7 +224,7 @@ class MixicanoService
                 ],
 
                 'display_name' =>
-                    "Team {$label} [{$male['name']} & {$female['name']}]",
+                    "Tim {$label} [{$male['name']} & {$female['name']}]",
 
                 'gender_composition' => 'Male + Female',
             ];
