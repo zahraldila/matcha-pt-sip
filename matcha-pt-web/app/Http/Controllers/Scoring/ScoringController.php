@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Scoring;
 use App\Http\Controllers\Controller;
 use App\Models\Drawing;
 use App\Models\GameMatch;
-use App\Models\MatchParticipant;
 use App\Models\Player;
 use App\Models\PlayingHistory;
 use App\Models\Score;
@@ -1758,44 +1757,7 @@ class ScoringController extends Controller
         $isSets = (bool) ($scoringSystem['is_sets'] ?? true);
         $targetGames = (int) ($scoringSystem['target_games'] ?? 6);
 
-        // FIRST TO X (Americano/Padel): Setiap add_point langsung +1 ke games, tanpa point ladder
-        if (! $isSets) {
-            if ($team === 'A') {
-                $gamesA++;
-            } elseif ($team === 'B') {
-                $gamesB++;
-            }
-
-            // Check completion
-            if ($targetGames > 0 && $gamesA >= $targetGames) {
-                $status = 'completed';
-                $winnerTeam = 'Team A';
-                $setsA = 1;
-            } elseif ($targetGames > 0 && $gamesB >= $targetGames) {
-                $status = 'completed';
-                $winnerTeam = 'Team B';
-                $setsB = 1;
-            }
-
-            return array_merge($currentState, [
-                'score_a' => $gamesA,
-                'score_b' => $gamesB,
-                'games_a' => $gamesA,
-                'games_b' => $gamesB,
-                'point_display_a' => (string) $gamesA,
-                'point_display_b' => (string) $gamesB,
-                'idx_a' => 0,
-                'idx_b' => 0,
-                'is_deuce' => false,
-                'advantage' => null,
-                'sets_a' => $setsA,
-                'sets_b' => $setsB,
-                'status' => $status,
-                'winner_team' => $winnerTeam,
-            ]);
-        }
-
-        // TOTAL OF SETS (Tennis): Gunakan point ladder 0/15/30/40 -> game win
+        // Mutasi poin dengan tennis ladder (0 -> 15 -> 30 -> 40 -> Game Win)
         if ($team === 'A') {
             if ($isDeuce) {
                 if ($advantage === 'A') {

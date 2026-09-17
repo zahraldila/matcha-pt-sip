@@ -660,12 +660,6 @@
     // ── Point Display Resolution ─────────────────────────────────────────────
     function getPointDisplays(cIdx) {
         let st = courtsState[cIdx];
-        if (!IS_SETS) {
-            return {
-                a: String(st.gamesA),
-                b: String(st.gamesB),
-            };
-        }
         if (st.isDeuce) {
             if (st.advantage === 'A') return { a: 'ADV', b: '40' };
             if (st.advantage === 'B') return { a: '40', b: 'ADV' };
@@ -705,22 +699,11 @@
         const baseVersion = st.serverVersion || 0;
         const eventId = 'evt_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
 
-        // 1. Mutasi state lokal terlebih dahulu agar snapshot antrean akurat
-        if (!IS_SETS) {
-            // First to X (Padel / Americano Rally Point): Setiap klik langsung +1 poin murni
-            if (team === 'A') {
-                st.gamesA++;
-            } else {
-                st.gamesB++;
-            }
-            checkSetWinner(cIdx, clientSeq, tClick, baseVersion, team, eventId);
+        // 1. Mutasi state lokal terlebih dahulu (Tennis point ladder 0 -> 15 -> 30 -> 40 -> Game)
+        if (team === 'A') {
+            handlePointWonByA(cIdx, clientSeq, tClick, baseVersion, eventId);
         } else {
-            // Sets Mode (Tennis Ladder 0/15/30/40/Deuce/Game)
-            if (team === 'A') {
-                handlePointWonByA(cIdx, clientSeq, tClick, baseVersion, eventId);
-            } else {
-                handlePointWonByB(cIdx, clientSeq, tClick, baseVersion, eventId);
-            }
+            handlePointWonByB(cIdx, clientSeq, tClick, baseVersion, eventId);
         }
 
         // 2. Simpan ke antrean DENGAN snapshot state yang sudah ter-update
@@ -906,13 +889,13 @@
         if (curBadge) {
             curBadge.innerText = IS_SETS 
                 ? `Game Score: ${st.gamesA} — ${st.gamesB}` 
-                : `Target: ${TARGET_GAMES} Poin (Skor: ${st.gamesA} — ${st.gamesB})`;
+                : `Target: ${TARGET_GAMES} Games (Score: ${st.gamesA} — ${st.gamesB})`;
         }
         if (subA) {
-            subA.innerText = IS_SETS ? `Games Won: ${st.gamesA} Game` : `Total Poin: ${st.gamesA}`;
+            subA.innerText = `Games Won: ${st.gamesA} Game`;
         }
         if (subB) {
-            subB.innerText = IS_SETS ? `Games Won: ${st.gamesB} Game` : `Total Poin: ${st.gamesB}`;
+            subB.innerText = `Games Won: ${st.gamesB} Game`;
         }
 
         if (setLbl) {
@@ -920,10 +903,9 @@
         }
 
         if (notice) {
-            const scoreUnit = IS_SETS ? 'Games' : 'Poin';
             if (st.matchDone) {
-                notice.innerHTML = `🔒 <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Selesai & Terkunci</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB} ${scoreUnit}</strong> (${st.winnerTeam || 'Selesai'})`;
-            } else if (IS_SETS && st.isDeuce) {
+                notice.innerHTML = `🔒 <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Selesai & Terkunci</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB} Games</strong> (${st.winnerTeam || 'Selesai'})`;
+            } else if (st.isDeuce) {
                 if (st.advantage === 'A') {
                     notice.innerHTML = '<strong class="text-[#063B00]">ADVANTAGE TEAM A</strong> &bull; Butuh 1 poin lagi untuk memenangkan game';
                 } else if (st.advantage === 'B') {
@@ -931,8 +913,6 @@
                 } else {
                     notice.innerHTML = '<strong class="text-amber-700">DEUCE (40 - 40)</strong> &bull; Perebutan advantage point';
                 }
-            } else if (!IS_SETS) {
-                notice.innerHTML = `Pertandingan First to <strong>${TARGET_GAMES} Poin</strong> &bull; Skor Terkini: <strong class="text-[#063B00]">${st.gamesA}</strong> — <strong class="text-[#063B00]">${st.gamesB}</strong>`;
             } else {
                 notice.innerHTML = `${UNIT_TAB_LABEL} score: <strong>${st.gamesA}</strong> — <strong>${st.gamesB}</strong> &bull; Point: <strong>${displays.a} : ${displays.b}</strong>`;
             }
