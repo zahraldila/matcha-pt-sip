@@ -1755,7 +1755,7 @@
             syncRoundCompletionStatus();
         }
 
-        const scoreState = latestSnapshot || st;
+        const scoreState = isCompletionSave ? st : (latestSnapshot || st);
         const displays = latestSnapshot ? latestSnapshot.pointDisplays : getPointDisplays(cIdx);
         const currentStatus = isCompletionSave ? 'completed' : (scoreState.matchDone ? 'completed' : 'in_progress');
         const reqSeq = lastClientSeq || st.clientSeq || 1;
