@@ -560,6 +560,7 @@
                         <input type="hidden" name="sets_b"          id="globalFinishSetsB" value="0">
                         <input type="hidden" name="games_a"         id="globalFinishGamesA" value="0">
                         <input type="hidden" name="games_b"         id="globalFinishGamesB" value="0">
+                        <input type="hidden" name="set_history"     id="globalFinishSetHistory" value="">
                         <input type="hidden" name="winner_team"     id="globalFinishWinnerTeam" value="">
 
                         <button type="submit" id="btnGlobalFinishSession" onclick="submitGlobalFinish(event)"
@@ -2037,38 +2038,26 @@
     function submitGlobalFinish(event) {
         if (event) event.preventDefault();
 
-        // Cari court yang belum selesai terakhir / court dengan skor terbaru.
-        // Jangan selalu mengambil courtsState[0].
-        let candidateIdx = null;
+        // Ambil court yang sedang aktif / tersedia
+        const keys = Object.keys(courtsState);
 
-        for (const [idx, state] of Object.entries(courtsState)) {
-            if (!state) continue;
-
-            // Prioritaskan state yang sudah completed
-            if (state.matchDone) {
-                candidateIdx = idx;
-            }
+        if (!keys.length) {
+            showToast('Data pertandingan tidak ditemukan.');
+            return;
         }
 
-        // Kalau tidak ada completed, gunakan court aktif dari URL
-        if (candidateIdx === null) {
-            const params = new URLSearchParams(window.location.search);
-            candidateIdx = params.get('court') || 0;
+        // Untuk single court, ini adalah court tersebut.
+        // Untuk multi-court, pilih court yang sudah selesai terlebih dahulu.
+        let cIdx = keys.find(key => courtsState[key]?.matchDone);
+
+        if (cIdx === undefined) {
+            cIdx = keys[keys.length - 1];
         }
 
-        const st = courtsState[candidateIdx] || {};
+        const st = courtsState[cIdx] || {};
 
-        console.log('[GLOBAL FINISH] Menggunakan court:', candidateIdx);
-        console.log('[GLOBAL FINISH] Final state:', {
-            matchKey: st.matchKey,
-            gamesA: st.gamesA,
-            gamesB: st.gamesB,
-            setsA: st.setsA,
-            setsB: st.setsB,
-            setNumber: st.setNumber,
-            setHistory: st.setHistory,
-            matchDone: st.matchDone
-        });
+        const gamesA = Number(st.gamesA || 0);
+        const gamesB = Number(st.gamesB || 0);
 
         const finA       = document.getElementById('globalFinishScoreA');
         const finB       = document.getElementById('globalFinishScoreB');
@@ -2076,42 +2065,87 @@
         const finSetsB   = document.getElementById('globalFinishSetsB');
         const finGamesA  = document.getElementById('globalFinishGamesA');
         const finGamesB  = document.getElementById('globalFinishGamesB');
+        const finHistory = document.getElementById('globalFinishSetHistory');
         const finWinner  = document.getElementById('globalFinishWinnerTeam');
         const finMatchKey = document.getElementById('globalFinishMatchKey');
 
+        // Score final harus mengambil state TERBARU
+        if (finA) {
+            finA.value = gamesA;
+        }
+
+        if (finB) {
+            finB.value = gamesB;
+        }
+
+        if (finGamesA) {
+            finGamesA.value = gamesA;
+        }
+
+        if (finGamesB) {
+            finGamesB.value = gamesB;
+        }
+
+        // Tentukan winner berdasarkan score final
+        const winner =
+            st.winnerTeam ||
+            (gamesA >= gamesB ? 'Team A' : 'Team B');
+
+        if (finWinner) {
+            finWinner.value = winner;
+        }
+
+        // Set score
+        if (finSetsA) {
+            finSetsA.value = gamesA > gamesB ? 1 : 0;
+        }
+
+        if (finSetsB) {
+            finSetsB.value = gamesB > gamesA ? 1 : 0;
+        }
+
+        // PENTING:
+        // Jangan gunakan set_history lama dari cache.
+        // Sinkronkan set terakhir dengan gamesA/gamesB terbaru.
+        let finalHistory = [];
+
+        if (Array.isArray(st.setHistory) && st.setHistory.length > 0) {
+            finalHistory = JSON.parse(JSON.stringify(st.setHistory));
+
+            const lastIndex = finalHistory.length - 1;
+
+            finalHistory[lastIndex] = {
+                ...finalHistory[lastIndex],
+                set: Number(finalHistory[lastIndex].set || st.setNumber || 1),
+                score_a: gamesA,
+                score_b: gamesB,
+            };
+        } else {
+            finalHistory = [
+                {
+                    set: Number(st.setNumber || 1),
+                    score_a: gamesA,
+                    score_b: gamesB,
+                }
+            ];
+        }
+
+        if (finHistory) {
+            finHistory.value = JSON.stringify(finalHistory);
+        }
+
+        // Kirim match key yang benar
         if (finMatchKey) {
             finMatchKey.value = st.matchKey || '';
         }
 
-        if (finA) {
-            finA.value = st.gamesA || 0;
-        }
-
-        if (finB) {
-            finB.value = st.gamesB || 0;
-        }
-
-        if (finSetsA) {
-            finSetsA.value = st.setsA || ((st.gamesA || 0) >= (st.gamesB || 0) ? 1 : 0);
-        }
-
-        if (finSetsB) {
-            finSetsB.value = st.setsB || ((st.gamesB || 0) > (st.gamesA || 0) ? 1 : 0);
-        }
-
-        if (finGamesA) {
-            finGamesA.value = st.gamesA || 0;
-        }
-
-        if (finGamesB) {
-            finGamesB.value = st.gamesB || 0;
-        }
-
-        if (finWinner) {
-            finWinner.value =
-                st.winnerTeam ||
-                ((st.gamesA || 0) >= (st.gamesB || 0) ? 'Team A' : 'Team B');
-        }
+        console.log('[FINAL SCORE]', {
+            matchKey: st.matchKey,
+            gamesA,
+            gamesB,
+            setHistory: finalHistory,
+            winner
+        });
 
         const btn = document.getElementById('btnGlobalFinishSession');
 
@@ -2127,17 +2161,6 @@
         const form = document.getElementById('globalFinishForm');
 
         if (form) {
-            console.log('[GLOBAL FINISH] Form payload:', {
-                match_key: finMatchKey?.value,
-                score_a: finA?.value,
-                score_b: finB?.value,
-                sets_a: finSetsA?.value,
-                sets_b: finSetsB?.value,
-                games_a: finGamesA?.value,
-                games_b: finGamesB?.value,
-                winner_team: finWinner?.value
-            });
-
             form.submit();
         }
     }
