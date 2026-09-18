@@ -82,6 +82,14 @@ class ScoringService
     }
 
     /**
+     * Helper sentralistik untuk membangun format key skor yang konsisten di semua layer.
+     */
+    public static function buildMatchKey(string $roundKey, int $courtNumber, int $totalCourtCount): string
+    {
+        return $totalCourtCount > 1 ? "{$roundKey}_court_{$courtNumber}" : $roundKey;
+    }
+
+    /**
      * Pastikan setiap round pada drawing memiliki skor yang sinkron dan konsisten.
      * Menggabungkan skor dari session cache dengan skor dummy deterministik jika belum ada.
      */
@@ -115,104 +123,113 @@ class ScoringService
         }
 
         foreach ($drawing as $roundKey => $round) {
-            $isCompleted = isset($effective[$roundKey]) && (
-                ($effective[$roundKey]['status'] ?? '') === 'completed' ||
-                ($isFinishedSession && (
-                    ($effective[$roundKey]['games_a'] ?? 0) > 0 ||
-                    ($effective[$roundKey]['games_b'] ?? 0) > 0 ||
-                    ($effective[$roundKey]['sets_a'] ?? 0) > 0 ||
-                    ($effective[$roundKey]['sets_b'] ?? 0) > 0 ||
-                    ($effective[$roundKey]['score_a'] ?? 0) > 0 ||
-                    ($effective[$roundKey]['score_b'] ?? 0) > 0
-                ))
-            );
+            $courtCount = $round['court_count'] ?? 1;
+            $matches = $round['matches'] ?? [];
+            $totalCountForSuffix = max(1, count($matches), $courtCount);
 
-            if ($isCompleted) {
-                $effective[$roundKey]['status'] = 'completed';
-                if (empty($effective[$roundKey]['team_a'])) {
-                    $effective[$roundKey]['team_a'] = $round['team_a'] ?? [];
-                }
-                if (empty($effective[$roundKey]['team_b'])) {
-                    $effective[$roundKey]['team_b'] = $round['team_b'] ?? [];
-                }
-                $effective[$roundKey]['round_title'] = ucfirst(str_replace('_', ' ', $roundKey));
-                $effective[$roundKey]['scoring_type'] = $system['type'];
+            for ($i = 0; $i < $totalCountForSuffix; $i++) {
+                $courtNumber = $matches[$i]['court'] ?? ($i + 1);
+                $matchKey = self::buildMatchKey($roundKey, $courtNumber, $totalCountForSuffix);
 
-                // Pastikan set_history dan sets_a/b tidak kosong jika format Total of Sets
-                if ($system['type'] === 'total_of_sets') {
-                    $eSetsA = (int) ($effective[$roundKey]['sets_a'] ?? 0);
-                    $eSetsB = (int) ($effective[$roundKey]['sets_b'] ?? 0);
-                    $eGamesA = (int) ($effective[$roundKey]['games_a'] ?? 0);
-                    $eGamesB = (int) ($effective[$roundKey]['games_b'] ?? 0);
-                    $eHist = $effective[$roundKey]['set_history'] ?? [];
+                $isCompleted = isset($effective[$matchKey]) && (
+                    ($effective[$matchKey]['status'] ?? '') === 'completed' ||
+                    ($isFinishedSession && (
+                        ($effective[$matchKey]['games_a'] ?? 0) > 0 ||
+                        ($effective[$matchKey]['games_b'] ?? 0) > 0 ||
+                        ($effective[$matchKey]['sets_a'] ?? 0) > 0 ||
+                        ($effective[$matchKey]['sets_b'] ?? 0) > 0 ||
+                        ($effective[$matchKey]['score_a'] ?? 0) > 0 ||
+                        ($effective[$matchKey]['score_b'] ?? 0) > 0
+                    ))
+                );
 
-                    if (! empty($eHist)) {
-                        $lastSet = $eHist[array_key_last($eHist)];
-                        $lastGameA = (int) ($lastSet['score_a'] ?? 0);
-                        $lastGameB = (int) ($lastSet['score_b'] ?? 0);
+                if ($isCompleted) {
+                    $effective[$matchKey]['status'] = 'completed';
+                    if (empty($effective[$matchKey]['team_a'])) {
+                        $effective[$matchKey]['team_a'] = $matches[$i]['team_a'] ?? ($round['team_a'] ?? []);
+                    }
+                    if (empty($effective[$matchKey]['team_b'])) {
+                        $effective[$matchKey]['team_b'] = $matches[$i]['team_b'] ?? ($round['team_b'] ?? []);
+                    }
+                    $effective[$matchKey]['round_title'] = ucfirst(str_replace('_', ' ', $roundKey));
+                    $effective[$matchKey]['scoring_type'] = $system['type'];
 
-                        if (($eGamesA === 0 && $eGamesB === 0) && ($lastGameA > 0 || $lastGameB > 0)) {
-                            $eGamesA = $lastGameA;
-                            $eGamesB = $lastGameB;
-                        }
+                    // Pastikan set_history dan sets_a/b tidak kosong jika format Total of Sets
+                    if ($system['type'] === 'total_of_sets') {
+                        $eSetsA = (int) ($effective[$matchKey]['sets_a'] ?? 0);
+                        $eSetsB = (int) ($effective[$matchKey]['sets_b'] ?? 0);
+                        $eGamesA = (int) ($effective[$matchKey]['games_a'] ?? 0);
+                        $eGamesB = (int) ($effective[$matchKey]['games_b'] ?? 0);
+                        $eHist = $effective[$matchKey]['set_history'] ?? [];
 
-                        if (($eSetsA === 0 && $eSetsB === 0) || empty($eHist)) {
-                            $eSetsA = 0;
-                            $eSetsB = 0;
-                            foreach ($eHist as $set) {
-                                $ga = (int) ($set['score_a'] ?? 0);
-                                $gb = (int) ($set['score_b'] ?? 0);
-                                if ($ga > $gb) {
-                                    $eSetsA++;
-                                } elseif ($gb > $ga) {
-                                    $eSetsB++;
+                        if (! empty($eHist)) {
+                            $lastSet = $eHist[array_key_last($eHist)];
+                            $lastGameA = (int) ($lastSet['score_a'] ?? 0);
+                            $lastGameB = (int) ($lastSet['score_b'] ?? 0);
+
+                            if (($eGamesA === 0 && $eGamesB === 0) && ($lastGameA > 0 || $lastGameB > 0)) {
+                                $eGamesA = $lastGameA;
+                                $eGamesB = $lastGameB;
+                            }
+
+                            if (($eSetsA === 0 && $eSetsB === 0) || empty($eHist)) {
+                                $eSetsA = 0;
+                                $eSetsB = 0;
+                                foreach ($eHist as $set) {
+                                    $ga = (int) ($set['score_a'] ?? 0);
+                                    $gb = (int) ($set['score_b'] ?? 0);
+                                    if ($ga > $gb) {
+                                        $eSetsA++;
+                                    } elseif ($gb > $ga) {
+                                        $eSetsB++;
+                                    }
                                 }
                             }
-                        }
-                    } elseif ($eGamesA > 0 || $eGamesB > 0) {
-                        $eHist = [
-                            ['set' => 1, 'score_a' => $eGamesA, 'score_b' => $eGamesB],
-                        ];
-                        if ($eSetsA === 0 && $eSetsB === 0) {
-                            $eSetsA = $eGamesA >= $eGamesB ? 1 : 0;
-                            $eSetsB = $eGamesB > $eGamesA ? 1 : 0;
-                        }
-                    } elseif ($eSetsA > 0 || $eSetsB > 0) {
-                        $eHist = [];
-                        for ($i = 1; $i <= ($eSetsA + $eSetsB); $i++) {
-                            $aWins = ($i <= $eSetsA);
-                            $eHist[] = [
-                                'set' => $i,
-                                'score_a' => $aWins ? 6 : 3,
-                                'score_b' => $aWins ? 3 : 6,
+                        } elseif ($eGamesA > 0 || $eGamesB > 0) {
+                            $eHist = [
+                                ['set' => 1, 'score_a' => $eGamesA, 'score_b' => $eGamesB],
                             ];
+                            if ($eSetsA === 0 && $eSetsB === 0) {
+                                $eSetsA = $eGamesA >= $eGamesB ? 1 : 0;
+                                $eSetsB = $eGamesB > $eGamesA ? 1 : 0;
+                            }
+                        } elseif ($eSetsA > 0 || $eSetsB > 0) {
+                            $eHist = [];
+                            for ($j = 1; $j <= ($eSetsA + $eSetsB); $j++) {
+                                $aWins = ($j <= $eSetsA);
+                                $eHist[] = [
+                                    'set' => $j,
+                                    'score_a' => $aWins ? 6 : 3,
+                                    'score_b' => $aWins ? 3 : 6,
+                                ];
+                            }
                         }
-                    }
 
-                    $effective[$roundKey]['set_history'] = $eHist;
-                    $effective[$roundKey]['sets_a'] = $eSetsA;
-                    $effective[$roundKey]['sets_b'] = $eSetsB;
-                    $effective[$roundKey]['games_a'] = $eGamesA;
-                    $effective[$roundKey]['games_b'] = $eGamesB;
-                    $effective[$roundKey]['score_a'] = $eGamesA;
-                    $effective[$roundKey]['score_b'] = $eGamesB;
+                        $effective[$matchKey]['set_history'] = $eHist;
+                        $effective[$matchKey]['sets_a'] = $eSetsA;
+                        $effective[$matchKey]['sets_b'] = $eSetsB;
+                        $effective[$matchKey]['games_a'] = $eGamesA;
+                        $effective[$matchKey]['games_b'] = $eGamesB;
+                        $effective[$matchKey]['score_a'] = $eGamesA;
+                        $effective[$matchKey]['score_b'] = $eGamesB;
+                    }
+                } else {
+                    // Round yang belum dimainkan / selesai berstatus pending dengan skor 0
+                    $effective[$matchKey] = [
+                        'score_a' => 0,
+                        'score_b' => 0,
+                        'sets_a' => 0,
+                        'sets_b' => 0,
+                        'games_a' => 0,
+                        'games_b' => 0,
+                        'set_history' => [],
+                        'status' => 'pending',
+                        'team_a' => $matches[$i]['team_a'] ?? ($round['team_a'] ?? []),
+                        'team_b' => $matches[$i]['team_b'] ?? ($round['team_b'] ?? []),
+                        'round_title' => ucfirst(str_replace('_', ' ', $roundKey)),
+                        'scoring_type' => $system['type'],
+                    ];
                 }
-            } else {
-                // Round yang belum dimainkan / selesai berstatus pending dengan skor 0
-                $effective[$roundKey] = [
-                    'score_a' => 0,
-                    'score_b' => 0,
-                    'sets_a' => 0,
-                    'sets_b' => 0,
-                    'games_a' => 0,
-                    'games_b' => 0,
-                    'set_history' => [],
-                    'status' => 'pending',
-                    'team_a' => $round['team_a'] ?? [],
-                    'team_b' => $round['team_b'] ?? [],
-                    'round_title' => ucfirst(str_replace('_', ' ', $roundKey)),
-                    'scoring_type' => $system['type'],
-                ];
             }
         }
 
@@ -335,20 +352,23 @@ class ScoringService
                 ],
             ];
 
+            $courtCount = $round['court_count'] ?? 1;
+            $totalCountForSuffix = max(1, count($roundMatches), $courtCount);
+
             foreach ($roundMatches as $mIdx => $m) {
                 $mCourt = $m['court'] ?? ($mIdx + 1);
-                $matchScoreKey = "{$roundKey}_court_{$mCourt}";
-                $matchScoreKeyAlt = "{$roundKey}_match_{$mIdx}";
+                $matchScoreKey = self::buildMatchKey($roundKey, $mCourt, $totalCountForSuffix);
 
-                if (count($roundMatches) > 1) {
-                    $matchScore = $effectiveScores[$matchScoreKey]
-                        ?? ($effectiveScores[$matchScoreKeyAlt]
-                        ?? ($mIdx === 0 ? ($effectiveScores[$roundKey] ?? []) : []));
-                } else {
-                    $roundScore = $effectiveScores[$roundKey] ?? [];
-                    $matchScore = ($roundScore['status'] ?? '') === 'completed'
-                        ? $roundScore
-                        : ($effectiveScores[$matchScoreKey] ?? $roundScore);
+                $matchScore = $effectiveScores[$matchScoreKey] ?? [];
+                
+                // Fallback (legacy single key atau versi match)
+                if (empty($matchScore) || ($matchScore['status'] ?? '') !== 'completed') {
+                    $altKey = "{$roundKey}_match_{$mIdx}";
+                    if (isset($effectiveScores[$altKey]) && ($effectiveScores[$altKey]['status'] ?? '') === 'completed') {
+                        $matchScore = $effectiveScores[$altKey];
+                    } elseif (isset($effectiveScores[$roundKey]) && ($effectiveScores[$roundKey]['status'] ?? '') === 'completed') {
+                        $matchScore = $effectiveScores[$roundKey];
+                    }
                 }
 
                 $status = $matchScore['status'] ?? ($effectiveScores[$roundKey]['status'] ?? 'pending');

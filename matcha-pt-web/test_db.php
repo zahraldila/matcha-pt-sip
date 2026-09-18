@@ -6,6 +6,7 @@ $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
 $session = App\Models\SessionModel::latest('session_id')->first();
-$drawings = App\Models\Drawing::where('session_id', $session->session_id)->pluck('drawing_id');
-$matches = App\Models\GameMatch::whereIn('drawing_id', $drawings)->with('scores')->get();
-echo json_encode(['session' => $session->toArray(), 'matches' => $matches->toArray()], JSON_PRETTY_PRINT);
+$cacheKey = "scoring.session.{$session->session_id}";
+$sessionScores = Illuminate\Support\Facades\Cache::get($cacheKey, []);
+
+echo json_encode($sessionScores, JSON_PRETTY_PRINT);

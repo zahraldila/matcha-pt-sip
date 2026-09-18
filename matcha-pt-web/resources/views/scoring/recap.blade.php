@@ -815,7 +815,9 @@
                                 $rTitle = ucfirst(str_replace('_', ' ', $rKey));
                                 $mScore = $effectiveScores[$rKey] ?? [];
                                 $isDone = ($mScore['status'] ?? '') === 'completed';
-                                $mWinner = $mScore['winner_team'] ?? 'Team A';
+                                $mWinner = $mScore['winner_team'] ?? '';
+                                if ($mWinner === 'A') $mWinner = 'Team A';
+                                if ($mWinner === 'B') $mWinner = 'Team B';
                                 $teamA = $rData['team_a'] ?? ['Tim A'];
                                 $teamB = $rData['team_b'] ?? ['Tim B'];
                                 $mPreviewSet = !empty($mScore['set_history'] ?? []) ? $mScore['set_history'][array_key_last($mScore['set_history'])] : [];

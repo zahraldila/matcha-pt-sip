@@ -157,7 +157,7 @@
         $activeRoundNum = preg_replace('/[^0-9]/', '', $activeRound) ?: '1';
         $uncompletedCourtNames = [];
         foreach ($matchContext['matches'] ?? [] as $checkIdx => $checkMatch) {
-            $checkKey = ($courtCount > 1) ? "{$activeRound}_court_" . ($checkIdx + 1) : $activeRound;
+            $checkKey = \App\Services\Scoring\ScoringService::buildMatchKey($activeRound, $checkIdx + 1, $courtCount);
             $checkScore = $savedScores[$checkKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? ($savedScores["{$activeRound}_court_1"] ?? [])));
             if (($checkScore['status'] ?? '') !== 'completed') {
                 $uncompletedCourtNames[$checkIdx] = $checkMatch['court_name'] ?? ('Court ' . ($checkIdx + 1));
@@ -186,7 +186,7 @@
         <div class="flex flex-wrap items-center gap-2.5" id="courtTabsContainer">
             @foreach($matchContext['matches'] ?? [] as $tabIdx => $tabMatch)
                 @php
-                    $tabKey = "{$activeRound}_court_" . ($tabIdx + 1);
+                    $tabKey = \App\Services\Scoring\ScoringService::buildMatchKey($activeRound, $tabIdx + 1, $courtCount);
                     $tabScore = $savedScores[$tabKey] ?? [];
                     $isTabDone = (($tabScore['status'] ?? '') === 'completed');
                     $tabGamesA = $tabScore['games_a'] ?? ($tabScore['score_a'] ?? 0);
@@ -215,7 +215,7 @@
     <div id="courtBoardsWrapper" class="space-y-6">
         @foreach($matchContext['matches'] ?? [] as $mIdx => $matchData)
             @php
-                $mKey = ($courtCount > 1) ? "{$activeRound}_court_" . ($mIdx + 1) : $activeRound;
+                $mKey = \App\Services\Scoring\ScoringService::buildMatchKey($activeRound, $mIdx + 1, $courtCount);
                 $currentScore = $savedScores[$mKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
                 $isMCompleted = (($currentScore['status'] ?? '') === 'completed');
                 $isCourtVisible = ($courtCount <= 1 || $mIdx === (int) request('court', 0));
@@ -547,13 +547,14 @@
                         <input type="hidden" name="game_id"         value="{{ $game['id'] }}">
                         <input type="hidden" name="round"           value="{{ $activeRound }}">
                         <input type="hidden" name="scoring_system"  value="{{ $scoringSystem['label'] }}">
+                        <input type="hidden" name="match_key"       id="globalFinishMatchKey" value="">
+                        <!-- Frontend tidak lagi mengirim set_number secara eksplisit -->
                         <input type="hidden" name="score_a"         id="globalFinishScoreA" value="0">
                         <input type="hidden" name="score_b"         id="globalFinishScoreB" value="0">
                         <input type="hidden" name="sets_a"          id="globalFinishSetsA" value="0">
                         <input type="hidden" name="sets_b"          id="globalFinishSetsB" value="0">
                         <input type="hidden" name="games_a"         id="globalFinishGamesA" value="0">
                         <input type="hidden" name="games_b"         id="globalFinishGamesB" value="0">
-                        <input type="hidden" name="set_number"      id="globalFinishSetNumber" value="{{ $activeRoundNum }}">
                         <input type="hidden" name="winner_team"     id="globalFinishWinnerTeam" value="">
 
                         <button type="submit" id="btnGlobalFinishSession" onclick="submitGlobalFinish(event)"
@@ -646,15 +647,15 @@
         let savedSeq_{{ $mIdx }} = 0;
         if (IS_HOST) {
             try {
-                const rawQueue = localStorage.getItem(`matcha_queue_${GAME_ID}_{{ $mIdx }}`);
+                const rawQueue = localStorage.getItem(`matcha_queue_${GAME_ID}_{{ $mKey }}`);
                 if (rawQueue) savedQueue_{{ $mIdx }} = JSON.parse(rawQueue);
-                const rawSeq = localStorage.getItem(`matcha_seq_${GAME_ID}_{{ $mIdx }}`);
+                const rawSeq = localStorage.getItem(`matcha_seq_${GAME_ID}_{{ $mKey }}`);
                 if (rawSeq) savedSeq_{{ $mIdx }} = parseInt(rawSeq, 10);
             } catch(e) {}
         } else {
             try {
-                localStorage.removeItem(`matcha_queue_${GAME_ID}_{{ $mIdx }}`);
-                localStorage.removeItem(`matcha_seq_${GAME_ID}_{{ $mIdx }}`);
+                localStorage.removeItem(`matcha_queue_${GAME_ID}_{{ $mKey }}`);
+                localStorage.removeItem(`matcha_seq_${GAME_ID}_{{ $mKey }}`);
             } catch(e) {}
         }
 
@@ -702,7 +703,129 @@
                     queueScoreSave(cIdx, null, null, null, 'retry_drain');
                 }
             }
+            recoverOrphanedQueues();
         }, 500);
+    }
+
+    function recoverOrphanedQueues() {
+        if (!IS_HOST) return;
+        const prefix = `matcha_queue_${GAME_ID}_`;
+        const activeMatchKeys = Object.values(courtsState).map(st => st.matchKey);
+        
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(prefix)) {
+                const matchKey = key.substring(prefix.length);
+                if (!activeMatchKeys.includes(matchKey)) {
+                    console.log(`[Offline Sync] Found orphaned queue for matchKey: ${matchKey}. Attempting to sync...`);
+                    syncOrphanedQueue(matchKey);
+                }
+            }
+        }
+    }
+
+    async function syncOrphanedQueue(matchKey) {
+        const queueKey = `matcha_queue_${GAME_ID}_${matchKey}`;
+        const seqKey = `matcha_seq_${GAME_ID}_${matchKey}`;
+        let batchEvents = [];
+        try {
+            const raw = localStorage.getItem(queueKey);
+            if (raw) batchEvents = JSON.parse(raw);
+        } catch (e) {
+            console.error('[Offline Sync] Failed to parse orphaned queue:', e);
+            localStorage.removeItem(queueKey);
+            return;
+        }
+
+        if (!batchEvents || batchEvents.length === 0) {
+            localStorage.removeItem(queueKey);
+            localStorage.removeItem(seqKey);
+            return;
+        }
+
+        const firstEvent = batchEvents[0];
+        const courtNum = firstEvent.courtNum || 1;
+        let isCompletionSave = false;
+        let lastClientSeq = 1;
+        let lastBaseVersion = 0;
+        let latestSnapshot = null;
+        
+        const backendEvents = batchEvents.map(e => {
+            if (e.status === 'completed' || e.action === 'completion') {
+                isCompletionSave = true;
+            }
+            lastClientSeq = Math.max(lastClientSeq, e.clientSeq || 1);
+            lastBaseVersion = Math.max(lastBaseVersion, e.baseVersion || 0);
+            if (e.snapshot) latestSnapshot = e.snapshot;
+            return {
+                action: e.action || 'add_point',
+                team: e.team,
+                event_id: e.eventId,
+                tClick: e.tClick,
+                status: e.status
+            };
+        });
+
+        if (!latestSnapshot) {
+            localStorage.removeItem(queueKey);
+            localStorage.removeItem(seqKey);
+            return;
+        }
+
+        const currentStatus = isCompletionSave ? 'completed' : 'in_progress';
+        const originalRound = matchKey.split('_court_')[0];
+        
+        const body = {
+            game_id         : GAME_ID,
+            round           : originalRound,
+            match_key       : matchKey,
+            court           : courtNum,
+            scoring_type    : SCORING_TYPE,
+            action          : 'batch_events',
+            events          : backendEvents,
+            base_version    : lastBaseVersion,
+            score_a         : latestSnapshot.gamesA,
+            score_b         : latestSnapshot.gamesB,
+            point_display_a : latestSnapshot.pointDisplays?.a || '0',
+            point_display_b : latestSnapshot.pointDisplays?.b || '0',
+            set_number      : 1,
+            sets_a          : (latestSnapshot.gamesA >= latestSnapshot.gamesB && currentStatus === 'completed') ? 1 : 0,
+            sets_b          : (latestSnapshot.gamesB > latestSnapshot.gamesA && currentStatus === 'completed') ? 1 : 0,
+            games_a         : latestSnapshot.gamesA,
+            games_b         : latestSnapshot.gamesB,
+            set_history     : [{ set: 1, score_a: latestSnapshot.gamesA, score_b: latestSnapshot.gamesB }],
+            idx_a           : latestSnapshot.idxA,
+            idx_b           : latestSnapshot.idxB,
+            is_deuce        : latestSnapshot.isDeuce,
+            advantage       : latestSnapshot.advantage,
+            winner_team     : (latestSnapshot.gamesA >= latestSnapshot.gamesB ? 'Team A' : 'Team B'),
+            status          : currentStatus,
+            client_id       : CLIENT_ID,
+            client_version  : lastClientSeq,
+            client_seq      : lastClientSeq,
+        };
+
+        try {
+            const res = await fetch(UPDATE_URL, {
+                method : 'POST',
+                headers: {
+                    'Content-Type' : 'application/json',
+                    'X-CSRF-TOKEN' : CSRF_TOKEN,
+                    'Accept'       : 'application/json',
+                },
+                body: JSON.stringify(body),
+            });
+
+            if (res.ok) {
+                console.log(`[Offline Sync] Orphaned queue for ${matchKey} successfully synced!`);
+                localStorage.removeItem(queueKey);
+                localStorage.removeItem(seqKey);
+            } else {
+                console.warn(`[Offline Sync] Orphaned queue sync failed for ${matchKey}, will retry later.`);
+            }
+        } catch (e) {
+            console.warn(`[Offline Sync] Orphaned queue network error for ${matchKey}, will retry later.`, e);
+        }
     }
 
     // ── Court Tab Switching ──────────────────────────────────────────────────
@@ -1107,13 +1230,16 @@
     }
 
     function showCompletedBanner(winner, cIdx) {
+        let st = courtsState[cIdx];
         try {
-            localStorage.removeItem('matcha_queue_' + GAME_ID + '_' + cIdx);
+            if (st && st.matchKey) {
+                localStorage.removeItem('matcha_queue_' + GAME_ID + '_' + st.matchKey);
+                localStorage.removeItem('matcha_seq_' + GAME_ID + '_' + st.matchKey);
+            }
         } catch(e) {}
         const banner = document.getElementById('matchCompletedBanner_' + cIdx);
         const msg    = document.getElementById('completedMsg_' + cIdx);
         const subMsg = document.getElementById('completedSubMsg_' + cIdx);
-        let st = courtsState[cIdx];
         const courtLabel = st.courtName || ('Court ' + st.courtNum);
         const scoreUnit = IS_SETS ? 'Games' : 'Poin';
 
@@ -1500,14 +1626,14 @@
             };
 
             st.saveQueue.push({
-                cIdx, status, clientSeq: cSeq, tClick, eventId, action, team, baseVersion, snapshot
+                cIdx, matchKey: st.matchKey, courtNum: st.courtNum, status, clientSeq: cSeq, tClick, eventId, action, team, baseVersion, snapshot
             });
             st.pendingSaves = st.saveQueue.length + (st.inFlightQueue ? st.inFlightQueue.length : 0);
             
             // OFFLINE QUEUE: Persist to localStorage
             try {
-                localStorage.setItem(`matcha_seq_${GAME_ID}_${cIdx}`, String(cSeq));
-                localStorage.setItem(`matcha_queue_${GAME_ID}_${cIdx}`, JSON.stringify([...st.inFlightQueue, ...st.saveQueue]));
+                localStorage.setItem(`matcha_seq_${GAME_ID}_${st.matchKey}`, String(cSeq));
+                localStorage.setItem(`matcha_queue_${GAME_ID}_${st.matchKey}`, JSON.stringify([...st.inFlightQueue, ...st.saveQueue]));
             } catch(e) {}
         }
 
@@ -1525,7 +1651,7 @@
                 
                 // Keep the combined inFlightQueue + saveQueue in localStorage
                 try {
-                    localStorage.setItem(`matcha_queue_${GAME_ID}_${cIdx}`, JSON.stringify([...st.inFlightQueue, ...st.saveQueue]));
+                    localStorage.setItem(`matcha_queue_${GAME_ID}_${st.matchKey}`, JSON.stringify([...st.inFlightQueue, ...st.saveQueue]));
                 } catch(e) {}
 
                 st.saveWorker = null;
@@ -1592,12 +1718,12 @@
             score_b         : scoreState.gamesB,
             point_display_a : displays.a,
             point_display_b : displays.b,
-            set_number      : Number(ACTIVE_ROUND_NUM),
+            set_number      : scoreState.setNumber || 1,
             sets_a          : (scoreState.gamesA >= scoreState.gamesB && currentStatus === 'completed') ? 1 : 0,
             sets_b          : (scoreState.gamesB > scoreState.gamesA && currentStatus === 'completed') ? 1 : 0,
             games_a         : scoreState.gamesA,
             games_b         : scoreState.gamesB,
-            set_history     : [{ set: Number(ACTIVE_ROUND_NUM), score_a: scoreState.gamesA, score_b: scoreState.gamesB }],
+            set_history     : [{ set: scoreState.setNumber || 1, score_a: scoreState.gamesA, score_b: scoreState.gamesB }],
             idx_a           : scoreState.idxA,
             idx_b           : scoreState.idxB,
             is_deuce        : scoreState.isDeuce,
@@ -1743,7 +1869,7 @@
                 st.saveQueue = [...batchEvents, ...st.saveQueue];
                 st.pendingSaves = st.saveQueue.length;
                 try {
-                    localStorage.setItem(`matcha_queue_${GAME_ID}_${cIdx}`, JSON.stringify(st.saveQueue));
+                    localStorage.setItem(`matcha_queue_${GAME_ID}_${st.matchKey}`, JSON.stringify(st.saveQueue));
                 } catch(e) {}
                 
                 // Jadwalkan retry otomatis 2 detik kemudian
@@ -1758,7 +1884,7 @@
                 st.inFlightQueue = [];
                 st.pendingSaves = st.saveQueue.length;
                 try {
-                    localStorage.setItem(`matcha_queue_${GAME_ID}_${cIdx}`, JSON.stringify(st.saveQueue));
+                    localStorage.setItem(`matcha_queue_${GAME_ID}_${st.matchKey}`, JSON.stringify(st.saveQueue));
                 } catch(e) {}
                 
                 if (isCompletionSave && !st.completionSaveSucceeded && !st.matchDone) {

@@ -407,8 +407,9 @@ class ScoringController extends Controller
         $round = $request->string('round')->toString();
         $matchKey = $request->input('match_key');
         if (! $matchKey) {
-            $courtNum = $request->integer('court', 0);
-            $matchKey = ($courtNum > 0) ? "{$round}_court_{$courtNum}" : $round;
+            $courtNum = max(1, $request->integer('court', 1));
+            $courtCount = SessionModel::with('courts')->find($gameId)?->courts->count() ?? 1;
+            $matchKey = \App\Services\Scoring\ScoringService::buildMatchKey($round, $courtNum, max(1, $courtCount));
         }
         $status = $request->input('status', 'in_progress');
         $requestedCourt = $request->integer('court', 0);
@@ -562,7 +563,7 @@ class ScoringController extends Controller
                     'games_b' => 0,
                     'point_display_a' => '0',
                     'point_display_b' => '0',
-                    'set_number' => $request->integer('set_number', 1),
+                    'set_number' => 1,
                     'sets_a' => 0,
                     'sets_b' => 0,
                     'set_history' => [],
@@ -951,22 +952,27 @@ class ScoringController extends Controller
             $setHistory = is_array($setHistoryRaw) ? $setHistoryRaw : [];
         }
 
+        // Rebuild and sanitize setHistory to ensure strictly monotonic set numbers
+        $cleanHistory = [];
+        $currentSet = 1;
+        foreach ($setHistory as $sh) {
+            $cleanHistory[] = [
+                'set' => $currentSet++,
+                'score_a' => (int) ($sh['score_a'] ?? 0),
+                'score_b' => (int) ($sh['score_b'] ?? 0),
+            ];
+        }
+
         if ($system['is_sets']) {
-            // Jika set_history kosong atau set aktif belum masuk, tambahkan set yang sedang berjalan
-            $hasActiveSet = false;
-            foreach ($setHistory as $sh) {
-                if (($sh['set'] ?? 0) === $request->integer('set_number', 1)) {
-                    $hasActiveSet = true;
-                    break;
-                }
-            }
-            if (! $hasActiveSet && ($gamesA > 0 || $gamesB > 0)) {
-                $setHistory[] = [
-                    'set' => $request->integer('set_number', 1),
+            // Jika set_history kosong tetapi ada game yang dimainkan, tambahkan sebagai set 1
+            if (empty($cleanHistory) && ($gamesA > 0 || $gamesB > 0)) {
+                $cleanHistory[] = [
+                    'set' => $currentSet,
                     'score_a' => $gamesA,
                     'score_b' => $gamesB,
                 ];
             }
+            $setHistory = $cleanHistory;
 
             // Hitung sets dari setHistory
             if (! empty($setHistory)) {
@@ -1013,14 +1019,14 @@ class ScoringController extends Controller
             'score_b' => $system['is_sets'] ? $setsB : $gamesB,
             'point_display_a' => $request->input('point_display_a', $prev['point_display_a'] ?? '0'),
             'point_display_b' => $request->input('point_display_b', $prev['point_display_b'] ?? '0'),
-            'set_number' => $request->integer('set_number', $prev['set_number'] ?? 1),
+            'set_number' => count($setHistory) > 0 ? count($setHistory) : 1,
             'sets_a' => $setsA,
             'sets_b' => $setsB,
             'games_a' => $gamesA,
             'games_b' => $gamesB,
             'set_history' => $setHistory,
             'scoring_type' => $system['type'],
-            'scoring_system' => $scoringSystemName,
+            'scoring_system' => $system['type'],
             'winner_team' => $winnerTeam,
             'status' => 'completed',
             'updated_at' => now()->toDateTimeString(),
@@ -1087,7 +1093,7 @@ class ScoringController extends Controller
                                 'set_score_b' => $setsB,
                                 'score_side_a' => (int) ($sItem['score_a'] ?? 0),
                                 'score_side_b' => (int) ($sItem['score_b'] ?? 0),
-                                'scoring_system' => $scoringSystemName,
+                                'scoring_system' => $system['type'],
                                 'status_score' => 'Final',
                             ]);
                         }
@@ -1104,7 +1110,7 @@ class ScoringController extends Controller
                             'set_score_b' => $setsB,
                             'score_side_a' => $gamesA,
                             'score_side_b' => $gamesB,
-                            'scoring_system' => $scoringSystemName,
+                            'scoring_system' => $system['type'],
                             'status_score' => 'Final',
                         ]);
                     }
@@ -1241,7 +1247,7 @@ class ScoringController extends Controller
                     $roundNumber = intdiv(max(0, (int) $match->nomor_match - 1), $courtCount) + 1;
                     $courtNumber = (($match->nomor_match - 1) % $courtCount) + 1;
                     $rKey = "round_{$roundNumber}";
-                    $scoreKey = $courtCount > 1 ? "{$rKey}_court_{$courtNumber}" : $rKey;
+                    $scoreKey = \App\Services\Scoring\ScoringService::buildMatchKey($rKey, $courtNumber, $courtCount);
                     $matchScores = $match->scores;
                     $mSetsA = 0;
                     $mSetsB = 0;
@@ -1277,7 +1283,7 @@ class ScoringController extends Controller
                             'games_b' => $mGamesB,
                             'set_history' => $mSetHistory,
                             'scoring_type' => $scoringSystem['type'],
-                            'scoring_system' => $scoringSystem['label'],
+                            'scoring_system' => $scoringSystem['type'],
                             'winner_team' => $match->winner_team ?: ($mGamesA >= $mGamesB ? 'Team A' : 'Team B'),
                             'status' => 'completed',
                             'updated_at' => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
@@ -1695,6 +1701,18 @@ class ScoringController extends Controller
 
             $drawingMap = [];
             foreach ($rounds as $rNum => $rData) {
+                $roundMatches = $rData['matches'] ?? [];
+                if (empty($roundMatches)) {
+                    $roundMatches[] = [
+                        'court' => 1,
+                        'court_name' => 'Court 1',
+                        'team_a' => $rData['teamA'] ?? ($rData['team_a'] ?? []),
+                        'team_b' => $rData['teamB'] ?? ($rData['team_b'] ?? []),
+                        'team_a_names' => $rData['teamA_names'] ?? ($rData['team_a_names'] ?? []),
+                        'team_b_names' => $rData['teamB_names'] ?? ($rData['team_b_names'] ?? []),
+                    ];
+                }
+
                 $drawingMap["round_{$rNum}"] = [
                     'round_number' => $rNum,
                     'team_a' => $rData['teamA'] ?? ($rData['team_a'] ?? []),
@@ -1702,7 +1720,7 @@ class ScoringController extends Controller
                     'team_a_names' => $rData['teamA_names'] ?? ($rData['team_a_names'] ?? []),
                     'team_b_names' => $rData['teamB_names'] ?? ($rData['team_b_names'] ?? []),
                     'resting' => $rData['resting'] ?? [],
-                    'matches' => $rData['matches'] ?? [],
+                    'matches' => $roundMatches,
                     'court_count' => $courtCount,
                 ];
             }
