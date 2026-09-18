@@ -1733,17 +1733,26 @@
             if (e.status === 'completed' || e.action === 'completion') {
                 isCompletionSave = true;
             }
+
             lastClientSeq = Math.max(lastClientSeq, e.clientSeq || 1);
             lastBaseVersion = Math.max(lastBaseVersion, e.baseVersion || 0);
             lastEventId = e.eventId;
             latestSnapshot = e.snapshot;
             latestTClick = Math.max(latestTClick || 0, e.tClick || 0);
+
             return {
                 action: e.action || 'add_point',
                 team: e.team,
                 event_id: e.eventId,
                 tClick: e.tClick,
-                status: e.status
+                status: e.status,
+
+                // PENTING:
+                // Kirim snapshot score ke backend pada setiap event.
+                games_a: e.snapshot?.gamesA ?? null,
+                games_b: e.snapshot?.gamesB ?? null,
+                point_display_a: e.snapshot?.pointDisplays?.a ?? null,
+                point_display_b: e.snapshot?.pointDisplays?.b ?? null,
             };
         });
 

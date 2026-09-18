@@ -656,6 +656,30 @@ class ScoringController extends Controller
                         $processedEvents[$evEventId] = true; // Temporary mark to prevent intra-batch dupes
                     }
                 }
+                if ($isCompletion) {
+                    $finalGamesA = $request->has('games_a')
+                        ? $request->integer('games_a')
+                        : null;
+
+                    $finalGamesB = $request->has('games_b')
+                        ? $request->integer('games_b')
+                        : null;
+
+                    if ($finalGamesA !== null && $finalGamesB !== null) {
+                        $scorePayload['games_a'] = $finalGamesA;
+                        $scorePayload['games_b'] = $finalGamesB;
+                        $scorePayload['score_a'] = $finalGamesA;
+                        $scorePayload['score_b'] = $finalGamesB;
+                        $scorePayload['status'] = 'completed';
+
+                        $scorePayload['sets_a'] =
+                            $finalGamesA > $finalGamesB ? 1 : 0;
+
+                        $scorePayload['sets_b'] =
+                            $finalGamesB > $finalGamesA ? 1 : 0;
+                    }
+                }
+
                 $isMerged = ($baseVersion < $prevVersion);
             } elseif ($action === 'add_point' && ! empty($pointWonBy) && in_array($pointWonBy, ['A', 'B']) && ($currentState['status'] ?? '') !== 'completed') {
                 $scorePayload = $this->applyPointDeltaToState($currentState, $pointWonBy, $scoringSystem);
