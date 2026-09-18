@@ -2037,9 +2037,38 @@
     function submitGlobalFinish(event) {
         if (event) event.preventDefault();
 
-        // Cari snapshot state representatif dari court yang ada
-        const firstCIdx = Object.keys(courtsState)[0] || 0;
-        const st = courtsState[firstCIdx] || {};
+        // Cari court yang belum selesai terakhir / court dengan skor terbaru.
+        // Jangan selalu mengambil courtsState[0].
+        let candidateIdx = null;
+
+        for (const [idx, state] of Object.entries(courtsState)) {
+            if (!state) continue;
+
+            // Prioritaskan state yang sudah completed
+            if (state.matchDone) {
+                candidateIdx = idx;
+            }
+        }
+
+        // Kalau tidak ada completed, gunakan court aktif dari URL
+        if (candidateIdx === null) {
+            const params = new URLSearchParams(window.location.search);
+            candidateIdx = params.get('court') || 0;
+        }
+
+        const st = courtsState[candidateIdx] || {};
+
+        console.log('[GLOBAL FINISH] Menggunakan court:', candidateIdx);
+        console.log('[GLOBAL FINISH] Final state:', {
+            matchKey: st.matchKey,
+            gamesA: st.gamesA,
+            gamesB: st.gamesB,
+            setsA: st.setsA,
+            setsB: st.setsB,
+            setNumber: st.setNumber,
+            setHistory: st.setHistory,
+            matchDone: st.matchDone
+        });
 
         const finA       = document.getElementById('globalFinishScoreA');
         const finB       = document.getElementById('globalFinishScoreB');
@@ -2048,25 +2077,69 @@
         const finGamesA  = document.getElementById('globalFinishGamesA');
         const finGamesB  = document.getElementById('globalFinishGamesB');
         const finWinner  = document.getElementById('globalFinishWinnerTeam');
+        const finMatchKey = document.getElementById('globalFinishMatchKey');
 
-        if (finA)       finA.value       = st.gamesA || 0;
-        if (finB)       finB.value       = st.gamesB || 0;
-        if (finSetsA)   finSetsA.value   = (st.gamesA >= st.gamesB) ? 1 : 0;
-        if (finSetsB)   finSetsB.value   = (st.gamesB > st.gamesA) ? 1 : 0;
-        if (finGamesA)  finGamesA.value  = st.gamesA || 0;
-        if (finGamesB)  finGamesB.value  = st.gamesB || 0;
-        if (finWinner)  finWinner.value  = st.winnerTeam || (st.gamesA >= st.gamesB ? 'Team A' : 'Team B');
+        if (finMatchKey) {
+            finMatchKey.value = st.matchKey || '';
+        }
+
+        if (finA) {
+            finA.value = st.gamesA || 0;
+        }
+
+        if (finB) {
+            finB.value = st.gamesB || 0;
+        }
+
+        if (finSetsA) {
+            finSetsA.value = st.setsA || ((st.gamesA || 0) >= (st.gamesB || 0) ? 1 : 0);
+        }
+
+        if (finSetsB) {
+            finSetsB.value = st.setsB || ((st.gamesB || 0) > (st.gamesA || 0) ? 1 : 0);
+        }
+
+        if (finGamesA) {
+            finGamesA.value = st.gamesA || 0;
+        }
+
+        if (finGamesB) {
+            finGamesB.value = st.gamesB || 0;
+        }
+
+        if (finWinner) {
+            finWinner.value =
+                st.winnerTeam ||
+                ((st.gamesA || 0) >= (st.gamesB || 0) ? 'Team A' : 'Team B');
+        }
 
         const btn = document.getElementById('btnGlobalFinishSession');
+
         if (btn) {
             btn.disabled = true;
             btn.classList.add('opacity-75', 'cursor-not-allowed');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs text-[#A8E63A]"></i> Menyimpan Sesi...';
+            btn.innerHTML =
+                '<i class="fa-solid fa-spinner fa-spin text-xs text-[#A8E63A]"></i> Menyimpan Sesi...';
         }
 
         showToast('Menyimpan hasil akhir seluruh sesi pertandingan...');
+
         const form = document.getElementById('globalFinishForm');
-        if (form) form.submit();
+
+        if (form) {
+            console.log('[GLOBAL FINISH] Form payload:', {
+                match_key: finMatchKey?.value,
+                score_a: finA?.value,
+                score_b: finB?.value,
+                sets_a: finSetsA?.value,
+                sets_b: finSetsB?.value,
+                games_a: finGamesA?.value,
+                games_b: finGamesB?.value,
+                winner_team: finWinner?.value
+            });
+
+            form.submit();
+        }
     }
 
     // Supabase Realtime Client & Channel
