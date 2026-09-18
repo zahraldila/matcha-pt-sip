@@ -454,11 +454,16 @@
         <!-- Controls: Kunci & Selesaikan Court Ini — hanya untuk Host -->
         @if($isHost)
         <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-200/50">
-            <button type="button" id="btnManualComplete_{{ $mIdx }}" onclick="manualCompleteSet({{ $mIdx }})"
-               class="{{ $isMCompleted ? 'hidden' : '' }} px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 shadow-2xs transition-colors flex items-center gap-1.5 justify-center cursor-pointer">
-                <i class="fa-solid fa-lock text-amber-600"></i> Kunci &amp; Selesaikan Court Ini
-            </button>
-
+            <div class="flex items-center gap-2">
+                <button type="button" id="btnManualComplete_{{ $mIdx }}" onclick="manualCompleteSet({{ $mIdx }})"
+                   class="{{ $isMCompleted ? 'hidden' : '' }} px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 shadow-2xs transition-colors flex items-center gap-1.5 justify-center cursor-pointer">
+                    <i class="fa-solid fa-lock text-amber-600"></i> Kunci &amp; Selesaikan
+                </button>
+                <button type="button" id="btnWalkover_{{ $mIdx }}" onclick="walkoverSet({{ $mIdx }})"
+                   class="{{ $isMCompleted ? 'hidden' : '' }} px-3 py-2.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-700 text-xs font-bold hover:bg-rose-100 shadow-2xs transition-colors flex items-center gap-1.5 justify-center cursor-pointer">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-500"></i> Akhiri Paksa (Walkover)
+                </button>
+            </div>
             <div class="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1 ml-auto">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span>Sinkron realtime: <strong id="hostSyncTimer_{{ $mIdx }}" class="text-emerald-700 font-bold">0.8s</strong></span>
@@ -774,6 +779,7 @@
 
         const currentStatus = isCompletionSave ? 'completed' : 'in_progress';
         const originalRound = matchKey.split('_court_')[0];
+        const isWalkoverSave = batchEvents.some(e => e.action === 'walkover');
         
         const body = {
             game_id         : GAME_ID,
@@ -803,6 +809,7 @@
             client_id       : CLIENT_ID,
             client_version  : lastClientSeq,
             client_seq      : lastClientSeq,
+            is_walkover     : isWalkoverSave,
         };
 
         try {
@@ -1016,16 +1023,12 @@
     function checkSetWinner(cIdx, clientSeq = null, tClick = null, baseVersion = 0, teamWon = null, eventId = null) {
         let st = courtsState[cIdx];
         let setWon = null;
-        if (!IS_SETS) {
-            if (TARGET_GAMES > 0 && st.gamesA >= TARGET_GAMES) {
+        if (TARGET_GAMES > 0) {
+            if (st.gamesA >= TARGET_GAMES) {
                 setWon = 'Team A';
-            } else if (TARGET_GAMES > 0 && st.gamesB >= TARGET_GAMES) {
+            } else if (st.gamesB >= TARGET_GAMES) {
                 setWon = 'Team B';
             }
-        } else if ((st.gamesA >= 6 && st.gamesA - st.gamesB >= 2) || (st.gamesA === 7 && st.gamesB === 6)) {
-            setWon = 'Team A';
-        } else if ((st.gamesB >= 6 && st.gamesB - st.gamesA >= 2) || (st.gamesB === 7 && st.gamesA === 6)) {
-            setWon = 'Team B';
         }
 
         if (setWon) {
@@ -1053,8 +1056,8 @@
     function manualCompleteSet(cIdx) {
         let st = courtsState[cIdx];
         if (st.matchDone) return;
-        if (!IS_SETS && Math.max(st.gamesA, st.gamesB) < TARGET_GAMES) {
-            showToast(`First to ${TARGET_GAMES} belum mencapai target.`);
+        if (Math.max(st.gamesA, st.gamesB) < TARGET_GAMES) {
+            showToast(`Target ${TARGET_GAMES} belum mencapai target.`);
             return;
         }
         const courtLabel = st.courtName || ('Court ' + st.courtNum);
@@ -1081,6 +1084,42 @@
         const compEventId = 'evt_manual_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
         queueScoreSave(cIdx, 'completed', clientSeq, tClick, compEventId, 'completion', (winnerTeam === 'Team A' ? 'A' : 'B'), baseVersion);
         showToast(`Skor ${courtLabel} berhasil dikunci!`);
+    }
+
+    window.walkoverSet = function(cIdx) {
+        let st = courtsState[cIdx];
+        if (st.matchDone) return;
+        const courtLabel = st.courtName || ('Court ' + st.courtNum);
+        
+        const winnerInput = prompt(`PERINGATAN WALKOVER/RETIRED di ${courtLabel}!\n\nSkor saat ini belum memenuhi target.\nKetik 'A' jika Tim A menang, atau 'B' jika Tim B menang:`);
+        if (!winnerInput) return;
+        
+        const wStr = winnerInput.trim().toUpperCase();
+        if (wStr !== 'A' && wStr !== 'B') {
+            alert("Input tidak valid. Ketik 'A' atau 'B'.");
+            return;
+        }
+
+        const tClick = performance.now();
+        st.lastLocalActionTime = Date.now();
+        st.localVersion = (st.localVersion || 0) + 1;
+        st.clientSeq = (st.clientSeq || 0) + 1;
+        const clientSeq = st.clientSeq;
+        const baseVersion = st.serverVersion || 0;
+        const winnerTeam = wStr === 'A' ? 'Team A' : 'Team B';
+
+        st.matchDone = true;
+        st.completionSavePending = true;
+        st.completionSaveSucceeded = false;
+        st.winnerTeam = winnerTeam;
+        st.setsA = (winnerTeam === 'Team A') ? 1 : 0;
+        st.setsB = (winnerTeam === 'Team B') ? 1 : 0;
+        updateDisplay(cIdx);
+        syncRoundCompletionStatus();
+
+        const compEventId = 'evt_walkover_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+        queueScoreSave(cIdx, 'completed', clientSeq, tClick, compEventId, 'walkover', wStr, baseVersion);
+        showToast(`Skor ${courtLabel} diakhiri paksa (Walkover)!`);
     }
 
     function resetPoints(cIdx) {
@@ -1176,6 +1215,10 @@
             if (btnManual) {
                 btnManual.classList.add('hidden');
             }
+            const btnWalkover = document.getElementById('btnWalkover_' + cIdx);
+            if (btnWalkover) {
+                btnWalkover.classList.add('hidden');
+            }
             const banner = document.getElementById('matchCompletedBanner_' + cIdx);
             if (banner) {
                 banner.classList.add('hidden');
@@ -1194,8 +1237,15 @@
             if (lockedBadge) {
                 lockedBadge.classList.add('hidden');
             }
+            
+            const btnWalkover = document.getElementById('btnWalkover_' + cIdx);
+            const isTargetReached = (TARGET_GAMES > 0 && Math.max(st.gamesA, st.gamesB) >= TARGET_GAMES);
+            
             if (btnManual) {
-                btnManual.classList.remove('hidden');
+                btnManual.classList.toggle('hidden', !isTargetReached);
+            }
+            if (btnWalkover) {
+                btnWalkover.classList.toggle('hidden', isTargetReached);
             }
             const banner = document.getElementById('matchCompletedBanner_' + cIdx);
             if (banner) {
@@ -1272,6 +1322,10 @@
         const btnManual = document.getElementById('btnManualComplete_' + cIdx);
         if (btnManual) {
             btnManual.classList.add('hidden');
+        }
+        const btnWalkover = document.getElementById('btnWalkover_' + cIdx);
+        if (btnWalkover) {
+            btnWalkover.classList.add('hidden');
         }
 
         syncRoundCompletionStatus();
@@ -1705,6 +1759,7 @@
         const currentStatus = isCompletionSave ? 'completed' : (scoreState.matchDone ? 'completed' : 'in_progress');
         const reqSeq = lastClientSeq || st.clientSeq || 1;
         const reqBaseVer = lastBaseVersion || st.serverVersion || 0;
+        const isWalkoverSave = batchEvents.some(e => e.action === 'walkover');
         const body = {
             game_id         : GAME_ID,
             round           : ACTIVE_ROUND,
@@ -1733,6 +1788,7 @@
             client_id       : CLIENT_ID,
             client_version  : reqSeq,
             client_seq      : reqSeq,
+            is_walkover     : isWalkoverSave,
         };
 
         const requestController = new AbortController();

@@ -402,6 +402,7 @@ class ScoringController extends Controller
             'action' => 'nullable|string',
             'point_won_by' => 'nullable|string|in:A,B',
             'base_version' => 'nullable|integer',
+            'is_walkover' => 'nullable|boolean',
         ]);
 
         $round = $request->string('round')->toString();
@@ -414,6 +415,7 @@ class ScoringController extends Controller
         $status = $request->input('status', 'in_progress');
         $requestedCourt = $request->integer('court', 0);
         $courtIndex = $requestedCourt > 0 ? max(0, $requestedCourt - 1) : 0;
+        $isWalkover = $request->boolean('is_walkover', false);
 
         if ($status === 'completed') {
             $scoringSystemName = SessionModel::where('session_id', $gameId)->value('scoring_system')
@@ -422,10 +424,10 @@ class ScoringController extends Controller
             $gamesA = $request->integer('games_a', 0);
             $gamesB = $request->integer('games_b', 0);
 
-            if (! $scoringSystem['is_sets'] && ($gamesA < $scoringSystem['target_games'] && $gamesB < $scoringSystem['target_games'])) {
+            if (! $isWalkover && ($gamesA < $scoringSystem['target_games'] && $gamesB < $scoringSystem['target_games'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => "First to {$scoringSystem['target_games']} belum mencapai target.",
+                    'message' => "Target {$scoringSystem['target_games']} belum dicapai.",
                 ], 422);
             }
         }
@@ -938,10 +940,11 @@ class ScoringController extends Controller
         $gamesA = $request->integer('games_a', $prev['games_a'] ?? 0);
         $gamesB = $request->integer('games_b', $prev['games_b'] ?? 0);
         $winnerTeam = $request->input('winner_team', $prev['winner_team'] ?? null);
+        $isWalkover = $request->boolean('is_walkover', false);
 
-        if (! $system['is_sets'] && ($gamesA < $system['target_games'] && $gamesB < $system['target_games'])) {
+        if (! $isWalkover && ($gamesA < $system['target_games'] && $gamesB < $system['target_games'])) {
             return redirect()->back()->withErrors([
-                'score' => "First to {$system['target_games']} belum mencapai target.",
+                'score' => "Target {$system['target_games']} belum dicapai.",
             ]);
         }
 
@@ -1065,6 +1068,9 @@ class ScoringController extends Controller
                 $matchSummary = $system['is_sets']
                     ? "Set Score {$setsA} - {$setsB}"
                     : "Game Score {$gamesA} - {$gamesB}";
+                if ($isWalkover) {
+                    $matchSummary = "Walkover ({$gamesA} - {$gamesB})";
+                }
 
                 // Reuse tb_match & participants deterministically (tidak membuat duplikat)
                 $match = ScoringService::ensureMatchAndParticipants($session, $round, $courtIndex);
