@@ -1,597 +1,346 @@
 import 'package:flutter/material.dart';
+import '../../../core/data/mock_data_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../match/presentation/match_scoring_page.dart';
-import '../domain/models/drawing_round_model.dart';
-import '../domain/models/match_pairing_model.dart';
-import 'controllers/drawing_controller.dart';
 
 class DrawingResultPage extends StatefulWidget {
-  final int? sessionId;
-  final String sessionName;
-  final String sportName;
-  final String drawingMethod;
-  final String format;
-  final String? jenisPermainan;
-  final DateTime? waktuSession;
-  final List<String>? playerNames;
-  final List<int>? playerIds;
-  final List<String>? courtNames;
-  final List<int>? courtIds;
-  final DrawingController? controller;
-
-  const DrawingResultPage({
-    super.key,
-    this.sessionId,
-    this.sessionName = 'Saturday Morning',
-    this.sportName = 'Tennis',
-    this.drawingMethod = 'Americano',
-    this.format = 'Doubles',
-    this.jenisPermainan,
-    this.waktuSession,
-    this.playerNames,
-    this.playerIds,
-    this.courtNames,
-    this.courtIds,
-    this.controller,
-  });
+  const DrawingResultPage({super.key});
 
   @override
   State<DrawingResultPage> createState() => _DrawingResultPageState();
 }
 
 class _DrawingResultPageState extends State<DrawingResultPage> {
-  late final DrawingController _controller;
-
-  late final List<String> _effectivePlayerNames;
-  late final List<int> _effectivePlayerIds;
-  late final List<String> _effectiveCourtNames;
-  late final List<int> _effectiveCourtIds;
+  final MockDataService _dataService = MockDataService();
 
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller ?? DrawingController();
-
-    _effectivePlayerNames = widget.playerNames ??
-        [
-          'Aldi',
-          'Budi',
-          'Caca',
-          'Dina',
-          'Eka',
-          'Fajar',
-          'Gilang',
-          'Hadi',
-          'Indra',
-          'Joko'
-        ];
-    _effectivePlayerIds = widget.playerIds ??
-        List<int>.generate(_effectivePlayerNames.length, (i) => i + 1);
-
-    _effectiveCourtNames = widget.courtNames ??
-        ['Court 1 — SiJi Tennis Court', 'Court 2 — SiJi Tennis Court'];
-    _effectiveCourtIds = widget.courtIds ?? [1, 2];
-
-    // Generate initial drawing round
-    _controller.generateDrawing(
-      sessionName: widget.sessionName,
-      sportName: widget.sportName,
-      drawingMethod: widget.drawingMethod,
-      format: widget.format,
-      playerNames: _effectivePlayerNames,
-      playerIds: _effectivePlayerIds,
-      courtNames: _effectiveCourtNames,
-      courtIds: _effectiveCourtIds,
-      roundNumber: 1,
-    );
+    _dataService.addListener(_onDataChanged);
   }
 
-  void _handleReRoll() {
-    _controller.reShuffleDrawing(
-      playerNames: _effectivePlayerNames,
-      playerIds: _effectivePlayerIds,
-      courtNames: _effectiveCourtNames,
-      courtIds: _effectiveCourtIds,
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Drawing berhasil diacak ulang secara adil & acak! 🎲',
-          style: AppTextStyles.body.copyWith(
-            color: context.txtPrimary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: context.surf,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: context.surfBorder, width: 1),
-        ),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  @override
+  void dispose() {
+    _dataService.removeListener(_onDataChanged);
+    super.dispose();
   }
 
-  void _handleStartMatch() async {
-    final nav = Navigator.of(context);
-    await _controller.saveDrawingToSupabase();
-
-    final currentRound = _controller.currentRound;
-    final firstMatch = currentRound?.matches.isNotEmpty == true
-        ? currentRound!.matches.first
-        : null;
-
-    nav.push(
-      MaterialPageRoute(
-        builder: (context) => MatchScoringPage(
-          matchId: firstMatch?.matchId,
-          sessionName: widget.sessionName,
-          courtName: firstMatch?.courtName ?? 'Court 1 — SiJi Tennis Court',
-          sideA: firstMatch?.sideADisplay ?? 'Aldi · Budi',
-          sideB: firstMatch?.sideBDisplay ?? 'Caca · Dina',
-        ),
-      ),
-    );
-  }
-
-  String _formatSessionDateTime() {
-    if (widget.waktuSession != null) {
-      final date = widget.waktuSession!;
-      const monthNames = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'Mei',
-        'Jun',
-        'Jul',
-        'Agu',
-        'Sep',
-        'Okt',
-        'Nov',
-        'Des',
-      ];
-      final hour = date.hour.toString().padLeft(2, '0');
-      final minute = date.minute.toString().padLeft(2, '0');
-      return '${date.day} ${monthNames[date.month - 1]} ${date.year} · $hour:$minute';
-    }
-    return 'Hari ini · 08:00';
+  void _onDataChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _controller,
-      builder: (context, _) {
-        final currentRound = _controller.currentRound;
-        final matches = currentRound?.matches ?? [];
-        final waitingPlayers = currentRound?.waitingPlayers ?? [];
+    final matches = _dataService.currentDrawingMatches;
+    final isLocked = _dataService.isDrawingLocked;
+    final isHost = _dataService.isHostMode;
 
-        return Scaffold(
-          backgroundColor: context.bg,
-          appBar: AppBar(
-            title: Text(
-              'Drawing Result',
-              style: TextStyle(color: context.txtPrimary),
-            ),
-            leading: IconButton(
+    return Scaffold(
+      backgroundColor: context.bg,
+      appBar: AppBar(
+        title: Text(
+          'Bagan & Drawing Tim',
+          style: AppTextStyles.h2.copyWith(fontSize: 16, color: context.txtPrimary),
+        ),
+        centerTitle: true,
+        actions: [
+          if (isHost)
+            IconButton(
               icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 18,
-                color: context.txtPrimary,
+                isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
+                color: isLocked ? Colors.amberAccent : context.txtSecondary,
               ),
-              onPressed: () => Navigator.maybePop(context),
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.refresh_rounded, color: context.brandColor),
-                tooltip: 'Acak Ulang Drawing',
-                onPressed: _handleReRoll,
-              ),
-            ],
-          ),
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20.0,
-                vertical: 16.0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. Session Info Banner
-                  _buildSessionInfoBanner(context, currentRound),
-                  const SizedBox(height: 20),
-
-                  // 2. Section Title
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'SUSUNAN PERTANDINGAN',
-                        style: AppTextStyles.badge.copyWith(
-                          color: context.txtSecondary,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                      Text(
-                        '${matches.length} Court Aktif',
-                        style: AppTextStyles.caption.copyWith(
-                          color: context.brandColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 3. Match Cards per Court
-                  if (_controller.isLoading)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32.0),
-                        child: CircularProgressIndicator(
-                          color: context.brandColor,
-                        ),
-                      ),
-                    )
-                  else ...[
-                    ...matches.map(
-                      (match) => Padding(
-                        padding: const EdgeInsets.only(bottom: 14.0),
-                        child: _buildMatchCard(context, match),
-                      ),
+              tooltip: isLocked ? 'Buka Kunci Drawing' : 'Kunci Drawing',
+              onPressed: () {
+                _dataService.toggleLockDrawing();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      _dataService.isDrawingLocked
+                          ? 'Drawing tim berhasil dikunci 🔒'
+                          : 'Kunci drawing dibuka 🔓',
                     ),
-                  ],
-
-                  const SizedBox(height: 10),
-
-                  // 4. Waiting List Card
-                  if (waitingPlayers.isNotEmpty) ...[
-                    _buildWaitingListCard(context, waitingPlayers),
-                    const SizedBox(height: 24),
-                  ],
-
-                  const SizedBox(height: 12),
-
-                  // 5. Action Buttons (Mulai Match & Re-Draw)
-                  ElevatedButton(
-                    onPressed: _handleStartMatch,
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Banner Info
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: context.surfSec,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: context.surfBorder),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.info_outline_rounded, color: context.brandColor, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('MULAI MATCH PERTANDINGAN'),
-                        SizedBox(width: 8),
-                        Icon(Icons.play_arrow_rounded, size: 22),
+                        Text(
+                          isLocked ? 'Drawing Dikunci (Siap Main)' : 'Drawing Otomatis Seimbang',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: context.txtPrimary,
+                          ),
+                        ),
+                        Text(
+                          'Sistem Matcha mengundi pasangan bermain berdasarkan kesetaraan tier pemain.',
+                          style: AppTextStyles.caption.copyWith(
+                            color: context.txtSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: _handleReRoll,
-                    icon: Icon(
-                      Icons.shuffle_rounded,
-                      size: 18,
-                      color: context.brandColor,
-                    ),
-                    label: Text(
-                      'Acak Ulang Susunan (Re-Draw)',
-                      style: TextStyle(color: context.txtPrimary),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
 
-  Widget _buildSessionInfoBanner(
-    BuildContext context,
-    DrawingRoundModel? round,
-  ) {
-    final roundNumber = round?.roundNumber ?? 1;
-    final method = round?.drawingMethod ?? widget.drawingMethod;
-    final formatDisplay = widget.format.isNotEmpty
-        ? widget.format
-        : (widget.jenisPermainan == 'Single' ? 'Singles' : 'Doubles');
+            const SizedBox(height: 20),
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.surf,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.surfBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'RONDE $roundNumber',
-                style: AppTextStyles.badge.copyWith(
-                  color: context.brandColor,
-                  letterSpacing: 2,
-                  fontSize: 12,
-                ),
+            // Match Cards per Court
+            for (var match in matches) ...[
+              _buildCourtMatchCard(context, match),
+              const SizedBox(height: 16),
+            ],
+
+            const SizedBox(height: 20),
+
+            // Host Actions: Shuffle & Start Match
+            if (isHost) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: isLocked
+                          ? null
+                          : () {
+                              _dataService.shuffleDrawing();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Tim berhasil diacak ulang! 🎲'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                      icon: const Icon(Icons.shuffle_rounded),
+                      label: const Text('Acak Tim'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        foregroundColor: context.txtPrimary,
+                        side: BorderSide(color: context.surfBorder),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MatchScoringPage()),
+                        );
+                      },
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('Mulai Match'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: context.brandColor,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                _formatSessionDateTime(),
-                style: AppTextStyles.caption.copyWith(
-                  color: context.txtSecondary,
+            ] else ...[
+              // Member View: Tombol Buka Live Score
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MatchScoringPage()),
+                    );
+                  },
+                  icon: const Icon(Icons.live_tv_rounded),
+                  label: const Text('Pantau Live Score (Penonton)'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: context.brandColor,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            widget.sessionName,
-            style: AppTextStyles.sectionTitle.copyWith(
-              fontSize: 18,
-              color: context.txtPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(
-                Icons.sports_tennis_rounded,
-                size: 14,
-                color: context.brandColor,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${widget.sportName} · Metode: $method · $formatDisplay',
-                style: AppTextStyles.caption.copyWith(
-                  color: context.txtSecondary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMatchCard(BuildContext context, MatchPairingModel match) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.surf,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.surfBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Court Header & Status
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                match.courtName,
-                style: AppTextStyles.cardTitle.copyWith(
-                  fontSize: 14,
-                  color: context.brandColor,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
-                decoration: BoxDecoration(
-                  color: context.brandColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: context.brandColor,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      match.statusMatch,
-                      style: AppTextStyles.badge.copyWith(
-                        color: context.brandColor,
-                        fontSize: 9,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Team A vs Team B Display
-          Container(
-            padding: const EdgeInsets.symmetric(
-              vertical: 12,
-              horizontal: 14,
-            ),
-            decoration: BoxDecoration(
-              color: context.surfSec,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: context.surfBorder),
-            ),
-            child: Row(
-              children: [
-                // Side A
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'SIDE A',
-                        style: AppTextStyles.badge.copyWith(
-                          fontSize: 10,
-                          color: context.txtSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        match.sideADisplay,
-                        textAlign: TextAlign.center,
-                        style: AppTextStyles.body.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: context.txtPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // VS Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: context.surf,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: context.surfBorder),
-                  ),
-                  child: Text(
-                    'VS',
-                    style: AppTextStyles.badge.copyWith(
-                      color: context.brandColor,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-
-                // Side B
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'SIDE B',
-                        style: AppTextStyles.badge.copyWith(
-                          fontSize: 10,
-                          color: context.txtSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        match.sideBDisplay,
-                        textAlign: TextAlign.center,
-                        style: AppTextStyles.body.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: context.txtPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildWaitingListCard(
-    BuildContext context,
-    List<String> waitingPlayers,
-  ) {
+  Widget _buildCourtMatchCard(BuildContext context, CourtMatch match) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: context.surf,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.surfBorder),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: context.surfBorder, width: 1),
       ),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Court Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  const Icon(
-                    Icons.pause_circle_outline_rounded,
-                    size: 18,
-                    color: AppColors.warning,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'WAITING PLAYERS (${waitingPlayers.length})',
-                    style: AppTextStyles.badge.copyWith(
-                      color: AppColors.warning,
-                      letterSpacing: 1,
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: match.status == 'live' ? Colors.redAccent : Colors.amberAccent,
+                      shape: BoxShape.circle,
                     ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    match.courtName,
+                    style: AppTextStyles.h3.copyWith(fontSize: 14, color: context.txtPrimary),
                   ),
                 ],
               ),
-              Text(
-                'Prioritas Ronde 2',
-                style: AppTextStyles.caption.copyWith(
-                  fontSize: 11,
-                  color: context.txtSecondary,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: context.surfSec,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  match.status == 'live' ? 'Live • Set 1' : 'Menunggu',
+                  style: TextStyle(
+                    color: match.status == 'live' ? Colors.redAccent : context.txtSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: waitingPlayers.map((name) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: context.surfSec,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: context.surfBorder),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppColors.warning,
-                        shape: BoxShape.circle,
+          const SizedBox(height: 14),
+          // Team A vs Team B Lineup
+          Row(
+            children: [
+              // Team A
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: context.surfSec,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: context.surfBorder),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'TIM A',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      name,
-                      style: AppTextStyles.body.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: context.txtPrimary,
-                      ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      for (var p in match.teamA) ...[
+                        Row(
+                          children: [
+                            CircleAvatar(radius: 10, backgroundImage: NetworkImage(p.avatarUrl)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                p.name,
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+                    ],
+                  ),
                 ),
-              );
-            }).toList(),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                child: Text(
+                  'VS',
+                  style: TextStyle(fontWeight: FontWeight.w900, color: Colors.grey, fontSize: 13),
+                ),
+              ),
+              // Team B
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: context.surfSec,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: context.surfBorder),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'TIM B',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orangeAccent),
+                      ),
+                      const SizedBox(height: 8),
+                      for (var p in match.teamB) ...[
+                        Row(
+                          children: [
+                            CircleAvatar(radius: 10, backgroundImage: NetworkImage(p.avatarUrl)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                p.name,
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
