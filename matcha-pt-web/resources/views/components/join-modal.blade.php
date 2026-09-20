@@ -14,31 +14,35 @@
 
         <form id="joinModalForm" onsubmit="handleJoinSubmit(event)" class="space-y-3 text-xs">
             @csrf
+
+            @guest
+            <div class="p-2.5 rounded-xl bg-[#EBF8D8]/80 border border-[#063B00]/15 flex items-center gap-2 text-[11px] text-[#063B00] font-semibold">
+                <i class="fa-solid fa-user-clock text-xs text-[#063B00]"></i>
+                <span>Mode Tamu: Anda bergabung sebagai <strong>Guest Player</strong> tanpa perlu login.</span>
+            </div>
+            @endguest
+
             <div>
-                <label class="block text-slate-700 font-semibold mb-1">Nama Pemain</label>
-                <input type="text" name="nama" id="joinPlayerName" value="{{ Auth::check() ? Auth::user()->nama : '' }}" placeholder="Masukkan nama Anda" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:border-[#063B00] focus:bg-white focus:outline-none" required>
+                <label class="block text-slate-700 font-semibold mb-1">Nama Pemain <span class="text-rose-500">*</span></label>
+                <input type="text" name="nama" id="joinPlayerName" value="{{ Auth::check() ? Auth::user()->nama : '' }}" placeholder="Contoh: Alex Pratama" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none" required>
             </div>
             <div class="grid grid-cols-2 gap-2">
                 <div>
                     <label class="block text-slate-700 font-semibold mb-1">Gender</label>
-                    <select name="gender" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:border-[#063B00] focus:bg-white focus:outline-none">
+                    <select name="gender" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none">
                         <option value="Male">Laki-laki</option>
                         <option value="Female">Perempuan</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-slate-700 font-semibold mb-1">Level Permainan</label>
-                    <select name="level" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:border-[#063B00] focus:bg-white focus:outline-none">
+                    <select name="level" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none">
                         <option value="Newbie">Newbie</option>
                         <option value="Beginner">Beginner</option>
                         <option value="Intermediate" selected>Intermediate</option>
                         <option value="Advanced">Advanced</option>
                     </select>
                 </div>
-            </div>
-            <div>
-                <label class="block text-slate-700 font-semibold mb-1">Nomor WhatsApp</label>
-                <input type="text" name="no_hp" id="joinPlayerPhone" value="{{ Auth::check() ? (Auth::user()->no_hp ?? '') : '' }}" placeholder="08123456789" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:border-[#063B00] focus:bg-white focus:outline-none">
             </div>
 
             <div class="flex gap-2 pt-3 border-t border-slate-100">
@@ -59,11 +63,6 @@
     }
 
     function showJoinModal(gameId, gameTitle) {
-        @guest
-            window.location.href = "{{ route('login') }}";
-            return;
-        @endguest
-
         currentJoinGameId = gameId;
         const titleEl = document.getElementById('modalGameTitle');
         if (titleEl) titleEl.innerText = gameTitle;
@@ -71,6 +70,12 @@
         if (modal) {
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+            setTimeout(() => {
+                const nameInput = document.getElementById('joinPlayerName');
+                if (nameInput && !nameInput.value) {
+                    nameInput.focus();
+                }
+            }, 50);
         }
     }
 

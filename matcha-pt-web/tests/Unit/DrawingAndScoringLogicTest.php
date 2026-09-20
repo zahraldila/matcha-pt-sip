@@ -1647,6 +1647,54 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertDatabaseHas('tb_court', ['nama_court' => 'Court 1', 'venue_id' => $data['venue']['venue_id']]);
     }
 
+    /**
+     * Test 17: Guest Player can join session without phone number or login
+     */
+    public function test_guest_player_can_join_session_without_phone_number()
+    {
+        $this->setupTestDatabaseSchema();
+        Auth::logout();
+
+        $session = SessionModel::create([
+            'host_user_id' => 1,
+            'sport_id' => 1,
+            'venue_id' => 1,
+            'nama_session' => 'Mabar Guest Join Test',
+            'scoring_system' => 'Total of 3',
+            'waktu_session' => '08:00 WIB',
+            'datetime' => '2026-09-20 08:00:00',
+            'status_session' => 'Open',
+            'jumlah_pemain' => 4,
+            'jenis_permainan' => 'Double',
+        ]);
+
+        $controller = new GameController;
+        $request = Request::create("/games/{$session->session_id}/join", 'POST', [
+            'nama' => 'Budi Tamu Padel',
+            'gender' => 'Male',
+            'level' => 'Beginner',
+        ]);
+
+        $response = $controller->joinSession($session->session_id, $request);
+        $this->assertEquals(200, $response->getStatusCode());
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertStringContainsString('Guest Player', $data['message']);
+
+        // Check player created with user_id = null and no_hp = null
+        $this->assertDatabaseHas('tb_player', [
+            'nama' => 'Budi Tamu Padel',
+            'user_id' => null,
+            'no_hp' => null,
+            'gender' => 'Male',
+            'level' => 'Beginner',
+        ]);
+
+        // Check attached to session
+        $this->assertEquals(1, $session->fresh()->players->count());
+    }
+
     protected function invokeMethod(&$object, $methodName, array $parameters = [])
     {
         $reflection = new \ReflectionClass(get_class($object));

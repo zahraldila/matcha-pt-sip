@@ -26,10 +26,10 @@ Route::prefix('games')->name('games.')->group(function () {
     Route::get('/', [GameController::class, 'index'])->name('index');
     Route::get('/{id}', [GameController::class, 'show'])->whereNumber('id')->name('show');
     Route::get('/{id}/drawing', [GameController::class, 'drawing'])->whereNumber('id')->name('drawing');
+    Route::post('/{id}/join', [GameController::class, 'joinSession'])->whereNumber('id')->name('join'); // Support Member & Guest Player join
 
-    // Protected: Join Session, Lock Drawing, Create Game Wizard, Schedule Sesi Mabar
+    // Protected: Lock Drawing, Create Game Wizard, Schedule Sesi Mabar
     Route::middleware('auth')->group(function () {
-        Route::post('/{id}/join', [GameController::class, 'joinSession'])->whereNumber('id')->name('join');
         Route::post('/{id}/lock', [GameController::class, 'lockDrawing'])->whereNumber('id')->name('lock');
         Route::get('/create', [GameController::class, 'create'])->name('create');
         Route::get('/players/search', [GameController::class, 'searchPlayers'])->name('players.search');

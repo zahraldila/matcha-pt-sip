@@ -8,13 +8,13 @@ use App\Models\Drawing;
 use App\Models\GameMatch;
 use App\Models\Player;
 use App\Models\SessionModel;
-use Carbon\Carbon;
 use App\Models\Sport;
 use App\Models\Venue;
 use App\Services\Drawing\AmericanoService;
 use App\Services\Drawing\TeamAmericanoService;
 use App\Services\MatchaDummyDataService;
 use App\Services\Scoring\ScoringService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
@@ -121,7 +121,7 @@ class GameController extends Controller
         $remainingMinutes = $minutes % 60;
 
         if ($hours > 0 && $remainingMinutes > 0) {
-            return $hours.' Jam '. $remainingMinutes.' Menit';
+            return $hours.' Jam '.$remainingMinutes.' Menit';
         }
 
         if ($hours > 0) {
@@ -696,17 +696,6 @@ class GameController extends Controller
      */
     public function joinSession($id, Request $request)
     {
-        if (! Auth::check()) {
-            if ($request->wantsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Autentikasi diperlukan. Silakan masuk terlebih dahulu untuk bergabung ke sesi mabar.',
-                ], 401);
-            }
-
-            return redirect()->route('login')->with('error', 'Silakan masuk terlebih dahulu untuk bergabung ke sesi mabar.');
-        }
-
         $session = null;
         try {
             $session = SessionModel::with('players')->find((int) $id);
@@ -753,29 +742,43 @@ class GameController extends Controller
         }
 
         $request->validate([
-            'nama' => 'nullable|string|max:255',
+            'nama' => Auth::check() ? 'nullable|string|max:255' : 'required|string|max:255',
             'gender' => 'nullable|in:Male,Female',
             'level' => 'nullable|string|max:50',
-            'no_hp' => 'nullable|string|max:30',
+        ], [
+            'nama.required' => 'Nama pemain wajib diisi untuk bergabung ke sesi mabar.',
         ]);
 
         try {
             DB::beginTransaction();
 
-            $user = Auth::user();
-            $player = Player::where('user_id', $user->user_id)
-                ->orWhere('email', $user->email)
-                ->first();
+            if (Auth::check()) {
+                $user = Auth::user();
+                $player = Player::where('user_id', $user->user_id)
+                    ->orWhere('email', $user->email)
+                    ->first();
 
-            if (! $player) {
+                if (! $player) {
+                    $player = Player::create([
+                        'user_id' => $user->user_id,
+                        'nama' => $request->nama ?: $user->nama,
+                        'gender' => $request->gender ?: 'Male',
+                        'level' => $request->level ?: 'Intermediate',
+                        'rating' => 3.0,
+                        'no_hp' => $user->no_hp ?? null,
+                        'email' => $user->email,
+                    ]);
+                }
+            } else {
+                // Guest Player Mode (Tamu) - tanpa nomor WA unik
                 $player = Player::create([
-                    'user_id' => $user->user_id,
-                    'nama' => $request->nama ?: $user->nama,
+                    'user_id' => null,
+                    'nama' => trim($request->nama),
                     'gender' => $request->gender ?: 'Male',
                     'level' => $request->level ?: 'Intermediate',
                     'rating' => 3.0,
-                    'no_hp' => $request->no_hp ?: ($user->no_hp ?? null),
-                    'email' => $user->email,
+                    'no_hp' => null,
+                    'email' => null,
                 ]);
             }
 
@@ -800,7 +803,9 @@ class GameController extends Controller
 
             DB::commit();
 
-            $successMsg = "Berhasil bergabung ke sesi mabar: {$session->nama_session}!";
+            $successMsg = Auth::check()
+                ? "Berhasil bergabung ke sesi mabar: {$session->nama_session}!"
+                : "Berhasil bergabung sebagai Guest Player ke sesi mabar: {$session->nama_session}!";
 
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
