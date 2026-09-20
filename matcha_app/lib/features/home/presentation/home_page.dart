@@ -1,26 +1,20 @@
 import 'package:flutter/material.dart';
+import '../../../core/data/mock_data_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../auth/domain/models/user_model.dart';
-import '../../match/data/match_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../drawing/presentation/drawing_result_page.dart';
+import '../../match/presentation/match_scoring_page.dart';
+import '../../session/presentation/create_session_page.dart';
+import '../../session/presentation/session_detail_page.dart';
 
 class HomePage extends StatefulWidget {
-  final UserModel? user;
-  final VoidCallback? onCreateSessionTap;
-  final Function? onLiveSessionTap;
-  final VoidCallback? onManagePlayersTap;
-  final VoidCallback? onManageCourtsTap;
-  final VoidCallback? onCommunityTap;
+  final VoidCallback? onExploreSessions;
+  final VoidCallback? onExploreCommunity;
 
   const HomePage({
     super.key,
-    this.user,
-    this.onCreateSessionTap,
-    this.onLiveSessionTap,
-    this.onManagePlayersTap,
-    this.onManageCourtsTap,
-    this.onCommunityTap,
+    this.onExploreSessions,
+    this.onExploreCommunity,
   });
 
   @override
@@ -28,787 +22,805 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final MatchService _matchService = MatchService();
-  RealtimeChannel? _realtimeChannel;
-
-  bool _isLoading = true;
-  Map<String, dynamic>? _activeSession;
-  List<Map<String, dynamic>> _matches = [];
-  Map<String, dynamic>? _upcomingSession;
-  Map<String, int> _summaryStats = {
-    'players': 8,
-    'courts': 2,
-    'activeSessions': 1,
-    'totalSessions': 1,
-  };
+  final MockDataService _dataService = MockDataService();
+  String _selectedSport = 'all'; // 'all', 'padel', 'tennis', 'badminton'
 
   @override
   void initState() {
     super.initState();
-    _loadAllDashboardData();
-  }
-
-  Future<void> _loadAllDashboardData() async {
-    try {
-      // 1. Ambil live session aktif
-      final session = await _matchService.getSession(null);
-      List<Map<String, dynamic>> matches = [];
-      if (session != null) {
-        matches = await _matchService.getMatchesForSession(
-          session['session_id'],
-        );
-        _subscribeRealtime(session['session_id']);
-      }
-
-      // 2. Ambil upcoming session & summary stats
-      final upcoming = await _matchService.getUpcomingSession();
-      final stats = await _matchService.getSummaryStats();
-
-      if (mounted) {
-        setState(() {
-          _activeSession = session;
-          _matches = matches;
-          _upcomingSession = upcoming;
-          _summaryStats = stats;
-          _isLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  void _subscribeRealtime(dynamic sessionId) {
-    _matchService.unsubscribe(_realtimeChannel);
-    _realtimeChannel = _matchService.subscribeLiveSession(
-      sessionId: sessionId,
-      onDataChanged: () {
-        if (mounted) _refreshScoresSilently(sessionId);
-      },
-    );
-  }
-
-  Future<void> _refreshScoresSilently(dynamic sessionId) async {
-    try {
-      final matches = await _matchService.getMatchesForSession(sessionId);
-      final stats = await _matchService.getSummaryStats();
-      if (mounted) {
-        setState(() {
-          _matches = matches;
-          _summaryStats = stats;
-        });
-      }
-    } catch (_) {}
+    _dataService.addListener(_onDataChanged);
   }
 
   @override
   void dispose() {
-    _matchService.unsubscribe(_realtimeChannel);
+    _dataService.removeListener(_onDataChanged);
     super.dispose();
   }
 
-  void _handleLiveSessionTap() {
-    final sessionIdStr = _activeSession?['session_id']?.toString() ?? '';
-    if (widget.onLiveSessionTap != null) {
-      try {
-        (widget.onLiveSessionTap as dynamic)(sessionIdStr);
-      } catch (_) {
-        (widget.onLiveSessionTap as dynamic)();
-      }
-    }
+  void _onDataChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final isHost = widget.user?.isHost ?? true;
-    final userName = widget.user?.nama.isNotEmpty == true
-        ? widget.user!.nama
-        : 'Host';
+    final user = _dataService.currentUser;
+    final isHost = _dataService.isHostMode;
+    final liveSession = _dataService.activeLiveSession;
+
+    final filteredSessions = _dataService.upcomingSessions.where((s) {
+      if (_selectedSport == 'all') return true;
+      return s.sport.toLowerCase() == _selectedSport.toLowerCase();
+    }).toList();
 
     return Scaffold(
       backgroundColor: context.bg,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Header (Greeting & Notification)
-              _buildHeader(context, userName),
-              const SizedBox(height: 24),
-
-              // 2. Live Session Card (Prominent Section)
-              _buildLiveSessionCard(context),
-              const SizedBox(height: 24),
-
-              // 3. Upcoming Session Card
-              _buildUpcomingSessionCard(context),
-              const SizedBox(height: 24),
-
-              // 4. Quick Action Grid (Khusus Host / Sesuai Permission)
-              if (isHost) ...[
-                _buildQuickActionSection(context),
-                const SizedBox(height: 24),
-              ],
-
-              // 5. Ringkasan Statistik
-              _buildSummaryStats(context),
-              const SizedBox(height: 20),
-            ],
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // --- App Bar Header ---
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              child: Row(
+                children: [
+                  // User Avatar & Greeting
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundImage: NetworkImage(user.avatarUrl),
+                    backgroundColor: context.surfBorder,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Halo, ${user.name.split(' ').first} 👋',
+                              style: AppTextStyles.h2.copyWith(
+                                color: context.txtPrimary,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isHost
+                              ? 'Mode Host Aktif • Siap kelola mabar'
+                              : 'Tier ${user.tier} • Winrate ${user.winRate}%',
+                          style: AppTextStyles.caption.copyWith(
+                            color: context.txtSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Host / Member Mode Switch Indicator
+                  GestureDetector(
+                    onTap: () {
+                      _dataService.toggleHostMode();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            _dataService.isHostMode
+                                ? 'Beralih ke Mode Host 🎾'
+                                : 'Beralih ke Mode Pemain / Member 👤',
+                          ),
+                          duration: const Duration(seconds: 1),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isHost
+                            ? AppColors.primary.withValues(alpha: 0.15)
+                            : Colors.blueAccent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isHost ? AppColors.primary : Colors.blueAccent,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isHost ? Icons.sports_tennis : Icons.person_outline,
+                            size: 14,
+                            color: isHost ? context.brandColor : Colors.blueAccent,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isHost ? 'HOST' : 'MEMBER',
+                            style: AppTextStyles.badge.copyWith(
+                              fontSize: 10,
+                              color: isHost ? context.brandColor : Colors.blueAccent,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
+
+          // --- Hero Banner / Live Active Match Card ---
+          if (liveSession != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                child: _buildLiveMatchCard(context, liveSession),
+              ),
+            ),
+
+          // --- Quick Stats Summary Row ---
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  _buildStatPill(
+                    context,
+                    label: 'Sesi Aktif',
+                    value: '1 Live',
+                    icon: Icons.flash_on_rounded,
+                    color: AppColors.liveBadge,
+                  ),
+                  const SizedBox(width: 10),
+                  _buildStatPill(
+                    context,
+                    label: 'Mabar Ikut',
+                    value: '${user.totalMatches}',
+                    icon: Icons.sports_tennis_rounded,
+                    color: Colors.orangeAccent,
+                  ),
+                  const SizedBox(width: 10),
+                  _buildStatPill(
+                    context,
+                    label: 'Total Kudos',
+                    value: '🔥 ${user.kudosCount}',
+                    icon: Icons.local_fire_department_rounded,
+                    color: Colors.redAccent,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+          // --- Quick Action Grid (Host vs Member) ---
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Aksi Cepat',
+                        style: AppTextStyles.h2.copyWith(
+                          color: context.txtPrimary,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionButton(
+                          context,
+                          title: 'Buat Sesi Mabar',
+                          subtitle: 'Jadwal & Kuota',
+                          icon: Icons.add_circle_outline_rounded,
+                          color: AppColors.primary,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const CreateSessionPage(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildActionButton(
+                          context,
+                          title: 'Drawing & Tim',
+                          subtitle: 'Bagan & Acak',
+                          icon: Icons.shuffle_rounded,
+                          color: Colors.amberAccent,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const DrawingResultPage(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 28)),
+
+          // --- Upcoming Sessions Header & Sport Filter Pills ---
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Jadwal Mabar Terbuka',
+                            style: AppTextStyles.h2.copyWith(
+                              color: context.txtPrimary,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Pilih sesi dan amankan kuota slotmu',
+                            style: AppTextStyles.caption.copyWith(
+                              color: context.txtSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      TextButton(
+                        onPressed: widget.onExploreSessions,
+                        child: Text(
+                          'Lihat Semua',
+                          style: AppTextStyles.button.copyWith(
+                            color: context.brandColor,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Filter Pills
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        _buildSportFilterChip('all', 'Semua Cabang', Icons.grid_view_rounded),
+                        const SizedBox(width: 8),
+                        _buildSportFilterChip('padel', '🏓 Padel', null),
+                        const SizedBox(width: 8),
+                        _buildSportFilterChip('tennis', '🎾 Tennis', null),
+                        const SizedBox(width: 8),
+                        _buildSportFilterChip('badminton', '🏸 Badminton', null),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+          // --- List Sesi Mabar Terbuka ---
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final session = filteredSessions[index];
+                  return _buildSessionCard(context, session);
+                },
+                childCount: filteredSessions.length,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSportFilterChip(String key, String label, IconData? icon) {
+    final isSelected = _selectedSport == key;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedSport = key),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (context.isDarkMode ? AppColors.primary : const Color(0xFF063B00))
+              : context.surfSec,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? Colors.transparent : context.surfBorder,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected ? (context.isDarkMode ? Colors.black : Colors.white) : context.txtSecondary,
+              ),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected
+                    ? (context.isDarkMode ? Colors.black : Colors.white)
+                    : context.txtSecondary,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // --- WIDGET SECTIONS ---
-
-  Widget _buildHeader(BuildContext context, String userName) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  'Halo, $userName!',
-                  style: AppTextStyles.pageTitle.copyWith(
-                    fontSize: 22,
-                    color: context.txtPrimary,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Text('👋', style: TextStyle(fontSize: 20)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Sabtu, 6 September 2026',
-              style: AppTextStyles.caption.copyWith(
-                color: context.txtSecondary,
-              ),
-            ),
-          ],
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: context.surf,
-            shape: BoxShape.circle,
-            border: Border.all(color: context.surfBorder),
-          ),
-          child: IconButton(
-            icon: Icon(
-              Icons.notifications_outlined,
-              color: context.txtPrimary,
-              size: 22,
-            ),
-            onPressed: () {},
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLiveSessionCard(BuildContext context) {
-    if (_isLoading) {
-      return Container(
-        height: 160,
-        alignment: Alignment.center,
-        padding: const EdgeInsets.all(18),
+  Widget _buildStatPill(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: context.surf,
+          color: context.surfSec,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: context.surfBorder),
-        ),
-        child: CircularProgressIndicator(color: context.brandColor),
-      );
-    }
-
-    if (_activeSession == null) {
-      return Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: context.surf,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: context.surfBorder),
+          border: Border.all(color: context.surfBorder, width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 4),
                 Text(
-                  'LIVE SESSION',
-                  style: AppTextStyles.badge.copyWith(
+                  label,
+                  style: AppTextStyles.caption.copyWith(
                     color: context.txtSecondary,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: context.surfSec,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'INACTIVE',
-                    style: AppTextStyles.badge.copyWith(
-                      color: context.txtSecondary,
-                      fontSize: 10,
-                    ),
+                    fontSize: 10,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Tidak Ada Sesi Live',
-              style: AppTextStyles.sectionTitle.copyWith(
-                fontSize: 17,
-                color: context.txtPrimary,
-              ),
-            ),
             const SizedBox(height: 4),
             Text(
-              'Saat ini belum ada pertandingan live yang sedang berlangsung.',
-              style: AppTextStyles.bodySecondary.copyWith(
-                fontSize: 13,
-                color: context.txtSecondary,
+              value,
+              style: AppTextStyles.h3.copyWith(
+                color: context.txtPrimary,
+                fontSize: 14,
               ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: widget.onCreateSessionTap,
-              child: const Text('BUAT SESSION BARU'),
             ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    final sessionTitle = _activeSession!['nama_session'] ?? 'Saturday Morning';
-    final sportName = _activeSession!['sport_id'] != null ? 'Tennis' : 'Sports';
+  Widget _buildActionButton(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: context.surfSec,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: context.surfBorder, width: 1),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: context.txtPrimary,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: AppTextStyles.caption.copyWith(
+                      color: context.txtSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-    final court1 = _matches.isNotEmpty ? _matches[0] : null;
-    final court2 = _matches.length > 1 ? _matches[1] : null;
-
-    final c1Name = court1 != null
-        ? (court1['nomorMatch'] != null
-              ? 'Court ${court1['nomorMatch']}'
-              : 'Court 1')
-        : 'Court 1';
-    final c1SideA = court1 != null ? court1['sideA'] : 'Belum Mulai';
-    final c1SideB = court1 != null ? court1['sideB'] : 'Belum Mulai';
-    final c1Score = court1 != null
-        ? '${court1['scoreA']} — ${court1['scoreB']}'
-        : '-';
-
-    final c2Name = court2 != null
-        ? (court2['nomorMatch'] != null
-              ? 'Court ${court2['nomorMatch']}'
-              : 'Court 2')
-        : 'Court 2';
-    final c2SideA = court2 != null ? court2['sideA'] : 'Belum Mulai';
-    final c2SideB = court2 != null ? court2['sideB'] : 'Belum Mulai';
-    final c2Score = court2 != null
-        ? '${court2['scoreA']} — ${court2['scoreB']}'
-        : '-';
-
+  Widget _buildLiveMatchCard(BuildContext context, MatchaSession session) {
     return Container(
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: context.surf,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.brandColor.withValues(alpha: 0.35)),
+        gradient: LinearGradient(
+          colors: context.isDarkMode
+              ? [const Color(0xFF14240B), const Color(0xFF111318)]
+              : [const Color(0xFF063B00), const Color(0xFF0B5203)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: context.brandColor.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: AppColors.primary.withValues(alpha: 0.15),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top Badges
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'LIVE SESSION',
-                style: AppTextStyles.badge.copyWith(
-                  color: context.brandColor,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: context.brandColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MatchScoringPage()),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
                     Container(
-                      width: 6,
-                      height: 6,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: context.brandColor,
-                        shape: BoxShape.circle,
+                        color: Colors.redAccent.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.redAccent, width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Colors.redAccent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          const Text(
+                            'LIVE MATCH',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 5),
+                    const Spacer(),
                     Text(
-                      'LIVE',
-                      style: AppTextStyles.badge.copyWith(
-                        color: context.brandColor,
-                        fontSize: 10,
+                      'Court 1 • Set ${_dataService.currentSet}',
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Session Title & Meta
-          Text(
-            sessionTitle,
-            style: AppTextStyles.sectionTitle.copyWith(
-              fontSize: 17,
-              color: context.txtPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(
-                Icons.sports_tennis_rounded,
-                size: 15,
-                color: context.brandColor,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '$sportName · ${_matches.length} Courts Aktif',
-                style: AppTextStyles.bodySecondary.copyWith(
-                  fontSize: 13,
-                  color: context.txtSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Court 1 & Court 2 Live Score Cards
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: context.surfSec,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: context.surfBorder),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        c1Name,
-                        style: AppTextStyles.caption.copyWith(
-                          color: context.brandColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        c1SideA,
-                        style: AppTextStyles.caption.copyWith(
-                          color: context.txtPrimary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            c1Score,
-                            style: AppTextStyles.caption.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: context.brandColor,
-                            ),
-                          ),
-                          Flexible(
-                            child: Text(
-                              c1SideB,
-                              style: AppTextStyles.caption.copyWith(
-                                fontSize: 10,
-                                color: context.txtSecondary,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                const SizedBox(height: 12),
+                Text(
+                  session.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: context.surfSec,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: context.surfBorder),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        c2Name,
-                        style: AppTextStyles.caption.copyWith(
-                          color: context.brandColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        c2SideA,
-                        style: AppTextStyles.caption.copyWith(
-                          color: context.txtPrimary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            c2Score,
-                            style: AppTextStyles.caption.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: context.brandColor,
-                            ),
-                          ),
-                          Flexible(
-                            child: Text(
-                              c2SideB,
-                              style: AppTextStyles.caption.copyWith(
-                                fontSize: 10,
-                                color: context.txtSecondary,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                const SizedBox(height: 4),
+                Text(
+                  '${session.venueName} • ${session.time}',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 12,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Action Button
-          ElevatedButton(
-            onPressed: _handleLiveSessionTap,
-            child: const Text('MASUK KE SESSION'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatUpcomingDate(dynamic dateVal) {
-    if (dateVal == null) return '📅 7 Sep 2026 · 18:00';
-    try {
-      final dt = DateTime.tryParse(dateVal.toString());
-      if (dt != null) {
-        const monthNames = [
-          'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-          'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
-        ];
-        final hour = dt.hour.toString().padLeft(2, '0');
-        final min = dt.minute.toString().padLeft(2, '0');
-        return '📅 ${dt.day} ${monthNames[dt.month - 1]} ${dt.year} · $hour:$min';
-      }
-    } catch (_) {}
-    return '📅 $dateVal';
-  }
-
-  Widget _buildUpcomingSessionCard(BuildContext context) {
-    final title = _upcomingSession?['nama_session'] ?? 'Friday Night Play';
-    final sport = _upcomingSession?['sport_name'] ?? 'Padel';
-    final players = _upcomingSession?['player_count'] ?? 6;
-    final courts = _upcomingSession?['court_count'] ?? 1;
-    final formattedDate = _formatUpcomingDate(_upcomingSession?['waktu_session']);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'UPCOMING SESSION',
-              style: AppTextStyles.badge.copyWith(
-                color: context.txtSecondary,
-                letterSpacing: 1.5,
-              ),
-            ),
-            Text(
-              'Lihat Semua >',
-              style: AppTextStyles.caption.copyWith(
-                color: context.brandColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        InkWell(
-          onTap: () {
-            if (_upcomingSession?['session_id'] != null && widget.onLiveSessionTap != null) {
-              try {
-                (widget.onLiveSessionTap as dynamic)(_upcomingSession!['session_id'].toString());
-              } catch (_) {}
-            }
-          },
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: context.surf,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: context.surfBorder),
-            ),
-            child: Row(
-              children: [
+                const SizedBox(height: 14),
+                // Score Preview Pill
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: context.surfSec,
-                    borderRadius: BorderRadius.circular(10),
+                    color: Colors.black.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                   ),
-                  child: Icon(
-                    Icons.sports_tennis_rounded,
-                    color: context.brandColor,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        title,
-                        style: AppTextStyles.cardTitle.copyWith(
-                          fontSize: 15,
-                          color: context.txtPrimary,
-                        ),
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Marcel / Budi (Tim A)',
+                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'Dimas / Kevin (Tim B)',
+                            style: TextStyle(color: Colors.white70, fontSize: 11),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$sport · $players Players · $courts Court',
-                        style: AppTextStyles.caption.copyWith(
-                          color: context.txtSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        formattedDate,
-                        style: AppTextStyles.caption.copyWith(
-                          color: context.brandColor,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            '${_dataService.teamAPoints} - ${_dataService.teamBPoints}',
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primary),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded, color: context.txtSecondary),
               ],
             ),
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildQuickActionSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'QUICK ACTION',
-          style: AppTextStyles.badge.copyWith(
-            color: context.txtSecondary,
-            letterSpacing: 1.5,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildActionItem(
-              context: context,
-              icon: Icons.add_circle_outline_rounded,
-              label: 'Buat Session',
-              onTap: widget.onCreateSessionTap,
-            ),
-            _buildActionItem(
-              context: context,
-              icon: Icons.people_alt_outlined,
-              label: 'Kelola Player',
-              onTap: widget.onManagePlayersTap,
-            ),
-            _buildActionItem(
-              context: context,
-              icon: Icons.stadium_outlined,
-              label: 'Court',
-              onTap: widget.onManageCourtsTap,
-            ),
-            _buildActionItem(
-              context: context,
-              icon: Icons.diversity_3_outlined,
-              label: 'Community',
-              onTap: widget.onCommunityTap,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionItem({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 76,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: context.surf,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: context.surfBorder),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: context.brandColor, size: 24),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.caption.copyWith(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: context.txtPrimary,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _buildSummaryStats(BuildContext context) {
-    final players = _summaryStats['players']?.toString() ?? '8';
-    final courts = _summaryStats['courts']?.toString() ?? '2';
-    final active = _summaryStats['activeSessions']?.toString() ?? '1';
-    final total = _summaryStats['totalSessions']?.toString() ?? '1';
+  Widget _buildSessionCard(BuildContext context, MatchaSession session) {
+    final user = _dataService.currentUser;
+    final isJoined = session.participants.any((p) => p.id == user.id);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'RINGKASAN',
-          style: AppTextStyles.badge.copyWith(
-            color: context.txtSecondary,
-            letterSpacing: 1.5,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: context.surf,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: context.surfBorder, width: 1),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SessionDetailPage(session: session),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Sport & Status Badges
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        session.sport.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: context.brandColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      session.matchFormat,
+                      style: AppTextStyles.caption.copyWith(
+                        color: context.txtSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Rp ${(session.pricePerPerson / 1000).toStringAsFixed(0)}k/org',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: context.brandColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // Title
+                Text(
+                  session.title,
+                  style: AppTextStyles.h3.copyWith(
+                    color: context.txtPrimary,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Location & Time
+                Row(
+                  children: [
+                    Icon(Icons.location_on_outlined, size: 14, color: context.txtSecondary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        '${session.venueName}, ${session.location}',
+                        style: AppTextStyles.caption.copyWith(
+                          color: context.txtSecondary,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.access_time_rounded, size: 14, color: context.txtSecondary),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${session.date} • ${session.time}',
+                      style: AppTextStyles.caption.copyWith(
+                        color: context.txtSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                // Participants & Join Button
+                Row(
+                  children: [
+                    // Avatar stack
+                    SizedBox(
+                      height: 28,
+                      child: Row(
+                        children: [
+                          for (int i = 0; i < session.participants.length && i < 3; i++)
+                            Align(
+                              widthFactor: 0.7,
+                              child: CircleAvatar(
+                                radius: 14,
+                                backgroundColor: context.surfBorder,
+                                backgroundImage: NetworkImage(session.participants[i].avatarUrl),
+                              ),
+                            ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${session.participants.length}/${session.maxParticipants} Kuota',
+                            style: AppTextStyles.caption.copyWith(
+                              color: session.isFull ? Colors.redAccent : context.txtSecondary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    // Join 1-Tap Button
+                    GestureDetector(
+                      onTap: () {
+                        _dataService.joinSession(session.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isJoined
+                                  ? 'Batal bergabung dari ${session.title}'
+                                  : 'Berhasil bergabung ke ${session.title}! 🎉',
+                            ),
+                            duration: const Duration(seconds: 1),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: isJoined
+                              ? context.surfSec
+                              : (context.isDarkMode ? AppColors.primary : const Color(0xFF063B00)),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isJoined ? context.surfBorder : Colors.transparent,
+                          ),
+                        ),
+                        child: Text(
+                          isJoined ? 'Batal Join' : 'Join Sesi',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isJoined
+                                ? context.txtSecondary
+                                : (context.isDarkMode ? Colors.black : Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-          decoration: BoxDecoration(
-            color: context.surf,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: context.surfBorder),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _StatItem(count: players, label: 'Players'),
-              const _StatDivider(),
-              _StatItem(count: courts, label: 'Courts'),
-              const _StatDivider(),
-              _StatItem(count: active, label: 'Session\nAktif'),
-              const _StatDivider(),
-              _StatItem(count: total, label: 'Total\nSesi'),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  final String count;
-  final String label;
-
-  const _StatItem({required this.count, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          count,
-          style: AppTextStyles.pageTitle.copyWith(
-            fontSize: 20,
-            color: context.brandColor,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: AppTextStyles.caption.copyWith(
-            fontSize: 10,
-            color: context.txtSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatDivider extends StatelessWidget {
-  const _StatDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(width: 1, height: 30, color: context.surfBorder);
   }
 }

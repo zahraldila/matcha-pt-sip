@@ -2,21 +2,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../auth/presentation/controllers/auth_controller.dart';
-import '../../auth/presentation/login_page.dart';
 import '../../main/presentation/main_shell_page.dart';
 
 class SplashPage extends StatefulWidget {
-  final AuthController authController;
-
-  const SplashPage({super.key, required this.authController});
+  const SplashPage({super.key});
 
   @override
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage>
-    with SingleTickerProviderStateMixin {
+class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -26,7 +21,7 @@ class _SplashPageState extends State<SplashPage>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1000),
     );
 
     _fadeAnimation = CurvedAnimation(
@@ -40,31 +35,18 @@ class _SplashPageState extends State<SplashPage>
 
     _controller.forward();
 
-    _checkSessionAndNavigate();
-  }
-
-  Future<void> _checkSessionAndNavigate() async {
-    // Jalankan pengecekan session di background bersamaan dengan durasi animasi splash
-    final results = await Future.wait([
-      widget.authController.checkSavedSession(),
-      Future.delayed(const Duration(milliseconds: 2000)),
-    ]);
-
-    final isLoggedIn = results[0] as bool;
-
-    if (!mounted) return;
-
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => isLoggedIn
-            ? MainShellPage(authController: widget.authController)
-            : LoginPage(authController: widget.authController),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 600),
-      ),
-    );
+    Timer(const Duration(milliseconds: 1600), () {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (ctx, animation, secondaryAnim) => const MainShellPage(),
+            transitionsBuilder: (ctx, animation, secondaryAnim, child) =>
+                FadeTransition(opacity: animation, child: child),
+            transitionDuration: const Duration(milliseconds: 500),
+          ),
+        );
+      }
+    });
   }
 
   @override
@@ -79,7 +61,6 @@ class _SplashPageState extends State<SplashPage>
       backgroundColor: context.bg,
       body: Stack(
         children: [
-          // Subtle radial glow behind logo
           Center(
             child: Container(
               width: 260,
@@ -88,15 +69,13 @@ class _SplashPageState extends State<SplashPage>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    context.brandColor.withValues(alpha: 0.12),
+                    context.brandColor.withValues(alpha: 0.15),
                     Colors.transparent,
                   ],
                 ),
               ),
             ),
           ),
-
-          // Main Logo Content
           Center(
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -106,15 +85,29 @@ class _SplashPageState extends State<SplashPage>
                   padding: const EdgeInsets.symmetric(horizontal: 40.0),
                   child: Image.asset(
                     'assets/images/logo.png',
-                    width: 240,
+                    width: 220,
                     fit: BoxFit.contain,
+                    errorBuilder: (ctx, err, stack) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('🎾', style: TextStyle(fontSize: 60)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'MATCHA',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 4.0,
+                            color: context.brandColor,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-
-          // Bottom Loading & Status Indicator
           Positioned(
             left: 0,
             right: 0,
@@ -125,19 +118,18 @@ class _SplashPageState extends State<SplashPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
-                    width: 24,
-                    height: 24,
+                    width: 22,
+                    height: 22,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(context.brandColor),
+                      strokeWidth: 2.2,
+                      valueColor: AlwaysStoppedAnimation<Color>(context.brandColor),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   Text(
-                    'SPORTS DRAWING & MATCH ARENA',
+                    'TENNIS & PADEL COMMUNITY PLATFORM',
                     style: AppTextStyles.caption.copyWith(
-                      letterSpacing: 2.0,
+                      letterSpacing: 1.8,
                       color: context.txtSecondary,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,

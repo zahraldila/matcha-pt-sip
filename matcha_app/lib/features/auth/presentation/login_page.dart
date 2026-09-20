@@ -37,9 +37,7 @@ class _LoginPageState extends State<LoginPage> {
       if (success && mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => MainShellPage(
-              authController: widget.authController,
-            ),
+            builder: (context) => const MainShellPage(),
           ),
         );
       }
