@@ -5,6 +5,22 @@ class AppTextStyles {
   AppTextStyles._();
 
   // Headings & Titles
+  static TextStyle h1 = GoogleFonts.inter(
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.5,
+  );
+
+  static TextStyle h2 = GoogleFonts.inter(
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
+  );
+
+  static TextStyle h3 = GoogleFonts.inter(
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+  );
+
   static TextStyle pageTitle = GoogleFonts.inter(
     fontSize: 24,
     fontWeight: FontWeight.bold,
@@ -27,8 +43,18 @@ class AppTextStyles {
     fontWeight: FontWeight.w400,
   );
 
+  static TextStyle bodyMedium = GoogleFonts.inter(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+  );
+
   static TextStyle body = GoogleFonts.inter(
     fontSize: 14,
+    fontWeight: FontWeight.w400,
+  );
+
+  static TextStyle bodySmall = GoogleFonts.inter(
+    fontSize: 12,
     fontWeight: FontWeight.w400,
   );
 
