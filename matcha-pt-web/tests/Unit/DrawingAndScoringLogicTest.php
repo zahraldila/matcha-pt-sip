@@ -4,13 +4,16 @@ namespace Tests\Unit;
 
 use App\Http\Controllers\Game\GameController;
 use App\Http\Controllers\Scoring\ScoringController;
+use App\Http\Controllers\Venue\VenueController;
 use App\Models\Court;
 use App\Models\Drawing;
 use App\Models\GameMatch;
 use App\Models\MatchParticipant;
 use App\Models\Player;
 use App\Models\SessionModel;
+use App\Models\Sport;
 use App\Models\User;
+use App\Models\Venue;
 use App\Services\Drawing\AmericanoService;
 use App\Services\Drawing\TeamAmericanoService;
 use App\Services\Scoring\ScoringService;
@@ -864,10 +867,41 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->timestamps();
             });
         }
+        if (! Schema::hasTable('tb_sport')) {
+            Schema::create('tb_sport', function ($table) {
+                $table->id('sport_id');
+                $table->string('nama_sport');
+                $table->string('status_sport')->default('Active');
+            });
+        }
+        if (! Schema::hasTable('tb_venue')) {
+            Schema::create('tb_venue', function ($table) {
+                $table->id('venue_id');
+                $table->unsignedBigInteger('owner_user_id')->nullable();
+                $table->string('nama_venue');
+                $table->string('alamat')->nullable();
+                $table->string('kota')->nullable();
+                $table->string('foto')->nullable();
+                $table->string('fasilitas')->nullable();
+                $table->text('catatan')->nullable();
+                $table->string('jam_operasional')->nullable();
+                $table->string('hari_buka')->nullable();
+                $table->string('no_whatsapp')->nullable();
+                $table->string('nama_pic')->nullable();
+                $table->timestamps();
+            });
+        }
         if (! Schema::hasTable('tb_court')) {
             Schema::create('tb_court', function ($table) {
                 $table->id('court_id');
+                $table->unsignedBigInteger('venue_id')->nullable();
+                $table->unsignedBigInteger('sport_id')->nullable();
                 $table->string('nama_court');
+                $table->string('status_ketersediaan')->default('Available');
+                $table->string('image_url')->nullable();
+                $table->text('deskripsi')->nullable();
+                $table->string('tipe_court')->nullable();
+                $table->decimal('harga_per_jam', 12, 2)->nullable();
                 $table->timestamps();
             });
         }
@@ -1568,6 +1602,49 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertTrue($accessAfter4['round_4']);
         $this->assertTrue($accessAfter4['round_5'], 'Set 5 harus otomatis terbuka setelah Set 4 selesai pada Total of 7!');
         $this->assertFalse($accessAfter4['round_6'], 'Set 6 harus tetap terkunci sebelum Set 5 selesai.');
+    }
+
+    /**
+     * Test 16: Quick add venue & courts via VenueController::quickStore
+     */
+    public function test_quick_add_venue_creates_venue_and_courts()
+    {
+        $this->setupTestDatabaseSchema();
+
+        $user = User::create([
+            'nama' => 'Test Host Venue',
+            'email' => 'host_quick_unit@example.com',
+            'password' => 'secret',
+            'role' => 'member',
+        ]);
+        Auth::login($user);
+
+        Sport::firstOrCreate(
+            ['nama_sport' => 'Padel'],
+            ['status_sport' => 'Active']
+        );
+
+        $controller = new VenueController;
+        $request = Request::create('/venues/quick-store', 'POST', [
+            'nama_venue' => 'Matcha Dago Padel Hub Unit',
+            'sport' => 'Padel',
+            'jumlah_court' => 3,
+            'kota' => 'Bandung',
+            'alamat' => 'Jl. Dago No. 100',
+        ]);
+
+        $response = $controller->quickStore($request);
+        $this->assertEquals(200, $response->getStatusCode());
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertEquals('Matcha Dago Padel Hub Unit', $data['venue']['nama_venue']);
+        $this->assertCount(3, $data['venue']['courts']);
+        $this->assertEquals('Court 1', $data['venue']['courts'][0]['nama_court']);
+        $this->assertEquals('Available', $data['venue']['courts'][0]['status_ketersediaan']);
+
+        $this->assertDatabaseHas('tb_venue', ['nama_venue' => 'Matcha Dago Padel Hub Unit']);
+        $this->assertDatabaseHas('tb_court', ['nama_court' => 'Court 1', 'venue_id' => $data['venue']['venue_id']]);
     }
 
     protected function invokeMethod(&$object, $methodName, array $parameters = [])

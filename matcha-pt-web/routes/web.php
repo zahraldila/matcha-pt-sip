@@ -4,7 +4,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Community\CommunityController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Game\GameController;
-use App\Http\Controllers\Player\PlayerController;       // [SMK 2] Court management
+use App\Http\Controllers\Player\PlayerController;
 use App\Http\Controllers\Scoring\ScoringController;
 use App\Http\Controllers\Venue\CourtController;
 use App\Http\Controllers\Venue\VenueController;
@@ -46,6 +46,7 @@ Route::prefix('venues')->name('venues.')->group(function () {
 
     // Protected: SMK 2 — Venue & Court Manager
     Route::middleware('auth')->group(function () {
+        Route::post('/quick-store', [VenueController::class, 'quickStore'])->name('quickStore'); // Quick Add Venue from Session Wizard
         Route::get('/create', [VenueController::class, 'create'])->name('create');
         Route::post('/', [VenueController::class, 'store'])->name('store');             // [SMK 2] Simpan venue baru ke DB
         Route::post('/{id}/photos', [VenueController::class, 'updatePhotos'])->whereNumber('id')->name('photos.update'); // Tambah/Hapus foto venue

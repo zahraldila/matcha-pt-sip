@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Venue;
 
 use App\Http\Controllers\Controller;
+use App\Models\Court;
+use App\Models\Sport;
 use App\Models\Venue;
 use App\Services\MatchaDummyDataService;
+use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
@@ -79,6 +82,7 @@ class VenueController extends Controller
                 $inPic = str_contains(strtolower($v['pic_name'] ?? ''), $searchLower);
                 $inFacilities = str_contains(strtolower(implode(' ', $v['facilities'] ?? [])), $searchLower);
                 $inSport = str_contains(strtolower($v['sport'] ?? ''), $searchLower);
+
                 return $inName || $inCity || $inAddress || $inPic || $inFacilities || $inSport;
             });
         }
@@ -127,7 +131,7 @@ class VenueController extends Controller
                 $validRawPhotos[] = $p;
             } else {
                 $clean = ltrim($p, '/\\');
-                if ($clean !== '' && !str_contains($clean, '\\\\') && !str_contains($clean, ':') && file_exists(public_path($clean))) {
+                if ($clean !== '' && ! str_contains($clean, '\\\\') && ! str_contains($clean, ':') && file_exists(public_path($clean))) {
                     $validPhotos[] = asset($clean);
                     $validRawPhotos[] = $p;
                 }
@@ -171,17 +175,18 @@ class VenueController extends Controller
             'description' => $dbVenue->alamat,
             'courts' => $dbVenue->courts->map(function ($court) {
                 $type = $court->tipe_court;
-                if (empty($type) && !empty($court->deskripsi)) {
+                if (empty($type) && ! empty($court->deskripsi)) {
                     if (preg_match('/Tipe:\s*(Indoor|Outdoor|Semi-Indoor)/i', $court->deskripsi, $matches)) {
                         $type = $matches[1];
                     }
                 }
                 $harga = $court->harga_per_jam;
-                if (empty($harga) && !empty($court->deskripsi)) {
+                if (empty($harga) && ! empty($court->deskripsi)) {
                     if (preg_match('/(?:Rp|IDR)\s*([\d\.,]+)/i', $court->deskripsi, $pMatches)) {
                         $harga = (float) str_replace(['.', ','], '', $pMatches[1]);
                     }
                 }
+
                 return [
                     'id' => $court->court_id,
                     'name' => $court->nama_court,
@@ -209,10 +214,10 @@ class VenueController extends Controller
             ->firstOrFail();
 
         $request->validate([
-            'existing_photos'   => 'nullable|array',
+            'existing_photos' => 'nullable|array',
             'existing_photos.*' => 'string',
-            'new_photos'        => 'nullable|array|max:12',
-            'new_photos.*'      => 'image|mimes:jpeg,png,jpg,webp|max:5120',
+            'new_photos' => 'nullable|array|max:12',
+            'new_photos.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120',
         ]);
 
         $finalPhotos = [];
@@ -224,9 +229,9 @@ class VenueController extends Controller
 
         // 2. Upload foto-foto baru
         if ($request->hasFile('new_photos')) {
-            $supabase = app(\App\Services\SupabaseStorageService::class);
+            $supabase = app(SupabaseStorageService::class);
             $uploadDir = public_path('uploads/venues');
-            if (!file_exists($uploadDir)) {
+            if (! file_exists($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
 
@@ -236,15 +241,15 @@ class VenueController extends Controller
                     if ($supabaseUrl) {
                         $finalPhotos[] = $supabaseUrl;
                     } else {
-                        $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                        $filename = time().'_'.uniqid().'.'.$file->getClientOriginalExtension();
                         $file->move($uploadDir, $filename);
-                        $finalPhotos[] = 'uploads/venues/' . $filename;
+                        $finalPhotos[] = 'uploads/venues/'.$filename;
                     }
                 }
             }
         }
 
-        $fotoString = !empty($finalPhotos) ? implode(', ', $finalPhotos) : null;
+        $fotoString = ! empty($finalPhotos) ? implode(', ', $finalPhotos) : null;
         Venue::where('venue_id', $venue->venue_id)->update(['foto' => $fotoString]);
 
         return redirect()->route('venues.show', $venue->venue_id)
@@ -269,36 +274,36 @@ class VenueController extends Controller
         @set_time_limit(120);
         $user = Auth::user();
 
-        if (!$user || $user->role !== 'venue_owner') {
+        if (! $user || $user->role !== 'venue_owner') {
             return redirect()->route('venues.index')->with('error', 'Akses ditolak.');
         }
 
         $validated = $request->validate([
-            'nama_venue'      => 'required|string|max:100|unique:tb_venue,nama_venue',
-            'alamat'          => 'required|string',
-            'kota_wilayah'    => 'nullable|string|max:150',
-            'kota'            => 'nullable|string|max:150',
+            'nama_venue' => 'required|string|max:100|unique:tb_venue,nama_venue',
+            'alamat' => 'required|string',
+            'kota_wilayah' => 'nullable|string|max:150',
+            'kota' => 'nullable|string|max:150',
             'jam_operasional' => 'nullable|string|max:100',
-            'hari_buka'       => 'nullable|string|max:100',
-            'nama_pic'        => 'nullable|string|max:150',
-            'no_whatsapp'     => 'nullable|string|max:50',
-            'catatan'         => 'nullable|string',
-            'fasilitas'       => 'nullable|array',
-            'fasilitas.*'     => 'string|max:100',
-            'facilities'      => 'nullable|array',
-            'facilities.*'    => 'string|max:100',
-            'foto'            => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
-            'fotos'           => 'nullable|array|max:12',
-            'fotos.*'         => 'image|mimes:jpeg,png,jpg,webp|max:5120',
+            'hari_buka' => 'nullable|string|max:100',
+            'nama_pic' => 'nullable|string|max:150',
+            'no_whatsapp' => 'nullable|string|max:50',
+            'catatan' => 'nullable|string',
+            'fasilitas' => 'nullable|array',
+            'fasilitas.*' => 'string|max:100',
+            'facilities' => 'nullable|array',
+            'facilities.*' => 'string|max:100',
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'fotos' => 'nullable|array|max:12',
+            'fotos.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120',
         ], [
             'nama_venue.unique' => 'Nama venue sudah terdaftar. Silakan gunakan nama venue yang lain.',
-            'nama_venue.max'    => 'Nama venue maksimal 100 karakter.',
+            'nama_venue.max' => 'Nama venue maksimal 100 karakter.',
         ]);
 
         $savedPaths = [];
-        $supabase = app(\App\Services\SupabaseStorageService::class);
+        $supabase = app(SupabaseStorageService::class);
         $uploadDir = public_path('uploads/venues');
-        if (!file_exists($uploadDir)) {
+        if (! file_exists($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
 
@@ -317,38 +322,111 @@ class VenueController extends Controller
                     $savedPaths[] = $supabaseUrl;
                 } else {
                     // Fallback to local storage
-                    $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $filename = time().'_'.uniqid().'.'.$file->getClientOriginalExtension();
                     $file->move($uploadDir, $filename);
-                    $savedPaths[] = 'uploads/venues/' . $filename;
+                    $savedPaths[] = 'uploads/venues/'.$filename;
                 }
             }
         }
 
-        $fotoString = !empty($savedPaths) ? implode(', ', $savedPaths) : null;
+        $fotoString = ! empty($savedPaths) ? implode(', ', $savedPaths) : null;
 
         $kotaFinal = $request->input('kota') ?? $request->input('kota_wilayah');
         $fasilitasArr = $request->input('facilities') ?? $request->input('fasilitas') ?? [];
         $catatanInput = $request->input('catatan') ?? $request->input('maintenance_note');
 
         $venue = Venue::create([
-            'nama_venue'      => $validated['nama_venue'],
-            'alamat'          => $validated['alamat'],
-            'kota'            => $kotaFinal,
+            'nama_venue' => $validated['nama_venue'],
+            'alamat' => $validated['alamat'],
+            'kota' => $kotaFinal,
             'jam_operasional' => $request->input('jam_operasional') ?: '06:00 - 23:00 WIB',
-            'hari_buka'       => $request->input('hari_buka') ?: 'Setiap Hari (Senin - Minggu)',
-            'nama_pic'        => $request->input('nama_pic'),
-            'no_whatsapp'     => $request->input('no_whatsapp'),
-            'catatan'         => $catatanInput,
-            'foto'            => $fotoString,
-            'owner_user_id'   => $user->user_id,
-            'fasilitas'       => implode(', ', $fasilitasArr),
+            'hari_buka' => $request->input('hari_buka') ?: 'Setiap Hari (Senin - Minggu)',
+            'nama_pic' => $request->input('nama_pic'),
+            'no_whatsapp' => $request->input('no_whatsapp'),
+            'catatan' => $catatanInput,
+            'foto' => $fotoString,
+            'owner_user_id' => $user->user_id,
+            'fasilitas' => implode(', ', $fasilitasArr),
         ]);
 
         return redirect()->route('venues.courts.create', [
-            'id'    => $venue->venue_id,
+            'id' => $venue->venue_id,
             'count' => $request->input('jumlah_court', 1),
             'sport' => $request->input('sport_type', 'Padel'),
-            'type'  => $request->input('arena_type', 'Indoor'),
+            'type' => $request->input('arena_type', 'Indoor'),
         ])->with('success', 'Venue berhasil didaftarkan. Silakan lengkapi data lapangan Anda.');
+    }
+
+    /**
+     * Quick store venue & courts on-the-fly from session create wizard.
+     * Route: POST /venues/quick-store
+     */
+    public function quickStore(Request $request)
+    {
+        $validated = $request->validate([
+            'nama_venue' => 'required|string|max:100|unique:tb_venue,nama_venue',
+            'sport' => 'required|string|in:Padel,Tennis',
+            'jumlah_court' => 'required|integer|min:1|max:10',
+            'kota' => 'nullable|string|max:100',
+            'alamat' => 'nullable|string|max:255',
+        ], [
+            'nama_venue.required' => 'Nama venue wajib diisi.',
+            'nama_venue.unique' => 'Nama venue sudah terdaftar, silakan pilih dari daftar atau gunakan nama lain.',
+            'sport.required' => 'Cabang olahraga wajib dipilih.',
+            'jumlah_court.min' => 'Minimal harus ada 1 court.',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $sport = Sport::where('nama_sport', $validated['sport'])->first();
+            if (! $sport) {
+                $sport = Sport::create([
+                    'nama_sport' => $validated['sport'],
+                    'status_sport' => 'Active',
+                ]);
+            }
+
+            $venue = Venue::create([
+                'owner_user_id' => Auth::id(),
+                'nama_venue' => $validated['nama_venue'],
+                'alamat' => $validated['alamat'] ?: $validated['nama_venue'],
+                'kota' => $validated['kota'] ?: 'Jakarta',
+                'jam_operasional' => '06:00 - 23:00 WIB',
+                'hari_buka' => 'Setiap Hari (Senin - Minggu)',
+                'fasilitas' => 'Parkir, Toilet, Ruang Ganti',
+                'catatan' => 'Didaftarkan cepat untuk sesi mabar.',
+            ]);
+
+            $jumlah = (int) $validated['jumlah_court'];
+            for ($i = 1; $i <= $jumlah; $i++) {
+                Court::create([
+                    'venue_id' => $venue->venue_id,
+                    'sport_id' => $sport->sport_id,
+                    'nama_court' => "Court {$i}",
+                    'status_ketersediaan' => 'Available',
+                    'tipe_court' => 'Indoor',
+                    'deskripsi' => 'Tipe: Indoor',
+                ]);
+            }
+
+            DB::commit();
+
+            // Load relations so front-end JSON matches what create.blade.php expects
+            $venue->load('courts.sport');
+
+            return response()->json([
+                'success' => true,
+                'message' => "Venue \"{$venue->nama_venue}\" berhasil ditambahkan!",
+                'venue' => $venue,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menambahkan venue: '.$e->getMessage(),
+            ], 422);
+        }
     }
 }
