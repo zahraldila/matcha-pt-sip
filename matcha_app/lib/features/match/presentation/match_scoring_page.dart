@@ -1,722 +1,400 @@
 import 'package:flutter/material.dart';
+import '../../../core/data/mock_data_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../data/datasource/match_remote_data_source.dart';
-import '../domain/models/match_model.dart';
+import 'match_recap_page.dart';
 
 class MatchScoringPage extends StatefulWidget {
-  final int? matchId;
-  final int? nomorMatch;
-  final dynamic sessionId;
-  final String sessionName;
-  final String courtName;
-  final String sideA;
-  final String sideB;
-  final int initialScoreA;
-  final int initialScoreB;
-  final String? statusMatch;
-  final MatchModel? matchData;
-  final MatchRemoteDataSource? dataSource;
-
-  const MatchScoringPage({
-    super.key,
-    this.matchId,
-    this.nomorMatch,
-    this.sessionId,
-    this.sessionName = 'Saturday Morning',
-    this.courtName = 'Court 1 — SiJi Tennis Court',
-    this.sideA = 'Aldi · Budi',
-    this.sideB = 'Caca · Dina',
-    this.initialScoreA = 0,
-    this.initialScoreB = 0,
-    this.statusMatch,
-    this.matchData,
-    this.dataSource,
-  });
+  const MatchScoringPage({super.key});
 
   @override
   State<MatchScoringPage> createState() => _MatchScoringPageState();
 }
 
 class _MatchScoringPageState extends State<MatchScoringPage> {
-  late final MatchRemoteDataSource? _dataSource;
-
-  int _selectedSet = 1;
-  final Map<int, int> _scoresA = {1: 0, 2: 0, 3: 0};
-  final Map<int, int> _scoresB = {1: 0, 2: 0, 3: 0};
-
-  bool _isLoadingInitial = false;
-  bool _isSavingScore = false;
-  bool _isFinishing = false;
-  bool _isFinished = false;
-
-  int get _currentScoreA => _scoresA[_selectedSet] ?? 0;
-  int get _currentScoreB => _scoresB[_selectedSet] ?? 0;
+  final MockDataService _dataService = MockDataService();
 
   @override
   void initState() {
     super.initState();
-    try {
-      _dataSource = widget.dataSource ?? MatchRemoteDataSource();
-    } catch (_) {
-      _dataSource = null;
-    }
-    if (widget.initialScoreA > 0) {
-      _scoresA[1] = widget.initialScoreA;
-    }
-    if (widget.initialScoreB > 0) {
-      _scoresB[1] = widget.initialScoreB;
-    }
-    final normalized = (widget.statusMatch ?? '').toString().toLowerCase();
-    if (normalized == 'finished') {
-      _isFinished = true;
-    }
-    _loadMatchAndScoreData();
+    _dataService.addListener(_onDataChanged);
   }
 
-  /// Memuat data score yang sudah tersimpan di tb_score dan status pada tb_match
-  Future<void> _loadMatchAndScoreData() async {
-    final matchId = widget.matchId;
-    final dataSource = _dataSource;
-    if (matchId == null || dataSource == null) {
-      return;
-    }
-
-    setState(() => _isLoadingInitial = true);
-    try {
-      // 1. Cek status match
-      final match = await dataSource.getMatchById(matchId);
-      if (match != null && match.isFinished) {
-        _isFinished = true;
-      }
-
-      // 2. Ambil skor yang sudah ada di tb_score
-      final scores = await dataSource.getScoresByMatchId(matchId);
-      for (final s in scores) {
-        final setNum = s.setNumber;
-        if (setNum != null && setNum >= 1 && setNum <= 3) {
-          _scoresA[setNum] = s.scoreSideA;
-          _scoresB[setNum] = s.scoreSideB;
-        }
-      }
-    } catch (_) {
-      // Jika terjadi error koneksi awal, gunakan default in-memory
-    } finally {
-      if (mounted) {
-        setState(() => _isLoadingInitial = false);
-      }
-    }
+  @override
+  void dispose() {
+    _dataService.removeListener(_onDataChanged);
+    super.dispose();
   }
 
-  /// Mengubah skor Side A
-  void _changeScoreA(int delta) {
-    if (_isFinished) return;
-    final current = _scoresA[_selectedSet] ?? 0;
-    final updated = current + delta;
-    if (updated >= 0) {
-      setState(() {
-        _scoresA[_selectedSet] = updated;
-      });
-    }
-  }
-
-  /// Mengubah skor Side B
-  void _changeScoreB(int delta) {
-    if (_isFinished) return;
-    final current = _scoresB[_selectedSet] ?? 0;
-    final updated = current + delta;
-    if (updated >= 0) {
-      setState(() {
-        _scoresB[_selectedSet] = updated;
-      });
-    }
-  }
-
-  /// Menyimpan atau memperbarui skor set aktif ke tb_score
-  Future<void> _handleSaveScore() async {
-    if (_isSavingScore || _isFinishing) return;
-
-    final matchId = widget.matchId;
-    if (matchId == null) {
-      _showFeedbackSnackBar(
-        message:
-            'Tidak dapat menyimpan: ID Pertandingan (match_id) belum tersedia dari sistem.',
-        isError: true,
-      );
-      return;
-    }
-
-    final scoreA = _currentScoreA;
-    final scoreB = _currentScoreB;
-
-    if (scoreA < 0 || scoreB < 0) {
-      _showFeedbackSnackBar(
-        message: 'Skor tidak boleh bernilai negatif.',
-        isError: true,
-      );
-      return;
-    }
-
-    setState(() => _isSavingScore = true);
-
-    try {
-      final dataSource = _dataSource;
-      if (dataSource != null) {
-        await dataSource.saveOrUpdateScore(
-          matchId: matchId,
-          setNumber: _selectedSet,
-          scoreSideA: scoreA,
-          scoreSideB: scoreB,
-        );
-      }
-
-      if (mounted) {
-        _showFeedbackSnackBar(
-          message: 'Skor Set $_selectedSet berhasil disimpan ke database!',
-          isError: false,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        final errorMsg = e.toString().replaceFirst('Exception: ', '');
-        _showFeedbackSnackBar(
-          message: errorMsg,
-          isError: true,
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSavingScore = false);
-      }
-    }
-  }
-
-  /// Menghitung total skor agregat semua set
-  int get _totalScoreA => _scoresA.values.fold(0, (sum, val) => sum + val);
-  int get _totalScoreB => _scoresB.values.fold(0, (sum, val) => sum + val);
-
-  /// Menampilkan dialog konfirmasi penyelesaian match
-  void _finishMatch() {
-    if (_isFinished || _isFinishing) return;
-    final surfColor = context.surf;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: surfColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: context.surfBorder),
-        ),
-        title: Text(
-          'Selesaikan Pertandingan?',
-          style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary),
-        ),
-        content: Text(
-          'Hasil akhir agregat: ${widget.sideA} ($_totalScoreA) vs ${widget.sideB} ($_totalScoreB)\n\nStatus pertandingan akan diperbarui menjadi Finished.',
-          style:
-              AppTextStyles.bodySecondary.copyWith(color: context.txtSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(
-              'Batal',
-              style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: context.brandColor,
-              foregroundColor: Colors.black,
-            ),
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              _processFinishMatch();
-            },
-            child: const Text('Ya, Selesaikan Match'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Mengeksekusi proses penyelesaian match pada tb_match
-  Future<void> _processFinishMatch() async {
-    if (_isFinishing) return;
-
-    if (_isFinished) {
-      _showFeedbackSnackBar(
-        message: 'Pertandingan ini sudah selesai.',
-        isError: false,
-      );
-      return;
-    }
-
-    final matchId = widget.matchId;
-    if (matchId == null) {
-      _showFeedbackSnackBar(
-        message:
-            'Tidak dapat menyelesaikan: ID Pertandingan (match_id) belum tersedia dari sistem.',
-        isError: true,
-      );
-      return;
-    }
-
-    setState(() => _isFinishing = true);
-
-    try {
-      final dataSource = _dataSource;
-      if (dataSource != null) {
-        // Cek status terkini dari database untuk mencegah double-finish
-        final currentMatch = await dataSource.getMatchById(matchId);
-        if (currentMatch != null && currentMatch.isFinished) {
-          if (mounted) {
-            setState(() => _isFinished = true);
-            _showFeedbackSnackBar(
-              message: 'Pertandingan ini sudah selesai.',
-              isError: false,
-            );
-          }
-          return;
-        }
-
-        // 1. Simpan skor set yang sedang aktif terlebih dahulu ke tb_score
-        await dataSource.saveOrUpdateScore(
-          matchId: matchId,
-          setNumber: _selectedSet,
-          scoreSideA: _currentScoreA,
-          scoreSideB: _currentScoreB,
-        );
-
-        // 2. Hitung hasil pertandingan berdasarkan skor per set yang tersimpan di tb_score
-        final scores = await dataSource.getScoresByMatchId(matchId);
-        int totalScoreA = 0;
-        int totalScoreB = 0;
-        for (final s in scores) {
-          totalScoreA += s.scoreSideA;
-          totalScoreB += s.scoreSideB;
-        }
-
-        final String hasilPertandingan = totalScoreA > totalScoreB
-            ? 'Side A Win'
-            : (totalScoreB > totalScoreA ? 'Side B Win' : 'Draw');
-
-        // 3. Selesaikan match pada tb_match (status_match = 'Finished', waktu_selesai, hasil_pertandingan)
-        await dataSource.finishMatch(
-          matchId: matchId,
-          hasilPertandingan: hasilPertandingan,
-        );
-      }
-
-      if (mounted) {
-        setState(() {
-          _isFinished = true;
-        });
-
-        _showFeedbackSnackBar(
-          message: 'Match berhasil diselesaikan.',
-          isError: false,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        final errorMsg = e.toString().replaceFirst('Exception: ', '');
-        _showFeedbackSnackBar(
-          message: 'Gagal menyelesaikan pertandingan: $errorMsg',
-          isError: true,
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isFinishing = false);
-      }
-    }
-  }
-
-  /// Helper untuk menampilkan snackbar feedback konsisten
-  void _showFeedbackSnackBar({
-    required String message,
-    required bool isError,
-  }) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: AppTextStyles.body.copyWith(
-            color: context.txtPrimary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: context.surf,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: isError
-                ? AppColors.error.withValues(alpha: 0.5)
-                : context.brandColor.withValues(alpha: 0.5),
-            width: 1,
-          ),
-        ),
-        duration: Duration(seconds: isError ? 4 : 2),
-      ),
-    );
+  void _onDataChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final isHost = _dataService.isHostMode;
+    final currentSet = _dataService.currentSet;
+    final teamAPoints = _dataService.teamAPoints;
+    final teamBPoints = _dataService.teamBPoints;
+    final server = _dataService.currentServer;
+    final setHistory = _dataService.setHistory;
+
     return Scaffold(
       backgroundColor: context.bg,
       appBar: AppBar(
-        title: Text('Input Score', style: TextStyle(color: context.txtPrimary)),
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 18,
-            color: context.txtPrimary,
-          ),
-          onPressed: () => Navigator.maybePop(context),
+        title: Text(
+          'Live Match Scoring',
+          style: AppTextStyles.h2.copyWith(fontSize: 16, color: context.txtPrimary),
         ),
-      ),
-      body: SafeArea(
-        child: _isLoadingInitial
-            ? Center(
-                child: CircularProgressIndicator(
-                  color: context.brandColor,
-                  strokeWidth: 2.5,
-                ),
-              )
-            : SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20.0,
-                  vertical: 16.0,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1. Court & Round Info
-                    _buildMatchHeader(context),
-                    const SizedBox(height: 24),
-
-                    // 2. Set Selector Tabs
-                    _buildSetSelector(context),
-                    const SizedBox(height: 24),
-
-                    // 3. Big Score Board (Side A vs Side B)
-                    _buildScoreBoard(context),
-                    const SizedBox(height: 32),
-
-                    // 4. Action Buttons
-                    ElevatedButton(
-                      onPressed: (_isSavingScore || _isFinishing || _isFinished)
-                          ? null
-                          : _handleSaveScore,
-                      child: _isSavingScore
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.black),
-                              ),
-                            )
-                          : const Text('SIMPAN SCORE'),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _isFinished
-                            ? context.txtSecondary
-                            : AppColors.warning,
-                        side: BorderSide(
-                          color: _isFinished
-                              ? context.surfBorder
-                              : AppColors.warning.withValues(alpha: 0.5),
-                        ),
-                      ),
-                      onPressed: (_isFinished || _isFinishing || _isSavingScore)
-                          ? null
-                          : _finishMatch,
-                      icon: _isFinishing
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppColors.warning,
-                                ),
-                              ),
-                            )
-                          : Icon(
-                              _isFinished
-                                  ? Icons.check_circle_rounded
-                                  : Icons.flag_rounded,
-                              size: 18,
-                            ),
-                      label: Text(
-                        _isFinishing
-                            ? 'MEMPROSES...'
-                            : (_isFinished
-                                ? 'PERTANDINGAN SELESAI'
-                                : 'SELESAIKAN MATCH'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-      ),
-    );
-  }
-
-  Widget _buildMatchHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.surf,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.surfBorder),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.courtName,
-                style: AppTextStyles.cardTitle.copyWith(
-                  color: context.brandColor,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.nomorMatch != null
-                    ? 'Match #${widget.nomorMatch} · ${widget.sessionName}'
-                    : 'Match · ${widget.sessionName}',
-                style:
-                    AppTextStyles.caption.copyWith(color: context.txtSecondary),
-              ),
-            ],
-          ),
+        centerTitle: true,
+        actions: [
           Container(
+            margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: _isFinished
-                  ? context.surfSec
-                  : AppColors.inProgressBadge.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
+              color: isHost
+                  ? AppColors.primary.withValues(alpha: 0.2)
+                  : Colors.blueAccent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: isHost ? AppColors.primary : Colors.blueAccent),
             ),
-            child: Text(
-              _isFinished ? 'Finished' : 'In Progress',
-              style: AppTextStyles.badge.copyWith(
-                fontSize: 10,
-                color: _isFinished
-                    ? context.txtSecondary
-                    : AppColors.inProgressBadge,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isHost ? Icons.sports_tennis : Icons.visibility_rounded,
+                  size: 13,
+                  color: isHost ? context.brandColor : Colors.blueAccent,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  isHost ? 'HOST SCORER' : 'PENONTON',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isHost ? context.brandColor : Colors.blueAccent,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSetSelector(BuildContext context) {
-    return Row(
-      children: [1, 2, 3].map((setNum) {
-        final isSelected = _selectedSet == setNum;
-        final setScoreA = _scoresA[setNum] ?? 0;
-        final setScoreB = _scoresB[setNum] ?? 0;
-        final hasScore = setScoreA > 0 || setScoreB > 0;
-
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            child: InkWell(
-              onTap: () => setState(() => _selectedSet = setNum),
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? context.brandColor.withValues(alpha: 0.15)
-                      : context.surf,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isSelected ? context.brandColor : context.surfBorder,
-                    width: isSelected ? 1.5 : 1,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      'Set $setNum',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.caption.copyWith(
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected
-                            ? context.brandColor
-                            : context.txtSecondary,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top Set & Court Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'SCBD Padel Court 1',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                       ),
-                    ),
-                    if (hasScore) ...[
-                      const SizedBox(height: 2),
                       Text(
-                        '$setScoreA - $setScoreB',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected
-                              ? context.brandColor
-                              : context.txtSecondary,
-                        ),
+                        'Americano Double • Target 21 Poin',
+                        style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 11),
                       ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary),
+                    ),
+                    child: Text(
+                      'SET $currentSet',
+                      style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.primary, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Finished Sets History Banner (if any)
+            if (setHistory.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: context.surfSec,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Text('Hasil Set Sebelumnya: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    for (int i = 0; i < setHistory.length; i++) ...[
+                      Text(
+                        'Set ${i + 1}: ${setHistory[i][0]}-${setHistory[i][1]}',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                      if (i < setHistory.length - 1) const Text(' • ', style: TextStyle(color: Colors.grey)),
                     ],
                   ],
                 ),
               ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
 
-  Widget _buildScoreBoard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: context.surf,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: context.surfBorder),
-      ),
-      child: Column(
-        children: [
-          // Team A Row
-          _buildTeamScoreRow(
-            context: context,
-            teamName: widget.sideA,
-            score: _currentScoreA,
-            onIncrement: () => _changeScoreA(1),
-            onDecrement: () => _changeScoreA(-1),
-          ),
+            const SizedBox(height: 10),
 
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16.0),
-            child: Divider(color: context.surfBorder),
-          ),
+            // Main Scoreboard: High-Contrast Tap Cards for Team A & Team B
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+                    // Team A Card
+                    Expanded(
+                      child: _buildTeamScoreCard(
+                        context,
+                        teamName: 'TIM A',
+                        playerNames: 'Marcel Santoso & Budi Pratama',
+                        points: teamAPoints,
+                        isServing: server == 'teamA',
+                        accentColor: AppColors.primary,
+                        isHost: isHost,
+                        onTapScore: isHost ? () => _dataService.addPointTeamA() : null,
+                      ),
+                    ),
 
-          // Team B Row
-          _buildTeamScoreRow(
-            context: context,
-            teamName: widget.sideB,
-            score: _currentScoreB,
-            onIncrement: () => _changeScoreB(1),
-            onDecrement: () => _changeScoreB(-1),
-          ),
-        ],
-      ),
-    );
-  }
+                    const SizedBox(height: 12),
 
-  Widget _buildTeamScoreRow({
-    required BuildContext context,
-    required String teamName,
-    required int score,
-    required VoidCallback onIncrement,
-    required VoidCallback onDecrement,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                teamName,
-                style: AppTextStyles.cardTitle.copyWith(
-                  fontSize: 16,
-                  color: context.txtPrimary,
+                    // Team B Card
+                    Expanded(
+                      child: _buildTeamScoreCard(
+                        context,
+                        teamName: 'TIM B',
+                        playerNames: 'Dimas Anggara & Kevin Sanjaya',
+                        points: teamBPoints,
+                        isServing: server == 'teamB',
+                        accentColor: Colors.orangeAccent,
+                        isHost: isHost,
+                        onTapScore: isHost ? () => _dataService.addPointTeamB() : null,
+                      ),
+                    ),
+                  ],
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
-              Text(
-                'Pemain',
-                style: AppTextStyles.caption.copyWith(
-                  color: context.txtSecondary,
+            ),
+
+            const SizedBox(height: 16),
+
+            // Host Control Toolbar: Undo, Switch Server, Next Set, Finish Match
+            if (isHost) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    // Undo Button
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _dataService.undoLastPoint(),
+                        icon: const Icon(Icons.undo_rounded, size: 18),
+                        label: const Text('Undo', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          foregroundColor: context.txtPrimary,
+                          side: BorderSide(color: context.surfBorder),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Switch Server Button
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _dataService.switchServer(),
+                        icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                        label: const Text('Ganti Server', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          foregroundColor: context.txtPrimary,
+                          side: BorderSide(color: context.surfBorder),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Next Set Button
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          _dataService.finishCurrentSet();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Set $currentSet selesai! Masuk ke Set ${currentSet + 1} 🏸'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.skip_next_rounded, size: 18),
+                        label: const Text('Set Baru', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          foregroundColor: context.txtPrimary,
+                          side: BorderSide(color: context.surfBorder),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Selesaikan Pertandingan Button
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MatchRecapPage()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: context.brandColor,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: const Text(
+                      'Selesaikan Match & Lihat Rekap 🏁',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ),
+              ),
+            ] else ...[
+              // Member notice
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  '💡 Skor sedang dicatat oleh Host secara realtime. Tampilan akan otomatis terupdate.',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 11),
                 ),
               ),
             ],
-          ),
-        ),
-        Row(
-          children: [
-            // Minus Button
-            _buildScoreButton(
-              context: context,
-              icon: Icons.remove_rounded,
-              color: context.surfSec,
-              iconColor: _isFinished ? context.txtDisabled : context.txtPrimary,
-              onTap: _isFinished ? () {} : onDecrement,
-            ),
-            const SizedBox(width: 14),
-
-            // Big Score Number
-            SizedBox(
-              width: 44,
-              child: Text(
-                '$score',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.scoreDisplay.copyWith(
-                  color:
-                      _isFinished ? context.txtSecondary : context.brandColor,
-                  fontSize: 34,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-
-            // Plus Button
-            _buildScoreButton(
-              context: context,
-              icon: Icons.add_rounded,
-              color: _isFinished ? context.surfSec : context.brandColor,
-              iconColor: _isFinished ? context.txtDisabled : Colors.black,
-              onTap: _isFinished ? () {} : onIncrement,
-            ),
           ],
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildScoreButton({
-    required BuildContext context,
-    required IconData icon,
-    required Color color,
-    required Color iconColor,
-    required VoidCallback onTap,
+  Widget _buildTeamScoreCard(
+    BuildContext context, {
+    required String teamName,
+    required String playerNames,
+    required int points,
+    required bool isServing,
+    required Color accentColor,
+    required bool isHost,
+    required VoidCallback? onTapScore,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: context.surfBorder),
+    return Container(
+      decoration: BoxDecoration(
+        color: context.surf,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isServing ? accentColor.withValues(alpha: 0.8) : context.surfBorder,
+          width: isServing ? 2 : 1,
         ),
-        child: Icon(icon, size: 20, color: iconColor),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: onTapScore,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Team Header & Serve Indicator
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          teamName,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: accentColor,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        Text(
+                          playerNames,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: context.txtPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (isServing)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: accentColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: accentColor),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text('🎾', style: TextStyle(fontSize: 12)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'SERVE',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: accentColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+
+                // Giant Score Display
+                Text(
+                  '$points',
+                  style: TextStyle(
+                    fontSize: 72,
+                    fontWeight: FontWeight.w900,
+                    color: accentColor,
+                    letterSpacing: -2,
+                  ),
+                ),
+
+                // Tap Hint
+                if (isHost)
+                  Text(
+                    '+1 Poin (Tap Kartu)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: context.txtSecondary,
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

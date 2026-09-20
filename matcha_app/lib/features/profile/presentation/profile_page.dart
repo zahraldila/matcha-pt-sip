@@ -1,262 +1,336 @@
 import 'package:flutter/material.dart';
+import '../../../core/data/mock_data_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/theme/theme_controller.dart';
-import '../../auth/domain/models/user_model.dart';
-import '../../auth/presentation/controllers/auth_controller.dart';
-import '../../auth/presentation/login_page.dart';
 
 class ProfilePage extends StatefulWidget {
-  final UserModel? user;
-  final AuthController authController;
-
-  const ProfilePage({
-    super.key,
-    required this.user,
-    required this.authController,
-  });
+  const ProfilePage({super.key});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  bool _notificationEnabled = true;
-  final ThemeController _themeController = ThemeController();
+  final MockDataService _dataService = MockDataService();
 
-  void _handleLogout() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: context.surf,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: context.surfBorder),
-        ),
-        title: Text('Konfirmasi Keluar', style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary)),
-        content: Text(
-          'Apakah Anda yakin ingin keluar dari akun?',
-          style: AppTextStyles.bodySecondary.copyWith(color: context.txtSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal', style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(80, 36),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              widget.authController.logout();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => LoginPage(authController: widget.authController),
-                ),
-              );
-            },
-            child: const Text('Keluar'),
-          ),
-        ],
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _dataService.addListener(_onDataChanged);
+  }
+
+  @override
+  void dispose() {
+    _dataService.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final name = widget.user?.nama ?? 'User';
-    final email = widget.user?.email ?? 'user@matcha.com';
-    final role = widget.user?.role ?? 'Personal User';
-    final isHost = widget.user?.isHost ?? false;
+    final user = _dataService.currentUser;
+    final isHost = _dataService.isHostMode;
 
     return Scaffold(
       backgroundColor: context.bg,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Profil Pengguna',
-                style: AppTextStyles.pageTitle.copyWith(fontSize: 22, color: context.txtPrimary),
+      appBar: AppBar(
+        title: Text(
+          'Profil Pemain',
+          style: AppTextStyles.h2.copyWith(fontSize: 18, color: context.txtPrimary),
+        ),
+      ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // User Header Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: context.surf,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: context.surfBorder),
               ),
-              const SizedBox(height: 16),
-
-              // User Info Card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: context.surf,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: context.surfBorder),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: isHost
-                          ? context.brandColor.withValues(alpha: 0.2)
-                          : AppColors.info.withValues(alpha: 0.2),
-                      child: Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                        style: AppTextStyles.pageTitle.copyWith(
-                          color: isHost ? context.brandColor : AppColors.info,
-                          fontSize: 24,
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundImage: NetworkImage(user.avatarUrl),
+                    backgroundColor: context.surfBorder,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    user.name,
+                    style: AppTextStyles.h1.copyWith(fontSize: 18, color: context.txtPrimary),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'marcel@matcha.id',
+                    style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 12),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          'Tier ${user.tier}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: context.brandColor,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            style: AppTextStyles.cardTitle.copyWith(fontSize: 17, color: context.txtPrimary),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: context.surfSec,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: context.surfBorder),
+                        ),
+                        child: Text(
+                          isHost ? '👑 Host Terverifikasi' : '👤 Personal Member',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: context.txtSecondary,
                           ),
-                          const SizedBox(height: 2),
-                          Text(email, style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: isHost
-                                  ? context.brandColor.withValues(alpha: 0.15)
-                                  : AppColors.info.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              role.toUpperCase(),
-                              style: AppTextStyles.badge.copyWith(
-                                color: isHost ? context.brandColor : AppColors.info,
-                                fontSize: 10,
-                              ),
-                            ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Toggle Host Mode Card
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              decoration: BoxDecoration(
+                color: context.surf,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isHost ? AppColors.primary.withValues(alpha: 0.5) : context.surfBorder,
+                  width: 1.2,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: (isHost ? AppColors.primary : Colors.grey).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      isHost ? Icons.sports_tennis_rounded : Icons.person_outline_rounded,
+                      color: isHost ? context.brandColor : Colors.grey,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Mode Host / Pembuat Mabar',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: context.txtPrimary,
+                            fontSize: 13,
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Section: Pengaturan Akun
-              Text(
-                'PENGATURAN TAMPILAN & AKUN',
-                style: AppTextStyles.badge.copyWith(color: context.txtSecondary, letterSpacing: 1.5),
-              ),
-              const SizedBox(height: 12),
-
-              Container(
-                decoration: BoxDecoration(
-                  color: context.surf,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: context.surfBorder),
-                ),
-                child: Column(
-                  children: [
-                    // Theme Switch Tile (Dark / Light Mode)
-                    ListTile(
-                      leading: Icon(
-                        _themeController.isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                        color: context.brandColor,
-                        size: 22,
-                      ),
-                      title: Text(
-                        _themeController.isDarkMode ? 'Mode Gelap (Dark Mode)' : 'Mode Terang (Light Mode)',
-                        style: AppTextStyles.body.copyWith(color: context.txtPrimary),
-                      ),
-                      subtitle: Text(
-                        _themeController.isDarkMode ? 'Tema sporty gelap aktif' : 'Tema terang bersih aktif',
-                        style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
-                      ),
-                      trailing: Switch(
-                        value: _themeController.isDarkMode,
-                        activeTrackColor: context.brandColor,
-                        onChanged: (isDark) {
-                          setState(() {
-                            _themeController.toggleTheme(isDark);
-                          });
-                        },
-                      ),
-                    ),
-                    Divider(height: 1, indent: 56, color: context.surfBorder),
-                    _buildSettingsTile(
-                      icon: Icons.lock_outline_rounded,
-                      title: 'Ubah Kata Sandi',
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Fitur ubah kata sandi siap dikonfigurasi.',
-                              style: AppTextStyles.body.copyWith(color: context.txtPrimary),
-                            ),
-                            backgroundColor: context.surf,
-                            behavior: SnackBarBehavior.floating,
+                        ),
+                        Text(
+                          isHost
+                              ? 'Kamu dapat mengelola sesi & input skor'
+                              : 'Aktifkan untuk menjadi host mabar',
+                          style: AppTextStyles.caption.copyWith(
+                            color: context.txtSecondary,
+                            fontSize: 11,
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
-                    Divider(height: 1, indent: 56, color: context.surfBorder),
-                    ListTile(
-                      leading: Icon(Icons.notifications_outlined, color: context.brandColor, size: 22),
-                      title: Text('Notifikasi Pertandingan', style: AppTextStyles.body.copyWith(color: context.txtPrimary)),
-                      trailing: Switch(
-                        value: _notificationEnabled,
-                        activeTrackColor: context.brandColor,
-                        onChanged: (val) => setState(() => _notificationEnabled = val),
-                      ),
-                    ),
-                    Divider(height: 1, indent: 56, color: context.surfBorder),
-                    _buildSettingsTile(
-                      icon: Icons.info_outline_rounded,
-                      title: 'Tentang Aplikasi Matcha',
-                      subtitle: 'Versi 1.0.0 (Match Arena)',
-                      onTap: () {},
-                    ),
-                  ],
-                ),
+                  ),
+                  Switch(
+                    value: isHost,
+                    activeThumbColor: context.brandColor,
+                    onChanged: (val) {
+                      _dataService.toggleHostMode();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            val
+                                ? 'Mode Host diaktifkan! 🎾'
+                                : 'Mode Host dinonaktifkan (Pemain Biasa) 👤',
+                          ),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
+            ),
 
-              const SizedBox(height: 32),
+            const SizedBox(height: 20),
 
-              // Logout Action Button
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: _handleLogout,
-                icon: const Icon(Icons.logout_rounded, size: 20),
-                label: const Text('Keluar dari Akun'),
+            // Performance & Career Stats
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Statistik Karir',
+                style: AppTextStyles.h2.copyWith(fontSize: 15, color: context.txtPrimary),
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _buildStatTile(context, 'Total Match', '${user.totalMatches}', Icons.sports_tennis),
+                const SizedBox(width: 10),
+                _buildStatTile(context, 'Win Rate', '${user.winRate}%', Icons.trending_up_rounded),
+                const SizedBox(width: 10),
+                _buildStatTile(context, 'Kudos 🔥', '${user.kudosCount}', Icons.local_fire_department_rounded),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Riwayat Match Terakhir
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Riwayat Pertandingan Terakhir',
+                style: AppTextStyles.h2.copyWith(fontSize: 15, color: context.txtPrimary),
+              ),
+            ),
+            const SizedBox(height: 10),
+            _buildMatchHistoryTile(
+              context,
+              date: '18 Sep 2026',
+              venue: 'Sunset Padel Court Kemang',
+              score: '21 - 18 • Win 🏆',
+              isWin: true,
+            ),
+            const SizedBox(height: 8),
+            _buildMatchHistoryTile(
+              context,
+              date: '14 Sep 2026',
+              venue: 'Gelora Tennis Center',
+              score: '19 - 21 • Loss',
+              isWin: false,
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSettingsTile({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required VoidCallback onTap,
+  Widget _buildStatTile(BuildContext context, String label, String value, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        decoration: BoxDecoration(
+          color: context.surf,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: context.surfBorder),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 18, color: context.brandColor),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: context.txtPrimary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 10),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMatchHistoryTile(
+    BuildContext context, {
+    required String date,
+    required String venue,
+    required String score,
+    required bool isWin,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: context.brandColor, size: 22),
-      title: Text(title, style: AppTextStyles.body.copyWith(color: context.txtPrimary)),
-      subtitle: subtitle != null ? Text(subtitle, style: AppTextStyles.caption.copyWith(color: context.txtSecondary)) : null,
-      trailing: Icon(Icons.chevron_right_rounded, color: context.txtSecondary, size: 20),
-      onTap: onTap,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.surf,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.surfBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: (isWin ? AppColors.primary : Colors.redAccent).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              isWin ? Icons.emoji_events_rounded : Icons.sports_score_rounded,
+              color: isWin ? context.brandColor : Colors.redAccent,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  venue,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: context.txtPrimary,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  date,
+                  style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            score,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isWin ? context.brandColor : Colors.redAccent,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

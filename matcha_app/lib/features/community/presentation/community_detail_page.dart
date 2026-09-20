@@ -1,155 +1,216 @@
 import 'package:flutter/material.dart';
-
+import '../../../core/data/mock_data_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../data/community_remote_data_source.dart';
-import '../domain/community_model.dart';
 
 class CommunityDetailPage extends StatefulWidget {
-  final int communityId;
+  final MatchaCommunity community;
 
   const CommunityDetailPage({
     super.key,
-    required this.communityId,
+    required this.community,
   });
 
   @override
-  State<CommunityDetailPage> createState() =>
-      _CommunityDetailPageState();
+  State<CommunityDetailPage> createState() => _CommunityDetailPageState();
 }
 
 class _CommunityDetailPageState extends State<CommunityDetailPage> {
-  final CommunityRemoteDataSource _dataSource =
-      CommunityRemoteDataSource();
-
-  bool _isLoading = true;
-  String? _errorMessage;
-  CommunityModel? _community;
+  final MockDataService _dataService = MockDataService();
 
   @override
   void initState() {
     super.initState();
-    _loadCommunity();
+    _dataService.addListener(_onDataChanged);
   }
 
-  Future<void> _loadCommunity() async {
-    try {
-      final community = await _dataSource.getCommunityById(
-        widget.communityId,
-      );
+  @override
+  void dispose() {
+    _dataService.removeListener(_onDataChanged);
+    super.dispose();
+  }
 
-      if (!mounted) return;
-
-      setState(() {
-        _community = community;
-        _isLoading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Gagal memuat detail community.';
-      });
-    }
+  void _onDataChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final com = _dataService.communities.firstWhere(
+      (c) => c.id == widget.community.id,
+      orElse: () => widget.community,
+    );
+    final isJoined = com.isJoined;
+
     return Scaffold(
       backgroundColor: context.bg,
       appBar: AppBar(
-        backgroundColor: context.bg,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_rounded,
-            color: context.txtPrimary,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: Text(
-          'Community',
-          style: AppTextStyles.pageTitle.copyWith(
-            fontSize: 20,
-            color: context.txtPrimary,
-          ),
+          'Detail Komunitas',
+          style: AppTextStyles.h2.copyWith(fontSize: 16, color: context.txtPrimary),
         ),
+        centerTitle: true,
       ),
-      body: _buildBody(context),
-    );
-  }
-
-  Widget _buildBody(BuildContext context) {
-    if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(
-          color: context.brandColor,
-        ),
-      );
-    }
-
-    if (_errorMessage != null || _community == null) {
-      return Center(
-        child: Text(
-          _errorMessage ?? 'Data community tidak ditemukan.',
-          style: AppTextStyles.bodySecondary.copyWith(
-            color: context.txtSecondary,
-          ),
-        ),
-      );
-    }
-
-    final community = _community!;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
         children: [
-          _buildImage(context, community.imageUrl),
-          const SizedBox(height: 20),
-
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  community.namaCommunity,
-                  style: AppTextStyles.pageTitle.copyWith(
-                    fontSize: 22,
-                    color: context.txtPrimary,
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Logo & Header Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: context.surf,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: context.surfBorder),
+                    ),
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 36,
+                          backgroundImage: NetworkImage(com.logoUrl),
+                          backgroundColor: context.surfBorder,
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          com.name,
+                          style: AppTextStyles.h1.copyWith(fontSize: 18, color: context.txtPrimary),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${com.sport.toUpperCase()} • ${com.location}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: context.brandColor,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildBadgePill(context, '${com.memberCount} Anggota', Icons.people_outline_rounded),
+                            const SizedBox(width: 8),
+                            _buildBadgePill(context, 'Komunitas Aktif', Icons.verified_rounded),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              _buildStatusBadge(
-                context,
-                community.status,
-              ),
-            ],
-          ),
 
-          const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-          Text(
-            'Deskripsi',
-            style: AppTextStyles.sectionTitle.copyWith(
-              fontSize: 17,
-              color: context.txtPrimary,
+                  // Deskripsi
+                  Text(
+                    'Tentang Komunitas',
+                    style: AppTextStyles.h2.copyWith(fontSize: 15, color: context.txtPrimary),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: context.surf,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: context.surfBorder),
+                    ),
+                    child: Text(
+                      com.description,
+                      style: AppTextStyles.bodyMedium.copyWith(color: context.txtPrimary, height: 1.5),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Jadwal Mabar Rutin
+                  Text(
+                    'Jadwal Mabar Rutin',
+                    style: AppTextStyles.h2.copyWith(fontSize: 15, color: context.txtPrimary),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: context.surfSec,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: context.surfBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_month_rounded, color: context.brandColor, size: 24),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                com.regularSchedule,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: context.txtPrimary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                'Jadwal mabar dibuka 3 hari sebelumnya di aplikasi',
+                                style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
-          const SizedBox(height: 8),
-
-          Text(
-            community.deskripsi?.isNotEmpty == true
-                ? community.deskripsi!
-                : 'Belum ada deskripsi community.',
-            style: AppTextStyles.bodySecondary.copyWith(
-              fontSize: 14,
-              height: 1.6,
-              color: context.txtSecondary,
+          // Bottom Join / Leave Button
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: context.surf,
+              border: Border(top: BorderSide(color: context.surfBorder, width: 1)),
+            ),
+            child: SafeArea(
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    _dataService.toggleJoinCommunity(com.id);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          isJoined
+                              ? 'Keluar dari komunitas ${com.name}'
+                              : 'Berhasil bergabung dengan ${com.name}! 🎉',
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isJoined
+                        ? Colors.redAccent.withValues(alpha: 0.15)
+                        : context.brandColor,
+                    foregroundColor: isJoined ? Colors.redAccent : Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: Text(
+                    isJoined ? 'Keluar dari Komunitas' : 'Gabung Komunitas Ini',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -157,74 +218,21 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     );
   }
 
-  Widget _buildImage(
-    BuildContext context,
-    String? imageUrl,
-  ) {
-    if (imageUrl == null || imageUrl.isEmpty) {
-      return Container(
-        height: 210,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: context.surfSec,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Icon(
-          Icons.diversity_3_rounded,
-          size: 64,
-          color: context.txtSecondary,
-        ),
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: Image.network(
-        imageUrl,
-        height: 210,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) {
-          return Container(
-            height: 210,
-            width: double.infinity,
-            color: context.surfSec,
-            child: Icon(
-              Icons.image_not_supported_outlined,
-              size: 52,
-              color: context.txtSecondary,
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(
-    BuildContext context,
-    String status,
-  ) {
-    final isActive = status.toLowerCase() == 'active';
-
+  Widget _buildBadgePill(BuildContext context, String text, IconData icon) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: isActive
-            ? context.brandColor.withValues(alpha: 0.15)
-            : context.surfSec,
-        borderRadius: BorderRadius.circular(8),
+        color: context.surfSec,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.surfBorder),
       ),
-      child: Text(
-        status.toUpperCase(),
-        style: AppTextStyles.badge.copyWith(
-          fontSize: 10,
-          color: isActive
-              ? context.brandColor
-              : context.txtSecondary,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: context.txtSecondary),
+          const SizedBox(width: 4),
+          Text(text, style: TextStyle(fontSize: 11, color: context.txtSecondary, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }
