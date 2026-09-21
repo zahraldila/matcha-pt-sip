@@ -1046,6 +1046,7 @@
     const SESSION_ID = {{ (int) $game['id'] }};
     const CSRF_TOKEN = '{{ csrf_token() }}';
     const KUDOS_TOGGLE_URL = '{{ route('scoring.kudos.toggle') }}';
+    const IS_AUTHENTICATED = @json(Auth::check());
 
     // Inisialisasi awal kudos yang sudah tersimpan di database untuk card preview
     const initialUserGivenKudos = @json($userGivenKudos ?? []);
@@ -1071,6 +1072,15 @@
     renderStoryKudos();
 
     async function toggleKudos(button, playerName, badge, playerId = null) {
+        if (!IS_AUTHENTICATED) {
+            if (typeof showToast === 'function') {
+                showToast('Silakan login terlebih dahulu untuk memberikan Kudos kepada pemain! 🔒', 'error');
+            } else {
+                alert('Silakan login terlebih dahulu untuk memberikan Kudos kepada pemain!');
+            }
+            return;
+        }
+
         if (!badge) {
             badge = button.innerText.trim();
         }

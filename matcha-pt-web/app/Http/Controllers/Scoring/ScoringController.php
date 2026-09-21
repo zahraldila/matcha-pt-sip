@@ -1462,8 +1462,6 @@ class ScoringController extends Controller
             $savedKudos[$key] = ($savedKudos[$key] ?? 0) + 1;
             if ($currentUserId && $k->giver_user_id === $currentUserId) {
                 $userGivenKudos[$key] = true;
-            } elseif (! $currentUserId) {
-                $userGivenKudos[$key] = true;
             }
         }
 
@@ -1490,6 +1488,13 @@ class ScoringController extends Controller
      */
     public function toggleKudos(Request $request)
     {
+        if (! Auth::check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan login terlebih dahulu untuk memberikan Kudos kepada pemain.',
+            ], 401);
+        }
+
         $request->validate([
             'session_id' => 'required|integer',
             'player_name' => 'required|string|max:255',
@@ -1505,11 +1510,8 @@ class ScoringController extends Controller
 
         $query = Kudos::where('session_id', $sessionId)
             ->where('recipient_name', $playerName)
-            ->where('badge', $badge);
-
-        if ($currentUserId) {
-            $query->where('giver_user_id', $currentUserId);
-        }
+            ->where('badge', $badge)
+            ->where('giver_user_id', $currentUserId);
 
         $existing = $query->first();
 

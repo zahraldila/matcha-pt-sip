@@ -162,4 +162,42 @@ class KudosPersistenceTest extends TestCase
             'badge' => '🎾 Super Forehand',
         ]);
     }
+
+    public function test_guest_cannot_give_kudos(): void
+    {
+        $user = User::create([
+            'nama' => 'Host User',
+            'email' => 'host_'.uniqid().'@matcha.com',
+            'role' => 'member',
+            'password' => bcrypt('secret'),
+        ]);
+
+        $sport = Sport::firstOrCreate(['nama_sport' => 'Padel'], ['status_sport' => 'active']);
+        $venue = Venue::create(['nama_venue' => 'Arena Kudos Guest']);
+
+        $session = SessionModel::create([
+            'host_user_id' => $user->user_id,
+            'sport_id' => $sport->sport_id,
+            'venue_id' => $venue->venue_id,
+            'nama_session' => 'Mabar Kudos Guest Test',
+            'status_session' => 'Finished',
+        ]);
+
+        $res = $this->postJson(route('scoring.kudos.toggle'), [
+            'session_id' => $session->session_id,
+            'player_name' => 'lala',
+            'badge' => '🎾 Super Forehand',
+        ]);
+
+        $res->assertStatus(401);
+        $res->assertJson([
+            'success' => false,
+        ]);
+
+        $this->assertDatabaseMissing('tb_kudos', [
+            'session_id' => $session->session_id,
+            'recipient_name' => 'lala',
+            'badge' => '🎾 Super Forehand',
+        ]);
+    }
 }
