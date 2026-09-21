@@ -1701,9 +1701,9 @@ class ScoringController extends Controller
         return $isHostRole && (int) $user->user_id === (int) $session->host_user_id;
     }
 
-    private function getGameData($id)
+    private function getGameData($id = 1)
     {
-        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->findOrFail((int) $id);
+        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])->findOrFail((int) $id);
 
         if ($dbSession) {
             $participants = $dbSession->players->map(function ($p) {
@@ -1714,7 +1714,7 @@ class ScoringController extends Controller
                     'age' => $p->usia,
                     'level' => $p->level ?? 'Intermediate',
                     'is_member' => ! empty($p->user_id),
-                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                    'avatar' => $p->foto ?? ($p->user->foto ?? null),
                 ];
             })->toArray();
 
@@ -1810,7 +1810,7 @@ class ScoringController extends Controller
                     'name' => $dbSession->host->nama ?? 'Host Matcha',
                     'role' => 'Host Game',
                     'level' => 'Intermediate',
-                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                    'avatar' => $dbSession->host->foto ?? null,
                 ],
                 'participants' => $participants,
                 'drawing' => $drawingMap,

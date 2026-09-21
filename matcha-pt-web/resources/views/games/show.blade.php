@@ -61,7 +61,13 @@
                 <!-- Host info -->
                 <div class="p-3.5 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                        <img src="{{ $game['host']['avatar'] }}" alt="{{ $game['host']['name'] }}" class="w-9 h-9 rounded-full object-cover ring-1 ring-emerald-600">
+                        @if(!empty($game['host']['avatar']))
+                            <img src="{{ $game['host']['avatar'] }}" alt="{{ $game['host']['name'] }}" class="w-9 h-9 rounded-full object-cover ring-1 ring-emerald-600">
+                        @else
+                            <div class="w-9 h-9 rounded-full bg-[#063B00] text-white flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-emerald-600">
+                                {{ strtoupper(substr($game['host']['name'] ?? 'H', 0, 1)) }}
+                            </div>
+                        @endif
                         <div>
                             <p class="text-[11px] text-emerald-800 font-medium">Host Sesi Mabar:</p>
                             <p class="text-xs font-bold text-slate-900">{{ $game['host']['name'] }} <span class="text-slate-500 font-normal">({{ $game['host']['level'] }})</span></p>
@@ -98,7 +104,13 @@
                                     <td class="py-2.5 px-3 text-slate-400 font-medium">{{ $index + 1 }}</td>
                                     <td class="py-2.5 px-3">
                                         <div class="flex items-center gap-2">
-                                            <img src="{{ $player['avatar'] ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=60&q=80' }}" class="w-6 h-6 rounded-full object-cover">
+                                            @if(!empty($player['avatar']))
+                                                <img src="{{ $player['avatar'] }}" alt="{{ $player['name'] }}" class="w-6 h-6 rounded-full object-cover">
+                                            @else
+                                                <div class="w-6 h-6 rounded-full bg-[#063B00] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                                                    {{ strtoupper(substr($player['name'] ?? 'P', 0, 1)) }}
+                                                </div>
+                                            @endif
                                             <span class="font-semibold text-slate-800">{{ $player['name'] }}</span>
                                         </div>
                                     </td>

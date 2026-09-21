@@ -149,7 +149,7 @@ class GameController extends Controller
         }
 
         // Fetch 100% real sessions from Supabase database
-        $sessionQuery = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])
+        $sessionQuery = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])
             ->orderByRaw("CASE WHEN status_session = 'Open' THEN 0 WHEN status_session = 'Ready for Drawing' THEN 1 ELSE 2 END")
             ->latest('created_at');
 
@@ -232,7 +232,7 @@ class GameController extends Controller
                     'role' => 'Host Game',
                     'level' => 'Intermediate',
                     'phone' => $s->host->no_hp ?? '-',
-                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                    'avatar' => $s->host->foto ?? null,
                 ],
                 'participants' => $s->players->map(function ($p) {
                     return [
@@ -242,7 +242,7 @@ class GameController extends Controller
                         'level' => $p->level ?? 'Intermediate',
                         'is_member' => ! empty($p->user_id),
                         'phone' => $p->no_hp,
-                        'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                        'avatar' => $p->foto ?? ($p->user->foto ?? null),
                     ];
                 })->toArray(),
                 'drawing' => null,
@@ -635,7 +635,7 @@ class GameController extends Controller
 
     public function show($id)
     {
-        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->findOrFail((int) $id);
+        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])->findOrFail((int) $id);
 
         $quota = (int) ($dbSession->jumlah_pemain ?? 6);
         $joinedCount = $dbSession->players->count();
@@ -676,7 +676,7 @@ class GameController extends Controller
                 'role' => 'Host Game',
                 'level' => 'Intermediate',
                 'phone' => $dbSession->host->no_hp ?? '-',
-                'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                'avatar' => $dbSession->host->foto ?? null,
             ],
             'participants' => $dbSession->players->map(function ($p) {
                 return [
@@ -686,7 +686,7 @@ class GameController extends Controller
                     'level' => $p->level ?? 'Intermediate',
                     'is_member' => ! empty($p->user_id),
                     'phone' => $p->no_hp,
-                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                    'avatar' => $p->foto ?? ($p->user->foto ?? null),
                 ];
             })->toArray(),
             'drawing' => null,
@@ -839,7 +839,7 @@ class GameController extends Controller
 
     public function drawing($id, Request $request)
     {
-        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->findOrFail((int) $id);
+        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])->findOrFail((int) $id);
 
         // Jika sesi sudah berstatus Finished, arahkan langsung ke halaman recap & podium
         if ($dbSession->status_session === 'Finished') {
@@ -883,7 +883,7 @@ class GameController extends Controller
                     'age' => $p->usia,
                     'level' => $p->level ?? 'Intermediate',
                     'is_member' => true,
-                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                    'avatar' => $p->foto ?? ($p->user->foto ?? null),
                 ];
             })->toArray();
 
@@ -928,7 +928,7 @@ class GameController extends Controller
                     'name' => $dbSession->host->nama ?? 'Host Matcha',
                     'role' => 'Host Game',
                     'level' => 'Intermediate',
-                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                    'avatar' => $dbSession->host->foto ?? null,
                 ],
                 'participants' => $participants,
             ];

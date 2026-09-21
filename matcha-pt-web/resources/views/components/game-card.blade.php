@@ -91,10 +91,17 @@
             <div class="flex items-center -space-x-1.5 overflow-hidden">
                 @foreach($game['participants'] as $idx => $participant)
                     @if($idx < 4)
-                        <img src="{{ $participant['avatar'] ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80' }}" 
-                             alt="{{ $participant['name'] }}" 
-                             title="{{ $participant['name'] }} ({{ $participant['level'] }})" 
-                             class="inline-block h-6 w-6 rounded-full ring-2 ring-white object-cover">
+                        @if(!empty($participant['avatar']))
+                            <img src="{{ $participant['avatar'] }}" 
+                                 alt="{{ $participant['name'] }}" 
+                                 title="{{ $participant['name'] }} ({{ $participant['level'] }})" 
+                                 class="inline-block h-6 w-6 rounded-full ring-2 ring-white object-cover">
+                        @else
+                            <div title="{{ $participant['name'] }} ({{ $participant['level'] }})" 
+                                 class="inline-flex items-center justify-center h-6 w-6 rounded-full ring-2 ring-white bg-[#063B00] text-white text-[9px] font-bold">
+                                {{ strtoupper(substr($participant['name'] ?? 'P', 0, 1)) }}
+                            </div>
+                        @endif
                     @endif
                 @endforeach
                 @if(count($game['participants']) > 4)

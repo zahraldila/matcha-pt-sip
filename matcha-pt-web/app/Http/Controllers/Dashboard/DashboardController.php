@@ -20,7 +20,7 @@ class DashboardController extends Controller
         $selectedDate = $request->query('date');
 
         // 1. Ambil data Sesi Mabar dari Database Supabase (diutamakan sesi Open)
-        $sessionQuery = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])
+        $sessionQuery = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])
             ->orderByRaw("CASE WHEN status_session = 'Open' THEN 0 WHEN status_session = 'Ready for Drawing' THEN 1 ELSE 2 END")
             ->latest('created_at');
 
@@ -92,7 +92,7 @@ class DashboardController extends Controller
                     'role' => 'Host Game',
                     'level' => 'Intermediate',
                     'phone' => $s->host->no_hp ?? '-',
-                    'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                    'avatar' => $s->host->foto ?? null,
                 ],
                 'participants' => $s->players->map(function ($p) {
                     return [
@@ -102,7 +102,7 @@ class DashboardController extends Controller
                         'level' => $p->level ?? 'Intermediate',
                         'is_member' => ! empty($p->user_id),
                         'phone' => $p->no_hp,
-                        'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                        'avatar' => $p->foto ?? ($p->user->foto ?? null),
                     ];
                 })->toArray(),
                 'drawing' => null,
