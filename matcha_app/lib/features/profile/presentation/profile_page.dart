@@ -101,19 +101,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   Widget _buildGuestProfileView() {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: Text(
-          'Profil Pemain',
-          style: AppTextStyles.h2.copyWith(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF0F172A),
-          ),
-        ),
-      ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -372,19 +359,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: Text(
-          'Profil Pemain',
-          style: AppTextStyles.h2.copyWith(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF0F172A),
-          ),
-        ),
-      ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(20),

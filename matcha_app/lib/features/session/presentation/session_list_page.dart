@@ -4,7 +4,6 @@ import '../../../core/theme/app_text_styles.dart';
 import '../data/session_service.dart';
 import '../domain/session_model.dart';
 import 'create_session_page.dart';
-
 import '../../auth/presentation/controllers/auth_controller.dart';
 
 class SessionListPage extends StatefulWidget {
@@ -21,25 +20,32 @@ class SessionListPage extends StatefulWidget {
   State<SessionListPage> createState() => _SessionListPageState();
 }
 
-class _SessionListPageState extends State<SessionListPage> with SingleTickerProviderStateMixin {
+class _SessionListPageState extends State<SessionListPage> {
   final SessionService _sessionService = SessionService();
-  late TabController _tabController;
 
   bool _isLoading = true;
   String? _errorMessage;
   List<SessionModel> _allSessions = [];
+  List<SessionModel> _filteredSessions = [];
+
+  String _searchQuery = '';
+  String _selectedSport = 'Semua Cabang'; // 'Semua Cabang', 'Padel', 'Tennis'
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _loadSessions();
+    widget.authController?.addListener(_onAuthChanged);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    widget.authController?.removeListener(_onAuthChanged);
     super.dispose();
+  }
+
+  void _onAuthChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadSessions() async {
@@ -54,6 +60,7 @@ class _SessionListPageState extends State<SessionListPage> with SingleTickerProv
 
       setState(() {
         _allSessions = sessions;
+        _applyFilters();
         _isLoading = false;
       });
     } catch (e) {
@@ -65,58 +72,159 @@ class _SessionListPageState extends State<SessionListPage> with SingleTickerProv
     }
   }
 
-  List<SessionModel> get _liveSessions => _allSessions.where((s) {
-        final st = s.statusSession.toLowerCase();
-        return st == 'in progress' || st == 'live';
-      }).toList();
+  void _applyFilters() {
+    _filteredSessions = _allSessions.where((s) {
+      final matchesSearch = _searchQuery.isEmpty ||
+          s.namaSession.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          s.venueName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (s.venueCity != null && s.venueCity!.toLowerCase().contains(_searchQuery.toLowerCase()));
 
-  List<SessionModel> get _upcomingSessions => _allSessions.where((s) {
-        final st = s.statusSession.toLowerCase();
-        return st == 'open' || st == 'ready for drawing';
-      }).toList();
+      final matchesSport = _selectedSport == 'Semua Cabang' ||
+          s.sportName.toLowerCase() == _selectedSport.toLowerCase();
 
-  List<SessionModel> get _finishedSessions => _allSessions.where((s) {
-        final st = s.statusSession.toLowerCase();
-        return st == 'finished' || st == 'selesai';
-      }).toList();
+      return matchesSearch && matchesSport;
+    }).toList();
+  }
+
+  void _onSearch(String query) {
+    setState(() {
+      _searchQuery = query;
+      _applyFilters();
+    });
+  }
+
+  void _onSportSelect(String sport) {
+    setState(() {
+      _selectedSport = sport;
+      _applyFilters();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isHost = widget.authController?.currentUser?.isHost == true;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: Text(
-          'Jadwal Sesi Mabar',
-          style: AppTextStyles.h2.copyWith(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF0F172A),
-          ),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.matchaDark,
-          unselectedLabelColor: const Color(0xFF64748B),
-          indicatorColor: AppColors.matchaDark,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-          tabs: [
-            Tab(text: 'Live (${_liveSessions.length})'),
-            Tab(text: 'Mendatang (${_upcomingSessions.length})'),
-            Tab(text: 'Riwayat (${_finishedSessions.length})'),
-          ],
-        ),
-      ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.matchaDark),
-            )
-          : _errorMessage != null
-              ? Center(
+      body: RefreshIndicator(
+        onRefresh: _loadSessions,
+        color: AppColors.matchaDark,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // Header & Filter Section
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.matchaSoftLime,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.matchaDark.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.sports_tennis_rounded, size: 12, color: AppColors.matchaDark),
+                          const SizedBox(width: 5),
+                          Text(
+                            'JADWAL & TURNAMEN',
+                            style: AppTextStyles.badge.copyWith(
+                              color: AppColors.matchaDark,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Jadwal Mabar & Turnamen',
+                      style: AppTextStyles.h1.copyWith(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Temukan sesi mabar aktif dan amankan slot kuota bermainmu.',
+                      style: AppTextStyles.caption.copyWith(
+                        color: const Color(0xFF64748B),
+                        height: 1.4,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Search Bar
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        onChanged: _onSearch,
+                        decoration: InputDecoration(
+                          hintText: 'Cari sesi mabar, venue, kota...',
+                          hintStyle: AppTextStyles.caption.copyWith(
+                            color: const Color(0xFF94A3B8),
+                            fontSize: 13,
+                          ),
+                          prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8), size: 20),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Sport Filters
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFilterChip('Semua Cabang', Icons.grid_view_rounded),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('Padel', Icons.sports_kabaddi),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('Tennis', Icons.sports_tennis),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
+
+            // Content: Loading, Error, Empty, or List
+            if (_isLoading)
+              const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.matchaDark),
+                ),
+              )
+            else if (_errorMessage != null)
+              SliverFillRemaining(
+                child: Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
@@ -140,43 +248,53 @@ class _SessionListPageState extends State<SessionListPage> with SingleTickerProv
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.matchaDark,
                             foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           child: const Text('Coba Lagi'),
                         ),
                       ],
                     ),
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadSessions,
-                  color: AppColors.matchaDark,
-                  child: TabBarView(
-                    controller: _tabController,
+                ),
+              )
+            else if (_filteredSessions.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Tab 1: Live & In Progress
-                      _buildSessionList(
-                        sessions: _liveSessions,
-                        emptyMessage: 'Tidak ada sesi mabar yang sedang live saat ini.',
-                        emptyIcon: Icons.tv_off_rounded,
+                      const Icon(Icons.event_busy_rounded, color: Color(0xFF94A3B8), size: 48),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Tidak ada sesi mabar ditemukan',
+                        style: AppTextStyles.cardTitle.copyWith(color: const Color(0xFF334155)),
                       ),
-
-                      // Tab 2: Mendatang / Open
-                      _buildSessionList(
-                        sessions: _upcomingSessions,
-                        emptyMessage: 'Belum ada jadwal mabar mendatang yang terbuka.',
-                        emptyIcon: Icons.event_available_rounded,
-                      ),
-
-                      // Tab 3: Riwayat Selesai
-                      _buildSessionList(
-                        sessions: _finishedSessions,
-                        emptyMessage: 'Belum ada riwayat sesi mabar yang selesai.',
-                        emptyIcon: Icons.history_rounded,
+                      const SizedBox(height: 4),
+                      Text(
+                        'Coba ubah kata kunci atau cabang olahraga',
+                        style: AppTextStyles.caption.copyWith(color: const Color(0xFF94A3B8)),
                       ),
                     ],
                   ),
                 ),
-      floatingActionButton: (widget.authController?.currentUser?.isHost == true)
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 90),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final session = _filteredSessions[index];
+                      return _buildSessionCard(session);
+                    },
+                    childCount: _filteredSessions.length,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      floatingActionButton: isHost
           ? FloatingActionButton.extended(
               onPressed: () {
                 Navigator.push(
@@ -196,42 +314,49 @@ class _SessionListPageState extends State<SessionListPage> with SingleTickerProv
     );
   }
 
-  Widget _buildSessionList({
-    required List<SessionModel> sessions,
-    required String emptyMessage,
-    required IconData emptyIcon,
-  }) {
-    if (sessions.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(emptyIcon, size: 48, color: const Color(0xFFCBD5E1)),
-              const SizedBox(height: 12),
-              Text(
-                emptyMessage,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.caption.copyWith(
-                  color: const Color(0xFF64748B),
-                  fontSize: 13,
-                ),
-              ),
-            ],
+  Widget _buildFilterChip(String label, IconData icon) {
+    final isSelected = _selectedSport == label;
+    return GestureDetector(
+      onTap: () => _onSportSelect(label),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.matchaDark : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.matchaDark.withValues(alpha: 0.2),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
         ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 90),
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-      itemCount: sessions.length,
-      itemBuilder: (context, index) {
-        final session = sessions[index];
-        return _buildSessionCard(session);
-      },
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? const Color(0xFFA8E63A) : const Color(0xFF64748B),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AppTextStyles.caption.copyWith(
+                color: isSelected ? Colors.white : const Color(0xFF475569),
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -89,16 +89,6 @@ class _HomePageState extends State<HomePage> {
     return _sessions.where((s) => s.sportName.toLowerCase() == _selectedSport.toLowerCase()).toList();
   }
 
-  SessionModel? get _liveSession {
-    try {
-      return _sessions.firstWhere(
-        (s) => s.statusSession.toLowerCase() == 'in progress' || s.statusSession.toLowerCase() == 'live',
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-
   void _showAuthRequiredModal({
     required String title,
     required String message,
@@ -297,15 +287,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-
-            // --- Live Session Banner (Jika ada yang sedang In Progress) ---
-            if (_liveSession != null)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
-                  child: _buildLiveMatchCard(_liveSession!),
-                ),
-              ),
 
             // --- Quick Actions ---
             SliverToBoxAdapter(
@@ -669,137 +650,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLiveMatchCard(SessionModel session) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF063B00), Color(0xFF0E5603)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF063B00).withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const MatchScoringPage()),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.6)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Colors.redAccent,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          const Text(
-                            'LIVE MATCH',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFA8E63A).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        session.sportName.toUpperCase(),
-                        style: const TextStyle(
-                          color: Color(0xFFA8E63A),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  session.namaSession,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${session.venueName} • ${session.waktuSession ?? "Sedang Berlangsung"}',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Sistem: ${session.scoringSystem}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 11),
-                    ),
-                    Row(
-                      children: [
-                        const Text(
-                          'Lihat Live Scoring',
-                          style: TextStyle(
-                            color: Color(0xFFA8E63A),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 11, color: Color(0xFFA8E63A)),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
