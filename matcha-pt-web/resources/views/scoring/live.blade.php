@@ -1511,40 +1511,61 @@
     function findCourtIndex(payload) {
         if (!payload) return null;
 
-        // 1. Direct match dengan index state lokal
-        if (payload.court !== undefined && courtsState[payload.court] !== undefined) {
-            return payload.court;
-        }
-
-        // 2. Match berdasarkan match_key (contoh: round_1_court_1 atau round_1)
+        // 1. MATCH KEY = sumber identitas paling akurat
         if (payload.match_key) {
             for (const [idx, st] of Object.entries(courtsState)) {
-                if (st.matchKey === payload.match_key) return idx;
+                if (st.matchKey === payload.match_key) {
+                    return idx;
+                }
             }
         }
 
-        // 3. Match berdasarkan match_id (ID di database tb_match)
+        // 2. Match berdasarkan match_id
         if (payload.match_id) {
             for (const [idx, st] of Object.entries(courtsState)) {
-                if (st.matchId && Number(st.matchId) === Number(payload.match_id)) return idx;
+                if (
+                    st.matchId &&
+                    Number(st.matchId) === Number(payload.match_id)
+                ) {
+                    return idx;
+                }
             }
         }
 
-        // 4. Match berdasarkan courtNum (1-indexed)
+        // 3. court_num selalu dianggap 1-based
         if (payload.court_num !== undefined) {
             for (const [idx, st] of Object.entries(courtsState)) {
-                if (Number(st.courtNum) === Number(payload.court_num)) return idx;
-            }
-        }
-        if (payload.court !== undefined) {
-            for (const [idx, st] of Object.entries(courtsState)) {
-                if (Number(st.courtNum) === Number(payload.court)) return idx;
+                if (Number(st.courtNum) === Number(payload.court_num)) {
+                    return idx;
+                }
             }
         }
 
-        // Fallback jika hanya terdapat 1 court pada match
+        // 4. payload.court bisa berasal dari dua sumber:
+        //    - internal JS: 0-based
+        //    - broadcast tertentu: 1-based
+        //
+        //    Jangan prioritaskan ini jika match_key tersedia.
+        if (payload.court !== undefined) {
+            const courtValue = Number(payload.court);
+
+            // 0-based
+            if (courtsState[courtValue] !== undefined) {
+                return courtValue;
+            }
+
+            // 1-based
+            const zeroBased = courtValue - 1;
+            if (courtsState[zeroBased] !== undefined) {
+                return zeroBased;
+            }
+        }
+
+        // 5. Kalau hanya ada satu court
         const keys = Object.keys(courtsState);
-        if (keys.length === 1) return keys[0];
+        if (keys.length === 1) {
+            return keys[0];
+        }
 
         return null;
     }
