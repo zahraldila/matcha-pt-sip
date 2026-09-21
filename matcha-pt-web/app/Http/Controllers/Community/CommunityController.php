@@ -251,8 +251,8 @@ class CommunityController extends Controller
             }
         }
 
-        // Hanya simpan logo jika benar-benar berasal dari Supabase Storage public object
-        if ($logoUrl && ! str_contains($logoUrl, '/storage/v1/object/public/')) {
+        // Hanya simpan logo jika valid dari Supabase Storage atau penyimpanan publik lokal
+        if ($logoUrl && ! str_contains($logoUrl, '/storage/v1/object/public/') && ! str_contains($logoUrl, 'uploads/community-logos') && ! filter_var($logoUrl, FILTER_VALIDATE_URL)) {
             $logoUrl = null;
         }
 

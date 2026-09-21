@@ -66,57 +66,67 @@ class SupabaseStorageService
      */
     public function upload(UploadedFile $file, string $folder = 'venues'): ?string
     {
-        if (! $this->isConfigured()) {
-            Log::warning('Supabase Storage tidak terkonfigurasi. Pastikan SUPABASE_KEY / SUPABASE_ANON_KEY diisi di .env.');
+        $filename = time().'_'.uniqid().'.'.$file->getClientOriginalExtension();
+        $cleanFolder = trim($folder, '/');
+        $path = ($cleanFolder !== '' && $cleanFolder !== $this->bucket) ? ($cleanFolder.'/'.$filename) : $filename;
 
-            return null;
+        // 1. Coba upload ke Supabase Storage jika terkonfigurasi
+        if ($this->isConfigured()) {
+            try {
+                $endpoint = "{$this->url}/storage/v1/object/{$this->bucket}/{$path}";
+                $mimeType = $file->getMimeType() ?: 'application/octet-stream';
+
+                $response = Http::timeout(5)
+                    ->connectTimeout(2)
+                    ->withHeaders([
+                        'Authorization' => 'Bearer '.$this->apiKey,
+                        'apikey' => $this->apiKey,
+                        'Content-Type' => $mimeType,
+                    ])
+                    ->withOptions(['verify' => $this->caBundle])
+                    ->withBody(file_get_contents($file->getRealPath()), $mimeType)
+                    ->post($endpoint);
+
+                if ($response->successful()) {
+                    return "{$this->url}/storage/v1/object/public/{$this->bucket}/{$path}";
+                }
+
+                Log::warning('Supabase upload status ('.$response->status().'): '.$response->body().'. Beralih ke fallback lokal.');
+            } catch (\Throwable $e) {
+                Log::warning('Supabase upload exception: '.$e->getMessage().'. Beralih ke fallback lokal.');
+            }
         }
 
+        // 2. Fallback ke direktori lokal
         try {
-            $filename = time().'_'.uniqid().'.'.$file->getClientOriginalExtension();
-            $cleanFolder = trim($folder, '/');
-            $path = ($cleanFolder !== '' && $cleanFolder !== $this->bucket) ? ($cleanFolder.'/'.$filename) : $filename;
-            $endpoint = "{$this->url}/storage/v1/object/{$this->bucket}/{$path}";
-            $mimeType = $file->getMimeType() ?: 'application/octet-stream';
-
-            $response = Http::timeout(5)
-                ->connectTimeout(2)
-                ->withHeaders([
-                    'Authorization' => 'Bearer '.$this->apiKey,
-                    'apikey' => $this->apiKey,
-                    'Content-Type' => $mimeType,
-                ])
-                ->withOptions(['verify' => $this->caBundle])
-                ->withBody(file_get_contents($file->getRealPath()), $mimeType)
-                ->post($endpoint);
-
-            if ($response->successful()) {
-                return "{$this->url}/storage/v1/object/public/{$this->bucket}/{$path}";
+            $localDir = public_path('uploads/'.$cleanFolder);
+            if (! file_exists($localDir)) {
+                mkdir($localDir, 0755, true);
             }
 
-            Log::error('Supabase upload failed ('.$response->status().'): '.$response->body());
+            $file->move($localDir, $filename);
 
-            return null;
-        } catch (\Throwable $e) {
-            Log::error('Supabase upload exception: '.$e->getMessage());
+            return asset('uploads/'.$cleanFolder.'/'.$filename);
+        } catch (\Throwable $localEx) {
+            Log::error('Local upload fallback failed: '.$localEx->getMessage());
 
             return null;
         }
     }
 
     /**
-     * Upload logo komunitas ke Supabase Storage bucket community-logos
+     * Upload logo komunitas ke Supabase Storage bucket community-logos (dengan fallback lokal otomatis)
      *
      * @return array ['success' => bool, 'url' => ?string, 'filename' => ?string, 'message' => ?string]
      */
     public function uploadLogo(UploadedFile $file): array
     {
-        $allowedExtensions = ['jpg', 'jpeg', 'png'];
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
         $ext = strtolower($file->getClientOriginalExtension());
         if (! in_array($ext, $allowedExtensions)) {
             return [
                 'success' => false,
-                'message' => 'Format logo tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.',
+                'message' => 'Format logo tidak valid. Hanya JPG, JPEG, PNG, atau WEBP yang diterima.',
             ];
         }
 
@@ -128,69 +138,90 @@ class SupabaseStorageService
             ];
         }
 
-        if (! $this->isConfigured()) {
-            return [
-                'success' => false,
-                'message' => 'Konfigurasi Supabase Storage belum lengkap di environment (.env). Pastikan SUPABASE_URL dan SUPABASE_ANON_KEY telah diatur.',
-            ];
-        }
-
         $cleanRandom = Str::random(12);
         $fileName = "logo_{$cleanRandom}_".time().".{$ext}";
-        $endpoint = "{$this->url}/storage/v1/object/{$this->communityBucket}/{$fileName}";
 
+        // 1. Coba upload ke Supabase Storage jika terkonfigurasi
+        if ($this->isConfigured()) {
+            $endpoint = "{$this->url}/storage/v1/object/{$this->communityBucket}/{$fileName}";
+
+            try {
+                $mimeType = $file->getMimeType() ?: ('image/'.($ext === 'jpg' ? 'jpeg' : $ext));
+                $fileContent = file_get_contents($file->getRealPath());
+
+                $response = Http::timeout(6)
+                    ->connectTimeout(3)
+                    ->withHeaders([
+                        'apikey' => $this->apiKey,
+                        'Authorization' => 'Bearer '.$this->apiKey,
+                        'Content-Type' => $mimeType,
+                    ])
+                    ->withOptions(['verify' => $this->caBundle])
+                    ->withBody($fileContent, $mimeType)
+                    ->post($endpoint);
+
+                if ($response->successful()) {
+                    $publicUrl = "{$this->url}/storage/v1/object/public/{$this->communityBucket}/{$fileName}";
+
+                    return [
+                        'success' => true,
+                        'url' => $publicUrl,
+                        'filename' => $fileName,
+                    ];
+                }
+
+                $status = $response->status();
+                Log::warning("Supabase Storage logo upload status ({$status}): ".$response->body().'. Beralih ke fallback penyimpanan lokal.');
+            } catch (\Throwable $e) {
+                Log::warning('Supabase Storage logo exception: '.$e->getMessage().'. Beralih ke fallback penyimpanan lokal.');
+            }
+        }
+
+        // 2. Fallback: Simpan ke direktori publik lokal jika Supabase offline/unreachable/invalid key
         try {
-            $mimeType = $file->getMimeType() ?: ('image/'.($ext === 'jpg' ? 'jpeg' : $ext));
-            $fileContent = file_get_contents($file->getRealPath());
-
-            $response = Http::timeout(6)
-                ->connectTimeout(3)
-                ->withHeaders([
-                    'apikey' => $this->apiKey,
-                    'Authorization' => 'Bearer '.$this->apiKey,
-                    'Content-Type' => $mimeType,
-                ])
-                ->withOptions(['verify' => $this->caBundle])
-                ->withBody($fileContent, $mimeType)
-                ->post($endpoint);
-
-            if ($response->successful()) {
-                $publicUrl = "{$this->url}/storage/v1/object/public/{$this->communityBucket}/{$fileName}";
-
-                return [
-                    'success' => true,
-                    'url' => $publicUrl,
-                    'filename' => $fileName,
-                ];
+            $localDir = public_path('uploads/community-logos');
+            if (! file_exists($localDir)) {
+                mkdir($localDir, 0755, true);
             }
 
-            $status = $response->status();
-            $body = $response->json();
-            $errorMsg = $body['message'] ?? $body['error'] ?? "Supabase Storage merespons status {$status}.";
-
-            Log::error("Supabase Storage upload failed ({$status}): ".$response->body());
+            $file->move($localDir, $fileName);
+            $localUrl = asset('uploads/community-logos/'.$fileName);
 
             return [
-                'success' => false,
-                'message' => 'Gagal mengunggah logo ke Supabase Storage: '.$errorMsg,
+                'success' => true,
+                'url' => $localUrl,
+                'filename' => $fileName,
             ];
-        } catch (\Throwable $e) {
-            Log::error('Supabase Storage exception: '.$e->getMessage());
+        } catch (\Throwable $localEx) {
+            Log::error('Local community logo upload fallback failed: '.$localEx->getMessage());
 
             return [
                 'success' => false,
-                'message' => 'Kendala koneksi ke Supabase Storage: '.$e->getMessage(),
+                'message' => 'Gagal menyimpan logo komunitas: '.$localEx->getMessage(),
             ];
         }
     }
 
     /**
-     * Hapus file logo dari bucket Supabase Storage
+     * Hapus file logo dari bucket Supabase Storage atau penyimpanan lokal
      */
-    public function deleteLogo(string $fileName): bool
+    public function deleteLogo(string $fileNameOrUrl): bool
     {
-        if (! $this->isConfigured()) {
+        if (empty($fileNameOrUrl)) {
             return false;
+        }
+
+        $fileName = basename(parse_url($fileNameOrUrl, PHP_URL_PATH));
+
+        // 1. Cek & hapus dari lokal jika ada
+        $localPath = public_path('uploads/community-logos/'.$fileName);
+        if (file_exists($localPath)) {
+            @unlink($localPath);
+        }
+
+        // 2. Hapus dari Supabase Storage jika terkonfigurasi
+        if (! $this->isConfigured()) {
+            return true;
         }
 
         try {
@@ -206,7 +237,7 @@ class SupabaseStorageService
 
             return $response->successful();
         } catch (\Throwable $e) {
-            Log::warning('Supabase Storage delete exception: '.$e->getMessage());
+            Log::warning('Supabase Storage logo delete exception: '.$e->getMessage());
 
             return false;
         }
