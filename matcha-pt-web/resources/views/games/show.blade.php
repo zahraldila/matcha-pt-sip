@@ -141,8 +141,11 @@
                     </div>
 
                     <div class="space-y-2 pt-2">
-                        <a href="{{ route('scoring.recap', $game['id']) }}" class="w-full text-center py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
-                            <i class="fa-solid fa-trophy text-xs text-amber-200"></i> Buka Hasil Akhir &amp; Podium
+                        <a href="{{ route('scoring.recap', $game['id']) }}"
+                           style="background-color: #063B00 !important; color: #ffffff !important;"
+                           class="w-full text-center py-3 px-4 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-trophy text-xs text-[#A8E63A]" style="color: #A8E63A !important;"></i>
+                            <span class="text-white font-extrabold" style="color: #ffffff !important;">Buka Hasil Akhir &amp; Podium</span>
                         </a>
                     </div>
 
