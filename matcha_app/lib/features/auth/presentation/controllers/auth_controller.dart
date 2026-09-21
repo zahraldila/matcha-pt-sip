@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/data/mock_data_service.dart';
 import '../../data/datasource/auth_remote_data_source.dart';
 import '../../domain/models/user_model.dart';
 
@@ -21,7 +22,7 @@ class AuthController extends ChangeNotifier {
   bool get isAuthenticated => _currentUser != null;
   bool get isHost => _currentUser?.isHost ?? false;
 
-  /// Memeriksa apakah ada sesi login yang tersimpan di memori lokal HP (Auto-Login)
+  /// Memeriksa apakah ada sesi login tersimpan di SharedPreferences (Auto-Login)
   Future<bool> checkSavedSession() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -31,6 +32,7 @@ class AuthController extends ChangeNotifier {
         final user = await _authDataSource.getUserById(savedUserId);
         if (user != null && user.statusUser.toLowerCase() != 'inactive') {
           _currentUser = user;
+          _syncToMockDataService(user);
           notifyListeners();
           return true;
         } else {
@@ -38,23 +40,24 @@ class AuthController extends ChangeNotifier {
         }
       }
     } catch (_) {
-      // Abaikan jika ada kendala pembacaan local storage / database awal
+      // Abaikan jika offline
     }
     return false;
   }
 
-  /// Melakukan login dan menyimpan sesi ke local storage
-  Future<bool> login(String email, String password) async {
+  /// Melakukan login ke Supabase
+  Future<bool> login(String loginId, String password) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
       final user = await _authDataSource.login(
-        email: email,
+        loginId: loginId,
         password: password,
       );
       _currentUser = user;
+      _syncToMockDataService(user);
 
       // Simpan session ID ke SharedPreferences
       try {
@@ -73,7 +76,64 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  /// Logout dan menghapus session dari local storage
+  /// Melakukan registrasi pengguna baru ke Supabase
+  Future<bool> register({
+    required String nama,
+    required String email,
+    required String noHp,
+    required String password,
+    required String gender,
+    required int usia,
+    required String level,
+    int? communityId,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final user = await _authDataSource.register(
+        nama: nama,
+        email: email,
+        noHp: noHp,
+        password: password,
+        gender: gender,
+        usia: usia,
+        level: level,
+        communityId: communityId,
+      );
+      _currentUser = user;
+      _syncToMockDataService(user);
+
+      // Simpan session ID ke SharedPreferences
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(_userSessionKey, user.userId);
+      } catch (_) {}
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Toggle Host Mode dan simpan ke Supabase
+  Future<void> toggleHost() async {
+    if (_currentUser == null) return;
+    final newHostStatus = !_currentUser!.isHost;
+    _currentUser = _currentUser!.copyWith(isHost: newHostStatus);
+    MockDataService().toggleHostMode();
+    notifyListeners();
+
+    await _authDataSource.updateHostStatus(_currentUser!.userId, newHostStatus);
+  }
+
+  /// Logout dan bersihkan session
   Future<void> logout() async {
     _currentUser = null;
     _errorMessage = null;
@@ -88,6 +148,10 @@ class AuthController extends ChangeNotifier {
 
   void clearError() {
     _errorMessage = null;
+    notifyListeners();
+  }
+
+  void _syncToMockDataService(UserModel user) {
     notifyListeners();
   }
 }
