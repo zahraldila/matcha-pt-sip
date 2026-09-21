@@ -143,11 +143,6 @@
                                                 Level: {{ $player->level }}
                                             </span>
                                             @endif
-                                            @if($player->rating)
-                                            <span class="px-2 py-0.5 rounded-md bg-yellow-100 text-yellow-800 text-[10px] font-bold flex items-center gap-1">
-                                                <i class="fa-solid fa-star text-[8px]"></i> {{ $player->rating }}
-                                            </span>
-                                            @endif
                                         </div>
                                     </div>
                                 </div>
