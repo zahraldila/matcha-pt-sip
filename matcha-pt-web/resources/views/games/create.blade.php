@@ -625,28 +625,28 @@
 
 <!-- Quick Add Venue Modal -->
 <div id="quickAddVenueModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+    <div class="bg-white w-full max-w-lg rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
         <!-- Header -->
-        <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+        <div class="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-[#EBF8D8] text-[#063B00] flex items-center justify-center shadow-xs">
+                <div class="w-10 h-10 rounded-2xl bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/10 flex items-center justify-center shadow-xs">
                     <i class="fa-solid fa-map-location-dot text-base"></i>
                 </div>
                 <div>
-                    <h3 class="font-bold text-sm text-slate-800">Tambah Venue Baru</h3>
-                    <p class="text-[11px] text-slate-400">Daftarkan venue & court secara instan</p>
+                    <h3 class="font-extrabold text-sm text-slate-800">Tambah Venue Baru</h3>
+                    <p class="text-xs text-slate-400 font-medium">Daftarkan venue &amp; court secara instan</p>
                 </div>
             </div>
-            <button type="button" onclick="closeQuickAddVenueModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition-colors">
+            <button type="button" onclick="closeQuickAddVenueModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition-colors cursor-pointer">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
 
         <!-- Form -->
-        <form id="quickAddVenueForm" onsubmit="submitQuickAddVenue(event)" class="space-y-3.5">
+        <form id="quickAddVenueForm" onsubmit="submitQuickAddVenue(event)" class="space-y-4">
             <!-- Nama Venue -->
             <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">
                     Nama Venue <span class="text-rose-500">*</span>
                 </label>
                 <div class="relative">
@@ -655,103 +655,111 @@
                         id="quickVenueName"
                         required
                         placeholder="Contoh: Matcha Padel Arena Dago"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none transition-all"
+                        class="w-full bg-slate-50/90 border border-slate-200/90 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
                     />
-                    <i class="fa-solid fa-building absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                    <i class="fa-solid fa-building absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
                 </div>
             </div>
 
             <!-- Cabang Olahraga & Jumlah Court -->
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-2 gap-3.5">
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
                         Cabang Olahraga <span class="text-rose-500">*</span>
                     </label>
-                    <select
-                        id="quickVenueSport"
-                        required
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none"
-                    >
-                        <option value="Padel">Padel</option>
-                        <option value="Tennis">Tennis</option>
-                    </select>
+                    <div class="relative">
+                        <select
+                            id="quickVenueSport"
+                            required
+                            class="w-full bg-slate-50/90 border border-slate-200/90 rounded-2xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs"
+                        >
+                            <option value="Padel">Padel</option>
+                            <option value="Tennis">Tennis</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 pointer-events-none"></i>
+                    </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
                         Jumlah Lapangan <span class="text-rose-500">*</span>
                     </label>
-                    <select
-                        id="quickVenueCourtCount"
-                        required
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none"
-                    >
-                        <option value="1">1 Court</option>
-                        <option value="2" selected>2 Courts</option>
-                        <option value="3">3 Courts</option>
-                        <option value="4">4 Courts</option>
-                        <option value="5">5 Courts</option>
-                        <option value="6">6 Courts</option>
-                    </select>
+                    <div class="relative">
+                        <select
+                            id="quickVenueCourtCount"
+                            required
+                            class="w-full bg-slate-50/90 border border-slate-200/90 rounded-2xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs"
+                        >
+                            <option value="1">1 Court</option>
+                            <option value="2" selected>2 Courts</option>
+                            <option value="3">3 Courts</option>
+                            <option value="4">4 Courts</option>
+                            <option value="5">5 Courts</option>
+                            <option value="6">6 Courts</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 pointer-events-none"></i>
+                    </div>
                 </div>
             </div>
 
             <!-- Kota / Wilayah & Alamat -->
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-2 gap-3.5">
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
                         Kota / Wilayah
                     </label>
                     <input
                         type="text"
                         id="quickVenueCity"
                         placeholder="Contoh: Bandung"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none transition-all"
+                        class="w-full bg-slate-50/90 border border-slate-200/90 rounded-2xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
                     />
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
                         Alamat Singkat
                     </label>
                     <input
                         type="text"
                         id="quickVenueAddress"
                         placeholder="Contoh: Jl. Ir. H. Juanda No. 10"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none transition-all"
+                        class="w-full bg-slate-50/90 border border-slate-200/90 rounded-2xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
                     />
                 </div>
             </div>
 
             <!-- Info Box -->
-            <div class="flex items-start gap-2.5 p-3 rounded-xl bg-[#F4FBEA] border border-[#d6f3b0]">
-                <i class="fa-solid fa-circle-info text-[#063B00] text-xs mt-0.5 shrink-0"></i>
-                <p class="text-[11px] text-[#063B00] leading-relaxed">
+            <div class="flex items-start gap-3 p-3.5 rounded-2xl bg-[#F4FBEA] border border-[#d6f3b0]">
+                <div class="w-5 h-5 rounded-full bg-[#063B00] text-[#A8E63A] flex items-center justify-center text-[10px] shrink-0 mt-0.5 shadow-2xs">
+                    <i class="fa-solid fa-circle-info"></i>
+                </div>
+                <p class="text-xs text-[#063B00] leading-relaxed font-medium">
                     Sistem otomatis mendaftarkan court (Court 1, Court 2, dst) dan langsung memilih venue ini untuk sesi mabar Anda.
                 </p>
             </div>
 
             <!-- Error Banner -->
-            <div id="quickVenueError" class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
-                <i class="fa-solid fa-triangle-exclamation shrink-0"></i>
+            <div id="quickVenueError" class="hidden p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2.5">
+                <i class="fa-solid fa-triangle-exclamation shrink-0 text-sm"></i>
                 <span id="quickVenueErrorText"></span>
             </div>
 
             <!-- Submit & Cancel -->
-            <div class="flex items-center gap-2.5 pt-2">
+            <div class="flex items-center gap-3 pt-3 border-t border-slate-100">
                 <button
                     type="button"
                     onclick="closeQuickAddVenueModal()"
-                    class="w-1/3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all"
+                    class="w-1/3 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center justify-center cursor-pointer shadow-2xs"
                 >
                     Batal
                 </button>
                 <button
                     type="submit"
                     id="btnSubmitQuickVenue"
-                    class="w-2/3 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2"
+                    class="w-2/3 py-3 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-95"
                 >
-                    <i class="fa-solid fa-floppy-disk text-xs"></i>
-                    <span>Simpan & Pilih</span>
+                    <i class="fa-solid fa-floppy-disk text-xs text-[#A8E63A]"></i>
+                    <span>Simpan &amp; Pilih</span>
                 </button>
             </div>
         </form>
