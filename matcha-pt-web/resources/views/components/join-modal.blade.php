@@ -12,19 +12,64 @@
             Sesi mabar: <strong id="modalGameTitle" class="text-slate-900"></strong>
         </p>
 
-        <form id="joinModalForm" onsubmit="handleJoinSubmit(event)" class="space-y-3 text-xs">
+        <form id="joinModalForm" onsubmit="handleJoinSubmit(event)" class="space-y-4 text-xs">
             @csrf
 
-            @guest
+            @auth
+            @php
+                $authUser = Auth::user();
+                $authPlayer = $authUser->player ?? \App\Models\Player::where('user_id', $authUser->user_id)->orWhere('email', $authUser->email)->first();
+                $playerName = $authPlayer->nama ?? $authUser->nama ?? 'Pemain Matcha';
+                $playerGender = $authPlayer->gender ?? 'Male';
+                $playerLevel = $authPlayer->level ?? 'Intermediate';
+                $playerCommunity = $authPlayer->community->nama_community ?? 'Personal';
+                $playerPhoto = $authPlayer->foto ?? $authUser->foto ?? null;
+            @endphp
+
+            <!-- Card Profil Akun Pemain Terhubung -->
+            <div class="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50/70 via-white to-slate-50 border border-emerald-200/80 flex items-center gap-3.5 shadow-2xs">
+                <div class="w-12 h-12 rounded-full bg-[#063B00] border-2 border-[#A8E63A]/50 flex items-center justify-center text-white text-base font-black shrink-0 overflow-hidden shadow-2xs" style="width: 48px; height: 48px; min-width: 48px; min-height: 48px;">
+                    @if(!empty($playerPhoto))
+                        <img src="{{ $playerPhoto }}" alt="{{ $playerName }}" class="w-full h-full object-cover" style="width: 100%; height: 100%; object-fit: cover;">
+                    @else
+                        <span>{{ strtoupper(substr($playerName, 0, 1)) }}</span>
+                    @endif
+                </div>
+                <div class="min-w-0 flex-1 space-y-1">
+                    <div class="flex items-center gap-2">
+                        <h4 class="text-xs font-extrabold text-slate-900 truncate">{{ $playerName }}</h4>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/20">
+                            Akun Terverifikasi
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 font-medium truncate">{{ $authUser->email }}</p>
+                    <div class="flex flex-wrap gap-1.5 pt-0.5">
+                        <span class="px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-[10px] font-semibold">
+                            {{ $playerGender === 'Female' ? '🚺 Perempuan' : '🚹 Laki-laki' }}
+                        </span>
+                        <span class="px-2 py-0.5 rounded-lg bg-slate-100 border border-slate-200 text-[#063B00] text-[10px] font-bold">
+                            ⭐ {{ $playerLevel }}
+                        </span>
+                        <span class="px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-semibold">
+                            👥 {{ $playerCommunity }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <input type="hidden" name="nama" value="{{ $playerName }}">
+            <input type="hidden" name="gender" value="{{ $playerGender }}">
+            <input type="hidden" name="level" value="{{ $playerLevel }}">
+            @else
+            <!-- Mode Guest / Belum Login -->
             <div class="p-2.5 rounded-xl bg-[#EBF8D8]/80 border border-[#063B00]/15 flex items-center gap-2 text-[11px] text-[#063B00] font-semibold">
                 <i class="fa-solid fa-user-clock text-xs text-[#063B00]"></i>
                 <span>Mode Tamu: Anda bergabung sebagai <strong>Guest Player</strong> tanpa perlu login.</span>
             </div>
-            @endguest
 
             <div>
                 <label class="block text-slate-700 font-semibold mb-1">Nama Pemain <span class="text-rose-500">*</span></label>
-                <input type="text" name="nama" id="joinPlayerName" value="{{ Auth::check() ? Auth::user()->nama : '' }}" placeholder="Contoh: Alex Pratama" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none" required>
+                <input type="text" name="nama" id="joinPlayerName" placeholder="Contoh: Alex Pratama" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none" required>
             </div>
             <div class="grid grid-cols-2 gap-2">
                 <div>
@@ -44,12 +89,13 @@
                     </select>
                 </div>
             </div>
+            @endauth
 
             <div class="flex gap-2 pt-3 border-t border-slate-100">
-                <button type="button" onclick="closeJoinModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors">
+                <button type="button" onclick="closeJoinModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors cursor-pointer">
                     Batal
                 </button>
-                <button type="submit" id="joinSubmitBtn" class="flex-1 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold shadow-xs transition-colors">
+                <button type="submit" id="joinSubmitBtn" class="flex-1 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold shadow-xs transition-colors cursor-pointer">
                     Konfirmasi Gabung
                 </button>
             </div>
