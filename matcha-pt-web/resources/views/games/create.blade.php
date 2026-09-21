@@ -666,7 +666,7 @@
                         <select
                             id="quickVenueSport"
                             required
-                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none appearance-none cursor-pointer"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none appearance-none cursor-pointer"
                         >
                             <option value="Padel">Padel</option>
                             <option value="Tennis">Tennis</option>
@@ -683,7 +683,7 @@
                         <select
                             id="quickVenueCourtCount"
                             required
-                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none appearance-none cursor-pointer"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none appearance-none cursor-pointer"
                         >
                             <option value="1">1 Court</option>
                             <option value="2" selected>2 Courts</option>
@@ -707,7 +707,7 @@
                         type="text"
                         id="quickVenueCity"
                         placeholder="Contoh: Bandung"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
                     />
                 </div>
                 <div>
@@ -718,7 +718,7 @@
                         type="text"
                         id="quickVenueAddress"
                         placeholder="Contoh: Jl. Ir. H. Juanda No. 10"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
                     />
                 </div>
             </div>
