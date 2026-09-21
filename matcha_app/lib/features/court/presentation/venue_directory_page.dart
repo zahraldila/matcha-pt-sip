@@ -3,7 +3,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../data/venue_service.dart';
 import '../domain/venue_model.dart';
-import 'court_detail_page.dart';
+import 'venue_detail_page.dart';
 
 class VenueDirectoryPage extends StatefulWidget {
   const VenueDirectoryPage({super.key});
@@ -324,10 +324,20 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   }
 
   Widget _buildVenueCard(VenueModel venue) {
-    final courtCount = venue.courts.isNotEmpty ? venue.courts.length : 1;
-    final facilitiesList = venue.fasilitas != null && venue.fasilitas!.isNotEmpty
-        ? venue.fasilitas!.split(',').map((e) => e.trim()).take(4).toList()
-        : <String>[];
+    final courtCount = venue.courtCount;
+    final facilitiesList = venue.facilitiesList.take(3).toList();
+
+    void openDetail() {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VenueDetailPage(
+            venueId: venue.venueId,
+            initialVenue: venue,
+          ),
+        ),
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
@@ -344,217 +354,257 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image / Cover Header
-          Stack(
-            children: [
-              if (venue.foto != null && venue.foto!.isNotEmpty)
+      child: InkWell(
+        onTap: openDetail,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image / Cover Header with Real Photos & Badges
+            Stack(
+              children: [
                 Image.network(
-                  venue.foto!,
-                  height: 150,
+                  venue.mainPhoto,
+                  height: 160,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _buildPlaceholderCover(),
-                )
-              else
-                _buildPlaceholderCover(),
-
-              // Badge Kota / Area
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.65),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.location_on, size: 12, color: Color(0xFFA8E63A)),
-                      const SizedBox(width: 4),
-                      Text(
-                        venue.kota ?? 'Bandung',
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+                  errorBuilder: (_, _, _) => _buildPlaceholderCover(),
                 ),
-              ),
-            ],
-          ),
 
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  venue.namaVenue,
-                  style: AppTextStyles.cardTitle.copyWith(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
-                  ),
-                ),
-                if (venue.alamat != null && venue.alamat!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.pin_drop_outlined, size: 13, color: Color(0xFF94A3B8)),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          venue.alamat!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.caption.copyWith(
-                            color: const Color(0xFF64748B),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-
-                const SizedBox(height: 14),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                const SizedBox(height: 12),
-
-                // Info Grid: Jam Operasional & Jumlah Court
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Jam Operasional:',
-                            style: AppTextStyles.caption.copyWith(
-                              color: const Color(0xFF94A3B8),
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            venue.jamOperasional ?? '06:00 - 22:00 WIB',
-                            style: AppTextStyles.caption.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF1E293B),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                // Badge Sport on Top Left
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.matchaSoftLime,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.matchaDark.withValues(alpha: 0.2)),
+                    ),
+                    child: Text(
+                      venue.sportName,
+                      style: const TextStyle(
+                        color: AppColors.matchaDark,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Jumlah Court:',
-                            style: AppTextStyles.caption.copyWith(
-                              color: const Color(0xFF94A3B8),
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '$courtCount Lapangan',
-                            style: AppTextStyles.caption.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.matchaDark,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
 
-                // Facilities Chips
-                if (facilitiesList.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: facilitiesList.map((f) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          f,
-                          style: AppTextStyles.caption.copyWith(
-                            color: const Color(0xFF475569),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-
-                const SizedBox(height: 16),
-
-                // Action Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 42,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (venue.courts.isNotEmpty) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CourtDetailPage(
-                              courtId: venue.courts.first.courtId,
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.matchaDark,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                // Badge Kota on Bottom Left
+                Positioned(
+                  bottom: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'Lihat Court & Jadwal',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                        const Icon(Icons.location_on, size: 12, color: Color(0xFFA8E63A)),
+                        const SizedBox(width: 4),
+                        Text(
+                          venue.kota ?? 'Bandung',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        const Icon(Icons.arrow_forward_rounded, size: 16),
                       ],
                     ),
                   ),
                 ),
+
+                // Photo Count Badge on Bottom Right
+                if (venue.photoList.length > 1)
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.camera_alt_rounded, size: 11, color: Color(0xFFA8E63A)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${venue.photoList.length} Foto',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
-          ),
-        ],
+
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    venue.namaVenue,
+                    style: AppTextStyles.cardTitle.copyWith(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
+                    ),
+                  ),
+                  if (venue.alamat != null && venue.alamat!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.pin_drop_outlined, size: 13, color: Color(0xFF94A3B8)),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            venue.alamat!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.caption.copyWith(
+                              color: const Color(0xFF64748B),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  const SizedBox(height: 14),
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  const SizedBox(height: 12),
+
+                  // Info Grid: Jam Operasional & Jumlah Court
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Jam Operasional:',
+                              style: AppTextStyles.caption.copyWith(
+                                color: const Color(0xFF94A3B8),
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              venue.jamOperasional ?? '06:00 - 23:00 WIB',
+                              style: AppTextStyles.caption.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF1E293B),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Jumlah Court:',
+                              style: AppTextStyles.caption.copyWith(
+                                color: const Color(0xFF94A3B8),
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$courtCount Lapangan',
+                              style: AppTextStyles.caption.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.matchaDark,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Facilities Chips
+                  if (facilitiesList.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: facilitiesList.map((f) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            f,
+                            style: AppTextStyles.caption.copyWith(
+                              color: const Color(0xFF475569),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+
+                  // Action Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: ElevatedButton(
+                      onPressed: openDetail,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.matchaDark,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Lihat Venue & Jadwal',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Icon(Icons.arrow_forward_rounded, size: 16),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

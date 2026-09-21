@@ -757,7 +757,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: session.registeredPlayers.length,
-              separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
               itemBuilder: (context, index) {
                 final player = session.registeredPlayers[index];
                 final isMe = (currentUserId != null && currentUserId > 0 && player.playerId == currentUserId);

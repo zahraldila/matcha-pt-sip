@@ -106,7 +106,7 @@ class _CourtPageState extends State<CourtPage> {
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         itemCount: _courts.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final court = _courts[index];
 
@@ -219,7 +219,7 @@ class _CourtPageState extends State<CourtPage> {
       height: 150,
       width: double.infinity,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) {
+      errorBuilder: (_, _, _) {
         return Container(
           height: 150,
           width: double.infinity,

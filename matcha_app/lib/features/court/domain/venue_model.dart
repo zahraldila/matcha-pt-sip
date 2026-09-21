@@ -57,4 +57,44 @@ class VenueModel {
   }
 
   int get courtCount => courts.isNotEmpty ? courts.length : 1;
+
+  List<String> get photoList {
+    if (foto == null || foto!.trim().isEmpty) {
+      return ['https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80'];
+    }
+    final raw = foto!.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+    if (raw.isEmpty) {
+      return ['https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80'];
+    }
+    return raw.map((p) {
+      if (p.startsWith('http://') || p.startsWith('https://')) {
+        return p;
+      }
+      final clean = p.startsWith('/') ? p.substring(1) : p;
+      return 'http://demo.uteam.id:7000/$clean';
+    }).toList();
+  }
+
+  String get mainPhoto => photoList.first;
+
+  String get sportName {
+    final sports = courts.map((c) => c.sportId == 2 ? 'Tennis' : 'Padel').toSet();
+    if (sports.contains('Tennis') && sports.contains('Padel')) {
+      return 'Padel & Tennis';
+    } else if (sports.contains('Tennis')) {
+      return 'Tennis';
+    }
+    return 'Padel';
+  }
+
+  List<String> get facilitiesList {
+    if (fasilitas == null || fasilitas!.trim().isEmpty) {
+      return ['Lampu Malam (LED)', 'Shower & Toilet', 'Kantin / Cafe'];
+    }
+    return fasilitas!
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
 }

@@ -5,7 +5,7 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../court/data/venue_service.dart';
 import '../../court/domain/venue_model.dart';
-import '../../court/presentation/court_detail_page.dart';
+import '../../court/presentation/venue_detail_page.dart';
 import '../../drawing/presentation/drawing_result_page.dart';
 import '../../session/data/session_service.dart';
 import '../../session/domain/session_model.dart';
@@ -981,29 +981,28 @@ class _HomePageState extends State<HomePage> {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          if (venue.courts.isNotEmpty) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CourtDetailPage(courtId: venue.courts.first.courtId),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => VenueDetailPage(
+                venueId: venue.venueId,
+                initialVenue: venue,
+                authController: widget.authController,
               ),
-            );
-          }
+            ),
+          );
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image / Placeholder
-            if (venue.foto != null && venue.foto!.isNotEmpty)
-              Image.network(
-                venue.foto!,
-                height: 90,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildPlaceholderVenueImage(),
-              )
-            else
-              _buildPlaceholderVenueImage(),
+            // Image with fallback
+            Image.network(
+              venue.mainPhoto,
+              height: 90,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _buildPlaceholderVenueImage(),
+            ),
 
             Padding(
               padding: const EdgeInsets.all(10),
@@ -1029,13 +1028,33 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '${venue.courtCount} Court Tersedia',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.matchaDark,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${venue.courtCount} Court Tersedia',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.matchaDark,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: AppColors.matchaSoftLime,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          venue.sportName,
+                          style: const TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.matchaDark,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
