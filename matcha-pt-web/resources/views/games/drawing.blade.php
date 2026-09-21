@@ -60,7 +60,7 @@
     <!-- Header & Breadcrumb -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/50 pb-4">
         <div>
-            <a href="{{ route('games.show', $game['id']) }}" class="text-xs text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 mb-2.5 transition-colors">
+            <a href="{{ route('games.show', $game['id']) }}" class="text-xs text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 mb-2 transition-colors">
                 <i class="fa-solid fa-arrow-left"></i> Kembali ke Detail Game
             </a>
 
@@ -74,28 +74,7 @@
                     {{ $matchFormatFull }}
                 </span>
             </div>
-
-            <!-- Nama Game & Lokasi Venue -->
-            <div class="flex flex-wrap items-center gap-2.5 mt-2.5">
-                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50/90 border border-emerald-200/90 shadow-2xs">
-                    <div class="w-5 h-5 rounded-lg bg-[#063B00] text-[#A8E63A] flex items-center justify-center text-[10px] shrink-0">
-                        <i class="fa-solid fa-gamepad"></i>
-                    </div>
-                    <span class="text-sm font-extrabold text-[#063B00] tracking-tight">
-                        {{ $game['title'] ?? $game['nama_session'] ?? 'Mabar Match' }}
-                    </span>
-                </div>
-
-                @if(!empty($game['venue_name']))
-                    <span class="text-xs font-semibold text-slate-600 flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1.5 rounded-xl border border-slate-200/60">
-                        <i class="fa-solid fa-location-dot text-amber-500 text-[11px]"></i> {{ $game['venue_name'] }}
-                    </span>
-                @endif
-
-                <span class="text-xs text-slate-400 font-medium hidden sm:inline-flex items-center gap-1">
-                    &bull; Rotasi {{ $isSetBased ? 'Set Permainan' : 'Round-Robin' }} ({{ $modeBadgeLabel }})
-                </span>
-            </div>
+            <p class="text-xs text-slate-500 mt-1">Sistem drawing pertandingan dan rotasi {{ $isSetBased ? 'Set Permainan' : 'Round-Robin' }} &bull; {{ $modeBadgeLabel }}</p>
         </div>
 
         <div class="flex items-center gap-2.5">
@@ -109,6 +88,29 @@
                 </button>
             @endif
         </div>
+    </div>
+
+    <!-- Nama Game & Informasi Sesi (Di Atas Tombol Ronde) -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/70 backdrop-blur-xs rounded-2xl p-4 border border-slate-200/70 shadow-2xs">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-[#063B00] text-[#A8E63A] flex items-center justify-center text-base shadow-xs shrink-0">
+                <i class="fa-solid fa-gamepad"></i>
+            </div>
+            <div>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Nama Game</span>
+                <h2 class="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight">
+                    {{ $game['title'] ?? $game['nama_session'] ?? 'Mabar Match' }}
+                </h2>
+            </div>
+        </div>
+
+        @if(!empty($game['venue_name']))
+            <div class="flex items-center gap-2 self-start sm:self-auto">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/90 text-slate-700 text-xs font-bold border border-slate-200/80">
+                    <i class="fa-solid fa-location-dot text-amber-500 text-xs"></i> {{ $game['venue_name'] }}
+                </span>
+            </div>
+        @endif
     </div>
 
     <!-- Match Rounds Tab Selector -->
