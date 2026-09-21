@@ -67,7 +67,7 @@ class ScoringController extends Controller
             $rNum = preg_replace('/[^0-9]/', '', $rawRound);
             $activeRound = ! empty($rNum) ? "round_{$rNum}" : 'round_1';
         } else {
-            $activeRound = $savedScores['_meta']['active_round'] ?? 'round_1';
+            $activeRound = $savedScores['_meta']['active_round'] ?? $this->resolveActiveRoundFromDatabase((int) $id) ?? 'round_1';
         }
 
         $courtIndex = (int) request('court', 0);
@@ -300,7 +300,7 @@ class ScoringController extends Controller
             ];
         }
 
-        $sessionActiveRound = $scores['_meta']['active_round'] ?? $round;
+        $sessionActiveRound = $scores['_meta']['active_round'] ?? $this->resolveActiveRoundFromDatabase((int) $gameId) ?? $round;
         $sessionStatus = $scores['_meta']['status'] ?? 'in_progress';
         $isSessionFinished = ($sessionStatus === 'finished');
 
@@ -1924,12 +1924,17 @@ class ScoringController extends Controller
                 return null;
             }
 
-            $officialScore = $scores
-                ->filter(fn ($sc) => in_array(strtolower((string) ($sc->status_score ?? '')), ['final', 'completed'], true))
-                ->sortByDesc('version')
-                ->sortByDesc('score_id')
-                ->first();
-            $lastScore = $officialScore ?: $scores->sortByDesc('version')->sortByDesc('score_id')->first();
+            $isCompleted = strtolower((string) ($match->status_match ?? '')) === 'completed';
+            if ($isCompleted) {
+                $officialScore = $scores
+                    ->filter(fn ($sc) => in_array(strtolower((string) ($sc->status_score ?? '')), ['final', 'completed'], true))
+                    ->sortByDesc('version')
+                    ->sortByDesc('score_id')
+                    ->first();
+                $lastScore = $officialScore ?: $scores->sortByDesc('version')->sortByDesc('score_id')->first();
+            } else {
+                $lastScore = $scores->sortByDesc('version')->sortByDesc('score_id')->first();
+            }
             $setHistory = [];
             $setsA = 0;
             $setsB = 0;
@@ -1953,11 +1958,11 @@ class ScoringController extends Controller
                 $setsB = max($setsB, (int) $lastScore->set_score_b);
             }
 
-            $status = strtolower($match->status_match) === 'completed' ? 'completed' : 'in_progress';
+            $status = $isCompleted ? 'completed' : 'in_progress';
 
             return [
                 'match_id' => $match->match_id,
-                'version' => 1,
+                'version' => (int) ($lastScore->version ?? ($match->version ?? 1)),
                 'updated_at_ms' => $match->updated_at ? (int) round($match->updated_at->timestamp * 1000) : (int) round(microtime(true) * 1000),
                 'score_a' => $gamesA,
                 'score_b' => $gamesB,
@@ -2354,6 +2359,50 @@ class ScoringController extends Controller
                 ]);
         } catch (\Throwable $e) {
             Log::debug("Supabase realtime session finished broadcast skipped: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Cari ronde yang sedang aktif dari database (tb_match) jika cache metadata belum ada.
+     */
+    protected function resolveActiveRoundFromDatabase(int $gameId): string
+    {
+        try {
+            $drawing = Drawing::where('session_id', $gameId)->first();
+            if (! $drawing) {
+                return 'round_1';
+            }
+
+            $session = SessionModel::with('courts')->find($gameId);
+            $courtCount = $session ? max(1, $session->courts->count()) : 1;
+
+            $matches = GameMatch::where('drawing_id', $drawing->drawing_id)
+                ->orderBy('nomor_match', 'asc')
+                ->get();
+
+            if ($matches->isEmpty()) {
+                return 'round_1';
+            }
+
+            // Cari match pertama yang berstatus 'In Progress'
+            $inProgressMatch = $matches->first(fn ($m) => strtolower((string) ($m->status_match ?? '')) === 'in progress');
+            if ($inProgressMatch) {
+                $rNum = intdiv(max(0, ((int) $inProgressMatch->nomor_match) - 1), $courtCount) + 1;
+
+                return "round_{$rNum}";
+            }
+
+            // Jika semua match yang tercatat sudah selesai, ambil ronde match terakhir
+            $lastCompletedMatch = $matches->filter(fn ($m) => strtolower((string) ($m->status_match ?? '')) === 'completed')->last();
+            if ($lastCompletedMatch) {
+                $rNum = intdiv(max(0, ((int) $lastCompletedMatch->nomor_match) - 1), $courtCount) + 1;
+
+                return "round_{$rNum}";
+            }
+
+            return 'round_1';
+        } catch (\Throwable $e) {
+            return 'round_1';
         }
     }
 }
