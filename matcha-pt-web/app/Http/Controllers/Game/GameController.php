@@ -652,6 +652,8 @@ class GameController extends Controller
             $formatString .= ' / '.$jenis;
         }
 
+        $isFinished = ($dbSession->status_session === 'Finished') || str_contains(strtolower($status), 'selesai');
+
         $game = [
             'id' => $dbSession->session_id,
             'title' => $dbSession->nama_session,
@@ -665,6 +667,7 @@ class GameController extends Controller
             'quota' => $quota,
             'joined_count' => $joinedCount,
             'status' => $status,
+            'is_finished' => $isFinished,
             'level_recommendation' => 'All Level Welcome',
             'match_format' => $formatString,
             'scoring_system' => $dbSession->scoring_system ?? 'Total of 3',
@@ -689,7 +692,7 @@ class GameController extends Controller
             'drawing' => null,
         ];
 
-        return view('games.show', compact('game'));
+        return view('games.show', compact('game', 'isFinished'));
     }
 
     /**
@@ -831,6 +834,22 @@ class GameController extends Controller
     public function drawing($id, Request $request)
     {
         $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players', 'host'])->findOrFail((int) $id);
+
+        // Jika sesi sudah berstatus Finished, arahkan langsung ke halaman recap & podium
+        if ($dbSession->status_session === 'Finished') {
+            if ($request->wantsJson() || $request->ajax() || $request->has('json')) {
+                return response()->json([
+                    'success' => true,
+                    'isFinished' => true,
+                    'isLocked' => true,
+                    'recap_url' => route('scoring.recap', $dbSession->session_id),
+                    'message' => 'Pertandingan ini telah selesai. Menampilkan hasil akhir dan podium.',
+                ]);
+            }
+
+            return redirect()->route('scoring.recap', $dbSession->session_id)
+                ->with('info', 'Pertandingan ini telah selesai. Menampilkan hasil akhir dan podium juara.');
+        }
 
         // PENYESUAIAN: Cek flag is_host dan kepemilikan host_user_id
         $isHost = Auth::check()

@@ -569,8 +569,11 @@
                         </button>
                     </form>
                 @else
+                    @php
+                        $isSessionFinished = !empty($game['is_finished']) || (($savedScores['_meta']['status'] ?? '') === 'finished');
+                    @endphp
                     <a id="btnGlobalRecap" href="{{ route('scoring.recap', $game['id']) }}"
-                       class="{{ ($allCourtsCompleted ?? false) ? '' : 'hidden' }} inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
+                       class="{{ $isSessionFinished ? '' : 'hidden' }} inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
                         <span>🏁 Selesai — Buka Klasemen Akhir &amp; Podium</span>
                         <i class="fa-solid fa-trophy text-[11px] text-amber-200"></i>
                     </a>
@@ -1391,7 +1394,7 @@
             } else {
                 if (formNext) formNext.classList.add('hidden');
                 if (formFinish) formFinish.classList.add('hidden');
-                if (btnRecap) btnRecap.classList.remove('hidden');
+                // Non-host: Tombol recap hanya muncul jika sesi telah resmi diselesaikan oleh Host via event / session finished
             }
         } else {
             if (globalDot) {
@@ -1549,6 +1552,29 @@
     // Handler Utama Seluruh Scoring Event (Supabase Realtime + Polling Fallback)
     // Menjalankan Aturan Monotonic & Stale Protection (Requirement 6)
     let isTransitioningRound = false;
+    let isTransitioningSession = false;
+
+    function handleSessionFinishedEvent(payload, sourceName = 'Realtime') {
+        if (isTransitioningSession) return;
+        const isFinished = payload?.is_session_finished || payload?.status === 'finished' || payload?.status_session === 'Finished' || payload?.is_finished;
+        const recapUrl = payload?.recap_url || `{{ route('scoring.recap', $game['id']) }}`;
+
+        if (isFinished) {
+            isTransitioningSession = true;
+            console.log(`[${sourceName}] Host finished the entire session! Auto-navigating to recap & podium...`);
+            if (typeof showToast === 'function') {
+                showToast('🏆 Sesi pertandingan telah selesai! Membuka hasil akhir & podium...');
+            }
+            const btnRecap = document.getElementById('btnGlobalRecap');
+            if (btnRecap) {
+                btnRecap.classList.remove('hidden');
+            }
+            setTimeout(() => {
+                window.location.href = recapUrl;
+            }, 800);
+        }
+    }
+
     function handleRoundAdvancedEvent(payload, sourceName = 'Realtime') {
         if (!payload || isTransitioningRound) return;
         const newRound = payload.next_round || payload.active_round || payload.session_active_round;
@@ -1576,6 +1602,11 @@
         // Auto-Transition ke ronde/set baru jika Host sudah memajukan sesi
         if (payload.session_active_round && payload.session_active_round !== ACTIVE_ROUND) {
             handleRoundAdvancedEvent(payload, sourceName);
+        }
+
+        // Auto-Transition ke recap jika sesi telah diselesaikan oleh Host
+        if (payload.is_session_finished || payload.session_status === 'finished' || payload.status === 'finished') {
+            handleSessionFinishedEvent(payload, sourceName);
         }
 
         const cIdx = findCourtIndex(payload);
@@ -2213,6 +2244,10 @@
                 .on('broadcast', { event: 'round_advanced' }, ({ payload }) => {
                     console.log('[Supabase Realtime] round_advanced broadcast received:', payload);
                     handleRoundAdvancedEvent(payload, 'Realtime Broadcast');
+                })
+                .on('broadcast', { event: 'session_finished' }, ({ payload }) => {
+                    console.log('[Supabase Realtime] session_finished broadcast received:', payload);
+                    handleSessionFinishedEvent(payload, 'Realtime Broadcast');
                 })
                 .on('postgres_changes', {
                     event: '*',

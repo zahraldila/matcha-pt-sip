@@ -52,6 +52,15 @@ class ScoringController extends Controller
         $cacheKey = "scoring.game_{$game['id']}";
         $savedScores = Cache::get($cacheKey, []);
 
+        // Jika sesi sudah selesai, langsung arahkan ke halaman recap & podium
+        $isSessionFinished = ($session->status_session === 'Finished')
+            || ! empty($game['is_finished'])
+            || (($savedScores['_meta']['status'] ?? '') === 'finished');
+
+        if ($isSessionFinished) {
+            return redirect()->route('scoring.recap', $game['id']);
+        }
+
         // Tentukan round aktif (normalisasi dari query param atau default ronde aktif sesi)
         $rawRound = request('round');
         if ($rawRound) {
@@ -291,12 +300,17 @@ class ScoringController extends Controller
         }
 
         $sessionActiveRound = $scores['_meta']['active_round'] ?? $round;
+        $sessionStatus = $scores['_meta']['status'] ?? 'in_progress';
+        $isSessionFinished = ($sessionStatus === 'finished');
 
         return response()->json([
             'game_id' => (int) $gameId,
             'round' => $round,
             'session_active_round' => (string) $sessionActiveRound,
             'is_session_round_active' => ($round === $sessionActiveRound),
+            'session_status' => (string) $sessionStatus,
+            'is_session_finished' => $isSessionFinished,
+            'recap_url' => route('scoring.recap', $gameId),
             'match_key' => $matchKey,
             'version' => (int) ($score['version'] ?? 0),
             'server_version' => (int) ($score['version'] ?? 0),
@@ -1258,6 +1272,9 @@ class ScoringController extends Controller
             // Log warning, don't crash redirect
             Log::warning("Failed to persist score to database: {$e->getMessage()}");
         }
+
+        // Broadcast penyelesaian sesi pertandingan ke seluruh penonton/player
+        $this->broadcastSessionFinishedRealtime($gameId, route('scoring.recap', $gameId));
 
         return redirect()
             ->route('scoring.recap', $gameId)
@@ -2288,6 +2305,46 @@ class ScoringController extends Controller
                 ]);
         } catch (\Throwable $e) {
             Log::debug("Supabase realtime round advanced broadcast skipped: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Broadcast penyelesaian seluruh sesi pertandingan ke Supabase Realtime Channel.
+     */
+    protected function broadcastSessionFinishedRealtime(int $gameId, string $recapUrl): void
+    {
+        try {
+            $url = rtrim(config('services.supabase.url', ''), '/').'/realtime/v1/api/broadcast';
+            $key = config('services.supabase.key');
+            if (empty($url) || empty($key)) {
+                return;
+            }
+
+            Http::withoutVerifying()
+                ->withHeaders([
+                    'apikey' => $key,
+                    'Authorization' => 'Bearer '.$key,
+                    'Content-Type' => 'application/json',
+                ])
+                ->timeout(2)
+                ->post($url, [
+                    'messages' => [
+                        [
+                            'topic' => "session_{$gameId}",
+                            'event' => 'session_finished',
+                            'payload' => [
+                                'session_id' => $gameId,
+                                'status' => 'finished',
+                                'status_session' => 'Finished',
+                                'is_session_finished' => true,
+                                'recap_url' => $recapUrl,
+                                'timestamp' => now()->toIso8601String(),
+                            ],
+                        ],
+                    ],
+                ]);
+        } catch (\Throwable $e) {
+            Log::debug("Supabase realtime session finished broadcast skipped: {$e->getMessage()}");
         }
     }
 }

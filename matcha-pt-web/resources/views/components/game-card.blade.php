@@ -113,11 +113,11 @@
     <div class="pt-2 border-t border-slate-200/40">
         @if($isFinished)
             <div class="grid grid-cols-2 gap-2">
-                <a href="{{ route('games.show', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-white/80 hover:bg-white text-slate-700 text-xs font-semibold transition-all border border-slate-200/60 shadow-xs">
+                <a href="{{ route('games.show', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-white/80 hover:bg-white text-slate-700 text-xs font-semibold transition-all border border-slate-200/60 shadow-xs flex items-center justify-center">
                     Detail
                 </a>
-                <a href="{{ route('games.show', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold border border-slate-200/60">
-                    Mabar Selesai
+                <a href="{{ route('scoring.recap', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-trophy text-[10px] text-amber-600"></i> Hasil &amp; Podium
                 </a>
             </div>
         @elseif(!empty($game['is_hosted_by_me']))

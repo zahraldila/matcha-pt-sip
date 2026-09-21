@@ -17,6 +17,7 @@ use App\Models\Venue;
 use App\Services\Drawing\AmericanoService;
 use App\Services\Drawing\TeamAmericanoService;
 use App\Services\Scoring\ScoringService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -1775,6 +1776,118 @@ class DrawingAndScoringLogicTest extends TestCase
             'match_id' => $unstartedMatch->match_id,
             'player_id' => $hostPlayer->player_id,
         ]);
+    }
+
+    /**
+     * Test 20: getScore returns session_status, is_session_finished, and recap_url
+     */
+    public function test_get_score_returns_session_status_and_finish_state()
+    {
+        [$session, $hostUser] = $this->createTestSession('Double', 1);
+        Auth::login($hostUser);
+
+        $controller = new ScoringController;
+        $response = $controller->getScore($session->session_id, 'round_1');
+        $data = $response->getData(true);
+
+        $this->assertEquals('in_progress', $data['session_status']);
+        $this->assertFalse($data['is_session_finished']);
+        $this->assertStringContainsString('/scoring/recap/'.$session->session_id, $data['recap_url']);
+
+        // Mark session finished in cache
+        $cacheKey = "scoring.game_{$session->session_id}";
+        Cache::put($cacheKey, [
+            '_meta' => [
+                'status' => 'finished',
+                'last_round_key' => 'round_1',
+            ],
+        ], now()->addHours(1));
+
+        $responseFinished = $controller->getScore($session->session_id, 'round_1');
+        $dataFinished = $responseFinished->getData(true);
+
+        $this->assertEquals('finished', $dataFinished['session_status']);
+        $this->assertTrue($dataFinished['is_session_finished']);
+    }
+
+    /**
+     * Test 21: Non-host live view does not display finish or next round form during active match
+     */
+    public function test_guest_or_player_spectator_does_not_see_finish_button_during_active_rounds()
+    {
+        [$session, $hostUser, $hostPlayer, $memberUsers] = $this->createTestSession('Double', 1);
+        $guestUser = $memberUsers[0]['user'];
+        Auth::login($guestUser);
+
+        $controller = new ScoringController;
+        $request = Request::create("/scoring/live/{$session->session_id}", 'GET', [
+            'format' => 'Americano',
+            'round' => 'round_1',
+        ]);
+
+        $view = $controller->live($session->session_id, $request);
+        $html = $view->render();
+
+        // Non-host spectator should NOT have globalFinishForm or globalNextRoundForm
+        $this->assertStringNotContainsString('id="globalFinishForm"', $html);
+        $this->assertStringNotContainsString('id="globalNextRoundForm"', $html);
+        $this->assertStringNotContainsString('id="btnGlobalFinishSession"', $html);
+        $this->assertStringNotContainsString('id="btnGlobalNextRound"', $html);
+    }
+
+    /**
+     * Test 22: Accessing live scoring when session is already finished redirects directly to recap
+     */
+    public function test_live_view_redirects_to_recap_when_session_is_finished()
+    {
+        [$session, $hostUser] = $this->createTestSession('Double', 1);
+        $session->update(['status_session' => 'Finished']);
+        Auth::login($hostUser);
+
+        $controller = new ScoringController;
+        $request = Request::create("/scoring/live/{$session->session_id}", 'GET');
+
+        $response = $controller->live($session->session_id, $request);
+
+        $this->assertInstanceOf(RedirectResponse::class, $response);
+        $this->assertEquals(route('scoring.recap', $session->session_id), $response->getTargetUrl());
+    }
+
+    /**
+     * Test 23: Game show view displays finished recap button and hides drawing/scoring when session is finished
+     */
+    public function test_game_show_displays_recap_podium_and_hides_drawing_when_finished()
+    {
+        [$session, $hostUser] = $this->createTestSession('Double', 1);
+        $session->update(['status_session' => 'Finished']);
+        Auth::login($hostUser);
+
+        $controller = new GameController;
+        $view = $controller->show($session->session_id);
+        $html = $view->render();
+
+        $this->assertStringContainsString('Hasil Akhir &amp; Podium', $html);
+        $this->assertStringContainsString(route('scoring.recap', $session->session_id), $html);
+        $this->assertStringNotContainsString('Buka Drawing Tim', $html);
+        $this->assertStringNotContainsString('Live Match Scoring', $html);
+    }
+
+    /**
+     * Test 24: Game drawing redirects to recap when session is finished
+     */
+    public function test_game_drawing_redirects_to_recap_when_session_is_finished()
+    {
+        [$session, $hostUser] = $this->createTestSession('Double', 1);
+        $session->update(['status_session' => 'Finished']);
+        Auth::login($hostUser);
+
+        $controller = new GameController;
+        $request = Request::create("/games/{$session->session_id}/drawing", 'GET');
+
+        $response = $controller->drawing($session->session_id, $request);
+
+        $this->assertInstanceOf(RedirectResponse::class, $response);
+        $this->assertEquals(route('scoring.recap', $session->session_id), $response->getTargetUrl());
     }
 
     protected function invokeMethod(&$object, $methodName, array $parameters = [])

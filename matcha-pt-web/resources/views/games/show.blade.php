@@ -17,7 +17,7 @@
             <x-badge :type="strtolower($game['sport']) === 'tennis' ? 'tennis' : 'padel'">
                 {{ $game['sport'] }}
             </x-badge>
-            <x-badge :type="str_contains(strtolower($game['status']), 'ready') ? 'full' : 'open'">
+            <x-badge :type="str_contains(strtolower($game['status']), 'selesai') || !empty($game['is_finished']) ? 'finished' : (str_contains(strtolower($game['status']), 'ready') ? 'full' : 'open')">
                 {{ $game['status'] }}
             </x-badge>
         </div>
@@ -104,7 +104,7 @@
                                     </td>
                                     <td class="py-2.5 px-3">
                                         @if($player['is_member'])
-                                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">Member</span>
+                                             <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">Member</span>
                                         @else
                                             <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">Guest</span>
                                         @endif
@@ -128,33 +128,62 @@
 
         <!-- Sidebar Actions -->
         <div class="space-y-4">
-            <div class="glass-card rounded-3xl p-5 space-y-4 border border-white/90">
-                <div class="space-y-1">
-                    <h3 class="text-sm font-bold text-[#050608]">Drawing & Mulai Pertandingan</h3>
-                    <p class="text-xs text-slate-500">
-                        Pemain telah lengkap. Host dapat mengacak tim dan memulai scoring poin.
-                    </p>
-                </div>
+            @if(!empty($game['is_finished']) || str_contains(strtolower($game['status']), 'selesai'))
+                <div class="glass-card rounded-3xl p-5 space-y-4 border border-amber-200/60 bg-gradient-to-br from-amber-50/50 via-white to-emerald-50/30 shadow-xs">
+                    <div class="space-y-1.5">
+                        <div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-extrabold uppercase tracking-wider">
+                            <i class="fa-solid fa-trophy text-amber-600 text-[10px]"></i> Selesai Mabar
+                        </div>
+                        <h3 class="text-sm font-extrabold text-slate-900">Hasil Akhir &amp; Podium</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            Seluruh pertandingan pada sesi mabar ini telah selesai dimainkan dan skor akhir telah direkam secara resmi.
+                        </p>
+                    </div>
 
-                <div class="space-y-2 pt-2">
-                    <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-shuffle text-[11px]"></i> Buka Drawing Tim
-                    </a>
+                    <div class="space-y-2 pt-2">
+                        <a href="{{ route('scoring.recap', $game['id']) }}" class="w-full text-center py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-trophy text-xs text-amber-200"></i> Buka Hasil Akhir &amp; Podium
+                        </a>
+                    </div>
 
-                    <a href="{{ route('scoring.live', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#063B00] font-semibold text-xs border-1.5 border-[#063B00] transition-all shadow-xs flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-stopwatch text-[11px]"></i> Live Match Scoring
-                    </a>
+                    <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500 space-y-1.5">
+                        <p class="flex items-center gap-1.5 text-emerald-800 font-medium">
+                            <i class="fa-solid fa-circle-check text-emerald-600"></i> Rekap skor &amp; statistik tersimpan
+                        </p>
+                        <p class="flex items-center gap-1.5 text-amber-800 font-medium">
+                            <i class="fa-solid fa-medal text-amber-600"></i> Peringkat klasemen &amp; juara tersedia
+                        </p>
+                    </div>
                 </div>
+            @else
+                <div class="glass-card rounded-3xl p-5 space-y-4 border border-white/90">
+                    <div class="space-y-1">
+                        <h3 class="text-sm font-bold text-[#050608]">Drawing &amp; Mulai Pertandingan</h3>
+                        <p class="text-xs text-slate-500">
+                            Pemain telah lengkap. Host dapat mengacak tim dan memulai scoring poin.
+                        </p>
+                    </div>
 
-                <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500 space-y-1.5">
-                    <p class="flex items-center gap-1.5">
-                        <i class="fa-solid fa-check text-[#063B00]"></i> Drawing otomatis seimbang
-                    </p>
-                    <p class="flex items-center gap-1.5">
-                        <i class="fa-solid fa-check text-[#063B00]"></i> Visualisasi lapangan tennis/padel
-                    </p>
+                    <div class="space-y-2 pt-2">
+                        <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-shuffle text-[11px]"></i> Buka Drawing Tim
+                        </a>
+
+                        <a href="{{ route('scoring.live', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#063B00] font-semibold text-xs border-1.5 border-[#063B00] transition-all shadow-xs flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-stopwatch text-[11px]"></i> Live Match Scoring
+                        </a>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500 space-y-1.5">
+                        <p class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-check text-[#063B00]"></i> Drawing otomatis seimbang
+                        </p>
+                        <p class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-check text-[#063B00]"></i> Visualisasi lapangan tennis/padel
+                        </p>
+                    </div>
                 </div>
-            </div>
+            @endif
         </div>
     </div>
 </div>
