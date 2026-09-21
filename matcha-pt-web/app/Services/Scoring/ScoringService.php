@@ -765,8 +765,19 @@ class ScoringService
             ];
         }
 
+        $rawCourtNames = array_map(fn ($m) => is_array($m) ? trim((string) ($m['court_name'] ?? '')) : '', $matches);
+        $nonEmptyCourtNames = array_values(array_filter($rawCourtNames));
+        $hasDuplicateCourtNames = count($nonEmptyCourtNames) !== count(array_unique($nonEmptyCourtNames));
+
         $normalizedMatches = [];
         foreach ($matches as $mIdx => $m) {
+            $cNum = $mIdx + 1;
+            if ($hasDuplicateCourtNames || empty($m['court_name'])) {
+                $m['court_name'] = 'Court '.$cNum;
+            }
+            $m['court'] = $cNum;
+            $m['court_number'] = $cNum;
+
             $teamARaw = $m['team_a_names'] ?? ($m['teamA_names'] ?? ($m['team_a']['player_names'] ?? ($m['team_a'] ?? [])));
             $teamBRaw = $m['team_b_names'] ?? ($m['teamB_names'] ?? ($m['team_b']['player_names'] ?? ($m['team_b'] ?? [])));
 
