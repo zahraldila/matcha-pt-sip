@@ -120,10 +120,15 @@
         <div class="flex flex-wrap items-center gap-2">
             @foreach($allRoundsList as $rKey)
                 @php
-                    $rNumber = preg_replace('/[^0-9]/', '', $rKey) ?: '1';
+                    $rNumber = (int) (preg_replace('/[^0-9]/', '', $rKey) ?: '1');
+                    $currActiveNum = (int) (preg_replace('/[^0-9]/', '', $savedScores['_meta']['active_round'] ?? 'round_1') ?: 1);
                     $tabDisplayTitle = "{$unitTabLabel} {$rNumber}";
                     $isTabActive = ($activeRound === $rKey);
                     $isRoundAccessible = $roundAccess[$rKey] ?? false;
+                    // Non-host hanya bisa mengklik ronde yang sudah aktif dibuka host atau ronde lampau
+                    if (! $isHost && $rNumber > $currActiveNum) {
+                        $isRoundAccessible = false;
+                    }
                     $rScore = $savedScores[$rKey] ?? ($savedScores["{$rKey}_court_1"] ?? []);
                     $isRCompleted = (($rScore['status'] ?? '') === 'completed');
                 @endphp
@@ -142,7 +147,11 @@
                     <div class="px-3.5 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 bg-slate-100/90 text-slate-400 border-slate-200/80 cursor-not-allowed select-none">
                         <span>{{ $tabDisplayTitle }}</span>
                         <span class="text-[9px] px-1.5 py-0.2 rounded-md bg-slate-200/80 text-slate-500 font-semibold flex items-center gap-1">
-                            <i class="fa-solid fa-lock text-[8px]"></i> Terkunci
+                            @if(! $isHost && ($roundAccess[$rKey] ?? false) && $rNumber > $currActiveNum)
+                                <i class="fa-solid fa-clock text-[8px] text-amber-500"></i> Menunggu Host
+                            @else
+                                <i class="fa-solid fa-lock text-[8px]"></i> Terkunci
+                            @endif
                         </span>
                     </div>
                 @endif
@@ -1581,9 +1590,10 @@
                 showToast(`🏆 Host telah memulai ${UNIT_TAB_LABEL} ${nextRoundNum}! Membuka pertandingan...`);
             }
             setTimeout(() => {
-                const targetUrl = `{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'court' => $courtIndex]) }}&round=${newRound}`;
-                window.location.href = targetUrl;
-            }, 600);
+                const targetUrl = new URL(window.location.href);
+                targetUrl.searchParams.set('round', newRound);
+                window.location.href = targetUrl.toString();
+            }, 300);
         }
     }
 
@@ -1591,7 +1601,8 @@
         if (!payload) return;
 
         // Auto-Transition ke ronde/set baru jika Host sudah memajukan sesi
-        if (payload.session_active_round && payload.session_active_round !== ACTIVE_ROUND) {
+        const remoteRound = payload.session_active_round || payload.next_round || payload.active_round;
+        if (remoteRound && remoteRound !== ACTIVE_ROUND) {
             handleRoundAdvancedEvent(payload, sourceName);
         }
 

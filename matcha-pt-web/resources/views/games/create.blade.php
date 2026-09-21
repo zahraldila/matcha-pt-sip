@@ -261,15 +261,15 @@
                 <!-- Venue -->
                 <div class="space-y-1.5">
                     <div class="flex items-center justify-between">
-                        <label class="block text-xs font-bold text-slate-800">
-                            Venue
-                        </label>
                         <div class="flex items-center gap-2">
-                            <span class="text-[10px] text-[#063B00] font-semibold" id="venueSportBadge">Sesuai Cabang Olahraga</span>
-                            <button type="button" onclick="openQuickAddVenueModal()" class="inline-flex items-center gap-1 text-[10px] font-bold text-[#063B00] bg-[#EBF8D8] hover:bg-[#d9f2b8] px-2 py-0.5 rounded-full transition-colors">
-                                <i class="fa-solid fa-plus-circle text-[10px]"></i> + Input Venue
-                            </button>
+                            <label class="block text-xs font-bold text-slate-800">
+                                Venue
+                            </label>
+                            <span class="text-[10px] text-[#063B00] font-semibold bg-[#F4FBEA] px-2 py-0.5 rounded-full border border-[#063B00]/15" id="venueSportBadge">Sesuai Cabang Olahraga</span>
                         </div>
+                        <button type="button" onclick="openQuickAddVenueModal()" class="inline-flex items-center gap-1.5 text-xs font-bold text-[#063B00] bg-[#EBF8D8] hover:bg-[#d9f2b8] px-2.5 py-1 rounded-full border border-[#063B00]/20 transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-plus text-[10px]"></i> Tambah Venue
+                        </button>
                     </div>
 
                     <div class="relative z-40">
@@ -793,24 +793,6 @@
             }
             menu.appendChild(item);
         });
-
-        // Tombol Input Venue Baru di bagian bawah dropdown
-        const quickAddContainer = document.createElement('div');
-        quickAddContainer.className = 'p-1 border-t border-slate-100 mt-1 sticky bottom-0 bg-white/95 backdrop-blur-xs rounded-b-xl';
-        const quickAddBtn = document.createElement('button');
-        quickAddBtn.type = 'button';
-        quickAddBtn.className = 'w-full px-3 py-2 rounded-xl text-left text-xs font-bold text-[#063B00] bg-[#F4FBEA] hover:bg-[#E2F7C2] flex items-center justify-between gap-2 transition-colors cursor-pointer';
-        quickAddBtn.innerHTML = `
-            <span class="flex items-center gap-1.5"><i class="fa-solid fa-plus-circle text-xs text-[#063B00]"></i> Input Venue Baru</span>
-            <span class="text-[9px] bg-[#063B00] text-white px-1.5 py-0.5 rounded font-medium">+ Baru</span>
-        `;
-        quickAddBtn.onclick = () => {
-            menu.classList.add('hidden');
-            document.getElementById('venueDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
-            openQuickAddVenueModal();
-        };
-        quickAddContainer.appendChild(quickAddBtn);
-        menu.appendChild(quickAddContainer);
 
         const selected = venueSelect.options[venueSelect.selectedIndex];
         label.textContent = selected?.value ? selected.textContent : (venueSelect.options[0]?.textContent || 'Pilih venue');

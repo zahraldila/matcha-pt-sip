@@ -109,6 +109,7 @@ class ScoringController extends Controller
                 'updated_at' => now()->toDateTimeString(),
             ]);
             Cache::put($cacheKey, $savedScores, now()->addHours(4));
+            $this->broadcastRoundAdvancedRealtime((int) $game['id'], $sessionActiveRound, $activeRound);
         }
 
         // Bangun konteks match (tim A, tim B, istirahat, court_name, matches) untuk round aktif & court
@@ -2233,6 +2234,11 @@ class ScoringController extends Controller
                 return;
             }
 
+            $cacheKey = "scoring.game_{$gameId}";
+            $savedScores = Cache::get($cacheKey, []);
+            $sessionActiveRound = $savedScores['_meta']['active_round'] ?? 'round_1';
+            $sessionStatus = $savedScores['_meta']['status'] ?? 'in_progress';
+
             Http::withoutVerifying()
                 ->withHeaders([
                     'apikey' => $key,
@@ -2248,6 +2254,9 @@ class ScoringController extends Controller
                             'payload' => [
                                 'session_id' => $gameId,
                                 'match_key' => $matchKey,
+                                'session_active_round' => (string) $sessionActiveRound,
+                                'session_status' => (string) $sessionStatus,
+                                'is_session_finished' => ($sessionStatus === 'finished'),
                                 'score_a' => (int) ($scorePayload['games_a'] ?? 0),
                                 'score_b' => (int) ($scorePayload['games_b'] ?? 0),
                                 'games_a' => (int) ($scorePayload['games_a'] ?? 0),
