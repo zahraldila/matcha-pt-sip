@@ -46,13 +46,19 @@
                     @foreach($teamA as $idx => $player)
                         @php
                             $name = is_array($player) ? ($player['name'] ?? ($player['nama'] ?? '')) : (string)$player;
+                            $cleanName = strtolower(trim($name));
                             $gender = is_array($player) 
-                                ? ($player['gender'] ?? ($participantsMap[$name]['gender'] ?? null)) 
-                                : ($participantsMap[$name]['gender'] ?? null);
+                                ? ($player['gender'] ?? ($participantsMap[$name]['gender'] ?? ($participantsMap[$cleanName]['gender'] ?? null))) 
+                                : ($participantsMap[$name]['gender'] ?? ($participantsMap[$cleanName]['gender'] ?? null));
                             
-                            $isFemale = $gender 
-                                ? in_array(strtolower($gender), ['female', 'perempuan', 'f', 'p', 'wanita']) 
-                                : preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|mau|sekarang|naykila|sisil/i', $name);
+                            $isFemale = false;
+                            if ($gender) {
+                                $g = strtolower(trim($gender));
+                                if (in_array($g, ['female', 'perempuan', 'f', 'p', 'wanita', 'cewe', 'cewek', 'woman', 'girl'])) $isFemale = true;
+                                elseif (in_array($g, ['male', 'laki-laki', 'laki - laki', 'pria', 'm', 'l', 'cowo', 'cowok', 'man', 'boy'])) $isFemale = false;
+                            } else {
+                                $isFemale = (bool) preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|mau|sekarang|naykila|sisil|aura|zahra/i', $name);
+                            }
                         @endphp
                         <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-6 my-auto">
                             <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full {{ $isFemale ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600' }} text-white border-2 border-white shadow-lg flex items-center justify-center text-xs sm:text-sm mb-1 ring-2 ring-black/20">
@@ -78,13 +84,19 @@
                     @foreach($teamB as $idx => $player)
                         @php
                             $name = is_array($player) ? ($player['name'] ?? ($player['nama'] ?? '')) : (string)$player;
+                            $cleanName = strtolower(trim($name));
                             $gender = is_array($player) 
-                                ? ($player['gender'] ?? ($participantsMap[$name]['gender'] ?? null)) 
-                                : ($participantsMap[$name]['gender'] ?? null);
+                                ? ($player['gender'] ?? ($participantsMap[$name]['gender'] ?? ($participantsMap[$cleanName]['gender'] ?? null))) 
+                                : ($participantsMap[$name]['gender'] ?? ($participantsMap[$cleanName]['gender'] ?? null));
                             
-                            $isFemale = $gender 
-                                ? in_array(strtolower($gender), ['female', 'perempuan', 'f', 'p', 'wanita']) 
-                                : preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|mau|sekarang|naykila|sisil/i', $name);
+                            $isFemale = false;
+                            if ($gender) {
+                                $g = strtolower(trim($gender));
+                                if (in_array($g, ['female', 'perempuan', 'f', 'p', 'wanita', 'cewe', 'cewek', 'woman', 'girl'])) $isFemale = true;
+                                elseif (in_array($g, ['male', 'laki-laki', 'laki - laki', 'pria', 'm', 'l', 'cowo', 'cowok', 'man', 'boy'])) $isFemale = false;
+                            } else {
+                                $isFemale = (bool) preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|mau|sekarang|naykila|sisil|aura|zahra/i', $name);
+                            }
                         @endphp
                         <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-6 my-auto">
                             <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full {{ $isFemale ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600' }} text-white border-2 border-white shadow-lg flex items-center justify-center text-xs sm:text-sm mb-1 ring-2 ring-black/20">

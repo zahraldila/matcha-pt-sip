@@ -26,6 +26,33 @@
     if (!str_contains(strtolower($matchFormatFull), 'team')) {
         $matchFormatFull = 'Americano ' . ($isSingleMode ? 'Single' : 'Double');
     }
+
+    $getGenderHelper = function($pName) use ($participantsMap, $game) {
+        $nameStr = is_array($pName) ? ($pName['name'] ?? $pName['nama'] ?? '') : (string)$pName;
+        $nameClean = strtolower(trim($nameStr));
+        $gender = null;
+        if (is_array($pName) && !empty($pName['gender'])) {
+            $gender = $pName['gender'];
+        } elseif (isset($participantsMap[$nameStr]['gender'])) {
+            $gender = $participantsMap[$nameStr]['gender'];
+        } elseif (isset($participantsMap[$nameClean]['gender'])) {
+            $gender = $participantsMap[$nameClean]['gender'];
+        } elseif (!empty($game['participants'])) {
+            foreach ($game['participants'] as $gp) {
+                $gpName = is_array($gp) ? ($gp['name'] ?? $gp['nama'] ?? '') : (string)$gp;
+                if (strtolower(trim($gpName)) === $nameClean && !empty($gp['gender'])) {
+                    $gender = $gp['gender'];
+                    break;
+                }
+            }
+        }
+        if ($gender) {
+            $g = strtolower(trim($gender));
+            if (in_array($g, ['female', 'perempuan', 'f', 'p', 'wanita', 'cewe', 'cewek', 'woman', 'girl'])) return true;
+            if (in_array($g, ['male', 'laki-laki', 'laki - laki', 'pria', 'm', 'l', 'cowo', 'cowok', 'man', 'boy'])) return false;
+        }
+        return (bool) preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|dewi|maya|lisa|naykila|sisil|aura|zahra/i', $nameStr);
+    };
 @endphp
 
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -36,7 +63,19 @@
             <a href="{{ route('games.show', $game['id']) }}" class="text-xs text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 mb-2 transition-colors">
                 <i class="fa-solid fa-arrow-left"></i> Kembali ke Detail Game
             </a>
-            <div class="flex items-center gap-3">
+
+            <div class="flex flex-wrap items-center gap-2 mb-1.5">
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold text-[#063B00] bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-lg shadow-2xs">
+                    <i class="fa-solid fa-gamepad text-[11px] text-[#063B00]"></i> {{ $game['title'] ?? $game['nama_session'] ?? 'Mabar Match' }}
+                </span>
+                @if(!empty($game['venue_name']))
+                    <span class="text-xs text-slate-500 flex items-center gap-1">
+                        &bull; <i class="fa-solid fa-location-dot text-[10px] text-slate-400"></i> {{ $game['venue_name'] }}
+                    </span>
+                @endif
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
                 <h1 class="text-2xl font-bold text-slate-900">
                     Drawing &amp; Jadwal Pertandingan
                 </h1>
@@ -177,14 +216,15 @@
                                     <div class="flex flex-col justify-around gap-2 my-auto py-2 h-full">
                                         @foreach($tAPlayers as $pName)
                                             @php
-                                                $isFemale = preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|dewi|maya|lisa|naykila|sisil/i', $pName);
+                                                $isFemale = $getGenderHelper($pName);
+                                                $pDisplayName = is_array($pName) ? ($pName['name'] ?? $pName['nama'] ?? '') : (string)$pName;
                                             @endphp
                                             <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-6 my-auto">
                                                 <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full {{ $isFemale ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600' }} text-white border-2 border-white shadow-lg flex items-center justify-center text-xs sm:text-sm mb-1 ring-2 ring-black/20">
                                                     <i class="{{ $isFemale ? 'fa-solid fa-person-dress' : 'fa-solid fa-person' }}"></i>
                                                 </div>
                                                 <span class="text-[10px] sm:text-[11px] font-bold text-white text-center leading-tight bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-white/20 shadow-xs max-w-[95px] sm:max-w-[120px] truncate">
-                                                    {{ $pName }}
+                                                    {{ $pDisplayName }}
                                                 </span>
                                             </div>
                                         @endforeach
@@ -199,14 +239,15 @@
                                     <div class="flex flex-col justify-around gap-2 my-auto py-2 h-full items-end w-full">
                                         @foreach($tBPlayers as $pName)
                                             @php
-                                                $isFemale = preg_match('/gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|dewi|maya|lisa|naykila|sisil/i', $pName);
+                                                $isFemale = $getGenderHelper($pName);
+                                                $pDisplayName = is_array($pName) ? ($pName['name'] ?? $pName['nama'] ?? '') : (string)$pName;
                                             @endphp
                                             <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-6 my-auto">
                                                 <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full {{ $isFemale ? 'bg-gradient-to-br from-rose-400 to-pink-600' : 'bg-gradient-to-br from-sky-400 to-blue-600' }} text-white border-2 border-white shadow-lg flex items-center justify-center text-xs sm:text-sm mb-1 ring-2 ring-black/20">
                                                     <i class="{{ $isFemale ? 'fa-solid fa-person-dress' : 'fa-solid fa-person' }}"></i>
                                                 </div>
                                                 <span class="text-[10px] sm:text-[11px] font-bold text-white text-center leading-tight bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-white/20 shadow-xs max-w-[95px] sm:max-w-[120px] truncate">
-                                                    {{ $pName }}
+                                                    {{ $pDisplayName }}
                                                 </span>
                                             </div>
                                         @endforeach
@@ -436,6 +477,18 @@
         roundsData = newRounds;
         if (newParticipantsMap && Object.keys(newParticipantsMap).length > 0) {
             participantsMap = newParticipantsMap;
+            if (Array.isArray(allParticipants)) {
+                Object.values(newParticipantsMap).forEach(pItem => {
+                    if (pItem && pItem.name) {
+                        const existingIdx = allParticipants.findIndex(x => cleanPlayerName(x) === cleanPlayerName(pItem.name));
+                        if (existingIdx >= 0) {
+                            allParticipants[existingIdx] = { ...allParticipants[existingIdx], ...pItem };
+                        } else {
+                            allParticipants.push(pItem);
+                        }
+                    }
+                });
+            }
         }
 
         const roundKeys = Object.keys(roundsData).map(Number);
@@ -546,11 +599,24 @@
     function isFemalePlayer(name) {
         if (!name) return false;
         const clean = cleanPlayerName(name);
-        const p = allParticipants.find(x => cleanPlayerName(x.name) === clean) || participantsMap[name] || participantsMap[clean];
-        if (p && p.gender) {
-            return ['female', 'perempuan', 'f', 'p', 'wanita'].includes(String(p.gender).toLowerCase());
+        let p = null;
+        if (typeof name === 'object' && name.gender) {
+            p = name;
+        } else {
+            p = (Array.isArray(allParticipants) ? allParticipants.find(x => cleanPlayerName(x) === clean) : null)
+                || (participantsMap ? (participantsMap[name] || participantsMap[clean]) : null);
         }
-        return /gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|dewi|maya|lisa|naykila|sisil/i.test(name);
+        if (p && p.gender) {
+            const g = String(p.gender).trim().toLowerCase();
+            if (['female', 'perempuan', 'f', 'p', 'wanita', 'cewe', 'cewek', 'woman', 'girl'].includes(g)) {
+                return true;
+            }
+            if (['male', 'laki-laki', 'laki - laki', 'pria', 'm', 'l', 'cowo', 'cowok', 'man', 'boy'].includes(g)) {
+                return false;
+            }
+        }
+        const rawName = typeof name === 'object' ? (name.name || name.nama || '') : String(name);
+        return /gisel|davina|marame|putri|anastasia|sarah|siti|female|wanita|dewi|maya|lisa|naykila|sisil|aura|zahra/i.test(rawName);
     }
 
     function buildCourtCardHtml(match, matchIdx, totalMatches) {

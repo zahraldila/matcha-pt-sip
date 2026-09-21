@@ -1830,11 +1830,13 @@ class DrawingAndScoringLogicTest extends TestCase
         $view = $controller->live($session->session_id, $request);
         $html = $view->render();
 
-        // Non-host spectator should NOT have globalFinishForm or globalNextRoundForm
+        // Non-host spectator should NOT have globalFinishForm or globalNextRoundForm or btnGlobalRecap
         $this->assertStringNotContainsString('id="globalFinishForm"', $html);
         $this->assertStringNotContainsString('id="globalNextRoundForm"', $html);
         $this->assertStringNotContainsString('id="btnGlobalFinishSession"', $html);
         $this->assertStringNotContainsString('id="btnGlobalNextRound"', $html);
+        $this->assertStringNotContainsString('id="btnGlobalRecap"', $html);
+        $this->assertStringNotContainsString('Buka Klasemen Akhir', $html);
     }
 
     /**

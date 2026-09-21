@@ -903,6 +903,7 @@ class GameController extends Controller
             $game = [
                 'id' => $dbSession->session_id,
                 'title' => $dbSession->nama_session,
+                'nama_session' => $dbSession->nama_session,
                 'sport' => $dbSession->sport->nama_sport ?? 'Padel',
                 'venue_id' => $dbSession->venue_id,
                 'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
@@ -936,10 +937,12 @@ class GameController extends Controller
             $pName = is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->nama ?? $p->name ?? '') : (string) $p);
             $pGender = is_array($p) ? ($p['gender'] ?? 'Male') : (is_object($p) ? ($p->gender ?? 'Male') : 'Male');
             if ($pName) {
-                $participantsMap[$pName] = [
+                $participantData = [
                     'name' => $pName,
                     'gender' => $pGender,
                 ];
+                $participantsMap[$pName] = $participantData;
+                $participantsMap[strtolower(trim($pName))] = $participantData;
             }
         }
 

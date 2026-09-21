@@ -375,7 +375,7 @@
                     @endif
                 @else
                     <div class="w-full py-2.5 rounded-xl bg-slate-50 border border-slate-200/70 text-center text-xs text-slate-400 font-medium">
-                        <i class="fa-solid fa-eye text-[10px] mr-1"></i> Read-Only (Member View)
+                        <i class="fa-solid fa-eye text-[10px] mr-1"></i> Read-Only
                     </div>
                 @endif
             </div>
@@ -425,7 +425,7 @@
                     @endif
                 @else
                     <div class="w-full py-2.5 rounded-xl bg-slate-50 border border-slate-200/70 text-center text-xs text-slate-400 font-medium">
-                        <i class="fa-solid fa-eye text-[10px] mr-1"></i> Read-Only (Member View)
+                        <i class="fa-solid fa-eye text-[10px] mr-1"></i> Read-Only
                     </div>
                 @endif
             </div>
@@ -568,15 +568,6 @@
                             <i class="fa-solid fa-trophy text-[11px] text-[#A8E63A]"></i> Selesaikan Sesi &amp; Lihat Juara
                         </button>
                     </form>
-                @else
-                    @php
-                        $isSessionFinished = !empty($game['is_finished']) || (($savedScores['_meta']['status'] ?? '') === 'finished');
-                    @endphp
-                    <a id="btnGlobalRecap" href="{{ route('scoring.recap', $game['id']) }}"
-                       class="{{ $isSessionFinished ? '' : 'hidden' }} inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
-                        <span>🏁 Selesai — Buka Klasemen Akhir &amp; Podium</span>
-                        <i class="fa-solid fa-trophy text-[11px] text-amber-200"></i>
-                    </a>
                 @endif
             @endif
         </div>
