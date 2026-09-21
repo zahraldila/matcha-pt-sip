@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../core/data/mock_data_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
+import '../../auth/presentation/register_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final AuthController? authController;
@@ -14,24 +14,33 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
-  final MockDataService _dataService = MockDataService();
+class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
-    _dataService.addListener(_onDataChanged);
-    widget.authController?.addListener(_onDataChanged);
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+
+    widget.authController?.addListener(_onAuthChanged);
   }
 
   @override
   void dispose() {
-    _dataService.removeListener(_onDataChanged);
-    widget.authController?.removeListener(_onDataChanged);
+    _animController.dispose();
+    widget.authController?.removeListener(_onAuthChanged);
     super.dispose();
   }
 
-  void _onDataChanged() {
+  void _onAuthChanged() {
     if (mounted) setState(() {});
   }
 
@@ -77,21 +86,303 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final mockUser = _dataService.currentUser;
-    final loggedInUser = widget.authController?.currentUser;
+    final user = widget.authController?.currentUser;
 
-    final userName = loggedInUser?.nama ?? mockUser.name;
-    final userEmail = loggedInUser?.email ?? 'marcel@matcha.id';
-    final userLevel = loggedInUser?.level ?? 'Advanced';
-    final isHost = loggedInUser?.isHost ?? _dataService.isHostMode;
-    final avatarUrl = loggedInUser?.foto ?? mockUser.avatarUrl;
+    // Jika user adalah Guest (belum login), tampilkan Guest Locked State
+    if (user == null) {
+      return _buildGuestProfileView();
+    }
 
+    // Jika user sudah login, tampilkan Profil Lengkap
+    return _buildLoggedInProfileView(user);
+  }
+
+  /// Tampilan Profil untuk Pemain Tamu (Guest)
+  Widget _buildGuestProfileView() {
     return Scaffold(
-      backgroundColor: context.bg,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         title: Text(
           'Profil Pemain',
-          style: AppTextStyles.h2.copyWith(fontSize: 18, color: context.txtPrimary),
+          style: AppTextStyles.h2.copyWith(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+      ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            // Animated Glowing Tennis Badge
+            ScaleTransition(
+              scale: _pulseAnimation,
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF063B00), Color(0xFF1E5B10)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.matchaDark.withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.sports_tennis_rounded,
+                    size: 48,
+                    color: Color(0xFFA8E63A),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Badge Status Tamu
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.lock_outline_rounded, size: 13, color: Color(0xFFD97706)),
+                  const SizedBox(width: 5),
+                  Text(
+                    'MODE TAMU (GUEST)',
+                    style: AppTextStyles.badge.copyWith(
+                      color: const Color(0xFFD97706),
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            Text(
+              'Akses Profil & Statistik Mabar',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.h1.copyWith(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Masuk atau buat akun MATCHA untuk menyimpan riwayat bermain, tracking win rate, mengumpulkan Kudos 🔥, dan mengaktifkan hak akses Host Game.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.caption.copyWith(
+                fontSize: 13,
+                color: const Color(0xFF64748B),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Benefit List Card
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  _buildBenefitRow(
+                    icon: Icons.flash_on_rounded,
+                    color: const Color(0xFFEAB308),
+                    title: 'Gabung Mabar 1-Klik Instan',
+                    desc: 'Tidak perlu input ulang nama dan skill level tiap gabung.',
+                  ),
+                  const Divider(height: 20, color: Color(0xFFF1F5F9)),
+                  _buildBenefitRow(
+                    icon: Icons.sports_tennis_rounded,
+                    color: AppColors.matchaDark,
+                    title: 'Akses Mode Host Game',
+                    desc: 'Bikin jadwal mabar baru, acak drawing, dan input skor live.',
+                  ),
+                  const Divider(height: 20, color: Color(0xFFF1F5F9)),
+                  _buildBenefitRow(
+                    icon: Icons.groups_rounded,
+                    color: const Color(0xFF3B82F6),
+                    title: 'Bikin Komunitas Olahraga',
+                    desc: 'Bebas bangun komunitas Tennis & Padel kamu sendiri.',
+                  ),
+                  const Divider(height: 20, color: Color(0xFFF1F5F9)),
+                  _buildBenefitRow(
+                    icon: Icons.local_fire_department_rounded,
+                    color: Colors.deepOrange,
+                    title: 'Koleksi Kudos & Win Rate',
+                    desc: 'Simpan penghargaan MVP dan rasio kemenangan turnamen.',
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Action Buttons
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LoginPage(authController: widget.authController),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.matchaDark,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.login_rounded, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'Masuk ke Akun',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RegisterPage(authController: widget.authController),
+                    ),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.matchaDark,
+                  side: const BorderSide(color: AppColors.matchaDark, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'Daftar Member Baru',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBenefitRow({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String desc,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF0F172A),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                desc,
+                style: AppTextStyles.caption.copyWith(
+                  color: const Color(0xFF64748B),
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Tampilan Profil untuk Pengguna yang Sudah Login
+  Widget _buildLoggedInProfileView(dynamic user) {
+    final userName = user.nama ?? 'Pemain';
+    final userEmail = user.email ?? 'email@matcha.id';
+    final userLevel = user.level ?? 'Intermediate';
+    final isHost = user.isHost ?? false;
+    final avatarUrl = user.foto;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(
+          'Profil Pemain',
+          style: AppTextStyles.h2.copyWith(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF0F172A),
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -104,9 +395,9 @@ class _ProfilePageState extends State<ProfilePage> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: context.surf,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: context.surfBorder),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.02),
@@ -119,25 +410,34 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   CircleAvatar(
                     radius: 38,
-                    backgroundImage: NetworkImage(avatarUrl),
-                    backgroundColor: context.surfBorder,
-                    onBackgroundImageError: (e, stack) {},
-                    child: avatarUrl.isEmpty
+                    backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
+                        ? NetworkImage(avatarUrl)
+                        : null,
+                    backgroundColor: AppColors.matchaSoftLime,
+                    child: (avatarUrl == null || avatarUrl.isEmpty)
                         ? Text(
                             userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.matchaDark,
+                            ),
                           )
                         : null,
                   ),
                   const SizedBox(height: 12),
                   Text(
                     userName,
-                    style: AppTextStyles.h1.copyWith(fontSize: 18, color: context.txtPrimary),
+                    style: AppTextStyles.h1.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     userEmail,
-                    style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 12),
+                    style: AppTextStyles.caption.copyWith(color: const Color(0xFF64748B), fontSize: 12),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -151,7 +451,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
                         ),
                         child: Text(
-                          'Tier $userLevel',
+                          'Level $userLevel',
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -163,16 +463,18 @@ class _ProfilePageState extends State<ProfilePage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: context.surfSec,
+                          color: isHost ? const Color(0xFFEFF6FF) : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: context.surfBorder),
+                          border: Border.all(
+                            color: isHost ? const Color(0xFF93C5FD) : const Color(0xFFCBD5E1),
+                          ),
                         ),
                         child: Text(
-                          isHost ? '👑 Host Terverifikasi' : '👤 Personal Member',
+                          isHost ? '👑 Host Game Active' : '👤 Personal Member',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: context.txtSecondary,
+                            color: isHost ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
                           ),
                         ),
                       ),
@@ -188,10 +490,10 @@ class _ProfilePageState extends State<ProfilePage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               decoration: BoxDecoration(
-                color: isHost ? AppColors.matchaSoftLime : context.surf,
+                color: isHost ? AppColors.matchaSoftLime : Colors.white,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: isHost ? AppColors.matchaSoftLimeBorder : context.surfBorder,
+                  color: isHost ? AppColors.matchaSoftLimeBorder : const Color(0xFFE2E8F0),
                   width: 1,
                 ),
               ),
@@ -200,7 +502,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isHost ? Colors.white : context.surfSec,
+                      color: isHost ? Colors.white : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -218,7 +520,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           'Mode Host / Pembuat Mabar',
                           style: AppTextStyles.bodyMedium.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: context.txtPrimary,
+                            color: const Color(0xFF0F172A),
                             fontSize: 13,
                           ),
                         ),
@@ -227,7 +529,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               ? 'Kamu dapat mengelola sesi & input skor'
                               : 'Aktifkan untuk menjadi host mabar',
                           style: AppTextStyles.caption.copyWith(
-                            color: context.txtSecondary,
+                            color: const Color(0xFF64748B),
                             fontSize: 11,
                           ),
                         ),
@@ -239,11 +541,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     activeThumbColor: Colors.white,
                     activeTrackColor: AppColors.matchaDark,
                     onChanged: (val) {
-                      if (widget.authController != null) {
-                        widget.authController!.toggleHost();
-                      } else {
-                        _dataService.toggleHostMode();
-                      }
+                      widget.authController?.toggleHost();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
@@ -267,45 +565,18 @@ class _ProfilePageState extends State<ProfilePage> {
               alignment: Alignment.centerLeft,
               child: Text(
                 'Statistik Karir',
-                style: AppTextStyles.h2.copyWith(fontSize: 15, color: context.txtPrimary),
+                style: AppTextStyles.h2.copyWith(fontSize: 15, color: const Color(0xFF0F172A)),
               ),
             ),
             const SizedBox(height: 10),
             Row(
               children: [
-                _buildStatTile(context, 'Total Match', '${mockUser.totalMatches}', Icons.sports_tennis),
+                _buildStatTile('Total Match', '0 Match', Icons.sports_tennis),
                 const SizedBox(width: 10),
-                _buildStatTile(context, 'Win Rate', '${mockUser.winRate}%', Icons.trending_up_rounded),
+                _buildStatTile('Win Rate', '0%', Icons.trending_up_rounded),
                 const SizedBox(width: 10),
-                _buildStatTile(context, 'Kudos 🔥', '${mockUser.kudosCount}', Icons.local_fire_department_rounded),
+                _buildStatTile('Kudos 🔥', '0 Kudos', Icons.local_fire_department_rounded),
               ],
-            ),
-
-            const SizedBox(height: 22),
-
-            // Riwayat Match Terakhir
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Riwayat Pertandingan Terakhir',
-                style: AppTextStyles.h2.copyWith(fontSize: 15, color: context.txtPrimary),
-              ),
-            ),
-            const SizedBox(height: 10),
-            _buildMatchHistoryTile(
-              context,
-              date: '18 Sep 2026',
-              venue: 'Sunset Padel Court Kemang',
-              score: '21 - 18 • Win 🏆',
-              isWin: true,
-            ),
-            const SizedBox(height: 8),
-            _buildMatchHistoryTile(
-              context,
-              date: '14 Sep 2026',
-              venue: 'Gelora Tennis Center',
-              score: '19 - 21 • Loss',
-              isWin: false,
             ),
 
             const SizedBox(height: 24),
@@ -341,14 +612,14 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStatTile(BuildContext context, String label, String value, IconData icon) {
+  Widget _buildStatTile(String label, String value, IconData icon) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
         decoration: BoxDecoration(
-          color: context.surf,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: context.surfBorder),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.02),
@@ -365,78 +636,17 @@ class _ProfilePageState extends State<ProfilePage> {
               value,
               style: AppTextStyles.bodyMedium.copyWith(
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: context.txtPrimary,
+                fontSize: 13,
+                color: const Color(0xFF0F172A),
               ),
             ),
             const SizedBox(height: 2),
             Text(
               label,
-              style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 10),
+              style: AppTextStyles.caption.copyWith(color: const Color(0xFF64748B), fontSize: 10),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildMatchHistoryTile(
-    BuildContext context, {
-    required String date,
-    required String venue,
-    required String score,
-    required bool isWin,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: context.surf,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.surfBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isWin ? AppColors.matchaSoftLime : Colors.redAccent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              isWin ? Icons.emoji_events_rounded : Icons.sports_score_rounded,
-              color: isWin ? AppColors.matchaDark : Colors.redAccent,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  venue,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: context.txtPrimary,
-                    fontSize: 13,
-                  ),
-                ),
-                Text(
-                  date,
-                  style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            score,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isWin ? AppColors.matchaDark : Colors.redAccent,
-              fontSize: 12,
-            ),
-          ),
-        ],
       ),
     );
   }
