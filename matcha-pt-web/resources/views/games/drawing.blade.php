@@ -60,32 +60,42 @@
     <!-- Header & Breadcrumb -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/50 pb-4">
         <div>
-            <a href="{{ route('games.show', $game['id']) }}" class="text-xs text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 mb-2 transition-colors">
+            <a href="{{ route('games.show', $game['id']) }}" class="text-xs text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 mb-2.5 transition-colors">
                 <i class="fa-solid fa-arrow-left"></i> Kembali ke Detail Game
             </a>
 
-            <div class="flex flex-wrap items-center gap-2 mb-1.5">
-                <span class="inline-flex items-center gap-1.5 text-xs font-bold text-[#063B00] bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-lg shadow-2xs">
-                    <i class="fa-solid fa-gamepad text-[11px] text-[#063B00]"></i> {{ $game['title'] ?? $game['nama_session'] ?? 'Mabar Match' }}
-                </span>
-                @if(!empty($game['venue_name']))
-                    <span class="text-xs text-slate-500 flex items-center gap-1">
-                        &bull; <i class="fa-solid fa-location-dot text-[10px] text-slate-400"></i> {{ $game['venue_name'] }}
-                    </span>
-                @endif
-            </div>
-
             <div class="flex flex-wrap items-center gap-3">
-                <h1 class="text-2xl font-bold text-slate-900">
+                <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">
                     Drawing &amp; Jadwal Pertandingan
                 </h1>
-                <span class="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full
                     {{ $isSingleMode ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200' }}">
                     <i class="fa-solid {{ $isSingleMode ? 'fa-person' : 'fa-people-group' }} text-[10px]"></i>
                     {{ $matchFormatFull }}
                 </span>
             </div>
-            <p class="text-xs text-slate-500 mt-0.5">Sistem drawing pertandingan dan rotasi {{ $isSetBased ? 'Set Permainan' : 'Round-Robin' }} &bull; {{ $modeBadgeLabel }}</p>
+
+            <!-- Nama Game & Lokasi Venue -->
+            <div class="flex flex-wrap items-center gap-2.5 mt-2.5">
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50/90 border border-emerald-200/90 shadow-2xs">
+                    <div class="w-5 h-5 rounded-lg bg-[#063B00] text-[#A8E63A] flex items-center justify-center text-[10px] shrink-0">
+                        <i class="fa-solid fa-gamepad"></i>
+                    </div>
+                    <span class="text-sm font-extrabold text-[#063B00] tracking-tight">
+                        {{ $game['title'] ?? $game['nama_session'] ?? 'Mabar Match' }}
+                    </span>
+                </div>
+
+                @if(!empty($game['venue_name']))
+                    <span class="text-xs font-semibold text-slate-600 flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1.5 rounded-xl border border-slate-200/60">
+                        <i class="fa-solid fa-location-dot text-amber-500 text-[11px]"></i> {{ $game['venue_name'] }}
+                    </span>
+                @endif
+
+                <span class="text-xs text-slate-400 font-medium hidden sm:inline-flex items-center gap-1">
+                    &bull; Rotasi {{ $isSetBased ? 'Set Permainan' : 'Round-Robin' }} ({{ $modeBadgeLabel }})
+                </span>
+            </div>
         </div>
 
         <div class="flex items-center gap-2.5">
