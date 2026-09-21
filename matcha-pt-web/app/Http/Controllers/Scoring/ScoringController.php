@@ -1711,7 +1711,7 @@ class ScoringController extends Controller
                     'id' => $p->player_id,
                     'name' => $p->nama,
                     'gender' => $p->gender ?? 'Male',
-                    'age' => $p->usia ?? 25,
+                    'age' => $p->usia,
                     'level' => $p->level ?? 'Intermediate',
                     'is_member' => ! empty($p->user_id),
                     'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',

@@ -21,6 +21,7 @@
                 $authPlayer = $authUser->player ?? \App\Models\Player::where('user_id', $authUser->user_id)->orWhere('email', $authUser->email)->first();
                 $playerName = $authPlayer->nama ?? $authUser->nama ?? 'Pemain Matcha';
                 $playerGender = $authPlayer->gender ?? 'Male';
+                $playerAge = $authPlayer->usia ?? null;
                 $playerLevel = $authPlayer->level ?? 'Intermediate';
                 $playerCommunity = $authPlayer->community->nama_community ?? 'Personal';
                 $playerPhoto = $authPlayer->foto ?? $authUser->foto ?? null;
@@ -45,7 +46,7 @@
                     <p class="text-[11px] text-slate-500 font-medium truncate">{{ $authUser->email }}</p>
                     <div class="flex flex-wrap gap-1.5 pt-0.5">
                         <span class="px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-[10px] font-semibold">
-                            {{ $playerGender === 'Female' ? '🚺 Perempuan' : '🚹 Laki-laki' }}
+                            {{ $playerGender === 'Female' ? '🚺 Perempuan' : '🚹 Laki-laki' }}{{ !empty($playerAge) ? ", {$playerAge} th" : '' }}
                         </span>
                         <span class="px-2 py-0.5 rounded-lg bg-slate-100 border border-slate-200 text-[#063B00] text-[10px] font-bold">
                             ⭐ {{ $playerLevel }}
@@ -59,6 +60,7 @@
 
             <input type="hidden" name="nama" value="{{ $playerName }}">
             <input type="hidden" name="gender" value="{{ $playerGender }}">
+            <input type="hidden" name="usia" value="{{ $playerAge }}">
             <input type="hidden" name="level" value="{{ $playerLevel }}">
             @else
             <!-- Mode Guest / Belum Login -->
@@ -71,17 +73,21 @@
                 <label class="block text-slate-700 font-semibold mb-1">Nama Pemain <span class="text-rose-500">*</span></label>
                 <input type="text" name="nama" id="joinPlayerName" placeholder="Contoh: Alex Pratama" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none" required>
             </div>
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-3 gap-2">
                 <div>
-                    <label class="block text-slate-700 font-semibold mb-1">Gender</label>
-                    <select name="gender" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none">
+                    <label class="block text-slate-700 font-semibold mb-1">Gender <span class="text-rose-500">*</span></label>
+                    <select name="gender" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none text-xs">
                         <option value="Male">Laki-laki</option>
                         <option value="Female">Perempuan</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-slate-700 font-semibold mb-1">Level Permainan</label>
-                    <select name="level" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none">
+                    <label class="block text-slate-700 font-semibold mb-1">Usia (Thn) <span class="text-rose-500">*</span></label>
+                    <input type="number" name="usia" min="10" max="90" placeholder="24" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none text-xs" required>
+                </div>
+                <div>
+                    <label class="block text-slate-700 font-semibold mb-1">Skill Level <span class="text-rose-500">*</span></label>
+                    <select name="level" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none text-xs">
                         <option value="Newbie">Newbie</option>
                         <option value="Beginner">Beginner</option>
                         <option value="Intermediate" selected>Intermediate</option>

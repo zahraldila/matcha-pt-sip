@@ -116,7 +116,7 @@
                                         <x-badge :type="$lvl">{{ $player['level'] }}</x-badge>
                                     </td>
                                     <td class="py-2.5 px-3 text-slate-500">
-                                        {{ $player['gender'] }}, {{ $player['age'] }} th
+                                        {{ $player['gender'] }}{{ !empty($player['age']) ? ', ' . $player['age'] . ' th' : '' }}
                                     </td>
                                 </tr>
                             @endforeach

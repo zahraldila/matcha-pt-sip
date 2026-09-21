@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Game\GameController;
+use App\Models\Community;
 use App\Models\SessionModel;
 use App\Models\Venue;
-use App\Models\Community;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -26,13 +26,13 @@ class DashboardController extends Controller
 
         if ($selectedSport && $selectedSport !== 'all') {
             $sessionQuery->whereHas('sport', function ($q) use ($selectedSport) {
-                $q->whereRaw('LOWER(nama_sport) LIKE ?', ['%' . strtolower($selectedSport) . '%']);
+                $q->whereRaw('LOWER(nama_sport) LIKE ?', ['%'.strtolower($selectedSport).'%']);
             });
         }
 
         if ($selectedCity && $selectedCity !== 'all') {
             $sessionQuery->whereHas('venue', function ($q) use ($selectedCity) {
-                $q->whereRaw('LOWER(alamat) LIKE ?', ['%' . strtolower($selectedCity) . '%']);
+                $q->whereRaw('LOWER(alamat) LIKE ?', ['%'.strtolower($selectedCity).'%']);
             });
         }
 
@@ -98,9 +98,9 @@ class DashboardController extends Controller
                     return [
                         'name' => $p->nama,
                         'gender' => $p->gender ?? 'Male',
-                        'age' => $p->usia ?? 25,
+                        'age' => $p->usia,
                         'level' => $p->level ?? 'Intermediate',
-                        'is_member' => !empty($p->user_id),
+                        'is_member' => ! empty($p->user_id),
                         'phone' => $p->no_hp,
                         'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
                     ];
@@ -114,12 +114,12 @@ class DashboardController extends Controller
 
         if ($selectedSport && $selectedSport !== 'all') {
             $venueQuery->whereHas('courts.sport', function ($q) use ($selectedSport) {
-                $q->whereRaw('LOWER(nama_sport) LIKE ?', ['%' . strtolower($selectedSport) . '%']);
+                $q->whereRaw('LOWER(nama_sport) LIKE ?', ['%'.strtolower($selectedSport).'%']);
             });
         }
 
         if ($selectedCity && $selectedCity !== 'all') {
-            $venueQuery->whereRaw('LOWER(alamat) LIKE ?', ['%' . strtolower($selectedCity) . '%']);
+            $venueQuery->whereRaw('LOWER(alamat) LIKE ?', ['%'.strtolower($selectedCity).'%']);
         }
 
         $dbVenues = $venueQuery->take(6)->get();
@@ -147,29 +147,30 @@ class DashboardController extends Controller
 
         if ($selectedSport && $selectedSport !== 'all') {
             $communityQuery->where(function ($q) use ($selectedSport) {
-                $q->whereRaw('LOWER(nama_community) LIKE ?', ['%' . strtolower($selectedSport) . '%'])
-                  ->orWhereRaw('LOWER(deskripsi) LIKE ?', ['%' . strtolower($selectedSport) . '%']);
+                $q->whereRaw('LOWER(nama_community) LIKE ?', ['%'.strtolower($selectedSport).'%'])
+                    ->orWhereRaw('LOWER(deskripsi) LIKE ?', ['%'.strtolower($selectedSport).'%']);
             });
         }
 
         if ($selectedCity && $selectedCity !== 'all') {
             $communityQuery->where(function ($q) use ($selectedCity) {
-                $q->whereRaw('LOWER(nama_community) LIKE ?', ['%' . strtolower($selectedCity) . '%'])
-                  ->orWhereRaw('LOWER(deskripsi) LIKE ?', ['%' . strtolower($selectedCity) . '%']);
+                $q->whereRaw('LOWER(nama_community) LIKE ?', ['%'.strtolower($selectedCity).'%'])
+                    ->orWhereRaw('LOWER(deskripsi) LIKE ?', ['%'.strtolower($selectedCity).'%']);
             });
         }
 
         $dbCommunities = $communityQuery->take(6)->get();
         $communities = $dbCommunities->map(function ($c) {
-            $sport = str_contains(strtolower($c->nama_community . ' ' . $c->deskripsi), 'tennis') ? 'Tennis' : 'Padel';
-            if (str_contains(strtolower($c->nama_community . ' ' . $c->deskripsi), 'tennis') && str_contains(strtolower($c->nama_community . ' ' . $c->deskripsi), 'padel')) {
+            $sport = str_contains(strtolower($c->nama_community.' '.$c->deskripsi), 'tennis') ? 'Tennis' : 'Padel';
+            if (str_contains(strtolower($c->nama_community.' '.$c->deskripsi), 'tennis') && str_contains(strtolower($c->nama_community.' '.$c->deskripsi), 'padel')) {
                 $sport = 'Padel & Tennis';
             }
+
             return [
                 'id' => $c->community_id,
                 'name' => $c->nama_community,
                 'sport' => $sport,
-                'city' => str_contains(strtolower($c->nama_community . ' ' . $c->deskripsi), 'bandung') ? 'Bandung' : 'Jakarta',
+                'city' => str_contains(strtolower($c->nama_community.' '.$c->deskripsi), 'bandung') ? 'Bandung' : 'Jakarta',
                 'members_count' => $c->players->count(),
                 'admin_name' => $c->players->first()?->nama ?? 'Admin Matcha',
                 'image' => $c->logo ?: asset('images/default-community.jpg'),

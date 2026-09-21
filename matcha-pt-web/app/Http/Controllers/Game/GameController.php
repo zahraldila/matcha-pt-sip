@@ -238,7 +238,7 @@ class GameController extends Controller
                     return [
                         'name' => $p->nama,
                         'gender' => $p->gender ?? 'Male',
-                        'age' => $p->usia ?? 25,
+                        'age' => $p->usia,
                         'level' => $p->level ?? 'Intermediate',
                         'is_member' => ! empty($p->user_id),
                         'phone' => $p->no_hp,
@@ -682,7 +682,7 @@ class GameController extends Controller
                 return [
                     'name' => $p->nama,
                     'gender' => $p->gender ?? 'Male',
-                    'age' => $p->usia ?? 25,
+                    'age' => $p->usia,
                     'level' => $p->level ?? 'Intermediate',
                     'is_member' => ! empty($p->user_id),
                     'phone' => $p->no_hp,
@@ -748,9 +748,13 @@ class GameController extends Controller
         $request->validate([
             'nama' => Auth::check() ? 'nullable|string|max:255' : 'required|string|max:255',
             'gender' => 'nullable|in:Male,Female',
+            'usia' => 'nullable|integer|min:10|max:90',
             'level' => 'nullable|string|max:50',
         ], [
             'nama.required' => 'Nama pemain wajib diisi untuk bergabung ke sesi mabar.',
+            'usia.integer' => 'Usia harus berupa angka.',
+            'usia.min' => 'Usia minimal adalah 10 tahun.',
+            'usia.max' => 'Usia maksimal adalah 90 tahun.',
         ]);
 
         try {
@@ -767,6 +771,7 @@ class GameController extends Controller
                         'user_id' => $user->user_id,
                         'nama' => $request->nama ?: $user->nama,
                         'gender' => $request->gender ?: 'Male',
+                        'usia' => $request->filled('usia') ? (int) $request->usia : null,
                         'level' => $request->level ?: 'Intermediate',
                         'rating' => 3.0,
                         'no_hp' => $user->no_hp ?? null,
@@ -779,6 +784,7 @@ class GameController extends Controller
                     'user_id' => null,
                     'nama' => trim($request->nama),
                     'gender' => $request->gender ?: 'Male',
+                    'usia' => $request->filled('usia') ? (int) $request->usia : null,
                     'level' => $request->level ?: 'Intermediate',
                     'rating' => 3.0,
                     'no_hp' => null,
@@ -874,7 +880,7 @@ class GameController extends Controller
                     'id' => $p->player_id,
                     'name' => $p->nama,
                     'gender' => $p->gender ?? 'Male',
-                    'age' => $p->usia ?? 25,
+                    'age' => $p->usia,
                     'level' => $p->level ?? 'Intermediate',
                     'is_member' => true,
                     'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
