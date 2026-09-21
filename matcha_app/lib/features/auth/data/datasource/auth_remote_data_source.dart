@@ -123,7 +123,6 @@ class AuthRemoteDataSource {
             'no_hp': cleanPhone,
             'password': hashedPassword,
             'role': role,
-            'status_user': 'Active',
             'is_host': false,
             'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
