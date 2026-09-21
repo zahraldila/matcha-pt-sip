@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../main/presentation/main_shell_page.dart';
 import 'controllers/auth_controller.dart';
 
 class RegisterPage extends StatefulWidget {
