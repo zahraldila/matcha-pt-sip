@@ -52,12 +52,17 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       if (success && mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (context) => MainShellPage(authController: widget.authController),
+        final registeredEmail = _emailController.text.trim();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Pendaftaran berhasil! Silakan masuk dengan akun barumu.'),
+            backgroundColor: AppColors.matchaDark,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
           ),
-          (route) => false,
         );
+
+        Navigator.of(context).pop(registeredEmail);
       }
     }
   }

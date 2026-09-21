@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import '../../../core/data/mock_data_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../drawing/presentation/drawing_result_page.dart';
 import '../../match/presentation/match_scoring_page.dart';
 import '../../session/presentation/create_session_page.dart';
 import '../../session/presentation/session_detail_page.dart';
 
 class HomePage extends StatefulWidget {
+  final AuthController? authController;
   final VoidCallback? onExploreSessions;
   final VoidCallback? onExploreCommunity;
 
   const HomePage({
     super.key,
+    this.authController,
     this.onExploreSessions,
     this.onExploreCommunity,
   });
@@ -29,11 +32,13 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _dataService.addListener(_onDataChanged);
+    widget.authController?.addListener(_onDataChanged);
   }
 
   @override
   void dispose() {
     _dataService.removeListener(_onDataChanged);
+    widget.authController?.removeListener(_onDataChanged);
     super.dispose();
   }
 
@@ -43,8 +48,14 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = _dataService.currentUser;
-    final isHost = _dataService.isHostMode;
+    final mockUser = _dataService.currentUser;
+    final loggedInUser = widget.authController?.currentUser;
+
+    final userName = loggedInUser?.nama ?? mockUser.name;
+    final userFirstName = userName.trim().isNotEmpty ? userName.trim().split(' ').first : 'Pemain';
+    final userTier = loggedInUser?.level ?? mockUser.tier;
+    final isHost = loggedInUser?.isHost ?? _dataService.isHostMode;
+    final avatarUrl = loggedInUser?.foto ?? mockUser.avatarUrl;
     final liveSession = _dataService.activeLiveSession;
 
     final filteredSessions = _dataService.upcomingSessions.where((s) {
@@ -66,8 +77,15 @@ class _HomePageState extends State<HomePage> {
                   // User Avatar & Greeting
                   CircleAvatar(
                     radius: 22,
-                    backgroundImage: NetworkImage(user.avatarUrl),
+                    backgroundImage: NetworkImage(avatarUrl),
                     backgroundColor: context.surfBorder,
+                    onBackgroundImageError: (e, stack) {},
+                    child: avatarUrl.isEmpty
+                        ? Text(
+                            userFirstName.isNotEmpty ? userFirstName[0].toUpperCase() : 'U',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -75,7 +93,7 @@ class _HomePageState extends State<HomePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Halo, ${user.name.split(' ').first} 👋',
+                          'Halo, $userFirstName 👋',
                           style: AppTextStyles.h2.copyWith(
                             color: context.txtPrimary,
                             fontSize: 17,
@@ -85,7 +103,7 @@ class _HomePageState extends State<HomePage> {
                         Text(
                           isHost
                               ? 'Mode Host Aktif • Kelola mabar & skor'
-                              : 'Tier ${user.tier} • Winrate ${user.winRate}%',
+                              : 'Tier $userTier • Siap Mabar 🎾',
                           style: AppTextStyles.caption.copyWith(
                             color: context.txtSecondary,
                             fontSize: 12,
@@ -175,7 +193,7 @@ class _HomePageState extends State<HomePage> {
                   _buildStatPill(
                     context,
                     label: 'Mabar Ikut',
-                    value: '${user.totalMatches}',
+                    value: '${mockUser.totalMatches}',
                     icon: Icons.sports_tennis_rounded,
                     color: AppColors.matchaDark,
                   ),
@@ -183,7 +201,7 @@ class _HomePageState extends State<HomePage> {
                   _buildStatPill(
                     context,
                     label: 'Total Kudos',
-                    value: '🔥 ${user.kudosCount}',
+                    value: '🔥 ${mockUser.kudosCount}',
                     icon: Icons.local_fire_department_rounded,
                     color: Colors.deepOrange,
                   ),

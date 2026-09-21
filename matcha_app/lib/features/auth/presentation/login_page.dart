@@ -222,8 +222,8 @@ class _LoginPageState extends State<LoginPage> {
                             style: AppTextStyles.bodyMedium.copyWith(color: context.txtSecondary),
                           ),
                           GestureDetector(
-                            onTap: () {
-                              Navigator.push(
+                            onTap: () async {
+                              final registeredEmail = await Navigator.push<String>(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => RegisterPage(
@@ -231,6 +231,12 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                               );
+                              if (registeredEmail != null && registeredEmail.isNotEmpty && mounted) {
+                                setState(() {
+                                  _loginIdController.text = registeredEmail;
+                                  _passwordController.clear();
+                                });
+                              }
                             },
                             child: Text(
                               'Daftar Akun',

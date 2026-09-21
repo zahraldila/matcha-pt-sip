@@ -44,6 +44,7 @@ class _MainShellPageState extends State<MainShellPage> {
     final tabs = [
       // Tab 0: Home Dashboard
       HomePage(
+        authController: widget.authController,
         onExploreSessions: () => setState(() => _currentIndex = 1),
         onExploreCommunity: () => setState(() => _currentIndex = 2),
       ),
