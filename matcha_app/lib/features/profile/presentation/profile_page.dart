@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import '../../../core/data/mock_data_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
+import '../../auth/presentation/login_page.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final AuthController? authController;
+
+  const ProfilePage({super.key, this.authController});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -17,11 +21,13 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _dataService.addListener(_onDataChanged);
+    widget.authController?.addListener(_onDataChanged);
   }
 
   @override
   void dispose() {
     _dataService.removeListener(_onDataChanged);
+    widget.authController?.removeListener(_onDataChanged);
     super.dispose();
   }
 
@@ -29,10 +35,56 @@ class _ProfilePageState extends State<ProfilePage> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Keluar dari Akun?'),
+        content: const Text('Kamu perlu masuk kembali untuk mengakses fitur mabar dan kelola skor.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Keluar'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true && mounted) {
+      final authCtrl = widget.authController ?? AuthController();
+      await authCtrl.logout();
+
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (ctx) => LoginPage(authController: authCtrl),
+          ),
+          (route) => false,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final user = _dataService.currentUser;
-    final isHost = _dataService.isHostMode;
+    final mockUser = _dataService.currentUser;
+    final loggedInUser = widget.authController?.currentUser;
+
+    final userName = loggedInUser?.nama ?? mockUser.name;
+    final userEmail = loggedInUser?.email ?? 'marcel@matcha.id';
+    final userLevel = loggedInUser?.level ?? 'Advanced';
+    final isHost = loggedInUser?.isHost ?? _dataService.isHostMode;
+    final avatarUrl = loggedInUser?.foto ?? mockUser.avatarUrl;
 
     return Scaffold(
       backgroundColor: context.bg,
@@ -67,17 +119,24 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   CircleAvatar(
                     radius: 38,
-                    backgroundImage: NetworkImage(user.avatarUrl),
+                    backgroundImage: NetworkImage(avatarUrl),
                     backgroundColor: context.surfBorder,
+                    onBackgroundImageError: (e, stack) {},
+                    child: avatarUrl.isEmpty
+                        ? Text(
+                            userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          )
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    user.name,
+                    userName,
                     style: AppTextStyles.h1.copyWith(fontSize: 18, color: context.txtPrimary),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'marcel@matcha.id',
+                    userEmail,
                     style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 12),
                   ),
                   const SizedBox(height: 12),
@@ -91,9 +150,9 @@ class _ProfilePageState extends State<ProfilePage> {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
                         ),
-                        child: const Text(
-                          'Tier Advanced',
-                          style: TextStyle(
+                        child: Text(
+                          'Tier $userLevel',
+                          style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             color: AppColors.matchaDark,
@@ -180,7 +239,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     activeThumbColor: Colors.white,
                     activeTrackColor: AppColors.matchaDark,
                     onChanged: (val) {
-                      _dataService.toggleHostMode();
+                      if (widget.authController != null) {
+                        widget.authController!.toggleHost();
+                      } else {
+                        _dataService.toggleHostMode();
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
@@ -210,11 +273,11 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 10),
             Row(
               children: [
-                _buildStatTile(context, 'Total Match', '${user.totalMatches}', Icons.sports_tennis),
+                _buildStatTile(context, 'Total Match', '${mockUser.totalMatches}', Icons.sports_tennis),
                 const SizedBox(width: 10),
-                _buildStatTile(context, 'Win Rate', '${user.winRate}%', Icons.trending_up_rounded),
+                _buildStatTile(context, 'Win Rate', '${mockUser.winRate}%', Icons.trending_up_rounded),
                 const SizedBox(width: 10),
-                _buildStatTile(context, 'Kudos 🔥', '${user.kudosCount}', Icons.local_fire_department_rounded),
+                _buildStatTile(context, 'Kudos 🔥', '${mockUser.kudosCount}', Icons.local_fire_department_rounded),
               ],
             ),
 
@@ -244,6 +307,34 @@ class _ProfilePageState extends State<ProfilePage> {
               score: '19 - 21 • Loss',
               isWin: false,
             ),
+
+            const SizedBox(height: 24),
+
+            // Logout Button
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _handleLogout,
+                icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 18),
+                label: const Text(
+                  'Keluar dari Akun (Logout)',
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFFECACA)),
+                  backgroundColor: const Color(0xFFFEF2F2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),

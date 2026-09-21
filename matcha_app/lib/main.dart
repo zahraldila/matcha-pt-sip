@@ -1,14 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/config/supabase_config.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/splash/presentation/splash_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inisialisasi Supabase Client
+  try {
+    await Supabase.initialize(
+      url: SupabaseConfig.url,
+      // ignore: deprecated_member_use
+      anonKey: SupabaseConfig.anonKey,
+    );
+  } catch (_) {
+    // Abaikan jika sudah diinisialisasi atau mode offline
+  }
+
   runApp(const MatchaApp());
 }
 
-class MatchaApp extends StatelessWidget {
+final supabase = Supabase.instance.client;
+
+class MatchaApp extends StatefulWidget {
   const MatchaApp({super.key});
+
+  @override
+  State<MatchaApp> createState() => _MatchaAppState();
+}
+
+class _MatchaAppState extends State<MatchaApp> {
+  late final AuthController _authController;
+
+  @override
+  void initState() {
+    super.initState();
+    _authController = AuthController();
+  }
+
+  @override
+  void dispose() {
+    _authController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +53,7 @@ class MatchaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       themeMode: ThemeMode.light,
-      home: const SplashPage(),
+      home: SplashPage(authController: _authController),
     );
   }
 }

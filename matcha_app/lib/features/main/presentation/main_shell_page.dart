@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import '../../../core/data/mock_data_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../community/presentation/community_page.dart';
 import '../../home/presentation/home_page.dart';
 import '../../profile/presentation/profile_page.dart';
 import '../../session/presentation/session_list_page.dart';
 
 class MainShellPage extends StatefulWidget {
-  const MainShellPage({super.key});
+  final AuthController? authController;
+
+  const MainShellPage({super.key, this.authController});
 
   @override
   State<MainShellPage> createState() => _MainShellPageState();
@@ -52,7 +55,7 @@ class _MainShellPageState extends State<MainShellPage> {
       const CommunityPage(),
 
       // Tab 3: Profil & Pengaturan
-      const ProfilePage(),
+      ProfilePage(authController: widget.authController),
     ];
 
     return Scaffold(
