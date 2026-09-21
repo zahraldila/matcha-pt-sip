@@ -50,14 +50,25 @@ class SessionService {
           alamat,
           foto
         ),
+        tb_session_court (
+          court_id,
+          tb_court (
+            court_id,
+            nama_court
+          )
+        ),
         tb_session_player (
           player_id,
           tb_player (
             player_id,
+            user_id,
             nama,
             level,
             gender,
-            foto
+            usia,
+            foto,
+            no_hp,
+            email
           )
         )
       ''');
@@ -69,16 +80,36 @@ class SessionService {
         query = query.eq('status_session', status);
       }
 
-      final response = await query.order('datetime', ascending: false);
+      final response = await query.order('session_id', ascending: false);
 
-      return (response as List)
+      final list = (response as List)
           .map((item) => SessionModel.fromMap(Map<String, dynamic>.from(item)))
           .toList();
+
+      // Urutkan seperti di web: Open & Ready for Drawing teratas, disusul yang terbaru
+      list.sort((a, b) {
+        final aPriority = _getStatusPriority(a.statusSession);
+        final bPriority = _getStatusPriority(b.statusSession);
+        if (aPriority != bPriority) {
+          return aPriority.compareTo(bPriority);
+        }
+        return b.sessionId.compareTo(a.sessionId);
+      });
+
+      return list;
     } on PostgrestException catch (e) {
       throw Exception('Gagal mengambil data sesi mabar: ${e.message}');
     } catch (e) {
       throw Exception('Terjadi kesalahan saat memuat sesi mabar: $e');
     }
+  }
+
+  static int _getStatusPriority(String status) {
+    final s = status.toLowerCase().trim();
+    if (s == 'open') return 0;
+    if (s == 'ready for drawing') return 1;
+    if (s == 'in progress' || s == 'live') return 2;
+    return 3; // finished / completed
   }
 
   /// Mengambil detail satu sesi mabar berdasarkan ID
@@ -111,14 +142,25 @@ class SessionService {
               fasilitas,
               jam_operasional
             ),
+            tb_session_court (
+              court_id,
+              tb_court (
+                court_id,
+                nama_court
+              )
+            ),
             tb_session_player (
               player_id,
               tb_player (
                 player_id,
+                user_id,
                 nama,
                 level,
                 gender,
-                foto
+                usia,
+                foto,
+                no_hp,
+                email
               )
             )
           ''')
@@ -169,6 +211,22 @@ class SessionService {
       return res['player_id'] as int;
     } on PostgrestException catch (e) {
       throw Exception('Gagal mendaftarkan pemain tamu: ${e.message}');
+    }
+  }
+
+  /// Membatalkan keikutsertaan pemain dari sesi mabar
+  Future<void> leaveSession({
+    required int sessionId,
+    required int playerId,
+  }) async {
+    try {
+      await _supabase
+          .from('tb_session_player')
+          .delete()
+          .eq('session_id', sessionId)
+          .eq('player_id', playerId);
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal membatalkan keikutsertaan: ${e.message}');
     }
   }
 }

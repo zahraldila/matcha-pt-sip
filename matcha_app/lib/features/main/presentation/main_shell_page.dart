@@ -7,6 +7,7 @@ import '../../court/presentation/venue_directory_page.dart';
 import '../../home/presentation/home_page.dart';
 import '../../profile/presentation/profile_page.dart';
 import '../../session/presentation/create_session_page.dart';
+import '../../session/presentation/session_detail_page.dart';
 import '../../session/presentation/session_list_page.dart';
 
 class MainShellPage extends StatefulWidget {
@@ -184,7 +185,20 @@ class _MainShellPageState extends State<MainShellPage> {
       ),
 
       // Tab 1: Sesi Mabar
-      SessionListPage(authController: widget.authController),
+      SessionListPage(
+        authController: widget.authController,
+        onSessionTap: (sessionId) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SessionDetailPage(
+                sessionId: sessionId,
+                authController: widget.authController,
+              ),
+            ),
+          );
+        },
+      ),
 
       // Tab 2: Placeholder for Host Center Tab
       const SizedBox.shrink(),

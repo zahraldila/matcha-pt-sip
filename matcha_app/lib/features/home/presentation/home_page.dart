@@ -7,10 +7,11 @@ import '../../court/data/venue_service.dart';
 import '../../court/domain/venue_model.dart';
 import '../../court/presentation/court_detail_page.dart';
 import '../../drawing/presentation/drawing_result_page.dart';
-import '../../match/presentation/match_scoring_page.dart';
 import '../../session/data/session_service.dart';
 import '../../session/domain/session_model.dart';
 import '../../session/presentation/create_session_page.dart';
+import '../../session/presentation/session_detail_page.dart';
+import '../../session/presentation/widgets/join_session_modal.dart';
 
 class HomePage extends StatefulWidget {
   final AuthController? authController;
@@ -430,13 +431,35 @@ class _HomePageState extends State<HomePage> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-            // --- Session Cards / Loading / Empty State ---
+            // --- Session Cards / Loading / Error / Empty State ---
             if (_isLoading)
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.all(40),
                   child: Center(
                     child: CircularProgressIndicator(color: AppColors.matchaDark),
+                  ),
+                ),
+              )
+            else if (_errorMessage != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        const Icon(Icons.error_outline_rounded, size: 36, color: Colors.redAccent),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Gagal memuat jadwal mabar: $_errorMessage',
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.caption.copyWith(
+                            color: const Color(0xFF64748B),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               )
@@ -656,32 +679,63 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildRealSessionCard(SessionModel session) {
+    final isLive = session.statusSession.toLowerCase() == 'in progress' ||
+        session.statusSession.toLowerCase() == 'live';
+    final progress = session.jumlahPemain > 0
+        ? (session.currentPlayersCount / session.jumlahPemain).clamp(0.0, 1.0)
+        : 0.0;
+
+    void openDetail() {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SessionDetailPage(
+            sessionId: session.sessionId,
+            initialSession: session,
+            authController: widget.authController,
+          ),
+        ),
+      ).then((_) => _loadData());
+    }
+
+    void openJoin() {
+      if (session.isFull) return;
+      JoinSessionModal.show(
+        context: context,
+        session: session,
+        authController: widget.authController,
+        onJoinedSuccess: _loadData,
+      );
+    }
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isLive ? AppColors.matchaDark.withValues(alpha: 0.3) : const Color(0xFFE2E8F0),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            // Navigate to detail
-          },
+          borderRadius: BorderRadius.circular(18),
+          onTap: openDetail,
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Top Badges
                 Row(
                   children: [
                     Container(
@@ -699,50 +753,78 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Text(
-                      session.scoringSystem,
+                      '${session.jenisPermainan} • ${session.scoringSystem}',
                       style: AppTextStyles.caption.copyWith(
                         color: const Color(0xFF64748B),
                         fontSize: 11,
                       ),
                     ),
                     const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: session.statusSession.toLowerCase() == 'in progress'
-                            ? const Color(0xFFFEF2F2)
-                            : const Color(0xFFF0FDF4),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        session.statusSession,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: session.statusSession.toLowerCase() == 'in progress'
-                              ? Colors.redAccent
-                              : const Color(0xFF16A34A),
+                    if (isLive)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: Colors.redAccent.withValues(alpha: 0.4),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.circle, color: Colors.redAccent, size: 7),
+                            SizedBox(width: 4),
+                            Text(
+                              'LIVE NOW',
+                              style: TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          session.statusSession,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF16A34A),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
+
+                // Session Name
                 Text(
                   session.namaSession,
                   style: AppTextStyles.h3.copyWith(
                     color: const Color(0xFF0F172A),
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
+
+                // Location & Venue
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined, size: 13, color: Color(0xFF94A3B8)),
-                    const SizedBox(width: 4),
+                    const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF94A3B8)),
+                    const SizedBox(width: 5),
                     Expanded(
                       child: Text(
                         session.venueName,
@@ -750,50 +832,126 @@ class _HomePageState extends State<HomePage> {
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.caption.copyWith(
                           color: const Color(0xFF64748B),
-                          fontSize: 11,
+                          fontSize: 12,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
+
+                // Time / Schedule
                 Row(
                   children: [
-                    const Icon(Icons.access_time_rounded, size: 13, color: Color(0xFF94A3B8)),
-                    const SizedBox(width: 4),
+                    const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF94A3B8)),
+                    const SizedBox(width: 5),
                     Text(
-                      session.waktuSession ?? 'Waktu segera',
+                      session.waktuSession ?? 'Jadwal segera diumumkan',
                       style: AppTextStyles.caption.copyWith(
                         color: const Color(0xFF64748B),
-                        fontSize: 11,
+                        fontSize: 12,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                const SizedBox(height: 8),
+
+                // Host Info & Slot Progress
                 Row(
                   children: [
+                    CircleAvatar(
+                      radius: 10,
+                      backgroundImage: (session.hostAvatar != null && session.hostAvatar!.isNotEmpty)
+                          ? NetworkImage(session.hostAvatar!)
+                          : null,
+                      backgroundColor: AppColors.matchaSoftLime,
+                      child: (session.hostAvatar == null || session.hostAvatar!.isEmpty)
+                          ? Text(
+                              session.hostName.isNotEmpty ? session.hostName[0].toUpperCase() : 'H',
+                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.matchaDark),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Host: ${session.hostName}',
+                      style: AppTextStyles.caption.copyWith(
+                        color: const Color(0xFF475569),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const Spacer(),
                     Text(
                       '${session.currentPlayersCount}/${session.jumlahPemain} Slot Terisi',
-                      style: AppTextStyles.caption.copyWith(
+                      style: TextStyle(
                         color: session.isFull ? Colors.redAccent : AppColors.matchaDark,
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
                       ),
                     ),
-                    const Spacer(),
-                    const Text(
-                      'Buka Detail',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.matchaDark,
+                  ],
+                ),
+                const SizedBox(height: 6),
+
+                // Progress Bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 4,
+                    backgroundColor: const Color(0xFFE2E8F0),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      session.isFull ? Colors.redAccent : AppColors.matchaDark,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 10),
+
+                // Action Buttons Row: Detail & Gabung Slot
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: openDetail,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF334155),
+                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Detail', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            SizedBox(width: 4),
+                            Icon(Icons.chevron_right_rounded, size: 16),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 3),
-                    const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.matchaDark),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: session.isFull ? null : openJoin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.matchaDark,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: const Color(0xFFE2E8F0),
+                          disabledForegroundColor: const Color(0xFF94A3B8),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: Text(
+                          session.isFull ? 'Penuh' : 'Gabung Slot 🎾',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ],

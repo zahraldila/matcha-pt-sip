@@ -4,6 +4,8 @@ import '../../../core/theme/app_text_styles.dart';
 import '../data/session_service.dart';
 import '../domain/session_model.dart';
 import 'create_session_page.dart';
+import 'session_detail_page.dart';
+import 'widgets/join_session_modal.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 
 class SessionListPage extends StatefulWidget {
@@ -363,6 +365,36 @@ class _SessionListPageState extends State<SessionListPage> {
   Widget _buildSessionCard(SessionModel session) {
     final isLive = session.statusSession.toLowerCase() == 'in progress' ||
         session.statusSession.toLowerCase() == 'live';
+    final progress = session.jumlahPemain > 0
+        ? (session.currentPlayersCount / session.jumlahPemain).clamp(0.0, 1.0)
+        : 0.0;
+
+    void openDetail() {
+      if (widget.onSessionTap != null) {
+        widget.onSessionTap!(session.sessionId);
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SessionDetailPage(
+              sessionId: session.sessionId,
+              initialSession: session,
+              authController: widget.authController,
+            ),
+          ),
+        ).then((_) => _loadSessions());
+      }
+    }
+
+    void openJoin() {
+      if (session.isFull) return;
+      JoinSessionModal.show(
+        context: context,
+        session: session,
+        authController: widget.authController,
+        onJoinedSuccess: _loadSessions,
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -385,16 +417,13 @@ class _SessionListPageState extends State<SessionListPage> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
-          onTap: () {
-            if (widget.onSessionTap != null) {
-              widget.onSessionTap!(session.sessionId);
-            }
-          },
+          onTap: openDetail,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Top Badges
                 Row(
                   children: [
                     Container(
@@ -467,6 +496,8 @@ class _SessionListPageState extends State<SessionListPage> {
                   ],
                 ),
                 const SizedBox(height: 10),
+
+                // Session Name
                 Text(
                   session.namaSession,
                   style: AppTextStyles.h3.copyWith(
@@ -476,10 +507,12 @@ class _SessionListPageState extends State<SessionListPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
+
+                // Location & Venue
                 Row(
                   children: [
                     const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF94A3B8)),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 5),
                     Expanded(
                       child: Text(
                         session.venueName,
@@ -494,10 +527,12 @@ class _SessionListPageState extends State<SessionListPage> {
                   ],
                 ),
                 const SizedBox(height: 4),
+
+                // Time / Schedule
                 Row(
                   children: [
                     const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF94A3B8)),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 5),
                     Text(
                       session.waktuSession ?? 'Jadwal belum ditentukan',
                       style: AppTextStyles.caption.copyWith(
@@ -507,40 +542,102 @@ class _SessionListPageState extends State<SessionListPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
                 const SizedBox(height: 10),
+
+                // Host Info & Slot Progress
                 Row(
                   children: [
+                    CircleAvatar(
+                      radius: 10,
+                      backgroundImage: (session.hostAvatar != null && session.hostAvatar!.isNotEmpty)
+                          ? NetworkImage(session.hostAvatar!)
+                          : null,
+                      backgroundColor: AppColors.matchaSoftLime,
+                      child: (session.hostAvatar == null || session.hostAvatar!.isEmpty)
+                          ? Text(
+                              session.hostName.isNotEmpty ? session.hostName[0].toUpperCase() : 'H',
+                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.matchaDark),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 6),
                     Text(
-                      '${session.currentPlayersCount}/${session.jumlahPemain} Slot Terisi',
+                      'Host: ${session.hostName}',
                       style: AppTextStyles.caption.copyWith(
-                        color: session.isFull ? Colors.redAccent : AppColors.matchaDark,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        color: const Color(0xFF475569),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
                       ),
                     ),
                     const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.matchaDark,
-                        borderRadius: BorderRadius.circular(10),
+                    Text(
+                      '${session.currentPlayersCount}/${session.jumlahPemain} Slot Terisi',
+                      style: TextStyle(
+                        color: session.isFull ? Colors.redAccent : AppColors.matchaDark,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Buka Mabar',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                          SizedBox(width: 4),
-                          Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white),
-                        ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+
+                // Progress Bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 4,
+                    backgroundColor: const Color(0xFFE2E8F0),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      session.isFull ? Colors.redAccent : AppColors.matchaDark,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 10),
+
+                // Action Buttons Row: Detail & Gabung Slot
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: openDetail,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF334155),
+                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Detail', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            SizedBox(width: 4),
+                            Icon(Icons.chevron_right_rounded, size: 16),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: session.isFull ? null : openJoin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.matchaDark,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: const Color(0xFFE2E8F0),
+                          disabledForegroundColor: const Color(0xFF94A3B8),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: Text(
+                          session.isFull ? 'Penuh' : 'Gabung Slot 🎾',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
                       ),
                     ),
                   ],
