@@ -1712,6 +1712,7 @@ class DrawingAndScoringLogicTest extends TestCase
     public function test_drawing_state_endpoint_returns_rounds_and_participants_map_for_spectator_sync()
     {
         [$session, $hostUser] = $this->createTestSession('Double', 2);
+        $session->update(['status_session' => 'Ready for Drawing']);
         Auth::login($hostUser);
 
         $controller = new GameController;
@@ -1734,6 +1735,7 @@ class DrawingAndScoringLogicTest extends TestCase
     public function test_drawing_shuffle_clears_stale_unstarted_match_participants()
     {
         [$session, $hostUser, $hostPlayer, $memberUsers] = $this->createTestSession('Double', 2);
+        $session->update(['status_session' => 'Ready for Drawing']);
         Auth::login($hostUser);
 
         $drawing = Drawing::create([
@@ -1888,6 +1890,35 @@ class DrawingAndScoringLogicTest extends TestCase
 
         $this->assertInstanceOf(RedirectResponse::class, $response);
         $this->assertEquals(route('scoring.recap', $session->session_id), $response->getTargetUrl());
+    }
+
+    /**
+     * Test 25: Drawing json endpoint returns redirect_url and detects In Progress status
+     */
+    public function test_drawing_endpoint_returns_redirect_url_and_detects_in_progress_lock()
+    {
+        [$session, $hostUser] = $this->createTestSession('Double', 1);
+        $session->update(['status_session' => 'Ready for Drawing']);
+        Auth::login($hostUser);
+
+        $controller = new GameController;
+        $request = Request::create("/games/{$session->session_id}/drawing", 'GET', ['json' => 1]);
+
+        $response = $controller->drawing($session->session_id, $request);
+        $data = json_decode($response->getContent(), true);
+
+        $this->assertTrue($data['success']);
+        $this->assertFalse($data['isLocked']);
+        $this->assertArrayHasKey('redirect_url', $data);
+        $this->assertStringContainsString('/scoring/live/'.$session->session_id, $data['redirect_url']);
+
+        // Lock session (status: In Progress)
+        $session->update(['status_session' => 'In Progress']);
+
+        $responseLocked = $controller->drawing($session->session_id, $request);
+        $dataLocked = json_decode($responseLocked->getContent(), true);
+
+        $this->assertTrue($dataLocked['isLocked']);
     }
 
     protected function invokeMethod(&$object, $methodName, array $parameters = [])

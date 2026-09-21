@@ -422,6 +422,9 @@
     const isHostUser = @json($isHost ?? false);
     const gameSessionId = {{ (int) $game['id'] }};
     const liveScoringUrl = '{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano']) }}';
+    const SUPABASE_URL = '{{ config('services.supabase.url') }}';
+    const SUPABASE_KEY = '{{ config('services.supabase.key') }}';
+
     // ── Realtime Drawing Sync & Lock Detector (Untuk Penonton / Player) ──────
     function applyRemoteDrawingUpdate(newRounds, newParticipantsMap, message = 'Jadwal & susunan tim diacak ulang oleh Host! 🎲') {
         if (!newRounds || Object.keys(newRounds).length === 0) return;
@@ -466,13 +469,13 @@
             }
             setTimeout(() => {
                 window.location.href = url || liveScoringUrl;
-            }, 600);
+            }, 500);
         };
 
         // 1. Supabase Realtime Listener (Instant Push for drawing_locked & drawing_shuffled)
-        if (window.supabase && supabaseUrl && supabaseKey) {
+        if (window.supabase && SUPABASE_URL && SUPABASE_KEY) {
             try {
-                const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+                const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 sb.channel('session_' + gameSessionId)
                     .on('broadcast', { event: 'drawing_locked' }, ({ payload }) => {
                         console.log('[Drawing Realtime] Drawing locked event received:', payload);
@@ -484,13 +487,15 @@
                         const newMap = payload?.participantsMap;
                         applyRemoteDrawingUpdate(newRounds, newMap, '🎲 Host telah mengacak ulang jadwal pertandingan!');
                     })
-                    .subscribe();
+                    .subscribe((status) => {
+                        console.log('[Drawing Realtime] Status:', status);
+                    });
             } catch (err) {
                 console.warn('[Drawing Realtime] Init error:', err);
             }
         }
 
-        // 2. Smart Polling Fallback (setiap 2 detik untuk deteksi lock dan shuffle otomatis)
+        // 2. Smart Polling Fallback (setiap 1.2 detik untuk deteksi lock dan shuffle otomatis)
         const checkLockInterval = setInterval(async () => {
             if (isRedirecting) {
                 clearInterval(checkLockInterval);
@@ -504,7 +509,7 @@
                     const data = await res.json();
                     if (data && data.isLocked) {
                         clearInterval(checkLockInterval);
-                        triggerRedirectToLive();
+                        triggerRedirectToLive(data.redirect_url);
                         return;
                     }
                     if (data && (data.rounds || data.drawingData?.rounds)) {
@@ -512,8 +517,10 @@
                         applyRemoteDrawingUpdate(newRounds, data.participantsMap, '🎲 Jadwal diperbarui otomatis.');
                     }
                 }
-            } catch (e) {}
-        }, 2000);
+            } catch (e) {
+                // Ignore network error
+            }
+        }, 1200);
     }
 
     function cleanPlayerName(n) {

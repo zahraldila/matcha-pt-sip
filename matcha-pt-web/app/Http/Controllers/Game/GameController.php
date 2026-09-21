@@ -948,7 +948,7 @@ class GameController extends Controller
         if (Cache::get("drawing.locked_{$game['id']}", false)) {
             $isLocked = true;
         }
-        if (isset($dbSession->status_session) && in_array(strtolower($dbSession->status_session), ['in_progress', 'completed', 'finished'])) {
+        if (isset($dbSession->status_session) && in_array(strtolower($dbSession->status_session), ['in progress', 'in_progress', 'completed', 'finished', 'selesai'])) {
             $isLocked = true;
         }
         $cacheKey = "scoring.game_{$game['id']}";
@@ -1084,6 +1084,7 @@ class GameController extends Controller
                 'drawingData' => $drawingData,
                 'rounds' => $rounds,
                 'participantsMap' => $participantsMap,
+                'redirect_url' => route('scoring.live', ['id' => $dbSession->session_id, 'format' => $game['match_format'] ?? 'Americano']),
             ]);
         }
 
