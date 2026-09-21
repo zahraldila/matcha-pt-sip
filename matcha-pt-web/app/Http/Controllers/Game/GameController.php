@@ -48,11 +48,16 @@ class GameController extends Controller
             return 'Selesai Mabar';
         }
 
+        // Jika kuota pemain masih tersisa, sesi harus berstatus Open agar pemain lain dapat mendaftar
+        if ($slotLeft > 0) {
+            return "Open ({$slotLeft} Slot Left)";
+        }
+
         if (in_array($status, ['in_progress', 'in progress'], true)) {
             return 'Sedang Berlangsung';
         }
 
-        return $slotLeft === 0 ? 'Ready for Drawing' : "Open ({$slotLeft} Slot Left)";
+        return 'Ready for Drawing';
     }
 
     public static function resolveSessionDuration(SessionModel $session): string
@@ -719,7 +724,12 @@ class GameController extends Controller
         }
 
         $statusLower = strtolower($session->status_session ?? '');
-        if (in_array($statusLower, ['in progress', 'completed', 'finished'])) {
+        $quota = (int) ($session->jumlah_pemain ?? 6);
+        $currentJoined = $session->players->count();
+        $slotLeft = max(0, $quota - $currentJoined);
+
+        // Tutup pendaftaran jika sesi sudah selesai atau pertandingan sudah berlangsung dan kuota sudah penuh
+        if (in_array($statusLower, ['completed', 'finished']) || ($slotLeft === 0 && in_array($statusLower, ['in progress', 'in_progress']))) {
             $statusMsg = 'Pendaftaran ditutup: Sesi mabar ini sudah berlangsung atau telah selesai.';
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
@@ -730,9 +740,6 @@ class GameController extends Controller
 
             return back()->with('error', $statusMsg);
         }
-
-        $quota = (int) ($session->jumlah_pemain ?? 6);
-        $currentJoined = $session->players->count();
 
         if ($currentJoined >= $quota) {
             if ($request->wantsJson() || $request->ajax()) {

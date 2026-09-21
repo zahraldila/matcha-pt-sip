@@ -17,7 +17,7 @@
             <x-badge :type="strtolower($game['sport']) === 'tennis' ? 'tennis' : 'padel'">
                 {{ $game['sport'] }}
             </x-badge>
-            <x-badge :type="str_contains(strtolower($game['status']), 'selesai') || !empty($game['is_finished']) ? 'finished' : (str_contains(strtolower($game['status']), 'ready') ? 'full' : 'open')">
+            <x-badge :type="str_contains(strtolower($game['status']), 'selesai') || !empty($game['is_finished']) ? 'finished' : (str_contains(strtolower($game['status']), 'sedang') || str_contains(strtolower($game['status']), 'in progress') ? 'playing' : (str_contains(strtolower($game['status']), 'ready') ? 'full' : 'open'))">
                 {{ $game['status'] }}
             </x-badge>
         </div>
@@ -82,9 +82,15 @@
                     <h3 class="text-sm font-bold text-slate-900">
                         Daftar Peserta ({{ count($game['participants']) }}/{{ $game['quota'] }})
                     </h3>
-                    <span class="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                        Kuota Lengkap
-                    </span>
+                    @if(count($game['participants']) >= $game['quota'])
+                        <span class="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 inline-flex items-center gap-1">
+                            <i class="fa-solid fa-circle-check text-emerald-600 text-[10px]"></i> Kuota Lengkap
+                        </span>
+                    @else
+                        <span class="text-xs font-semibold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 inline-flex items-center gap-1">
+                            <i class="fa-solid fa-user-clock text-amber-600 text-[10px]"></i> Tersisa {{ max(0, $game['quota'] - count($game['participants'])) }} Slot
+                        </span>
+                    @endif
                 </div>
 
                 <div class="overflow-x-auto">
@@ -171,22 +177,35 @@
                     </div>
                 </div>
             @else
+                @php
+                    $isFull = count($game['participants']) >= $game['quota'];
+                @endphp
                 <div class="glass-card rounded-3xl p-5 space-y-4 border border-white/90">
                     <div class="space-y-1">
                         <h3 class="text-sm font-bold text-[#050608]">Drawing &amp; Mulai Pertandingan</h3>
-                        <p class="text-xs text-slate-500">
-                            Pemain telah lengkap. Host dapat mengacak tim dan memulai scoring poin.
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            @if($isFull)
+                                Pemain telah lengkap ({{ count($game['participants']) }}/{{ $game['quota'] }}). Host dapat mengacak tim dan memulai scoring poin.
+                            @else
+                                Sesi mabar masih membuka pendaftaran ({{ count($game['participants']) }}/{{ $game['quota'] }}). Masih dibutuhkan {{ max(0, $game['quota'] - count($game['participants'])) }} pemain lagi sebelum drawing tim.
+                            @endif
                         </p>
                     </div>
 
                     <div class="space-y-2 pt-2">
-                        <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5">
-                            <i class="fa-solid fa-shuffle text-[11px]"></i> Buka Drawing Tim
-                        </a>
+                        @if($isFull)
+                            <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-shuffle text-[11px]"></i> Buka Drawing Tim
+                            </a>
 
-                        <a href="{{ route('scoring.live', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#063B00] font-semibold text-xs border-1.5 border-[#063B00] transition-all shadow-xs flex items-center justify-center gap-1.5">
-                            <i class="fa-solid fa-stopwatch text-[11px]"></i> Live Match Scoring
-                        </a>
+                            <a href="{{ route('scoring.live', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#063B00] font-semibold text-xs border-1.5 border-[#063B00] transition-all shadow-xs flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-stopwatch text-[11px]"></i> Live Match Scoring
+                            </a>
+                        @else
+                            <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs border border-slate-200 transition-all flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-shuffle text-[11px]"></i> Buka Drawing Tim (Preview)
+                            </a>
+                        @endif
                     </div>
 
                     <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500 space-y-1.5">

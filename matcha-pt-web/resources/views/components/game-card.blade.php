@@ -4,7 +4,7 @@
     $sportType = strtolower($game['sport']) === 'tennis' ? 'tennis' : 'padel';
     $statusType = match(true) {
         str_contains(strtolower($game['status']), 'selesai') || !empty($game['is_finished']) => 'finished',
-        str_contains(strtolower($game['status']), 'in progress') => 'playing',
+        str_contains(strtolower($game['status']), 'in progress') || str_contains(strtolower($game['status']), 'sedang') => 'playing',
         str_contains(strtolower($game['status']), 'ready') => 'full',
         str_contains(strtolower($game['status']), 'open') => 'open',
         default => 'default',
