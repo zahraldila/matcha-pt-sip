@@ -53,42 +53,50 @@ class _ProfilePageState extends State<ProfilePage> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: context.surf,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: context.surfBorder),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
                   CircleAvatar(
-                    radius: 40,
+                    radius: 38,
                     backgroundImage: NetworkImage(user.avatarUrl),
                     backgroundColor: context.surfBorder,
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   Text(
                     user.name,
                     style: AppTextStyles.h1.copyWith(fontSize: 18, color: context.txtPrimary),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     'marcel@matcha.id',
                     style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 12),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(10),
+                          color: AppColors.matchaSoftLime,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
                         ),
-                        child: Text(
-                          'Tier ${user.tier}',
+                        child: const Text(
+                          'Tier Advanced',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: context.brandColor,
+                            color: AppColors.matchaDark,
                           ),
                         ),
                       ),
@@ -97,7 +105,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: context.surfSec,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: context.surfBorder),
                         ),
                         child: Text(
@@ -121,11 +129,11 @@ class _ProfilePageState extends State<ProfilePage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               decoration: BoxDecoration(
-                color: context.surf,
-                borderRadius: BorderRadius.circular(20),
+                color: isHost ? AppColors.matchaSoftLime : context.surf,
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: isHost ? AppColors.primary.withValues(alpha: 0.5) : context.surfBorder,
-                  width: 1.2,
+                  color: isHost ? AppColors.matchaSoftLimeBorder : context.surfBorder,
+                  width: 1,
                 ),
               ),
               child: Row(
@@ -133,16 +141,16 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: (isHost ? AppColors.primary : Colors.grey).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(14),
+                      color: isHost ? Colors.white : context.surfSec,
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       isHost ? Icons.sports_tennis_rounded : Icons.person_outline_rounded,
-                      color: isHost ? context.brandColor : Colors.grey,
+                      color: isHost ? AppColors.matchaDark : Colors.grey,
                       size: 22,
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,7 +177,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   Switch(
                     value: isHost,
-                    activeThumbColor: context.brandColor,
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: AppColors.matchaDark,
                     onChanged: (val) {
                       _dataService.toggleHostMode();
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -209,7 +218,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 22),
 
             // Riwayat Match Terakhir
             Align(
@@ -249,10 +258,17 @@ class _ProfilePageState extends State<ProfilePage> {
           color: context.surf,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: context.surfBorder),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           children: [
-            Icon(icon, size: 18, color: context.brandColor),
+            Icon(icon, size: 18, color: AppColors.matchaDark),
             const SizedBox(height: 6),
             Text(
               value,
@@ -292,12 +308,12 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: (isWin ? AppColors.primary : Colors.redAccent).withValues(alpha: 0.15),
+              color: isWin ? AppColors.matchaSoftLime : Colors.redAccent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               isWin ? Icons.emoji_events_rounded : Icons.sports_score_rounded,
-              color: isWin ? context.brandColor : Colors.redAccent,
+              color: isWin ? AppColors.matchaDark : Colors.redAccent,
               size: 18,
             ),
           ),
@@ -325,7 +341,7 @@ class _ProfilePageState extends State<ProfilePage> {
             score,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: isWin ? context.brandColor : Colors.redAccent,
+              color: isWin ? AppColors.matchaDark : Colors.redAccent,
               fontSize: 12,
             ),
           ),

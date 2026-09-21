@@ -65,30 +65,26 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   // User Avatar & Greeting
                   CircleAvatar(
-                    radius: 24,
+                    radius: 22,
                     backgroundImage: NetworkImage(user.avatarUrl),
                     backgroundColor: context.surfBorder,
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Halo, ${user.name.split(' ').first} 👋',
-                              style: AppTextStyles.h2.copyWith(
-                                color: context.txtPrimary,
-                                fontSize: 18,
-                              ),
-                            ),
-                          ],
+                        Text(
+                          'Halo, ${user.name.split(' ').first} 👋',
+                          style: AppTextStyles.h2.copyWith(
+                            color: context.txtPrimary,
+                            fontSize: 17,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           isHost
-                              ? 'Mode Host Aktif • Siap kelola mabar'
+                              ? 'Mode Host Aktif • Kelola mabar & skor'
                               : 'Tier ${user.tier} • Winrate ${user.winRate}%',
                           style: AppTextStyles.caption.copyWith(
                             color: context.txtSecondary,
@@ -115,14 +111,16 @@ class _HomePageState extends State<HomePage> {
                       );
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: isHost
-                            ? AppColors.primary.withValues(alpha: 0.15)
-                            : Colors.blueAccent.withValues(alpha: 0.12),
+                            ? AppColors.matchaSoftLime
+                            : const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isHost ? AppColors.primary : Colors.blueAccent,
+                          color: isHost
+                              ? const Color(0xFF063B00).withValues(alpha: 0.3)
+                              : const Color(0xFF93C5FD),
                           width: 1,
                         ),
                       ),
@@ -131,15 +129,15 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           Icon(
                             isHost ? Icons.sports_tennis : Icons.person_outline,
-                            size: 14,
-                            color: isHost ? context.brandColor : Colors.blueAccent,
+                            size: 13,
+                            color: isHost ? AppColors.matchaDark : const Color(0xFF1D4ED8),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             isHost ? 'HOST' : 'MEMBER',
                             style: AppTextStyles.badge.copyWith(
                               fontSize: 10,
-                              color: isHost ? context.brandColor : Colors.blueAccent,
+                              color: isHost ? AppColors.matchaDark : const Color(0xFF1D4ED8),
                             ),
                           ),
                         ],
@@ -171,7 +169,7 @@ class _HomePageState extends State<HomePage> {
                     label: 'Sesi Aktif',
                     value: '1 Live',
                     icon: Icons.flash_on_rounded,
-                    color: AppColors.liveBadge,
+                    color: Colors.redAccent,
                   ),
                   const SizedBox(width: 10),
                   _buildStatPill(
@@ -179,7 +177,7 @@ class _HomePageState extends State<HomePage> {
                     label: 'Mabar Ikut',
                     value: '${user.totalMatches}',
                     icon: Icons.sports_tennis_rounded,
-                    color: Colors.orangeAccent,
+                    color: AppColors.matchaDark,
                   ),
                   const SizedBox(width: 10),
                   _buildStatPill(
@@ -187,14 +185,14 @@ class _HomePageState extends State<HomePage> {
                     label: 'Total Kudos',
                     value: '🔥 ${user.kudosCount}',
                     icon: Icons.local_fire_department_rounded,
-                    color: Colors.redAccent,
+                    color: Colors.deepOrange,
                   ),
                 ],
               ),
             ),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
           // --- Quick Action Grid (Host vs Member) ---
           SliverToBoxAdapter(
@@ -203,19 +201,14 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Aksi Cepat',
-                        style: AppTextStyles.h2.copyWith(
-                          color: context.txtPrimary,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Aksi Cepat',
+                    style: AppTextStyles.h2.copyWith(
+                      color: context.txtPrimary,
+                      fontSize: 15,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
@@ -224,7 +217,7 @@ class _HomePageState extends State<HomePage> {
                           title: 'Buat Sesi Mabar',
                           subtitle: 'Jadwal & Kuota',
                           icon: Icons.add_circle_outline_rounded,
-                          color: AppColors.primary,
+                          accentColor: AppColors.matchaDark,
                           onTap: () {
                             Navigator.push(
                               context,
@@ -242,7 +235,7 @@ class _HomePageState extends State<HomePage> {
                           title: 'Drawing & Tim',
                           subtitle: 'Bagan & Acak',
                           icon: Icons.shuffle_rounded,
-                          color: Colors.amberAccent,
+                          accentColor: const Color(0xFF047857),
                           onTap: () {
                             Navigator.push(
                               context,
@@ -260,7 +253,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 28)),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
           // --- Upcoming Sessions Header & Sport Filter Pills ---
           SliverToBoxAdapter(
@@ -279,7 +272,7 @@ class _HomePageState extends State<HomePage> {
                             'Jadwal Mabar Terbuka',
                             style: AppTextStyles.h2.copyWith(
                               color: context.txtPrimary,
-                              fontSize: 16,
+                              fontSize: 15,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -287,7 +280,7 @@ class _HomePageState extends State<HomePage> {
                             'Pilih sesi dan amankan kuota slotmu',
                             style: AppTextStyles.caption.copyWith(
                               color: context.txtSecondary,
-                              fontSize: 12,
+                              fontSize: 11,
                             ),
                           ),
                         ],
@@ -297,15 +290,15 @@ class _HomePageState extends State<HomePage> {
                         child: Text(
                           'Lihat Semua',
                           style: AppTextStyles.button.copyWith(
-                            color: context.brandColor,
+                            color: AppColors.matchaDark,
                             fontSize: 12,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  // Filter Pills
+                  const SizedBox(height: 10),
+                  // Filter Pills (Matching matcha-pt-web)
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
@@ -326,7 +319,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          const SliverToBoxAdapter(child: SizedBox(height: 14)),
 
           // --- List Sesi Mabar Terbuka ---
           SliverPadding(
@@ -355,13 +348,22 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? (context.isDarkMode ? AppColors.primary : const Color(0xFF063B00))
-              : context.surfSec,
-          borderRadius: BorderRadius.circular(16),
+              ? AppColors.matchaDark
+              : context.surf,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? Colors.transparent : context.surfBorder,
+            color: isSelected ? AppColors.matchaDark : context.surfBorder,
             width: 1,
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.matchaDark.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -369,8 +371,8 @@ class _HomePageState extends State<HomePage> {
             if (icon != null) ...[
               Icon(
                 icon,
-                size: 14,
-                color: isSelected ? (context.isDarkMode ? Colors.black : Colors.white) : context.txtSecondary,
+                size: 13,
+                color: isSelected ? Colors.white : context.txtSecondary,
               ),
               const SizedBox(width: 6),
             ],
@@ -379,9 +381,7 @@ class _HomePageState extends State<HomePage> {
               style: AppTextStyles.bodySmall.copyWith(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected
-                    ? (context.isDarkMode ? Colors.black : Colors.white)
-                    : context.txtSecondary,
+                color: isSelected ? Colors.white : context.txtSecondary,
               ),
             ),
           ],
@@ -401,9 +401,16 @@ class _HomePageState extends State<HomePage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: context.surfSec,
+          color: context.surf,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: context.surfBorder, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -440,7 +447,7 @@ class _HomePageState extends State<HomePage> {
     required String title,
     required String subtitle,
     required IconData icon,
-    required Color color,
+    required Color accentColor,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -448,19 +455,26 @@ class _HomePageState extends State<HomePage> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: context.surfSec,
-          borderRadius: BorderRadius.circular(18),
+          color: context.surf,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: context.surfBorder, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14),
+                color: accentColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 20),
+              child: Icon(icon, color: accentColor, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -494,19 +508,16 @@ class _HomePageState extends State<HomePage> {
   Widget _buildLiveMatchCard(BuildContext context, MatchaSession session) {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: context.isDarkMode
-              ? [const Color(0xFF14240B), const Color(0xFF111318)]
-              : [const Color(0xFF063B00), const Color(0xFF0B5203)],
+        gradient: const LinearGradient(
+          colors: [Color(0xFF063B00), Color(0xFF0A4F01)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1.5),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.15),
-            blurRadius: 18,
+            color: const Color(0xFF063B00).withValues(alpha: 0.25),
+            blurRadius: 16,
             offset: const Offset(0, 6),
           ),
         ],
@@ -514,7 +525,7 @@ class _HomePageState extends State<HomePage> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(20),
           onTap: () {
             Navigator.push(
               context,
@@ -531,9 +542,9 @@ class _HomePageState extends State<HomePage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.redAccent.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.redAccent, width: 1),
+                        color: Colors.redAccent.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.6), width: 1),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -548,7 +559,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           const SizedBox(width: 5),
                           const Text(
-                            'LIVE MATCH',
+                            'MATCH LIVE',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -559,12 +570,19 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const Spacer(),
-                    Text(
-                      'Court 1 • Set ${_dataService.currentSet}',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.matchaLime.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Court 1 • Set 1',
+                        style: TextStyle(
+                          color: AppColors.matchaLime,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -582,18 +600,18 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   '${session.venueName} • ${session.time}',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: Colors.white.withValues(alpha: 0.8),
                     fontSize: 12,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 // Score Preview Pill
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    color: Colors.black.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -616,14 +634,14 @@ class _HomePageState extends State<HomePage> {
                           Text(
                             '${_dataService.teamAPoints} - ${_dataService.teamBPoints}',
                             style: const TextStyle(
-                              color: AppColors.primary,
+                              color: AppColors.matchaLime,
                               fontSize: 20,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 1.5,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primary),
+                          const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.matchaLime),
                         ],
                       ),
                     ],
@@ -642,16 +660,23 @@ class _HomePageState extends State<HomePage> {
     final isJoined = session.participants.any((p) => p.id == user.id);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: context.surf,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: context.surfBorder, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           onTap: () {
             Navigator.push(
               context,
@@ -669,21 +694,22 @@ class _HomePageState extends State<HomePage> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
+                        color: AppColors.matchaSoftLime,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
                       ),
                       child: Text(
                         session.sport.toUpperCase(),
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: context.brandColor,
+                          color: AppColors.matchaDark,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Text(
                       session.matchFormat,
                       style: AppTextStyles.caption.copyWith(
@@ -694,10 +720,10 @@ class _HomePageState extends State<HomePage> {
                     const Spacer(),
                     Text(
                       'Rp ${(session.pricePerPerson / 1000).toStringAsFixed(0)}k/org',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: context.brandColor,
+                        color: AppColors.matchaDark,
                       ),
                     ),
                   ],
@@ -722,7 +748,7 @@ class _HomePageState extends State<HomePage> {
                         '${session.venueName}, ${session.location}',
                         style: AppTextStyles.caption.copyWith(
                           color: context.txtSecondary,
-                          fontSize: 12,
+                          fontSize: 11,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -739,25 +765,25 @@ class _HomePageState extends State<HomePage> {
                       '${session.date} • ${session.time}',
                       style: AppTextStyles.caption.copyWith(
                         color: context.txtSecondary,
-                        fontSize: 12,
+                        fontSize: 11,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 // Participants & Join Button
                 Row(
                   children: [
                     // Avatar stack
                     SizedBox(
-                      height: 28,
+                      height: 26,
                       child: Row(
                         children: [
                           for (int i = 0; i < session.participants.length && i < 3; i++)
                             Align(
                               widthFactor: 0.7,
                               child: CircleAvatar(
-                                radius: 14,
+                                radius: 13,
                                 backgroundColor: context.surfBorder,
                                 backgroundImage: NetworkImage(session.participants[i].avatarUrl),
                               ),
@@ -766,7 +792,7 @@ class _HomePageState extends State<HomePage> {
                           Text(
                             '${session.participants.length}/${session.maxParticipants} Kuota',
                             style: AppTextStyles.caption.copyWith(
-                              color: session.isFull ? Colors.redAccent : context.txtSecondary,
+                              color: session.isFull ? Colors.redAccent : AppColors.matchaDark,
                               fontWeight: FontWeight.bold,
                               fontSize: 11,
                             ),
@@ -796,8 +822,8 @@ class _HomePageState extends State<HomePage> {
                         decoration: BoxDecoration(
                           color: isJoined
                               ? context.surfSec
-                              : (context.isDarkMode ? AppColors.primary : const Color(0xFF063B00)),
-                          borderRadius: BorderRadius.circular(12),
+                              : AppColors.matchaDark,
+                          borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: isJoined ? context.surfBorder : Colors.transparent,
                           ),
@@ -809,7 +835,7 @@ class _HomePageState extends State<HomePage> {
                             fontWeight: FontWeight.bold,
                             color: isJoined
                                 ? context.txtSecondary
-                                : (context.isDarkMode ? Colors.black : Colors.white),
+                                : Colors.white,
                           ),
                         ),
                       ),

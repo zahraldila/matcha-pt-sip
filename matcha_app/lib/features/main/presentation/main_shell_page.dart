@@ -58,6 +58,7 @@ class _MainShellPageState extends State<MainShellPage> {
     return Scaffold(
       backgroundColor: context.bg,
       appBar: AppBar(
+        backgroundColor: context.bg,
         title: Row(
           children: [
             Image.asset(
@@ -68,12 +69,12 @@ class _MainShellPageState extends State<MainShellPage> {
                 children: [
                   const Text('🎾', style: TextStyle(fontSize: 18)),
                   const SizedBox(width: 6),
-                  Text(
+                  const Text(
                     'MATCHA',
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.5,
-                      color: context.brandColor,
+                      color: AppColors.matchaDark,
                       fontSize: 16,
                     ),
                   ),
@@ -88,11 +89,13 @@ class _MainShellPageState extends State<MainShellPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: isHost
-                      ? context.brandColor.withValues(alpha: 0.15)
-                      : AppColors.info.withValues(alpha: 0.15),
+                      ? AppColors.matchaSoftLime
+                      : const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isHost ? context.brandColor : AppColors.info,
+                    color: isHost
+                        ? const Color(0xFF063B00).withValues(alpha: 0.3)
+                        : const Color(0xFF93C5FD),
                     width: 1,
                   ),
                 ),
@@ -102,13 +105,13 @@ class _MainShellPageState extends State<MainShellPage> {
                     Icon(
                       isHost ? Icons.sports_tennis_rounded : Icons.person_outline_rounded,
                       size: 13,
-                      color: isHost ? context.brandColor : AppColors.info,
+                      color: isHost ? AppColors.matchaDark : const Color(0xFF1D4ED8),
                     ),
                     const SizedBox(width: 5),
                     Text(
                       isHost ? 'HOST MODE' : 'MEMBER',
                       style: AppTextStyles.badge.copyWith(
-                        color: isHost ? context.brandColor : AppColors.info,
+                        color: isHost ? AppColors.matchaDark : const Color(0xFF1D4ED8),
                         fontSize: 10,
                       ),
                     ),
@@ -122,16 +125,25 @@ class _MainShellPageState extends State<MainShellPage> {
       body: tabs[_currentIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: context.surf,
+          color: Colors.white,
           border: Border(top: BorderSide(color: context.surfBorder, width: 1)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) => setState(() => _currentIndex = index),
-          selectedItemColor: context.brandColor,
+          selectedItemColor: AppColors.matchaDark,
           unselectedItemColor: context.txtSecondary,
-          backgroundColor: context.surf,
+          backgroundColor: Colors.white,
           type: BottomNavigationBarType.fixed,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 11),
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),

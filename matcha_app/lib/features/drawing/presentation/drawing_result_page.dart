@@ -49,7 +49,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             IconButton(
               icon: Icon(
                 isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
-                color: isLocked ? Colors.amberAccent : context.txtSecondary,
+                color: isLocked ? AppColors.matchaDark : context.txtSecondary,
               ),
               tooltip: isLocked ? 'Buka Kunci Drawing' : 'Kunci Drawing',
               onPressed: () {
@@ -78,19 +78,20 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: context.surfSec,
+                color: AppColors.matchaSoftLime,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: context.surfBorder),
+                border: Border.all(color: AppColors.matchaSoftLimeBorder),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.matchaSoftLimeBorder),
                     ),
-                    child: Icon(Icons.info_outline_rounded, color: context.brandColor, size: 20),
+                    child: const Icon(Icons.info_outline_rounded, color: AppColors.matchaDark, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -101,13 +102,13 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                           isLocked ? 'Drawing Dikunci (Siap Main)' : 'Drawing Otomatis Seimbang',
                           style: AppTextStyles.bodyMedium.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: context.txtPrimary,
+                            color: AppColors.matchaDark,
                           ),
                         ),
                         Text(
                           'Sistem Matcha mengundi pasangan bermain berdasarkan kesetaraan tier pemain.',
                           style: AppTextStyles.caption.copyWith(
-                            color: context.txtSecondary,
+                            color: AppColors.matchaDark.withValues(alpha: 0.8),
                             fontSize: 11,
                           ),
                         ),
@@ -118,15 +119,15 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
             // Match Cards per Court
             for (var match in matches) ...[
               _buildCourtMatchCard(context, match),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
             ],
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
             // Host Actions: Shuffle & Start Match
             if (isHost) ...[
@@ -149,8 +150,8 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                       label: const Text('Acak Tim'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        foregroundColor: context.txtPrimary,
-                        side: BorderSide(color: context.surfBorder),
+                        foregroundColor: AppColors.matchaDark,
+                        side: const BorderSide(color: AppColors.matchaDark, width: 1.5),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                     ),
@@ -168,8 +169,8 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                       label: const Text('Mulai Match'),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        backgroundColor: context.brandColor,
-                        foregroundColor: Colors.black,
+                        backgroundColor: AppColors.matchaDark,
+                        foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                     ),
@@ -191,8 +192,8 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   label: const Text('Pantau Live Score (Penonton)'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: context.brandColor,
-                    foregroundColor: Colors.black,
+                    backgroundColor: AppColors.matchaDark,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                 ),
@@ -208,8 +209,15 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     return Container(
       decoration: BoxDecoration(
         color: context.surf,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: context.surfBorder, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -225,7 +233,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: match.status == 'live' ? Colors.redAccent : Colors.amberAccent,
+                      color: match.status == 'live' ? Colors.redAccent : Colors.orangeAccent,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -240,7 +248,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: context.surfSec,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   match.status == 'live' ? 'Live • Set 1' : 'Menunggu',
@@ -253,7 +261,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           // Team A vs Team B Lineup
           Row(
             children: [
@@ -263,7 +271,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: context.surfSec,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: context.surfBorder),
                   ),
                   child: Column(
@@ -271,9 +279,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     children: [
                       const Text(
                         'TIM A',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.matchaDark),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       for (var p in match.teamA) ...[
                         Row(
                           children: [
@@ -308,7 +316,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: context.surfSec,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: context.surfBorder),
                   ),
                   child: Column(
@@ -316,9 +324,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     children: [
                       const Text(
                         'TIM B',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orangeAccent),
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.deepOrange),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       for (var p in match.teamB) ...[
                         Row(
                           children: [

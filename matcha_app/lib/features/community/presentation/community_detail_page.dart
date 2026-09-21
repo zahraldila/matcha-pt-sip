@@ -66,8 +66,15 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: context.surf,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: context.surfBorder),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
                     child: Column(
                       children: [
@@ -76,7 +83,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                           backgroundImage: NetworkImage(com.logoUrl),
                           backgroundColor: context.surfBorder,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         Text(
                           com.name,
                           style: AppTextStyles.h1.copyWith(fontSize: 18, color: context.txtPrimary),
@@ -85,13 +92,13 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                         const SizedBox(height: 4),
                         Text(
                           '${com.sport.toUpperCase()} • ${com.location}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: context.brandColor,
+                            color: AppColors.matchaDark,
                           ),
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -104,7 +111,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
 
                   // Deskripsi
                   Text(
@@ -117,7 +124,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: context.surf,
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: context.surfBorder),
                     ),
                     child: Text(
@@ -126,7 +133,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
 
                   // Jadwal Mabar Rutin
                   Text(
@@ -138,29 +145,29 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: context.surfSec,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: context.surfBorder),
+                      color: AppColors.matchaSoftLime,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.matchaSoftLimeBorder),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.calendar_month_rounded, color: context.brandColor, size: 24),
-                        const SizedBox(width: 14),
+                        const Icon(Icons.calendar_month_rounded, color: AppColors.matchaDark, size: 24),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 com.regularSchedule,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: context.txtPrimary,
+                                  color: AppColors.matchaDark,
                                   fontSize: 13,
                                 ),
                               ),
                               Text(
                                 'Jadwal mabar dibuka 3 hari sebelumnya di aplikasi',
-                                style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 11),
+                                style: AppTextStyles.caption.copyWith(color: const Color(0xFF063B00).withValues(alpha: 0.8), fontSize: 11),
                               ),
                             ],
                           ),
@@ -179,6 +186,13 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             decoration: BoxDecoration(
               color: context.surf,
               border: Border(top: BorderSide(color: context.surfBorder, width: 1)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -4),
+                ),
+              ],
             ),
             child: SafeArea(
               child: SizedBox(
@@ -200,10 +214,10 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isJoined
-                        ? Colors.redAccent.withValues(alpha: 0.15)
-                        : context.brandColor,
-                    foregroundColor: isJoined ? Colors.redAccent : Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ? Colors.redAccent.withValues(alpha: 0.1)
+                        : AppColors.matchaDark,
+                    foregroundColor: isJoined ? Colors.redAccent : Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   child: Text(
                     isJoined ? 'Keluar dari Komunitas' : 'Gabung Komunitas Ini',
@@ -223,7 +237,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: context.surfSec,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: context.surfBorder),
       ),
       child: Row(

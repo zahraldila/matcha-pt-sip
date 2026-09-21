@@ -37,7 +37,6 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Cari latest state sesi dari data service
     final session = _dataService.sessions.firstWhere(
       (s) => s.id == widget.session.id,
       orElse: () => widget.session,
@@ -76,20 +75,14 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- Header Banner Card ---
+                  // --- Header Banner Card (Pastel Lime matching matcha-pt-web) ---
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: context.isDarkMode
-                            ? [const Color(0xFF16280B), context.surf]
-                            : [const Color(0xFFEBF7D4), context.surf],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: context.surfBorder, width: 1),
+                      color: AppColors.matchaSoftLime,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.matchaSoftLimeBorder, width: 1),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,13 +92,14 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(10),
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppColors.matchaSoftLimeBorder),
                               ),
                               child: Text(
                                 session.sport.toUpperCase(),
-                                style: TextStyle(
-                                  color: context.brandColor,
+                                style: const TextStyle(
+                                  color: AppColors.matchaDark,
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -113,9 +107,9 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                             ),
                             const Spacer(),
                             Text(
-                              session.status == 'live' ? '🔴 SEDANG BERLANGSUNG' : '🟢 KUOTA TERBUKA',
+                              session.status == 'live' ? '🔴 LIVE SEKARANG' : '🟢 KUOTA TERBUKA',
                               style: TextStyle(
-                                color: session.status == 'live' ? Colors.redAccent : context.brandColor,
+                                color: session.status == 'live' ? Colors.redAccent : AppColors.matchaDark,
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -126,11 +120,11 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                         Text(
                           session.title,
                           style: AppTextStyles.h1.copyWith(
-                            fontSize: 20,
+                            fontSize: 19,
                             color: context.txtPrimary,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         Text(
                           'Diselenggarakan oleh ${session.hostName}',
                           style: AppTextStyles.caption.copyWith(
@@ -142,17 +136,24 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
 
-                  // --- Info Grid ---
+                  // --- Info Grid Card ---
                   _buildSectionTitle(context, 'Informasi Jadwal & Lokasi'),
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: context.surf,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(18),
                       border: Border.all(color: context.surfBorder, width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Column(
                       children: [
@@ -187,27 +188,34 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // --- Drawing Action Banner ---
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: context.surfSec,
-                      borderRadius: BorderRadius.circular(20),
+                      color: context.surf,
+                      borderRadius: BorderRadius.circular(18),
                       border: Border.all(color: context.surfBorder, width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.amberAccent.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(14),
+                            color: AppColors.matchaSoftLime,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.shuffle_rounded, color: Colors.amberAccent, size: 24),
+                          child: const Icon(Icons.shuffle_rounded, color: AppColors.matchaDark, size: 22),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,10 +247,10 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                             );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: context.brandColor,
-                            foregroundColor: Colors.black,
+                            backgroundColor: AppColors.matchaDark,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           child: const Text('Lihat Tim', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         ),
@@ -250,7 +258,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 22),
 
                   // --- Daftar Peserta / Roster ---
                   Row(
@@ -260,14 +268,14 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                       Text(
                         '${session.participants.length}/${session.maxParticipants} Kuota',
                         style: TextStyle(
-                          color: session.isFull ? Colors.redAccent : context.brandColor,
+                          color: session.isFull ? Colors.redAccent : AppColors.matchaDark,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
                   ListView.builder(
                     shrinkWrap: true,
@@ -280,7 +288,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
                           color: context.surf,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: context.surfBorder, width: 1),
                         ),
                         child: Row(
@@ -295,7 +303,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                             ),
                             const SizedBox(width: 10),
                             CircleAvatar(
-                              radius: 16,
+                              radius: 15,
                               backgroundImage: NetworkImage(player.avatarUrl),
                               backgroundColor: context.surfBorder,
                             ),
@@ -326,15 +334,15 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: AppColors.matchaSoftLime,
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: Text(
+                                child: const Text(
                                   'Kamu',
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: context.brandColor,
+                                    color: AppColors.matchaDark,
                                   ),
                                 ),
                               ),
@@ -354,11 +362,18 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
             decoration: BoxDecoration(
               color: context.surf,
               border: Border(top: BorderSide(color: context.surfBorder, width: 1)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -4),
+                ),
+              ],
             ),
             child: SafeArea(
               child: SizedBox(
                 width: double.infinity,
-                height: 52,
+                height: 50,
                 child: ElevatedButton(
                   onPressed: () {
                     _dataService.joinSession(session.id);
@@ -375,12 +390,12 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isJoined
-                        ? Colors.redAccent.withValues(alpha: 0.15)
-                        : (context.isDarkMode ? AppColors.primary : const Color(0xFF063B00)),
+                        ? Colors.redAccent.withValues(alpha: 0.1)
+                        : AppColors.matchaDark,
                     foregroundColor: isJoined
                         ? Colors.redAccent
-                        : (context.isDarkMode ? Colors.black : Colors.white),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        : Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   child: Text(
                     isJoined ? 'Batal Bergabung (Keluar Sesi)' : 'Gabung Sesi Sekarang',
@@ -411,7 +426,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: context.brandColor),
+        Icon(icon, size: 18, color: AppColors.matchaDark),
         const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -50,21 +50,28 @@ class _PlayerListPageState extends State<PlayerListPage> {
         itemBuilder: (context, index) {
           final player = players[index];
           return Container(
-            margin: const EdgeInsets.only(bottom: 12),
+            margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: context.surf,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: context.surfBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               children: [
                 CircleAvatar(
-                  radius: 22,
+                  radius: 20,
                   backgroundImage: NetworkImage(player.avatarUrl),
                   backgroundColor: context.surfBorder,
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,7 +83,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
                             style: AppTextStyles.bodyMedium.copyWith(
                               fontWeight: FontWeight.bold,
                               color: context.txtPrimary,
-                              fontSize: 14,
+                              fontSize: 13,
                             ),
                           ),
                           if (player.isHost) ...[
@@ -84,15 +91,15 @@ class _PlayerListPageState extends State<PlayerListPage> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(6),
+                                color: AppColors.matchaSoftLime,
+                                borderRadius: BorderRadius.circular(4),
                               ),
-                              child: Text(
+                              child: const Text(
                                 'HOST',
                                 style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: FontWeight.bold,
-                                  color: context.brandColor,
+                                  color: AppColors.matchaDark,
                                 ),
                               ),
                             ),
@@ -111,12 +118,12 @@ class _PlayerListPageState extends State<PlayerListPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: context.surfSec,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('🔥', style: TextStyle(fontSize: 12)),
+                      const Text('🔥', style: TextStyle(fontSize: 11)),
                       const SizedBox(width: 4),
                       Text(
                         '${player.kudosCount}',

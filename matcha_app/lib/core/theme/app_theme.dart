@@ -6,142 +6,20 @@ import 'app_text_styles.dart';
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get darkTheme {
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.background,
-      fontFamily: GoogleFonts.inter().fontFamily,
-      
-      // Color Scheme
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.primary,
-        onPrimary: AppColors.textOnPrimary,
-        secondary: AppColors.primaryDark,
-        surface: AppColors.surface,
-        onSurface: AppColors.textPrimary,
-        error: AppColors.error,
-      ),
-
-      // App Bar Theme
-      appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        centerTitle: false,
-        titleTextStyle: AppTextStyles.pageTitle.copyWith(fontSize: 20),
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
-      ),
-
-      // Card Theme
-      cardTheme: CardThemeData(
-        color: AppColors.surface,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.surfaceBorder, width: 1),
-        ),
-        margin: EdgeInsets.zero,
-      ),
-
-      // Elevated Button Theme (Lime Green + Dark text)
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.textOnPrimary,
-          textStyle: AppTextStyles.button,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          minimumSize: const Size.fromHeight(48),
-        ),
-      ),
-
-      // Outlined Button Theme
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
-          textStyle: AppTextStyles.buttonSecondary,
-          side: const BorderSide(color: AppColors.surfaceBorder, width: 1.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          minimumSize: const Size.fromHeight(48),
-        ),
-      ),
-
-      // Input Field Decoration
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: AppColors.surface,
-        hintStyle: AppTextStyles.bodySecondary,
-        labelStyle: AppTextStyles.bodySecondary,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.surfaceBorder, width: 1),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.surfaceBorder, width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.error, width: 1),
-        ),
-      ),
-
-      // Bottom Navigation Bar Theme
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.surface,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textSecondary,
-        type: BottomNavigationBarType.fixed,
-        elevation: 8,
-      ),
-
-      // Divider Theme
-      dividerTheme: const DividerThemeData(
-        color: AppColors.surfaceBorder,
-        thickness: 1,
-      ),
-
-      // SnackBar Theme
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.surfaceSecondary,
-        contentTextStyle: AppTextStyles.body.copyWith(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w500,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: AppColors.surfaceBorder, width: 1),
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: AppColors.lightBackground,
-      fontFamily: GoogleFonts.inter().fontFamily,
+      fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
       
       // Color Scheme
       colorScheme: const ColorScheme.light(
-        primary: AppColors.primaryAccentLight,
-        onPrimary: AppColors.lightTextOnPrimary,
-        secondary: AppColors.primaryDark,
+        primary: AppColors.matchaDark,
+        onPrimary: Colors.white,
+        secondary: AppColors.matchaLime,
         surface: AppColors.lightSurface,
-        onSurface: AppColors.lightTextPrimary,
+        onSurface: AppColors.textPrimary,
         error: AppColors.error,
       ),
 
@@ -149,12 +27,13 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.lightBackground,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: AppTextStyles.pageTitle.copyWith(
-          fontSize: 20,
-          color: AppColors.lightTextPrimary,
+        titleTextStyle: AppTextStyles.h2.copyWith(
+          fontSize: 18,
+          color: AppColors.textPrimary,
         ),
-        iconTheme: const IconThemeData(color: AppColors.lightTextPrimary),
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
 
       // Card Theme
@@ -162,38 +41,39 @@ class AppTheme {
         color: AppColors.lightSurface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: AppColors.lightSurfaceBorder, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
 
-      // Elevated Button Theme (Vibrant Green + White text)
+      // Elevated Button Theme (#063B00 + White text)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryAccentLight,
+          backgroundColor: AppColors.matchaDark,
           foregroundColor: Colors.white,
-          textStyle: AppTextStyles.button.copyWith(color: Colors.white),
+          textStyle: AppTextStyles.button.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          minimumSize: const Size.fromHeight(48),
         ),
       ),
 
       // Outlined Button Theme
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.lightTextPrimary,
-          textStyle: AppTextStyles.buttonSecondary.copyWith(color: AppColors.lightTextPrimary),
-          side: const BorderSide(color: AppColors.lightSurfaceBorder, width: 1.5),
+          foregroundColor: AppColors.matchaDark,
+          textStyle: AppTextStyles.buttonSecondary.copyWith(
+            color: AppColors.matchaDark,
+            fontWeight: FontWeight.bold,
+          ),
+          side: const BorderSide(color: AppColors.matchaDark, width: 1.5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          minimumSize: const Size.fromHeight(48),
         ),
       ),
 
@@ -201,23 +81,23 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.lightSurface,
-        hintStyle: AppTextStyles.bodySecondary.copyWith(color: AppColors.lightTextSecondary),
-        labelStyle: AppTextStyles.bodySecondary.copyWith(color: AppColors.lightTextSecondary),
+        hintStyle: AppTextStyles.bodySecondary.copyWith(color: AppColors.textSecondary),
+        labelStyle: AppTextStyles.bodySecondary.copyWith(color: AppColors.textSecondary),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.lightSurfaceBorder, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.lightSurfaceBorder, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primaryAccentLight, width: 1.5),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.error, width: 1),
         ),
       ),
@@ -225,8 +105,8 @@ class AppTheme {
       // Bottom Navigation Bar Theme
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: AppColors.lightSurface,
-        selectedItemColor: AppColors.primaryAccentLight,
-        unselectedItemColor: AppColors.lightTextSecondary,
+        selectedItemColor: AppColors.matchaDark,
+        unselectedItemColor: AppColors.textSecondary,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
@@ -239,14 +119,13 @@ class AppTheme {
 
       // SnackBar Theme
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.lightSurface,
+        backgroundColor: AppColors.textPrimary,
         contentTextStyle: AppTextStyles.body.copyWith(
-          color: AppColors.lightTextPrimary,
+          color: Colors.white,
           fontWeight: FontWeight.w500,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: AppColors.lightSurfaceBorder, width: 1),
+          borderRadius: BorderRadius.circular(14),
         ),
         behavior: SnackBarBehavior.floating,
       ),

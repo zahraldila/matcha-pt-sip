@@ -62,7 +62,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Sesi mabar "${newSession.title}" berhasil dibuat! 🎉'),
-        backgroundColor: const Color(0xFF063B00),
+        backgroundColor: AppColors.matchaDark,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -98,7 +98,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               ],
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
             // 2. Judul Sesi
             _buildLabel('2. Judul Sesi Mabar'),
@@ -110,13 +110,13 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                 fillColor: context.surf,
                 hintText: 'Contoh: Saturday Night Padel Rally',
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide(color: context.surfBorder),
                 ),
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
             // 3. Format Pertandingan
             _buildLabel('3. Format Permainan'),
@@ -125,7 +125,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: context.surf,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: context.surfBorder),
               ),
               child: DropdownButtonHideUnderline(
@@ -154,7 +154,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
             // 4. Pilih Venue & Lokasi
             _buildLabel('4. Venue / Lapangan'),
@@ -163,7 +163,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: context.surf,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: context.surfBorder),
               ),
               child: DropdownButtonHideUnderline(
@@ -196,7 +196,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
             // 5. Kuota Pemain & Biaya Patungan
             Row(
@@ -208,10 +208,10 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                       _buildLabel('5. Kuota Pemain'),
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: context.surf,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: context.surfBorder),
                         ),
                         child: Row(
@@ -243,7 +243,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,10 +251,10 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                       _buildLabel('6. Biaya/Orang'),
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: context.surf,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: context.surfBorder),
                         ),
                         child: Row(
@@ -287,18 +287,18 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               ],
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
 
             // Submit Button
             SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 50,
               child: ElevatedButton(
                 onPressed: _submitCreateSession,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: context.brandColor,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  backgroundColor: AppColors.matchaDark,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: const Text(
                   'Buat & Publikasikan Jadwal',
@@ -331,12 +331,12 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             color: isSelected
-                ? context.brandColor.withValues(alpha: 0.15)
+                ? AppColors.matchaSoftLime
                 : context.surf,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? context.brandColor : context.surfBorder,
-              width: isSelected ? 1.5 : 1,
+              color: isSelected ? const Color(0xFF063B00).withValues(alpha: 0.3) : context.surfBorder,
+              width: 1,
             ),
           ),
           alignment: Alignment.center,
@@ -345,7 +345,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected ? context.brandColor : context.txtSecondary,
+              color: isSelected ? AppColors.matchaDark : context.txtSecondary,
             ),
           ),
         ),

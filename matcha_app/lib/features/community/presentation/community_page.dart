@@ -56,16 +56,23 @@ class _CommunityPageState extends State<CommunityPage> {
 
   Widget _buildCommunityCard(BuildContext context, MatchaCommunity com) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: context.surf,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: context.surfBorder, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           onTap: () {
             Navigator.push(
               context,
@@ -80,11 +87,11 @@ class _CommunityPageState extends State<CommunityPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CircleAvatar(
-                  radius: 26,
+                  radius: 24,
                   backgroundImage: NetworkImage(com.logoUrl),
                   backgroundColor: context.surfBorder,
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,15 +101,15 @@ class _CommunityPageState extends State<CommunityPage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.15),
+                              color: AppColors.matchaSoftLime,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               com.sport.toUpperCase(),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
-                                color: context.brandColor,
+                                color: AppColors.matchaDark,
                               ),
                             ),
                           ),
@@ -136,14 +143,14 @@ class _CommunityPageState extends State<CommunityPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: com.isJoined
                         ? context.surfSec
-                        : (context.isDarkMode ? AppColors.primary : const Color(0xFF063B00)),
+                        : AppColors.matchaDark,
                     foregroundColor: com.isJoined
                         ? context.txtSecondary
-                        : (context.isDarkMode ? Colors.black : Colors.white),
+                        : Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   child: Text(
                     com.isJoined ? 'Joined' : 'Join',

@@ -78,9 +78,9 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: context.surfSec,
+                color: AppColors.matchaSoftLime,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                border: Border.all(color: AppColors.matchaSoftLimeBorder),
               ),
               child: Row(
                 children: [
@@ -108,7 +108,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                         ),
                         Text(
                           '${matches.length} Lapangan Sedang Bertanding',
-                          style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 11),
+                          style: AppTextStyles.caption.copyWith(color: AppColors.matchaDark, fontSize: 11),
                         ),
                       ],
                     ),
@@ -121,10 +121,10 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: context.brandColor,
-                      foregroundColor: Colors.black,
+                      backgroundColor: AppColors.matchaDark,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     child: Text(
                       isHost ? 'Input Skor' : 'Papan Skor',
@@ -145,12 +145,19 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
 
             for (var match in matches) ...[
               Container(
-                margin: const EdgeInsets.only(bottom: 14),
+                margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: context.surf,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: context.surfBorder),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
@@ -164,15 +171,16 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.15),
+                            color: AppColors.matchaSoftLime,
                             borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.matchaSoftLimeBorder),
                           ),
                           child: Text(
                             'Set ${_dataService.currentSet} • ${match.teamAScore} - ${match.teamBScore}',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w900,
-                              color: context.brandColor,
+                              color: AppColors.matchaDark,
                             ),
                           ),
                         ),

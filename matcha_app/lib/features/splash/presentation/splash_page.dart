@@ -69,7 +69,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    context.brandColor.withValues(alpha: 0.15),
+                    AppColors.matchaSoftLime,
                     Colors.transparent,
                   ],
                 ),
@@ -92,13 +92,13 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                       children: [
                         const Text('🎾', style: TextStyle(fontSize: 60)),
                         const SizedBox(height: 12),
-                        Text(
+                        const Text(
                           'MATCHA',
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 4.0,
-                            color: context.brandColor,
+                            color: AppColors.matchaDark,
                           ),
                         ),
                       ],
@@ -117,12 +117,12 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.2,
-                      valueColor: AlwaysStoppedAnimation<Color>(context.brandColor),
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.matchaDark),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -132,7 +132,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                       letterSpacing: 1.8,
                       color: context.txtSecondary,
                       fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],

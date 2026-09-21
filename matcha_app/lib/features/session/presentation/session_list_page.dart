@@ -54,9 +54,11 @@ class _SessionListPageState extends State<SessionListPage> with SingleTickerProv
         ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: context.brandColor,
+          labelColor: AppColors.matchaDark,
           unselectedLabelColor: context.txtSecondary,
-          indicatorColor: context.brandColor,
+          indicatorColor: AppColors.matchaDark,
+          indicatorWeight: 3,
+          labelStyle: AppTextStyles.button.copyWith(fontSize: 13),
           tabs: const [
             Tab(text: 'Live / Hari Ini'),
             Tab(text: 'Mendatang'),
@@ -96,8 +98,8 @@ class _SessionListPageState extends State<SessionListPage> with SingleTickerProv
             MaterialPageRoute(builder: (_) => const CreateSessionPage()),
           );
         },
-        backgroundColor: context.brandColor,
-        foregroundColor: Colors.black,
+        backgroundColor: AppColors.matchaDark,
+        foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
         label: const Text('Buat Mabar', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
@@ -145,21 +147,28 @@ class _SessionListPageState extends State<SessionListPage> with SingleTickerProv
     final isJoined = session.participants.any((p) => p.id == user.id);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: context.surf,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: session.status == 'live'
-              ? AppColors.primary.withValues(alpha: 0.5)
+              ? AppColors.matchaDark.withValues(alpha: 0.3)
               : context.surfBorder,
-          width: 1.2,
+          width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           onTap: () {
             Navigator.push(
               context,
@@ -176,33 +185,34 @@ class _SessionListPageState extends State<SessionListPage> with SingleTickerProv
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
+                        color: AppColors.matchaSoftLime,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
                       ),
                       child: Text(
                         session.sport.toUpperCase(),
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: context.brandColor,
+                          color: AppColors.matchaDark,
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       session.matchFormat,
-                      style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                      style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 11),
                     ),
                     const Spacer(),
                     if (session.status == 'live')
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.redAccent.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.redAccent, width: 0.8),
+                          color: Colors.redAccent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4), width: 0.8),
                         ),
                         child: const Text(
                           'LIVE NOW',
@@ -216,10 +226,10 @@ class _SessionListPageState extends State<SessionListPage> with SingleTickerProv
                     else
                       Text(
                         'Rp ${(session.pricePerPerson / 1000).toStringAsFixed(0)}k/org',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: context.brandColor,
+                          color: AppColors.matchaDark,
                         ),
                       ),
                   ],
@@ -237,7 +247,7 @@ class _SessionListPageState extends State<SessionListPage> with SingleTickerProv
                     Expanded(
                       child: Text(
                         '${session.venueName}, ${session.location}',
-                        style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                        style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 11),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -251,17 +261,17 @@ class _SessionListPageState extends State<SessionListPage> with SingleTickerProv
                     const SizedBox(width: 4),
                     Text(
                       '${session.date} • ${session.time}',
-                      style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
+                      style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 11),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Text(
                       '${session.participants.length}/${session.maxParticipants} Kuota Terisi',
                       style: AppTextStyles.caption.copyWith(
-                        color: session.isFull ? Colors.redAccent : context.brandColor,
+                        color: session.isFull ? Colors.redAccent : AppColors.matchaDark,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -283,14 +293,14 @@ class _SessionListPageState extends State<SessionListPage> with SingleTickerProv
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isJoined
                             ? context.surfSec
-                            : (context.isDarkMode ? AppColors.primary : const Color(0xFF063B00)),
+                            : AppColors.matchaDark,
                         foregroundColor: isJoined
                             ? context.txtSecondary
-                            : (context.isDarkMode ? Colors.black : Colors.white),
+                            : Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       child: Text(
                         isJoined ? 'Batal' : 'Join',

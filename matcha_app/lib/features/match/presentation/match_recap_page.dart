@@ -66,31 +66,32 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Winner Banner
+            // Winner Banner (Light Mode Pastel Lime)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: context.isDarkMode
-                      ? [const Color(0xFF1E350E), const Color(0xFF111318)]
-                      : [const Color(0xFFD8F3A8), context.surf],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.5), width: 1.5),
+                color: AppColors.matchaSoftLime,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: AppColors.matchaSoftLimeBorder, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.matchaDark.withValues(alpha: 0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
-                  const Text('🏆', style: TextStyle(fontSize: 40)),
-                  const SizedBox(height: 8),
+                  const Text('🏆', style: TextStyle(fontSize: 38)),
+                  const SizedBox(height: 6),
                   const Text(
                     'TIM A MEMENANGKAN MATCH!',
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
-                      fontSize: 16,
-                      color: AppColors.primary,
+                      fontSize: 15,
+                      color: AppColors.matchaDark,
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -99,13 +100,14 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                     'Marcel Santoso & Budi Pratama',
                     style: AppTextStyles.h3.copyWith(fontSize: 15, color: context.txtPrimary),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   // Score Set Summary
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.matchaSoftLimeBorder),
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -114,7 +116,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                           children: [
                             Text('Set 1', style: TextStyle(color: Colors.grey, fontSize: 11)),
                             SizedBox(height: 2),
-                            Text('21 - 19', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
+                            Text('21 - 19', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.matchaDark, fontSize: 16)),
                           ],
                         ),
                         Text('•', style: TextStyle(color: Colors.grey)),
@@ -122,7 +124,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                           children: [
                             Text('Set 2', style: TextStyle(color: Colors.grey, fontSize: 11)),
                             SizedBox(height: 2),
-                            Text('21 - 18', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
+                            Text('21 - 18', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.matchaDark, fontSize: 16)),
                           ],
                         ),
                       ],
@@ -132,7 +134,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // Match Stat Pills (Strava-like)
             Row(
@@ -145,7 +147,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
               ],
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             // Kudos Reaction Section
             Container(
@@ -153,8 +155,15 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: context.surf,
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: context.surfBorder),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,7 +183,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                     'Apresiasi permainan seru teman dan lawan mainmu di lapangan!',
                     style: AppTextStyles.caption.copyWith(color: context.txtSecondary, fontSize: 12),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
                       _buildKudosButton(
@@ -209,20 +218,20 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
             // Done Button
             SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 50,
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: context.brandColor,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  backgroundColor: AppColors.matchaDark,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: const Text('Selesai & Kembali ke Beranda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               ),
@@ -249,7 +258,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
         ),
         child: Column(
           children: [
-            Icon(icon, size: 18, color: context.brandColor),
+            Icon(icon, size: 18, color: AppColors.matchaDark),
             const SizedBox(height: 6),
             Text(
               value,
@@ -282,11 +291,11 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           decoration: BoxDecoration(
             color: isActive
-                ? AppColors.primary.withValues(alpha: 0.2)
+                ? AppColors.matchaSoftLime
                 : context.surfSec,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isActive ? AppColors.primary : context.surfBorder,
+              color: isActive ? AppColors.matchaDark : context.surfBorder,
               width: isActive ? 1.5 : 1,
             ),
           ),
@@ -299,7 +308,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: isActive ? context.brandColor : context.txtPrimary,
+                  color: isActive ? AppColors.matchaDark : context.txtPrimary,
                 ),
               ),
               const SizedBox(height: 2),
@@ -307,7 +316,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                 '$count Kudos',
                 style: TextStyle(
                   fontSize: 10,
-                  color: isActive ? context.brandColor : context.txtSecondary,
+                  color: isActive ? AppColors.matchaDark : context.txtSecondary,
                 ),
               ),
             ],
