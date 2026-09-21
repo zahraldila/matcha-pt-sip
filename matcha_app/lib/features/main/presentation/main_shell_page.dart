@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../../core/data/mock_data_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
-import '../../community/presentation/community_page.dart';
+import '../../auth/presentation/login_page.dart';
+import '../../court/presentation/venue_directory_page.dart';
 import '../../home/presentation/home_page.dart';
 import '../../profile/presentation/profile_page.dart';
+import '../../session/presentation/create_session_page.dart';
 import '../../session/presentation/session_list_page.dart';
 
 class MainShellPage extends StatefulWidget {
@@ -18,64 +19,202 @@ class MainShellPage extends StatefulWidget {
 }
 
 class _MainShellPageState extends State<MainShellPage> {
-  final MockDataService _dataService = MockDataService();
   int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _dataService.addListener(_onDataChanged);
+    widget.authController?.addListener(_onAuthChanged);
   }
 
   @override
   void dispose() {
-    _dataService.removeListener(_onDataChanged);
+    widget.authController?.removeListener(_onAuthChanged);
     super.dispose();
   }
 
-  void _onDataChanged() {
+  void _onAuthChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _onTabTapped(int index) {
+    if (index == 2) {
+      // Tab Host Center Button clicked
+      _handleHostAction();
+      return;
+    }
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
+  void _handleHostAction() {
+    final user = widget.authController?.currentUser;
+    final isHost = user?.isHost ?? false;
+
+    if (user == null) {
+      // Guest: tampilkan modal informasi Host
+      _showHostInfoModal(isGuest: true);
+    } else if (isHost) {
+      // Host: langsung buka halaman Buat Sesi Mabar
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const CreateSessionPage(),
+        ),
+      );
+    } else {
+      // Member tapi belum aktif mode host: tampilkan modal aktifkan host
+      _showHostInfoModal(isGuest: false);
+    }
+  }
+
+  void _showHostInfoModal({required bool isGuest}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: AppColors.matchaSoftLime,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppColors.matchaDark.withValues(alpha: 0.2),
+                    width: 2,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.sports_tennis_rounded,
+                  color: AppColors.matchaDark,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isGuest ? 'Masuk Sebagai Host Game' : 'Aktifkan Mode Host Game',
+                style: AppTextStyles.h2.copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isGuest
+                  ? 'Sebagai Host Game, kamu dapat membuat jadwal mabar baru, mengacak drawing pemain, memimpin live match scoring, dan memberikan Kudos!'
+                  : 'Kamu perlu mengaktifkan Status Akses Host Game di halaman profil untuk mulai membuat jadwal mabar dan mengelola drawing.',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.caption.copyWith(
+                  fontSize: 13,
+                  color: const Color(0xFF64748B),
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    if (isGuest) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => LoginPage(authController: widget.authController),
+                        ),
+                      );
+                    } else {
+                      setState(() => _currentIndex = 4); // Go to profile
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.matchaDark,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    isGuest ? 'Masuk / Daftar Akun' : 'Buka Pengaturan Profil',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isHost = _dataService.isHostMode;
+    final user = widget.authController?.currentUser;
+    final isHost = user?.isHost ?? false;
 
     final tabs = [
       // Tab 0: Home Dashboard
       HomePage(
         authController: widget.authController,
         onExploreSessions: () => setState(() => _currentIndex = 1),
-        onExploreCommunity: () => setState(() => _currentIndex = 2),
+        onExploreCommunity: () => setState(() => _currentIndex = 3),
       ),
 
       // Tab 1: Sesi Mabar
-      const SessionListPage(),
+      SessionListPage(authController: widget.authController),
 
-      // Tab 2: Komunitas Olahraga
-      const CommunityPage(),
+      // Tab 2: Placeholder for Host Center Tab
+      const SizedBox.shrink(),
 
-      // Tab 3: Profil & Pengaturan
+      // Tab 3: Direktori Venue & Court
+      const VenueDirectoryPage(),
+
+      // Tab 4: Profil & Rekap
       ProfilePage(authController: widget.authController),
     ];
 
     return Scaffold(
-      backgroundColor: context.bg,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: context.bg,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         title: Row(
           children: [
             Image.asset(
               'assets/images/logo.png',
-              height: 26,
+              height: 28,
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) => Row(
                 children: [
-                  const Text('🎾', style: TextStyle(fontSize: 18)),
+                  const Text('🎾', style: TextStyle(fontSize: 20)),
                   const SizedBox(width: 6),
-                  const Text(
+                  Text(
                     'MATCHA',
-                    style: TextStyle(
+                    style: AppTextStyles.h2.copyWith(
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.5,
                       color: AppColors.matchaDark,
@@ -86,19 +225,16 @@ class _MainShellPageState extends State<MainShellPage> {
               ),
             ),
             const Spacer(),
-            // Host Badge Status
-            GestureDetector(
-              onTap: () => _dataService.toggleHostMode(),
-              child: Container(
+            // User / Host Status Badge
+            if (user != null)
+              Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isHost
-                      ? AppColors.matchaSoftLime
-                      : const Color(0xFFEFF6FF),
+                  color: isHost ? AppColors.matchaSoftLime : const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isHost
-                        ? const Color(0xFF063B00).withValues(alpha: 0.3)
+                        ? AppColors.matchaDark.withValues(alpha: 0.3)
                         : const Color(0xFF93C5FD),
                     width: 1,
                   ),
@@ -111,63 +247,183 @@ class _MainShellPageState extends State<MainShellPage> {
                       size: 13,
                       color: isHost ? AppColors.matchaDark : const Color(0xFF1D4ED8),
                     ),
-                    const SizedBox(width: 5),
+                    const SizedBox(width: 4),
                     Text(
-                      isHost ? 'HOST MODE' : 'MEMBER',
+                      isHost ? 'HOST ACTIVE' : 'MEMBER',
                       style: AppTextStyles.badge.copyWith(
                         color: isHost ? AppColors.matchaDark : const Color(0xFF1D4ED8),
                         fontSize: 10,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
+              )
+            else
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LoginPage(authController: widget.authController),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.matchaSoftLime,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.matchaDark.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.login_rounded, size: 13, color: AppColors.matchaDark),
+                      const SizedBox(width: 4),
+                      Text(
+                        'MASUK',
+                        style: AppTextStyles.badge.copyWith(
+                          color: AppColors.matchaDark,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      body: IndexedStack(
+        index: _currentIndex == 2 ? 0 : _currentIndex,
+        children: tabs,
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: const Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, -3),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 64,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(
+                  index: 0,
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home_rounded,
+                  label: 'Beranda',
+                ),
+                _buildNavItem(
+                  index: 1,
+                  icon: Icons.emoji_events_outlined,
+                  activeIcon: Icons.emoji_events_rounded,
+                  label: 'Mabar',
+                ),
+                // Center Host Button (+)
+                _buildCenterHostButton(isHost: isHost),
+                _buildNavItem(
+                  index: 3,
+                  icon: Icons.location_on_outlined,
+                  activeIcon: Icons.location_on_rounded,
+                  label: 'Venue',
+                ),
+                _buildNavItem(
+                  index: 4,
+                  icon: Icons.person_outline_rounded,
+                  activeIcon: Icons.person_rounded,
+                  label: 'Profil',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+  }) {
+    final isSelected = _currentIndex == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () => _onTabTapped(index),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isSelected ? activeIcon : icon,
+              color: isSelected ? AppColors.matchaDark : const Color(0xFF94A3B8),
+              size: 22,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? AppColors.matchaDark : const Color(0xFF94A3B8),
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ],
         ),
       ),
-      body: tabs[_currentIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: context.surfBorder, width: 1)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
+    );
+  }
+
+  Widget _buildCenterHostButton({required bool isHost}) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onTabTapped(2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.matchaDark,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.matchaDark.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.add_rounded,
+                  color: Color(0xFFA8E63A),
+                  size: 24,
+                ),
+              ),
             ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          selectedItemColor: AppColors.matchaDark,
-          unselectedItemColor: context.txtSecondary,
-          backgroundColor: Colors.white,
-          type: BottomNavigationBarType.fixed,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 11),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home_rounded),
-              label: 'Beranda',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.sports_esports_outlined),
-              activeIcon: Icon(Icons.sports_esports_rounded),
-              label: 'Sesi Mabar',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.groups_outlined),
-              activeIcon: Icon(Icons.groups_rounded),
-              label: 'Komunitas',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded),
-              activeIcon: Icon(Icons.person_rounded),
-              label: 'Profil',
+            const SizedBox(height: 2),
+            Text(
+              'Host',
+              style: TextStyle(
+                color: AppColors.matchaDark,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),

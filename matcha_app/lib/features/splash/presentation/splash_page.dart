@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
-import '../../auth/presentation/login_page.dart';
 import '../../main/presentation/main_shell_page.dart';
 
 class SplashPage extends StatefulWidget {
@@ -43,20 +42,17 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   }
 
   Future<void> _checkSessionAndNavigate() async {
-    final results = await Future.wait([
+    await Future.wait([
       widget.authController.checkSavedSession(),
       Future.delayed(const Duration(milliseconds: 1500)),
     ]);
-
-    final isLoggedIn = results[0] as bool;
 
     if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (ctx, animation, secondaryAnim) => isLoggedIn
-            ? MainShellPage(authController: widget.authController)
-            : LoginPage(authController: widget.authController),
+        pageBuilder: (ctx, animation, secondaryAnim) =>
+            MainShellPage(authController: widget.authController),
         transitionsBuilder: (ctx, animation, secondaryAnim, child) =>
             FadeTransition(opacity: animation, child: child),
         transitionDuration: const Duration(milliseconds: 500),

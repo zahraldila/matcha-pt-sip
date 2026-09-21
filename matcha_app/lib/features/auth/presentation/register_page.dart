@@ -7,7 +7,8 @@ import 'controllers/auth_controller.dart';
 class RegisterPage extends StatefulWidget {
   final AuthController authController;
 
-  const RegisterPage({super.key, required this.authController});
+  RegisterPage({super.key, AuthController? authController})
+      : authController = authController ?? AuthController();
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
