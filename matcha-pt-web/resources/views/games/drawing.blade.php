@@ -422,10 +422,40 @@
     const isHostUser = @json($isHost ?? false);
     const gameSessionId = {{ (int) $game['id'] }};
     const liveScoringUrl = '{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano']) }}';
-    const supabaseUrl = '{{ config('services.supabase.url') }}';
-    const supabaseKey = '{{ config('services.supabase.key') }}';
+    // ── Realtime Drawing Sync & Lock Detector (Untuk Penonton / Player) ──────
+    function applyRemoteDrawingUpdate(newRounds, newParticipantsMap, message = 'Jadwal & susunan tim diacak ulang oleh Host! 🎲') {
+        if (!newRounds || Object.keys(newRounds).length === 0) return;
 
-    // ── Realtime Drawing Lock Detector (Untuk Penonton / Player) ──────────────
+        const oldJson = JSON.stringify(roundsData);
+        const newJson = JSON.stringify(newRounds);
+        if (oldJson === newJson) return;
+
+        roundsData = newRounds;
+        if (newParticipantsMap && Object.keys(newParticipantsMap).length > 0) {
+            participantsMap = newParticipantsMap;
+        }
+
+        const roundKeys = Object.keys(roundsData).map(Number);
+        if (!roundKeys.includes(currentRoundKey) && roundKeys.length > 0) {
+            currentRoundKey = roundKeys[0];
+        }
+
+        switchRound(currentRoundKey, false);
+
+        // Visual flash feedback on court container
+        const courtContainer = document.getElementById('courtsMultiContainer');
+        if (courtContainer) {
+            courtContainer.classList.add('scale-[0.98]', 'transition-all', 'duration-200');
+            setTimeout(() => {
+                courtContainer.classList.remove('scale-[0.98]');
+            }, 200);
+        }
+
+        if (typeof showToast === 'function' && message) {
+            showToast(message);
+        }
+    }
+
     if (!isSessionLocked && !isHostUser) {
         let isRedirecting = false;
         const triggerRedirectToLive = (url) => {
@@ -439,7 +469,7 @@
             }, 600);
         };
 
-        // 1. Supabase Realtime Listener
+        // 1. Supabase Realtime Listener (Instant Push for drawing_locked & drawing_shuffled)
         if (window.supabase && supabaseUrl && supabaseKey) {
             try {
                 const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -448,13 +478,19 @@
                         console.log('[Drawing Realtime] Drawing locked event received:', payload);
                         triggerRedirectToLive(payload?.redirect_url);
                     })
+                    .on('broadcast', { event: 'drawing_shuffled' }, ({ payload }) => {
+                        console.log('[Drawing Realtime] Drawing shuffled event received:', payload);
+                        const newRounds = payload?.rounds || payload?.drawingData?.rounds;
+                        const newMap = payload?.participantsMap;
+                        applyRemoteDrawingUpdate(newRounds, newMap, '🎲 Host telah mengacak ulang jadwal pertandingan!');
+                    })
                     .subscribe();
             } catch (err) {
                 console.warn('[Drawing Realtime] Init error:', err);
             }
         }
 
-        // 2. Polling Fallback (setiap 2 detik)
+        // 2. Smart Polling Fallback (setiap 2 detik untuk deteksi lock dan shuffle otomatis)
         const checkLockInterval = setInterval(async () => {
             if (isRedirecting) {
                 clearInterval(checkLockInterval);
@@ -469,6 +505,11 @@
                     if (data && data.isLocked) {
                         clearInterval(checkLockInterval);
                         triggerRedirectToLive();
+                        return;
+                    }
+                    if (data && (data.rounds || data.drawingData?.rounds)) {
+                        const newRounds = data.rounds || data.drawingData?.rounds;
+                        applyRemoteDrawingUpdate(newRounds, data.participantsMap, '🎲 Jadwal diperbarui otomatis.');
                     }
                 }
             } catch (e) {}

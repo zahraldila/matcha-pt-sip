@@ -848,6 +848,7 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->string('email')->unique();
                 $table->string('password')->default('password');
                 $table->string('role')->default('member');
+                $table->boolean('is_host')->default(false);
                 $table->timestamps();
             });
         }
@@ -932,6 +933,14 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->unsignedBigInteger('player_id');
             });
         }
+        if (! Schema::hasTable('tb_match_format')) {
+            Schema::create('tb_match_format', function ($table) {
+                $table->id('match_format_id');
+                $table->string('nama_format')->default('Americano');
+                $table->text('deskripsi')->nullable();
+                $table->timestamps();
+            });
+        }
         if (! Schema::hasTable('tb_drawing')) {
             Schema::create('tb_drawing', function ($table) {
                 $table->id('drawing_id');
@@ -1000,6 +1009,7 @@ class DrawingAndScoringLogicTest extends TestCase
             'nama' => 'Host User',
             'email' => 'host_'.uniqid().'@matcha.com',
             'role' => 'host',
+            'is_host' => true,
             'password' => bcrypt('secret'),
         ]);
 
@@ -1673,7 +1683,7 @@ class DrawingAndScoringLogicTest extends TestCase
             'nama' => 'Budi Tamu Padel',
             'gender' => 'Male',
             'level' => 'Beginner',
-        ]);
+        ], [], [], ['HTTP_ACCEPT' => 'application/json']);
 
         $response = $controller->joinSession($session->session_id, $request);
         $this->assertEquals(200, $response->getStatusCode());
@@ -1693,6 +1703,78 @@ class DrawingAndScoringLogicTest extends TestCase
 
         // Check attached to session
         $this->assertEquals(1, $session->fresh()->players->count());
+    }
+
+    /**
+     * Test 18: Drawing State endpoint returns rounds and participantsMap for spectator sync
+     */
+    public function test_drawing_state_endpoint_returns_rounds_and_participants_map_for_spectator_sync()
+    {
+        [$session, $hostUser] = $this->createTestSession('Double', 2);
+        Auth::login($hostUser);
+
+        $controller = new GameController;
+        $request = Request::create("/games/{$session->session_id}/drawing", 'GET', ['json' => 1]);
+
+        $response = $controller->drawing($session->session_id, $request);
+        $this->assertEquals(200, $response->getStatusCode());
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertFalse($data['isLocked']);
+        $this->assertNotEmpty($data['rounds']);
+        $this->assertNotEmpty($data['participantsMap']);
+        $this->assertArrayHasKey('Host User', $data['participantsMap']);
+    }
+
+    /**
+     * Test 19: Drawing shuffle clears stale unstarted match participants
+     */
+    public function test_drawing_shuffle_clears_stale_unstarted_match_participants()
+    {
+        [$session, $hostUser, $hostPlayer, $memberUsers] = $this->createTestSession('Double', 2);
+        Auth::login($hostUser);
+
+        $drawing = Drawing::create([
+            'session_id' => $session->session_id,
+            'match_format_id' => 1,
+            'tanggal_drawing' => now()->toDateString(),
+            'jam_drawing' => now()->toTimeString(),
+        ]);
+
+        $unstartedMatch = GameMatch::create([
+            'drawing_id' => $drawing->drawing_id,
+            'court_id' => 1,
+            'nomor_match' => 1,
+            'status_match' => 'Pending',
+        ]);
+
+        MatchParticipant::create([
+            'match_id' => $unstartedMatch->match_id,
+            'player_id' => $hostPlayer->player_id,
+            'side' => 'A',
+        ]);
+
+        $this->assertDatabaseHas('tb_match_participant', [
+            'match_id' => $unstartedMatch->match_id,
+            'player_id' => $hostPlayer->player_id,
+        ]);
+
+        $controller = new GameController;
+        $request = Request::create("/games/{$session->session_id}/drawing", 'GET', [
+            'shuffle' => 1,
+            'seed' => 99999,
+            'json' => 1,
+        ]);
+
+        $response = $controller->drawing($session->session_id, $request);
+        $this->assertEquals(200, $response->getStatusCode());
+
+        // Stale unstarted match participant should be deleted
+        $this->assertDatabaseMissing('tb_match_participant', [
+            'match_id' => $unstartedMatch->match_id,
+            'player_id' => $hostPlayer->player_id,
+        ]);
     }
 
     protected function invokeMethod(&$object, $methodName, array $parameters = [])

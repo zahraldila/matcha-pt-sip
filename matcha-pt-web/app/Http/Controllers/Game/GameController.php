@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Court;
 use App\Models\Drawing;
 use App\Models\GameMatch;
+use App\Models\MatchParticipant;
 use App\Models\Player;
 use App\Models\SessionModel;
 use App\Models\Sport;
@@ -911,6 +912,18 @@ class GameController extends Controller
             abort(404);
         }
 
+        $participantsMap = [];
+        foreach ($participants as $p) {
+            $pName = is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->nama ?? $p->name ?? '') : (string) $p);
+            $pGender = is_array($p) ? ($p['gender'] ?? 'Male') : (is_object($p) ? ($p->gender ?? 'Male') : 'Male');
+            if ($pName) {
+                $participantsMap[$pName] = [
+                    'name' => $pName,
+                    'gender' => $pGender,
+                ];
+            }
+        }
+
         // Cek apakah pertandingan sudah dimulai / scoring live sudah berjalan
         $isLocked = false;
         if (Cache::get("drawing.locked_{$game['id']}", false)) {
@@ -1013,22 +1026,35 @@ class GameController extends Controller
                     'drawingData' => $drawingData,
                     'rounds' => $rounds,
                 ], now()->addHours(12));
+
+                // Clear unstarted match participants if Host shuffled so stale pre-shuffle rosters don't linger
+                if ($request->has('shuffle') || $request->has('seed')) {
+                    $drawingModel = Drawing::where('session_id', $game['id'])->first();
+                    if ($drawingModel) {
+                        $unstartedMatchIds = GameMatch::where('drawing_id', $drawingModel->drawing_id)
+                            ->where('status_match', '!=', 'Completed')
+                            ->pluck('match_id')
+                            ->all();
+                        if (! empty($unstartedMatchIds)) {
+                            MatchParticipant::whereIn('match_id', $unstartedMatchIds)->delete();
+                        }
+                    }
+                }
+
+                // Broadcast shuffled drawing to all connected spectators/players via Supabase Realtime
+                if ($request->has('shuffle') || $request->has('seed')) {
+                    $this->broadcastDrawingShuffledRealtime((int) $game['id'], $drawingData, $rounds, $participantsMap ?? []);
+                }
+            } else {
+                // Ensure initial drawing schedule is also cached if first viewed by a non-host
+                Cache::put($scheduleCacheKey, [
+                    'drawingData' => $drawingData,
+                    'rounds' => $rounds,
+                ], now()->addHours(12));
             }
         } else {
             $drawingData = $savedSchedule['drawingData'] ?? [];
             $rounds = $savedSchedule['rounds'] ?? [];
-        }
-
-        $participantsMap = [];
-        foreach ($participants as $p) {
-            $pName = is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->nama ?? $p->name ?? '') : (string) $p);
-            $pGender = is_array($p) ? ($p['gender'] ?? 'Male') : (is_object($p) ? ($p->gender ?? 'Male') : 'Male');
-            if ($pName) {
-                $participantsMap[$pName] = [
-                    'name' => $pName,
-                    'gender' => $pGender,
-                ];
-            }
         }
 
         // Jika request via AJAX / Fetch JSON
@@ -1096,6 +1122,45 @@ class GameController extends Controller
 
         return redirect()->route('scoring.live', ['id' => $id, 'format' => $format])
             ->with('success', 'Jadwal pertandingan berhasil dikunci!');
+    }
+
+    /**
+     * Broadcast status drawing diacak ulang ke channel Supabase Realtime.
+     */
+    protected function broadcastDrawingShuffledRealtime(int $gameId, array $drawingData, array $rounds, array $participantsMap): void
+    {
+        try {
+            $url = rtrim(config('services.supabase.url', ''), '/').'/realtime/v1/api/broadcast';
+            $key = config('services.supabase.key');
+            if (empty($url) || empty($key)) {
+                return;
+            }
+
+            Http::withoutVerifying()
+                ->withHeaders([
+                    'apikey' => $key,
+                    'Authorization' => 'Bearer '.$key,
+                    'Content-Type' => 'application/json',
+                ])
+                ->timeout(2)
+                ->post($url, [
+                    'messages' => [
+                        [
+                            'topic' => "session_{$gameId}",
+                            'event' => 'drawing_shuffled',
+                            'payload' => [
+                                'session_id' => $gameId,
+                                'drawingData' => $drawingData,
+                                'rounds' => $rounds,
+                                'participantsMap' => $participantsMap,
+                                'timestamp' => now()->toIso8601String(),
+                            ],
+                        ],
+                    ],
+                ]);
+        } catch (\Throwable $e) {
+            Log::debug("Supabase realtime drawing shuffled broadcast skipped: {$e->getMessage()}");
+        }
     }
 
     /**

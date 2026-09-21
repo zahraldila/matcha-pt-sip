@@ -410,12 +410,43 @@ class ScoringController extends Controller
         if (! $matchKey) {
             $courtNum = max(1, $request->integer('court', 1));
             $courtCount = SessionModel::with('courts')->find($gameId)?->courts->count() ?? 1;
-            $matchKey = \App\Services\Scoring\ScoringService::buildMatchKey($round, $courtNum, max(1, $courtCount));
+            $matchKey = ScoringService::buildMatchKey($round, $courtNum, max(1, $courtCount));
         }
         $status = $request->input('status', 'in_progress');
         $requestedCourt = $request->integer('court', 0);
         $courtIndex = $requestedCourt > 0 ? max(0, $requestedCourt - 1) : 0;
         $isWalkover = $request->boolean('is_walkover', false);
+
+        // Simpan ke Cache (TTL 4 jam) agar bisa dibaca semua user
+        $cacheKey = "scoring.game_{$gameId}";
+        $scores = Cache::get($cacheKey, []);
+
+        if (empty($scores[$matchKey])) {
+            $dbScore = $this->getScoreFromDatabase($gameId, $round, $courtIndex);
+            if ($dbScore && ($dbScore['status'] ?? '') === 'completed') {
+                $scores[$matchKey] = $dbScore;
+                Cache::put($cacheKey, $scores, now()->addHours(4));
+            }
+        }
+
+        // Guard 1: Jika ronde atau sesi sudah berstatus selesai, tolak pembaruan yang terlambat datang (late in-flight AJAX)
+        if (($scores['_meta']['status'] ?? '') === 'finished' || (($scores[$matchKey]['status'] ?? '') === 'completed')) {
+            return response()->json([
+                'success' => true,
+                'duplicate' => true,
+                'already_completed' => true,
+                'message' => 'Pertandingan sudah selesai. Pembaruan skor diabaikan.',
+                'score_a' => (int) ($scores[$matchKey]['games_a'] ?? ($scores[$matchKey]['score_a'] ?? 0)),
+                'score_b' => (int) ($scores[$matchKey]['games_b'] ?? ($scores[$matchKey]['score_b'] ?? 0)),
+                'games_a' => (int) ($scores[$matchKey]['games_a'] ?? ($scores[$matchKey]['score_a'] ?? 0)),
+                'games_b' => (int) ($scores[$matchKey]['games_b'] ?? ($scores[$matchKey]['score_b'] ?? 0)),
+                'point_display_a' => (string) ($scores[$matchKey]['point_display_a'] ?? '0'),
+                'point_display_b' => (string) ($scores[$matchKey]['point_display_b'] ?? '0'),
+                'saved' => $scores[$matchKey] ?? [],
+                'match_key' => $matchKey,
+                'version' => (int) ($scores[$matchKey]['version'] ?? 0),
+            ]);
+        }
 
         if ($status === 'completed') {
             $scoringSystemName = SessionModel::where('session_id', $gameId)->value('scoring_system')
@@ -431,10 +462,6 @@ class ScoringController extends Controller
                 ], 422);
             }
         }
-
-        // Simpan ke Cache (TTL 4 jam) agar bisa dibaca semua user
-        $cacheKey = "scoring.game_{$gameId}";
-        $scores = Cache::get($cacheKey, []);
 
         // Fallback scoring system dari DB session (digunakan jika getGameData gagal)
         $scoringSystem = ScoringService::detectScoringSystem(
@@ -453,19 +480,6 @@ class ScoringController extends Controller
             }
         } catch (\Throwable $e) {
             Log::warning('Unable to validate round access before score update: '.$e->getMessage());
-        }
-
-        // Guard 1: Jika ronde atau sesi sudah berstatus selesai, tolak pembaruan yang terlambat datang (late in-flight AJAX)
-        if (($scores['_meta']['status'] ?? '') === 'finished' || (($scores[$matchKey]['status'] ?? '') === 'completed')) {
-            return response()->json([
-                'success' => true,
-                'duplicate' => true,
-                'already_completed' => true,
-                'message' => 'Pertandingan sudah selesai. Pembaruan skor diabaikan.',
-                'saved' => $scores[$matchKey] ?? [],
-                'match_key' => $matchKey,
-                'version' => (int) ($scores[$matchKey]['version'] ?? 0),
-            ]);
         }
 
         // Guard 2: Cek apakah sesi di database sudah berstatus Finished
@@ -932,7 +946,7 @@ class ScoringController extends Controller
         $gameId = $request->integer('game_id');
         $session = SessionModel::findOrFail($gameId);
         if (! $this->isHostForSession($session)) {
-            return redirect()->back()->withErrors(['auth' => 'Akses ditolak. Hanya Host yang dapat menyelesaikan sesi.']);
+            abort(403, 'Akses ditolak. Hanya Host yang dapat menyelesaikan sesi.');
         }
 
         $round = $request->string('round')->toString();
@@ -1277,7 +1291,7 @@ class ScoringController extends Controller
                     $roundNumber = intdiv(max(0, (int) $match->nomor_match - 1), $courtCount) + 1;
                     $courtNumber = (($match->nomor_match - 1) % $courtCount) + 1;
                     $rKey = "round_{$roundNumber}";
-                    $scoreKey = \App\Services\Scoring\ScoringService::buildMatchKey($rKey, $courtNumber, $courtCount);
+                    $scoreKey = ScoringService::buildMatchKey($rKey, $courtNumber, $courtCount);
                     $matchScores = $match->scores;
                     $mSetsA = 0;
                     $mSetsB = 0;
@@ -2165,10 +2179,14 @@ class ScoringController extends Controller
     {
         $gamesA = $incomingGamesA !== null ? $incomingGamesA : (int) ($currentState['games_a'] ?? ($currentState['score_a'] ?? 0));
         $gamesB = $incomingGamesB !== null ? $incomingGamesB : (int) ($currentState['games_b'] ?? ($currentState['score_b'] ?? 0));
-        
-        if ($explicitWinner === 'A') $explicitWinner = 'Team A';
-        if ($explicitWinner === 'B') $explicitWinner = 'Team B';
-        
+
+        if ($explicitWinner === 'A') {
+            $explicitWinner = 'Team A';
+        }
+        if ($explicitWinner === 'B') {
+            $explicitWinner = 'Team B';
+        }
+
         $winner = $explicitWinner ?: ($gamesA >= $gamesB ? 'Team A' : 'Team B');
         $setsA = ($winner === 'Team A') ? 1 : 0;
         $setsB = ($winner === 'Team B') ? 1 : 0;

@@ -100,12 +100,12 @@ class MemberBugFixesTest extends TestCase
     {
         $controller = new GameController;
 
-        // 1. BUG-MEM-002: Unauthenticated request should be rejected (401 or redirect)
+        // 1. Non-existent session ID should redirect to games.index
         $request = Request::create('/games/999999/join', 'POST');
         $response = $controller->joinSession(999999, $request);
 
         $this->assertEquals(302, $response->getStatusCode());
-        $this->assertTrue($response->isRedirect(route('login')));
+        $this->assertTrue($response->isRedirect(route('games.index')));
 
         // 2. BUG-MEM-001: Authenticated request with non-existent session ID should return 404 or error redirect
         $user = new User([

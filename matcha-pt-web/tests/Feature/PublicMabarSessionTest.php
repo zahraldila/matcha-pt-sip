@@ -2,15 +2,14 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\User;
+use App\Models\Court;
 use App\Models\SessionModel;
 use App\Models\Sport;
+use App\Models\User;
 use App\Models\Venue;
-use App\Models\Court;
-use App\Models\Player;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
 
 class PublicMabarSessionTest extends TestCase
 {
@@ -22,7 +21,7 @@ class PublicMabarSessionTest extends TestCase
 
     protected function setupTestDatabaseSchema(): void
     {
-        if (!Schema::hasTable('tb_user')) {
+        if (! Schema::hasTable('tb_user')) {
             Schema::create('tb_user', function ($table) {
                 $table->id('user_id');
                 $table->string('nama')->default('User Test');
@@ -30,11 +29,12 @@ class PublicMabarSessionTest extends TestCase
                 $table->string('email')->unique();
                 $table->string('password')->default('password');
                 $table->string('role')->default('member');
+                $table->boolean('is_host')->default(false);
                 $table->timestamps();
             });
         }
 
-        if (!Schema::hasTable('tb_sport')) {
+        if (! Schema::hasTable('tb_sport')) {
             Schema::create('tb_sport', function ($table) {
                 $table->id('sport_id');
                 $table->string('nama_sport');
@@ -42,7 +42,7 @@ class PublicMabarSessionTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('tb_venue')) {
+        if (! Schema::hasTable('tb_venue')) {
             Schema::create('tb_venue', function ($table) {
                 $table->id('venue_id');
                 $table->unsignedBigInteger('owner_user_id')->nullable();
@@ -52,7 +52,7 @@ class PublicMabarSessionTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('tb_court')) {
+        if (! Schema::hasTable('tb_court')) {
             Schema::create('tb_court', function ($table) {
                 $table->id('court_id');
                 $table->string('nama_court');
@@ -60,7 +60,7 @@ class PublicMabarSessionTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('tb_session')) {
+        if (! Schema::hasTable('tb_session')) {
             Schema::create('tb_session', function ($table) {
                 $table->id('session_id');
                 $table->unsignedBigInteger('host_user_id')->nullable();
@@ -77,14 +77,14 @@ class PublicMabarSessionTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('tb_session_court')) {
+        if (! Schema::hasTable('tb_session_court')) {
             Schema::create('tb_session_court', function ($table) {
                 $table->unsignedBigInteger('session_id');
                 $table->unsignedBigInteger('court_id');
             });
         }
 
-        if (!Schema::hasTable('tb_player')) {
+        if (! Schema::hasTable('tb_player')) {
             Schema::create('tb_player', function ($table) {
                 $table->id('player_id');
                 $table->unsignedBigInteger('user_id')->nullable();
@@ -100,14 +100,14 @@ class PublicMabarSessionTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('tb_session_player')) {
+        if (! Schema::hasTable('tb_session_player')) {
             Schema::create('tb_session_player', function ($table) {
                 $table->unsignedBigInteger('session_id');
                 $table->unsignedBigInteger('player_id');
             });
         }
 
-        if (!Schema::hasTable('tb_match_format')) {
+        if (! Schema::hasTable('tb_match_format')) {
             Schema::create('tb_match_format', function ($table) {
                 $table->id('match_format_id');
                 $table->string('nama_format');
@@ -115,13 +115,25 @@ class PublicMabarSessionTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('tb_drawing')) {
+        if (! Schema::hasTable('tb_drawing')) {
             Schema::create('tb_drawing', function ($table) {
                 $table->id('drawing_id');
                 $table->unsignedBigInteger('session_id');
                 $table->unsignedBigInteger('match_format_id')->default(1);
                 $table->date('tanggal_drawing')->nullable();
                 $table->time('jam_drawing')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('tb_kudos')) {
+            Schema::create('tb_kudos', function ($table) {
+                $table->id('kudos_id');
+                $table->unsignedBigInteger('session_id');
+                $table->unsignedBigInteger('giver_user_id')->nullable();
+                $table->unsignedBigInteger('recipient_player_id')->nullable();
+                $table->string('recipient_name');
+                $table->string('badge');
                 $table->timestamps();
             });
         }
@@ -134,8 +146,9 @@ class PublicMabarSessionTest extends TestCase
     {
         $user = User::create([
             'nama' => 'Host Budi',
-            'email' => 'host_' . uniqid() . '@matcha.com',
+            'email' => 'host_'.uniqid().'@matcha.com',
             'role' => 'host',
+            'is_host' => true,
             'password' => bcrypt('secret'),
         ]);
 
@@ -171,7 +184,7 @@ class PublicMabarSessionTest extends TestCase
     {
         $session = $this->createValidSession('Mabar Padel Sore Seru');
 
-        $response = $this->get('/games/' . $session->session_id);
+        $response = $this->get('/games/'.$session->session_id);
 
         $response->assertStatus(200);
         $response->assertSee('Mabar Padel Sore Seru');
@@ -232,7 +245,7 @@ class PublicMabarSessionTest extends TestCase
 
         $this->get('/games/'.$session->session_id.'/drawing')->assertOk();
         $this->getJson('/games/'.$session->session_id.'/drawing?shuffle=1&seed=123')->assertUnauthorized();
-        $this->post('/games/'.$session->session_id.'/lock')->assertForbidden();
+        $this->postJson('/games/'.$session->session_id.'/lock')->assertUnauthorized();
     }
 
     public function test_invalid_public_drawing_live_score_and_recap_ids_return_404(): void

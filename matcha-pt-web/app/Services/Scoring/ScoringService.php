@@ -131,6 +131,46 @@ class ScoringService
                 $courtNumber = $matches[$i]['court'] ?? ($i + 1);
                 $matchKey = self::buildMatchKey($roundKey, $courtNumber, $totalCountForSuffix);
 
+                $candidateKeys = [
+                    $matchKey,
+                    "{$roundKey}_court_{$courtNumber}",
+                    $roundKey,
+                    "{$roundKey}_match_{$i}",
+                ];
+
+                $matchedScore = null;
+                foreach ($candidateKeys as $cKey) {
+                    if (isset($effective[$cKey]) && is_array($effective[$cKey])) {
+                        $candidate = $effective[$cKey];
+                        if (($candidate['status'] ?? '') === 'completed' ||
+                            ($isFinishedSession && (
+                                ($candidate['games_a'] ?? 0) > 0 ||
+                                ($candidate['games_b'] ?? 0) > 0 ||
+                                ($candidate['sets_a'] ?? 0) > 0 ||
+                                ($candidate['sets_b'] ?? 0) > 0 ||
+                                ($candidate['score_a'] ?? 0) > 0 ||
+                                ($candidate['score_b'] ?? 0) > 0
+                            ))
+                        ) {
+                            $matchedScore = $candidate;
+                            break;
+                        }
+                    }
+                }
+
+                if ($matchedScore === null) {
+                    foreach ($candidateKeys as $cKey) {
+                        if (isset($effective[$cKey]) && is_array($effective[$cKey])) {
+                            $matchedScore = $effective[$cKey];
+                            break;
+                        }
+                    }
+                }
+
+                if ($matchedScore !== null) {
+                    $effective[$matchKey] = $matchedScore;
+                }
+
                 $isCompleted = isset($effective[$matchKey]) && (
                     ($effective[$matchKey]['status'] ?? '') === 'completed' ||
                     ($isFinishedSession && (
@@ -271,22 +311,26 @@ class ScoringService
         $stats = [];
         if ($isPerTeam) {
             foreach ($drawing as $rKey => $round) {
-                if ($rKey === 'teams') continue;
-                $roundMatches = $round['matches'] ?? [ $round ];
+                if ($rKey === 'teams') {
+                    continue;
+                }
+                $roundMatches = $round['matches'] ?? [$round];
                 foreach ($roundMatches as $m) {
                     foreach (['a', 'b'] as $side) {
                         $team = $m["team_{$side}"] ?? [];
-                        if (!empty($team)) {
+                        if (! empty($team)) {
                             if (is_array($team) && isset($team['name'])) {
                                 $name = $team['display_name'] ?? $team['name'] ?? 'Tim';
                                 $teamIdentity = $team['name'] ?? null;
                             } else {
-                                $mTeam = $m["team_{$side}_names"] ?? ($m["team" . strtoupper($side) . "_names"] ?? $team);
+                                $mTeam = $m["team_{$side}_names"] ?? ($m['team'.strtoupper($side).'_names'] ?? $team);
                                 $name = implode(' & ', is_array($mTeam) ? $mTeam : [$mTeam]);
-                                if (empty($name)) $name = "Tim {$side}";
+                                if (empty($name)) {
+                                    $name = "Tim {$side}";
+                                }
                                 $teamIdentity = $name;
                             }
-                            if (!isset($stats[$name])) {
+                            if (! isset($stats[$name])) {
                                 $stats[$name] = [
                                     'name' => $name,
                                     'team_identity' => $teamIdentity,
@@ -360,14 +404,19 @@ class ScoringService
                 $matchScoreKey = self::buildMatchKey($roundKey, $mCourt, $totalCountForSuffix);
 
                 $matchScore = $effectiveScores[$matchScoreKey] ?? [];
-                
-                // Fallback (legacy single key atau versi match)
+
+                // Fallback (legacy single key atau versi match / court)
                 if (empty($matchScore) || ($matchScore['status'] ?? '') !== 'completed') {
-                    $altKey = "{$roundKey}_match_{$mIdx}";
-                    if (isset($effectiveScores[$altKey]) && ($effectiveScores[$altKey]['status'] ?? '') === 'completed') {
-                        $matchScore = $effectiveScores[$altKey];
-                    } elseif (isset($effectiveScores[$roundKey]) && ($effectiveScores[$roundKey]['status'] ?? '') === 'completed') {
-                        $matchScore = $effectiveScores[$roundKey];
+                    $candidateAltKeys = [
+                        "{$roundKey}_court_{$mCourt}",
+                        $roundKey,
+                        "{$roundKey}_match_{$mIdx}",
+                    ];
+                    foreach ($candidateAltKeys as $altKey) {
+                        if (isset($effectiveScores[$altKey]) && ($effectiveScores[$altKey]['status'] ?? '') === 'completed') {
+                            $matchScore = $effectiveScores[$altKey];
+                            break;
+                        }
                     }
                 }
 
@@ -434,7 +483,9 @@ class ScoringService
                         $teamAName = $teamAObj['display_name'] ?? $teamAObj['name'];
                     } else {
                         $teamAName = implode(' & ', is_array($teamA) ? $teamA : [$teamA]);
-                        if (empty($teamAName)) $teamAName = "Tim a";
+                        if (empty($teamAName)) {
+                            $teamAName = 'Tim a';
+                        }
                     }
 
                     if (isset($stats[$teamAName])) {
@@ -458,7 +509,9 @@ class ScoringService
                         $teamBName = $teamBObj['display_name'] ?? $teamBObj['name'];
                     } else {
                         $teamBName = implode(' & ', is_array($teamB) ? $teamB : [$teamB]);
-                        if (empty($teamBName)) $teamBName = "Tim b";
+                        if (empty($teamBName)) {
+                            $teamBName = 'Tim b';
+                        }
                     }
 
                     if (isset($stats[$teamBName])) {
@@ -885,6 +938,7 @@ class ScoringService
                         if (isset($match["team{$sideUpper}_names"]) && is_array($match["team{$sideUpper}_names"])) {
                             return $match["team{$sideUpper}_names"];
                         }
+
                         return is_array($team) ? $team : [];
                     };
 
