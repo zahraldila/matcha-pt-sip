@@ -285,6 +285,33 @@ document.addEventListener('DOMContentLoaded', function () {
         // Scroll to new card smoothly
         newCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
+
+    // Form submit validation against script tags
+    const courtForm = document.getElementById('multiCourtForm');
+    if (courtForm) {
+        courtForm.addEventListener('submit', function (e) {
+            const nameInputs = courtForm.querySelectorAll('input[name*="[nama_court]"]');
+            let hasError = false;
+            let firstError = null;
+            nameInputs.forEach(input => {
+                if (/<[^>]*script/i.test(input.value) || /<script[\s\S]*?>/i.test(input.value) || /[<>]/.test(input.value)) {
+                    input.classList.add('!border-rose-500', 'ring-2', 'ring-rose-500/20');
+                    hasError = true;
+                    if (!firstError) firstError = input;
+                } else {
+                    input.classList.remove('!border-rose-500', 'ring-2', 'ring-rose-500/20');
+                }
+            });
+            if (hasError) {
+                e.preventDefault();
+                alert('Nama lapangan tidak boleh mengandung tag script atau karakter khusus (< >).');
+                if (firstError) {
+                    firstError.focus();
+                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        });
+    }
 });
 </script>
 @endsection

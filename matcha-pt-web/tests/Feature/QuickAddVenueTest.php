@@ -141,4 +141,23 @@ class QuickAddVenueTest extends TestCase
 
         $response->assertStatus(422);
     }
+
+    public function test_quick_store_venue_rejects_script_payload(): void
+    {
+        $user = User::firstOrCreate(
+            ['email' => 'host_xss@example.com'],
+            ['nama' => 'Host XSS Check', 'is_host' => true]
+        );
+
+        $response = $this->actingAs($user)->postJson(route('venues.quickStore'), [
+            'nama_venue' => '<script>alert(1)</script>',
+            'sport' => 'Padel',
+            'jumlah_court' => 1,
+            'kota' => 'Jakarta',
+            'alamat' => 'Jl. Test',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['nama_venue']);
+    }
 }

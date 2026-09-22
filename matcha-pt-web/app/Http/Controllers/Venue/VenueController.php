@@ -279,25 +279,29 @@ class VenueController extends Controller
         }
 
         $validated = $request->validate([
-            'nama_venue' => 'required|string|max:100|unique:tb_venue,nama_venue',
-            'alamat' => 'required|string',
+            'nama_venue' => ['required', 'string', 'max:100', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/', 'unique:tb_venue,nama_venue'],
+            'alamat' => ['required', 'string', 'not_regex:/<[^>]*script/i'],
             'kota_wilayah' => 'nullable|string|max:150',
             'kota' => 'nullable|string|max:150',
             'jam_operasional' => 'nullable|string|max:100',
             'hari_buka' => 'nullable|string|max:100',
-            'nama_pic' => 'nullable|string|max:150',
+            'nama_pic' => ['nullable', 'string', 'max:150', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/'],
             'no_whatsapp' => 'nullable|string|max:50',
-            'catatan' => 'nullable|string',
+            'catatan' => ['nullable', 'string', 'not_regex:/<[^>]*script/i'],
             'fasilitas' => 'nullable|array',
-            'fasilitas.*' => 'string|max:100',
+            'fasilitas.*' => ['string', 'max:100', 'not_regex:/<[^>]*script/i'],
             'facilities' => 'nullable|array',
-            'facilities.*' => 'string|max:100',
+            'facilities.*' => ['string', 'max:100', 'not_regex:/<[^>]*script/i'],
             'foto' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
             'fotos' => 'nullable|array|max:12',
             'fotos.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120',
         ], [
             'nama_venue.unique' => 'Nama venue sudah terdaftar. Silakan gunakan nama venue yang lain.',
             'nama_venue.max' => 'Nama venue maksimal 100 karakter.',
+            'nama_venue.not_regex' => 'Nama venue tidak boleh mengandung tag script atau karakter khusus (< >).',
+            'alamat.not_regex' => 'Alamat venue tidak boleh mengandung tag script.',
+            'nama_pic.not_regex' => 'Nama PIC tidak boleh mengandung tag script atau karakter khusus (< >).',
+            'catatan.not_regex' => 'Catatan tidak boleh mengandung tag script.',
         ]);
 
         $savedPaths = [];
@@ -336,17 +340,17 @@ class VenueController extends Controller
         $catatanInput = $request->input('catatan') ?? $request->input('maintenance_note');
 
         $venue = Venue::create([
-            'nama_venue' => $validated['nama_venue'],
-            'alamat' => $validated['alamat'],
-            'kota' => $kotaFinal,
-            'jam_operasional' => $request->input('jam_operasional') ?: '06:00 - 23:00 WIB',
-            'hari_buka' => $request->input('hari_buka') ?: 'Setiap Hari (Senin - Minggu)',
-            'nama_pic' => $request->input('nama_pic'),
-            'no_whatsapp' => $request->input('no_whatsapp'),
-            'catatan' => $catatanInput,
+            'nama_venue' => strip_tags($validated['nama_venue']),
+            'alamat' => strip_tags($validated['alamat']),
+            'kota' => strip_tags($kotaFinal ?? ''),
+            'jam_operasional' => strip_tags($request->input('jam_operasional') ?: '06:00 - 23:00 WIB'),
+            'hari_buka' => strip_tags($request->input('hari_buka') ?: 'Setiap Hari (Senin - Minggu)'),
+            'nama_pic' => strip_tags($request->input('nama_pic') ?? ''),
+            'no_whatsapp' => strip_tags($request->input('no_whatsapp') ?? ''),
+            'catatan' => strip_tags($catatanInput ?? ''),
             'foto' => $fotoString,
             'owner_user_id' => $user->user_id,
-            'fasilitas' => implode(', ', $fasilitasArr),
+            'fasilitas' => implode(', ', array_map('strip_tags', $fasilitasArr)),
         ]);
 
         return redirect()->route('venues.courts.create', [
@@ -364,14 +368,15 @@ class VenueController extends Controller
     public function quickStore(Request $request)
     {
         $validated = $request->validate([
-            'nama_venue' => 'required|string|max:100|unique:tb_venue,nama_venue',
+            'nama_venue' => ['required', 'string', 'max:100', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/', 'unique:tb_venue,nama_venue'],
             'sport' => 'required|string|in:Padel,Tennis',
             'jumlah_court' => 'required|integer|min:1|max:10',
-            'kota' => 'nullable|string|max:100',
-            'alamat' => 'nullable|string|max:255',
+            'kota' => ['nullable', 'string', 'max:100', 'not_regex:/<[^>]*script/i'],
+            'alamat' => ['nullable', 'string', 'max:255', 'not_regex:/<[^>]*script/i'],
         ], [
             'nama_venue.required' => 'Nama venue wajib diisi.',
             'nama_venue.unique' => 'Nama venue sudah terdaftar, silakan pilih dari daftar atau gunakan nama lain.',
+            'nama_venue.not_regex' => 'Nama venue tidak boleh mengandung tag script atau karakter khusus (< >).',
             'sport.required' => 'Cabang olahraga wajib dipilih.',
             'jumlah_court.min' => 'Minimal harus ada 1 court.',
         ]);
@@ -389,9 +394,9 @@ class VenueController extends Controller
 
             $venue = Venue::create([
                 'owner_user_id' => Auth::id(),
-                'nama_venue' => $validated['nama_venue'],
-                'alamat' => $validated['alamat'] ?: $validated['nama_venue'],
-                'kota' => $validated['kota'] ?: 'Jakarta',
+                'nama_venue' => strip_tags($validated['nama_venue']),
+                'alamat' => strip_tags($validated['alamat'] ?: $validated['nama_venue']),
+                'kota' => strip_tags($validated['kota'] ?: 'Jakarta'),
                 'jam_operasional' => '06:00 - 23:00 WIB',
                 'hari_buka' => 'Setiap Hari (Senin - Minggu)',
                 'fasilitas' => 'Parkir, Toilet, Ruang Ganti',

@@ -674,6 +674,18 @@
         const addressInput = document.getElementById('quickVenueAddress');
 
         const originalBtnHtml = btn.innerHTML;
+
+        const hasScript = (val) => /<[^>]*script/i.test(val) || /<script[\s\S]*?>/i.test(val) || /[<>]/.test(val);
+        if (hasScript(nameInput.value) || hasScript(cityInput.value) || hasScript(addressInput.value)) {
+            if (errDiv && errText) {
+                errText.textContent = 'Input tidak boleh mengandung tag script atau karakter khusus (< >).';
+                errDiv.classList.remove('hidden');
+            }
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+            return;
+        }
+
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Menyimpan...';
         if (errDiv) errDiv.classList.add('hidden');

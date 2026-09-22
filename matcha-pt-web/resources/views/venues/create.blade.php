@@ -1508,9 +1508,15 @@ document.addEventListener('DOMContentLoaded', function () {
         let isValid = true;
         let firstInvalid = null;
 
+        const hasScriptTag = (val) => /<[^>]*script/i.test(val) || /<script[\s\S]*?>/i.test(val) || /[<>]/.test(val);
+
         // 1. Nama Venue
         if (!venueName.value.trim()) {
             setError(venueName, venueNameError, 'Nama venue wajib diisi.');
+            isValid = false;
+            if (!firstInvalid) firstInvalid = venueName;
+        } else if (hasScriptTag(venueName.value)) {
+            setError(venueName, venueNameError, 'Nama venue tidak boleh mengandung tag script atau karakter khusus (< >).');
             isValid = false;
             if (!firstInvalid) firstInvalid = venueName;
         } else {
@@ -1520,6 +1526,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // 2. Alamat Venue
         if (!venueAddress.value.trim()) {
             setError(venueAddress, venueAddressError, 'Alamat lengkap venue wajib diisi.');
+            isValid = false;
+            if (!firstInvalid) firstInvalid = venueAddress;
+        } else if (hasScriptTag(venueAddress.value)) {
+            setError(venueAddress, venueAddressError, 'Alamat venue tidak boleh mengandung tag script atau karakter HTML.');
             isValid = false;
             if (!firstInvalid) firstInvalid = venueAddress;
         } else {
@@ -1549,6 +1559,10 @@ document.addEventListener('DOMContentLoaded', function () {
             setError(picName, picNameError, 'Nama PIC wajib diisi.');
             isValid = false;
             if (!firstInvalid) firstInvalid = picName;
+        } else if (hasScriptTag(picName.value)) {
+            setError(picName, picNameError, 'Nama PIC tidak boleh mengandung tag script atau karakter khusus (< >).');
+            isValid = false;
+            if (!firstInvalid) firstInvalid = picName;
         } else {
             clearError(picName, picNameError);
         }
@@ -1556,6 +1570,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // 6. Nomor WhatsApp
         if (!picPhone.value.trim()) {
             setError(picPhone, picPhoneError, 'Nomor WhatsApp wajib diisi.');
+            isValid = false;
+            if (!firstInvalid) firstInvalid = picPhone;
+        } else if (hasScriptTag(picPhone.value)) {
+            setError(picPhone, picPhoneError, 'Nomor WhatsApp tidak boleh mengandung tag script atau karakter HTML.');
             isValid = false;
             if (!firstInvalid) firstInvalid = picPhone;
         } else {
@@ -1568,9 +1586,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 setError(otherSurface, otherSurfaceError, 'Silakan sebutkan jenis permukaan.');
                 isValid = false;
                 if (!firstInvalid) firstInvalid = otherSurface;
+            } else if (hasScriptTag(otherSurface.value)) {
+                setError(otherSurface, otherSurfaceError, 'Jenis permukaan tidak boleh mengandung tag script atau karakter khusus (< >).');
+                isValid = false;
+                if (!firstInvalid) firstInvalid = otherSurface;
             } else {
                 clearError(otherSurface, otherSurfaceError);
             }
+        }
+
+        // 8. Catatan Khusus
+        const catatanOperasional = document.getElementById('catatanOperasional');
+        if (catatanOperasional && hasScriptTag(catatanOperasional.value)) {
+            catatanOperasional.classList.add('!border-rose-500', 'ring-2', 'ring-rose-500/20');
+            isValid = false;
+            if (!firstInvalid) firstInvalid = catatanOperasional;
         }
 
         // Cegah submit dan scroll ke field pertama yang error

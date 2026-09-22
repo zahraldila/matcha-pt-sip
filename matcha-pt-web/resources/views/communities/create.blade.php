@@ -599,12 +599,32 @@
         const nama = document.getElementById('input_nama_community')?.value.trim() || '';
         const kota = document.getElementById('input_kota')?.value.trim() || '';
         const deskripsi = document.getElementById('input_deskripsi')?.value.trim() || '';
+        const tagline = document.getElementById('input_tagline')?.value.trim() || '';
+        const jadwal = document.getElementById('input_jadwal')?.value.trim() || '';
+        const homebase = document.getElementById('input_homebase')?.value.trim() || '';
+
+        const hasScript = (val) => /<[^>]*script/i.test(val) || /<script[\s\S]*?>/i.test(val) || /[<>]/.test(val);
 
         let hasError = false;
 
-        if (setFieldError('input_nama_community', 'err_nama_community', !nama ? 'Nama komunitas / klub wajib diisi.' : null)) hasError = true;
-        if (setFieldError('input_kota', 'err_kota', !kota ? 'Kota homebase wajib diisi.' : null)) hasError = true;
-        if (setFieldError('input_deskripsi', 'err_deskripsi', !deskripsi ? 'Deskripsi lengkap komunitas wajib diisi.' : null)) hasError = true;
+        let namaError = !nama ? 'Nama komunitas / klub wajib diisi.' : (hasScript(nama) ? 'Nama komunitas tidak boleh mengandung tag script atau karakter khusus (< >).' : null);
+        let kotaError = !kota ? 'Kota homebase wajib diisi.' : (hasScript(kota) ? 'Kota homebase tidak boleh mengandung tag script atau karakter HTML.' : null);
+        let deskripsiError = !deskripsi ? 'Deskripsi lengkap komunitas wajib diisi.' : (hasScript(deskripsi) ? 'Deskripsi tidak boleh mengandung tag script atau karakter HTML.' : null);
+
+        if (setFieldError('input_nama_community', 'err_nama_community', namaError)) hasError = true;
+        if (setFieldError('input_kota', 'err_kota', kotaError)) hasError = true;
+        if (setFieldError('input_deskripsi', 'err_deskripsi', deskripsiError)) hasError = true;
+
+        if (hasScript(tagline) || hasScript(jadwal) || hasScript(homebase)) {
+            hasError = true;
+            ['input_tagline', 'input_jadwal', 'input_homebase'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && hasScript(el.value)) {
+                    el.classList.add('!border-rose-500', 'ring-2', 'ring-rose-500/20');
+                }
+            });
+        }
+
         if (!validateLogoField()) hasError = true;
 
         if (hasError) {

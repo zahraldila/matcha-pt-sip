@@ -45,17 +45,18 @@ class CourtController extends Controller
             'facilities' => explode(',', $venueModel->fasilitas ?: 'Belum dicatat'),
             'courts' => $venueModel->courts->map(function (Court $court) {
                 $type = $court->tipe_court;
-                if (empty($type) && !empty($court->deskripsi)) {
+                if (empty($type) && ! empty($court->deskripsi)) {
                     if (preg_match('/Tipe:\s*(Indoor|Outdoor|Semi-Indoor)/i', $court->deskripsi, $matches)) {
                         $type = $matches[1];
                     }
                 }
                 $harga = $court->harga_per_jam;
-                if (empty($harga) && !empty($court->deskripsi)) {
+                if (empty($harga) && ! empty($court->deskripsi)) {
                     if (preg_match('/(?:Rp|IDR)\s*([\d\.,]+)/i', $court->deskripsi, $pMatches)) {
                         $harga = (float) str_replace(['.', ','], '', $pMatches[1]);
                     }
                 }
+
                 return [
                     'name' => $court->nama_court,
                     'status' => $court->status_ketersediaan ?? 'Available',
@@ -77,8 +78,8 @@ class CourtController extends Controller
         $venue = $this->ownedVenue($id);
         $count = max(1, min(12, (int) $request->query('count', 1)));
         $sport = $request->query('sport', 'Padel');
-        $type = in_array($request->query('type'), ['Indoor', 'Outdoor', 'Semi-Indoor']) 
-            ? $request->query('type') 
+        $type = in_array($request->query('type'), ['Indoor', 'Outdoor', 'Semi-Indoor'])
+            ? $request->query('type')
             : 'Indoor';
 
         $sports = Sport::all();
@@ -97,68 +98,72 @@ class CourtController extends Controller
         // Jika dikirim dalam format batch multi-court (courts[])
         if ($request->has('courts') && is_array($request->input('courts'))) {
             $validated = $request->validate([
-                'courts'                 => 'required|array|min:1',
-                'courts.*.nama_court'    => 'required|string|max:100',
-                'courts.*.sport_id'      => 'nullable',
-                'courts.*.sport_name'    => 'nullable|string',
-                'courts.*.tipe_court'    => 'required|string|in:Indoor,Outdoor,Semi-Indoor',
+                'courts' => 'required|array|min:1',
+                'courts.*.nama_court' => ['required', 'string', 'max:100', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/'],
+                'courts.*.sport_id' => 'nullable',
+                'courts.*.sport_name' => 'nullable|string',
+                'courts.*.tipe_court' => 'required|string|in:Indoor,Outdoor,Semi-Indoor',
                 'courts.*.harga_per_jam' => 'required|numeric|min:0',
+            ], [
+                'courts.*.nama_court.not_regex' => 'Nama court tidak boleh mengandung tag script atau karakter khusus (< >).',
             ]);
 
-            $padelSportId = Sport::whereRaw('LOWER(nama_sport) = ?', ['padel'])->value('sport_id') 
+            $padelSportId = Sport::whereRaw('LOWER(nama_sport) = ?', ['padel'])->value('sport_id')
                 ?? Sport::value('sport_id');
-            $tennisSportId = Sport::whereRaw('LOWER(nama_sport) = ?', ['tennis'])->value('sport_id') 
+            $tennisSportId = Sport::whereRaw('LOWER(nama_sport) = ?', ['tennis'])->value('sport_id')
                 ?? $padelSportId;
 
             foreach ($validated['courts'] as $c) {
                 $targetSportId = $c['sport_id'] ?? null;
-                if (!$targetSportId && !empty($c['sport_name'])) {
+                if (! $targetSportId && ! empty($c['sport_name'])) {
                     $targetSportId = strtolower($c['sport_name']) === 'tennis' ? $tennisSportId : $padelSportId;
                 }
-                if (!$targetSportId) {
+                if (! $targetSportId) {
                     $targetSportId = $padelSportId;
                 }
 
                 Court::create([
-                    'venue_id'            => $venue->venue_id,
-                    'sport_id'            => $targetSportId,
-                    'nama_court'          => $c['nama_court'],
+                    'venue_id' => $venue->venue_id,
+                    'sport_id' => $targetSportId,
+                    'nama_court' => strip_tags($c['nama_court']),
                     'status_ketersediaan' => 'Available',
-                    'tipe_court'          => $c['tipe_court'],
-                    'harga_per_jam'       => $c['harga_per_jam'],
-                    'deskripsi'           => "Tipe: {$c['tipe_court']} • Rp " . number_format($c['harga_per_jam']) . "/jam",
+                    'tipe_court' => $c['tipe_court'],
+                    'harga_per_jam' => $c['harga_per_jam'],
+                    'deskripsi' => "Tipe: {$c['tipe_court']} • Rp ".number_format($c['harga_per_jam']).'/jam',
                 ]);
             }
 
             return redirect()->route('venues.show', $venue->venue_id)
-                ->with('success', count($validated['courts']) . ' Court berhasil ditambahkan!');
+                ->with('success', count($validated['courts']).' Court berhasil ditambahkan!');
         }
 
         // Fallback untuk single court
         $validated = $request->validate([
-            'nama_court'    => 'required|string|max:100',
-            'tipe_court'    => 'required|string|in:Indoor,Outdoor,Semi-Indoor',
+            'nama_court' => ['required', 'string', 'max:100', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/'],
+            'tipe_court' => 'required|string|in:Indoor,Outdoor,Semi-Indoor',
             'harga_per_jam' => 'required|numeric|min:0',
-            'sport_id'      => 'nullable',
-            'sport_name'    => 'nullable|string',
+            'sport_id' => 'nullable',
+            'sport_name' => 'nullable|string',
+        ], [
+            'nama_court.not_regex' => 'Nama court tidak boleh mengandung tag script atau karakter khusus (< >).',
         ]);
 
         $sportId = $validated['sport_id'] ?? null;
-        if (!$sportId && !empty($validated['sport_name'])) {
+        if (! $sportId && ! empty($validated['sport_name'])) {
             $sportId = Sport::whereRaw('LOWER(nama_sport) = ?', [strtolower($validated['sport_name'])])->value('sport_id');
         }
-        if (!$sportId) {
+        if (! $sportId) {
             $sportId = Sport::whereRaw('LOWER(nama_sport) = ?', ['padel'])->value('sport_id') ?? Sport::value('sport_id');
         }
 
         Court::create([
-            'venue_id'            => $venue->venue_id,
-            'sport_id'            => $sportId,
-            'nama_court'          => $validated['nama_court'],
+            'venue_id' => $venue->venue_id,
+            'sport_id' => $sportId,
+            'nama_court' => strip_tags($validated['nama_court']),
             'status_ketersediaan' => 'Available',
-            'tipe_court'          => $validated['tipe_court'],
-            'harga_per_jam'       => $validated['harga_per_jam'],
-            'deskripsi'           => "Tipe: {$validated['tipe_court']} • Rp " . number_format($validated['harga_per_jam']) . "/jam",
+            'tipe_court' => $validated['tipe_court'],
+            'harga_per_jam' => $validated['harga_per_jam'],
+            'deskripsi' => "Tipe: {$validated['tipe_court']} • Rp ".number_format($validated['harga_per_jam']).'/jam',
         ]);
 
         return redirect()->route('venues.show', $venue->venue_id)
