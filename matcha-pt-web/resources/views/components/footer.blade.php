@@ -1,5 +1,5 @@
-<footer class="bg-white border-t border-slate-200 mt-16 py-8 text-slate-500 text-xs">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+<footer class="bg-white border-t border-slate-200 mt-16 py-8 text-slate-500 text-xs w-full overflow-hidden">
+    <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
         <div class="flex items-center gap-2">
             <span class="font-bold text-[#050608]">Matcha Application</span>
             <span class="text-slate-300">&bull;</span>
