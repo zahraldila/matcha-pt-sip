@@ -51,11 +51,11 @@
 
         <!-- Match Info Pill Details -->
         <div class="space-y-1.5 text-xs text-slate-600 mb-4 bg-white/60 backdrop-blur-xs p-3 rounded-xl border border-slate-200/50">
-            <div class="flex items-center gap-2">
-                <i class="fa-solid fa-location-dot text-slate-400 w-3.5 text-center text-[11px]"></i>
-                <span class="font-semibold text-[#050608] truncate">{{ $game['venue_name'] }}</span>
-                <span class="text-slate-300">&bull;</span>
-                <span class="text-slate-500 truncate text-[11px]">{{ $game['court_name'] }}</span>
+            <div class="flex items-center gap-2 min-w-0">
+                <i class="fa-solid fa-location-dot text-slate-400 w-3.5 text-center text-[11px] shrink-0"></i>
+                <span class="font-semibold text-[#050608] truncate min-w-0">{{ $game['venue_name'] }}</span>
+                <span class="text-slate-300 shrink-0">&bull;</span>
+                <span class="text-slate-500 truncate text-[11px] min-w-0">{{ $game['court_name'] }}</span>
             </div>
             <div class="flex items-center gap-2 text-[11px]">
                 <i class="fa-regular fa-calendar text-slate-400 w-3.5 text-center"></i>
