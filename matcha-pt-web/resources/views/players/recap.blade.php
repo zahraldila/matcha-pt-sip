@@ -601,11 +601,8 @@
                         <!-- Player Hero Showcase -->
                         <div class="space-y-2.5 my-auto">
                             <div class="text-center space-y-1.5">
-                                <div class="relative inline-block">
+                                <div class="inline-block">
                                     <img src="{{ $recap['player']['avatar'] }}" alt="{{ $recap['player']['name'] }}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto ring-4 ring-[#A8E63A]/60 shadow-xl">
-                                    <span class="absolute -bottom-1 right-0 w-6 h-6 rounded-full bg-[#063B00] border-2 border-[#A8E63A] flex items-center justify-center text-white text-[10px]">
-                                        🎾
-                                    </span>
                                 </div>
                                 <h3 class="text-sm font-black text-white truncate">{{ $recap['player']['name'] }}</h3>
                                 <p class="text-[9px] text-slate-400">{{ $recap['player']['community'] ?? 'Matcha Community Player' }}</p>

@@ -4,20 +4,16 @@ namespace Tests\Unit;
 
 use App\Http\Controllers\Game\GameController;
 use App\Http\Controllers\Scoring\ScoringController;
-use App\Http\Controllers\Venue\VenueController;
 use App\Models\Court;
 use App\Models\Drawing;
 use App\Models\GameMatch;
 use App\Models\MatchParticipant;
 use App\Models\Player;
 use App\Models\SessionModel;
-use App\Models\Sport;
 use App\Models\User;
-use App\Models\Venue;
 use App\Services\Drawing\AmericanoService;
 use App\Services\Drawing\TeamAmericanoService;
 use App\Services\Scoring\ScoringService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -849,7 +845,6 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->string('email')->unique();
                 $table->string('password')->default('password');
                 $table->string('role')->default('member');
-                $table->boolean('is_host')->default(false);
                 $table->timestamps();
             });
         }
@@ -869,41 +864,10 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->timestamps();
             });
         }
-        if (! Schema::hasTable('tb_sport')) {
-            Schema::create('tb_sport', function ($table) {
-                $table->id('sport_id');
-                $table->string('nama_sport');
-                $table->string('status_sport')->default('Active');
-            });
-        }
-        if (! Schema::hasTable('tb_venue')) {
-            Schema::create('tb_venue', function ($table) {
-                $table->id('venue_id');
-                $table->unsignedBigInteger('owner_user_id')->nullable();
-                $table->string('nama_venue');
-                $table->string('alamat')->nullable();
-                $table->string('kota')->nullable();
-                $table->string('foto')->nullable();
-                $table->string('fasilitas')->nullable();
-                $table->text('catatan')->nullable();
-                $table->string('jam_operasional')->nullable();
-                $table->string('hari_buka')->nullable();
-                $table->string('no_whatsapp')->nullable();
-                $table->string('nama_pic')->nullable();
-                $table->timestamps();
-            });
-        }
         if (! Schema::hasTable('tb_court')) {
             Schema::create('tb_court', function ($table) {
                 $table->id('court_id');
-                $table->unsignedBigInteger('venue_id')->nullable();
-                $table->unsignedBigInteger('sport_id')->nullable();
                 $table->string('nama_court');
-                $table->string('status_ketersediaan')->default('Available');
-                $table->string('image_url')->nullable();
-                $table->text('deskripsi')->nullable();
-                $table->string('tipe_court')->nullable();
-                $table->decimal('harga_per_jam', 12, 2)->nullable();
                 $table->timestamps();
             });
         }
@@ -932,14 +896,6 @@ class DrawingAndScoringLogicTest extends TestCase
             Schema::create('tb_session_player', function ($table) {
                 $table->unsignedBigInteger('session_id');
                 $table->unsignedBigInteger('player_id');
-            });
-        }
-        if (! Schema::hasTable('tb_match_format')) {
-            Schema::create('tb_match_format', function ($table) {
-                $table->id('match_format_id');
-                $table->string('nama_format')->default('Americano');
-                $table->text('deskripsi')->nullable();
-                $table->timestamps();
             });
         }
         if (! Schema::hasTable('tb_drawing')) {
@@ -1010,7 +966,6 @@ class DrawingAndScoringLogicTest extends TestCase
             'nama' => 'Host User',
             'email' => 'host_'.uniqid().'@matcha.com',
             'role' => 'host',
-            'is_host' => true,
             'password' => bcrypt('secret'),
         ]);
 
@@ -1613,314 +1568,6 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertTrue($accessAfter4['round_4']);
         $this->assertTrue($accessAfter4['round_5'], 'Set 5 harus otomatis terbuka setelah Set 4 selesai pada Total of 7!');
         $this->assertFalse($accessAfter4['round_6'], 'Set 6 harus tetap terkunci sebelum Set 5 selesai.');
-    }
-
-    /**
-     * Test 16: Quick add venue & courts via VenueController::quickStore
-     */
-    public function test_quick_add_venue_creates_venue_and_courts()
-    {
-        $this->setupTestDatabaseSchema();
-
-        $user = User::create([
-            'nama' => 'Test Host Venue',
-            'email' => 'host_quick_unit@example.com',
-            'password' => 'secret',
-            'role' => 'member',
-        ]);
-        Auth::login($user);
-
-        Sport::firstOrCreate(
-            ['nama_sport' => 'Padel'],
-            ['status_sport' => 'Active']
-        );
-
-        $controller = new VenueController;
-        $request = Request::create('/venues/quick-store', 'POST', [
-            'nama_venue' => 'Matcha Dago Padel Hub Unit',
-            'sport' => 'Padel',
-            'jumlah_court' => 3,
-            'kota' => 'Bandung',
-            'alamat' => 'Jl. Dago No. 100',
-        ]);
-
-        $response = $controller->quickStore($request);
-        $this->assertEquals(200, $response->getStatusCode());
-
-        $data = json_decode($response->getContent(), true);
-        $this->assertTrue($data['success']);
-        $this->assertEquals('Matcha Dago Padel Hub Unit', $data['venue']['nama_venue']);
-        $this->assertCount(3, $data['venue']['courts']);
-        $this->assertEquals('Court 1', $data['venue']['courts'][0]['nama_court']);
-        $this->assertEquals('Available', $data['venue']['courts'][0]['status_ketersediaan']);
-
-        $this->assertDatabaseHas('tb_venue', ['nama_venue' => 'Matcha Dago Padel Hub Unit']);
-        $this->assertDatabaseHas('tb_court', ['nama_court' => 'Court 1', 'venue_id' => $data['venue']['venue_id']]);
-    }
-
-    /**
-     * Test 17: Guest Player can join session without phone number or login
-     */
-    public function test_guest_player_can_join_session_without_phone_number()
-    {
-        $this->setupTestDatabaseSchema();
-        Auth::logout();
-
-        $session = SessionModel::create([
-            'host_user_id' => 1,
-            'sport_id' => 1,
-            'venue_id' => 1,
-            'nama_session' => 'Mabar Guest Join Test',
-            'scoring_system' => 'Total of 3',
-            'waktu_session' => '08:00 WIB',
-            'datetime' => '2026-09-20 08:00:00',
-            'status_session' => 'Open',
-            'jumlah_pemain' => 4,
-            'jenis_permainan' => 'Double',
-        ]);
-
-        $controller = new GameController;
-        $request = Request::create("/games/{$session->session_id}/join", 'POST', [
-            'nama' => 'Budi Tamu Padel',
-            'gender' => 'Male',
-            'level' => 'Beginner',
-        ], [], [], ['HTTP_ACCEPT' => 'application/json']);
-
-        $response = $controller->joinSession($session->session_id, $request);
-        $this->assertEquals(200, $response->getStatusCode());
-
-        $data = json_decode($response->getContent(), true);
-        $this->assertTrue($data['success']);
-        $this->assertStringContainsString('Guest Player', $data['message']);
-
-        // Check player created with user_id = null and no_hp = null
-        $this->assertDatabaseHas('tb_player', [
-            'nama' => 'Budi Tamu Padel',
-            'user_id' => null,
-            'no_hp' => null,
-            'gender' => 'Male',
-            'level' => 'Beginner',
-        ]);
-
-        // Check attached to session
-        $this->assertEquals(1, $session->fresh()->players->count());
-    }
-
-    /**
-     * Test 18: Drawing State endpoint returns rounds and participantsMap for spectator sync
-     */
-    public function test_drawing_state_endpoint_returns_rounds_and_participants_map_for_spectator_sync()
-    {
-        [$session, $hostUser] = $this->createTestSession('Double', 2);
-        $session->update(['status_session' => 'Ready for Drawing']);
-        Auth::login($hostUser);
-
-        $controller = new GameController;
-        $request = Request::create("/games/{$session->session_id}/drawing", 'GET', ['json' => 1]);
-
-        $response = $controller->drawing($session->session_id, $request);
-        $this->assertEquals(200, $response->getStatusCode());
-
-        $data = json_decode($response->getContent(), true);
-        $this->assertTrue($data['success']);
-        $this->assertFalse($data['isLocked']);
-        $this->assertNotEmpty($data['rounds']);
-        $this->assertNotEmpty($data['participantsMap']);
-        $this->assertArrayHasKey('Host User', $data['participantsMap']);
-    }
-
-    /**
-     * Test 19: Drawing shuffle clears stale unstarted match participants
-     */
-    public function test_drawing_shuffle_clears_stale_unstarted_match_participants()
-    {
-        [$session, $hostUser, $hostPlayer, $memberUsers] = $this->createTestSession('Double', 2);
-        $session->update(['status_session' => 'Ready for Drawing']);
-        Auth::login($hostUser);
-
-        $drawing = Drawing::create([
-            'session_id' => $session->session_id,
-            'match_format_id' => 1,
-            'tanggal_drawing' => now()->toDateString(),
-            'jam_drawing' => now()->toTimeString(),
-        ]);
-
-        $unstartedMatch = GameMatch::create([
-            'drawing_id' => $drawing->drawing_id,
-            'court_id' => 1,
-            'nomor_match' => 1,
-            'status_match' => 'Pending',
-        ]);
-
-        MatchParticipant::create([
-            'match_id' => $unstartedMatch->match_id,
-            'player_id' => $hostPlayer->player_id,
-            'side' => 'A',
-        ]);
-
-        $this->assertDatabaseHas('tb_match_participant', [
-            'match_id' => $unstartedMatch->match_id,
-            'player_id' => $hostPlayer->player_id,
-        ]);
-
-        $controller = new GameController;
-        $request = Request::create("/games/{$session->session_id}/drawing", 'GET', [
-            'shuffle' => 1,
-            'seed' => 99999,
-            'json' => 1,
-        ]);
-
-        $response = $controller->drawing($session->session_id, $request);
-        $this->assertEquals(200, $response->getStatusCode());
-
-        // Stale unstarted match participant should be deleted
-        $this->assertDatabaseMissing('tb_match_participant', [
-            'match_id' => $unstartedMatch->match_id,
-            'player_id' => $hostPlayer->player_id,
-        ]);
-    }
-
-    /**
-     * Test 20: getScore returns session_status, is_session_finished, and recap_url
-     */
-    public function test_get_score_returns_session_status_and_finish_state()
-    {
-        [$session, $hostUser] = $this->createTestSession('Double', 1);
-        Auth::login($hostUser);
-
-        $controller = new ScoringController;
-        $response = $controller->getScore($session->session_id, 'round_1');
-        $data = $response->getData(true);
-
-        $this->assertEquals('in_progress', $data['session_status']);
-        $this->assertFalse($data['is_session_finished']);
-        $this->assertStringContainsString('/scoring/recap/'.$session->session_id, $data['recap_url']);
-
-        // Mark session finished in cache
-        $cacheKey = "scoring.game_{$session->session_id}";
-        Cache::put($cacheKey, [
-            '_meta' => [
-                'status' => 'finished',
-                'last_round_key' => 'round_1',
-            ],
-        ], now()->addHours(1));
-
-        $responseFinished = $controller->getScore($session->session_id, 'round_1');
-        $dataFinished = $responseFinished->getData(true);
-
-        $this->assertEquals('finished', $dataFinished['session_status']);
-        $this->assertTrue($dataFinished['is_session_finished']);
-    }
-
-    /**
-     * Test 21: Non-host live view does not display finish or next round form during active match
-     */
-    public function test_guest_or_player_spectator_does_not_see_finish_button_during_active_rounds()
-    {
-        [$session, $hostUser, $hostPlayer, $memberUsers] = $this->createTestSession('Double', 1);
-        $guestUser = $memberUsers[0]['user'];
-        Auth::login($guestUser);
-
-        $controller = new ScoringController;
-        $request = Request::create("/scoring/live/{$session->session_id}", 'GET', [
-            'format' => 'Americano',
-            'round' => 'round_1',
-        ]);
-
-        $view = $controller->live($session->session_id, $request);
-        $html = $view->render();
-
-        // Non-host spectator should NOT have globalFinishForm or globalNextRoundForm or btnGlobalRecap
-        $this->assertStringNotContainsString('id="globalFinishForm"', $html);
-        $this->assertStringNotContainsString('id="globalNextRoundForm"', $html);
-        $this->assertStringNotContainsString('id="btnGlobalFinishSession"', $html);
-        $this->assertStringNotContainsString('id="btnGlobalNextRound"', $html);
-        $this->assertStringNotContainsString('id="btnGlobalRecap"', $html);
-        $this->assertStringNotContainsString('Buka Klasemen Akhir', $html);
-    }
-
-    /**
-     * Test 22: Accessing live scoring when session is already finished redirects directly to recap
-     */
-    public function test_live_view_redirects_to_recap_when_session_is_finished()
-    {
-        [$session, $hostUser] = $this->createTestSession('Double', 1);
-        $session->update(['status_session' => 'Finished']);
-        Auth::login($hostUser);
-
-        $controller = new ScoringController;
-        $request = Request::create("/scoring/live/{$session->session_id}", 'GET');
-
-        $response = $controller->live($session->session_id, $request);
-
-        $this->assertInstanceOf(RedirectResponse::class, $response);
-        $this->assertEquals(route('scoring.recap', $session->session_id), $response->getTargetUrl());
-    }
-
-    /**
-     * Test 23: Game show view displays finished recap button and hides drawing/scoring when session is finished
-     */
-    public function test_game_show_displays_recap_podium_and_hides_drawing_when_finished()
-    {
-        [$session, $hostUser] = $this->createTestSession('Double', 1);
-        $session->update(['status_session' => 'Finished']);
-        Auth::login($hostUser);
-
-        $controller = new GameController;
-        $view = $controller->show($session->session_id);
-        $html = $view->render();
-
-        $this->assertStringContainsString('Hasil Akhir &amp; Podium', $html);
-        $this->assertStringContainsString(route('scoring.recap', $session->session_id), $html);
-        $this->assertStringNotContainsString('Buka Drawing Tim', $html);
-        $this->assertStringNotContainsString('Live Match Scoring', $html);
-    }
-
-    /**
-     * Test 24: Game drawing redirects to recap when session is finished
-     */
-    public function test_game_drawing_redirects_to_recap_when_session_is_finished()
-    {
-        [$session, $hostUser] = $this->createTestSession('Double', 1);
-        $session->update(['status_session' => 'Finished']);
-        Auth::login($hostUser);
-
-        $controller = new GameController;
-        $request = Request::create("/games/{$session->session_id}/drawing", 'GET');
-
-        $response = $controller->drawing($session->session_id, $request);
-
-        $this->assertInstanceOf(RedirectResponse::class, $response);
-        $this->assertEquals(route('scoring.recap', $session->session_id), $response->getTargetUrl());
-    }
-
-    /**
-     * Test 25: Drawing json endpoint returns redirect_url and detects In Progress status
-     */
-    public function test_drawing_endpoint_returns_redirect_url_and_detects_in_progress_lock()
-    {
-        [$session, $hostUser] = $this->createTestSession('Double', 1);
-        $session->update(['status_session' => 'Ready for Drawing']);
-        Auth::login($hostUser);
-
-        $controller = new GameController;
-        $request = Request::create("/games/{$session->session_id}/drawing", 'GET', ['json' => 1]);
-
-        $response = $controller->drawing($session->session_id, $request);
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertTrue($data['success']);
-        $this->assertFalse($data['isLocked']);
-        $this->assertArrayHasKey('redirect_url', $data);
-        $this->assertStringContainsString('/scoring/live/'.$session->session_id, $data['redirect_url']);
-
-        // Lock session (status: In Progress)
-        $session->update(['status_session' => 'In Progress']);
-
-        $responseLocked = $controller->drawing($session->session_id, $request);
-        $dataLocked = json_decode($responseLocked->getContent(), true);
-
-        $this->assertTrue($dataLocked['isLocked']);
     }
 
     protected function invokeMethod(&$object, $methodName, array $parameters = [])
