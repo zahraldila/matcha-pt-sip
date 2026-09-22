@@ -134,6 +134,13 @@
         </div>
     </div>
 
+    @if(session('success'))
+        <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2.5">
+            <i class="fa-solid fa-circle-check text-emerald-600"></i>
+            <span>{{ session('success') }}</span>
+        </div>
+    @endif
+
     <!-- 3. Grid of Games or Empty States -->
     @if($games->count() > 0)
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

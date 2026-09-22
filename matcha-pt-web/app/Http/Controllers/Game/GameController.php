@@ -670,7 +670,7 @@ class GameController extends Controller
 
             DB::commit();
 
-            return redirect()->route('games.index')->with('success', 'Sesi mabar baru berhasil dibuat dan dipublikasikan!');
+            return redirect()->route('games.index')->with('toast', 'Sesi mabar baru berhasil dibuat dan dipublikasikan! 🎉');
         } catch (\Exception $e) {
             DB::rollBack();
 

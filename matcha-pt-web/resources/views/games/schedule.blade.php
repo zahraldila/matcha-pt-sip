@@ -150,13 +150,14 @@
 
             <!-- 4. Lokasi Venue & Lapangan -->
             <div class="space-y-3 pt-2 border-t border-slate-100">
-                <div class="flex items-center justify-between">
-                    <label class="block font-black text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                <div class="flex items-center justify-between gap-3">
+                    <label class="block font-black text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5 shrink-0">
                         <span class="w-5 h-5 rounded-full bg-[#063B00] text-white flex items-center justify-center text-[10px] font-bold">4</span>
                         Lokasi Venue &amp; Lapangan
                     </label>
-                    <button type="button" onclick="openQuickAddVenueModal()" class="inline-flex items-center gap-1.5 text-xs font-bold text-[#063B00] bg-[#EBF8D8] hover:bg-[#d9f2b8] px-3 py-1 rounded-full border border-[#063B00]/20 transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer">
-                        <i class="fa-solid fa-plus text-[10px]"></i> <span>Tambah Venue</span>
+                    <button type="button" onclick="openQuickAddVenueModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-[11px] shadow-xs transition-all hover:scale-[1.02] active:scale-95 cursor-pointer shrink-0">
+                        <i class="fa-solid fa-plus text-[#A8E63A] text-[10px]"></i>
+                        <span>+ Tambah Venue</span>
                     </button>
                 </div>
 
@@ -164,20 +165,20 @@
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Pilih Venue / Tempat</label>
                         <div class="relative">
-                            <select name="venue_id" id="venueSelect" onchange="updateCourtsDropdown()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs" required>
+                            <select name="venue_id" id="venueSelect" onchange="updateCourtsDropdown()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 pr-8 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs overflow-hidden text-ellipsis" required style="max-width:100%;">
                                 <option value="" disabled selected>Pilih venue sesuai olahraga</option>
                             </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
                     </div>
 
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Pilih Court / Lapangan</label>
                         <div class="relative">
-                            <select name="court_id" id="courtSelect" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs" required>
+                            <select name="court_id" id="courtSelect" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 pr-8 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs overflow-hidden text-ellipsis" required style="max-width:100%;">
                                 <option value="" disabled selected>Pilih court</option>
                             </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
                     </div>
                 </div>
@@ -459,7 +460,9 @@
             const availableCount = v.courts.filter(c => parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available').length;
             const opt = document.createElement('option');
             opt.value = v.venue_id;
-            opt.innerText = `${v.nama_venue} (${availableCount} Court Tersedia)`;
+            const label = `${v.nama_venue} (${availableCount} Court Tersedia)`;
+            opt.innerText = label;
+            opt.title = label;
             if (preserveVenueId && parseInt(v.venue_id) === parseInt(preserveVenueId)) {
                 opt.selected = true;
             }
