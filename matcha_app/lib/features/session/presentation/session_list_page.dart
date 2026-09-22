@@ -299,10 +299,16 @@ class _SessionListPageState extends State<SessionListPage> {
       floatingActionButton: isHost
           ? FloatingActionButton.extended(
               onPressed: () {
-                Navigator.push(
+                Navigator.push<bool>(
                   context,
-                  MaterialPageRoute(builder: (_) => const CreateSessionPage()),
-                );
+                  MaterialPageRoute(
+                    builder: (_) => CreateSessionPage(
+                      authController: widget.authController,
+                    ),
+                  ),
+                ).then((val) {
+                  if (val == true) _loadSessions();
+                });
               },
               backgroundColor: AppColors.matchaDark,
               foregroundColor: Colors.white,

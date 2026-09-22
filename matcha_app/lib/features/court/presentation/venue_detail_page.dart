@@ -84,7 +84,10 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const CreateSessionPage(),
+          builder: (_) => CreateSessionPage(
+            authController: widget.authController,
+            initialVenueId: _venue?.venueId,
+          ),
         ),
       );
     } else {

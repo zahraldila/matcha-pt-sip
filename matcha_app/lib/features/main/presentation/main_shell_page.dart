@@ -61,7 +61,9 @@ class _MainShellPageState extends State<MainShellPage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const CreateSessionPage(),
+          builder: (_) => CreateSessionPage(
+            authController: widget.authController,
+          ),
         ),
       );
     } else {

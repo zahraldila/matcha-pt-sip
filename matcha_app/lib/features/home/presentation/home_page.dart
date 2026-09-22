@@ -320,10 +320,16 @@ class _HomePageState extends State<HomePage> {
                                   message: 'Kamu harus masuk atau mendaftar akun terlebih dahulu untuk membuat sesi mabar dan mengundang pemain.',
                                 );
                               } else if (isHost) {
-                                Navigator.push(
+                                Navigator.push<bool>(
                                   context,
-                                  MaterialPageRoute(builder: (_) => const CreateSessionPage()),
-                                );
+                                  MaterialPageRoute(
+                                    builder: (_) => CreateSessionPage(
+                                      authController: widget.authController,
+                                    ),
+                                  ),
+                                ).then((val) {
+                                  if (val == true) _loadData();
+                                });
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
