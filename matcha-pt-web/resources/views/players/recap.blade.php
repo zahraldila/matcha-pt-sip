@@ -19,6 +19,9 @@
         </div>
 
         <div class="flex items-center gap-2.5">
+            <a href="{{ route('player.profile') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-200 shadow-2xs transition-all hover:border-[#063B00]">
+                <i class="fa-solid fa-id-card text-slate-400 text-[11px]"></i> <span>Profil Saya</span>
+            </a>
             @if($isHost && $activeTab === 'host')
                 <a href="{{ route('games.create') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] cursor-pointer">
                     <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> Buat Sesi Mabar Baru

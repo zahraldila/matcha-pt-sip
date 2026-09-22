@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="w-full overflow-x-hidden">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -46,7 +46,7 @@
             border: 1px solid rgba(226, 232, 240, 0.6);
         }
     </style>
-<body class="min-h-screen flex flex-col antialiased selection:bg-[#A8E63A] selection:text-[#050608] relative overflow-x-hidden w-full">
+<body class="min-h-screen flex flex-col antialiased selection:bg-[#A8E63A] selection:text-[#050608] relative overflow-x-hidden w-full max-w-full">
     
     <!-- Ambient Background Lighting (Subtle Pastel Blooms for Glass Effect) -->
     <div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
@@ -59,7 +59,7 @@
     @include('components.navbar')
 
     <!-- Main Content Area -->
-    <main class="flex-grow pb-24 md:pb-8">
+    <main class="flex-grow pb-24 md:pb-8 w-full max-w-full overflow-x-hidden">
         @yield('content')
     </main>
 

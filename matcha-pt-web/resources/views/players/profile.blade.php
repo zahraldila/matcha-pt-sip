@@ -1,12 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-28 md:pb-12 space-y-5 sm:space-y-6 relative">
-    <!-- Ambient Glow Effects -->
-    <div class="absolute w-72 h-72 bg-[#A8E63A]/15 rounded-full blur-3xl pointer-events-none -top-10 -left-12"></div>
-    <div class="absolute w-72 h-72 bg-[#063B00]/10 rounded-full blur-3xl pointer-events-none bottom-10 -right-12"></div>
-
-    <div class="relative z-10 space-y-5 sm:space-y-6">
+<div class="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-28 md:pb-12 space-y-5 sm:space-y-6">
+    <div class="space-y-5 sm:space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-slate-200/60 pb-4">
             <div>
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] text-[10px] font-black uppercase tracking-widest mb-1.5 sm:mb-2">
@@ -141,7 +137,7 @@
                                 {{ $user->role === 'venue_owner' ? '🏢 Venue Owner' : ($user->is_host ? '👑 Host Game & Player' : '🎾 Member Pemain') }}
                             </span>
                         </div>
-                        <p class="text-xs text-slate-500 font-medium">
+                        <p class="text-xs text-slate-500 font-medium break-words sm:break-normal">
                             {{ '@' . \Illuminate\Support\Str::slug($user->nama, '_') }} &bull; {{ $user->email }}
                         </p>
 

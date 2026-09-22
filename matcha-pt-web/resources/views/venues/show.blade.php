@@ -85,7 +85,7 @@
                         </div>
                     @endif
 
-                    @if(auth()->check() && (auth()->user()->role === 'venue_owner' || !empty($venue['is_mine'])))
+                    @if(auth()->check() && !empty($venue['is_mine']))
                         <button type="button" onclick="openPhotoModal()" class="absolute top-4 right-4 z-10 px-3 py-1.5 rounded-xl bg-black/60 hover:bg-black/80 text-white font-bold text-xs backdrop-blur-md border border-white/20 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer">
                             <i class="fa-solid fa-camera-rotate text-[#A8E63A] text-[11px]"></i> Kelola Foto
                         </button>
@@ -123,7 +123,7 @@
                         <p class="text-[11px] text-slate-500 mt-0.5">Daftar court aktif dan jenis arena lapangan.</p>
                     </div>
 
-                    @if(auth()->check() && (auth()->user()->role === 'venue_owner' || !empty($venue['is_mine'])))
+                    @if(auth()->check() && !empty($venue['is_mine']))
                         <a href="{{ route('venues.courts.create', $venue['id']) }}" class="px-3 py-1.5 rounded-lg bg-[#EBF8D8] hover:bg-[#d8f3b8] text-[#063B00] font-bold text-xs inline-flex items-center gap-1.5 border border-[#063B00]/20 transition-all">
                             <i class="fa-solid fa-plus text-[10px]"></i>
                             Tambah Court
@@ -147,7 +147,7 @@
                                     <span class="text-[10px] px-2 py-0.5 rounded font-semibold {{ $court['status'] === 'Available' ? 'bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25' : 'bg-rose-50 text-rose-800 border border-rose-200' }}">
                                         {{ $court['status'] }}
                                     </span>
-                                    @if(auth()->check() && (auth()->user()->role === 'venue_owner' || !empty($venue['is_mine'])) && !empty($court['id']))
+                                    @if(auth()->check() && !empty($venue['is_mine']) && !empty($court['id']))
                                         <form action="{{ route('venues.courts.destroy', [$venue['id'], $court['id']]) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus court {{ $court['name'] }}?');" class="inline">
                                             @csrf
                                             @method('DELETE')
@@ -232,7 +232,7 @@
 </div>
 
 <!-- MODAL KELOLA / EDIT FOTO VENUE -->
-@if(auth()->check() && (auth()->user()->role === 'venue_owner' || !empty($venue['is_mine'])))
+@if(auth()->check() && !empty($venue['is_mine']))
     @php
         $rawPhotosList = $venue['raw_photos'] ?? $venue['gallery'] ?? [];
     @endphp
