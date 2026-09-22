@@ -701,6 +701,16 @@ class GameController extends Controller
 
         $isFinished = ($dbSession->status_session === 'Finished') || str_contains(strtolower($status), 'selesai');
 
+        $isHost = false;
+        if (Auth::check()) {
+            $user = Auth::user();
+            $isHost = ((int) $user->user_id === (int) $dbSession->host_user_id)
+                || (! empty($user->is_host) && (int) $user->user_id === (int) ($dbSession->host->user_id ?? 0));
+        }
+
+        $hasDrawingStarted = in_array(strtolower($dbSession->status_session ?? ''), ['in progress', 'in_progress', 'live', 'playing', 'finished', 'completed', 'selesai'])
+            || Drawing::where('session_id', $dbSession->session_id)->exists();
+
         $game = [
             'id' => $dbSession->session_id,
             'title' => $dbSession->nama_session,
@@ -715,6 +725,8 @@ class GameController extends Controller
             'joined_count' => $joinedCount,
             'status' => $status,
             'is_finished' => $isFinished,
+            'is_host' => $isHost,
+            'has_drawing_started' => $hasDrawingStarted,
             'level_recommendation' => 'All Level Welcome',
             'match_format' => $formatString,
             'scoring_system' => $dbSession->scoring_system ?? 'Total of 3',
@@ -739,7 +751,7 @@ class GameController extends Controller
             'drawing' => null,
         ];
 
-        return view('games.show', compact('game', 'isFinished'));
+        return view('games.show', compact('game', 'isFinished', 'isHost', 'hasDrawingStarted'));
     }
 
     /**
@@ -908,8 +920,26 @@ class GameController extends Controller
 
         // PENYESUAIAN: Cek flag is_host dan kepemilikan host_user_id
         $isHost = Auth::check()
-            && Auth::user()->is_host
-            && (int) Auth::user()->user_id === (int) $dbSession->host_user_id;
+            && (
+                (int) Auth::user()->user_id === (int) $dbSession->host_user_id
+                || (! empty(Auth::user()->is_host) && (int) Auth::user()->user_id === (int) ($dbSession->host->user_id ?? 0))
+            );
+
+        $hasDrawingStarted = in_array(strtolower($dbSession->status_session ?? ''), ['in progress', 'in_progress', 'live', 'playing', 'finished', 'completed', 'selesai'])
+            || Drawing::where('session_id', $dbSession->session_id)->exists();
+
+        // Non-host tidak boleh membuka drawing jika Host belum memulainya
+        if (! $isHost && ! $hasDrawingStarted) {
+            if ($request->wantsJson() || $request->ajax() || $request->has('json')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi drawing belum dimulai oleh Host.',
+                ], 403);
+            }
+
+            return redirect()->route('games.show', $dbSession->session_id)
+                ->with('error', 'Sesi drawing belum dimulai oleh Host.');
+        }
 
         if (($request->has('shuffle') || $request->has('seed')) && ! $isHost) {
             return response()->json([
