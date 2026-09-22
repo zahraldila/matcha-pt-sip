@@ -20,12 +20,7 @@
     }
 </style>
 
-<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 relative">
-
-    <!-- Ambient Glowing Orbs Background -->
-    <div class="absolute w-96 h-96 bg-[#A8E63A]/20 rounded-full blur-3xl pointer-events-none -top-12 -left-12 -z-10"></div>
-    <div class="absolute w-96 h-96 bg-[#063B00]/10 rounded-full blur-3xl pointer-events-none top-1/2 -right-12 -z-10"></div>
-    <div class="absolute w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none -bottom-10 left-1/3 -z-10"></div>
+<div class="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-28 md:pb-12 space-y-8">
 
     <!-- Header Section -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/60 relative z-10">
@@ -968,36 +963,27 @@
 
             <!-- Action Buttons -->
             <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-
-                <p class="text-[11px] text-slate-500 flex items-center gap-1.5">
-                    <i class="fa-solid fa-shield-halved text-[#063B00]"></i>
-                    Informasi venue akan ditinjau oleh tim kurasi Matcha sebelum tampil publik.
+                <p class="text-[11px] text-slate-500 flex items-center gap-1.5 text-center sm:text-left">
+                    <i class="fa-solid fa-shield-halved text-[#063B00] shrink-0"></i>
+                    <span>Informasi venue akan ditinjau oleh tim kurasi Matcha sebelum tampil publik.</span>
                 </p>
 
-
-                <div class="flex items-center gap-3 w-full sm:w-auto shrink-0">
-
+                <div class="flex flex-col-reverse sm:flex-row items-center gap-3 w-full sm:w-auto">
                     <button
                         type="reset"
-                        class="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all whitespace-nowrap w-full sm:w-auto"
+                        class="w-full sm:w-auto px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all text-center cursor-pointer"
                     >
                         Reset Form
                     </button>
 
-
                     <button
                         type="submit"
-                        class="px-7 py-3 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap shrink-0 w-full sm:w-auto"
+                        class="w-full sm:w-auto px-7 py-3 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                     >
                         <i class="fa-solid fa-paper-plane text-[#A8E63A]"></i>
-
-                        <span class="whitespace-nowrap">
-                            Daftarkan Venue Sekarang
-                        </span>
+                        <span>Daftarkan Venue Sekarang</span>
                     </button>
-
                 </div>
-
             </div>
 
         </form>
