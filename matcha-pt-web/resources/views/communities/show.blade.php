@@ -10,7 +10,7 @@
 
     <!-- Header Navigation -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/60 relative z-10">
-        <div>
+        <div class="min-w-0 flex-1 max-w-full">
             <a href="{{ route('communities.index') }}" class="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-[#063B00] transition-colors mb-3 group">
                 <span class="w-7 h-7 rounded-xl bg-white/80 border border-slate-200/80 flex items-center justify-center text-slate-600 group-hover:bg-[#063B00] group-hover:text-white transition-all shadow-2xs">
                     <i class="fa-solid fa-arrow-left text-[11px]"></i>
@@ -18,29 +18,29 @@
                 Kembali ke Daftar Komunitas
             </a>
             <div class="flex items-center gap-2.5">
-                <span class="px-2.5 py-0.5 rounded-full bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] text-[10px] font-extrabold uppercase tracking-wider">
+                <span class="px-2.5 py-0.5 rounded-full bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] text-[10px] font-extrabold uppercase tracking-wider shrink-0">
                     {{ $community->sport_utama }}
                 </span>
-                <span class="text-xs text-slate-400">•</span>
-                <span class="text-xs font-medium text-slate-500">Komunitas Detail</span>
+                <span class="text-xs text-slate-400 shrink-0">•</span>
+                <span class="text-xs font-medium text-slate-500 shrink-0">Komunitas Detail</span>
             </div>
-            <div class="flex items-center gap-3.5 mt-2">
+            <div class="flex items-center gap-3.5 mt-2 min-w-0">
                 @if(!empty($community->logo))
-                    <img src="{{ $community->logo }}" alt="{{ $community->nama_community }}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200/80 shadow-sm">
+                    <img src="{{ $community->logo }}" alt="{{ $community->nama_community }}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200/80 shadow-sm shrink-0">
                 @else
-                    <img src="{{ asset('images/default-community.jpg') }}" alt="{{ $community->nama_community }}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200/80 shadow-sm">
+                    <img src="{{ asset('images/default-community.jpg') }}" alt="{{ $community->nama_community }}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200/80 shadow-sm shrink-0">
                 @endif
-                <div>
-                    <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                <div class="min-w-0 flex-1">
+                    <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight break-all break-words [overflow-wrap:anywhere]" title="{{ $community->nama_community }}">
                         {{ $community->nama_community }}
                     </h1>
                 </div>
             </div>
         </div>
 
-        <div class="hidden sm:flex flex-col items-end gap-2">
+        <div class="hidden sm:flex flex-col items-end gap-2 shrink-0">
             <div class="px-4 py-2 rounded-2xl bg-white/60 backdrop-blur-md border border-white/80 shadow-2xs flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#063B00] to-emerald-900 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#063B00] to-emerald-900 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
                     <i class="fa-solid fa-users text-[#A8E63A]"></i>
                 </div>
                 <div class="text-right">
@@ -85,7 +85,7 @@
                         </span>
                         Tentang Komunitas
                     </h3>
-                    <p class="text-sm leading-relaxed text-slate-700">{{ $community->deskripsi }}</p>
+                    <p class="text-sm leading-relaxed text-slate-700 break-words [overflow-wrap:anywhere]">{{ $community->deskripsi }}</p>
                 </div>
 
                 <!-- Details Grid -->
@@ -95,10 +95,10 @@
                     <div class="space-y-1.5">
                         <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabang Olahraga Utama</p>
                         <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-lg bg-[#EBF8D8] text-[#063B00] flex items-center justify-center text-sm font-bold">
+                            <div class="w-8 h-8 rounded-lg bg-[#EBF8D8] text-[#063B00] flex items-center justify-center text-sm font-bold shrink-0">
                                 <i class="fa-solid fa-{{ $community->sport_utama === 'Padel' ? 'table-tennis-paddle-ball' : 'baseball' }}"></i>
                             </div>
-                            <span class="font-semibold text-slate-900">{{ $community->sport_utama }}</span>
+                            <span class="font-semibold text-slate-900 break-words">{{ $community->sport_utama }}</span>
                         </div>
                     </div>
                     @endif
@@ -108,10 +108,10 @@
                     <div class="space-y-1.5">
                         <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Jadwal Rutin Mabar</p>
                         <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-lg bg-[#EBF8D8] text-[#063B00] flex items-center justify-center text-sm font-bold">
+                            <div class="w-8 h-8 rounded-lg bg-[#EBF8D8] text-[#063B00] flex items-center justify-center text-sm font-bold shrink-0">
                                 <i class="fa-regular fa-calendar-days"></i>
                             </div>
-                            <span class="font-semibold text-slate-900">{{ $community->jadwal_rutin }}</span>
+                            <span class="font-semibold text-slate-900 break-words [overflow-wrap:anywhere]">{{ $community->jadwal_rutin }}</span>
                         </div>
                     </div>
                     @endif
