@@ -205,7 +205,7 @@
                             </div>
                             <div class="p-5 space-y-2.5 text-xs">
                                 <div>
-                                    <h4 class="font-bold text-slate-900 text-sm truncate">{{ $comm['name'] }}</h4>
+                                    <h4 class="font-bold text-slate-900 text-sm truncate" title="{{ $comm['name'] }}">{{ $comm['name'] }}</h4>
                                     <p class="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
                                         <i class="fa-solid fa-location-dot text-slate-400 text-[10px]"></i> {{ $comm['city'] }} &bull; <i class="fa-solid fa-users text-slate-400 text-[10px]"></i> {{ $comm['members_count'] }} Anggota
                                     </p>

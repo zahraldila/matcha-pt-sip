@@ -119,23 +119,23 @@
 
                         <div class="p-5 space-y-3 text-xs">
                             <div>
-                                <h3 class="text-base font-bold text-[#050608] leading-tight">
+                                <h3 class="text-base font-bold text-[#050608] leading-tight line-clamp-2 break-all break-words [overflow-wrap:anywhere]" title="{{ $comm['name'] }}">
                                     <a href="{{ route('communities.show', $comm['id']) }}" class="hover:text-[#063B00] transition-colors">
                                         {{ $comm['name'] }}
                                     </a>
                                 </h3>
                                 <p class="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
-                                    <span><i class="fa-solid fa-users text-slate-400 text-[10px]"></i> {{ $comm['members_count'] }} Anggota</span>
-                                    <span class="text-slate-300">•</span>
-                                    <span><i class="fa-solid fa-location-dot text-slate-400 text-[10px]"></i> {{ $comm['city'] }}</span>
+                                    <span class="shrink-0"><i class="fa-solid fa-users text-slate-400 text-[10px]"></i> {{ $comm['members_count'] }} Anggota</span>
+                                    <span class="text-slate-300 shrink-0">•</span>
+                                    <span class="truncate"><i class="fa-solid fa-location-dot text-slate-400 text-[10px]"></i> {{ $comm['city'] }}</span>
                                 </p>
                             </div>
 
-                            <p class="text-slate-600 line-clamp-2 leading-relaxed">{{ $comm['description'] }}</p>
+                            <p class="text-slate-600 line-clamp-2 leading-relaxed break-words [overflow-wrap:anywhere]">{{ $comm['description'] }}</p>
                             
-                            <div class="pt-2 border-t border-slate-100 flex justify-between items-center text-slate-500">
-                                <span>Admin: <strong class="text-[#050608]">{{ $comm['admin_name'] }}</strong></span>
-                                <span class="text-[#063B00] font-bold">{{ $comm['status'] }}</span>
+                            <div class="pt-2 border-t border-slate-100 flex justify-between items-center text-slate-500 gap-2">
+                                <span class="truncate min-w-0">Admin: <strong class="text-[#050608]">{{ $comm['admin_name'] }}</strong></span>
+                                <span class="text-[#063B00] font-bold shrink-0">{{ $comm['status'] }}</span>
                             </div>
                         </div>
                     </div>
