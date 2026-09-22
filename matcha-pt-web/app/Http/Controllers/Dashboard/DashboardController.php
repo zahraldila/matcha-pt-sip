@@ -19,10 +19,13 @@ class DashboardController extends Controller
         $selectedCity = $request->query('city', 'all');
         $selectedDate = $request->query('date');
 
-        // 1. Ambil data Sesi Mabar dari Database Supabase (diutamakan sesi Open)
+        $startOfToday = now()->startOfDay()->toDateTimeString();
+
+        // 1. Ambil data Sesi Mabar dari Database Supabase (diurutkan dari terdekat: hari ini, besok, lusa, dst)
         $sessionQuery = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])
-            ->orderByRaw("CASE WHEN status_session = 'Open' THEN 0 WHEN status_session = 'Ready for Drawing' THEN 1 ELSE 2 END")
-            ->latest('created_at');
+            ->orderByRaw("CASE WHEN status_session NOT IN ('Finished', 'Completed') AND datetime >= ? THEN 0 ELSE 1 END", [$startOfToday])
+            ->orderByRaw("CASE WHEN status_session NOT IN ('Finished', 'Completed') AND datetime >= ? THEN datetime END ASC", [$startOfToday])
+            ->orderBy('datetime', 'desc');
 
         if ($selectedSport && $selectedSport !== 'all') {
             $sessionQuery->whereHas('sport', function ($q) use ($selectedSport) {

@@ -153,10 +153,13 @@ class GameController extends Controller
             $ownedVenueIds = Venue::where('owner_user_id', $userId)->pluck('venue_id')->toArray();
         }
 
-        // Fetch 100% real sessions from Supabase database
+        $startOfToday = now()->startOfDay()->toDateTimeString();
+
+        // Fetch 100% real sessions from Supabase database (diurutkan dari terdekat: hari ini, besok, lusa, dst)
         $sessionQuery = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])
-            ->orderByRaw("CASE WHEN status_session = 'Open' THEN 0 WHEN status_session = 'Ready for Drawing' THEN 1 ELSE 2 END")
-            ->latest('created_at');
+            ->orderByRaw("CASE WHEN status_session NOT IN ('Finished', 'Completed') AND datetime >= ? THEN 0 ELSE 1 END", [$startOfToday])
+            ->orderByRaw("CASE WHEN status_session NOT IN ('Finished', 'Completed') AND datetime >= ? THEN datetime END ASC", [$startOfToday])
+            ->orderBy('datetime', 'desc');
 
         if ($selectedSport !== 'all') {
             $sessionQuery->whereHas('sport', function ($q) use ($selectedSport) {
