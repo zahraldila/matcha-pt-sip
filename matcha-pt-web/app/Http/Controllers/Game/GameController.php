@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class GameController extends Controller
 {
@@ -711,7 +712,7 @@ class GameController extends Controller
         }
 
         $hasDrawingStarted = in_array(strtolower($dbSession->status_session ?? ''), ['in progress', 'in_progress', 'live', 'playing', 'finished', 'completed', 'selesai']);
-        if (! $hasDrawingStarted && \Illuminate\Support\Facades\Schema::hasTable('tb_match') && \Illuminate\Support\Facades\Schema::hasTable('tb_drawing')) {
+        if (! $hasDrawingStarted && Schema::hasTable('tb_match') && Schema::hasTable('tb_drawing')) {
             try {
                 $hasDrawingStarted = GameMatch::whereHas('drawing', function ($q) use ($dbSession) {
                     $q->where('session_id', $dbSession->session_id);
@@ -932,7 +933,7 @@ class GameController extends Controller
         $isHost = Auth::check() && ((int) Auth::user()->user_id === (int) $dbSession->host_user_id);
 
         $hasDrawingStarted = in_array(strtolower($dbSession->status_session ?? ''), ['in progress', 'in_progress', 'live', 'playing', 'finished', 'completed', 'selesai']);
-        if (! $hasDrawingStarted && \Illuminate\Support\Facades\Schema::hasTable('tb_match') && \Illuminate\Support\Facades\Schema::hasTable('tb_drawing')) {
+        if (! $hasDrawingStarted && Schema::hasTable('tb_match') && Schema::hasTable('tb_drawing')) {
             try {
                 $hasDrawingStarted = GameMatch::whereHas('drawing', function ($q) use ($dbSession) {
                     $q->where('session_id', $dbSession->session_id);
@@ -983,13 +984,6 @@ class GameController extends Controller
             // Ambil jenis_permainan (Single/Double) dari session
             $jenisPermainan = $dbSession->jenis_permainan ?? 'Double';
             $isSingleMode = strtolower($jenisPermainan) === 'single';
-            $minRequired = $isSingleMode ? 2 : 4;
-
-            // Jika peserta kurang dari minimum, lengkapi dengan dummy agar drawing bisa di-render
-            if (count($participants) < $minRequired) {
-                $dummy = MatchaDummyDataService::getGames()[0]['participants'];
-                $participants = array_merge($participants, array_slice($dummy, count($participants)));
-            }
 
             $formatQuery = $isHost ? $request->query('format') : null;
             if (! $formatQuery) {
@@ -1088,8 +1082,48 @@ class GameController extends Controller
         $scheduleCacheKey = "drawing.schedule_{$game['id']}";
         $savedSchedule = Cache::get($scheduleCacheKey);
 
+        // Periksa apakah cached schedule memuat pemain yang berbeda/dummy lama (stale cache)
+        $currentParticipantNames = array_values(array_filter(array_map(function ($p) {
+            $name = is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->nama ?? $p->name ?? '') : (string) $p);
+
+            return trim($name);
+        }, $participants)));
+        sort($currentParticipantNames);
+
+        $isCacheStale = false;
+        if ($savedSchedule && ! empty($savedSchedule['rounds'])) {
+            $cachedPlayers = [];
+            foreach ($savedSchedule['rounds'] as $r) {
+                if (! empty($r['matches'])) {
+                    foreach ($r['matches'] as $m) {
+                        foreach (($m['team_a_names'] ?? []) as $name) {
+                            if (! empty($name)) {
+                                $cachedPlayers[trim($name)] = true;
+                            }
+                        }
+                        foreach (($m['team_b_names'] ?? []) as $name) {
+                            if (! empty($name)) {
+                                $cachedPlayers[trim($name)] = true;
+                            }
+                        }
+                    }
+                }
+                foreach (($r['resting'] ?? []) as $name) {
+                    if (! empty($name)) {
+                        $cachedPlayers[trim($name)] = true;
+                    }
+                }
+            }
+            $cachedPlayerNames = array_keys($cachedPlayers);
+            sort($cachedPlayerNames);
+
+            if (! $isLocked && $currentParticipantNames !== $cachedPlayerNames) {
+                $isCacheStale = true;
+            }
+        }
+
         $needsGeneration = false;
-        if (! $savedSchedule || empty($savedSchedule['rounds'])) {
+        if (! $savedSchedule || empty($savedSchedule['rounds']) || $isCacheStale) {
             $needsGeneration = true;
         } elseif (! $isLocked && ($request->has('shuffle') || $request->has('seed'))) {
             $needsGeneration = true;

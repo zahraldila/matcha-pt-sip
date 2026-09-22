@@ -837,6 +837,20 @@ class DrawingAndScoringLogicTest extends TestCase
      */
     protected function setupTestDatabaseSchema()
     {
+        if (! Schema::hasTable('tb_sport')) {
+            Schema::create('tb_sport', function ($table) {
+                $table->id('sport_id');
+                $table->string('nama_sport')->default('Padel');
+                $table->timestamps();
+            });
+        }
+        if (! Schema::hasTable('tb_venue')) {
+            Schema::create('tb_venue', function ($table) {
+                $table->id('venue_id');
+                $table->string('nama_venue')->default('Arena Olahraga');
+                $table->timestamps();
+            });
+        }
         if (! Schema::hasTable('tb_user')) {
             Schema::create('tb_user', function ($table) {
                 $table->id('user_id');
@@ -1568,6 +1582,87 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertTrue($accessAfter4['round_4']);
         $this->assertTrue($accessAfter4['round_5'], 'Set 5 harus otomatis terbuka setelah Set 4 selesai pada Total of 7!');
         $this->assertFalse($accessAfter4['round_6'], 'Set 6 harus tetap terkunci sebelum Set 5 selesai.');
+    }
+
+    /**
+     * Test 16: Drawing & Scoring pada kuota belum penuh (misal 4/6 pemain) hanya memuat pemain riil dan tidak menyisipkan dummy data.
+     */
+    public function test_drawing_and_scoring_with_partial_quota_only_uses_real_players_without_dummy()
+    {
+        $this->setupTestDatabaseSchema();
+
+        $hostUser = User::create([
+            'nama' => 'Host Budi',
+            'email' => 'host_budi_'.uniqid().'@matcha.com',
+            'role' => 'member',
+            'password' => bcrypt('secret'),
+        ]);
+
+        $session = SessionModel::create([
+            'host_user_id' => $hostUser->user_id,
+            'sport_id' => 1,
+            'venue_id' => 1,
+            'nama_session' => 'Mabar Kuota 4 dari 6',
+            'scoring_system' => 'Total of 3',
+            'waktu_session' => '19:00 WIB',
+            'datetime' => '2026-09-22 19:00:00',
+            'status_session' => 'Open',
+            'jumlah_pemain' => '6',
+            'jenis_permainan' => 'Double',
+        ]);
+
+        $court = Court::create(['nama_court' => 'Court 1']);
+        \DB::table('tb_session_court')->insert([
+            'session_id' => $session->session_id,
+            'court_id' => $court->court_id,
+        ]);
+
+        $realPlayerNames = ['Host Budi', 'Andi Pratama', 'Citra Kirana', 'Dodi Kurniawan'];
+        foreach ($realPlayerNames as $idx => $pName) {
+            $user = $idx === 0 ? $hostUser : User::create([
+                'nama' => $pName,
+                'email' => "player_{$idx}_".uniqid().'@matcha.com',
+                'role' => 'member',
+                'password' => bcrypt('secret'),
+            ]);
+            $player = Player::create([
+                'user_id' => $user->user_id,
+                'nama' => $pName,
+                'gender' => $idx % 2 === 0 ? 'Male' : 'Female',
+                'level' => 'Intermediate',
+            ]);
+            \DB::table('tb_session_player')->insert([
+                'session_id' => $session->session_id,
+                'player_id' => $player->player_id,
+            ]);
+        }
+
+        $session->load('players');
+        $this->assertCount(4, $session->players);
+
+        Auth::login($hostUser);
+
+        // Uji ScoringController getGameData
+        $scoringController = new ScoringController;
+        $gameData = $this->invokeMethod($scoringController, 'getGameData', [$session->session_id]);
+
+        $this->assertCount(4, $gameData['participants'], 'Participants hanya boleh berisi 4 pemain riil yang terdaftar.');
+        $participantNames = array_column($gameData['participants'], 'name');
+        $this->assertEquals($realPlayerNames, $participantNames);
+
+        // Pastikan tidak ada satupun nama dummy (misal Gisel Anastasia, Marame Nagoan, Fahri Dhani)
+        foreach ($gameData['drawing'] as $roundKey => $rData) {
+            $allRoundPlayers = array_merge(
+                $rData['team_a_names'] ?? [],
+                $rData['team_b_names'] ?? [],
+                $rData['resting'] ?? []
+            );
+            foreach ($allRoundPlayers as $p) {
+                $this->assertContains($p, $realPlayerNames, "Pemain {$p} di ronde {$roundKey} harus merupakan pemain riil.");
+                $this->assertStringNotContainsString('Gisel Anastasia', $p);
+                $this->assertStringNotContainsString('Marame Nagoan', $p);
+            }
+        }
     }
 
     protected function invokeMethod(&$object, $methodName, array $parameters = [])

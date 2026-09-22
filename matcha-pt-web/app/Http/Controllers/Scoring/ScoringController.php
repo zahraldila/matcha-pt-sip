@@ -13,7 +13,6 @@ use App\Models\Score;
 use App\Models\SessionModel;
 use App\Services\Drawing\AmericanoService;
 use App\Services\Drawing\TeamAmericanoService;
-use App\Services\MatchaDummyDataService;
 use App\Services\Scoring\ScoringService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -1718,16 +1717,8 @@ class ScoringController extends Controller
                 ];
             })->toArray();
 
-            // Baca jenis_permainan dari session (Single/Double) untuk threshold dummy
+            // Baca jenis_permainan dari session (Single/Double)
             $sessionJenisPermainan = $dbSession->jenis_permainan ?? 'Double';
-            $isSingleSession = strtolower($sessionJenisPermainan) === 'single';
-            $minParticipants = $isSingleSession ? 2 : 4;
-
-            // Lengkapi jika kurang dari minimum
-            if (count($participants) < $minParticipants) {
-                $dummy = MatchaDummyDataService::getGames()[0]['participants'];
-                $participants = array_merge($participants, array_slice($dummy, count($participants)));
-            }
 
             $format = $this->isHostForSession($dbSession) ? strtolower(request('format', '')) : '';
             if (empty($format)) {
@@ -1736,8 +1727,72 @@ class ScoringController extends Controller
             }
             $courtCount = max(1, $dbSession->courts->count());
 
+            // Cek apakah match sudah terkunci
+            $isLocked = false;
+            if (Cache::get("drawing.locked_{$dbSession->session_id}", false)) {
+                $isLocked = true;
+            }
+            if (isset($dbSession->status_session) && in_array(strtolower($dbSession->status_session), ['in progress', 'in_progress', 'completed', 'finished', 'selesai'])) {
+                $isLocked = true;
+            }
+            $cacheKey = "scoring.game_{$dbSession->session_id}";
+            $savedScores = Cache::get($cacheKey, []);
+            if (! empty($savedScores) && is_array($savedScores)) {
+                foreach ($savedScores as $k => $v) {
+                    if ($k !== '_meta' && is_array($v) && (
+                        ($v['status'] ?? '') === 'in_progress' ||
+                        ($v['status'] ?? '') === 'completed' ||
+                        ($v['games_a'] ?? 0) > 0 || ($v['games_b'] ?? 0) > 0 ||
+                        ($v['score_a'] ?? 0) > 0 || ($v['score_b'] ?? 0) > 0 ||
+                        ($v['sets_a'] ?? 0) > 0 || ($v['sets_b'] ?? 0) > 0
+                    )) {
+                        $isLocked = true;
+                        break;
+                    }
+                }
+            }
+
+            $currentParticipantNames = array_values(array_filter(array_map(function ($p) {
+                $name = is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (is_object($p) ? ($p->nama ?? $p->name ?? '') : (string) $p);
+
+                return trim($name);
+            }, $participants)));
+            sort($currentParticipantNames);
+
             $cachedSchedule = Cache::get("drawing.schedule_{$dbSession->session_id}");
+            $isCacheStale = false;
             if ($cachedSchedule && ! empty($cachedSchedule['rounds'])) {
+                $cachedPlayers = [];
+                foreach ($cachedSchedule['rounds'] as $r) {
+                    if (! empty($r['matches'])) {
+                        foreach ($r['matches'] as $m) {
+                            foreach (($m['team_a_names'] ?? []) as $name) {
+                                if (! empty($name)) {
+                                    $cachedPlayers[trim($name)] = true;
+                                }
+                            }
+                            foreach (($m['team_b_names'] ?? []) as $name) {
+                                if (! empty($name)) {
+                                    $cachedPlayers[trim($name)] = true;
+                                }
+                            }
+                        }
+                    }
+                    foreach (($r['resting'] ?? []) as $name) {
+                        if (! empty($name)) {
+                            $cachedPlayers[trim($name)] = true;
+                        }
+                    }
+                }
+                $cachedPlayerNames = array_keys($cachedPlayers);
+                sort($cachedPlayerNames);
+
+                if (! $isLocked && $currentParticipantNames !== $cachedPlayerNames) {
+                    $isCacheStale = true;
+                }
+            }
+
+            if ($cachedSchedule && ! empty($cachedSchedule['rounds']) && ! $isCacheStale) {
                 $rounds = $cachedSchedule['rounds'];
                 $courtCount = $cachedSchedule['court_count'] ?? $courtCount;
             } else {
