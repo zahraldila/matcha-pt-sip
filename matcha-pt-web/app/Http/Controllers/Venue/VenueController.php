@@ -173,6 +173,11 @@ class VenueController extends Controller
             'raw_photos' => $validRawPhotos,
             'facilities' => $facilities,
             'description' => $dbVenue->alamat,
+            'google_maps_url' => $dbVenue->google_maps_url,
+            'sport_type' => $dbVenue->sport_type ?: $sportName,
+            'jumlah_court' => $dbVenue->jumlah_court ?: $dbVenue->courts->count(),
+            'tipe_arena' => $dbVenue->tipe_arena,
+            'jenis_permukaan' => $dbVenue->jenis_permukaan,
             'courts' => $dbVenue->courts->map(function ($court) {
                 $type = $court->tipe_court;
                 if (empty($type) && ! empty($court->deskripsi)) {
@@ -283,6 +288,13 @@ class VenueController extends Controller
             'alamat' => ['required', 'string', 'not_regex:/<[^>]*script/i'],
             'kota_wilayah' => 'nullable|string|max:150',
             'kota' => 'nullable|string|max:150',
+            'google_maps_url' => 'nullable|string|max:500',
+            'sport_type' => 'nullable|string|max:100',
+            'jumlah_court' => 'nullable|integer|min:1|max:50',
+            'tipe_arena' => 'nullable|string|max:100',
+            'arena_type' => 'nullable|string|max:100',
+            'jenis_permukaan' => 'nullable|string|max:100',
+            'jenis_permukaan_lainnya' => 'nullable|string|max:100',
             'jam_operasional' => 'nullable|string|max:100',
             'hari_buka' => 'nullable|string|max:100',
             'nama_pic' => ['nullable', 'string', 'max:150', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/'],
@@ -339,10 +351,24 @@ class VenueController extends Controller
         $fasilitasArr = $request->input('facilities') ?? $request->input('fasilitas') ?? [];
         $catatanInput = $request->input('catatan') ?? $request->input('maintenance_note');
 
+        $rawSurface = $request->input('jenis_permukaan');
+        $surfaceFinal = ($rawSurface === 'Other' && $request->filled('jenis_permukaan_lainnya'))
+            ? $request->input('jenis_permukaan_lainnya')
+            : $rawSurface;
+
+        $tipeArenaFinal = $request->input('tipe_arena') ?? $request->input('arena_type', 'Semi-Indoor');
+        $sportTypeFinal = $request->input('sport_type', 'Padel');
+        $jumlahCourtFinal = (int) ($request->input('jumlah_court', 1));
+
         $venue = Venue::create([
             'nama_venue' => strip_tags($validated['nama_venue']),
             'alamat' => strip_tags($validated['alamat']),
             'kota' => strip_tags($kotaFinal ?? ''),
+            'google_maps_url' => $request->input('google_maps_url') ? strip_tags($request->input('google_maps_url')) : null,
+            'sport_type' => strip_tags($sportTypeFinal),
+            'jumlah_court' => $jumlahCourtFinal,
+            'tipe_arena' => $tipeArenaFinal ? strip_tags($tipeArenaFinal) : null,
+            'jenis_permukaan' => $surfaceFinal ? strip_tags($surfaceFinal) : null,
             'jam_operasional' => strip_tags($request->input('jam_operasional') ?: '06:00 - 23:00 WIB'),
             'hari_buka' => strip_tags($request->input('hari_buka') ?: 'Setiap Hari (Senin - Minggu)'),
             'nama_pic' => strip_tags($request->input('nama_pic') ?? ''),
@@ -355,9 +381,9 @@ class VenueController extends Controller
 
         return redirect()->route('venues.courts.create', [
             'id' => $venue->venue_id,
-            'count' => $request->input('jumlah_court', 1),
-            'sport' => $request->input('sport_type', 'Padel'),
-            'type' => $request->input('arena_type', 'Indoor'),
+            'count' => $jumlahCourtFinal,
+            'sport' => $sportTypeFinal,
+            'type' => $tipeArenaFinal ?: 'Indoor',
         ])->with('success', 'Venue berhasil didaftarkan. Silakan lengkapi data lapangan Anda.');
     }
 

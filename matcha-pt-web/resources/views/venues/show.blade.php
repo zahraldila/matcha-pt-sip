@@ -23,8 +23,16 @@
                 <h1 class="text-2xl font-bold text-[#050608] break-all break-words line-clamp-2 max-w-full" title="{{ $venue['name'] }}">
                     {{ $venue['name'] }}
                 </h1>
-                <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
+                <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
                     <i class="fa-solid fa-location-dot text-slate-400"></i> {{ $venue['address'] }}
+                    @if(!empty($venue['city']))
+                        <span class="text-slate-300">•</span> <span class="font-medium text-slate-600">{{ $venue['city'] }}</span>
+                    @endif
+                    @if(!empty($venue['google_maps_url']))
+                        <a href="{{ $venue['google_maps_url'] }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-[#063B00] hover:underline font-bold ml-1">
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Buka Google Maps
+                        </a>
+                    @endif
                 </p>
             </div>
 
@@ -206,6 +214,24 @@
                     <p class="text-slate-900 font-semibold">{{ $venue['pic_name'] }}</p>
                     <p class="text-[#063B00] font-bold">{{ $venue['pic_phone'] }}</p>
                 </div>
+
+                @if(!empty($venue['tipe_arena']) || !empty($venue['jenis_permukaan']))
+                    <!-- Tipe Arena & Jenis Permukaan -->
+                    <div class="pt-3 border-t border-slate-100 space-y-2 text-xs">
+                        @if(!empty($venue['tipe_arena']))
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500">Tipe Arena:</span>
+                                <span class="font-semibold text-slate-800">{{ $venue['tipe_arena'] }}</span>
+                            </div>
+                        @endif
+                        @if(!empty($venue['jenis_permukaan']))
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500">Jenis Permukaan:</span>
+                                <span class="font-semibold text-slate-800">{{ $venue['jenis_permukaan'] }}</span>
+                            </div>
+                        @endif
+                    </div>
+                @endif
             </div>
 
             <!-- Facilities Structured Card -->

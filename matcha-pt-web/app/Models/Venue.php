@@ -10,6 +10,7 @@ class Venue extends Model
     use HasFactory;
 
     protected $table = 'tb_venue';
+
     protected $primaryKey = 'venue_id';
 
     protected $fillable = [
@@ -24,6 +25,11 @@ class Venue extends Model
         'hari_buka',
         'no_whatsapp',
         'nama_pic',
+        'google_maps_url',
+        'sport_type',
+        'jumlah_court',
+        'tipe_arena',
+        'jenis_permukaan',
     ];
 
     public function owner()
