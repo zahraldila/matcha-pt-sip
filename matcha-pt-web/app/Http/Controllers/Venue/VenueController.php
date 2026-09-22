@@ -424,6 +424,7 @@ class VenueController extends Controller
                 'success' => true,
                 'message' => "Venue \"{$venue->nama_venue}\" berhasil ditambahkan!",
                 'venue' => $venue,
+                'courts' => $venue->courts,
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

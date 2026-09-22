@@ -157,25 +157,25 @@
                     </label>
                     <button type="button" onclick="openQuickAddVenueModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-[11px] shadow-xs transition-all hover:scale-[1.02] active:scale-95 cursor-pointer shrink-0">
                         <i class="fa-solid fa-plus text-[#A8E63A] text-[10px]"></i>
-                        <span>+ Tambah Venue</span>
+                        <span>Tambah Venue</span>
                     </button>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div class="space-y-1.5">
-                        <label class="block font-bold text-slate-800">Pilih Venue / Tempat</label>
-                        <div class="relative">
-                            <select name="venue_id" id="venueSelect" onchange="updateCourtsDropdown()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 pr-8 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs overflow-hidden text-ellipsis" required style="max-width:100%;">
+                    <div class="space-y-1.5 min-w-0">
+                        <label class="block font-bold text-slate-800 truncate">Pilih Venue / Tempat</label>
+                        <div class="relative min-w-0">
+                            <select name="venue_id" id="venueSelect" onchange="updateCourtsDropdown()" class="w-full min-w-0 bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 pr-8 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs truncate overflow-hidden" required>
                                 <option value="" disabled selected>Pilih venue sesuai olahraga</option>
                             </select>
                             <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
                     </div>
 
-                    <div class="space-y-1.5">
-                        <label class="block font-bold text-slate-800">Pilih Court / Lapangan</label>
-                        <div class="relative">
-                            <select name="court_id" id="courtSelect" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 pr-8 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs overflow-hidden text-ellipsis" required style="max-width:100%;">
+                    <div class="space-y-1.5 min-w-0">
+                        <label class="block font-bold text-slate-800 truncate">Pilih Court / Lapangan</label>
+                        <div class="relative min-w-0">
+                            <select name="court_id" id="courtSelect" class="w-full min-w-0 bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 pr-8 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs truncate overflow-hidden" required>
                                 <option value="" disabled selected>Pilih court</option>
                             </select>
                             <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
@@ -320,6 +320,7 @@
                         type="text"
                         id="quickVenueName"
                         required
+                        maxlength="60"
                         placeholder="Contoh: Matcha Padel Arena Dago"
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
                     />
@@ -378,6 +379,7 @@
                         type="text"
                         id="quickVenueCity"
                         required
+                        maxlength="80"
                         placeholder="Contoh: Bandung"
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
                     />
@@ -393,6 +395,7 @@
                 <textarea
                     id="quickVenueAddress"
                     required
+                    maxlength="255"
                     rows="2"
                     placeholder="Contoh: Jl. Ir. H. Juanda No. 123, Dago, Coblong"
                     class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
@@ -460,9 +463,11 @@
             const availableCount = v.courts.filter(c => parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available').length;
             const opt = document.createElement('option');
             opt.value = v.venue_id;
-            const label = `${v.nama_venue} (${availableCount} Court Tersedia)`;
+            const maxNameLen = 35;
+            const truncatedName = v.nama_venue && v.nama_venue.length > maxNameLen ? v.nama_venue.substring(0, maxNameLen) + '...' : v.nama_venue;
+            const label = `${truncatedName} (${availableCount} Court Tersedia)`;
             opt.innerText = label;
-            opt.title = label;
+            opt.title = `${v.nama_venue} (${availableCount} Court Tersedia)`;
             if (preserveVenueId && parseInt(v.venue_id) === parseInt(preserveVenueId)) {
                 opt.selected = true;
             }
@@ -493,7 +498,10 @@
                 filteredCourts.forEach(court => {
                     const opt = document.createElement('option');
                     opt.value = court.court_id;
-                    opt.innerText = court.nama_court;
+                    const maxCourtLen = 35;
+                    const truncatedCourt = court.nama_court && court.nama_court.length > maxCourtLen ? court.nama_court.substring(0, maxCourtLen) + '...' : court.nama_court;
+                    opt.innerText = truncatedCourt;
+                    opt.title = court.nama_court;
                     courtSelect.appendChild(opt);
                 });
             } else {
@@ -713,10 +721,11 @@
             }
 
             // Tambahkan venue baru ke array venuesData lokal
+            const courtsList = (data.courts || (data.venue && data.venue.courts) || []);
             const newVenue = {
                 venue_id: data.venue.venue_id,
                 nama_venue: data.venue.nama_venue,
-                courts: (data.courts || []).map(c => ({
+                courts: courtsList.map(c => ({
                     court_id: c.court_id,
                     nama_court: c.nama_court,
                     sport_id: c.sport_id,
@@ -724,6 +733,13 @@
                 }))
             };
             venuesData.unshift(newVenue);
+
+            // Jika sport di modal berbeda dengan radio sport yang aktif, pindahkan radio ke sport tersebut
+            const targetSportRadio = document.querySelector(`input[name="sport_id"][data-sport-name="${sportInput.value}"]`);
+            if (targetSportRadio && !targetSportRadio.checked) {
+                targetSportRadio.checked = true;
+                currentSportId = parseInt(targetSportRadio.value);
+            }
 
             // Re-render dropdown venue dan pilih venue baru tersebut
             filterCourtsBySport(currentSportId, newVenue.venue_id);
