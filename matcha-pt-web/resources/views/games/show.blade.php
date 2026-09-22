@@ -180,31 +180,65 @@
                 @php
                     $isFull = count($game['participants']) >= $game['quota'];
                 @endphp
-                <div class="glass-card rounded-3xl p-5 space-y-4 border border-white/90">
+                <div class="glass-card rounded-3xl p-5 space-y-4 border border-white/90 shadow-2xs">
                     <div class="space-y-1">
-                        <h3 class="text-sm font-bold text-[#050608]">Drawing &amp; Mulai Pertandingan</h3>
-                        <p class="text-xs text-slate-500 leading-relaxed">
-                            @if($isFull)
-                                Pemain telah lengkap ({{ count($game['participants']) }}/{{ $game['quota'] }}). Host dapat mengacak tim dan memulai scoring poin.
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-[#050608]">Drawing &amp; Pertandingan</h3>
+                            @if(!empty($hasDrawingStarted))
+                                <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                    Drawing Siap
+                                </span>
                             @else
-                                Sesi mabar masih membuka pendaftaran ({{ count($game['participants']) }}/{{ $game['quota'] }}). Masih dibutuhkan {{ max(0, $game['quota'] - count($game['participants'])) }} pemain lagi sebelum drawing tim.
+                                <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full {{ $isFull ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600 border border-slate-200' }}">
+                                    {{ $isFull ? 'Siap Drawing' : 'Pendaftaran' }}
+                                </span>
+                            @endif
+                        </div>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            @if(!empty($hasDrawingStarted))
+                                Sesi drawing telah dibuat oleh Host. Kamu dapat melihat bagan pertandingan, rotasi pemain, dan jadwal lapangan.
+                            @elseif($isFull)
+                                Kuota pemain telah lengkap ({{ count($game['participants']) }}/{{ $game['quota'] }}). Host dapat memulai drawing tim sekarang.
+                            @else
+                                Sesi mabar masih membuka pendaftaran ({{ count($game['participants']) }}/{{ $game['quota'] }}). Masih dibutuhkan {{ max(0, $game['quota'] - count($game['participants'])) }} pemain lagi.
                             @endif
                         </p>
                     </div>
 
                     <div class="space-y-2 pt-2">
-                        @if($isFull)
-                            <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5">
-                                <i class="fa-solid fa-shuffle text-[11px]"></i> Buka Drawing Tim
-                            </a>
+                        @if(!empty($isHost))
+                            {{-- TAMPILAN KHUSUS HOST --}}
+                            @if(!empty($hasDrawingStarted))
+                                <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-shuffle text-[11px] text-[#A8E63A]"></i> Kelola Drawing Tim
+                                </a>
 
-                            <a href="{{ route('scoring.live', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#063B00] font-semibold text-xs border-1.5 border-[#063B00] transition-all shadow-xs flex items-center justify-center gap-1.5">
-                                <i class="fa-solid fa-stopwatch text-[11px]"></i> Live Match Scoring
-                            </a>
+                                <a href="{{ route('scoring.live', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#063B00] font-semibold text-xs border-1.5 border-[#063B00] transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-stopwatch text-[11px]"></i> Live Match Scoring
+                                </a>
+                            @elseif($isFull)
+                                <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-shuffle text-[11px] text-[#A8E63A]"></i> Buka Drawing Tim
+                                </a>
+                            @else
+                                <button type="button" onclick="openEarlyDrawingModal()" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-shuffle text-[11px] text-[#A8E63A]"></i> Mulai Drawing ({{ count($game['participants']) }}/{{ $game['quota'] }} Pemain)
+                                </button>
+                            @endif
                         @else
-                            <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs border border-slate-200 transition-all flex items-center justify-center gap-1.5">
-                                <i class="fa-solid fa-shuffle text-[11px]"></i> Buka Drawing Tim (Preview)
-                            </a>
+                            {{-- TAMPILAN PESERTA & VENUE OWNER (NON-HOST) --}}
+                            @if(!empty($hasDrawingStarted))
+                                <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-eye text-[11px] text-[#A8E63A]"></i> Lihat Jadwal &amp; Rotasi Drawing
+                                </a>
+                            @else
+                                <button type="button" disabled class="w-full text-center py-2.5 rounded-xl bg-slate-100 text-slate-400 font-semibold text-xs border border-slate-200 cursor-not-allowed flex items-center justify-center gap-1.5 select-none" title="Menunggu Host memulai sesi drawing">
+                                    <i class="fa-solid fa-lock text-[11px]"></i> Menunggu Host Memulai Drawing
+                                </button>
+                                <p class="text-[10px] text-slate-400 text-center italic">
+                                    Jadwal dan rotasi court akan muncul setelah Host melakukan drawing.
+                                </p>
+                            @endif
                         @endif
                     </div>
 
@@ -221,4 +255,60 @@
         </div>
     </div>
 </div>
+
+{{-- Modal Konfirmasi Host: Mulai Drawing Meskipun Kuota Belum Lengkap --}}
+@if(!empty($isHost) && empty($hasDrawingStarted))
+<div id="earlyDrawingModal" class="fixed inset-0 z-[100] hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 transition-all">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 space-y-5 relative border border-slate-200 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <!-- Close Button -->
+        <button onclick="closeEarlyDrawingModal()" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer" title="Tutup">
+            <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+
+        <!-- Icon & Header -->
+        <div class="flex items-start gap-3.5">
+            <div class="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 text-lg shrink-0 shadow-2xs">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="space-y-1 pr-4">
+                <h3 class="text-base font-black text-slate-900 tracking-tight">Mulai Drawing Sekarang?</h3>
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    Kuota sesi ini baru terisi <strong class="text-slate-800">{{ count($game['participants']) }} dari {{ $game['quota'] }} pemain</strong> (kurang {{ max(0, $game['quota'] - count($game['participants'])) }} slot).
+                </p>
+            </div>
+        </div>
+
+        <!-- Warning Notice Box -->
+        <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 leading-relaxed space-y-1">
+            <p class="font-bold flex items-center gap-1.5 text-xs">
+                <i class="fa-solid fa-circle-info text-amber-600"></i> Catatan untuk Host:
+            </p>
+            <p class="text-[11px] text-amber-800 leading-relaxed">
+                Jika kamu memulai drawing sekarang, sistem akan menyesuaikan rotasi pertandingan dengan jumlah pemain yang ada atau mengisi pemain cadangan di lapangan.
+            </p>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center gap-2.5 pt-1">
+            <button type="button" onclick="closeEarlyDrawingModal()" class="flex-1 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all cursor-pointer shadow-2xs">
+                Tunggu Pemain Lain
+            </button>
+            <a href="{{ route('games.drawing', $game['id']) }}" class="flex-1 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md hover:scale-[1.01]">
+                <span>Ya, Lanjutkan</span> <i class="fa-solid fa-arrow-right text-[10px] text-[#A8E63A]"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openEarlyDrawingModal() {
+        const modal = document.getElementById('earlyDrawingModal');
+        if (modal) modal.classList.remove('hidden');
+    }
+    function closeEarlyDrawingModal() {
+        const modal = document.getElementById('earlyDrawingModal');
+        if (modal) modal.classList.add('hidden');
+    }
+</script>
+@endif
 @endsection

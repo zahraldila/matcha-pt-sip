@@ -243,6 +243,14 @@ class PublicMabarSessionTest extends TestCase
     {
         $session = $this->createValidSession();
 
+        // Saat sesi masih Open dan belum drawing, guest/non-host dilarang akses
+        $this->get('/games/'.$session->session_id.'/drawing')
+            ->assertRedirect('/games/'.$session->session_id)
+            ->assertSessionHas('error');
+
+        // Setelah sesi berstatus In Progress (sudah drawing), guest/non-host bisa melihat drawing (view-only)
+        $session->update(['status_session' => 'In Progress']);
+
         $this->get('/games/'.$session->session_id.'/drawing')->assertOk();
         $this->getJson('/games/'.$session->session_id.'/drawing?shuffle=1&seed=123')->assertUnauthorized();
         $this->postJson('/games/'.$session->session_id.'/lock')->assertUnauthorized();
