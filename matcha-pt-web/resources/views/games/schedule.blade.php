@@ -409,20 +409,21 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="pt-2 flex items-center gap-2">
+            <div class="pt-3 border-t border-slate-100 flex items-center gap-2.5 w-full">
                 <button
                     type="button"
                     onclick="closeQuickAddVenueModal()"
-                    class="w-1/3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                    class="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all text-center cursor-pointer shadow-2xs"
                 >
                     Batal
                 </button>
                 <button
                     type="submit"
                     id="btnSubmitQuickVenue"
-                    class="w-2/3 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    class="flex-1 py-2.5 px-4 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                    <i class="fa-solid fa-floppy-disk text-xs text-[#A8E63A]"></i> Simpan Venue
+                    <i class="fa-solid fa-floppy-disk text-xs text-[#A8E63A]"></i>
+                    <span>Simpan Venue</span>
                 </button>
             </div>
         </form>
