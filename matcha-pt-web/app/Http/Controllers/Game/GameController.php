@@ -588,6 +588,8 @@ class GameController extends Controller
         $request->validate([
             'nama_session' => 'required|string|max:255',
             'sport_id' => 'required|integer|exists:tb_sport,sport_id',
+            'format' => 'nullable|in:Americano,Team Americano',
+            'scoring_system' => 'nullable|string|max:50',
             'venue_id' => 'required|integer|exists:tb_venue,venue_id',
             'court_id' => 'required|integer|exists:tb_court,court_id',
             'tanggal' => 'required|date|after_or_equal:today',
@@ -598,6 +600,36 @@ class GameController extends Controller
             'level_rekomendasi' => 'nullable|string',
             'deskripsi' => 'nullable|string',
         ]);
+
+        $format = $request->input('format', 'Americano');
+        $isTeamAmericano = str_contains(strtolower($format), 'team');
+        $scoringSystem = $request->input('scoring_system', 'Total of 3');
+        $isFirstTo = str_starts_with(strtolower(trim($scoringSystem)), 'first to');
+        $jenisPermainan = $isTeamAmericano ? 'Double' : $request->input('jenis_permainan', 'Double');
+        $isSingle = strtolower($jenisPermainan) === 'single';
+        $jumlahPemain = (int) $request->input('jumlah_pemain');
+
+        // Constraint Validations:
+        // 1. Team Americano: Wajib Genap dan minimal 4
+        if ($isTeamAmericano && ($jumlahPemain % 2 !== 0 || $jumlahPemain < 4)) {
+            return back()->withInput()->withErrors([
+                'jumlah_pemain' => 'Kuota pemain Team Americano harus berjumlah genap (minimal 4 pemain) karena setiap tim terdiri dari 2 orang pasangan tetap.',
+            ]);
+        }
+
+        // 2. First to X constraints (1 court)
+        if ($isFirstTo) {
+            if ($isSingle && $jumlahPemain !== 2) {
+                return back()->withInput()->withErrors([
+                    'jumlah_pemain' => "Untuk format {$scoringSystem} (Single 1v1), kuota pemain harus tepat 2 orang (tidak boleh kurang atau lebih).",
+                ]);
+            }
+            if (! $isSingle && $jumlahPemain !== 4) {
+                return back()->withInput()->withErrors([
+                    'jumlah_pemain' => "Untuk format {$scoringSystem} (Double 2v2), kuota pemain harus tepat 4 orang (tidak boleh kurang atau lebih).",
+                ]);
+            }
+        }
 
         try {
             DB::beginTransaction();
@@ -610,11 +642,12 @@ class GameController extends Controller
                 'sport_id' => $request->sport_id,
                 'venue_id' => $request->venue_id,
                 'nama_session' => $request->nama_session,
+                'scoring_system' => $scoringSystem,
                 'waktu_session' => $waktuSession,
                 'datetime' => $dateTime,
                 'status_session' => 'Open',
-                'jumlah_pemain' => (string) $request->jumlah_pemain,
-                'jenis_permainan' => $request->input('jenis_permainan', 'Double'),
+                'jumlah_pemain' => (string) $jumlahPemain,
+                'jenis_permainan' => $jenisPermainan,
             ]);
 
             // 2. Attach court
@@ -625,6 +658,15 @@ class GameController extends Controller
             if ($player) {
                 $session->players()->attach($player->player_id);
             }
+
+            // 4. Inisialisasi tb_drawing dengan match_format_id yang sesuai (1 = Americano, 4 = Team Americano)
+            $formatId = $isTeamAmericano ? 4 : 1;
+            Drawing::create([
+                'session_id' => $session->session_id,
+                'match_format_id' => $formatId,
+                'tanggal_drawing' => now()->toDateString(),
+                'jam_drawing' => now()->format('H:i:s'),
+            ]);
 
             DB::commit();
 
