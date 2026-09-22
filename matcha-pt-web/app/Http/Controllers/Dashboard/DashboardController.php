@@ -146,7 +146,7 @@ class DashboardController extends Controller
         })->toArray();
 
         // 3. Ambil data Komunitas dari Database Supabase
-        $communityQuery = Community::with('players')->latest();
+        $communityQuery = Community::with(['players.user', 'creator'])->latest();
 
         if ($selectedSport && $selectedSport !== 'all') {
             $communityQuery->where(function ($q) use ($selectedSport) {
@@ -157,33 +157,53 @@ class DashboardController extends Controller
 
         if ($selectedCity && $selectedCity !== 'all') {
             $communityQuery->where(function ($q) use ($selectedCity) {
-                $q->whereRaw('LOWER(nama_community) LIKE ?', ['%'.strtolower($selectedCity).'%'])
+                $q->whereRaw('LOWER(kota_homebase) LIKE ?', ['%'.strtolower($selectedCity).'%'])
+                    ->orWhereRaw('LOWER(nama_community) LIKE ?', ['%'.strtolower($selectedCity).'%'])
                     ->orWhereRaw('LOWER(deskripsi) LIKE ?', ['%'.strtolower($selectedCity).'%']);
             });
         }
 
         $dbCommunities = $communityQuery->take(6)->get();
         $communities = $dbCommunities->map(function ($c) {
-            $sport = str_contains(strtolower($c->nama_community.' '.$c->deskripsi), 'tennis') ? 'Tennis' : 'Padel';
-            if (str_contains(strtolower($c->nama_community.' '.$c->deskripsi), 'tennis') && str_contains(strtolower($c->nama_community.' '.$c->deskripsi), 'padel')) {
-                $sport = 'Padel & Tennis';
-            }
+            $sport = $c->sport;
 
             return [
                 'id' => $c->community_id,
                 'name' => $c->nama_community,
                 'sport' => $sport,
-                'city' => str_contains(strtolower($c->nama_community.' '.$c->deskripsi), 'bandung') ? 'Bandung' : 'Jakarta',
+                'city' => $c->kota_homebase ?: (str_contains(strtolower($c->nama_community.' '.$c->deskripsi), 'bandung') ? 'Bandung' : 'Jakarta'),
                 'members_count' => $c->players->count(),
-                'admin_name' => $c->players->first()?->nama ?? 'Admin Matcha',
+                'admin_name' => $c->admin_name,
                 'image' => $c->logo ?: asset('images/default-community.jpg'),
-                'tagline' => 'Komunitas Olahraga Matcha',
-                'description' => $c->deskripsi ?? 'Komunitas mabar Padel & Tennis di Matcha Match Arena.',
-                'schedule' => 'Rutin Setiap Pekan',
-                'status' => 'Active',
+                'tagline' => $c->tagline ?: 'Komunitas Olahraga Matcha',
+                'description' => $c->deskripsi ?? ('Komunitas mabar '.$sport.' di Matcha Match Arena.'),
+                'schedule' => $c->jadwal_rutin ?: 'Rutin Setiap Pekan',
+                'status' => $c->status_keanggotaan ?: 'Active',
             ];
         })->toArray();
 
-        return view('dashboard.index', compact('games', 'venues', 'communities', 'selectedSport', 'selectedCity', 'selectedDate', 'activeTab'));
+        // 4. Ambil daftar kota asli dari database (fokus komunitas)
+        $cities = Community::query()
+            ->whereNotNull('kota_homebase')
+            ->where('kota_homebase', '!=', '')
+            ->pluck('kota_homebase')
+            ->map(function ($city) {
+                $c = trim($city);
+                if (ctype_lower($c) || ctype_upper($c)) {
+                    return ucwords(strtolower($c));
+                }
+
+                return $c;
+            })
+            ->filter()
+            ->unique(fn ($city) => strtolower($city))
+            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+
+        if ($cities->isEmpty()) {
+            $cities = collect(['Jakarta', 'Bandung']);
+        }
+
+        return view('dashboard.index', compact('games', 'venues', 'communities', 'cities', 'selectedSport', 'selectedCity', 'selectedDate', 'activeTab'));
     }
 }

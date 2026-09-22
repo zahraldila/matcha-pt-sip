@@ -55,8 +55,9 @@
                             <label class="block font-medium text-slate-600 mb-1">Kota / Lokasi</label>
                             <select name="city" id="filterCity" class="w-full bg-white/90 border border-slate-200/70 rounded-xl px-3.5 py-2.5 text-slate-800 font-medium focus:border-[#063B00] focus:outline-none shadow-xs">
                                 <option value="all" {{ ($selectedCity ?? 'all') === 'all' ? 'selected' : '' }}>Semua Kota</option>
-                                <option value="jakarta" {{ ($selectedCity ?? '') === 'jakarta' ? 'selected' : '' }}>Jakarta Pusat / Selatan</option>
-                                <option value="bandung" {{ ($selectedCity ?? '') === 'bandung' ? 'selected' : '' }}>Bandung</option>
+                                @foreach($cities ?? [] as $city)
+                                    <option value="{{ $city }}" {{ strcasecmp($selectedCity ?? '', $city) === 0 ? 'selected' : '' }}>{{ $city }}</option>
+                                @endforeach
                             </select>
                         </div>
 
