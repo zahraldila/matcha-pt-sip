@@ -53,7 +53,20 @@
             </span>
         </div>
 
-        <!-- 4. Venue & Court -->
+        <!-- 4. Komunitas -->
+        @php
+            $isCommunities = request()->routeIs('communities.*') && !request()->routeIs('communities.create');
+        @endphp
+        <a href="{{ route('communities.index') }}" class="flex flex-col items-center justify-center py-1 group transition-all">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center transition-all {{ $isCommunities ? 'bg-[#EBF8D8] text-[#063B00] shadow-2xs' : 'text-slate-500 group-hover:text-slate-800' }}">
+                <i class="fa-solid fa-users text-sm"></i>
+            </div>
+            <span class="text-[10px] font-bold mt-0.5 tracking-tight {{ $isCommunities ? 'text-[#063B00]' : 'text-slate-500 group-hover:text-slate-800' }}">
+                Komunitas
+            </span>
+        </a>
+
+        <!-- 5. Venue & Court -->
         @php
             $isVenues = request()->routeIs('venues.*') && !request()->routeIs('venues.create');
         @endphp
@@ -63,19 +76,6 @@
             </div>
             <span class="text-[10px] font-bold mt-0.5 tracking-tight {{ $isVenues ? 'text-[#063B00]' : 'text-slate-500 group-hover:text-slate-800' }}">
                 Venue
-            </span>
-        </a>
-
-        <!-- 5. Match Recap / Profile -->
-        @php
-            $isRecap = request()->routeIs('player.*');
-        @endphp
-        <a href="{{ route('player.recap') }}" class="flex flex-col items-center justify-center py-1 group transition-all">
-            <div class="w-8 h-8 rounded-xl flex items-center justify-center transition-all {{ $isRecap ? 'bg-[#EBF8D8] text-[#063B00] shadow-2xs' : 'text-slate-500 group-hover:text-slate-800' }}">
-                <i class="fa-solid fa-chart-line text-sm"></i>
-            </div>
-            <span class="text-[10px] font-bold mt-0.5 tracking-tight {{ $isRecap ? 'text-[#063B00]' : 'text-slate-500 group-hover:text-slate-800' }}">
-                Recap
             </span>
         </a>
 

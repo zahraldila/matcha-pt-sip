@@ -123,8 +123,8 @@
                                     <i class="fa-solid fa-crown text-amber-500 text-xs"></i> Kelola Venue Saya
                                 </a>
                             @endif
-                            <a href="{{ route('communities.index') }}" class="md:hidden flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
-                                <i class="fa-solid fa-users text-slate-400 text-xs"></i> Komunitas
+                            <a href="{{ route('player.recap') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
+                                <i class="fa-solid fa-chart-line text-slate-400 text-xs"></i> Match Recap &amp; Statistik
                             </a>
                             <a href="{{ route('player.profile') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
                                 <i class="fa-solid fa-id-card text-slate-400 text-xs"></i> Profil &amp; Status Host
