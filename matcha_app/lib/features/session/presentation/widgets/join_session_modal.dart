@@ -44,6 +44,7 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nameController;
+  late final TextEditingController _ageController;
   String _selectedGender = 'Laki-laki';
   String _selectedLevel = 'Intermediate';
 
@@ -54,6 +55,9 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
     super.initState();
     final user = widget.authController?.currentUser;
     _nameController = TextEditingController(text: user?.nama ?? '');
+    _ageController = TextEditingController(
+      text: user?.usia != null ? user!.usia.toString() : '',
+    );
     if (user != null && user.level != null && user.level!.isNotEmpty) {
       _selectedLevel = user.level!;
     }
@@ -62,6 +66,7 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
   @override
   void dispose() {
     _nameController.dispose();
+    _ageController.dispose();
     super.dispose();
   }
 
@@ -80,10 +85,13 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
       } else {
         // Guest user - register player instantly
         final genderDb = _selectedGender == 'Laki-laki' ? 'Male' : 'Female';
+        final parsedAge = int.tryParse(_ageController.text.trim());
+
         playerIdToJoin = await _sessionService.registerGuestPlayer(
           nama: _nameController.text.trim(),
           gender: genderDb,
           level: _selectedLevel,
+          usia: parsedAge,
         );
       }
 
@@ -222,8 +230,9 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
               ),
               const SizedBox(height: 14),
 
-              // Field 2 & 3: Gender & Level Permainan (Row)
+              // Field 2 & 3: Gender & Umur (Row)
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Gender
                   Expanded(
@@ -266,13 +275,13 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // Level Permainan
+                  // Umur
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Level Permainan',
+                          'Umur',
                           style: AppTextStyles.caption.copyWith(
                             color: const Color(0xFF334155),
                             fontWeight: FontWeight.w700,
@@ -280,9 +289,26 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
-                          initialValue: _selectedLevel,
+                        TextFormField(
+                          controller: _ageController,
+                          keyboardType: TextInputType.number,
+                          validator: (val) {
+                            if (val != null && val.trim().isNotEmpty) {
+                              final age = int.tryParse(val.trim());
+                              if (age == null || age < 10 || age > 90) {
+                                return 'Usia 10-90 th';
+                              }
+                            }
+                            return null;
+                          },
                           decoration: InputDecoration(
+                            hintText: 'Contoh: 24',
+                            suffixText: 'th',
+                            suffixStyle: AppTextStyles.caption.copyWith(
+                              color: const Color(0xFF64748B),
+                              fontWeight: FontWeight.w600,
+                            ),
+                            hintStyle: AppTextStyles.caption.copyWith(color: const Color(0xFF94A3B8)),
                             filled: true,
                             fillColor: const Color(0xFFF8FAFC),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -294,21 +320,57 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                             ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5),
+                            ),
                           ),
-                          items: const [
-                            DropdownMenuItem(value: 'Newbie', child: Text('Newbie')),
-                            DropdownMenuItem(value: 'Beginner', child: Text('Beginner')),
-                            DropdownMenuItem(value: 'Intermediate', child: Text('Intermediate')),
-                            DropdownMenuItem(value: 'Advanced', child: Text('Advanced')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedLevel = val);
-                          },
                         ),
                       ],
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 14),
+
+              // Field 4: Level Permainan
+              Text(
+                'Level Permainan',
+                style: AppTextStyles.caption.copyWith(
+                  color: const Color(0xFF334155),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedLevel,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5),
+                  ),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'Newbie', child: Text('Newbie')),
+                  DropdownMenuItem(value: 'Beginner', child: Text('Beginner')),
+                  DropdownMenuItem(value: 'Intermediate', child: Text('Intermediate')),
+                  DropdownMenuItem(value: 'Advanced', child: Text('Advanced')),
+                ],
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedLevel = val);
+                },
               ),
               const SizedBox(height: 24),
 

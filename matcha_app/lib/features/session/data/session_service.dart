@@ -193,6 +193,7 @@ class SessionService {
     required String nama,
     required String gender,
     required String level,
+    int? usia,
     String? noHp,
   }) async {
     try {
@@ -202,6 +203,7 @@ class SessionService {
             'nama': nama,
             'gender': gender,
             'level': level,
+            'usia': usia,
             'no_hp': noHp,
             'user_id': null, // Guest player tidak punya user_id
           })
@@ -227,6 +229,82 @@ class SessionService {
           .eq('player_id', playerId);
     } on PostgrestException catch (e) {
       throw Exception('Gagal membatalkan keikutsertaan: ${e.message}');
+    }
+  }
+
+  /// Membuat sesi mabar baru dan menyimpannya ke tb_session, tb_session_court, tb_session_player
+  Future<int> createScheduleSession({
+    required int sportId,
+    required int venueId,
+    required int courtId,
+    required String namaSession,
+    required DateTime tanggal,
+    required String jam,
+    required String durasi,
+    required int jumlahPemain,
+    required String jenisPermainan,
+    String? levelRekomendasi,
+    String? deskripsi,
+    int? hostUserId,
+    int? hostPlayerId,
+  }) async {
+    try {
+      final waktuSession = '$jam WIB ($durasi)';
+      final dateStr =
+          '${tanggal.year}-${tanggal.month.toString().padLeft(2, '0')}-${tanggal.day.toString().padLeft(2, '0')}';
+      final dateTimeStr = '$dateStr $jam:00';
+
+      // 1. Insert session
+      final sessionRes = await _supabase
+          .from('tb_session')
+          .insert({
+            'host_user_id': hostUserId,
+            'sport_id': sportId,
+            'venue_id': venueId,
+            'nama_session': namaSession,
+            'waktu_session': waktuSession,
+            'datetime': dateTimeStr,
+            'status_session': 'Open',
+            'jumlah_pemain': jumlahPemain.toString(),
+            'jenis_permainan': jenisPermainan,
+            'scoring_system': 'Total of 3',
+          })
+          .select('session_id')
+          .single();
+
+      final sessionId = sessionRes['session_id'] as int;
+
+      // 2. Hubungkan court ke session di tb_session_court
+      await _supabase.from('tb_session_court').insert({
+        'session_id': sessionId,
+        'court_id': courtId,
+      });
+
+      // 3. Daftarkan host sebagai pemain di tb_session_player jika ada
+      int? effectivePlayerId = hostPlayerId;
+      if (effectivePlayerId == null && hostUserId != null) {
+        final pRes = await _supabase
+            .from('tb_player')
+            .select('player_id')
+            .eq('user_id', hostUserId)
+            .maybeSingle();
+        if (pRes != null && pRes['player_id'] != null) {
+          effectivePlayerId = pRes['player_id'] as int;
+        }
+      }
+
+      if (effectivePlayerId != null && effectivePlayerId > 0) {
+        await _supabase.from('tb_session_player').insert({
+          'session_id': sessionId,
+          'player_id': effectivePlayerId,
+        });
+      }
+
+      return sessionId;
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal membuat sesi mabar: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
     }
   }
 }
