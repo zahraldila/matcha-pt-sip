@@ -338,11 +338,17 @@
                                 06:00 - 23:00 WIB
                             </span>
                         </div>
-                        <div class="relative">
-                            <select name="jam" id="jamMulaiInput" onchange="validateTanggalAndJam()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs" required>
-                                <!-- Opsi jam operasional diisi secara dinamis oleh JavaScript -->
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                        <div class="relative" id="jamDropdownContainer">
+                            <button type="button" id="jamDropdownTrigger" onclick="toggleJamDropdown()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs flex items-center justify-between text-left cursor-pointer">
+                                <span id="jamSelectedText">18:30 WIB</span>
+                                <i id="jamDropdownChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200"></i>
+                            </button>
+                            <input type="hidden" name="jam" id="jamMulaiInput" value="18:30" required>
+
+                            <!-- Custom dropdown menu strictly capped in height so it never stretches to the bottom -->
+                            <div id="jamDropdownMenu" class="hidden absolute left-0 top-full mt-1.5 w-full max-h-44 sm:max-h-48 overflow-y-auto bg-white border border-slate-200/90 rounded-2xl shadow-xl z-50 p-1.5 space-y-0.5 scrollbar-thin">
+                                <!-- Opsi jam operasional dirender secara dinamis -->
+                            </div>
                         </div>
                         <p id="jamErrorNotice" class="text-[10px] text-rose-600 font-bold hidden"></p>
                     </div>
@@ -780,29 +786,100 @@
     }
 
     /**
+     * Buka / tutup menu dropdown Jam Mulai dan scroll ke item yang sedang aktif
+     */
+    function toggleJamDropdown() {
+        const menu = document.getElementById('jamDropdownMenu');
+        const chevron = document.getElementById('jamDropdownChevron');
+        if (!menu) return;
+
+        const isOpen = !menu.classList.contains('hidden');
+        if (isOpen) {
+            menu.classList.add('hidden');
+            if (chevron) chevron.classList.remove('rotate-180');
+        } else {
+            menu.classList.remove('hidden');
+            if (chevron) chevron.classList.add('rotate-180');
+            const selectedItem = menu.querySelector('.jam-option-selected');
+            if (selectedItem) {
+                selectedItem.scrollIntoView({ block: 'nearest' });
+            }
+        }
+    }
+
+    /**
+     * Memilih salah satu jam dari custom dropdown
+     */
+    function selectJamOption(timeStr, isDisabled) {
+        if (isDisabled) return;
+
+        const input = document.getElementById('jamMulaiInput');
+        const textSpan = document.getElementById('jamSelectedText');
+        const menu = document.getElementById('jamDropdownMenu');
+        const chevron = document.getElementById('jamDropdownChevron');
+
+        if (input) input.value = timeStr;
+        if (textSpan) textSpan.innerText = `${timeStr} WIB`;
+        if (menu) menu.classList.add('hidden');
+        if (chevron) chevron.classList.remove('rotate-180');
+
+        // Update highlight style pada opsi
+        if (menu) {
+            const allItems = menu.querySelectorAll('.jam-option-item');
+            allItems.forEach(item => {
+                const val = item.getAttribute('data-value');
+                if (val === timeStr) {
+                    item.classList.add('bg-[#063B00]', 'text-white', 'jam-option-selected');
+                    item.classList.remove('text-slate-800', 'hover:bg-[#EBF8D8]', 'hover:text-[#063B00]');
+                } else if (!item.classList.contains('jam-option-disabled')) {
+                    item.classList.remove('bg-[#063B00]', 'text-white', 'jam-option-selected');
+                    item.classList.add('text-slate-800', 'hover:bg-[#EBF8D8]', 'hover:text-[#063B00]');
+                }
+            });
+        }
+
+        validateTanggalAndJam();
+    }
+
+    // Tutup custom dropdown ketika klik di luar area
+    document.addEventListener('click', (e) => {
+        const container = document.getElementById('jamDropdownContainer');
+        const menu = document.getElementById('jamDropdownMenu');
+        const chevron = document.getElementById('jamDropdownChevron');
+        if (container && menu && !container.contains(e.target)) {
+            menu.classList.add('hidden');
+            if (chevron) chevron.classList.remove('rotate-180');
+        }
+    });
+
+    /**
      * Mengisi dropdown Jam Mulai dengan opsi 30-menitan,
-     * men-disable opsi di luar jam operasional venue atau yang durasinya melebihi jam tutup.
+     * dibatasi tingginya (max-h-48) agar tidak mentok ke bawah layar.
      */
     function populateJamMulaiDropdown(hours) {
-        const jamSelect = document.getElementById('jamMulaiInput');
-        if (!jamSelect) return;
+        const menu = document.getElementById('jamDropdownMenu');
+        const input = document.getElementById('jamMulaiInput');
+        const textSpan = document.getElementById('jamSelectedText');
+        if (!menu || !input) return;
 
         const durasiSelect = document.getElementById('durasiSelect');
         const durasiHours = parseInt(durasiSelect?.value || '2');
-        const currentVal = jamSelect.value || '18:30';
+        const currentVal = input.value || '18:30';
 
         const [openH, openM] = (hours.open || '06:00').split(':').map(Number);
         const [closeH, closeM] = (hours.close || '23:00').split(':').map(Number);
         const openMinutes = openH * 60 + openM;
         const closeMinutes = closeH * 60 + closeM;
 
-        jamSelect.innerHTML = '';
+        menu.innerHTML = '';
 
         // Tentukan batas slot waktu berdasarkan jam operasional venue
         const startSlot = Math.floor(openMinutes / 30) * 30;
         const endSlot = Math.ceil(closeMinutes / 30) * 30;
 
-        // Hanya buat slot di dalam rentang jam operasional venue (rapih & tidak berantakan)
+        let availableSlots = [];
+        let validSelectedValue = null;
+
         for (let m = startSlot; m <= endSlot; m += 30) {
             const h = Math.floor(m / 60);
             const min = m % 60;
@@ -811,59 +888,76 @@
             const timeStr = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
             const endM = m + durasiHours * 60;
 
-            const opt = document.createElement('option');
-            opt.value = timeStr;
-
             const isBeforeOpen = m < openMinutes;
             const isAtOrAfterClose = m >= closeMinutes;
             const isExceedDuration = !isBeforeOpen && !isAtOrAfterClose && endM > closeMinutes;
+            const isDisabled = isBeforeOpen || isAtOrAfterClose || isExceedDuration;
 
-            if (isBeforeOpen) {
-                opt.disabled = true;
-                opt.textContent = `${timeStr} WIB (Belum Buka)`;
-                opt.className = 'text-slate-400 bg-slate-50';
-            } else if (isAtOrAfterClose) {
-                opt.disabled = true;
-                opt.textContent = `${timeStr} WIB (Jam Tutup)`;
-                opt.className = 'text-slate-400 bg-slate-50';
-            } else if (isExceedDuration) {
-                opt.disabled = true;
-                opt.textContent = `${timeStr} WIB (Lewat Jam Tutup)`;
-                opt.className = 'text-rose-400 bg-rose-50/50';
-            } else {
-                opt.textContent = `${timeStr} WIB`;
-                opt.className = 'text-slate-900 font-medium';
+            if (!isDisabled) {
+                availableSlots.push(timeStr);
+                if (timeStr === currentVal) {
+                    validSelectedValue = timeStr;
+                }
             }
 
-            jamSelect.appendChild(opt);
+            const itemDiv = document.createElement('div');
+            itemDiv.setAttribute('data-value', timeStr);
+            itemDiv.className = `jam-option-item px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                isDisabled
+                    ? 'jam-option-disabled text-slate-400 bg-slate-50/60 cursor-not-allowed opacity-50'
+                    : 'cursor-pointer font-semibold text-slate-800 hover:bg-[#EBF8D8] hover:text-[#063B00]'
+            }`;
+
+            let badgeText = '';
+            if (isBeforeOpen) badgeText = 'Belum Buka';
+            else if (isAtOrAfterClose) badgeText = 'Jam Tutup';
+            else if (isExceedDuration) badgeText = 'Lewat Jam Tutup';
+
+            itemDiv.innerHTML = `
+                <span>${timeStr} WIB</span>
+                ${badgeText ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">${badgeText}</span>` : ''}
+            `;
+
+            itemDiv.onclick = () => selectJamOption(timeStr, isDisabled);
+            menu.appendChild(itemDiv);
         }
 
-        // Fallback jika tidak ada opsi yang terbuat
-        if (jamSelect.options.length === 0) {
+        // Fallback jika tidak ada opsi
+        if (availableSlots.length === 0) {
             for (let m = 360; m <= 1380; m += 30) {
                 const h = Math.floor(m / 60);
                 const min = m % 60;
                 const timeStr = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
-                const opt = document.createElement('option');
-                opt.value = timeStr;
-                opt.textContent = `${timeStr} WIB`;
-                jamSelect.appendChild(opt);
+                availableSlots.push(timeStr);
+
+                const itemDiv = document.createElement('div');
+                itemDiv.setAttribute('data-value', timeStr);
+                itemDiv.className = 'jam-option-item px-3 py-2 rounded-xl text-xs font-semibold text-slate-800 hover:bg-[#EBF8D8] hover:text-[#063B00] cursor-pointer flex items-center justify-between transition-colors';
+                itemDiv.innerHTML = `<span>${timeStr} WIB</span>`;
+                itemDiv.onclick = () => selectJamOption(timeStr, false);
+                menu.appendChild(itemDiv);
             }
         }
 
-        // Tentukan nilai terpilih
-        const availableOpts = Array.from(jamSelect.options).filter(o => !o.disabled);
-        const hasCurrent = jamSelect.querySelector(`option[value="${currentVal}"]:not([disabled])`);
-
-        if (hasCurrent) {
-            jamSelect.value = currentVal;
-        } else {
-            const defaultOpt = jamSelect.querySelector('option[value="18:30"]:not([disabled])');
-            if (defaultOpt) {
-                jamSelect.value = '18:30';
-            } else if (availableOpts.length > 0) {
-                jamSelect.value = availableOpts[0].value;
+        // Tentukan nilai aktif
+        if (!validSelectedValue) {
+            if (availableSlots.includes('18:30')) {
+                validSelectedValue = '18:30';
+            } else if (availableSlots.length > 0) {
+                validSelectedValue = availableSlots[0];
+            } else {
+                validSelectedValue = hours.open;
             }
+        }
+
+        input.value = validSelectedValue;
+        if (textSpan) textSpan.innerText = `${validSelectedValue} WIB`;
+
+        // Tandai opsi terpilih
+        const selectedItem = menu.querySelector(`[data-value="${validSelectedValue}"]`);
+        if (selectedItem && !selectedItem.classList.contains('jam-option-disabled')) {
+            selectedItem.classList.add('bg-[#063B00]', 'text-white', 'jam-option-selected');
+            selectedItem.classList.remove('text-slate-800', 'hover:bg-[#EBF8D8]', 'hover:text-[#063B00]');
         }
     }
 
@@ -968,23 +1062,15 @@
         const availHours = getAvailabilityForDate(selectedVenue, dateStr);
         const hours = availHours || parseVenueHours(selectedVenue.jam_operasional);
         const jamVal = jamInput.value;
+        const triggerBtn = document.getElementById('jamDropdownTrigger');
 
-        // Cek apakah opsi terpilih merupakan opsi disabled
-        const selectedOpt = jamInput.options ? jamInput.options[jamInput.selectedIndex] : null;
-        if (selectedOpt && selectedOpt.disabled) {
-            hasError = true;
-            if (jamError) {
-                jamError.innerText = `⚠️ ${selectedOpt.textContent}`;
-                jamError.classList.remove('hidden');
-            }
-            jamInput.classList.add('border-rose-400', 'bg-rose-50/50');
-        } else if (jamVal && hours.open <= hours.close) {
+        if (jamVal && hours.open <= hours.close) {
             if (jamVal < hours.open || jamVal >= hours.close) {
                 if (jamError) {
                     jamError.innerText = `⚠️ Jam mulai (${jamVal}) di luar jam buka venue (${hours.open} - ${hours.close} WIB).`;
                     jamError.classList.remove('hidden');
                 }
-                jamInput.classList.add('border-rose-400', 'bg-rose-50/50');
+                if (triggerBtn) triggerBtn.classList.add('border-rose-400', 'bg-rose-50/50');
                 hasError = true;
             } else {
                 // Cek jika jam mulai + durasi melebihi jam tutup
@@ -1001,16 +1087,16 @@
                         jamError.innerText = `⚠️ Durasi bermain hingga ${endHStr}:${endMStr} WIB melewati jam tutup venue (${hours.close} WIB).`;
                         jamError.classList.remove('hidden');
                     }
-                    jamInput.classList.add('border-rose-400', 'bg-rose-50/50');
+                    if (triggerBtn) triggerBtn.classList.add('border-rose-400', 'bg-rose-50/50');
                     hasError = true;
                 } else {
                     if (jamError) jamError.classList.add('hidden');
-                    jamInput.classList.remove('border-rose-400', 'bg-rose-50/50');
+                    if (triggerBtn) triggerBtn.classList.remove('border-rose-400', 'bg-rose-50/50');
                 }
             }
         } else {
             if (jamError) jamError.classList.add('hidden');
-            jamInput.classList.remove('border-rose-400', 'bg-rose-50/50');
+            if (triggerBtn) triggerBtn.classList.remove('border-rose-400', 'bg-rose-50/50');
         }
 
         // 2. Validasi Hari Buka
