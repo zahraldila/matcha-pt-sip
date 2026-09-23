@@ -345,8 +345,8 @@
                             </button>
                             <input type="hidden" name="jam" id="jamMulaiInput" value="18:30" required>
 
-                            <!-- Custom dropdown menu strictly capped in height so it never stretches to the bottom -->
-                            <div id="jamDropdownMenu" class="hidden absolute left-0 top-full mt-1.5 w-full overflow-y-auto bg-white border border-slate-200/90 rounded-2xl shadow-xl z-50 p-1.5 scrollbar-thin" style="max-height: 180px;">
+                            <!-- Custom dropdown menu strictly capped in height, styled like native select (Durasi) -->
+                            <div id="jamDropdownMenu" class="hidden absolute left-0 top-full mt-0.5 w-full overflow-y-auto bg-white border border-slate-400 shadow-md z-50 p-0 scrollbar-thin" style="max-height: 180px;">
                                 <!-- Opsi jam operasional dirender secara dinamis -->
                             </div>
                         </div>
@@ -829,11 +829,11 @@
             allItems.forEach(item => {
                 const val = item.getAttribute('data-value');
                 if (val === timeStr) {
-                    item.classList.add('bg-[#063B00]', 'text-white', 'jam-option-selected');
-                    item.classList.remove('text-slate-800', 'hover:bg-[#EBF8D8]', 'hover:text-[#063B00]');
+                    item.classList.add('bg-blue-600', 'text-white', 'jam-option-selected');
+                    item.classList.remove('text-slate-900');
                 } else if (!item.classList.contains('jam-option-disabled')) {
-                    item.classList.remove('bg-[#063B00]', 'text-white', 'jam-option-selected');
-                    item.classList.add('text-slate-800', 'hover:bg-[#EBF8D8]', 'hover:text-[#063B00]');
+                    item.classList.remove('bg-blue-600', 'text-white', 'jam-option-selected');
+                    item.classList.add('text-slate-900');
                 }
             });
         }
@@ -902,10 +902,10 @@
 
             const itemDiv = document.createElement('div');
             itemDiv.setAttribute('data-value', timeStr);
-            itemDiv.className = `jam-option-item px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+            itemDiv.className = `jam-option-item px-3 py-1.5 text-xs flex items-center justify-between ${
                 isDisabled
-                    ? 'jam-option-disabled text-slate-400 bg-slate-50/60 cursor-not-allowed opacity-50'
-                    : 'cursor-pointer font-semibold text-slate-800 hover:bg-[#EBF8D8] hover:text-[#063B00]'
+                    ? 'jam-option-disabled text-slate-400 bg-slate-50 cursor-not-allowed opacity-60'
+                    : 'cursor-pointer text-slate-900 hover:bg-blue-600 hover:text-white'
             }`;
 
             let badgeText = '';
@@ -915,7 +915,7 @@
 
             itemDiv.innerHTML = `
                 <span>${timeStr} WIB</span>
-                ${badgeText ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">${badgeText}</span>` : ''}
+                ${badgeText ? `<span class="text-[9px] px-1 rounded bg-slate-200 text-slate-600">${badgeText}</span>` : ''}
             `;
 
             itemDiv.onclick = () => selectJamOption(timeStr, isDisabled);
@@ -932,7 +932,7 @@
 
                 const itemDiv = document.createElement('div');
                 itemDiv.setAttribute('data-value', timeStr);
-                itemDiv.className = 'jam-option-item px-3 py-2 rounded-xl text-xs font-semibold text-slate-800 hover:bg-[#EBF8D8] hover:text-[#063B00] cursor-pointer flex items-center justify-between transition-colors';
+                itemDiv.className = 'jam-option-item px-3 py-1.5 text-xs text-slate-900 hover:bg-blue-600 hover:text-white cursor-pointer flex items-center justify-between';
                 itemDiv.innerHTML = `<span>${timeStr} WIB</span>`;
                 itemDiv.onclick = () => selectJamOption(timeStr, false);
                 menu.appendChild(itemDiv);
@@ -956,8 +956,8 @@
         // Tandai opsi terpilih
         const selectedItem = menu.querySelector(`[data-value="${validSelectedValue}"]`);
         if (selectedItem && !selectedItem.classList.contains('jam-option-disabled')) {
-            selectedItem.classList.add('bg-[#063B00]', 'text-white', 'jam-option-selected');
-            selectedItem.classList.remove('text-slate-800', 'hover:bg-[#EBF8D8]', 'hover:text-[#063B00]');
+            selectedItem.classList.add('bg-blue-600', 'text-white', 'jam-option-selected');
+            selectedItem.classList.remove('text-slate-900');
         }
     }
 
