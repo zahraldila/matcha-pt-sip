@@ -1,6 +1,61 @@
 @extends('layouts.app')
 
 @section('content')
+<!-- Flatpickr CSS & Custom Matcha Theme -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    .flatpickr-calendar {
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+        border-radius: 1.25rem !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 16px 36px -6px rgba(6, 59, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.04) !important;
+        padding: 8px !important;
+        background: #ffffff !important;
+    }
+    .flatpickr-months .flatpickr-month {
+        color: #063B00 !important;
+    }
+    .flatpickr-current-month .flatpickr-monthDropdown-months,
+    .flatpickr-current-month input.cur-year {
+        font-weight: 800 !important;
+        color: #063B00 !important;
+    }
+    span.flatpickr-weekday {
+        font-weight: 700 !important;
+        color: #64748b !important;
+        font-size: 11px !important;
+    }
+    .flatpickr-day {
+        border-radius: 0.75rem !important;
+        font-weight: 600 !important;
+        font-size: 12px !important;
+        color: #0f172a !important;
+        transition: all 0.15s ease !important;
+    }
+    .flatpickr-day:hover:not(.flatpickr-disabled):not(.selected) {
+        background: #EBF8D8 !important;
+        color: #063B00 !important;
+    }
+    .flatpickr-day.today {
+        border-color: #A8E63A !important;
+        color: #063B00 !important;
+    }
+    .flatpickr-day.selected,
+    .flatpickr-day.selected:hover {
+        background: #063B00 !important;
+        border-color: #063B00 !important;
+        color: #ffffff !important;
+        font-weight: 800 !important;
+    }
+    .flatpickr-day.flatpickr-disabled,
+    .flatpickr-day.flatpickr-disabled:hover {
+        color: #cbd5e1 !important;
+        background: #f8fafc !important;
+        cursor: not-allowed !important;
+        text-decoration: line-through !important;
+        opacity: 0.45 !important;
+    }
+</style>
 <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
     <!-- Header Section -->
@@ -211,7 +266,10 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Tanggal Mabar</label>
-                        <input type="date" name="tanggal" id="tanggalMabarInput" value="{{ date('Y-m-d', strtotime('+1 day')) }}" onchange="onTanggalChanged()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                        <div class="relative">
+                            <input type="text" name="tanggal" id="tanggalMabarInput" value="{{ date('Y-m-d', strtotime('+1 day')) }}" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs cursor-pointer" placeholder="Pilih Tanggal Mabar" required readonly>
+                            <i class="fa-regular fa-calendar absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                        </div>
                         <p id="tanggalErrorNotice" class="text-[10px] text-rose-600 font-bold hidden"></p>
                     </div>
 
@@ -222,14 +280,19 @@
                                 06:00 - 23:00 WIB
                             </span>
                         </div>
-                        <input type="time" name="jam" id="jamMulaiInput" value="18:30" min="06:00" max="23:00" onchange="validateTanggalAndJam()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                        <div class="relative">
+                            <select name="jam" id="jamMulaiInput" onchange="validateTanggalAndJam()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs" required>
+                                <!-- Opsi jam operasional diisi secara dinamis oleh JavaScript -->
+                            </select>
+                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                        </div>
                         <p id="jamErrorNotice" class="text-[10px] text-rose-600 font-bold hidden"></p>
                     </div>
 
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Durasi</label>
                         <div class="relative">
-                            <select name="durasi" id="durasiSelect" onchange="validateTanggalAndJam()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                            <select name="durasi" id="durasiSelect" onchange="onDurasiChanged()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
                                 <option value="1 Jam">1 Jam</option>
                                 <option value="2 Jam" selected>2 Jam</option>
                                 <option value="3 Jam">3 Jam</option>
@@ -471,6 +534,7 @@
 </div>
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     // Venue and Courts mapping
     let venuesData = @json($venues);
@@ -584,6 +648,162 @@
         return { open, close, text: `${open} - ${close} WIB` };
     }
 
+    let fpTanggal = null;
+
+    /**
+     * Cek apakah sebuah tanggal tutup/libur untuk venue yang dipilih.
+     */
+    function isDateDisabledForVenue(date, venue) {
+        if (!venue) return false;
+
+        const dayOfWeek = date.getDay(); // 0 = Minggu, 1 = Senin, ..., 6 = Sabtu
+        const hariBuka = (venue.hari_buka || 'Setiap Hari (Senin - Minggu)').toLowerCase();
+
+        // 1. Cek pola hari_buka umum
+        if (hariBuka.includes('senin - jumat') && (dayOfWeek === 0 || dayOfWeek === 6)) {
+            return true; // Sabtu & Minggu libur
+        }
+        if (hariBuka.includes('senin - sabtu') && dayOfWeek === 0) {
+            return true; // Minggu libur
+        }
+        if (hariBuka.includes('sabtu & minggu') && (dayOfWeek >= 1 && dayOfWeek <= 5)) {
+            return true; // Hari kerja libur (hanya weekend)
+        }
+        if (hariBuka.includes('selasa - minggu') && dayOfWeek === 1) {
+            return true; // Senin libur
+        }
+
+        // 2. Cek tb_venue_avail jika venue mendefinisikan jadwal per-hari
+        if (venue.availabilities && venue.availabilities.length > 0) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${y}-${m}-${d}`;
+            const avail = getAvailabilityForDate(venue, dateStr);
+            if (avail === null) {
+                return true; // Hari ini tidak terdaftar / unavailable di availabilities
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Inisialisasi kalender Flatpickr dengan aturan disable hari libur venue
+     */
+    function initFlatpickr() {
+        if (typeof flatpickr === 'undefined') return;
+
+        const inputEl = document.getElementById('tanggalMabarInput');
+        if (!inputEl) return;
+
+        const defaultVal = inputEl.value || "{{ date('Y-m-d', strtotime('+1 day')) }}";
+
+        fpTanggal = flatpickr(inputEl, {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d/m/Y",
+            minDate: "today",
+            defaultDate: defaultVal,
+            disable: [
+                function(date) {
+                    const venueSelect = document.getElementById('venueSelect');
+                    if (!venueSelect || !venueSelect.value) return false;
+                    const venueId = parseInt(venueSelect.value);
+                    const selectedVenue = venuesData.find(v => v.venue_id === venueId);
+                    return isDateDisabledForVenue(date, selectedVenue);
+                }
+            ],
+            onChange: function(selectedDates, dateStr) {
+                onTanggalChanged();
+            }
+        });
+    }
+
+    /**
+     * Mengisi dropdown Jam Mulai dengan opsi 30-menitan,
+     * men-disable opsi di luar jam operasional venue atau yang durasinya melebihi jam tutup.
+     */
+    function populateJamMulaiDropdown(hours) {
+        const jamSelect = document.getElementById('jamMulaiInput');
+        if (!jamSelect) return;
+
+        const durasiSelect = document.getElementById('durasiSelect');
+        const durasiHours = parseInt(durasiSelect?.value || '2');
+        const currentVal = jamSelect.value || '18:30';
+
+        const [openH, openM] = (hours.open || '06:00').split(':').map(Number);
+        const [closeH, closeM] = (hours.close || '23:00').split(':').map(Number);
+        const openMinutes = openH * 60 + openM;
+        const closeMinutes = closeH * 60 + closeM;
+
+        jamSelect.innerHTML = '';
+
+        // Buat slot setiap 30 menit dari 00:00 s.d 23:30 (48 slot)
+        for (let h = 0; h < 24; h++) {
+            for (let m of [0, 30]) {
+                const totalM = h * 60 + m;
+                const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                const endM = totalM + durasiHours * 60;
+
+                const opt = document.createElement('option');
+                opt.value = timeStr;
+
+                const isBeforeOpen = totalM < openMinutes;
+                const isAfterClose = totalM >= closeMinutes;
+                const isExceedDuration = !isBeforeOpen && !isAfterClose && endM > closeMinutes;
+
+                if (isBeforeOpen || isAfterClose) {
+                    opt.disabled = true;
+                    opt.textContent = `${timeStr} WIB (Di luar jam buka ${hours.open} - ${hours.close})`;
+                    opt.className = 'text-slate-400 bg-slate-100/70';
+                } else if (isExceedDuration) {
+                    const endHStr = String(Math.floor(endM / 60)).padStart(2, '0');
+                    const endMStr = String(endM % 60).padStart(2, '0');
+                    opt.disabled = true;
+                    opt.textContent = `${timeStr} WIB (Durasi selesai ${endHStr}:${endMStr} > Tutup ${hours.close})`;
+                    opt.className = 'text-rose-400 bg-rose-50/50';
+                } else {
+                    opt.textContent = `${timeStr} WIB`;
+                    opt.className = 'text-slate-900 font-medium';
+                }
+
+                jamSelect.appendChild(opt);
+            }
+        }
+
+        // Tentukan nilai terpilih
+        const availableOpts = Array.from(jamSelect.options).filter(o => !o.disabled);
+        const hasCurrent = jamSelect.querySelector(`option[value="${currentVal}"]:not([disabled])`);
+
+        if (hasCurrent) {
+            jamSelect.value = currentVal;
+        } else {
+            const defaultOpt = jamSelect.querySelector('option[value="18:30"]:not([disabled])');
+            if (defaultOpt) {
+                jamSelect.value = '18:30';
+            } else if (availableOpts.length > 0) {
+                jamSelect.value = availableOpts[0].value;
+            }
+        }
+    }
+
+    function onDurasiChanged() {
+        const venueSelect = document.getElementById('venueSelect');
+        if (venueSelect && venueSelect.value) {
+            const venueId = parseInt(venueSelect.value);
+            const selectedVenue = venuesData.find(v => v.venue_id === venueId);
+            if (selectedVenue) {
+                const tanggalInput = document.getElementById('tanggalMabarInput');
+                const dateStr = tanggalInput ? tanggalInput.value : null;
+                const availHours = getAvailabilityForDate(selectedVenue, dateStr);
+                const hours = availHours || parseVenueHours(selectedVenue.jam_operasional);
+                populateJamMulaiDropdown(hours);
+            }
+        }
+        validateTanggalAndJam();
+    }
+
     function onTanggalChanged() {
         const venueSelect = document.getElementById('venueSelect');
         if (venueSelect && venueSelect.value) {
@@ -600,7 +820,6 @@
         const hoursText = document.getElementById('venueOperatingHoursText');
         const hariBukaText = document.getElementById('venueHariBukaText');
         const badge = document.getElementById('jamOperasionalBadge');
-        const jamInput = document.getElementById('jamMulaiInput');
         const tanggalInput = document.getElementById('tanggalMabarInput');
 
         if (!selectedVenue) {
@@ -620,21 +839,30 @@
         if (hariBukaText) hariBukaText.innerText = hariBuka;
         if (badge) badge.innerText = `${hours.open} - ${hours.close} WIB`;
 
-        if (jamInput) {
-            jamInput.min = hours.open;
-            jamInput.max = hours.close;
+        // Update aturan disable di kalender Flatpickr sesuai venue terpilih
+        if (fpTanggal) {
+            fpTanggal.set('disable', [
+                function(date) {
+                    return isDateDisabledForVenue(date, selectedVenue);
+                }
+            ]);
 
-            // Jika nilai saat ini berada di luar rentang jam venue yang dipilih, sesuaikan
-            if (hours.open <= hours.close) {
-                if (jamInput.value < hours.open || jamInput.value > hours.close) {
-                    if ('18:30' >= hours.open && '18:30' <= hours.close) {
-                        jamInput.value = '18:30';
-                    } else {
-                        jamInput.value = hours.open;
+            // Jika tanggal yang sedang dipilih ternyata libur di venue ini, auto-pindah ke hari buka berikutnya
+            const curDate = fpTanggal.selectedDates[0];
+            if (curDate && isDateDisabledForVenue(curDate, selectedVenue)) {
+                let nextValid = new Date(curDate);
+                for (let i = 1; i <= 14; i++) {
+                    nextValid.setDate(nextValid.getDate() + 1);
+                    if (!isDateDisabledForVenue(nextValid, selectedVenue)) {
+                        fpTanggal.setDate(nextValid, true); // true agar trigger onChange
+                        break;
                     }
                 }
             }
         }
+
+        // Perbarui opsi Jam Mulai dropdown
+        populateJamMulaiDropdown(hours);
 
         validateTanggalAndJam();
     }
@@ -657,11 +885,22 @@
         let hasError = false;
 
         // 1. Validasi Jam Operasional
-        const hours = parseVenueHours(selectedVenue.jam_operasional);
+        const dateStr = tanggalInput.value;
+        const availHours = getAvailabilityForDate(selectedVenue, dateStr);
+        const hours = availHours || parseVenueHours(selectedVenue.jam_operasional);
         const jamVal = jamInput.value;
 
-        if (jamVal && hours.open <= hours.close) {
-            if (jamVal < hours.open || jamVal > hours.close) {
+        // Cek apakah opsi terpilih merupakan opsi disabled
+        const selectedOpt = jamInput.options ? jamInput.options[jamInput.selectedIndex] : null;
+        if (selectedOpt && selectedOpt.disabled) {
+            hasError = true;
+            if (jamError) {
+                jamError.innerText = `⚠️ ${selectedOpt.textContent}`;
+                jamError.classList.remove('hidden');
+            }
+            jamInput.classList.add('border-rose-400', 'bg-rose-50/50');
+        } else if (jamVal && hours.open <= hours.close) {
+            if (jamVal < hours.open || jamVal >= hours.close) {
                 if (jamError) {
                     jamError.innerText = `⚠️ Jam mulai (${jamVal}) di luar jam buka venue (${hours.open} - ${hours.close} WIB).`;
                     jamError.classList.remove('hidden');
@@ -696,21 +935,10 @@
         }
 
         // 2. Validasi Hari Buka
-        if (selectedVenue.hari_buka && tanggalInput.value) {
+        if (tanggalInput.value) {
             const date = new Date(tanggalInput.value + 'T00:00:00');
-            const dayOfWeek = date.getDay();
-            const hariBukaLower = selectedVenue.hari_buka.toLowerCase();
-            let dayError = '';
-
-            if (hariBukaLower.includes('senin - jumat') && (dayOfWeek === 0 || dayOfWeek === 6)) {
-                dayError = `⚠️ Venue hanya beroperasi hari kerja (${selectedVenue.hari_buka}). Tanggal terpilih adalah akhir pekan.`;
-            } else if (hariBukaLower.includes('senin - sabtu') && dayOfWeek === 0) {
-                dayError = `⚠️ Venue tutup pada hari Minggu (${selectedVenue.hari_buka}).`;
-            } else if (hariBukaLower.includes('sabtu & minggu') && (dayOfWeek >= 1 && dayOfWeek <= 5)) {
-                dayError = `⚠️ Venue hanya buka di akhir pekan (${selectedVenue.hari_buka}).`;
-            }
-
-            if (dayError) {
+            if (isDateDisabledForVenue(date, selectedVenue)) {
+                let dayError = `⚠️ Venue tutup pada tanggal terpilih (${selectedVenue.hari_buka || 'Tutup'}).`;
                 if (tanggalError) {
                     tanggalError.innerText = dayError;
                     tanggalError.classList.remove('hidden');
@@ -1021,9 +1249,20 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        initFlatpickr();
         filterCourtsBySport(currentSportId);
         onFormatOrScoringChanged();
-        validateTanggalAndJam();
+
+        const venueSelect = document.getElementById('venueSelect');
+        if (venueSelect && venueSelect.value) {
+            const venueId = parseInt(venueSelect.value);
+            const selectedVenue = venuesData.find(v => v.venue_id === venueId);
+            if (selectedVenue) {
+                updateVenueOperatingHours(selectedVenue);
+            }
+        } else {
+            validateTanggalAndJam();
+        }
     });
 </script>
 @endpush
