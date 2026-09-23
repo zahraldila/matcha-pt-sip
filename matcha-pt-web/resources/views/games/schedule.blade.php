@@ -1,35 +1,93 @@
 @extends('layouts.app')
 
 @section('content')
-<!-- Flatpickr CSS & Custom Matcha Theme -->
+<!-- Flatpickr CSS & Custom Matcha Theme (Compact & Refined) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
     .flatpickr-calendar {
         font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
-        border-radius: 1.25rem !important;
+        width: 272px !important;
+        border-radius: 1rem !important;
         border: 1px solid #e2e8f0 !important;
-        box-shadow: 0 16px 36px -6px rgba(6, 59, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.04) !important;
-        padding: 8px !important;
+        box-shadow: 0 12px 28px -4px rgba(6, 59, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.03) !important;
+        padding: 6px !important;
         background: #ffffff !important;
     }
+    .flatpickr-months {
+        height: 32px !important;
+        align-items: center !important;
+    }
     .flatpickr-months .flatpickr-month {
+        height: 32px !important;
         color: #063B00 !important;
     }
-    .flatpickr-current-month .flatpickr-monthDropdown-months,
-    .flatpickr-current-month input.cur-year {
-        font-weight: 800 !important;
+    .flatpickr-current-month {
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        padding-top: 4px !important;
+        height: 28px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+    }
+    .flatpickr-current-month .cur-month {
+        font-weight: 700 !important;
         color: #063B00 !important;
+        font-size: 13px !important;
+    }
+    .flatpickr-current-month input.cur-year {
+        font-weight: 700 !important;
+        color: #063B00 !important;
+        font-size: 13px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .flatpickr-months .flatpickr-prev-month,
+    .flatpickr-months .flatpickr-next-month {
+        height: 26px !important;
+        width: 26px !important;
+        padding: 5px !important;
+        border-radius: 0.5rem !important;
+        color: #64748b !important;
+        top: 4px !important;
+    }
+    .flatpickr-months .flatpickr-prev-month:hover,
+    .flatpickr-months .flatpickr-next-month:hover {
+        background: #f1f5f9 !important;
+        color: #063B00 !important;
+    }
+    .flatpickr-months .flatpickr-prev-month svg,
+    .flatpickr-months .flatpickr-next-month svg {
+        width: 11px !important;
+        height: 11px !important;
+    }
+    .flatpickr-weekdays {
+        height: 24px !important;
     }
     span.flatpickr-weekday {
         font-weight: 700 !important;
-        color: #64748b !important;
-        font-size: 11px !important;
+        color: #94a3b8 !important;
+        font-size: 10px !important;
+        text-transform: uppercase !important;
+    }
+    .flatpickr-days {
+        width: 256px !important;
+    }
+    .dayContainer {
+        min-width: 252px !important;
+        max-width: 252px !important;
+        width: 252px !important;
     }
     .flatpickr-day {
-        border-radius: 0.75rem !important;
+        max-width: 32px !important;
+        height: 32px !important;
+        line-height: 32px !important;
+        font-size: 11px !important;
         font-weight: 600 !important;
-        font-size: 12px !important;
-        color: #0f172a !important;
+        border-radius: 0.5rem !important;
+        color: #1e293b !important;
+        margin: 2px !important;
         transition: all 0.15s ease !important;
     }
     .flatpickr-day:hover:not(.flatpickr-disabled):not(.selected) {
@@ -37,7 +95,7 @@
         color: #063B00 !important;
     }
     .flatpickr-day.today {
-        border-color: #A8E63A !important;
+        border-color: #063B00 !important;
         color: #063B00 !important;
     }
     .flatpickr-day.selected,
@@ -45,7 +103,7 @@
         background: #063B00 !important;
         border-color: #063B00 !important;
         color: #ffffff !important;
-        font-weight: 800 !important;
+        font-weight: 700 !important;
     }
     .flatpickr-day.flatpickr-disabled,
     .flatpickr-day.flatpickr-disabled:hover {
@@ -705,6 +763,7 @@
             altFormat: "d/m/Y",
             minDate: "today",
             defaultDate: defaultVal,
+            monthSelectorType: "static",
             disable: [
                 function(date) {
                     const venueSelect = document.getElementById('venueSelect');
@@ -739,35 +798,55 @@
 
         jamSelect.innerHTML = '';
 
-        // Buat slot setiap 30 menit dari 00:00 s.d 23:30 (48 slot)
-        for (let h = 0; h < 24; h++) {
-            for (let m of [0, 30]) {
-                const totalM = h * 60 + m;
-                const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-                const endM = totalM + durasiHours * 60;
+        // Tentukan batas slot waktu berdasarkan jam operasional venue
+        const startSlot = Math.floor(openMinutes / 30) * 30;
+        const endSlot = Math.ceil(closeMinutes / 30) * 30;
 
+        // Hanya buat slot di dalam rentang jam operasional venue (rapih & tidak berantakan)
+        for (let m = startSlot; m <= endSlot; m += 30) {
+            const h = Math.floor(m / 60);
+            const min = m % 60;
+            if (h >= 24) break;
+
+            const timeStr = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+            const endM = m + durasiHours * 60;
+
+            const opt = document.createElement('option');
+            opt.value = timeStr;
+
+            const isBeforeOpen = m < openMinutes;
+            const isAtOrAfterClose = m >= closeMinutes;
+            const isExceedDuration = !isBeforeOpen && !isAtOrAfterClose && endM > closeMinutes;
+
+            if (isBeforeOpen) {
+                opt.disabled = true;
+                opt.textContent = `${timeStr} WIB (Belum Buka)`;
+                opt.className = 'text-slate-400 bg-slate-50';
+            } else if (isAtOrAfterClose) {
+                opt.disabled = true;
+                opt.textContent = `${timeStr} WIB (Jam Tutup)`;
+                opt.className = 'text-slate-400 bg-slate-50';
+            } else if (isExceedDuration) {
+                opt.disabled = true;
+                opt.textContent = `${timeStr} WIB (Lewat Jam Tutup)`;
+                opt.className = 'text-rose-400 bg-rose-50/50';
+            } else {
+                opt.textContent = `${timeStr} WIB`;
+                opt.className = 'text-slate-900 font-medium';
+            }
+
+            jamSelect.appendChild(opt);
+        }
+
+        // Fallback jika tidak ada opsi yang terbuat
+        if (jamSelect.options.length === 0) {
+            for (let m = 360; m <= 1380; m += 30) {
+                const h = Math.floor(m / 60);
+                const min = m % 60;
+                const timeStr = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
                 const opt = document.createElement('option');
                 opt.value = timeStr;
-
-                const isBeforeOpen = totalM < openMinutes;
-                const isAfterClose = totalM >= closeMinutes;
-                const isExceedDuration = !isBeforeOpen && !isAfterClose && endM > closeMinutes;
-
-                if (isBeforeOpen || isAfterClose) {
-                    opt.disabled = true;
-                    opt.textContent = `${timeStr} WIB (Di luar jam buka ${hours.open} - ${hours.close})`;
-                    opt.className = 'text-slate-400 bg-slate-100/70';
-                } else if (isExceedDuration) {
-                    const endHStr = String(Math.floor(endM / 60)).padStart(2, '0');
-                    const endMStr = String(endM % 60).padStart(2, '0');
-                    opt.disabled = true;
-                    opt.textContent = `${timeStr} WIB (Durasi selesai ${endHStr}:${endMStr} > Tutup ${hours.close})`;
-                    opt.className = 'text-rose-400 bg-rose-50/50';
-                } else {
-                    opt.textContent = `${timeStr} WIB`;
-                    opt.className = 'text-slate-900 font-medium';
-                }
-
+                opt.textContent = `${timeStr} WIB`;
                 jamSelect.appendChild(opt);
             }
         }
