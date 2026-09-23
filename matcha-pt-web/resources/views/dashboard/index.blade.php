@@ -241,6 +241,31 @@
 
 @push('scripts')
 <script>
+    // Data kota per tab (dari server)
+    const citiesPerTab = {
+        mabar: @json($mabarCities->values()),
+        venue: @json($venueCities->values()),
+        community: @json($communityCities->values()),
+    };
+
+    function rebuildCityOptions(tab) {
+        const select = document.getElementById('filterCity');
+        if (!select) return;
+        const currentVal = select.value;
+        const cities = citiesPerTab[tab] || [];
+
+        select.innerHTML = '<option value="all">Semua Kota</option>';
+        cities.forEach(city => {
+            const opt = document.createElement('option');
+            opt.value = city;
+            opt.textContent = city;
+            if (currentVal !== 'all' && city.toLowerCase() === currentVal.toLowerCase()) {
+                opt.selected = true;
+            }
+            select.appendChild(opt);
+        });
+    }
+
     function switchDashboardTab(tab) {
         // 1. Update tab styling
         const tabs = ['mabar', 'venue', 'community'];
@@ -261,7 +286,10 @@
         const hiddenInput = document.getElementById('filterTabInput');
         if (hiddenInput) hiddenInput.value = tab;
 
-        // 3. Toggle Date Field (KOMUNITAS TIDAK ADA PILIH TANGGAL)
+        // 3. Rebuild city dropdown sesuai tab
+        rebuildCityOptions(tab);
+
+        // 4. Toggle Date Field (KOMUNITAS TIDAK ADA PILIH TANGGAL)
         const dateContainer = document.getElementById('filterDateContainer');
         const fieldsGrid = document.getElementById('filterFieldsGrid');
         const btnText = document.getElementById('filterBtnText');
@@ -289,7 +317,7 @@
             if (btnText) btnText.innerText = 'Cari Jadwal Mabar';
         }
 
-        // 4. Switch result sections below
+        // 5. Switch result sections below
         const secMabar = document.getElementById('section-mabar');
         const secVenue = document.getElementById('section-venue');
         const secComm = document.getElementById('section-community');

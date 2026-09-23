@@ -182,35 +182,68 @@ class DashboardController extends Controller
             ];
         })->toArray();
 
-        // 4. Ambil daftar kota dari venue (kota) dan komunitas (kota_homebase), lalu merge
-        $venueCities = Venue::query()
+        // 4. Ambil daftar kota per tab secara terpisah
+        $normalizeCity = function (string $city): string {
+            $c = trim($city);
+            if (ctype_lower($c) || ctype_upper($c)) {
+                return ucwords(strtolower($c));
+            }
+
+            return $c;
+        };
+
+        // Jadwal Mabar → kota venue (sesi mabar berlangsung di venue)
+        $mabarCities = Venue::query()
             ->whereNotNull('kota')
             ->where('kota', '!=', '')
-            ->pluck('kota');
-
-        $communityCities = Community::query()
-            ->whereNotNull('kota_homebase')
-            ->where('kota_homebase', '!=', '')
-            ->pluck('kota_homebase');
-
-        $cities = $venueCities->merge($communityCities)
-            ->map(function ($city) {
-                $c = trim($city);
-                if (ctype_lower($c) || ctype_upper($c)) {
-                    return ucwords(strtolower($c));
-                }
-
-                return $c;
-            })
+            ->pluck('kota')
+            ->map($normalizeCity)
             ->filter()
             ->unique(fn ($city) => strtolower($city))
             ->sort(SORT_NATURAL | SORT_FLAG_CASE)
             ->values();
 
-        if ($cities->isEmpty()) {
-            $cities = collect(['Jakarta', 'Bandung']);
+        if ($mabarCities->isEmpty()) {
+            $mabarCities = collect(['Jakarta', 'Bandung']);
         }
 
-        return view('dashboard.index', compact('games', 'venues', 'communities', 'cities', 'selectedSport', 'selectedCity', 'selectedDate', 'activeTab'));
+        // Sewa Lapangan → kota venue
+        $venueCities = Venue::query()
+            ->whereNotNull('kota')
+            ->where('kota', '!=', '')
+            ->pluck('kota')
+            ->map($normalizeCity)
+            ->filter()
+            ->unique(fn ($city) => strtolower($city))
+            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+
+        if ($venueCities->isEmpty()) {
+            $venueCities = collect(['Jakarta', 'Bandung']);
+        }
+
+        // Komunitas → kota_homebase komunitas
+        $communityCities = Community::query()
+            ->whereNotNull('kota_homebase')
+            ->where('kota_homebase', '!=', '')
+            ->pluck('kota_homebase')
+            ->map($normalizeCity)
+            ->filter()
+            ->unique(fn ($city) => strtolower($city))
+            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+
+        if ($communityCities->isEmpty()) {
+            $communityCities = collect(['Jakarta', 'Bandung']);
+        }
+
+        // Cities untuk initial render sesuai active tab
+        $cities = match ($activeTab) {
+            'venue' => $venueCities,
+            'community' => $communityCities,
+            default => $mabarCities,
+        };
+
+        return view('dashboard.index', compact('games', 'venues', 'communities', 'cities', 'mabarCities', 'venueCities', 'communityCities', 'selectedSport', 'selectedCity', 'selectedDate', 'activeTab'));
     }
 }
