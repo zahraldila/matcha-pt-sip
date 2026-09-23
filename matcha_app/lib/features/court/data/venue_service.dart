@@ -95,17 +95,49 @@ class VenueService {
     String? kota,
     int numberOfCourts = 1,
     int? sportId,
+    int? ownerUserId,
   }) async {
     try {
+      int? effectiveOwnerId = ownerUserId;
+      if (effectiveOwnerId == null || effectiveOwnerId <= 0) {
+        // Fallback: ambil user_id dari venue yang sudah ada atau tb_user
+        final existingVenue = await _supabase
+            .from('tb_venue')
+            .select('owner_user_id')
+            .not('owner_user_id', 'is', null)
+            .limit(1)
+            .maybeSingle();
+
+        if (existingVenue != null && existingVenue['owner_user_id'] != null) {
+          effectiveOwnerId = existingVenue['owner_user_id'] as int;
+        } else {
+          final firstUser = await _supabase
+              .from('tb_user')
+              .select('user_id')
+              .limit(1)
+              .maybeSingle();
+          if (firstUser != null && firstUser['user_id'] != null) {
+            effectiveOwnerId = firstUser['user_id'] as int;
+          }
+        }
+      }
+
+      final Map<String, dynamic> insertPayload = {
+        'nama_venue': namaVenue,
+        'alamat': (alamat != null && alamat.isNotEmpty) ? alamat : namaVenue,
+        'kota': (kota != null && kota.isNotEmpty) ? kota : 'Bandung',
+        'jam_operasional': '08:00 - 22:00 WIB',
+        'hari_buka': 'Setiap Hari (Senin - Minggu)',
+        'fasilitas': 'Parkir, Toilet, Ruang Ganti',
+      };
+
+      if (effectiveOwnerId != null) {
+        insertPayload['owner_user_id'] = effectiveOwnerId;
+      }
+
       final venueInsert = await _supabase
           .from('tb_venue')
-          .insert({
-            'nama_venue': namaVenue,
-            'alamat': alamat ?? 'Alamat belum diatur',
-            'kota': kota ?? 'Bandung',
-            'jam_operasional': '08:00 - 22:00 WIB',
-            'hari_buka': 'Setiap Hari',
-          })
+          .insert(insertPayload)
           .select()
           .single();
 
@@ -119,7 +151,8 @@ class VenueService {
           'sport_id': sportId ?? 1,
           'nama_court': 'Court $i',
           'status_ketersediaan': 'Available',
-          'tipe_court': 'Outdoor',
+          'tipe_court': 'Indoor',
+          'deskripsi': 'Tipe: Indoor',
           'harga_per_jam': 0.0,
         });
       }
@@ -129,6 +162,8 @@ class VenueService {
       return await getVenueById(newVenueId);
     } on PostgrestException catch (e) {
       throw Exception('Gagal menambahkan venue instan: ${e.message}');
+    } catch (e) {
+      throw Exception('Gagal menambahkan venue instan: $e');
     }
   }
 }

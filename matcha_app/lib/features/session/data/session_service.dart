@@ -243,6 +243,7 @@ class SessionService {
     required String durasi,
     required int jumlahPemain,
     required String jenisPermainan,
+    String? scoringSystem,
     String? levelRekomendasi,
     String? deskripsi,
     int? hostUserId,
@@ -267,7 +268,7 @@ class SessionService {
             'status_session': 'Open',
             'jumlah_pemain': jumlahPemain.toString(),
             'jenis_permainan': jenisPermainan,
-            'scoring_system': 'Total of 3',
+            'scoring_system': scoringSystem ?? 'Total of 3',
           })
           .select('session_id')
           .single();
