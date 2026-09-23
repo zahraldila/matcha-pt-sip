@@ -233,11 +233,11 @@
                             <!-- Custom Styled Trigger Button -->
                             <div class="relative">
                                 <button type="button" id="homebaseVenueTrigger" onclick="toggleHomebaseVenueDropdown(event)"
-                                    class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-9 py-3 text-xs text-slate-900 font-semibold text-left focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs flex items-center justify-between gap-2 cursor-pointer">
-                                    <span id="homebaseVenueLabel" class="min-w-0 truncate text-slate-700">Pilih Venue Homebase (Opsional)</span>
-                                    <i id="homebaseVenueIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 shrink-0"></i>
+                                    class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-10 py-3 text-xs text-slate-900 font-semibold text-left focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs flex items-center cursor-pointer">
+                                    <span id="homebaseVenueLabel" class="min-w-0 truncate text-slate-700 block">Pilih Venue Homebase (Opsional)</span>
                                 </button>
                                 <i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                                <i id="homebaseVenueIcon" class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none transition-transform duration-200"></i>
 
                                 <!-- Custom Dropdown Menu with Max Width & Height & Ellipsis Truncate -->
                                 <div id="homebaseVenueMenu" class="hidden absolute z-30 left-0 right-0 top-full mt-1.5 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl space-y-0.5 scrollbar-thin"></div>
