@@ -58,6 +58,11 @@ class VenueModel {
 
   int get courtCount => courts.isNotEmpty ? courts.length : 1;
 
+  List<String> get rawPhotoList {
+    if (foto == null || foto!.trim().isEmpty) return [];
+    return foto!.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+  }
+
   List<String> get photoList {
     if (foto == null || foto!.trim().isEmpty) {
       return ['https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80'];

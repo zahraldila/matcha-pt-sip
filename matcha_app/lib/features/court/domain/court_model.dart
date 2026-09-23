@@ -30,6 +30,22 @@ class CourtModel {
   });
 
   factory CourtModel.fromMap(Map<String, dynamic> map) {
+    String? resolvedImageUrl = map['image_url'] as String?;
+    if (resolvedImageUrl == null || resolvedImageUrl.trim().isEmpty) {
+      if (map['tb_venue'] != null && map['tb_venue'] is Map) {
+        final vFoto = map['tb_venue']['foto']?.toString();
+        if (vFoto != null && vFoto.trim().isNotEmpty) {
+          final first = vFoto.split(',').first.trim();
+          if (first.startsWith('http://') || first.startsWith('https://')) {
+            resolvedImageUrl = first;
+          } else {
+            final clean = first.startsWith('/') ? first.substring(1) : first;
+            resolvedImageUrl = 'http://demo.uteam.id:7000/$clean';
+          }
+        }
+      }
+    }
+
     return CourtModel(
       courtId: map['court_id'] as int,
       venueId: map['venue_id'] as int?,
@@ -39,7 +55,7 @@ class CourtModel {
       statusKetersediaan: map['status_ketersediaan'] as String?,
       statusAktif: map['status_aktif'] as String?,
       deskripsi: map['deskripsi'] as String?,
-      imageUrl: map['image_url'] as String?,
+      imageUrl: resolvedImageUrl,
       tipeCourt: map['tipe_court'] as String?,
       hargaPerJam: (map['harga_per_jam'] is num)
           ? (map['harga_per_jam'] as num).toDouble()

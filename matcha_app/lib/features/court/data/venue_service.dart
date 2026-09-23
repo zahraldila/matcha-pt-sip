@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/venue_model.dart';
 
@@ -164,6 +165,83 @@ class VenueService {
       throw Exception('Gagal menambahkan venue instan: ${e.message}');
     } catch (e) {
       throw Exception('Gagal menambahkan venue instan: $e');
+    }
+  }
+
+  /// Menambahkan daftar court baru ke venue
+  Future<void> addCourtsToVenue({
+    required int venueId,
+    required List<Map<String, dynamic>> courts,
+  }) async {
+    try {
+      final List<Map<String, dynamic>> payload = courts.map((c) {
+        return {
+          'venue_id': venueId,
+          'nama_court': c['nama_court'] ?? 'Court',
+          'sport_id': c['sport_id'] ?? 1,
+          'tipe_court': c['tipe_court'] ?? 'Indoor',
+          'deskripsi': 'Tipe: ${c['tipe_court'] ?? "Indoor"}',
+          'harga_per_jam': c['harga_per_jam'] ?? 0,
+          'status_ketersediaan': 'Available',
+        };
+      }).toList();
+
+      await _supabase.from('tb_court').insert(payload);
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal menyimpan lapangan: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
+    }
+  }
+
+  /// Upload foto venue ke Supabase Storage bucket 'venues'
+  Future<String> uploadVenuePhoto(Uint8List bytes, String filename) async {
+    try {
+      final ext = filename.contains('.') ? filename.split('.').last.toLowerCase() : 'jpg';
+      final cleanName = filename.split('.').first.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      final storagePath = 'venue_${DateTime.now().millisecondsSinceEpoch}_$cleanName.$ext';
+
+      await _supabase.storage.from('venues').uploadBinary(
+            storagePath,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: 'image/$ext',
+              upsert: true,
+            ),
+          );
+
+      return _supabase.storage.from('venues').getPublicUrl(storagePath);
+    } catch (e) {
+      try {
+        final ext = filename.contains('.') ? filename.split('.').last.toLowerCase() : 'jpg';
+        final storagePath = 'venue_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        await _supabase.storage.from('general').uploadBinary(
+              storagePath,
+              bytes,
+              fileOptions: FileOptions(contentType: 'image/$ext', upsert: true),
+            );
+        return _supabase.storage.from('general').getPublicUrl(storagePath);
+      } catch (_) {
+        throw Exception('Gagal mengunggah foto ke storage: $e');
+      }
+    }
+  }
+
+  /// Update kolom foto pada tb_venue
+  Future<void> updateVenuePhotos({
+    required int venueId,
+    required List<String> photos,
+  }) async {
+    try {
+      final fotoString = photos.isEmpty ? null : photos.join(', ');
+      await _supabase
+          .from('tb_venue')
+          .update({'foto': fotoString})
+          .eq('venue_id', venueId);
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal memperbarui foto venue: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan saat memperbarui foto: $e');
     }
   }
 }
