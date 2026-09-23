@@ -5,10 +5,10 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../community/presentation/community_page.dart';
 import '../../court/presentation/venue_directory_page.dart';
+import '../../games/presentation/create_game_wizard_page.dart';
 import '../../home/presentation/home_page.dart';
 import '../../profile/presentation/profile_page.dart';
 import '../../recap/presentation/match_recap_page.dart';
-import '../../session/presentation/create_session_page.dart';
 import '../../session/presentation/session_detail_page.dart';
 import '../../session/presentation/session_list_page.dart';
 
@@ -60,11 +60,11 @@ class _MainShellPageState extends State<MainShellPage> {
       // Guest: tampilkan modal informasi Host
       _showHostInfoModal(isGuest: true);
     } else if (isHost) {
-      // Host: langsung buka halaman Buat Sesi Mabar
+      // Host: langsung buka halaman Host Game Creation Wizard
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CreateSessionPage(
+          builder: (_) => CreateGameWizardPage(
             authController: widget.authController,
           ),
         ),
