@@ -128,26 +128,43 @@
                 </h3>
 
                 @if($community->players && $community->players->count() > 0)
-                    <div class="space-y-3">
-                        @foreach($community->players as $player)
-                            <div class="p-4 rounded-2xl bg-slate-50/60 border border-slate-200/60 hover:bg-slate-50/80 transition-all flex items-center justify-between group">
-                                <div class="flex items-center gap-3.5 flex-1">
-                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#063B00] to-emerald-900 text-white flex items-center justify-center font-bold text-sm shadow-xs">
-                                        {{ substr($player->nama ?? 'Member', 0, 1) }}
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-bold text-slate-900">{{ $player->nama ?? 'Member' }}</p>
-                                        <div class="flex items-center gap-2 mt-0.5">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="text-slate-500 bg-slate-50 uppercase tracking-wider text-[10px] border-b border-slate-200">
+                                <tr>
+                                    <th class="py-2.5 px-3">#</th>
+                                    <th class="py-2.5 px-3">Nama</th>
+                                    <th class="py-2.5 px-3">Skill Level</th>
+                                    <th class="py-2.5 px-3">Gender / Usia</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @foreach($community->players as $index => $player)
+                                    <tr class="hover:bg-slate-50/80 transition-colors">
+                                        <td class="py-2.5 px-3 text-slate-400 font-medium">{{ $index + 1 }}</td>
+                                        <td class="py-2.5 px-3">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-6 h-6 rounded-full bg-[#063B00] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                                                    {{ strtoupper(substr($player->nama ?? 'M', 0, 1)) }}
+                                                </div>
+                                                <span class="font-semibold text-slate-800">{{ $player->nama ?? 'Member' }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-2.5 px-3">
                                             @if($player->level)
-                                            <span class="px-2 py-0.5 rounded-md bg-[#EBF8D8] text-[#063B00] text-[10px] font-bold">
-                                                Level: {{ $player->level }}
-                                            </span>
+                                                @php $lvl = strtolower($player->level); @endphp
+                                                <x-badge :type="$lvl">{{ $player->level }}</x-badge>
+                                            @else
+                                                <span class="text-slate-400">-</span>
                                             @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
+                                        </td>
+                                        <td class="py-2.5 px-3 text-slate-500">
+                                            {{ $player->gender ?? '-' }}{{ !empty($player->umur) ? ', ' . $player->umur . ' th' : '' }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 @else
                     <div class="p-8 rounded-2xl bg-slate-50/60 border border-dashed border-slate-200 text-center">
