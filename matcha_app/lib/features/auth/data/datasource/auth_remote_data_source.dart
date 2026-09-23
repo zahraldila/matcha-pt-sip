@@ -208,4 +208,136 @@ class AuthRemoteDataSource {
       return false;
     }
   }
+
+  /// Upload avatar image bytes ke Supabase Storage
+  Future<String?> uploadAvatar(dynamic bytes, String fileExt) async {
+    try {
+      final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final storagePath = 'avatars/$fileName';
+
+      // Coba upload ke bucket 'avatars', jika gagal fallback ke 'general'
+      try {
+        await _supabase.storage.from('avatars').uploadBinary(
+          storagePath,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: 'image/$fileExt',
+            upsert: true,
+          ),
+        );
+        return _supabase.storage.from('avatars').getPublicUrl(storagePath);
+      } catch (_) {
+        await _supabase.storage.from('general').uploadBinary(
+          storagePath,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: 'image/$fileExt',
+            upsert: true,
+          ),
+        );
+        return _supabase.storage.from('general').getPublicUrl(storagePath);
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Update data profil di tb_user & tb_player
+  Future<UserModel> updateProfile({
+    required int userId,
+    required String nama,
+    required String noHp,
+    required String gender,
+    required int usia,
+    required String level,
+    int? communityId,
+    String? fotoUrl,
+    bool removeFoto = false,
+  }) async {
+    try {
+      final cleanPhone = noHp.replaceAll(RegExp(r'[^0-9]'), '');
+
+      // 1. Update tb_user
+      final Map<String, dynamic> userUpdates = {
+        'nama': nama.trim(),
+        'no_hp': cleanPhone,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      if (removeFoto) {
+        userUpdates['foto'] = null;
+      } else if (fotoUrl != null) {
+        userUpdates['foto'] = fotoUrl;
+      }
+
+      final updatedUserRaw = await _supabase
+          .from('tb_user')
+          .update(userUpdates)
+          .eq('user_id', userId)
+          .select()
+          .single();
+
+      // 2. Update or insert tb_player
+      final existingPlayers = await _supabase
+          .from('tb_player')
+          .select()
+          .eq('user_id', userId)
+          .order('player_id', ascending: false);
+
+      Map<String, dynamic>? playerRaw;
+      final Map<String, dynamic> playerFields = {
+        'nama': nama.trim(),
+        'no_hp': cleanPhone,
+        'gender': gender,
+        'usia': usia,
+        'level': level,
+        'community_id': communityId,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      if (removeFoto) {
+        playerFields['foto'] = null;
+      } else if (fotoUrl != null) {
+        playerFields['foto'] = fotoUrl;
+      }
+
+      if (existingPlayers.isNotEmpty) {
+        final existingId = existingPlayers.first['player_id'];
+        playerRaw = await _supabase
+            .from('tb_player')
+            .update(playerFields)
+            .eq('player_id', existingId)
+            .select()
+            .single();
+      } else {
+        playerFields['user_id'] = userId;
+        playerFields['email'] = updatedUserRaw['email'];
+        playerFields['rating'] = 1.0;
+        playerFields['created_at'] = DateTime.now().toIso8601String();
+        playerRaw = await _supabase
+            .from('tb_player')
+            .insert(playerFields)
+            .select()
+            .single();
+      }
+
+      return UserModel.fromJson(updatedUserRaw, playerJson: playerRaw);
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Gagal memperbarui profil: ${e.message}');
+      }
+      rethrow;
+    }
+  }
+
+  /// Mengambil daftar komunitas untuk dropdown
+  Future<List<Map<String, dynamic>>> getCommunitiesList() async {
+    try {
+      final res = await _supabase
+          .from('tb_community')
+          .select('community_id, nama_community')
+          .order('nama_community', ascending: true);
+      return List<Map<String, dynamic>>.from(res as List);
+    } catch (_) {
+      return [];
+    }
+  }
 }

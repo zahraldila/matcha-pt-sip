@@ -138,6 +138,69 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Update profil pengguna dan simpan ke tb_user & tb_player di Supabase
+  Future<bool> updateProfile({
+    required String nama,
+    required String noHp,
+    required String gender,
+    required int usia,
+    required String level,
+    int? communityId,
+    String? fotoUrl,
+    bool removeFoto = false,
+  }) async {
+    if (_currentUser == null) return false;
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedUser = await _authDataSource.updateProfile(
+        userId: _currentUser!.userId,
+        nama: nama,
+        noHp: noHp,
+        gender: gender,
+        usia: usia,
+        level: level,
+        communityId: communityId,
+        fotoUrl: fotoUrl,
+        removeFoto: removeFoto,
+      );
+
+      _currentUser = updatedUser;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Upload avatar helper
+  Future<String?> uploadAvatar(dynamic bytes, String fileExt) async {
+    return await _authDataSource.uploadAvatar(bytes, fileExt);
+  }
+
+  /// Get communities helper
+  Future<List<Map<String, dynamic>>> getCommunities() async {
+    return await _authDataSource.getCommunitiesList();
+  }
+
+  /// Refresh user data dari database
+  Future<void> refreshCurrentUser() async {
+    if (_currentUser == null) return;
+    try {
+      final user = await _authDataSource.getUserById(_currentUser!.userId);
+      if (user != null) {
+        _currentUser = user;
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
   void clearError() {
     _errorMessage = null;
     notifyListeners();
