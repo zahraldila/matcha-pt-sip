@@ -208,6 +208,16 @@
                     <div class="space-y-2 pt-2">
                         @if(!empty($isHost))
                             {{-- TAMPILAN KHUSUS HOST --}}
+                            @if(empty($isJoinedByMe) && !$isFull && empty($hasDrawingStarted) && empty($isFinished))
+                                <button type="button" onclick="showJoinModal('{{ $game['id'] }}', '{{ addslashes($game['title']) }}')" class="w-full text-center py-2.5 rounded-xl bg-[#EBF8D8] hover:bg-[#A8E63A]/30 text-[#063B00] border border-[#063B00]/30 font-bold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-user-plus text-[#063B00]"></i> Ikut Serta Bermain (+ Add Yourself)
+                                </button>
+                            @elseif(!empty($isJoinedByMe))
+                                <div class="w-full text-center py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-circle-check text-emerald-600"></i> Anda Terdaftar Sebagai Pemain
+                                </div>
+                            @endif
+
                             @if(!empty($hasDrawingStarted))
                                 <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
                                     <i class="fa-solid fa-shuffle text-[11px] text-[#A8E63A]"></i> Kelola Drawing Tim
@@ -227,6 +237,16 @@
                             @endif
                         @else
                             {{-- TAMPILAN PESERTA & VENUE OWNER (NON-HOST) --}}
+                            @if(empty($isJoinedByMe) && !$isFull && empty($hasDrawingStarted) && empty($isFinished) && (Auth::guest() || Auth::user()->role !== 'venue_owner'))
+                                <button type="button" onclick="showJoinModal('{{ $game['id'] }}', '{{ addslashes($game['title']) }}')" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-user-plus text-[#A8E63A]"></i> Gabung Sesi Mabar
+                                </button>
+                            @elseif(!empty($isJoinedByMe))
+                                <div class="w-full text-center py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-circle-check text-emerald-600"></i> Kamu Sudah Terdaftar di Sesi Ini
+                                </div>
+                            @endif
+
                             @if(!empty($hasDrawingStarted))
                                 <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
                                     <i class="fa-solid fa-eye text-[11px] text-[#A8E63A]"></i> Lihat Jadwal &amp; Rotasi Drawing
@@ -311,4 +331,6 @@
     }
 </script>
 @endif
+
+<x-join-modal />
 @endsection

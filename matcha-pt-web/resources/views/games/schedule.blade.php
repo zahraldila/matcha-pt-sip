@@ -273,6 +273,22 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Keikutsertaan Host (+ Add Yourself) -->
+                <div class="p-3.5 rounded-2xl bg-slate-50/90 border border-slate-200/80 hover:border-[#063B00]/40 transition-colors">
+                    <label class="flex items-start gap-3 cursor-pointer select-none">
+                        <input type="checkbox" name="include_host_as_player" value="1" {{ old('include_host_as_player') ? 'checked' : '' }} class="mt-0.5 w-4 h-4 rounded text-[#063B00] border-slate-300 focus:ring-[#063B00] accent-[#063B00]">
+                        <div class="space-y-0.5">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-slate-900 text-xs">Ikut serta bermain sebagai peserta (+ Add Yourself)</span>
+                                <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-700">Opsional</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 leading-relaxed">
+                                Secara default, Anda hanya bertindak sebagai Host/Penyelenggara (tidak memotong kuota). Centang opsi ini jika Anda juga ingin langsung terdaftar sebagai salah satu pemain di sesi mabar ini.
+                            </p>
+                        </div>
+                    </label>
+                </div>
             </div>
 
             <!-- 6. Catatan Deskripsi Mabar -->

@@ -657,9 +657,24 @@ class GameController extends Controller
             // 2. Attach court
             $session->courts()->attach($request->court_id);
 
-            // 3. Attach current user/host to session players
-            $player = Player::where('user_id', Auth::id())->first();
-            if ($player) {
+            // 3. Attach host ke session players jika opsi (+ Add Yourself) dicentang
+            if ($request->boolean('include_host_as_player')) {
+                $player = Player::where('user_id', Auth::id())
+                    ->orWhere('email', Auth::user()->email)
+                    ->first();
+
+                if (! $player) {
+                    $player = Player::create([
+                        'user_id' => Auth::id(),
+                        'nama' => Auth::user()->nama,
+                        'gender' => 'Male',
+                        'level' => 'Intermediate',
+                        'rating' => 3.0,
+                        'no_hp' => Auth::user()->no_hp ?? null,
+                        'email' => Auth::user()->email,
+                    ]);
+                }
+
                 $session->players()->attach($player->player_id);
             }
 
@@ -706,9 +721,27 @@ class GameController extends Controller
         $isFinished = ($dbSession->status_session === 'Finished') || str_contains(strtolower($status), 'selesai');
 
         $isHost = false;
+        $isJoinedByMe = false;
         if (Auth::check()) {
             $user = Auth::user();
             $isHost = ((int) $user->user_id === (int) $dbSession->host_user_id);
+            $userId = $user->user_id;
+            $userEmail = strtolower(trim($user->email ?? ''));
+            $userName = strtolower(trim($user->nama ?? ''));
+
+            $isJoinedByMe = $dbSession->players->contains(function ($p) use ($userId, $userEmail, $userName) {
+                if ($userId && $p->user_id && $p->user_id == $userId) {
+                    return true;
+                }
+                if ($userEmail && $p->email && strtolower(trim($p->email)) === $userEmail) {
+                    return true;
+                }
+                if ($userName && $p->nama && strtolower(trim($p->nama)) === $userName) {
+                    return true;
+                }
+
+                return false;
+            });
         }
 
         $hasDrawingStarted = in_array(strtolower($dbSession->status_session ?? ''), ['in progress', 'in_progress', 'live', 'playing', 'finished', 'completed', 'selesai']);
@@ -760,9 +793,10 @@ class GameController extends Controller
                 ];
             })->toArray(),
             'drawing' => null,
+            'is_joined_by_me' => $isJoinedByMe,
         ];
 
-        return view('games.show', compact('game', 'isFinished', 'isHost', 'hasDrawingStarted'));
+        return view('games.show', compact('game', 'isFinished', 'isHost', 'hasDrawingStarted', 'isJoinedByMe'));
     }
 
     /**
