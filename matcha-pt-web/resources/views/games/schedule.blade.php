@@ -119,6 +119,7 @@
         background-color: transparent;
         transition: none !important;
     }
+    /* Hover hanya pada item yang tepat di bawah kursor */
     .jam-option-item:hover:not(.jam-option-disabled) {
         background-color: #2563eb !important;
         color: #ffffff !important;
@@ -126,11 +127,14 @@
     .jam-option-item:hover:not(.jam-option-disabled) * {
         color: #ffffff !important;
     }
-    .jam-option-item.jam-option-selected {
+    /* Opsi terpilih hanya biru jika menu TIDAK sedang di-hover (sehingga tidak double highlight) */
+    #jamDropdownMenu:not(:hover) .jam-option-item.jam-option-selected,
+    .jam-option-item.jam-option-selected:hover {
         background-color: #2563eb !important;
         color: #ffffff !important;
     }
-    .jam-option-item.jam-option-selected * {
+    #jamDropdownMenu:not(:hover) .jam-option-item.jam-option-selected *,
+    .jam-option-item.jam-option-selected:hover * {
         color: #ffffff !important;
     }
 </style>
@@ -345,7 +349,7 @@
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Tanggal Mabar</label>
                         <div class="relative">
-                            <input type="text" name="tanggal" id="tanggalMabarInput" value="{{ date('Y-m-d', strtotime('+1 day')) }}" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs cursor-pointer" placeholder="Pilih Tanggal Mabar" required readonly>
+                            <input type="text" name="tanggal" id="tanggalMabarInput" value="" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs cursor-pointer" placeholder="Pilih Tanggal Mabar" required readonly>
                             <i class="fa-regular fa-calendar absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
                         <p id="tanggalErrorNotice" class="text-[10px] text-rose-600 font-bold hidden"></p>
@@ -360,10 +364,10 @@
                         </div>
                         <div class="relative" id="jamDropdownContainer">
                             <button type="button" id="jamDropdownTrigger" onclick="toggleJamDropdown()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs flex items-center justify-between text-left cursor-pointer">
-                                <span id="jamSelectedText">18:30 WIB</span>
+                                <span id="jamSelectedText" class="text-slate-400">Pilih Jam Mulai</span>
                                 <i id="jamDropdownChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200"></i>
                             </button>
-                            <input type="hidden" name="jam" id="jamMulaiInput" value="18:30" required>
+                            <input type="hidden" name="jam" id="jamMulaiInput" value="" required>
 
                             <!-- Custom dropdown menu strictly capped in height, styled like native select (Durasi) -->
                             <div id="jamDropdownMenu" class="hidden absolute left-0 top-full mt-0.5 w-full overflow-y-auto bg-white border border-slate-400 shadow-md z-50 p-0 scrollbar-thin" style="max-height: 180px;">
@@ -376,9 +380,10 @@
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Durasi</label>
                         <div class="relative">
-                            <select name="durasi" id="durasiSelect" onchange="onDurasiChanged()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                            <select name="durasi" id="durasiSelect" onchange="onDurasiChanged()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs" required>
+                                <option value="" disabled selected>Pilih Durasi</option>
                                 <option value="1 Jam">1 Jam</option>
-                                <option value="2 Jam" selected>2 Jam</option>
+                                <option value="2 Jam">2 Jam</option>
                                 <option value="3 Jam">3 Jam</option>
                                 <option value="4 Jam">4 Jam</option>
                             </select>
@@ -416,8 +421,8 @@
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Kuota Maksimal Pemain</label>
                         <div class="relative">
-                            <select name="jumlah_pemain" id="jumlahPemainSelect" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                                <!-- Options will be dynamically populated by JS -->
+                            <select name="jumlah_pemain" id="jumlahPemainSelect" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs" required>
+                                <option value="" disabled selected>Pilih Kuota Pemain</option>
                             </select>
                             <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
@@ -631,6 +636,16 @@
 
         venueSelect.innerHTML = '';
 
+        // Placeholder default kosong
+        const placeholderOpt = document.createElement('option');
+        placeholderOpt.value = '';
+        placeholderOpt.disabled = true;
+        placeholderOpt.innerText = 'Pilih venue sesuai olahraga';
+        if (!preserveVenueId) {
+            placeholderOpt.selected = true;
+        }
+        venueSelect.appendChild(placeholderOpt);
+
         // Filter venues having courts for this sport with status Available
         const matchingVenues = venuesData.filter(v => {
             if (!v.courts || !Array.isArray(v.courts)) return false;
@@ -638,12 +653,7 @@
         });
 
         if (matchingVenues.length === 0) {
-            const opt = document.createElement('option');
-            opt.value = '';
-            opt.disabled = true;
-            opt.selected = true;
-            opt.innerText = 'Tidak ada venue dengan lapangan tersedia untuk cabang olahraga ini';
-            venueSelect.appendChild(opt);
+            placeholderOpt.innerText = 'Tidak ada venue dengan lapangan tersedia untuk cabang olahraga ini';
             updateCourtsDropdown();
             return;
         }
@@ -663,9 +673,6 @@
             venueSelect.appendChild(opt);
         });
 
-        if (!preserveVenueId) {
-            venueSelect.selectedIndex = 0;
-        }
         updateCourtsDropdown();
     }
 
@@ -781,14 +788,14 @@
         const inputEl = document.getElementById('tanggalMabarInput');
         if (!inputEl) return;
 
-        const defaultVal = inputEl.value || "{{ date('Y-m-d', strtotime('+1 day')) }}";
+        const defaultVal = inputEl.value || null;
 
         fpTanggal = flatpickr(inputEl, {
             dateFormat: "Y-m-d",
             altInput: true,
             altFormat: "d/m/Y",
             minDate: "today",
-            defaultDate: defaultVal,
+            defaultDate: defaultVal || undefined,
             monthSelectorType: "static",
             disable: [
                 function(date) {
@@ -839,7 +846,11 @@
         const chevron = document.getElementById('jamDropdownChevron');
 
         if (input) input.value = timeStr;
-        if (textSpan) textSpan.innerText = `${timeStr} WIB`;
+        if (textSpan) {
+            textSpan.innerText = `${timeStr} WIB`;
+            textSpan.classList.remove('text-slate-400');
+            textSpan.classList.add('text-slate-900');
+        }
         if (menu) menu.classList.add('hidden');
         if (chevron) chevron.classList.remove('rotate-180');
 
@@ -881,8 +892,8 @@
         if (!menu || !input) return;
 
         const durasiSelect = document.getElementById('durasiSelect');
-        const durasiHours = parseInt(durasiSelect?.value || '2');
-        const currentVal = input.value || '18:30';
+        const durasiHours = parseInt(durasiSelect?.value) || 2;
+        const currentVal = input.value || '';
 
         const [openH, openM] = (hours.open || '06:00').split(':').map(Number);
         const [closeH, closeM] = (hours.close || '23:00').split(':').map(Number);
@@ -913,7 +924,7 @@
 
             if (!isDisabled) {
                 availableSlots.push(timeStr);
-                if (timeStr === currentVal) {
+                if (currentVal && timeStr === currentVal) {
                     validSelectedValue = timeStr;
                 }
             }
@@ -957,24 +968,25 @@
             }
         }
 
-        // Tentukan nilai aktif
-        if (!validSelectedValue) {
-            if (availableSlots.includes('18:30')) {
-                validSelectedValue = '18:30';
-            } else if (availableSlots.length > 0) {
-                validSelectedValue = availableSlots[0];
-            } else {
-                validSelectedValue = hours.open;
+        // Tentukan nilai aktif hanya jika sebelumnya sudah ada yang dipilih
+        if (currentVal && validSelectedValue) {
+            input.value = validSelectedValue;
+            if (textSpan) {
+                textSpan.innerText = `${validSelectedValue} WIB`;
+                textSpan.classList.remove('text-slate-400');
+                textSpan.classList.add('text-slate-900');
             }
-        }
-
-        input.value = validSelectedValue;
-        if (textSpan) textSpan.innerText = `${validSelectedValue} WIB`;
-
-        // Tandai opsi terpilih
-        const selectedItem = menu.querySelector(`[data-value="${validSelectedValue}"]`);
-        if (selectedItem && !selectedItem.classList.contains('jam-option-disabled')) {
-            selectedItem.classList.add('jam-option-selected');
+            const selectedItem = menu.querySelector(`[data-value="${validSelectedValue}"]`);
+            if (selectedItem && !selectedItem.classList.contains('jam-option-disabled')) {
+                selectedItem.classList.add('jam-option-selected');
+            }
+        } else {
+            input.value = '';
+            if (textSpan) {
+                textSpan.innerText = 'Pilih Jam Mulai';
+                textSpan.classList.add('text-slate-400');
+                textSpan.classList.remove('text-slate-900');
+            }
         }
     }
 
@@ -1158,7 +1170,24 @@
         // Update jam operasional & ketersediaan venue
         updateVenueOperatingHours(selectedVenue);
 
-        if (selectedVenue && selectedVenue.courts && selectedVenue.courts.length > 0) {
+        if (!selectedVenue) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.disabled = true;
+            opt.selected = true;
+            opt.innerText = 'Pilih venue terlebih dahulu';
+            courtSelect.appendChild(opt);
+            return;
+        }
+
+        const placeholderOpt = document.createElement('option');
+        placeholderOpt.value = '';
+        placeholderOpt.disabled = true;
+        placeholderOpt.selected = true;
+        placeholderOpt.innerText = 'Pilih court / lapangan';
+        courtSelect.appendChild(placeholderOpt);
+
+        if (selectedVenue.courts && selectedVenue.courts.length > 0) {
             const filteredCourts = selectedVenue.courts.filter(c => 
                 parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available'
             );
@@ -1174,18 +1203,10 @@
                     courtSelect.appendChild(opt);
                 });
             } else {
-                const opt = document.createElement('option');
-                opt.value = '';
-                opt.disabled = true;
-                opt.innerText = 'Tidak ada court yang tersedia untuk olahraga ini';
-                courtSelect.appendChild(opt);
+                placeholderOpt.innerText = 'Tidak ada court yang tersedia untuk olahraga ini';
             }
         } else {
-            const opt = document.createElement('option');
-            opt.value = '';
-            opt.disabled = true;
-            opt.innerText = 'Belum ada lapangan';
-            courtSelect.appendChild(opt);
+            placeholderOpt.innerText = 'Belum ada lapangan';
         }
     }
 
@@ -1283,19 +1304,29 @@
             }
         }
 
-        let selected = false;
-        options.forEach((o, index) => {
+        const quotaPlaceholder = document.createElement('option');
+        quotaPlaceholder.value = '';
+        quotaPlaceholder.disabled = true;
+        quotaPlaceholder.innerText = 'Pilih Kuota Pemain';
+        let isSelected = false;
+
+        options.forEach((o) => {
             const opt = document.createElement('option');
             opt.value = o.val;
             opt.innerText = o.text;
             if (currentVal && String(o.val) === String(currentVal)) {
                 opt.selected = true;
-                selected = true;
-            } else if (!selected && (o.val === '4' || o.val === '6' || index === 0)) {
-                opt.selected = true;
+                isSelected = true;
             }
             if (quotaSelect) quotaSelect.appendChild(opt);
         });
+
+        if (!isSelected) {
+            quotaPlaceholder.selected = true;
+        }
+        if (quotaSelect) {
+            quotaSelect.insertBefore(quotaPlaceholder, quotaSelect.firstChild);
+        }
 
         if (constraintText) {
             constraintText.innerHTML = noticeMessage;
@@ -1443,6 +1474,7 @@
                 updateVenueOperatingHours(selectedVenue);
             }
         } else {
+            populateJamMulaiDropdown({ open: '06:00', close: '23:00', text: '06:00 - 23:00 WIB' });
             validateTanggalAndJam();
         }
     });
