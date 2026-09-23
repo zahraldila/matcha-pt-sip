@@ -182,6 +182,23 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Info Ketersediaan & Jam Operasional Venue Terpilih -->
+                <div id="venueAvailabilityInfo" class="hidden p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 text-[11px] text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-lg bg-emerald-100 text-[#063B00] flex items-center justify-center text-xs shrink-0">
+                            <i class="fa-regular fa-clock"></i>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 font-medium">Jam Operasional Venue:</span>
+                            <strong id="venueOperatingHoursText" class="font-extrabold text-[#063B00] ml-1">06:00 - 23:00 WIB</strong>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-slate-600 font-medium text-[10px] sm:text-[11px]">
+                        <i class="fa-solid fa-calendar-check text-emerald-600"></i>
+                        <span id="venueHariBukaText">Setiap Hari (Senin - Minggu)</span>
+                    </div>
+                </div>
             </div>
 
             <!-- 5. Waktu & Kuota Peserta -->
@@ -194,18 +211,25 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Tanggal Mabar</label>
-                        <input type="date" name="tanggal" value="{{ date('Y-m-d', strtotime('+1 day')) }}" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                        <input type="date" name="tanggal" id="tanggalMabarInput" value="{{ date('Y-m-d', strtotime('+1 day')) }}" onchange="onTanggalChanged()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                        <p id="tanggalErrorNotice" class="text-[10px] text-rose-600 font-bold hidden"></p>
                     </div>
 
                     <div class="space-y-1.5">
-                        <label class="block font-bold text-slate-800">Jam Mulai</label>
-                        <input type="time" name="jam" value="18:30" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                        <div class="flex items-center justify-between">
+                            <label class="block font-bold text-slate-800">Jam Mulai</label>
+                            <span id="jamOperasionalBadge" class="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                06:00 - 23:00 WIB
+                            </span>
+                        </div>
+                        <input type="time" name="jam" id="jamMulaiInput" value="18:30" min="06:00" max="23:00" onchange="validateTanggalAndJam()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                        <p id="jamErrorNotice" class="text-[10px] text-rose-600 font-bold hidden"></p>
                     </div>
 
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Durasi</label>
                         <div class="relative">
-                            <select name="durasi" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                            <select name="durasi" id="durasiSelect" onchange="validateTanggalAndJam()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
                                 <option value="1 Jam">1 Jam</option>
                                 <option value="2 Jam" selected>2 Jam</option>
                                 <option value="3 Jam">3 Jam</option>
@@ -497,6 +521,221 @@
         updateCourtsDropdown();
     }
 
+    function parseVenueHours(jamOperasional) {
+        if (!jamOperasional) {
+            return { open: '06:00', close: '23:00', text: '06:00 - 23:00 WIB' };
+        }
+        const m = jamOperasional.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+        if (m) {
+            const pad = t => {
+                const parts = t.split(':');
+                return parts[0].padStart(2, '0') + ':' + parts[1];
+            };
+            return {
+                open: pad(m[1]),
+                close: pad(m[2]),
+                text: jamOperasional
+            };
+        }
+        return { open: '06:00', close: '23:00', text: jamOperasional };
+    }
+
+    /**
+     * Cari ketersediaan harian dari tb_venue_avail sesuai hari yang dipilih.
+     * Mengembalikan { open, close, text } atau null jika tidak ada data.
+     */
+    function getAvailabilityForDate(selectedVenue, dateStr) {
+        if (!selectedVenue || !selectedVenue.availabilities || !selectedVenue.availabilities.length || !dateStr) {
+            return null;
+        }
+
+        // Mapping: getDay() (0=Minggu, 1=Senin, ..., 6=Sabtu) ke nama hari Indonesia & Inggris
+        const dayNames = {
+            0: ['minggu', 'sunday', 'sun'],
+            1: ['senin', 'monday', 'mon'],
+            2: ['selasa', 'tuesday', 'tue'],
+            3: ['rabu', 'wednesday', 'wed'],
+            4: ['kamis', 'thursday', 'thu'],
+            5: ['jumat', 'friday', 'fri'],
+            6: ['sabtu', 'saturday', 'sat']
+        };
+
+        const date = new Date(dateStr + 'T00:00:00');
+        const dayIndex = date.getDay();
+        const names = dayNames[dayIndex] || [];
+
+        const match = selectedVenue.availabilities.find(a => {
+            if (!a.hari) return false;
+            const hariLower = a.hari.toLowerCase().trim();
+            return names.some(n => hariLower.includes(n));
+        });
+
+        if (!match || !match.jam_buka || !match.jam_tutup) {
+            return null;
+        }
+
+        const pad = t => {
+            const parts = String(t).replace(/[^0-9:]/g, '').split(':');
+            return (parts[0] || '00').padStart(2, '0') + ':' + (parts[1] || '00').padStart(2, '0');
+        };
+
+        const open = pad(match.jam_buka);
+        const close = pad(match.jam_tutup);
+        return { open, close, text: `${open} - ${close} WIB` };
+    }
+
+    function onTanggalChanged() {
+        const venueSelect = document.getElementById('venueSelect');
+        if (venueSelect && venueSelect.value) {
+            const venueId = parseInt(venueSelect.value);
+            const selectedVenue = venuesData.find(v => v.venue_id === venueId);
+            updateVenueOperatingHours(selectedVenue);
+        } else {
+            validateTanggalAndJam();
+        }
+    }
+
+    function updateVenueOperatingHours(selectedVenue) {
+        const infoBox = document.getElementById('venueAvailabilityInfo');
+        const hoursText = document.getElementById('venueOperatingHoursText');
+        const hariBukaText = document.getElementById('venueHariBukaText');
+        const badge = document.getElementById('jamOperasionalBadge');
+        const jamInput = document.getElementById('jamMulaiInput');
+        const tanggalInput = document.getElementById('tanggalMabarInput');
+
+        if (!selectedVenue) {
+            if (infoBox) infoBox.classList.add('hidden');
+            return;
+        }
+
+        // Coba ambil ketersediaan per hari dari tb_venue_avail; fallback ke jam_operasional
+        const dateStr = tanggalInput ? tanggalInput.value : null;
+        const availHours = getAvailabilityForDate(selectedVenue, dateStr);
+        const hours = availHours || parseVenueHours(selectedVenue.jam_operasional);
+
+        const hariBuka = selectedVenue.hari_buka || 'Setiap Hari (Senin - Minggu)';
+
+        if (infoBox) infoBox.classList.remove('hidden');
+        if (hoursText) hoursText.innerText = hours.text;
+        if (hariBukaText) hariBukaText.innerText = hariBuka;
+        if (badge) badge.innerText = `${hours.open} - ${hours.close} WIB`;
+
+        if (jamInput) {
+            jamInput.min = hours.open;
+            jamInput.max = hours.close;
+
+            // Jika nilai saat ini berada di luar rentang jam venue yang dipilih, sesuaikan
+            if (hours.open <= hours.close) {
+                if (jamInput.value < hours.open || jamInput.value > hours.close) {
+                    if ('18:30' >= hours.open && '18:30' <= hours.close) {
+                        jamInput.value = '18:30';
+                    } else {
+                        jamInput.value = hours.open;
+                    }
+                }
+            }
+        }
+
+        validateTanggalAndJam();
+    }
+
+    function validateTanggalAndJam() {
+        const venueSelect = document.getElementById('venueSelect');
+        const jamInput = document.getElementById('jamMulaiInput');
+        const tanggalInput = document.getElementById('tanggalMabarInput');
+        const durasiSelect = document.getElementById('durasiSelect');
+        const jamError = document.getElementById('jamErrorNotice');
+        const tanggalError = document.getElementById('tanggalErrorNotice');
+        const submitBtn = document.querySelector('button[type="submit"]');
+
+        if (!venueSelect || !jamInput || !tanggalInput) return;
+
+        const venueId = parseInt(venueSelect.value);
+        const selectedVenue = venuesData.find(v => v.venue_id === venueId);
+        if (!selectedVenue) return;
+
+        let hasError = false;
+
+        // 1. Validasi Jam Operasional
+        const hours = parseVenueHours(selectedVenue.jam_operasional);
+        const jamVal = jamInput.value;
+
+        if (jamVal && hours.open <= hours.close) {
+            if (jamVal < hours.open || jamVal > hours.close) {
+                if (jamError) {
+                    jamError.innerText = `⚠️ Jam mulai (${jamVal}) di luar jam buka venue (${hours.open} - ${hours.close} WIB).`;
+                    jamError.classList.remove('hidden');
+                }
+                jamInput.classList.add('border-rose-400', 'bg-rose-50/50');
+                hasError = true;
+            } else {
+                // Cek jika jam mulai + durasi melebihi jam tutup
+                const durasiHours = parseInt(durasiSelect?.value || '2');
+                const [startH, startM] = jamVal.split(':').map(Number);
+                const [closeH, closeM] = hours.close.split(':').map(Number);
+                const endMinutes = (startH + durasiHours) * 60 + startM;
+                const closeMinutes = closeH * 60 + closeM;
+
+                if (endMinutes > closeMinutes) {
+                    const endHStr = String(Math.floor(endMinutes / 60)).padStart(2, '0');
+                    const endMStr = String(endMinutes % 60).padStart(2, '0');
+                    if (jamError) {
+                        jamError.innerText = `⚠️ Durasi bermain hingga ${endHStr}:${endMStr} WIB melewati jam tutup venue (${hours.close} WIB).`;
+                        jamError.classList.remove('hidden');
+                    }
+                    jamInput.classList.add('border-rose-400', 'bg-rose-50/50');
+                    hasError = true;
+                } else {
+                    if (jamError) jamError.classList.add('hidden');
+                    jamInput.classList.remove('border-rose-400', 'bg-rose-50/50');
+                }
+            }
+        } else {
+            if (jamError) jamError.classList.add('hidden');
+            jamInput.classList.remove('border-rose-400', 'bg-rose-50/50');
+        }
+
+        // 2. Validasi Hari Buka
+        if (selectedVenue.hari_buka && tanggalInput.value) {
+            const date = new Date(tanggalInput.value + 'T00:00:00');
+            const dayOfWeek = date.getDay();
+            const hariBukaLower = selectedVenue.hari_buka.toLowerCase();
+            let dayError = '';
+
+            if (hariBukaLower.includes('senin - jumat') && (dayOfWeek === 0 || dayOfWeek === 6)) {
+                dayError = `⚠️ Venue hanya beroperasi hari kerja (${selectedVenue.hari_buka}). Tanggal terpilih adalah akhir pekan.`;
+            } else if (hariBukaLower.includes('senin - sabtu') && dayOfWeek === 0) {
+                dayError = `⚠️ Venue tutup pada hari Minggu (${selectedVenue.hari_buka}).`;
+            } else if (hariBukaLower.includes('sabtu & minggu') && (dayOfWeek >= 1 && dayOfWeek <= 5)) {
+                dayError = `⚠️ Venue hanya buka di akhir pekan (${selectedVenue.hari_buka}).`;
+            }
+
+            if (dayError) {
+                if (tanggalError) {
+                    tanggalError.innerText = dayError;
+                    tanggalError.classList.remove('hidden');
+                }
+                tanggalInput.classList.add('border-rose-400', 'bg-rose-50/50');
+                hasError = true;
+            } else {
+                if (tanggalError) tanggalError.classList.add('hidden');
+                tanggalInput.classList.remove('border-rose-400', 'bg-rose-50/50');
+            }
+        } else {
+            if (tanggalError) tanggalError.classList.add('hidden');
+            tanggalInput.classList.remove('border-rose-400', 'bg-rose-50/50');
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = hasError;
+            if (hasError) {
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    }
+
     function updateCourtsDropdown() {
         const venueSelect = document.getElementById('venueSelect');
         const courtSelect = document.getElementById('courtSelect');
@@ -505,6 +744,9 @@
 
         const venueId = parseInt(venueSelect.value);
         const selectedVenue = venuesData.find(v => v.venue_id === venueId);
+
+        // Update jam operasional & ketersediaan venue
+        updateVenueOperatingHours(selectedVenue);
 
         if (selectedVenue && selectedVenue.courts && selectedVenue.courts.length > 0) {
             const filteredCourts = selectedVenue.courts.filter(c => 
@@ -742,6 +984,8 @@
             const newVenue = {
                 venue_id: data.venue.venue_id,
                 nama_venue: data.venue.nama_venue,
+                jam_operasional: data.venue.jam_operasional || '06:00 - 23:00 WIB',
+                hari_buka: data.venue.hari_buka || 'Setiap Hari (Senin - Minggu)',
                 courts: courtsList.map(c => ({
                     court_id: c.court_id,
                     nama_court: c.nama_court,
@@ -779,6 +1023,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         filterCourtsBySport(currentSportId);
         onFormatOrScoringChanged();
+        validateTanggalAndJam();
     });
 </script>
 @endpush
