@@ -175,7 +175,7 @@
             </div>
         @endif
 
-        <form action="{{ route('games.schedule.post') }}" method="POST" class="space-y-6 text-xs">
+        <form action="{{ route('games.schedule.post') }}" method="POST" class="space-y-6 text-xs" id="scheduleForm" novalidate>
             @csrf
 
             <!-- 1. Cabang Olahraga -->
@@ -280,7 +280,11 @@
 
                 <div class="space-y-1.5">
                     <label class="block font-bold text-slate-800">Judul Sesi Mabar</label>
-                    <input type="text" name="nama_session" value="{{ old('nama_session') }}" placeholder="Contoh: Mabar Padel JTK Bonang 6 Players" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs" required>
+                    <input type="text" name="nama_session" id="namaSessionInput" value="{{ old('nama_session') }}" placeholder="Contoh: Mabar Padel JTK Bonang 6 Players" class="w-full bg-slate-50/80 border @error('nama_session') border-rose-400 bg-rose-50/50 @else border-slate-200/80 @enderror rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                    <p id="namaSessionError" class="text-[10px] text-rose-600 font-bold hidden"></p>
+                    @error('nama_session')
+                        <p class="text-[10px] text-rose-600 font-bold mt-1">⚠️ {{ $message }}</p>
+                    @enderror
                     <span class="text-[10px] text-slate-400 block font-medium">*Nama ini akan menjadi judul kartu mabar di Dashboard dan Jadwal Mabar.</span>
                 </div>
             </div>
@@ -358,7 +362,7 @@
                     <div class="space-y-1.5">
                         <div class="flex items-center justify-between">
                             <label class="block font-bold text-slate-800">Jam Mulai</label>
-                            <span id="jamOperasionalBadge" class="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            <span id="jamOperasionalBadge" class="hidden text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
                                 06:00 - 23:00 WIB
                             </span>
                         </div>
@@ -867,6 +871,11 @@
             });
         }
 
+        const triggerBtn = document.getElementById('jamDropdownTrigger');
+        const jamError = document.getElementById('jamErrorNotice');
+        if (triggerBtn) triggerBtn.classList.remove('border-rose-400', 'bg-rose-50/50');
+        if (jamError) jamError.classList.add('hidden');
+
         validateTanggalAndJam();
     }
 
@@ -1007,6 +1016,13 @@
     }
 
     function onTanggalChanged() {
+        const tanggalInput = document.getElementById('tanggalMabarInput');
+        const tanggalError = document.getElementById('tanggalErrorNotice');
+        if (tanggalInput && tanggalInput.value) {
+            tanggalInput.classList.remove('border-rose-400', 'bg-rose-50/50');
+            if (tanggalError) tanggalError.classList.add('hidden');
+        }
+
         const venueSelect = document.getElementById('venueSelect');
         if (venueSelect && venueSelect.value) {
             const venueId = parseInt(venueSelect.value);
@@ -1026,6 +1042,7 @@
 
         if (!selectedVenue) {
             if (infoBox) infoBox.classList.add('hidden');
+            if (badge) badge.classList.add('hidden');
             return;
         }
 
@@ -1039,7 +1056,10 @@
         if (infoBox) infoBox.classList.remove('hidden');
         if (hoursText) hoursText.innerText = hours.text;
         if (hariBukaText) hariBukaText.innerText = hariBuka;
-        if (badge) badge.innerText = `${hours.open} - ${hours.close} WIB`;
+        if (badge) {
+            badge.innerText = `${hours.open} - ${hours.close} WIB`;
+            badge.classList.remove('hidden');
+        }
 
         // Update aturan disable di kalender Flatpickr sesuai venue terpilih
         if (fpTanggal) {
@@ -1476,6 +1496,120 @@
         } else {
             populateJamMulaiDropdown({ open: '06:00', close: '23:00', text: '06:00 - 23:00 WIB' });
             validateTanggalAndJam();
+        }
+
+        // Realtime input listener untuk Judul Sesi Mabar
+        const sessionInput = document.getElementById('namaSessionInput');
+        const sessionError = document.getElementById('namaSessionError');
+        if (sessionInput) {
+            sessionInput.addEventListener('input', function() {
+                if (this.value.trim()) {
+                    if (sessionError) sessionError.classList.add('hidden');
+                    this.classList.remove('border-rose-400', 'bg-rose-50/50');
+                }
+            });
+        }
+
+        // Clear error style ketika user memilih opsi
+        ['venueSelect', 'courtSelect', 'durasiSelect', 'jumlahPemainSelect'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', function() {
+                    if (this.value) {
+                        this.classList.remove('border-rose-400', 'bg-rose-50/50');
+                    }
+                });
+            }
+        });
+
+        // Validasi form submit seragam tanpa tooltip browser bawaan
+        const form = document.getElementById('scheduleForm');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                let firstInvalidField = null;
+
+                // 1. Validasi Judul Sesi Mabar
+                if (sessionInput && !sessionInput.value.trim()) {
+                    if (sessionError) {
+                        sessionError.innerText = '⚠️ Judul sesi mabar wajib diisi.';
+                        sessionError.classList.remove('hidden');
+                    }
+                    sessionInput.classList.add('border-rose-400', 'bg-rose-50/50');
+                    if (!firstInvalidField) firstInvalidField = sessionInput;
+                } else if (sessionInput) {
+                    if (sessionError) sessionError.classList.add('hidden');
+                    sessionInput.classList.remove('border-rose-400', 'bg-rose-50/50');
+                }
+
+                // 2. Validasi Venue
+                const vSelect = document.getElementById('venueSelect');
+                if (vSelect && !vSelect.value) {
+                    vSelect.classList.add('border-rose-400', 'bg-rose-50/50');
+                    if (!firstInvalidField) firstInvalidField = vSelect;
+                } else if (vSelect) {
+                    vSelect.classList.remove('border-rose-400', 'bg-rose-50/50');
+                }
+
+                // 3. Validasi Court
+                const cSelect = document.getElementById('courtSelect');
+                if (cSelect && !cSelect.value) {
+                    cSelect.classList.add('border-rose-400', 'bg-rose-50/50');
+                    if (!firstInvalidField) firstInvalidField = cSelect;
+                } else if (cSelect) {
+                    cSelect.classList.remove('border-rose-400', 'bg-rose-50/50');
+                }
+
+                // 4. Validasi Tanggal
+                const tanggalInput = document.getElementById('tanggalMabarInput');
+                const tanggalError = document.getElementById('tanggalErrorNotice');
+                if (tanggalInput && !tanggalInput.value) {
+                    if (tanggalError) {
+                        tanggalError.innerText = '⚠️ Tanggal mabar wajib dipilih.';
+                        tanggalError.classList.remove('hidden');
+                    }
+                    tanggalInput.classList.add('border-rose-400', 'bg-rose-50/50');
+                    if (!firstInvalidField) firstInvalidField = tanggalInput;
+                }
+
+                // 5. Validasi Jam Mulai
+                const jamInput = document.getElementById('jamMulaiInput');
+                const jamTrigger = document.getElementById('jamDropdownTrigger');
+                const jamError = document.getElementById('jamErrorNotice');
+                if (jamInput && !jamInput.value) {
+                    if (jamError) {
+                        jamError.innerText = '⚠️ Jam mulai wajib dipilih.';
+                        jamError.classList.remove('hidden');
+                    }
+                    if (jamTrigger) jamTrigger.classList.add('border-rose-400', 'bg-rose-50/50');
+                    if (!firstInvalidField) firstInvalidField = jamTrigger;
+                }
+
+                // 6. Validasi Durasi
+                const dSelect = document.getElementById('durasiSelect');
+                if (dSelect && !dSelect.value) {
+                    dSelect.classList.add('border-rose-400', 'bg-rose-50/50');
+                    if (!firstInvalidField) firstInvalidField = dSelect;
+                } else if (dSelect) {
+                    dSelect.classList.remove('border-rose-400', 'bg-rose-50/50');
+                }
+
+                // 7. Validasi Kuota Pemain
+                const kSelect = document.getElementById('jumlahPemainSelect');
+                if (kSelect && !kSelect.value) {
+                    kSelect.classList.add('border-rose-400', 'bg-rose-50/50');
+                    if (!firstInvalidField) firstInvalidField = kSelect;
+                } else if (kSelect) {
+                    kSelect.classList.remove('border-rose-400', 'bg-rose-50/50');
+                }
+
+                if (firstInvalidField) {
+                    e.preventDefault();
+                    firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (typeof firstInvalidField.focus === 'function') {
+                        firstInvalidField.focus();
+                    }
+                }
+            });
         }
     });
 </script>
