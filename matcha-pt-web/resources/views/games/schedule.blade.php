@@ -346,7 +346,7 @@
                             <input type="hidden" name="jam" id="jamMulaiInput" value="18:30" required>
 
                             <!-- Custom dropdown menu strictly capped in height so it never stretches to the bottom -->
-                            <div id="jamDropdownMenu" class="hidden absolute left-0 top-full mt-1.5 w-full max-h-44 sm:max-h-48 overflow-y-auto bg-white border border-slate-200/90 rounded-2xl shadow-xl z-50 p-1.5 space-y-0.5 scrollbar-thin">
+                            <div id="jamDropdownMenu" class="hidden absolute left-0 top-full mt-1.5 w-full overflow-y-auto bg-white border border-slate-200/90 rounded-2xl shadow-xl z-50 p-1.5 scrollbar-thin" style="max-height: 180px;">
                                 <!-- Opsi jam operasional dirender secara dinamis -->
                             </div>
                         </div>
