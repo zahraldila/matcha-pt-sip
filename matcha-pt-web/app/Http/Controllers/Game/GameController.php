@@ -575,7 +575,7 @@ class GameController extends Controller
                 ->with('info', 'Silakan aktifkan Mode Host pada kartu di bawah ini untuk mulai membuat sesi mabar.');
         }
 
-        $venues = Venue::with('courts.sport')->get();
+        $venues = Venue::with(['courts.sport', 'availabilities'])->get();
         $sports = Sport::all();
 
         return view('games.schedule', compact('venues', 'sports'));
@@ -632,6 +632,52 @@ class GameController extends Controller
                 return back()->withInput()->withErrors([
                     'jumlah_pemain' => "Untuk format {$scoringSystem} (Double 2v2), kuota pemain harus tepat 4 orang (tidak boleh kurang atau lebih).",
                 ]);
+            }
+        }
+
+        // 3. Validasi Jam Operasional & Hari Buka Venue
+        $venue = Venue::find($request->venue_id);
+        if ($venue) {
+            if (! empty($venue->jam_operasional) && preg_match('/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/', $venue->jam_operasional, $matches)) {
+                $pad = function ($t) {
+                    $parts = explode(':', trim($t));
+
+                    return sprintf('%02d:%02d', (int) ($parts[0] ?? 0), (int) ($parts[1] ?? 0));
+                };
+                $jamBuka = $pad($matches[1]);
+                $jamTutup = $pad($matches[2]);
+                $jamInput = $pad($request->jam);
+
+                if ($jamBuka <= $jamTutup) {
+                    if ($jamInput < $jamBuka || $jamInput > $jamTutup) {
+                        return back()->withInput()->withErrors([
+                            'jam' => "Jam mulai ({$jamInput}) harus berada dalam jam operasional venue ({$jamBuka} - {$jamTutup} WIB).",
+                        ]);
+                    }
+                }
+            }
+
+            if (! empty($venue->hari_buka)) {
+                $hariBuka = strtolower($venue->hari_buka);
+                $dayOfWeek = Carbon::parse($request->tanggal)->dayOfWeek;
+
+                if (str_contains($hariBuka, 'senin - jumat') && ($dayOfWeek === 0 || $dayOfWeek === 6)) {
+                    return back()->withInput()->withErrors([
+                        'tanggal' => "Venue {$venue->nama_venue} hanya beroperasi pada hari kerja ({$venue->hari_buka}). Tanggal yang Anda pilih adalah akhir pekan.",
+                    ]);
+                }
+
+                if (str_contains($hariBuka, 'senin - sabtu') && $dayOfWeek === 0) {
+                    return back()->withInput()->withErrors([
+                        'tanggal' => "Venue {$venue->nama_venue} libur pada hari Minggu ({$venue->hari_buka}).",
+                    ]);
+                }
+
+                if (str_contains($hariBuka, 'sabtu & minggu') && ($dayOfWeek >= 1 && $dayOfWeek <= 5)) {
+                    return back()->withInput()->withErrors([
+                        'tanggal' => "Venue {$venue->nama_venue} hanya beroperasi pada akhir pekan ({$venue->hari_buka}).",
+                    ]);
+                }
             }
         }
 
