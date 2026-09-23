@@ -22,6 +22,7 @@ class MainShellPage extends StatefulWidget {
 
 class _MainShellPageState extends State<MainShellPage> {
   int _currentIndex = 0;
+  final GlobalKey _avatarKey = GlobalKey();
 
   @override
   void initState() {
@@ -226,85 +227,123 @@ class _MainShellPageState extends State<MainShellPage> {
         scrolledUnderElevation: 0,
         title: Row(
           children: [
-            Image.asset(
-              'assets/images/logo.png',
-              height: 28,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => Row(
-                children: [
-                  const Text('🎾', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 6),
-                  Text(
-                    'MATCHA',
-                    style: AppTextStyles.h2.copyWith(
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.5,
-                      color: AppColors.matchaDark,
-                      fontSize: 16,
+            // Brand Logo & Title (matching web navbar)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    width: 34,
+                    height: 34,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Center(
+                        child: Text('🎾', style: TextStyle(fontSize: 18)),
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const Spacer(),
-            // User / Host Status Badge & Profile Access
-            if (user != null)
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ProfilePage(authController: widget.authController),
-                    ),
-                  );
-                },
-                child: Row(
+                ),
+                const SizedBox(width: 8),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isHost ? AppColors.matchaSoftLime : const Color(0xFFEFF6FF),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isHost
-                              ? AppColors.matchaDark.withValues(alpha: 0.3)
-                              : const Color(0xFF93C5FD),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isHost ? Icons.sports_tennis_rounded : Icons.person_outline_rounded,
-                            size: 13,
-                            color: isHost ? AppColors.matchaDark : const Color(0xFF1D4ED8),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isHost ? 'HOST ACTIVE' : 'MEMBER',
-                            style: AppTextStyles.badge.copyWith(
-                              color: isHost ? AppColors.matchaDark : const Color(0xFF1D4ED8),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      'MATCHA',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.3,
+                        color: Color(0xFF0F172A),
+                        height: 1.05,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                    Text(
+                      'MATCH ARENA',
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: Color(0xFF063B00),
+                        height: 1.1,
                       ),
-                      child: const Icon(Icons.person_rounded, size: 18, color: AppColors.matchaDark),
                     ),
                   ],
+                ),
+              ],
+            ),
+            const Spacer(),
+            // User Profile Avatar & Dropdown Chevron (matching web navbar)
+            if (user != null)
+              GestureDetector(
+                key: _avatarKey,
+                onTap: () => _showUserDropdownMenu(context, _avatarKey),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF063B00),
+                          border: Border.all(
+                            color: const Color(0xFFBEF264),
+                            width: 1.8,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: (user.foto != null && user.foto!.isNotEmpty)
+                            ? Image.network(
+                                user.foto!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Center(
+                                  child: Text(
+                                    user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 16,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ],
+                  ),
                 ),
               )
             else
@@ -318,24 +357,24 @@ class _MainShellPageState extends State<MainShellPage> {
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.matchaSoftLime,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.matchaDark.withValues(alpha: 0.3),
+                      color: AppColors.matchaDark.withValues(alpha: 0.25),
                     ),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.login_rounded, size: 13, color: AppColors.matchaDark),
-                      const SizedBox(width: 4),
+                      Icon(Icons.login_rounded, size: 14, color: AppColors.matchaDark),
+                      SizedBox(width: 5),
                       Text(
-                        'MASUK',
-                        style: AppTextStyles.badge.copyWith(
+                        'Masuk',
+                        style: TextStyle(
                           color: AppColors.matchaDark,
-                          fontSize: 10,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -504,5 +543,286 @@ class _MainShellPageState extends State<MainShellPage> {
         ),
       ),
     );
+  }
+
+  void _showUserDropdownMenu(BuildContext context, GlobalKey key) {
+    final user = widget.authController?.currentUser;
+    if (user == null) return;
+
+    final renderBox = key.currentContext?.findRenderObject() as RenderBox?;
+    final offset = renderBox?.localToGlobal(Offset.zero) ?? const Offset(200, 60);
+    final size = renderBox?.size ?? const Size(40, 40);
+
+    final isHost = user.isHost;
+    final isVenueOwner = user.role == 'venue_owner';
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'UserDropdown',
+      barrierColor: Colors.black.withValues(alpha: 0.15),
+      transitionDuration: const Duration(milliseconds: 180),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return Transform.scale(
+          scale: 0.85 + (0.15 * Curves.easeOutBack.transform(anim1.value)),
+          alignment: Alignment.topRight,
+          child: Opacity(
+            opacity: anim1.value,
+            child: child,
+          ),
+        );
+      },
+      pageBuilder: (ctx, anim1, anim2) {
+        return Stack(
+          children: [
+            Positioned(
+              top: offset.dy + size.height + 6,
+              right: 14,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: 250,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // User Info Card Header (matching web)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF063B00),
+                                border: Border.all(
+                                  color: const Color(0xFFBEF264),
+                                  width: 1.5,
+                                ),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: (user.foto != null && user.foto!.isNotEmpty)
+                                  ? Image.network(
+                                      user.foto!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) => Center(
+                                        child: Text(
+                                          user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : Center(
+                                      child: Text(
+                                        user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    user.nama,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                      color: Color(0xFF0F172A),
+                                      height: 1.1,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    user.email,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: isHost
+                                          ? const Color(0xFFECFDF5)
+                                          : (isVenueOwner ? const Color(0xFFF0F9FF) : const Color(0xFFF1F5F9)),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      isVenueOwner
+                                          ? 'Venue Owner'
+                                          : (isHost ? 'Host Game & Player' : 'Member Pemain'),
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: isHost
+                                            ? const Color(0xFF065F46)
+                                            : (isVenueOwner ? const Color(0xFF0369A1) : const Color(0xFF475569)),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
+
+                      // Menu Items
+                      _buildDropdownMenuItem(
+                        icon: Icons.show_chart_rounded,
+                        iconColor: const Color(0xFF64748B),
+                        label: 'Match Recap & Statistik',
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          setState(() => _currentIndex = 1);
+                        },
+                      ),
+                      _buildDropdownMenuItem(
+                        icon: Icons.badge_outlined,
+                        iconColor: const Color(0xFF64748B),
+                        label: 'Profil & Status Host',
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProfilePage(authController: widget.authController),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      _buildDropdownMenuItem(
+                        icon: Icons.logout_rounded,
+                        iconColor: const Color(0xFFE11D48),
+                        label: 'Keluar (Logout)',
+                        isDestructive: true,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _handleLogoutFromDropdown();
+                        },
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDropdownMenuItem({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: iconColor),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isDestructive ? FontWeight.w800 : FontWeight.w600,
+                color: isDestructive ? const Color(0xFFE11D48) : const Color(0xFF334155),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleLogoutFromDropdown() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: Color(0xFFE11D48), size: 22),
+            SizedBox(width: 8),
+            Text(
+              'Konfirmasi Keluar',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Apakah Anda yakin ingin keluar dari akun? Anda perlu masuk kembali untuk mengakses sesi mabar dan profil Anda.',
+          style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B), height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE11D48),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            child: const Text('Ya, Keluar Akun', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true) {
+      await widget.authController?.logout();
+      if (!mounted) return;
+      setState(() => _currentIndex = 0);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Anda telah berhasil keluar dari akun.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }
