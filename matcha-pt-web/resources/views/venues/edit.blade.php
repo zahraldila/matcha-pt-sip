@@ -626,7 +626,8 @@
                 type="button"
                 id="digitalHourBox"
                 onclick="switchClockMode('hour')"
-                class="w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer"
+                style="width: 78px; height: 64px; min-width: 78px; min-height: 64px; border-radius: 18px;"
+                class="flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer"
             >
                 06
             </button>
@@ -638,7 +639,8 @@
                 type="button"
                 id="digitalMinBox"
                 onclick="switchClockMode('minute')"
-                class="w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
+                style="width: 78px; height: 64px; min-width: 78px; min-height: 64px; border-radius: 18px;"
+                class="flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
             >
                 00
             </button>
@@ -688,26 +690,21 @@
         </div>
 
         <!-- Bottom Actions: CANCEL / OK -->
-        <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-            <div class="text-slate-400 pl-1">
-                <i class="fa-regular fa-clock text-sm"></i>
-            </div>
-            <div class="flex items-center gap-2">
-                <button
-                    type="button"
-                    onclick="closeClockPicker()"
-                    class="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors uppercase tracking-wider cursor-pointer"
-                >
-                    Batal
-                </button>
-                <button
-                    type="button"
-                    onclick="applySelectedTime()"
-                    class="px-5 py-2 text-xs font-extrabold text-[#063B00] hover:bg-[#EBF8D8] rounded-xl transition-colors uppercase tracking-wider cursor-pointer"
-                >
-                    OK
-                </button>
-            </div>
+        <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+            <button
+                type="button"
+                onclick="closeClockPicker()"
+                class="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors uppercase tracking-wider cursor-pointer"
+            >
+                Batal
+            </button>
+            <button
+                type="button"
+                onclick="applySelectedTime()"
+                class="px-5 py-2 text-xs font-extrabold text-[#063B00] hover:bg-[#EBF8D8] rounded-xl transition-colors uppercase tracking-wider cursor-pointer"
+            >
+                OK
+            </button>
         </div>
     </div>
 </div>
@@ -1021,11 +1018,11 @@ function renderClockPicker() {
     minBox.textContent = String(selectedMinute).padStart(2, '0');
 
     if (currentClockMode === 'hour') {
-        hourBox.className = "w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer";
-        minBox.className = "w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
+        hourBox.className = "flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer";
+        minBox.className = "flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
     } else {
-        hourBox.className = "w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
-        minBox.className = "w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer";
+        hourBox.className = "flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
+        minBox.className = "flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer";
     }
 
     if (selectedPeriod === 'AM') {
