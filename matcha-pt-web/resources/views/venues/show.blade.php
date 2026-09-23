@@ -170,13 +170,14 @@
                                                 <i class="fa-solid fa-pen text-[11px]"></i>
                                             </button>
 
-                                            <form action="{{ route('venues.courts.destroy', [$venue['id'], $court['id']]) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus court {{ $court['name'] }}?');" class="inline">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer" title="Hapus Lapangan">
-                                                    <i class="fa-solid fa-trash-can text-[11px]"></i>
-                                                </button>
-                                            </form>
+                                            <button
+                                                type="button"
+                                                onclick="openDeleteCourtModal('{{ $court['id'] }}', '{{ addslashes($court['name']) }}')"
+                                                class="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                                title="Hapus Lapangan"
+                                            >
+                                                <i class="fa-solid fa-trash-can text-[11px]"></i>
+                                            </button>
                                         </div>
                                     @endif
                                 </div>
@@ -517,29 +518,56 @@
             document.getElementById('editCourtPrice').value = court.harga_per_jam || 0;
             document.getElementById('editCourtStatus').value = court.status || 'Available';
 
-            modal.classList.remove('hidden');
+            if (modal) {
+                modal.style.display = 'flex';
+            }
         }
 
         function closeEditCourtModal() {
             const modal = document.getElementById('editCourtModal');
-            if (modal) modal.classList.add('hidden');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        function openDeleteCourtModal(courtId, courtName) {
+            const modal = document.getElementById('deleteCourtModal');
+            const form = document.getElementById('deleteCourtForm');
+            const nameDisplay = document.getElementById('deleteCourtNameDisplay');
+            const venueId = "{{ $venue['id'] }}";
+            
+            form.action = `/venues/${venueId}/courts/${courtId}`;
+            if (nameDisplay) {
+                nameDisplay.textContent = courtName || 'ini';
+            }
+            
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeDeleteCourtModal() {
+            const modal = document.getElementById('deleteCourtModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
         }
     </script>
 
     <!-- MODAL EDIT COURT -->
-    <div id="editCourtModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 my-8 animate-in fade-in zoom-in duration-200 border border-slate-100">
-            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+    <div id="editCourtModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeEditCourtModal();">
+        <div class="bg-white rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5 my-8 border border-slate-100 flex flex-col" style="max-width: 480px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">
+            <div class="flex items-center justify-between pb-3.5 border-b border-slate-100">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-[#063B00] flex items-center justify-center text-base border border-emerald-100">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 text-[#063B00] flex items-center justify-center text-sm border border-emerald-100/80 shadow-2xs">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </div>
                     <div>
-                        <h3 class="text-base font-black text-slate-900">Edit Data Court / Lapangan</h3>
-                        <p class="text-xs text-slate-500">Perbarui rincian tipe, harga, dan ketersediaan court.</p>
+                        <h3 class="text-sm font-black text-slate-900">Edit Data Court / Lapangan</h3>
+                        <p class="text-[11px] text-slate-500">Perbarui rincian tipe, harga, dan ketersediaan court.</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeEditCourtModal()" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition-colors cursor-pointer">
+                <button type="button" onclick="closeEditCourtModal()" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition-colors cursor-pointer">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -560,11 +588,11 @@
                         required
                         maxlength="100"
                         placeholder="Contoh: Court 1 / Center Court"
-                        class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                        class="w-full bg-slate-50/70 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-xs"
                     >
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <!-- Cabang Olahraga -->
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">
@@ -574,12 +602,12 @@
                             <select
                                 id="editCourtSport"
                                 name="sport_name"
-                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 pr-10 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-xl px-3.5 py-2.5 pr-8 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-xs"
                             >
                                 <option value="Padel">Padel</option>
                                 <option value="Tennis">Tennis</option>
                             </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
                         </div>
                     </div>
 
@@ -592,25 +620,25 @@
                             <select
                                 id="editCourtType"
                                 name="tipe_court"
-                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 pr-10 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-xl px-3.5 py-2.5 pr-8 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-xs"
                             >
                                 <option value="Indoor">Indoor</option>
                                 <option value="Outdoor">Outdoor</option>
                                 <option value="Semi-Indoor">Semi-Indoor</option>
                             </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <!-- Harga per Jam -->
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">
                             Harga Sewa / Jam (Rp) <span class="text-rose-500">*</span>
                         </label>
                         <div class="relative">
-                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rp</span>
+                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">Rp</span>
                             <input
                                 type="number"
                                 id="editCourtPrice"
@@ -619,7 +647,7 @@
                                 min="0"
                                 step="1000"
                                 placeholder="150000"
-                                class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-bold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                                class="w-full bg-slate-50/70 border border-slate-200/80 rounded-xl pl-9 pr-3.5 py-2.5 text-slate-900 font-bold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-xs"
                             >
                         </div>
                     </div>
@@ -633,32 +661,67 @@
                             <select
                                 id="editCourtStatus"
                                 name="status_ketersediaan"
-                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 pr-10 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-xl px-3.5 py-2.5 pr-8 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-xs"
                             >
                                 <option value="Available">Available (Siap Pakai)</option>
                                 <option value="Maintenance">Maintenance (Perbaikan)</option>
                                 <option value="Inactive">Inactive (Tidak Aktif)</option>
                             </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                     <button
                         type="button"
                         onclick="closeEditCourtModal()"
-                        class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                        class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
                     >
                         Batal
                     </button>
                     <button
                         type="submit"
-                        class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#063B00] to-emerald-900 hover:opacity-95 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
+                        class="px-5 py-2 rounded-xl bg-gradient-to-r from-[#063B00] to-emerald-900 hover:opacity-95 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
                     >
                         <i class="fa-solid fa-check text-[#A8E63A]"></i> Simpan Court
                     </button>
                 </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DELETE COURT CONFIRMATION -->
+    <div id="deleteCourtModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeDeleteCourtModal();">
+        <div class="bg-white rounded-3xl p-6 shadow-2xl space-y-4 my-8 border border-slate-100 flex flex-col" style="max-width: 420px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">
+            <div class="flex items-start gap-3.5">
+                <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-base border border-rose-100/80 shadow-2xs shrink-0 mt-0.5">
+                    <i class="fa-solid fa-trash-can"></i>
+                </div>
+                <div class="space-y-1">
+                    <h3 class="text-sm font-black text-slate-900">Hapus Court / Lapangan</h3>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Apakah Anda yakin ingin menghapus court <strong id="deleteCourtNameDisplay" class="text-slate-800 font-extrabold"></strong>? Tindakan ini tidak dapat dibatalkan.
+                    </p>
+                </div>
+            </div>
+
+            <form id="deleteCourtForm" action="" method="POST" class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                @csrf
+                @method('DELETE')
+                <button
+                    type="button"
+                    onclick="closeDeleteCourtModal()"
+                    class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                >
+                    Batal
+                </button>
+                <button
+                    type="submit"
+                    class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
+                >
+                    <i class="fa-solid fa-trash-can text-xs"></i> Hapus Court
+                </button>
             </form>
         </div>
     </div>

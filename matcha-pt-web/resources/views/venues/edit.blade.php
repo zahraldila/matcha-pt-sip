@@ -15,51 +15,22 @@
 <div class="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-28 md:pb-12 space-y-8">
 
     <!-- Header Section -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/60 relative z-10">
-        <div>
-            <a href="{{ route('venues.show', $venue->venue_id) }}"
-                class="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-[#063B00] transition-colors mb-3 group">
-                <span class="w-7 h-7 rounded-xl bg-white/80 border border-slate-200/80 flex items-center justify-center text-slate-600 group-hover:bg-[#063B00] group-hover:text-white transition-all shadow-2xs">
-                    <i class="fa-solid fa-arrow-left text-[11px]"></i>
-                </span>
-                Kembali ke Detail Venue
-            </a>
+    <div class="pb-6 border-b border-slate-200/60 relative z-10">
+        <a href="{{ route('venues.show', $venue->venue_id) }}"
+            class="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-[#063B00] transition-colors mb-3 group">
+            <span class="w-7 h-7 rounded-xl bg-white/80 border border-slate-200/80 flex items-center justify-center text-slate-600 group-hover:bg-[#063B00] group-hover:text-white transition-all shadow-2xs">
+                <i class="fa-solid fa-arrow-left text-[11px]"></i>
+            </span>
+            Kembali ke Detail Venue
+        </a>
 
-            <div class="flex items-center gap-2.5">
-                <span class="px-2.5 py-0.5 rounded-full bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] text-[10px] font-extrabold uppercase tracking-wider">
-                    Venue Management
-                </span>
-                <span class="text-xs text-slate-400">•</span>
-                <span class="text-xs font-medium text-slate-500">
-                    ID Venue #{{ $venue->venue_id }}
-                </span>
-            </div>
+        <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Edit Informasi Venue
+        </h1>
 
-            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-                Edit Informasi Venue
-            </h1>
-
-            <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl leading-relaxed">
-                Perbarui rincian venue, jam operasional reguler, fasilitas, serta kontak PIC penanggung jawab lapangan Anda.
-            </p>
-        </div>
-
-        <div class="hidden sm:flex flex-col items-end gap-2">
-            <div class="px-4 py-2 rounded-2xl bg-white/60 backdrop-blur-md border border-white/80 shadow-2xs flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#063B00] to-emerald-900 text-white flex items-center justify-center font-bold text-sm shadow-xs">
-                    <i class="fa-solid fa-pen-to-square text-[#A8E63A]"></i>
-                </div>
-
-                <div class="text-right">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Status Edit
-                    </p>
-                    <p class="text-xs font-black text-[#063B00]">
-                        Mode Perubahan Data
-                    </p>
-                </div>
-            </div>
-        </div>
+        <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl leading-relaxed">
+            Perbarui rincian venue, jam operasional reguler, fasilitas, serta kontak PIC penanggung jawab lapangan Anda.
+        </p>
     </div>
 
     <!-- Main Glassmorphism Form Card -->
@@ -606,8 +577,8 @@
 <!-- ========================================================= -->
 <!-- MATERIAL DESIGN ANALOG & DIGITAL CLOCK PICKER MODAL -->
 <!-- ========================================================= -->
-<div id="clockPickerModal" class="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 flex flex-col gap-4 animate-in fade-in zoom-in duration-150" style="width: 320px; max-width: 95vw; box-sizing: border-box;">
+<div id="clockPickerModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeClockPicker();">
+    <div class="bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 flex flex-col gap-4" style="width: 320px; max-width: 95vw; box-sizing: border-box;" onclick="event.stopPropagation();">
         
         <!-- Top Label -->
         <div class="flex items-center justify-between">
@@ -626,7 +597,8 @@
                 type="button"
                 id="digitalHourBox"
                 onclick="switchClockMode('hour')"
-                class="w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer"
+                style="width: 78px; height: 64px; min-width: 78px; min-height: 64px; border-radius: 18px;"
+                class="flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer"
             >
                 06
             </button>
@@ -638,7 +610,8 @@
                 type="button"
                 id="digitalMinBox"
                 onclick="switchClockMode('minute')"
-                class="w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
+                style="width: 78px; height: 64px; min-width: 78px; min-height: 64px; border-radius: 18px;"
+                class="flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
             >
                 00
             </button>
@@ -669,8 +642,8 @@
         <div class="flex items-center justify-center py-1">
             <div
                 id="clockDialContainer"
-                class="relative rounded-full select-none cursor-pointer bg-slate-100"
-                style="width: 240px; height: 240px; min-width: 240px; min-height: 240px; background-color: #f1f5f9; position: relative; border-radius: 9999px; overflow: hidden;"
+                class="relative rounded-full select-none cursor-pointer"
+                style="width: 240px; height: 240px; min-width: 240px; min-height: 240px; background-color: #E2E8F0; position: relative; border-radius: 9999px;"
             >
                 <!-- SVG Layer for Hand Line & Solid Selection Bubble -->
                 <svg id="clockSvg" viewBox="0 0 240 240" style="position: absolute; top: 0; left: 0; width: 240px; height: 240px; pointer-events: none; z-index: 10;">
@@ -688,7 +661,7 @@
         </div>
 
         <!-- Bottom Actions: CANCEL / OK -->
-        <div class="flex items-center justify-end gap-3 pt-1 border-t border-slate-100">
+        <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
             <button
                 type="button"
                 onclick="closeClockPicker()"
@@ -982,11 +955,17 @@ function openClockPicker(field) {
     
     currentClockMode = 'hour';
     renderClockPicker();
-    document.getElementById('clockPickerModal').classList.remove('hidden');
+    const modal = document.getElementById('clockPickerModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
 }
 
 function closeClockPicker() {
-    document.getElementById('clockPickerModal').classList.add('hidden');
+    const modal = document.getElementById('clockPickerModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 function switchClockMode(mode) {
@@ -1010,11 +989,11 @@ function renderClockPicker() {
     minBox.textContent = String(selectedMinute).padStart(2, '0');
 
     if (currentClockMode === 'hour') {
-        hourBox.className = "w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer";
-        minBox.className = "w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
+        hourBox.className = "flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer";
+        minBox.className = "flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
     } else {
-        hourBox.className = "w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
-        minBox.className = "w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer";
+        hourBox.className = "flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
+        minBox.className = "flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer";
     }
 
     if (selectedPeriod === 'AM') {
