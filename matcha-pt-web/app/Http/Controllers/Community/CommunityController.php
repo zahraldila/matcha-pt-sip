@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Community;
 use App\Http\Controllers\Controller;
 use App\Models\Community;
 use App\Models\Player;
+use App\Models\Venue;
 use App\Services\MatchaDummyDataService;
 use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
@@ -119,7 +120,9 @@ class CommunityController extends Controller
 
     public function create()
     {
-        return view('communities.create');
+        $venues = Venue::orderBy('nama_venue', 'asc')->get();
+
+        return view('communities.create', compact('venues'));
     }
 
     /**

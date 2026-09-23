@@ -211,10 +211,25 @@
                         </div>
 
                         <div class="space-y-1.5">
-                            <label class="block font-bold text-slate-800">Homebase Venue Utama</label>
+                            <div class="flex items-center justify-between">
+                                <label class="block font-bold text-slate-800">Homebase Venue Utama</label>
+                                <button type="button" onclick="openQuickAddVenueModal()" class="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#063B00] bg-[#EBF8D8] hover:bg-[#d9f2b8] px-2.5 py-1 rounded-full border border-[#063B00]/20 transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer">
+                                    <i class="fa-solid fa-plus text-[9px]"></i> <span>Tambah Venue</span>
+                                </button>
+                            </div>
                             <div class="relative">
-                                <i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                <input type="text" name="homebase_venue" value="{{ old('homebase_venue', old('venue_utama')) }}" placeholder="Contoh: Gelora Racquet Arena" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                                <i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                                <select id="homebase_venue_select" name="homebase_venue" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-9 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs cursor-pointer">
+                                    <option value="">Pilih Venue Homebase (Opsional)</option>
+                                    @if(isset($venues) && $venues->isNotEmpty())
+                                        @foreach($venues as $v)
+                                            <option value="{{ $v->nama_venue }}" {{ old('homebase_venue', old('venue_utama')) == $v->nama_venue ? 'selected' : '' }}>
+                                                {{ $v->nama_venue }} ({{ $v->kota ?: 'Jakarta' }})
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                             </div>
                         </div>
                     </div>
@@ -351,6 +366,141 @@
                 Tutup Review
             </button>
         </div>
+    </div>
+</div>
+
+<!-- Modal Quick Add Venue Instant -->
+<div id="quickAddVenueModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 my-8 animate-in fade-in zoom-in duration-200 border border-slate-100">
+        <!-- Header -->
+        <div class="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+            <div class="w-9 h-9 rounded-xl bg-[#EBF8D8] text-[#063B00] flex items-center justify-center text-sm shadow-xs">
+                <i class="fa-solid fa-map-location-dot"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold text-slate-800">Tambah Venue Baru</h3>
+                <p class="text-[10px] text-slate-400">Daftarkan venue &amp; court secara instan</p>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form id="quickAddVenueForm" onsubmit="submitQuickAddVenue(event)" class="mt-4 space-y-3">
+            <!-- Nama Venue -->
+            <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                    Nama Venue <span class="text-rose-500">*</span>
+                </label>
+                <div class="relative">
+                    <input
+                        type="text"
+                        id="quickVenueName"
+                        required
+                        placeholder="Contoh: Matcha Padel Arena Dago"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                    />
+                    <i class="fa-solid fa-building absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                </div>
+            </div>
+
+            <!-- Cabang Olahraga & Jumlah Court -->
+            <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                        Cabang Olahraga <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <select
+                            id="quickVenueSport"
+                            required
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none appearance-none cursor-pointer"
+                        >
+                            <option value="Padel">Padel</option>
+                            <option value="Tennis">Tennis</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                        Jumlah Lapangan <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <select
+                            id="quickVenueCourtCount"
+                            required
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none appearance-none cursor-pointer"
+                        >
+                            <option value="1">1 Court</option>
+                            <option value="2" selected>2 Courts</option>
+                            <option value="3">3 Courts</option>
+                            <option value="4">4 Courts</option>
+                            <option value="5">5 Courts</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kota / Wilayah & Alamat -->
+            <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                        Kota / Wilayah
+                    </label>
+                    <input
+                        type="text"
+                        id="quickVenueCity"
+                        placeholder="Contoh: Bandung"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                    />
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                        Alamat Singkat
+                    </label>
+                    <input
+                        type="text"
+                        id="quickVenueAddress"
+                        placeholder="Contoh: Jl. Ir. H. Juanda No. 10"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                    />
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="flex items-center gap-2.5 p-2.5 rounded-xl bg-[#F4FBEA] border border-[#d6f3b0]">
+                <i class="fa-solid fa-circle-info text-[#063B00] text-xs shrink-0"></i>
+                <p class="text-[10px] text-[#063B00] leading-snug font-medium">
+                    Sistem otomatis mendaftarkan court dan memilih venue ini sebagai homebase.
+                </p>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="quickVenueError" class="hidden p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation shrink-0"></i>
+                <span id="quickVenueErrorText"></span>
+            </div>
+
+            <!-- Actions -->
+            <div class="pt-2 space-y-2">
+                <button
+                    type="submit"
+                    id="btnSubmitQuickVenue"
+                    class="w-full py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                    <i class="fa-solid fa-floppy-disk text-[11px] text-[#A8E63A]"></i>
+                    <span>Simpan &amp; Pilih Venue</span>
+                </button>
+                <button
+                    type="button"
+                    onclick="closeQuickAddVenueModal()"
+                    class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors cursor-pointer"
+                >
+                    Batal
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -669,6 +819,100 @@
     function closePreviewModal() {
         const modal = document.getElementById('previewModal');
         modal.classList.add('hidden');
+    }
+
+    // Quick Add Venue Handler
+    function openQuickAddVenueModal() {
+        const modal = document.getElementById('quickAddVenueModal');
+        const form = document.getElementById('quickAddVenueForm');
+        const errDiv = document.getElementById('quickVenueError');
+        const nameInput = document.getElementById('quickVenueName');
+        const cityInput = document.getElementById('quickVenueCity');
+        const homebaseCity = document.getElementById('input_kota')?.value.trim() || '';
+
+        if (form) form.reset();
+        if (errDiv) errDiv.classList.add('hidden');
+        if (cityInput && homebaseCity) {
+            cityInput.value = homebaseCity;
+        }
+
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => nameInput?.focus(), 50);
+        }
+    }
+
+    function closeQuickAddVenueModal() {
+        const modal = document.getElementById('quickAddVenueModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
+
+    async function submitQuickAddVenue(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmitQuickVenue');
+        const errDiv = document.getElementById('quickVenueError');
+        const errText = document.getElementById('quickVenueErrorText');
+        const nameInput = document.getElementById('quickVenueName');
+        const sportInput = document.getElementById('quickVenueSport');
+        const countInput = document.getElementById('quickVenueCourtCount');
+        const cityInput = document.getElementById('quickVenueCity');
+        const addressInput = document.getElementById('quickVenueAddress');
+        const venueSelect = document.getElementById('homebase_venue_select');
+
+        const originalBtnHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Menyimpan...';
+        if (errDiv) errDiv.classList.add('hidden');
+
+        try {
+            const csrfToken = document.querySelector('input[name="_token"]')?.value || '';
+            const res = await fetch("{{ route('venues.quickStore') }}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "X-CSRF-TOKEN": csrfToken
+                },
+                body: JSON.stringify({
+                    nama_venue: nameInput.value.trim(),
+                    sport: sportInput.value,
+                    jumlah_court: parseInt(countInput.value),
+                    kota: cityInput.value.trim(),
+                    alamat: addressInput.value.trim(),
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Gagal menyimpan venue baru.');
+            }
+
+            // Tambahkan option baru ke dropdown select
+            if (venueSelect) {
+                const newOpt = document.createElement('option');
+                const cityName = data.venue.kota || cityInput.value.trim() || 'Jakarta';
+                newOpt.value = data.venue.nama_venue;
+                newOpt.textContent = `${data.venue.nama_venue} (${cityName})`;
+                newOpt.selected = true;
+                venueSelect.appendChild(newOpt);
+            }
+
+            closeQuickAddVenueModal();
+        } catch (err) {
+            if (errDiv && errText) {
+                errText.textContent = err.message;
+                errDiv.classList.remove('hidden');
+            } else {
+                alert(err.message);
+            }
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+        }
     }
 </script>
 @endpush
