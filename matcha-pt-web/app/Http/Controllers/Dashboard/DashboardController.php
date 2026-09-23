@@ -182,11 +182,18 @@ class DashboardController extends Controller
             ];
         })->toArray();
 
-        // 4. Ambil daftar kota asli dari database (fokus komunitas)
-        $cities = Community::query()
+        // 4. Ambil daftar kota dari venue (kota) dan komunitas (kota_homebase), lalu merge
+        $venueCities = Venue::query()
+            ->whereNotNull('kota')
+            ->where('kota', '!=', '')
+            ->pluck('kota');
+
+        $communityCities = Community::query()
             ->whereNotNull('kota_homebase')
             ->where('kota_homebase', '!=', '')
-            ->pluck('kota_homebase')
+            ->pluck('kota_homebase');
+
+        $cities = $venueCities->merge($communityCities)
             ->map(function ($city) {
                 $c = trim($city);
                 if (ctype_lower($c) || ctype_upper($c)) {
