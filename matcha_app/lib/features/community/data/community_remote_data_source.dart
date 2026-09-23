@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/community_model.dart';
 
@@ -119,14 +120,14 @@ class CommunityRemoteDataSource {
   }) async {
     try {
       // Cek apakah sudah bergabung
-      final existing = await _supabase
+      final List<dynamic> existing = await _supabase
           .from('tb_player')
           .select('player_id')
           .eq('user_id', userId)
           .eq('community_id', communityId)
-          .maybeSingle();
+          .limit(1);
 
-      if (existing != null) return;
+      if (existing.isNotEmpty) return;
 
       await _supabase.from('tb_player').insert({
         'user_id': userId,
@@ -169,6 +170,7 @@ class CommunityRemoteDataSource {
     String? jadwalRutin,
     String? homebaseVenue,
     List<String>? benefits,
+    String? logo,
     int? createdBy,
     String? creatorName,
   }) async {
@@ -185,7 +187,8 @@ class CommunityRemoteDataSource {
             'status_keanggotaan': statusKeanggotaan ?? 'Open',
             'jadwal_rutin': jadwalRutin ?? 'Rutin Setiap Pekan',
             'homebase_venue': homebaseVenue,
-            'benefits': benefits ?? ['sesi mabar mingguan', 'whatsapp group aktif'],
+            'benefits': benefits ?? ['weekly_mabar', 'whatsapp_group'],
+            if (logo != null && logo.isNotEmpty) 'logo': logo,
             'created_by': createdBy,
           })
           .select()
@@ -207,6 +210,39 @@ class CommunityRemoteDataSource {
       return detail['community'] as CommunityModel;
     } on PostgrestException catch (e) {
       throw Exception('Gagal membuat komunitas: ${e.message}');
+    }
+  }
+
+  /// Upload file logo / foto komunitas ke Supabase Storage
+  Future<String?> uploadCommunityLogo(List<int> bytes, String filename) async {
+    try {
+      final ext = filename.contains('.') ? filename.split('.').last.toLowerCase() : 'jpg';
+      final storagePath = 'comm_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      
+      await _supabase.storage.from('community-logos').uploadBinary(
+            storagePath,
+            Uint8List.fromList(bytes),
+            fileOptions: FileOptions(
+              contentType: 'image/$ext',
+              upsert: true,
+            ),
+          );
+
+      return _supabase.storage.from('community-logos').getPublicUrl(storagePath);
+    } catch (_) {
+      try {
+        // Fallback coba ke bucket umum jika community-logos belum ada
+        final ext = filename.contains('.') ? filename.split('.').last.toLowerCase() : 'jpg';
+        final storagePath = 'comm_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        await _supabase.storage.from('general').uploadBinary(
+              storagePath,
+              Uint8List.fromList(bytes),
+              fileOptions: FileOptions(contentType: 'image/$ext', upsert: true),
+            );
+        return _supabase.storage.from('general').getPublicUrl(storagePath);
+      } catch (_) {
+        return null;
+      }
     }
   }
 }
