@@ -212,7 +212,7 @@ class _MainShellPageState extends State<MainShellPage> {
       const SizedBox.shrink(),
 
       // Tab 3: Komunitas
-      const CommunityPage(),
+      CommunityPage(authController: widget.authController),
 
       // Tab 4: Direktori Venue & Court
       const VenueDirectoryPage(),
