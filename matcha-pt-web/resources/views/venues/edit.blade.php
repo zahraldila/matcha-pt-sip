@@ -1,25 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-<style>
-    /* Expand native time picker touch area across the whole input */
-    input[type="time"] {
-        position: relative;
-        cursor: pointer;
-    }
-    input[type="time"]::-webkit-calendar-picker-indicator {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        cursor: pointer;
-        opacity: 0;
-    }
-</style>
-
 @php
     $currentFasilitas = array_map('trim', explode(',', $venue->fasilitas ?? ''));
     $currentHours = $venue->jam_operasional ?? '06:00 - 23:00 WIB';
@@ -28,6 +9,15 @@
     if (preg_match('/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/', $currentHours, $hMatches)) {
         $jamBukaVal = $hMatches[1];
         $jamTutupVal = $hMatches[2];
+    }
+
+    $timeSlots = [];
+    for ($h = 5; $h <= 24; $h++) {
+        $formattedH = str_pad($h == 24 ? '24' : $h, 2, '0', STR_PAD_LEFT);
+        $timeSlots[] = "$formattedH:00";
+        if ($h < 24) {
+            $timeSlots[] = "$formattedH:30";
+        }
     }
 @endphp
 
@@ -416,33 +406,54 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                    <!-- Jam Buka & Tutup -->
+                    <!-- Jam Buka & Tutup (Modern Select Dropdown) -->
                     <div class="space-y-1.5">
-                        <label class="block font-bold text-slate-800">
-                            Jam Operasional Reguler
-                            <span class="text-rose-500">*</span>
-                        </label>
+                        <div class="flex items-center justify-between">
+                            <label class="block font-bold text-slate-800">
+                                Jam Operasional Reguler <span class="text-rose-500">*</span>
+                            </label>
+                            <span class="text-[10px] font-bold text-[#063B00] bg-[#EBF8D8] px-2 py-0.5 rounded-md border border-[#063B00]/10">
+                                WIB
+                            </span>
+                        </div>
 
                         <input type="hidden" id="jamOperasionalHidden" name="jam_operasional" value="{{ old('jam_operasional', $venue->jam_operasional ?: '06:00 - 23:00 WIB') }}">
 
-                        <div class="grid grid-cols-2 gap-2">
-                            <div class="relative">
-                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">Buka</span>
-                                <input
-                                    type="time"
-                                    id="jamBuka"
-                                    value="{{ $jamBukaVal }}"
-                                    class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-11 pr-3 py-3 text-slate-900 font-bold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
-                                >
+                        <div class="grid grid-cols-2 gap-3">
+                            <!-- Jam Buka -->
+                            <div class="space-y-1">
+                                <span class="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                                    <i class="fa-regular fa-clock text-slate-400"></i> Jam Buka
+                                </span>
+                                <div class="relative">
+                                    <select
+                                        id="jamBukaSelect"
+                                        class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-3.5 pr-8 py-3 text-slate-900 font-bold text-xs focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs cursor-pointer"
+                                    >
+                                        @foreach($timeSlots as $slot)
+                                            <option value="{{ $slot }}" @selected($jamBukaVal === $slot)>{{ $slot }}</option>
+                                        @endforeach
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                                </div>
                             </div>
-                            <div class="relative">
-                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">Tutup</span>
-                                <input
-                                    type="time"
-                                    id="jamTutup"
-                                    value="{{ $jamTutupVal }}"
-                                    class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-12 pr-3 py-3 text-slate-900 font-bold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
-                                >
+
+                            <!-- Jam Tutup -->
+                            <div class="space-y-1">
+                                <span class="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                                    <i class="fa-regular fa-clock text-slate-400"></i> Jam Tutup
+                                </span>
+                                <div class="relative">
+                                    <select
+                                        id="jamTutupSelect"
+                                        class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-3.5 pr-8 py-3 text-slate-900 font-bold text-xs focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs cursor-pointer"
+                                    >
+                                        @foreach($timeSlots as $slot)
+                                            <option value="{{ $slot }}" @selected($jamTutupVal === $slot)>{{ $slot }}</option>
+                                        @endforeach
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                                </div>
                             </div>
                         </div>
 
@@ -457,7 +468,7 @@
                         @php
                             $selectedHari = old('hari_buka', $venue->hari_buka ?: 'Setiap Hari (Senin - Minggu)');
                         @endphp
-                        <div class="relative">
+                        <div class="relative pt-4 sm:pt-0">
                             <select
                                 id="hariBuka"
                                 name="hari_buka"
@@ -590,10 +601,10 @@
             </div>
 
             <!-- Form Action Buttons -->
-            <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-end gap-3">
+            <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-end gap-3.5">
                 <a
                     href="{{ route('venues.show', $venue->venue_id) }}"
-                    class="w-full sm:w-auto px-6 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs text-center transition-all"
+                    class="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs text-center transition-colors cursor-pointer shrink-0"
                 >
                     Batal
                 </a>
@@ -601,10 +612,10 @@
                 <button
                     type="submit"
                     id="submitBtn"
-                    class="w-full sm:w-auto px-8 py-3 rounded-2xl bg-gradient-to-r from-[#063B00] to-emerald-900 hover:opacity-95 text-white font-extrabold text-xs shadow-lg shadow-[#063B00]/20 flex items-center justify-center gap-2 transition-all cursor-pointer hover:scale-[1.01]"
+                    class="w-full sm:w-auto min-w-[210px] px-6 py-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md shadow-[#063B00]/15 inline-flex items-center justify-center gap-2.5 transition-all cursor-pointer hover:scale-[1.01] shrink-0"
                 >
-                    <i class="fa-solid fa-floppy-disk text-[#A8E63A]"></i>
-                    Simpan Perubahan Venue
+                    <i class="fa-solid fa-floppy-disk text-xs text-[#A8E63A]"></i>
+                    <span class="whitespace-nowrap">Simpan Perubahan Venue</span>
                 </button>
             </div>
         </form>
@@ -628,8 +639,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const kotaOptions = document.getElementById('kotaWilayahOptions');
     const kotaError = document.getElementById('kotaWilayahError');
 
-    const jamBuka = document.getElementById('jamBuka');
-    const jamTutup = document.getElementById('jamTutup');
+    const jamBukaSelect = document.getElementById('jamBukaSelect');
+    const jamTutupSelect = document.getElementById('jamTutupSelect');
     const jamOperasionalHidden = document.getElementById('jamOperasionalHidden');
     const operatingHoursError = document.getElementById('operatingHoursError');
 
@@ -721,12 +732,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function syncOperatingHours() {
-        if (jamBuka.value && jamTutup.value) {
-            jamOperasionalHidden.value = `${jamBuka.value} - ${jamTutup.value} WIB`;
+        if (jamBukaSelect && jamTutupSelect && jamOperasionalHidden) {
+            jamOperasionalHidden.value = `${jamBukaSelect.value} - ${jamTutupSelect.value} WIB`;
         }
     }
-    jamBuka.addEventListener('change', syncOperatingHours);
-    jamTutup.addEventListener('change', syncOperatingHours);
+    if (jamBukaSelect) jamBukaSelect.addEventListener('change', syncOperatingHours);
+    if (jamTutupSelect) jamTutupSelect.addEventListener('change', syncOperatingHours);
 
     if (surfaceType) {
         surfaceType.addEventListener('change', function () {
@@ -800,13 +811,13 @@ document.addEventListener('DOMContentLoaded', function () {
             clearError(kotaButton, kotaError);
         }
 
-        if (!jamBuka.value || !jamTutup.value) {
-            setError(jamBuka, operatingHoursError, 'Jam buka dan tutup wajib diisi.');
+        if (!jamBukaSelect.value || !jamTutupSelect.value) {
+            setError(jamBukaSelect, operatingHoursError, 'Jam buka dan tutup wajib diisi.');
             isValid = false;
-            if (!firstInvalid) firstInvalid = jamBuka;
+            if (!firstInvalid) firstInvalid = jamBukaSelect;
         } else {
             syncOperatingHours();
-            clearError(jamBuka, operatingHoursError);
+            clearError(jamBukaSelect, operatingHoursError);
         }
 
         if (!picName.value.trim()) {
