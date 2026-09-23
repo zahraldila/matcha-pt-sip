@@ -105,7 +105,7 @@ class DashboardController extends Controller
                         'level' => $p->level ?? 'Intermediate',
                         'is_member' => ! empty($p->user_id),
                         'phone' => $p->no_hp,
-                        'avatar' => $p->foto ?? ($p->user->foto ?? null),
+                        'avatar' => $p->user->foto ?? ($p->foto ?? null),
                     ];
                 })->toArray(),
                 'drawing' => null,

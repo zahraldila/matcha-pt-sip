@@ -126,22 +126,26 @@ class PlayerController extends Controller
             $user->foto = $fotoUrl;
             $user->save();
 
-            // 2. Update or Create tb_player
-            $player = Player::where('user_id', $user->user_id)
+            // 2. Update or Create tb_player (Sync all existing player rows for this user)
+            $matchingPlayers = Player::where('user_id', $user->user_id)
                 ->orWhere('email', $user->email)
-                ->first();
+                ->orWhere('nama', $user->nama)
+                ->get();
 
-            if ($player) {
-                $player->update([
-                    'user_id' => $user->user_id,
-                    'nama' => trim($request->nama),
-                    'no_hp' => $cleanNoHp,
-                    'gender' => $request->gender,
-                    'usia' => (int) $request->usia,
-                    'level' => $request->level,
-                    'community_id' => $communityId,
-                    'foto' => $fotoUrl,
-                ]);
+            if ($matchingPlayers->isNotEmpty()) {
+                Player::where('user_id', $user->user_id)
+                    ->orWhere('email', $user->email)
+                    ->orWhere('nama', $user->nama)
+                    ->update([
+                        'user_id' => $user->user_id,
+                        'nama' => trim($request->nama),
+                        'no_hp' => $cleanNoHp,
+                        'gender' => $request->gender,
+                        'usia' => (int) $request->usia,
+                        'level' => $request->level,
+                        'community_id' => $communityId,
+                        'foto' => $fotoUrl,
+                    ]);
             } else {
                 Player::create([
                     'user_id' => $user->user_id,

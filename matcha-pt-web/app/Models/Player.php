@@ -31,6 +31,22 @@ class Player extends Model
         'usia' => 'integer',
     ];
 
+    public function getFotoAttribute($value): ?string
+    {
+        if ($this->relationLoaded('user') && $this->user && ! empty($this->user->foto)) {
+            return $this->user->foto;
+        }
+
+        if (! empty($this->user_id)) {
+            $userPhoto = $this->user?->foto;
+            if (! empty($userPhoto)) {
+                return $userPhoto;
+            }
+        }
+
+        return $value;
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
