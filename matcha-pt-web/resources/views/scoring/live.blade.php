@@ -468,10 +468,6 @@
                    class="{{ $isMCompleted ? 'hidden' : '' }} px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 shadow-2xs transition-colors flex items-center gap-1.5 justify-center cursor-pointer">
                     <i class="fa-solid fa-lock text-amber-600"></i> Kunci &amp; Selesaikan
                 </button>
-                <button type="button" id="btnWalkover_{{ $mIdx }}" onclick="walkoverSet({{ $mIdx }})"
-                   class="{{ $isMCompleted ? 'hidden' : '' }} px-3 py-2.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-700 text-xs font-bold hover:bg-rose-100 shadow-2xs transition-colors flex items-center gap-1.5 justify-center cursor-pointer">
-                    <i class="fa-solid fa-triangle-exclamation text-rose-500"></i> Akhiri Paksa (Walkover)
-                </button>
             </div>
             <div class="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1 ml-auto">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -1090,42 +1086,6 @@
         showToast(`Skor ${courtLabel} berhasil dikunci!`);
     }
 
-    window.walkoverSet = function(cIdx) {
-        let st = courtsState[cIdx];
-        if (st.matchDone) return;
-        const courtLabel = st.courtName || ('Court ' + st.courtNum);
-        
-        const winnerInput = prompt(`PERINGATAN WALKOVER/RETIRED di ${courtLabel}!\n\nSkor saat ini belum memenuhi target.\nKetik 'A' jika Tim A menang, atau 'B' jika Tim B menang:`);
-        if (!winnerInput) return;
-        
-        const wStr = winnerInput.trim().toUpperCase();
-        if (wStr !== 'A' && wStr !== 'B') {
-            alert("Input tidak valid. Ketik 'A' atau 'B'.");
-            return;
-        }
-
-        const tClick = performance.now();
-        st.lastLocalActionTime = Date.now();
-        st.localVersion = (st.localVersion || 0) + 1;
-        st.clientSeq = (st.clientSeq || 0) + 1;
-        const clientSeq = st.clientSeq;
-        const baseVersion = st.serverVersion || 0;
-        const winnerTeam = wStr === 'A' ? 'Team A' : 'Team B';
-
-        st.matchDone = true;
-        st.completionSavePending = true;
-        st.completionSaveSucceeded = false;
-        st.winnerTeam = winnerTeam;
-        st.setsA = (winnerTeam === 'Team A') ? 1 : 0;
-        st.setsB = (winnerTeam === 'Team B') ? 1 : 0;
-        updateDisplay(cIdx);
-        syncRoundCompletionStatus();
-
-        const compEventId = 'evt_walkover_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
-        queueScoreSave(cIdx, 'completed', clientSeq, tClick, compEventId, 'walkover', wStr, baseVersion);
-        showToast(`Skor ${courtLabel} diakhiri paksa (Walkover)!`);
-    }
-
     function resetPoints(cIdx) {
         let st = courtsState[cIdx];
         st.idxA = 0;
@@ -1219,10 +1179,6 @@
             if (btnManual) {
                 btnManual.classList.add('hidden');
             }
-            const btnWalkover = document.getElementById('btnWalkover_' + cIdx);
-            if (btnWalkover) {
-                btnWalkover.classList.add('hidden');
-            }
             const banner = document.getElementById('matchCompletedBanner_' + cIdx);
             if (banner) {
                 banner.classList.add('hidden');
@@ -1242,14 +1198,9 @@
                 lockedBadge.classList.add('hidden');
             }
             
-            const btnWalkover = document.getElementById('btnWalkover_' + cIdx);
             const isTargetReached = (TARGET_GAMES > 0 && Math.max(st.gamesA, st.gamesB) >= TARGET_GAMES);
-            
             if (btnManual) {
                 btnManual.classList.toggle('hidden', !isTargetReached);
-            }
-            if (btnWalkover) {
-                btnWalkover.classList.toggle('hidden', isTargetReached);
             }
             const banner = document.getElementById('matchCompletedBanner_' + cIdx);
             if (banner) {
@@ -1326,10 +1277,6 @@
         const btnManual = document.getElementById('btnManualComplete_' + cIdx);
         if (btnManual) {
             btnManual.classList.add('hidden');
-        }
-        const btnWalkover = document.getElementById('btnWalkover_' + cIdx);
-        if (btnWalkover) {
-            btnWalkover.classList.add('hidden');
         }
 
         syncRoundCompletionStatus();
