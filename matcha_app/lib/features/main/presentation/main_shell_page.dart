@@ -3,6 +3,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
+import '../../community/presentation/community_page.dart';
 import '../../court/presentation/venue_directory_page.dart';
 import '../../home/presentation/home_page.dart';
 import '../../profile/presentation/profile_page.dart';
@@ -125,8 +126,8 @@ class _MainShellPageState extends State<MainShellPage> {
               const SizedBox(height: 8),
               Text(
                 isGuest
-                  ? 'Sebagai Host Game, kamu dapat membuat jadwal mabar baru, mengacak drawing pemain, memimpin live match scoring, dan memberikan Kudos!'
-                  : 'Kamu perlu mengaktifkan Status Akses Host Game di halaman profil untuk mulai membuat jadwal mabar dan mengelola drawing.',
+                    ? 'Sebagai Host Game, kamu dapat membuat jadwal mabar baru, mengacak drawing pemain, memimpin live match scoring, dan memberikan Kudos!'
+                    : 'Kamu perlu mengaktifkan Status Akses Host Game di halaman profil untuk mulai membuat jadwal mabar dan mengelola drawing.',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.caption.copyWith(
                   fontSize: 13,
@@ -149,7 +150,12 @@ class _MainShellPageState extends State<MainShellPage> {
                         ),
                       );
                     } else {
-                      setState(() => _currentIndex = 4); // Go to profile
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProfilePage(authController: widget.authController),
+                        ),
+                      );
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -202,14 +208,14 @@ class _MainShellPageState extends State<MainShellPage> {
         },
       ),
 
-      // Tab 2: Placeholder for Host Center Tab
+      // Tab 2: Placeholder for Host Center Tab Action
       const SizedBox.shrink(),
 
-      // Tab 3: Direktori Venue & Court
-      const VenueDirectoryPage(),
+      // Tab 3: Komunitas
+      const CommunityPage(),
 
-      // Tab 4: Profil & Rekap
-      ProfilePage(authController: widget.authController),
+      // Tab 4: Direktori Venue & Court
+      const VenueDirectoryPage(),
     ];
 
     return Scaffold(
@@ -241,36 +247,62 @@ class _MainShellPageState extends State<MainShellPage> {
               ),
             ),
             const Spacer(),
-            // User / Host Status Badge
+            // User / Host Status Badge & Profile Access
             if (user != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isHost ? AppColors.matchaSoftLime : const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isHost
-                        ? AppColors.matchaDark.withValues(alpha: 0.3)
-                        : const Color(0xFF93C5FD),
-                    width: 1,
-                  ),
-                ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProfilePage(authController: widget.authController),
+                    ),
+                  );
+                },
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      isHost ? Icons.sports_tennis_rounded : Icons.person_outline_rounded,
-                      size: 13,
-                      color: isHost ? AppColors.matchaDark : const Color(0xFF1D4ED8),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      isHost ? 'HOST ACTIVE' : 'MEMBER',
-                      style: AppTextStyles.badge.copyWith(
-                        color: isHost ? AppColors.matchaDark : const Color(0xFF1D4ED8),
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isHost ? AppColors.matchaSoftLime : const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isHost
+                              ? AppColors.matchaDark.withValues(alpha: 0.3)
+                              : const Color(0xFF93C5FD),
+                          width: 1,
+                        ),
                       ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isHost ? Icons.sports_tennis_rounded : Icons.person_outline_rounded,
+                            size: 13,
+                            color: isHost ? AppColors.matchaDark : const Color(0xFF1D4ED8),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isHost ? 'HOST ACTIVE' : 'MEMBER',
+                            style: AppTextStyles.badge.copyWith(
+                              color: isHost ? AppColors.matchaDark : const Color(0xFF1D4ED8),
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: const Icon(Icons.person_rounded, size: 18, color: AppColors.matchaDark),
                     ),
                   ],
                 ),
@@ -352,15 +384,15 @@ class _MainShellPageState extends State<MainShellPage> {
                 _buildCenterHostButton(isHost: isHost),
                 _buildNavItem(
                   index: 3,
-                  icon: Icons.location_on_outlined,
-                  activeIcon: Icons.location_on_rounded,
-                  label: 'Venue',
+                  icon: Icons.groups_outlined,
+                  activeIcon: Icons.groups_rounded,
+                  label: 'Komunitas',
                 ),
                 _buildNavItem(
                   index: 4,
-                  icon: Icons.person_outline_rounded,
-                  activeIcon: Icons.person_rounded,
-                  label: 'Profil',
+                  icon: Icons.location_on_outlined,
+                  activeIcon: Icons.location_on_rounded,
+                  label: 'Venue',
                 ),
               ],
             ),
@@ -380,21 +412,30 @@ class _MainShellPageState extends State<MainShellPage> {
     return Expanded(
       child: InkWell(
         onTap: () => _onTabTapped(index),
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              color: isSelected ? AppColors.matchaDark : const Color(0xFF94A3B8),
-              size: 22,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.matchaSoftLime : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                isSelected ? activeIcon : icon,
+                color: isSelected ? AppColors.matchaDark : const Color(0xFF64748B),
+                size: 20,
+              ),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? AppColors.matchaDark : const Color(0xFF94A3B8),
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? AppColors.matchaDark : const Color(0xFF64748B),
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
               ),
             ),
           ],
@@ -410,35 +451,53 @@ class _MainShellPageState extends State<MainShellPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: AppColors.matchaDark,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.matchaDark.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF063B00),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF063B00).withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.add_rounded,
-                  color: Color(0xFFA8E63A),
-                  size: 24,
+                  child: const Center(
+                    child: Icon(
+                      Icons.add_rounded,
+                      color: Color(0xFFA8E63A),
+                      size: 24,
+                    ),
+                  ),
                 ),
-              ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFA8E63A),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 2),
-            Text(
+            const Text(
               'Host',
               style: TextStyle(
-                color: AppColors.matchaDark,
+                color: Color(0xFF063B00),
                 fontSize: 10,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
