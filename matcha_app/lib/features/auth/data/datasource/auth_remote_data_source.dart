@@ -56,13 +56,16 @@ class AuthRemoteDataSource {
         throw Exception('Akun Anda saat ini dinonaktifkan.');
       }
 
-      // Ambil data athlete profil dari tb_player
+      // Ambil data athlete profil dari tb_player (ambil 1 profil terbaru jika ada multiple)
       final userId = userData['user_id'];
-      final playerResponse = await _supabase
+      final List<dynamic> players = await _supabase
           .from('tb_player')
           .select()
           .eq('user_id', userId)
-          .maybeSingle();
+          .order('player_id', ascending: false)
+          .limit(1);
+
+      final playerResponse = players.isNotEmpty ? players.first as Map<String, dynamic> : null;
 
       return UserModel.fromJson(userData, playerJson: playerResponse);
     } catch (e) {
@@ -178,11 +181,14 @@ class AuthRemoteDataSource {
 
       if (userResponse == null) return null;
 
-      final playerResponse = await _supabase
+      final List<dynamic> players = await _supabase
           .from('tb_player')
           .select()
           .eq('user_id', userId)
-          .maybeSingle();
+          .order('player_id', ascending: false)
+          .limit(1);
+
+      final playerResponse = players.isNotEmpty ? players.first as Map<String, dynamic> : null;
 
       return UserModel.fromJson(userResponse, playerJson: playerResponse);
     } catch (_) {
