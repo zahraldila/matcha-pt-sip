@@ -210,26 +210,37 @@
                             </div>
                         </div>
 
-                        <div class="space-y-1.5">
+                        <div class="space-y-1.5 relative">
                             <div class="flex items-center justify-between">
                                 <label class="block font-bold text-slate-800">Homebase Venue Utama</label>
                                 <button type="button" onclick="openQuickAddVenueModal()" class="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#063B00] bg-[#EBF8D8] hover:bg-[#d9f2b8] px-2.5 py-1 rounded-full border border-[#063B00]/20 transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer">
                                     <i class="fa-solid fa-plus text-[9px]"></i> <span>Tambah Venue</span>
                                 </button>
                             </div>
+
+                            <!-- Native hidden select for form submission -->
+                            <select id="homebase_venue_select" name="homebase_venue" class="sr-only">
+                                <option value="">Pilih Venue Homebase (Opsional)</option>
+                                @if(isset($venues) && $venues->isNotEmpty())
+                                    @foreach($venues as $v)
+                                        <option value="{{ $v->nama_venue }}" {{ old('homebase_venue', old('venue_utama')) == $v->nama_venue ? 'selected' : '' }}>
+                                            {{ $v->nama_venue }} ({{ $v->kota ?: 'Jakarta' }})
+                                        </option>
+                                    @endforeach
+                                @endif
+                            </select>
+
+                            <!-- Custom Styled Trigger Button -->
                             <div class="relative">
+                                <button type="button" id="homebaseVenueTrigger" onclick="toggleHomebaseVenueDropdown(event)"
+                                    class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-10 py-3 text-xs text-slate-900 font-semibold text-left focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs flex items-center cursor-pointer">
+                                    <span id="homebaseVenueLabel" class="min-w-0 truncate text-slate-700 block">Pilih Venue Homebase (Opsional)</span>
+                                </button>
                                 <i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
-                                <select id="homebase_venue_select" name="homebase_venue" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-9 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs cursor-pointer">
-                                    <option value="">Pilih Venue Homebase (Opsional)</option>
-                                    @if(isset($venues) && $venues->isNotEmpty())
-                                        @foreach($venues as $v)
-                                            <option value="{{ $v->nama_venue }}" {{ old('homebase_venue', old('venue_utama')) == $v->nama_venue ? 'selected' : '' }}>
-                                                {{ $v->nama_venue }} ({{ $v->kota ?: 'Jakarta' }})
-                                            </option>
-                                        @endforeach
-                                    @endif
-                                </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                                <i id="homebaseVenueIcon" class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none transition-transform duration-200"></i>
+
+                                <!-- Custom Dropdown Menu with Max Width & Height & Ellipsis Truncate -->
+                                <div id="homebaseVenueMenu" class="hidden absolute z-30 left-0 right-0 top-full mt-1.5 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl space-y-0.5 scrollbar-thin"></div>
                             </div>
                         </div>
                     </div>
@@ -899,6 +910,7 @@
                 newOpt.textContent = `${data.venue.nama_venue} (${cityName})`;
                 newOpt.selected = true;
                 venueSelect.appendChild(newOpt);
+                renderHomebaseVenueDropdown();
             }
 
             closeQuickAddVenueModal();
@@ -914,6 +926,70 @@
             btn.innerHTML = originalBtnHtml;
         }
     }
+
+    // Custom Dropdown Renderer for Homebase Venue
+    function renderHomebaseVenueDropdown() {
+        const select = document.getElementById('homebase_venue_select');
+        const menu = document.getElementById('homebaseVenueMenu');
+        const label = document.getElementById('homebaseVenueLabel');
+        if (!select || !menu || !label) return;
+
+        menu.innerHTML = '';
+        Array.from(select.options).forEach((opt) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-[#EBF8D8] hover:text-[#063B00] transition-colors truncate block ' + (opt.selected && opt.value ? 'bg-[#EBF8D8]/70 text-[#063B00] font-bold' : '');
+            btn.textContent = opt.textContent.trim();
+            btn.title = opt.textContent.trim();
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                selectHomebaseVenueOption(opt.value);
+            };
+            menu.appendChild(btn);
+        });
+
+        const selectedOpt = select.options[select.selectedIndex];
+        label.textContent = (selectedOpt && selectedOpt.value) ? selectedOpt.textContent.trim() : 'Pilih Venue Homebase (Opsional)';
+        label.title = label.textContent;
+    }
+
+    function toggleHomebaseVenueDropdown(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('homebaseVenueMenu');
+        const icon = document.getElementById('homebaseVenueIcon');
+        if (!menu) return;
+        const isHidden = menu.classList.toggle('hidden');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-down', isHidden);
+            icon.classList.toggle('fa-chevron-up', !isHidden);
+        }
+    }
+
+    function selectHomebaseVenueOption(value) {
+        const select = document.getElementById('homebase_venue_select');
+        const menu = document.getElementById('homebaseVenueMenu');
+        if (!select) return;
+        select.value = value;
+        renderHomebaseVenueDropdown();
+        if (menu) menu.classList.add('hidden');
+        document.getElementById('homebaseVenueIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+    }
+
+    // Close dropdown on outside click
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('homebaseVenueMenu');
+        const trigger = document.getElementById('homebaseVenueTrigger');
+        if (menu && !menu.classList.contains('hidden')) {
+            if (!menu.contains(e.target) && !trigger?.contains(e.target)) {
+                menu.classList.add('hidden');
+                document.getElementById('homebaseVenueIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        renderHomebaseVenueDropdown();
+    });
 </script>
 @endpush
 @endsection
