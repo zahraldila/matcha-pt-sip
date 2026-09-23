@@ -2,12 +2,12 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\User;
-use App\Models\Sport;
-use App\Models\Venue;
 use App\Models\Court;
+use App\Models\Sport;
+use App\Models\User;
+use App\Models\Venue;
 use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
 
 class PublicVenueTest extends TestCase
 {
@@ -19,7 +19,7 @@ class PublicVenueTest extends TestCase
 
     protected function setupTestDatabaseSchema(): void
     {
-        if (!Schema::hasTable('tb_user')) {
+        if (! Schema::hasTable('tb_user')) {
             Schema::create('tb_user', function ($table) {
                 $table->id('user_id');
                 $table->string('nama')->default('User Test');
@@ -31,7 +31,7 @@ class PublicVenueTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('tb_sport')) {
+        if (! Schema::hasTable('tb_sport')) {
             Schema::create('tb_sport', function ($table) {
                 $table->id('sport_id');
                 $table->string('nama_sport');
@@ -39,7 +39,7 @@ class PublicVenueTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('tb_venue')) {
+        if (! Schema::hasTable('tb_venue')) {
             Schema::create('tb_venue', function ($table) {
                 $table->id('venue_id');
                 $table->unsignedBigInteger('owner_user_id')->nullable();
@@ -53,11 +53,15 @@ class PublicVenueTest extends TestCase
                 $table->string('hari_buka')->nullable();
                 $table->string('no_whatsapp')->nullable();
                 $table->string('nama_pic')->nullable();
+                $table->string('google_maps_url')->nullable();
+                $table->string('sport_type')->nullable();
+                $table->string('tipe_arena')->nullable();
+                $table->string('jenis_permukaan')->nullable();
                 $table->timestamps();
             });
         }
 
-        if (!Schema::hasTable('tb_court')) {
+        if (! Schema::hasTable('tb_court')) {
             Schema::create('tb_court', function ($table) {
                 $table->id('court_id');
                 $table->unsignedBigInteger('venue_id');
@@ -80,7 +84,7 @@ class PublicVenueTest extends TestCase
     {
         $owner = User::create([
             'nama' => 'Owner Pak Bambang',
-            'email' => 'owner_' . uniqid() . '@matcha.com',
+            'email' => 'owner_'.uniqid().'@matcha.com',
             'role' => 'venue_owner',
             'password' => bcrypt('secret'),
         ]);
@@ -106,7 +110,7 @@ class PublicVenueTest extends TestCase
 
         $venue = $this->createValidVenue('Matcha Grand Arena');
 
-        $response = $this->get('/venues/' . $venue->venue_id);
+        $response = $this->get('/venues/'.$venue->venue_id);
 
         $response->assertStatus(200);
         $response->assertSee('Matcha Grand Arena');
@@ -149,7 +153,7 @@ class PublicVenueTest extends TestCase
 
         $this->assertEquals(0, $venue->courts()->count());
 
-        $response = $this->get('/venues/' . $venue->venue_id);
+        $response = $this->get('/venues/'.$venue->venue_id);
 
         $response->assertStatus(200);
         $response->assertSee('Venue Sunyi');
@@ -191,7 +195,7 @@ class PublicVenueTest extends TestCase
             'tipe_court' => 'Indoor Panoramic',
         ]);
 
-        $response = $this->get('/venues/' . $venue->venue_id);
+        $response = $this->get('/venues/'.$venue->venue_id);
 
         $response->assertStatus(200);
         $response->assertSee('Center Court Hard');
@@ -218,7 +222,7 @@ class PublicVenueTest extends TestCase
             'tipe_court' => 'Standard',
         ]);
 
-        $response = $this->get('/venues/' . $venue->venue_id);
+        $response = $this->get('/venues/'.$venue->venue_id);
 
         $response->assertStatus(200);
         $response->assertSee('Mystery Court');
@@ -253,7 +257,7 @@ class PublicVenueTest extends TestCase
             'foto' => 'https://xkyneehswdqkdgzodwdc.supabase.co/storage/v1/object/public/venues/sample1.png',
         ]);
 
-        $response = $this->get('/venues/' . $venue->venue_id);
+        $response = $this->get('/venues/'.$venue->venue_id);
 
         $response->assertStatus(200);
         $response->assertSee('https://xkyneehswdqkdgzodwdc.supabase.co/storage/v1/object/public/venues/sample1.png', false);
@@ -269,10 +273,10 @@ class PublicVenueTest extends TestCase
         $supabaseUrl = 'https://xkyneehswdqkdgzodwdc.supabase.co/storage/v1/object/public/venues/sample_valid.png';
         $venue = $this->createValidVenue('Venue Campuran Foto');
         $venue->update([
-            'foto' => 'uploads/venues/nonexistent_file_9999.png, ' . $supabaseUrl,
+            'foto' => 'uploads/venues/nonexistent_file_9999.png, '.$supabaseUrl,
         ]);
 
-        $response = $this->get('/venues/' . $venue->venue_id);
+        $response = $this->get('/venues/'.$venue->venue_id);
 
         $response->assertStatus(200);
         $response->assertSee($supabaseUrl, false);
@@ -291,7 +295,7 @@ class PublicVenueTest extends TestCase
             'foto' => 'uploads/venues/missing_1.png, uploads/venues/missing_2.png',
         ]);
 
-        $response = $this->get('/venues/' . $venue->venue_id);
+        $response = $this->get('/venues/'.$venue->venue_id);
 
         $response->assertStatus(200);
         $response->assertSee('Belum ada foto venue yang diunggah');
@@ -311,7 +315,7 @@ class PublicVenueTest extends TestCase
             'foto' => null,
         ]);
 
-        $response = $this->get('/venues/' . $venue->venue_id);
+        $response = $this->get('/venues/'.$venue->venue_id);
 
         $response->assertStatus(200);
         $response->assertSee('Belum ada foto venue yang diunggah');
@@ -330,7 +334,7 @@ class PublicVenueTest extends TestCase
             'fasilitas' => '',
         ]);
 
-        $response = $this->get('/venues/' . $venue->venue_id);
+        $response = $this->get('/venues/'.$venue->venue_id);
 
         $response->assertStatus(200);
         $response->assertSee('Belum ada informasi fasilitas untuk venue ini.');
@@ -350,7 +354,7 @@ class PublicVenueTest extends TestCase
             'fasilitas' => 'WC ,  Kantin Sehat , Ruang Ganti ',
         ]);
 
-        $response = $this->get('/venues/' . $venue->venue_id);
+        $response = $this->get('/venues/'.$venue->venue_id);
 
         $response->assertStatus(200);
         $response->assertSee('<span>WC</span>', false);
@@ -386,7 +390,7 @@ class PublicVenueTest extends TestCase
                     'tipe_court' => 'Semi-Indoor',
                     'harga_per_jam' => 140000,
                 ],
-            ]
+            ],
         ]);
 
         $response->assertRedirect("/venues/{$venue->venue_id}");
@@ -433,7 +437,7 @@ class PublicVenueTest extends TestCase
                     'tipe_court' => 'SuperIndoor', // Invalid type
                     'harga_per_jam' => 100000,
                 ],
-            ]
+            ],
         ]);
 
         $response->assertSessionHasErrors(['courts.0.tipe_court']);
@@ -455,7 +459,7 @@ class PublicVenueTest extends TestCase
                     'tipe_court' => 'Indoor',
                     'harga_per_jam' => 175000,
                 ],
-            ]
+            ],
         ]);
 
         $response = $this->get("/venues/{$venue->venue_id}");
@@ -480,7 +484,7 @@ class PublicVenueTest extends TestCase
                     'tipe_court' => 'Indoor',
                     'harga_per_jam' => 100000,
                 ],
-            ]
+            ],
         ]);
 
         $response->assertRedirect("/venues/{$venue->venue_id}");
@@ -494,7 +498,7 @@ class PublicVenueTest extends TestCase
     {
         $owner = User::create([
             'nama' => 'Owner Max Length',
-            'email' => 'owner_maxlen_' . uniqid() . '@matcha.com',
+            'email' => 'owner_maxlen_'.uniqid().'@matcha.com',
             'role' => 'venue_owner',
             'password' => bcrypt('secret'),
         ]);
@@ -528,7 +532,7 @@ class PublicVenueTest extends TestCase
                     'tipe_court' => 'Indoor',
                     'harga_per_jam' => 100000,
                 ],
-            ]
+            ],
         ]);
 
         $response->assertSessionHasErrors(['courts.0.nama_court']);
@@ -543,7 +547,7 @@ class PublicVenueTest extends TestCase
 
         $owner = User::create([
             'nama' => 'Owner Lain',
-            'email' => 'owner_lain_' . uniqid() . '@matcha.com',
+            'email' => 'owner_lain_'.uniqid().'@matcha.com',
             'role' => 'venue_owner',
             'password' => bcrypt('secret'),
         ]);
@@ -556,9 +560,90 @@ class PublicVenueTest extends TestCase
 
         $response->assertSessionHasErrors(['nama_venue']);
     }
+
+    /**
+     * Test Edit Venue: Owner dapat mengakses form edit venue.
+     */
+    public function test_owner_can_access_edit_venue_page(): void
+    {
+        $venue = $this->createValidVenue('Venue Edit Test');
+        $owner = User::find($venue->owner_user_id);
+        $this->actingAs($owner);
+
+        $response = $this->get("/venues/{$venue->venue_id}/edit");
+        $response->assertStatus(200);
+        $response->assertSee('Edit Informasi Venue');
+        $response->assertSee('Venue Edit Test');
+    }
+
+    /**
+     * Test Update Venue: Owner berhasil memperbarui data venue di database.
+     */
+    public function test_owner_can_update_venue_in_database(): void
+    {
+        $venue = $this->createValidVenue('Venue Original');
+        $owner = User::find($venue->owner_user_id);
+        $this->actingAs($owner);
+
+        $response = $this->put("/venues/{$venue->venue_id}", [
+            'nama_venue' => 'Venue Updated Name',
+            'alamat' => 'Jl. Baru No. 99',
+            'kota' => 'Bandung',
+            'sport_type' => 'Padel',
+            'tipe_arena' => 'Indoor',
+            'jenis_permukaan' => 'Karpet Interlock',
+            'jam_operasional' => '08:00 - 22:00 WIB',
+            'hari_buka' => 'Setiap Hari (Senin - Minggu)',
+            'nama_pic' => 'PIC Baru',
+            'no_whatsapp' => '0899999999',
+            'catatan' => 'Catatan diperbarui',
+            'facilities' => ['Parkir Luas', 'Wi-Fi Gratis'],
+        ]);
+
+        $response->assertRedirect(route('venues.show', $venue->venue_id));
+        $this->assertDatabaseHas('tb_venue', [
+            'venue_id' => $venue->venue_id,
+            'nama_venue' => 'Venue Updated Name',
+            'alamat' => 'Jl. Baru No. 99',
+            'kota' => 'Bandung',
+            'nama_pic' => 'PIC Baru',
+        ]);
+    }
+
+    /**
+     * Test Update Court: Owner berhasil memperbarui data court di database.
+     */
+    public function test_owner_can_update_court_in_database(): void
+    {
+        $venue = $this->createValidVenue('Venue Court Edit Test');
+        $owner = User::find($venue->owner_user_id);
+        $this->actingAs($owner);
+
+        $sport = Sport::create(['nama_sport' => 'Padel', 'status_sport' => 'Active']);
+        $court = Court::create([
+            'venue_id' => $venue->venue_id,
+            'sport_id' => $sport->sport_id,
+            'nama_court' => 'Court A Lama',
+            'status_ketersediaan' => 'Available',
+            'tipe_court' => 'Indoor',
+            'harga_per_jam' => 100000,
+        ]);
+
+        $response = $this->put("/venues/{$venue->venue_id}/courts/{$court->court_id}", [
+            'nama_court' => 'Court A Premium',
+            'sport_name' => 'Padel',
+            'tipe_court' => 'Outdoor',
+            'harga_per_jam' => 200000,
+            'status_ketersediaan' => 'Maintenance',
+        ]);
+
+        $response->assertRedirect(route('venues.show', $venue->venue_id));
+        $this->assertDatabaseHas('tb_court', [
+            'court_id' => $court->court_id,
+            'nama_court' => 'Court A Premium',
+            'tipe_court' => 'Outdoor',
+            'harga_per_jam' => 200000,
+            'status_ketersediaan' => 'Maintenance',
+        ]);
+    }
 }
-
-
-
-
-

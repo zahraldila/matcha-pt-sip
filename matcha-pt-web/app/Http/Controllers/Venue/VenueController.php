@@ -271,6 +271,93 @@ class VenueController extends Controller
     }
 
     /**
+     * Tampilkan form edit venue milik user yang login.
+     * Route: GET /venues/{id}/edit
+     */
+    public function edit($id)
+    {
+        $venue = Venue::where('venue_id', $id)
+            ->where('owner_user_id', Auth::id())
+            ->firstOrFail();
+
+        return view('venues.edit', compact('venue'));
+    }
+
+    /**
+     * Update data informasi venue di database.
+     * Route: PUT /venues/{id}
+     */
+    public function update(Request $request, $id)
+    {
+        @set_time_limit(120);
+        $user = Auth::user();
+
+        $venue = Venue::where('venue_id', $id)
+            ->where('owner_user_id', $user->user_id)
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'nama_venue' => ['required', 'string', 'max:100', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/', 'unique:tb_venue,nama_venue,'.$venue->venue_id.',venue_id'],
+            'alamat' => ['required', 'string', 'not_regex:/<[^>]*script/i'],
+            'kota_wilayah' => 'nullable|string|max:150',
+            'kota' => 'nullable|string|max:150',
+            'google_maps_url' => 'nullable|string|max:500',
+            'sport_type' => 'nullable|string|max:100',
+            'tipe_arena' => 'nullable|string|max:100',
+            'arena_type' => 'nullable|string|max:100',
+            'jenis_permukaan' => 'nullable|string|max:100',
+            'jenis_permukaan_lainnya' => 'nullable|string|max:100',
+            'jam_operasional' => 'nullable|string|max:100',
+            'hari_buka' => 'nullable|string|max:100',
+            'nama_pic' => ['nullable', 'string', 'max:150', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/'],
+            'no_whatsapp' => 'nullable|string|max:50',
+            'catatan' => ['nullable', 'string', 'not_regex:/<[^>]*script/i'],
+            'fasilitas' => 'nullable|array',
+            'fasilitas.*' => ['string', 'max:100', 'not_regex:/<[^>]*script/i'],
+            'facilities' => 'nullable|array',
+            'facilities.*' => ['string', 'max:100', 'not_regex:/<[^>]*script/i'],
+        ], [
+            'nama_venue.unique' => 'Nama venue sudah digunakan oleh venue lain.',
+            'nama_venue.max' => 'Nama venue maksimal 100 karakter.',
+            'nama_venue.not_regex' => 'Nama venue tidak boleh mengandung tag script atau karakter khusus (< >).',
+            'alamat.not_regex' => 'Alamat venue tidak boleh mengandung tag script.',
+            'nama_pic.not_regex' => 'Nama PIC tidak boleh mengandung tag script atau karakter khusus (< >).',
+            'catatan.not_regex' => 'Catatan tidak boleh mengandung tag script.',
+        ]);
+
+        $kotaFinal = $request->input('kota') ?? $request->input('kota_wilayah') ?? $venue->kota;
+        $fasilitasArr = $request->input('facilities') ?? $request->input('fasilitas') ?? [];
+        $catatanInput = $request->input('catatan') ?? $request->input('maintenance_note');
+
+        $rawSurface = $request->input('jenis_permukaan');
+        $surfaceFinal = ($rawSurface === 'Other' && $request->filled('jenis_permukaan_lainnya'))
+            ? $request->input('jenis_permukaan_lainnya')
+            : ($rawSurface ?? $venue->jenis_permukaan);
+
+        $tipeArenaFinal = $request->input('tipe_arena') ?? $request->input('arena_type', $venue->tipe_arena);
+        $sportTypeFinal = $request->input('sport_type', $venue->sport_type);
+
+        $venue->update([
+            'nama_venue' => strip_tags($validated['nama_venue']),
+            'alamat' => strip_tags($validated['alamat']),
+            'kota' => strip_tags($kotaFinal ?? ''),
+            'google_maps_url' => $request->input('google_maps_url') ? strip_tags($request->input('google_maps_url')) : null,
+            'sport_type' => strip_tags($sportTypeFinal ?? ''),
+            'tipe_arena' => $tipeArenaFinal ? strip_tags($tipeArenaFinal) : null,
+            'jenis_permukaan' => $surfaceFinal ? strip_tags($surfaceFinal) : null,
+            'jam_operasional' => strip_tags($request->input('jam_operasional') ?: $venue->jam_operasional),
+            'hari_buka' => strip_tags($request->input('hari_buka') ?: $venue->hari_buka),
+            'nama_pic' => strip_tags($request->input('nama_pic') ?? ''),
+            'no_whatsapp' => strip_tags($request->input('no_whatsapp') ?? ''),
+            'catatan' => strip_tags($catatanInput ?? ''),
+            'fasilitas' => ! empty($fasilitasArr) ? implode(', ', array_map('strip_tags', $fasilitasArr)) : $venue->fasilitas,
+        ]);
+
+        return redirect()->route('venues.show', $venue->venue_id)
+            ->with('success', 'Informasi venue berhasil diperbarui!');
+    }
+
+    /**
      * Simpan venue baru ke database.
      * Route: POST /venues
      */

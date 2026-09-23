@@ -37,19 +37,23 @@
             </div>
 
             @auth
-                @if(Auth::user()->is_host)
-                    <div class="flex items-center gap-2.5">
+                <div class="flex items-center gap-2.5 flex-wrap">
+                    @if(!empty($venue['is_mine']))
+                        <a href="{{ route('venues.edit', $venue['id']) }}" class="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:border-[#063B00] text-slate-800 hover:text-[#063B00] font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-pen-to-square text-[#063B00]"></i> Edit Venue
+                        </a>
+                    @endif
+
+                    @if(Auth::user()->is_host)
                         <a href="{{ route('games.create', ['venue_id' => $venue['venue_id'] ?? $venue['id'] ?? null]) }}" class="px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] inline-flex items-center gap-1.5">
                             <i class="fa-solid fa-plus text-[10px]"></i> Buat Mabar di Sini
                         </a>
-                    </div>
-                @elseif(Auth::user()->role !== 'venue_owner')
-                    <div class="flex items-center gap-2.5">
+                    @elseif(Auth::user()->role !== 'venue_owner')
                         <a href="{{ route('player.profile', ['notice' => 'host_required']) }}" class="px-4 py-2 rounded-xl bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-semibold text-xs shadow-2xs transition-all hover:scale-[1.01] inline-flex items-center gap-1.5" title="Aktifkan Mode Host untuk Membuat Mabar">
                             <i class="fa-solid fa-bolt text-[10px]"></i> Jadi Host untuk Buat Mabar
                         </a>
-                    </div>
-                @endif
+                    @endif
+                </div>
             @endauth
         </div>
     </div>
@@ -151,18 +155,29 @@
                                         </span>
                                     @endif
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-[10px] px-2 py-0.5 rounded font-semibold {{ $court['status'] === 'Available' ? 'bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25' : 'bg-rose-50 text-rose-800 border border-rose-200' }}">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-[10px] px-2 py-0.5 rounded font-semibold {{ $court['status'] === 'Available' ? 'bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25' : ($court['status'] === 'Maintenance' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-rose-50 text-rose-800 border border-rose-200') }}">
                                         {{ $court['status'] }}
                                     </span>
                                     @if(auth()->check() && !empty($venue['is_mine']) && !empty($court['id']))
-                                        <form action="{{ route('venues.courts.destroy', [$venue['id'], $court['id']]) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus court {{ $court['name'] }}?');" class="inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer" title="Hapus Lapangan">
-                                                <i class="fa-solid fa-trash-can text-[11px]"></i>
+                                        <div class="flex items-center gap-0.5">
+                                            <button
+                                                type="button"
+                                                onclick="openEditCourtModal({{ json_encode($court) }})"
+                                                class="p-1 rounded-md text-slate-400 hover:text-[#063B00] hover:bg-[#EBF8D8] transition-colors cursor-pointer"
+                                                title="Edit Lapangan"
+                                            >
+                                                <i class="fa-solid fa-pen text-[11px]"></i>
                                             </button>
-                                        </form>
+
+                                            <form action="{{ route('venues.courts.destroy', [$venue['id'], $court['id']]) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus court {{ $court['name'] }}?');" class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer" title="Hapus Lapangan">
+                                                    <i class="fa-solid fa-trash-can text-[11px]"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                     @endif
                                 </div>
                             </div>
@@ -485,7 +500,168 @@
             newUploadedFiles.forEach(f => dt.items.add(f));
             newPhotosInput.files = dt.files;
         }
+
+        function openEditCourtModal(court) {
+            const modal = document.getElementById('editCourtModal');
+            const form = document.getElementById('editCourtForm');
+            const venueId = "{{ $venue['id'] }}";
+            form.action = `/venues/${venueId}/courts/${court.id}`;
+
+            document.getElementById('editCourtName').value = court.name || '';
+            document.getElementById('editCourtSport').value = court.sport && court.sport.toLowerCase() === 'tennis' ? 'Tennis' : 'Padel';
+            
+            let courtType = court.type || 'Indoor';
+            if (!['Indoor', 'Outdoor', 'Semi-Indoor'].includes(courtType)) courtType = 'Indoor';
+            document.getElementById('editCourtType').value = courtType;
+            
+            document.getElementById('editCourtPrice').value = court.harga_per_jam || 0;
+            document.getElementById('editCourtStatus').value = court.status || 'Available';
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeEditCourtModal() {
+            const modal = document.getElementById('editCourtModal');
+            if (modal) modal.classList.add('hidden');
+        }
     </script>
+
+    <!-- MODAL EDIT COURT -->
+    <div id="editCourtModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 my-8 animate-in fade-in zoom-in duration-200 border border-slate-100">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-[#063B00] flex items-center justify-center text-base border border-emerald-100">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-black text-slate-900">Edit Data Court / Lapangan</h3>
+                        <p class="text-xs text-slate-500">Perbarui rincian tipe, harga, dan ketersediaan court.</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeEditCourtModal()" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition-colors cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="editCourtForm" action="" method="POST" class="space-y-4 text-xs">
+                @csrf
+                @method('PUT')
+
+                <!-- Nama Court -->
+                <div class="space-y-1.5">
+                    <label class="block font-bold text-slate-800">
+                        Nama Court / Lapangan <span class="text-rose-500">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="editCourtName"
+                        name="nama_court"
+                        required
+                        maxlength="100"
+                        placeholder="Contoh: Court 1 / Center Court"
+                        class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                    >
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Cabang Olahraga -->
+                    <div class="space-y-1.5">
+                        <label class="block font-bold text-slate-800">
+                            Cabang Olahraga <span class="text-rose-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <select
+                                id="editCourtSport"
+                                name="sport_name"
+                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 pr-10 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                            >
+                                <option value="Padel">Padel</option>
+                                <option value="Tennis">Tennis</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                        </div>
+                    </div>
+
+                    <!-- Tipe Court -->
+                    <div class="space-y-1.5">
+                        <label class="block font-bold text-slate-800">
+                            Tipe Arena <span class="text-rose-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <select
+                                id="editCourtType"
+                                name="tipe_court"
+                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 pr-10 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                            >
+                                <option value="Indoor">Indoor</option>
+                                <option value="Outdoor">Outdoor</option>
+                                <option value="Semi-Indoor">Semi-Indoor</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Harga per Jam -->
+                    <div class="space-y-1.5">
+                        <label class="block font-bold text-slate-800">
+                            Harga Sewa / Jam (Rp) <span class="text-rose-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rp</span>
+                            <input
+                                type="number"
+                                id="editCourtPrice"
+                                name="harga_per_jam"
+                                required
+                                min="0"
+                                step="1000"
+                                placeholder="150000"
+                                class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-bold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Status Ketersediaan -->
+                    <div class="space-y-1.5">
+                        <label class="block font-bold text-slate-800">
+                            Status Ketersediaan <span class="text-rose-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <select
+                                id="editCourtStatus"
+                                name="status_ketersediaan"
+                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 pr-10 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                            >
+                                <option value="Available">Available (Siap Pakai)</option>
+                                <option value="Maintenance">Maintenance (Perbaikan)</option>
+                                <option value="Inactive">Inactive (Tidak Aktif)</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button
+                        type="button"
+                        onclick="closeEditCourtModal()"
+                        class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        type="submit"
+                        class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#063B00] to-emerald-900 hover:opacity-95 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
+                    >
+                        <i class="fa-solid fa-check text-[#A8E63A]"></i> Simpan Court
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 @endif
 @endsection
 

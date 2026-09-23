@@ -49,11 +49,14 @@ Route::prefix('venues')->name('venues.')->group(function () {
         Route::post('/quick-store', [VenueController::class, 'quickStore'])->name('quickStore'); // Quick Add Venue from Session Wizard
         Route::get('/create', [VenueController::class, 'create'])->name('create');
         Route::post('/', [VenueController::class, 'store'])->name('store');             // [SMK 2] Simpan venue baru ke DB
+        Route::get('/{id}/edit', [VenueController::class, 'edit'])->whereNumber('id')->name('edit');     // Form edit venue
+        Route::put('/{id}', [VenueController::class, 'update'])->whereNumber('id')->name('update');      // Simpan perubahan venue ke DB
         Route::post('/{id}/photos', [VenueController::class, 'updatePhotos'])->whereNumber('id')->name('photos.update'); // Tambah/Hapus foto venue
         Route::get('/{id}/photos', fn ($id) => redirect()->route('venues.show', $id)); // Graceful fallback if opened via GET
         Route::get('/{id}/courts', [CourtController::class, 'index'])->whereNumber('id')->name('courts.index');   // [SMK 2] List court per venue
         Route::get('/{id}/courts/create', [CourtController::class, 'create'])->whereNumber('id')->name('courts.create'); // [SMK 2] Form tambah court
         Route::post('/{id}/courts', [CourtController::class, 'store'])->whereNumber('id')->name('courts.store');  // [SMK 2] Simpan court baru ke DB
+        Route::put('/{id}/courts/{courtId}', [CourtController::class, 'update'])->whereNumber(['id', 'courtId'])->name('courts.update'); // Update court
         Route::delete('/{id}/courts/{courtId}', [CourtController::class, 'destroy'])->whereNumber(['id', 'courtId'])->name('courts.destroy'); // Hapus court
     });
 });

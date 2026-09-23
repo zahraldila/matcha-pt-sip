@@ -170,6 +170,50 @@ class CourtController extends Controller
             ->with('success', 'Court berhasil ditambahkan!');
     }
 
+    /**
+     * Update data court/lapangan di database.
+     * Route: PUT /venues/{id}/courts/{courtId}
+     */
+    public function update(Request $request, $id, $courtId)
+    {
+        $venue = $this->ownedVenue($id);
+        $court = Court::where('venue_id', $venue->venue_id)->where('court_id', $courtId)->firstOrFail();
+
+        $validated = $request->validate([
+            'nama_court' => ['required', 'string', 'max:100', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/'],
+            'tipe_court' => 'required|string|in:Indoor,Outdoor,Semi-Indoor',
+            'harga_per_jam' => 'required|numeric|min:0',
+            'status_ketersediaan' => 'required|string|in:Available,Maintenance,Inactive',
+            'sport_id' => 'nullable',
+            'sport_name' => 'nullable|string',
+        ], [
+            'nama_court.required' => 'Nama court wajib diisi.',
+            'nama_court.not_regex' => 'Nama court tidak boleh mengandung tag script atau karakter khusus (< >).',
+            'tipe_court.required' => 'Tipe court wajib dipilih.',
+            'harga_per_jam.required' => 'Harga per jam wajib diisi.',
+        ]);
+
+        $sportId = $validated['sport_id'] ?? null;
+        if (! $sportId && ! empty($validated['sport_name'])) {
+            $sportId = Sport::whereRaw('LOWER(nama_sport) = ?', [strtolower($validated['sport_name'])])->value('sport_id');
+        }
+        if (! $sportId) {
+            $sportId = $court->sport_id ?: (Sport::whereRaw('LOWER(nama_sport) = ?', ['padel'])->value('sport_id') ?? Sport::value('sport_id'));
+        }
+
+        $court->update([
+            'nama_court' => strip_tags($validated['nama_court']),
+            'sport_id' => $sportId,
+            'tipe_court' => $validated['tipe_court'],
+            'harga_per_jam' => $validated['harga_per_jam'],
+            'status_ketersediaan' => $validated['status_ketersediaan'],
+            'deskripsi' => "Tipe: {$validated['tipe_court']} • Rp ".number_format($validated['harga_per_jam']).'/jam',
+        ]);
+
+        return redirect()->route('venues.show', $venue->venue_id)
+            ->with('success', "Data {$court->nama_court} berhasil diperbarui!");
+    }
+
     public function destroy($id, $courtId)
     {
         $venue = $this->ownedVenue($id);
