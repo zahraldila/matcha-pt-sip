@@ -6,10 +6,8 @@ import '../../auth/presentation/login_page.dart';
 import '../../court/data/venue_service.dart';
 import '../../court/domain/venue_model.dart';
 import '../../court/presentation/venue_detail_page.dart';
-import '../../drawing/presentation/drawing_result_page.dart';
 import '../../session/data/session_service.dart';
 import '../../session/domain/session_model.dart';
-import '../../session/presentation/create_session_page.dart';
 import '../../session/presentation/session_detail_page.dart';
 import '../../session/presentation/widgets/join_session_modal.dart';
 
@@ -90,104 +88,7 @@ class _HomePageState extends State<HomePage> {
     return _sessions.where((s) => s.sportName.toLowerCase() == _selectedSport.toLowerCase()).toList();
   }
 
-  void _showAuthRequiredModal({
-    required String title,
-    required String message,
-  }) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: AppColors.matchaSoftLime,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.matchaDark.withValues(alpha: 0.2),
-                    width: 2,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.lock_outline_rounded,
-                  color: AppColors.matchaDark,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.h2.copyWith(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.caption.copyWith(
-                  fontSize: 13,
-                  color: const Color(0xFF64748B),
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => LoginPage(authController: widget.authController),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.matchaDark,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Masuk / Daftar Akun',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -289,88 +190,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            // --- Quick Actions ---
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Aksi Cepat',
-                      style: AppTextStyles.h2.copyWith(
-                        color: const Color(0xFF0F172A),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildActionButton(
-                            title: 'Buat Sesi Mabar',
-                            subtitle: isHost ? 'Jadwal & Kuota' : 'Khusus Host',
-                            icon: Icons.add_circle_outline_rounded,
-                            accentColor: AppColors.matchaDark,
-                            onTap: () {
-                              if (isGuest) {
-                                _showAuthRequiredModal(
-                                  title: 'Buat Jadwal Mabar Baru',
-                                  message: 'Kamu harus masuk atau mendaftar akun terlebih dahulu untuk membuat sesi mabar dan mengundang pemain.',
-                                );
-                              } else if (isHost) {
-                                Navigator.push<bool>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => CreateSessionPage(
-                                      authController: widget.authController,
-                                    ),
-                                  ),
-                                ).then((val) {
-                                  if (val == true) _loadData();
-                                });
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Aktifkan Mode Host di halaman Profil untuk membuat sesi mabar.'),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildActionButton(
-                            title: 'Drawing & Live',
-                            subtitle: 'Papan Bagan Tim',
-                            icon: Icons.shuffle_rounded,
-                            accentColor: const Color(0xFF047857),
-                            onTap: () {
-                              if (isGuest) {
-                                _showAuthRequiredModal(
-                                  title: 'Drawing & Match Console',
-                                  message: 'Drawing bagan tim dan konsol live scoring dikelola oleh Host sesi. Masuk untuk mengelola drawing atau buka jadwal mabar untuk menonton.',
-                                );
-                              } else {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const DrawingResultPage()),
-                                );
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
             // --- Jadwal Mabar Section ---
             SliverToBoxAdapter(
@@ -622,67 +442,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildActionButton({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color accentColor,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: accentColor, size: 18),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTextStyles.caption.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0F172A),
-                      fontSize: 12,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: AppTextStyles.caption.copyWith(
-                      color: const Color(0xFF64748B),
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildRealSessionCard(SessionModel session) {
     final isLive = session.statusSession.toLowerCase() == 'in progress' ||
