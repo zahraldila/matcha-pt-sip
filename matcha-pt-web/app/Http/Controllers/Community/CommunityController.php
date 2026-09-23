@@ -396,4 +396,127 @@ class CommunityController extends Controller
         return redirect()->route('communities.index')
             ->with('success', 'Anda telah meninggalkan komunitas.');
     }
+
+    /**
+     * Tampilkan form edit komunitas.
+     * Route: GET /communities/{id}/edit
+     */
+    public function edit($id)
+    {
+        if (! Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        $community = Community::findOrFail((int) $id);
+
+        if (Auth::user()->role !== 'admin' && (int) $community->created_by !== (int) Auth::id()) {
+            abort(403, 'Akses ditolak: Anda tidak memiliki wewenang untuk mengedit komunitas ini.');
+        }
+
+        $venues = Venue::orderBy('nama_venue', 'asc')->get();
+
+        return view('communities.edit', compact('community', 'venues'));
+    }
+
+    /**
+     * Update data komunitas di database.
+     * Route: PUT /communities/{id}
+     */
+    public function update(Request $request, $id, SupabaseStorageService $storageService)
+    {
+        if (! Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        $community = Community::findOrFail((int) $id);
+
+        if (Auth::user()->role !== 'admin' && (int) $community->created_by !== (int) Auth::id()) {
+            abort(403, 'Akses ditolak: Anda tidak memiliki wewenang untuk mengedit komunitas ini.');
+        }
+
+        $validated = $request->validate([
+            'nama_community' => ['required', 'string', 'max:255', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/'],
+            'sport' => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
+            'sport_focus' => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
+            'deskripsi' => ['required', 'string', 'not_regex:/<[^>]*script/i'],
+            'jadwal_rutin' => ['nullable', 'string', 'max:255', 'not_regex:/<[^>]*script/i'],
+            'tagline' => ['nullable', 'string', 'max:255', 'not_regex:/<[^>]*script/i'],
+            'kota_homebase' => ['nullable', 'string', 'max:255', 'not_regex:/<[^>]*script/i'],
+            'kota' => ['nullable', 'string', 'max:255', 'not_regex:/<[^>]*script/i'],
+            'target_level' => 'nullable|string|max:100',
+            'status_keanggotaan' => 'nullable|string|max:100',
+            'membership_status' => 'nullable|string|max:100',
+            'benefits' => 'nullable|array',
+            'homebase_venue' => ['nullable', 'string', 'max:255', 'not_regex:/<[^>]*script/i'],
+            'venue_utama' => ['nullable', 'string', 'max:255', 'not_regex:/<[^>]*script/i'],
+            'logo_url' => 'nullable|string',
+            'logo' => 'nullable|file|mimes:jpeg,jpg,png|max:2048',
+        ]);
+
+        $rawSport = $request->input('sport') ?: $request->input('sport_focus', $community->sport);
+        $normalizedSport = match (strtolower(trim((string) $rawSport))) {
+            'tennis' => 'tennis',
+            'all_racquet', 'both', 'all racquet', 'padel & tennis' => 'all_racquet',
+            default => 'padel',
+        };
+
+        $logoUrl = $validated['logo_url'] ?? $community->logo;
+        if ($request->hasFile('logo')) {
+            try {
+                $uploadResult = $storageService->uploadLogo($request->file('logo'));
+                if ($uploadResult['success']) {
+                    $logoUrl = $uploadResult['url'];
+                }
+            } catch (\Throwable $e) {
+                Log::error('Logo upload error during update: '.$e->getMessage());
+            }
+        }
+
+        $community->update([
+            'nama_community' => strip_tags($validated['nama_community']),
+            'tagline' => $request->input('tagline') ? strip_tags($request->input('tagline')) : $community->tagline,
+            'kota_homebase' => strip_tags($request->input('kota_homebase') ?: ($request->input('kota') ?: $community->kota_homebase)),
+            'sport' => $normalizedSport,
+            'target_level' => $request->input('target_level') ? strip_tags($request->input('target_level')) : $community->target_level,
+            'status_keanggotaan' => $request->input('status_keanggotaan') ? strip_tags($request->input('status_keanggotaan')) : ($request->input('membership_status') ? strip_tags($request->input('membership_status')) : $community->status_keanggotaan),
+            'deskripsi' => strip_tags($validated['deskripsi']),
+            'jadwal_rutin' => $request->input('jadwal_rutin') ? strip_tags($request->input('jadwal_rutin')) : $community->jadwal_rutin,
+            'homebase_venue' => strip_tags($request->input('homebase_venue') ?: ($request->input('venue_utama') ?: $community->homebase_venue)),
+            'benefits' => $request->has('benefits') ? (array) $request->input('benefits') : $community->benefits,
+            'logo' => $logoUrl,
+        ]);
+
+        return redirect()->route('communities.show', $community->community_id)
+            ->with('success', 'Informasi komunitas berhasil diperbarui!');
+    }
+
+    /**
+     * Hapus atau nonaktifkan komunitas dengan relational safety.
+     * Route: DELETE /communities/{id}
+     */
+    public function destroy($id)
+    {
+        if (! Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        $community = Community::findOrFail((int) $id);
+
+        if (Auth::user()->role !== 'admin' && (int) $community->created_by !== (int) Auth::id()) {
+            abort(403, 'Akses ditolak: Anda tidak memiliki wewenang untuk menghapus komunitas ini.');
+        }
+
+        // Relational safety check: Cek apakah ada anggota di komunitas
+        if ($community->players()->exists()) {
+            $community->update(['status_keanggotaan' => 'Inactive']);
+
+            return redirect()->route('communities.index')
+                ->with('success', "Komunitas \"{$community->nama_community}\" memiliki anggota terdaftar, sehingga status keanggotaan dinonaktifkan (Inactive) untuk menjaga data pemain.");
+        }
+
+        $community->delete();
+
+        return redirect()->route('communities.index')
+            ->with('success', "Komunitas \"{$community->nama_community}\" berhasil dihapus.");
+    }
 }

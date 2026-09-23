@@ -38,7 +38,7 @@
             </div>
         </div>
 
-        <div class="hidden sm:flex flex-col items-end gap-2 shrink-0">
+        <div class="flex flex-col items-start sm:items-end gap-2 shrink-0">
             <div class="px-4 py-2 rounded-2xl bg-white/60 backdrop-blur-md border border-white/80 shadow-2xs flex items-center gap-3">
                 <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#063B00] to-emerald-900 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
                     <i class="fa-solid fa-users text-[#A8E63A]"></i>
@@ -48,6 +48,17 @@
                     <p class="text-xs font-black text-[#063B00]">{{ $community->players->count() }} Member</p>
                 </div>
             </div>
+
+            @if(Auth::check() && (Auth::user()->role === 'admin' || Auth::id() === $community->created_by))
+                <div class="flex items-center gap-2 mt-1 flex-wrap">
+                    <a href="{{ route('communities.edit', $community->community_id) }}" class="px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-[#063B00] text-slate-800 hover:text-[#063B00] font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-pen-to-square text-[#063B00]"></i> Edit Komunitas
+                    </a>
+                    <button type="button" onclick="openDeleteCommunityModal()" class="px-3.5 py-1.5 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-trash-can text-rose-600"></i> Hapus / Nonaktifkan
+                    </button>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -257,4 +268,49 @@
     </div>
 </div>
 
+<!-- MODAL DELETE COMMUNITY CONFIRMATION -->
+<div id="deleteCommunityModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeDeleteCommunityModal();">
+    <div class="bg-white rounded-3xl p-6 shadow-2xl space-y-4 my-8 border border-slate-100 flex flex-col" style="max-width: 440px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">
+        <div class="flex items-start gap-3.5">
+            <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-base border border-rose-100/80 shadow-2xs shrink-0 mt-0.5">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="space-y-1">
+                <h3 class="text-sm font-black text-slate-900">Hapus / Nonaktifkan Komunitas</h3>
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    Apakah Anda yakin ingin menghapus atau menonaktifkan komunitas <strong class="text-slate-800 font-extrabold">{{ $community->nama_community }}</strong>? Jika komunitas memiliki anggota terdaftar, statusnya akan dinonaktifkan (Inactive) untuk menjaga keutuhan relasi pemain.
+                </p>
+            </div>
+        </div>
+
+        <form id="deleteCommunityForm" action="{{ route('communities.destroy', $community->community_id) }}" method="POST" class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            @csrf
+            @method('DELETE')
+            <button
+                type="button"
+                onclick="closeDeleteCommunityModal()"
+                class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+            >
+                Batal
+            </button>
+            <button
+                type="submit"
+                class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
+            >
+                <i class="fa-solid fa-trash-can text-xs"></i> Ya, Hapus / Nonaktifkan
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openDeleteCommunityModal() {
+        const m = document.getElementById('deleteCommunityModal');
+        if (m) m.style.display = 'flex';
+    }
+    function closeDeleteCommunityModal() {
+        const m = document.getElementById('deleteCommunityModal');
+        if (m) m.style.display = 'none';
+    }
+</script>
 @endsection

@@ -770,7 +770,7 @@ class GameController extends Controller
         $isJoinedByMe = false;
         if (Auth::check()) {
             $user = Auth::user();
-            $isHost = ((int) $user->user_id === (int) $dbSession->host_user_id);
+            $isHost = ((int) $user->user_id === (int) $dbSession->host_user_id || $user->role === 'admin');
             $userId = $user->user_id;
             $userEmail = strtolower(trim($user->email ?? ''));
             $userName = strtolower(trim($user->nama ?? ''));
@@ -1309,13 +1309,13 @@ class GameController extends Controller
 
     public function lockDrawing($id, Request $request)
     {
-        // PENYESUAIAN: Cek flag is_host
-        if (! Auth::check() || ! Auth::user()->is_host) {
+        // Cek autentikasi dan status host / admin
+        if (! Auth::check() || (! Auth::user()->is_host && Auth::user()->role !== 'admin')) {
             abort(403);
         }
 
         $session = SessionModel::findOrFail((int) $id);
-        if ((int) $session->host_user_id !== (int) Auth::user()->user_id) {
+        if (Auth::user()->role !== 'admin' && (int) $session->host_user_id !== (int) Auth::user()->user_id) {
             abort(403);
         }
 
@@ -1436,5 +1436,34 @@ class GameController extends Controller
         } catch (\Throwable $e) {
             Log::debug("Supabase realtime drawing locked broadcast skipped: {$e->getMessage()}");
         }
+    }
+
+    /**
+     * Batalkan sesi mabar secara aman (status_session = 'Cancelled').
+     * Route: POST /games/{id}/cancel
+     */
+    public function cancelSession($id)
+    {
+        if (! Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        $session = SessionModel::findOrFail((int) $id);
+
+        if (Auth::user()->role !== 'admin' && (int) $session->host_user_id !== (int) Auth::id()) {
+            abort(403, 'Akses ditolak: Hanya Host atau Administrator yang dapat membatalkan sesi mabar ini.');
+        }
+
+        $status = strtolower(trim((string) $session->status_session));
+        if (in_array($status, ['finished', 'completed'])) {
+            return redirect()->route('games.show', $session->session_id)
+                ->with('error', 'Sesi mabar yang telah selesai tidak dapat dibatalkan.');
+        }
+
+        $session->status_session = 'Cancelled';
+        $session->save();
+
+        return redirect()->route('games.show', $session->session_id)
+            ->with('success', 'Sesi mabar berhasil dibatalkan. Riwayat data dan peserta tetap tersimpan dengan aman.');
     }
 }

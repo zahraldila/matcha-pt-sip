@@ -2,8 +2,9 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,5 +23,11 @@ class AppServiceProvider extends ServiceProvider
     {
         //
         URL::forceScheme('https');
+
+        Gate::before(function ($user, string $ability) {
+            if ($user && $user->role === 'admin') {
+                return true;
+            }
+        });
     }
 }
