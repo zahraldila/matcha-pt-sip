@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
@@ -6,6 +7,7 @@ import '../../auth/presentation/login_page.dart';
 import '../../session/presentation/create_session_page.dart';
 import '../data/venue_service.dart';
 import '../domain/venue_model.dart';
+import 'create_court_page.dart';
 
 class VenueDetailPage extends StatefulWidget {
   final int venueId;
@@ -25,9 +27,11 @@ class VenueDetailPage extends StatefulWidget {
 
 class _VenueDetailPageState extends State<VenueDetailPage> {
   final VenueService _venueService = VenueService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   late VenueModel? _venue;
   bool _isLoading = false;
+  bool _isUploadingPhoto = false;
   String? _errorMessage;
   int _selectedPhotoIndex = 0;
 
@@ -98,6 +102,445 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
         ),
       );
     }
+  }
+
+  Future<void> _pickAndUploadPhoto(VenueModel venue, ImageSource source) async {
+    try {
+      final XFile? picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        maxHeight: 1200,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+
+      setState(() => _isUploadingPhoto = true);
+      final bytes = await picked.readAsBytes();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Text('Mengunggah foto venue...'),
+            ],
+          ),
+          duration: Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      final uploadedUrl = await _venueService.uploadVenuePhoto(bytes, picked.name);
+
+      final currentList = List<String>.from(venue.rawPhotoList);
+      currentList.add(uploadedUrl);
+
+      await _venueService.updateVenuePhotos(
+        venueId: venue.venueId,
+        photos: currentList,
+      );
+
+      await _loadVenueDetail();
+
+      if (!mounted) return;
+      setState(() {
+        _isUploadingPhoto = false;
+        _selectedPhotoIndex = currentList.length - 1;
+      });
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto venue berhasil ditambahkan!'),
+          backgroundColor: Color(0xFF047857),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUploadingPhoto = false);
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengunggah foto: $e'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deletePhoto(VenueModel venue, int index) async {
+    try {
+      final currentList = List<String>.from(venue.rawPhotoList);
+      if (index < 0 || index >= currentList.length) return;
+
+      final bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Hapus Foto Ini?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: const Text('Foto ini akan dihapus dari galeri venue.', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal', style: TextStyle(color: Color(0xFF64748B))),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Hapus'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      currentList.removeAt(index);
+      await _venueService.updateVenuePhotos(venueId: venue.venueId, photos: currentList);
+      await _loadVenueDetail();
+
+      if (!mounted) return;
+      setState(() {
+        _selectedPhotoIndex = 0;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto berhasil dihapus.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menghapus foto: $e'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _setAsCover(VenueModel venue, int index) async {
+    try {
+      final currentList = List<String>.from(venue.rawPhotoList);
+      if (index <= 0 || index >= currentList.length) return;
+
+      final selected = currentList.removeAt(index);
+      currentList.insert(0, selected);
+
+      await _venueService.updateVenuePhotos(venueId: venue.venueId, photos: currentList);
+      await _loadVenueDetail();
+
+      if (!mounted) return;
+      setState(() {
+        _selectedPhotoIndex = 0;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto berhasil dijadikan Cover Utama!'),
+          backgroundColor: Color(0xFF047857),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengubah cover: $e'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _showManagePhotosModal(VenueModel venue) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final rawPhotos = _venue?.rawPhotoList ?? venue.rawPhotoList;
+            final displayPhotos = _venue?.photoList ?? venue.photoList;
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Kelola Foto Suasana Venue',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${rawPhotos.length} foto terdaftar untuk venue ini',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isUploadingPhoto
+                                ? null
+                                : () async {
+                                    Navigator.pop(ctx);
+                                    await _pickAndUploadPhoto(_venue ?? venue, ImageSource.gallery);
+                                  },
+                            icon: const Icon(Icons.photo_library_rounded, size: 16),
+                            label: const Text(
+                              'Pilih Galeri',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.matchaDark,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _isUploadingPhoto
+                                ? null
+                                : () async {
+                                    Navigator.pop(ctx);
+                                    await _pickAndUploadPhoto(_venue ?? venue, ImageSource.camera);
+                                  },
+                            icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                            label: const Text(
+                              'Ambil Kamera',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.matchaDark,
+                              side: const BorderSide(color: AppColors.matchaDark),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: rawPhotos.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add_photo_alternate_outlined, size: 48, color: Colors.grey.shade400),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'Belum ada foto yang diunggah',
+                                    style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Upload foto suasana venue agar pemain lebih tertarik mabar di sini.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            itemCount: rawPhotos.length,
+                            separatorBuilder: (_, _) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final photoUrl = displayPhotos.length > index ? displayPhotos[index] : rawPhotos[index];
+                              final isCover = index == 0;
+
+                              return Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: isCover ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                                    width: isCover ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Image.network(
+                                        photoUrl,
+                                        width: 70,
+                                        height: 70,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, _, _) => Container(
+                                          width: 70,
+                                          height: 70,
+                                          color: const Color(0xFFCBD5E1),
+                                          child: const Icon(Icons.broken_image_rounded, color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Text(
+                                                'Foto #${index + 1}',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                  color: Color(0xFF0F172A),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              if (isCover)
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.matchaSoftLime,
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    border: Border.all(color: AppColors.matchaDark.withValues(alpha: 0.2)),
+                                                  ),
+                                                  child: const Text(
+                                                    'Cover Utama',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: AppColors.matchaDark,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Wrap(
+                                            spacing: 6,
+                                            children: [
+                                              if (!isCover)
+                                                InkWell(
+                                                  onTap: () async {
+                                                    await _setAsCover(_venue ?? venue, index);
+                                                    setModalState(() {});
+                                                  },
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white,
+                                                      borderRadius: BorderRadius.circular(6),
+                                                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                                                    ),
+                                                    child: const Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(Icons.star_border_rounded, size: 12, color: Color(0xFF475569)),
+                                                        SizedBox(width: 3),
+                                                        Text('Jadikan Cover', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              InkWell(
+                                                onTap: () async {
+                                                  await _deletePhoto(_venue ?? venue, index);
+                                                  setModalState(() {});
+                                                },
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFFEF2F2),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    border: Border.all(color: const Color(0xFFFCA5A5)),
+                                                  ),
+                                                  child: const Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(Icons.delete_outline_rounded, size: 12, color: Color(0xFFDC2626)),
+                                                      SizedBox(width: 3),
+                                                      Text('Hapus', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showLoginRequiredModal() {
@@ -285,6 +728,9 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
   }
 
   Widget _buildVenueHeader(VenueModel venue) {
+    final user = widget.authController?.currentUser;
+    final isOwner = user != null && venue.ownerUserId != null && venue.ownerUserId == user.userId;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -295,13 +741,45 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    venue.namaVenue,
-                    style: AppTextStyles.h1.copyWith(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF0F172A),
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          venue.namaVenue,
+                          style: AppTextStyles.h1.copyWith(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                      ),
+                      if (isOwner) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7FEE7),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFBEF264)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.verified_user_rounded, size: 12, color: Color(0xFF4D7C0F)),
+                              SizedBox(width: 3),
+                              Text(
+                                'Milik Anda',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF365314),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Row(
@@ -374,7 +852,7 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
                 errorBuilder: (_, _, _) => _buildPlaceholderCover(),
               ),
 
-              // Sport Badge on Top Left
+              // Badge Sport on Top Left
               Positioned(
                 top: 12,
                 left: 12,
@@ -395,6 +873,85 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
                   ),
                 ),
               ),
+
+              // Badges / Action on Top Right
+              if (widget.authController?.currentUser != null &&
+                  venue.ownerUserId != null &&
+                  venue.ownerUserId == widget.authController!.currentUser!.userId)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Badge "👑 Venue Anda"
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF047857),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('👑 ', style: TextStyle(fontSize: 9)),
+                            Text(
+                              'Venue Anda',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Button "📷 Kelola Foto" (matching web!)
+                      InkWell(
+                        onTap: () => _showManagePhotosModal(venue),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F172A).withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.photo_camera_rounded, size: 12, color: Color(0xFFA8E63A)),
+                              SizedBox(width: 4),
+                              Text(
+                                'Kelola Foto',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               // Photo Count Badge on Bottom Right
               if (photos.length > 1)
@@ -647,6 +1204,9 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
   }
 
   Widget _buildCourtListSection(VenueModel venue) {
+    final user = widget.authController?.currentUser;
+    final isOwner = user != null && venue.ownerUserId != null && venue.ownerUserId == user.userId;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -668,24 +1228,58 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Daftar Lapangan / Court',
-                    style: AppTextStyles.h3.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF0F172A),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Daftar Lapangan / Court',
+                      style: AppTextStyles.h3.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF0F172A),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Daftar court aktif dan jenis arena lapangan.',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Daftar court aktif dan jenis arena lapangan.',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
               ),
+              if (isOwner)
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CreateCourtPage(
+                          venue: venue,
+                          authController: widget.authController,
+                        ),
+                      ),
+                    ).then((result) {
+                      if (result == true) {
+                        _loadVenueDetail();
+                      }
+                    });
+                  },
+                  icon: const Icon(Icons.add_rounded, size: 14),
+                  label: const Text(
+                    'Tambah Court',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.matchaDark,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 0,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 14),

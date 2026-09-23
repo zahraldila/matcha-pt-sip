@@ -215,7 +215,7 @@ class _MainShellPageState extends State<MainShellPage> {
       CommunityPage(authController: widget.authController),
 
       // Tab 4: Direktori Venue & Court
-      const VenueDirectoryPage(),
+      VenueDirectoryPage(authController: widget.authController),
     ];
 
     return Scaffold(

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
 import '../data/venue_service.dart';
 import '../domain/venue_model.dart';
+import 'create_court_page.dart';
 import 'venue_detail_page.dart';
 
 class VenueDirectoryPage extends StatefulWidget {
-  const VenueDirectoryPage({super.key});
+  final AuthController? authController;
+
+  const VenueDirectoryPage({super.key, this.authController});
 
   @override
   State<VenueDirectoryPage> createState() => _VenueDirectoryPageState();
@@ -27,6 +31,17 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   void initState() {
     super.initState();
     _loadVenues();
+    widget.authController?.addListener(_onAuthChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.authController?.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+
+  void _onAuthChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadVenues() async {
@@ -326,6 +341,8 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   Widget _buildVenueCard(VenueModel venue) {
     final courtCount = venue.courtCount;
     final facilitiesList = venue.facilitiesList.take(3).toList();
+    final user = widget.authController?.currentUser;
+    final isOwner = user != null && venue.ownerUserId != null && venue.ownerUserId == user.userId;
 
     void openDetail() {
       Navigator.push(
@@ -334,9 +351,10 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
           builder: (_) => VenueDetailPage(
             venueId: venue.venueId,
             initialVenue: venue,
+            authController: widget.authController,
           ),
         ),
-      );
+      ).then((_) => _loadVenues());
     }
 
     return Container(
@@ -392,6 +410,42 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
                   ),
                 ),
 
+                // Badge "👑 Venue Anda" on Top Right
+                if (isOwner)
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF047857),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('👑', style: TextStyle(fontSize: 10)),
+                          SizedBox(width: 4),
+                          Text(
+                            'Venue Anda',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                 // Badge Kota on Bottom Left
                 Positioned(
                   bottom: 12,
@@ -420,7 +474,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
                   ),
                 ),
 
-                // Photo Count Badge on Bottom Right
+                // Photo Count Badge on Bottom Right (if not owner or beside it)
                 if (venue.photoList.length > 1)
                   Positioned(
                     bottom: 12,
@@ -457,13 +511,38 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    venue.namaVenue,
-                    style: AppTextStyles.cardTitle.copyWith(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF0F172A),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          venue.namaVenue,
+                          style: AppTextStyles.cardTitle.copyWith(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                      ),
+                      if (isOwner) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.matchaSoftLime,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.matchaDark.withValues(alpha: 0.2)),
+                          ),
+                          child: const Text(
+                            'Milik Anda',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.matchaDark,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   if (venue.alamat != null && venue.alamat!.isNotEmpty) ...[
                     const SizedBox(height: 4),
@@ -498,7 +577,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Jam Operasional:',
+                              'Jam Operasi:',
                               style: AppTextStyles.caption.copyWith(
                                 color: const Color(0xFF94A3B8),
                                 fontSize: 11,
@@ -570,36 +649,94 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
 
                   const SizedBox(height: 16),
 
-                  // Action Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 42,
-                    child: ElevatedButton(
-                      onPressed: openDetail,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.matchaDark,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Lihat Venue & Jadwal',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                  // Action Buttons (Kelola Venue & + Button if Owner)
+                  if (isOwner)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: ElevatedButton.icon(
+                              onPressed: openDetail,
+                              icon: const Icon(Icons.settings_rounded, size: 16),
+                              label: const Text(
+                                'Kelola Venue',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF063B00),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
                             ),
                           ),
-                          SizedBox(width: 6),
-                          Icon(Icons.arrow_forward_rounded, size: 16),
-                        ],
+                        ),
+                        const SizedBox(width: 10),
+                        InkWell(
+                          onTap: () async {
+                            final added = await Navigator.push<bool>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CreateCourtPage(
+                                  venue: venue,
+                                  authController: widget.authController,
+                                ),
+                              ),
+                            );
+                            if (added == true) {
+                              _loadVenues();
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEBF8D8),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
+                            ),
+                            child: const Icon(Icons.add_rounded, color: Color(0xFF063B00), size: 22),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton(
+                        onPressed: openDetail,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.matchaDark,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Lihat Venue & Jadwal',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                            SizedBox(width: 6),
+                            Icon(Icons.arrow_forward_rounded, size: 16),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
