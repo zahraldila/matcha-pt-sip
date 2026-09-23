@@ -10,15 +10,6 @@
         $jamBukaVal = $hMatches[1];
         $jamTutupVal = $hMatches[2];
     }
-
-    $timeSlots = [];
-    for ($h = 5; $h <= 24; $h++) {
-        $formattedH = str_pad($h == 24 ? '24' : $h, 2, '0', STR_PAD_LEFT);
-        $timeSlots[] = "$formattedH:00";
-        if ($h < 24) {
-            $timeSlots[] = "$formattedH:30";
-        }
-    }
 @endphp
 
 <div class="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-28 md:pb-12 space-y-8">
@@ -406,55 +397,45 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                    <!-- Jam Buka & Tutup (Modern Select Dropdown) -->
+                    <!-- Jam Operasional: Matches standard h-[48px] height -->
                     <div class="space-y-1.5">
-                        <div class="flex items-center justify-between">
-                            <label class="block font-bold text-slate-800">
-                                Jam Operasional Reguler <span class="text-rose-500">*</span>
-                            </label>
-                            <span class="text-[10px] font-bold text-[#063B00] bg-[#EBF8D8] px-2 py-0.5 rounded-md border border-[#063B00]/10">
-                                WIB
-                            </span>
-                        </div>
+                        <label class="block font-bold text-slate-800">
+                            Jam Operasional Reguler <span class="text-rose-500">*</span>
+                        </label>
 
+                        <!-- Hidden input agar format gabungan "06:00 - 23:00 WIB" tetap terkirim rapi -->
                         <input type="hidden" id="jamOperasionalHidden" name="jam_operasional" value="{{ old('jam_operasional', $venue->jam_operasional ?: '06:00 - 23:00 WIB') }}">
+                        <input type="hidden" id="jamBukaRaw" value="{{ $jamBukaVal }}">
+                        <input type="hidden" id="jamTutupRaw" value="{{ $jamTutupVal }}">
 
                         <div class="grid grid-cols-2 gap-3">
-                            <!-- Jam Buka -->
-                            <div class="space-y-1">
-                                <span class="text-[10px] font-bold text-slate-500 flex items-center gap-1">
-                                    <i class="fa-regular fa-clock text-slate-400"></i> Jam Buka
-                                </span>
-                                <div class="relative">
-                                    <select
-                                        id="jamBukaSelect"
-                                        class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-3.5 pr-8 py-3 text-slate-900 font-bold text-xs focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs cursor-pointer"
-                                    >
-                                        @foreach($timeSlots as $slot)
-                                            <option value="{{ $slot }}" @selected($jamBukaVal === $slot)>{{ $slot }}</option>
-                                        @endforeach
-                                    </select>
-                                    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <!-- Jam Buka Trigger -->
+                            <button
+                                type="button"
+                                onclick="openClockPicker('buka')"
+                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left group"
+                            >
+                                <div class="flex items-center gap-2 truncate">
+                                    <i class="fa-regular fa-clock text-slate-400 group-hover:text-[#063B00] text-xs transition-colors"></i>
+                                    <span class="text-xs text-slate-500 font-normal">Buka:</span>
+                                    <span id="jamBukaDisplay" class="text-xs font-black text-slate-900 group-hover:text-[#063B00]">{{ $jamBukaVal }}</span>
                                 </div>
-                            </div>
+                                <i class="fa-solid fa-chevron-down text-xs text-slate-400 group-hover:text-[#063B00] transition-colors"></i>
+                            </button>
 
-                            <!-- Jam Tutup -->
-                            <div class="space-y-1">
-                                <span class="text-[10px] font-bold text-slate-500 flex items-center gap-1">
-                                    <i class="fa-regular fa-clock text-slate-400"></i> Jam Tutup
-                                </span>
-                                <div class="relative">
-                                    <select
-                                        id="jamTutupSelect"
-                                        class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-3.5 pr-8 py-3 text-slate-900 font-bold text-xs focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs cursor-pointer"
-                                    >
-                                        @foreach($timeSlots as $slot)
-                                            <option value="{{ $slot }}" @selected($jamTutupVal === $slot)>{{ $slot }}</option>
-                                        @endforeach
-                                    </select>
-                                    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <!-- Jam Tutup Trigger -->
+                            <button
+                                type="button"
+                                onclick="openClockPicker('tutup')"
+                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left group"
+                            >
+                                <div class="flex items-center gap-2 truncate">
+                                    <i class="fa-regular fa-clock text-slate-400 group-hover:text-[#063B00] text-xs transition-colors"></i>
+                                    <span class="text-xs text-slate-500 font-normal">Tutup:</span>
+                                    <span id="jamTutupDisplay" class="text-xs font-black text-slate-900 group-hover:text-[#063B00]">{{ $jamTutupVal }}</span>
                                 </div>
-                            </div>
+                                <i class="fa-solid fa-chevron-down text-xs text-slate-400 group-hover:text-[#063B00] transition-colors"></i>
+                            </button>
                         </div>
 
                         <p id="operatingHoursError" class="hidden text-[10px] font-semibold text-rose-500">Jam buka dan jam tutup wajib ditentukan.</p>
@@ -468,11 +449,11 @@
                         @php
                             $selectedHari = old('hari_buka', $venue->hari_buka ?: 'Setiap Hari (Senin - Minggu)');
                         @endphp
-                        <div class="relative pt-4 sm:pt-0">
+                        <div class="relative">
                             <select
                                 id="hariBuka"
                                 name="hari_buka"
-                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 pr-10 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                                class="w-full h-[48px] appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
                             >
                                 <option value="Setiap Hari (Senin - Minggu)" @selected($selectedHari === 'Setiap Hari (Senin - Minggu)')>Setiap Hari (Senin - Minggu)</option>
                                 <option value="Senin - Jumat (Weekday Only)" @selected($selectedHari === 'Senin - Jumat (Weekday Only)')>Senin - Jumat (Weekday Only)</option>
@@ -498,7 +479,7 @@
                                 value="{{ old('nama_pic', $venue->nama_pic) }}"
                                 maxlength="150"
                                 placeholder="Contoh: Bpk. Bambang Pamungkas"
-                                class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                                class="w-full h-[48px] bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
                             >
                         </div>
                         <p id="picNameError" class="hidden text-[10px] font-semibold text-rose-500">Nama PIC wajib diisi.</p>
@@ -519,7 +500,7 @@
                                 value="{{ old('no_whatsapp', $venue->no_whatsapp) }}"
                                 maxlength="50"
                                 placeholder="Contoh: 081234567890"
-                                class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                                class="w-full h-[48px] bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
                             >
                         </div>
                         <p id="picPhoneError" class="hidden text-[10px] font-semibold text-rose-500">Nomor WhatsApp wajib diisi.</p>
@@ -622,6 +603,110 @@
     </div>
 </div>
 
+<!-- ========================================================= -->
+<!-- MATERIAL DESIGN ANALOG & DIGITAL CLOCK PICKER MODAL -->
+<!-- ========================================================= -->
+<div id="clockPickerModal" class="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 flex flex-col gap-4 animate-in fade-in zoom-in duration-150" style="width: 320px; max-width: 95vw; box-sizing: border-box;">
+        
+        <!-- Top Label -->
+        <div class="flex items-center justify-between">
+            <span id="clockModalLabel" class="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
+                PILIH JAM BUKA
+            </span>
+            <button type="button" onclick="closeClockPicker()" class="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer p-1">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Digital Time Header Box -->
+        <div class="flex items-center justify-center gap-2 pt-1">
+            <!-- Hour Box -->
+            <button
+                type="button"
+                id="digitalHourBox"
+                onclick="switchClockMode('hour')"
+                class="w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer"
+            >
+                06
+            </button>
+
+            <span class="text-3xl font-extrabold text-slate-400">:</span>
+
+            <!-- Minute Box -->
+            <button
+                type="button"
+                id="digitalMinBox"
+                onclick="switchClockMode('minute')"
+                class="w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
+            >
+                00
+            </button>
+
+            <!-- AM / PM Toggle Column -->
+            <div class="border border-slate-200 rounded-xl overflow-hidden flex flex-col ml-1 bg-white">
+                <button
+                    type="button"
+                    id="periodAmBtn"
+                    onclick="setClockPeriod('AM')"
+                    class="px-3 py-2 text-[11px] font-black transition-all bg-[#EBF8D8] text-[#063B00] cursor-pointer"
+                >
+                    AM
+                </button>
+                <div class="h-px bg-slate-200"></div>
+                <button
+                    type="button"
+                    id="periodPmBtn"
+                    onclick="setClockPeriod('PM')"
+                    class="px-3 py-2 text-[11px] font-black transition-all bg-white text-slate-500 hover:bg-slate-50 cursor-pointer"
+                >
+                    PM
+                </button>
+            </div>
+        </div>
+
+        <!-- Analog Clock Face (Clean Grey Disc with SVG line and centered numbers) -->
+        <div class="flex items-center justify-center py-1">
+            <div
+                id="clockDialContainer"
+                class="relative rounded-full select-none cursor-pointer bg-slate-100"
+                style="width: 240px; height: 240px; min-width: 240px; min-height: 240px; background-color: #f1f5f9; position: relative; border-radius: 9999px; overflow: hidden;"
+            >
+                <!-- SVG Layer for Hand Line & Solid Selection Bubble -->
+                <svg id="clockSvg" viewBox="0 0 240 240" style="position: absolute; top: 0; left: 0; width: 240px; height: 240px; pointer-events: none; z-index: 10;">
+                    <!-- Hand Line -->
+                    <line id="svgHandLine" x1="120" y1="120" x2="120" y2="38" stroke="#063B00" stroke-width="2.5" />
+                    <!-- Selected Number Circle Background -->
+                    <circle id="svgSelectionBubble" cx="120" cy="38" r="16" fill="#063B00" />
+                    <!-- Center Dot -->
+                    <circle cx="120" cy="120" r="4" fill="#063B00" />
+                </svg>
+
+                <!-- 12 Clickable Number Elements Layer -->
+                <div id="clockNumbersGrid" style="position: absolute; top: 0; left: 0; width: 240px; height: 240px; z-index: 20;"></div>
+            </div>
+        </div>
+
+        <!-- Bottom Actions: CANCEL / OK -->
+        <div class="flex items-center justify-end gap-3 pt-1 border-t border-slate-100">
+            <button
+                type="button"
+                onclick="closeClockPicker()"
+                class="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors uppercase tracking-wider cursor-pointer"
+            >
+                Batal
+            </button>
+            <button
+                type="button"
+                onclick="applySelectedTime()"
+                class="px-5 py-2 text-xs font-extrabold text-[#063B00] hover:bg-[#EBF8D8] rounded-xl transition-colors uppercase tracking-wider cursor-pointer"
+            >
+                OK
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('venueEditForm');
@@ -638,11 +723,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const kotaSearch = document.getElementById('kotaWilayahSearch');
     const kotaOptions = document.getElementById('kotaWilayahOptions');
     const kotaError = document.getElementById('kotaWilayahError');
-
-    const jamBukaSelect = document.getElementById('jamBukaSelect');
-    const jamTutupSelect = document.getElementById('jamTutupSelect');
-    const jamOperasionalHidden = document.getElementById('jamOperasionalHidden');
-    const operatingHoursError = document.getElementById('operatingHoursError');
 
     const picName = document.getElementById('picName');
     const picNameError = document.getElementById('picNameError');
@@ -731,14 +811,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    function syncOperatingHours() {
-        if (jamBukaSelect && jamTutupSelect && jamOperasionalHidden) {
-            jamOperasionalHidden.value = `${jamBukaSelect.value} - ${jamTutupSelect.value} WIB`;
-        }
-    }
-    if (jamBukaSelect) jamBukaSelect.addEventListener('change', syncOperatingHours);
-    if (jamTutupSelect) jamTutupSelect.addEventListener('change', syncOperatingHours);
-
     if (surfaceType) {
         surfaceType.addEventListener('change', function () {
             if (this.value === 'Other') {
@@ -811,13 +883,12 @@ document.addEventListener('DOMContentLoaded', function () {
             clearError(kotaButton, kotaError);
         }
 
-        if (!jamBukaSelect.value || !jamTutupSelect.value) {
-            setError(jamBukaSelect, operatingHoursError, 'Jam buka dan tutup wajib diisi.');
+        const jamBukaVal = document.getElementById('jamBukaRaw').value;
+        const jamTutupVal = document.getElementById('jamTutupRaw').value;
+        if (!jamBukaVal || !jamTutupVal) {
+            const operatingHoursError = document.getElementById('operatingHoursError');
+            if (operatingHoursError) operatingHoursError.classList.remove('hidden');
             isValid = false;
-            if (!firstInvalid) firstInvalid = jamBukaSelect;
-        } else {
-            syncOperatingHours();
-            clearError(jamBukaSelect, operatingHoursError);
         }
 
         if (!picName.value.trim()) {
@@ -850,6 +921,247 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     });
+
+    const dial = document.getElementById('clockDialContainer');
+    if (dial) {
+        dial.addEventListener('click', function (e) {
+            const rect = dial.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            const dx = clickX - 120;
+            const dy = clickY - 120;
+            
+            let angleDeg = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+            if (angleDeg < 0) angleDeg += 360;
+
+            if (currentClockMode === 'hour') {
+                let hour = Math.round(angleDeg / 30);
+                if (hour === 0) hour = 12;
+                if (hour > 12) hour = 12;
+                selectedHour12 = hour;
+                renderClockPicker();
+                setTimeout(() => {
+                    switchClockMode('minute');
+                }, 180);
+            } else {
+                let min = Math.round(angleDeg / 30) * 5;
+                if (min >= 60) min = 0;
+                selectedMinute = min;
+                renderClockPicker();
+            }
+        });
+    }
 });
+
+// =========================================================
+// MATERIAL DESIGN ANALOG & DIGITAL CLOCK PICKER LOGIC
+// =========================================================
+let currentTargetField = 'buka'; // 'buka' | 'tutup'
+let currentClockMode = 'hour';   // 'hour' | 'minute'
+let selectedHour12 = 6;          // 1 - 12
+let selectedMinute = 0;          // 0 - 59
+let selectedPeriod = 'AM';       // 'AM' | 'PM'
+
+function openClockPicker(field) {
+    currentTargetField = field;
+    const rawVal = document.getElementById(field === 'buka' ? 'jamBukaRaw' : 'jamTutupRaw').value || (field === 'buka' ? '06:00' : '23:00');
+    
+    const parts = rawVal.split(':');
+    let h24 = parseInt(parts[0] || '6', 10);
+    let m = parseInt(parts[1] || '0', 10);
+
+    if (isNaN(h24)) h24 = 6;
+    if (isNaN(m)) m = 0;
+
+    selectedPeriod = h24 >= 12 ? 'PM' : 'AM';
+    selectedHour12 = h24 % 12;
+    if (selectedHour12 === 0) selectedHour12 = 12;
+    selectedMinute = m;
+
+    document.getElementById('clockModalLabel').textContent = field === 'buka' ? 'PILIH JAM BUKA' : 'PILIH JAM TUTUP';
+    
+    currentClockMode = 'hour';
+    renderClockPicker();
+    document.getElementById('clockPickerModal').classList.remove('hidden');
+}
+
+function closeClockPicker() {
+    document.getElementById('clockPickerModal').classList.add('hidden');
+}
+
+function switchClockMode(mode) {
+    currentClockMode = mode;
+    renderClockPicker();
+}
+
+function setClockPeriod(period) {
+    selectedPeriod = period;
+    renderClockPicker();
+}
+
+function renderClockPicker() {
+    // 1. Digital Display Boxes
+    const hourBox = document.getElementById('digitalHourBox');
+    const minBox = document.getElementById('digitalMinBox');
+    const periodAmBtn = document.getElementById('periodAmBtn');
+    const periodPmBtn = document.getElementById('periodPmBtn');
+
+    hourBox.textContent = String(selectedHour12).padStart(2, '0');
+    minBox.textContent = String(selectedMinute).padStart(2, '0');
+
+    if (currentClockMode === 'hour') {
+        hourBox.className = "w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer";
+        minBox.className = "w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
+    } else {
+        hourBox.className = "w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
+        minBox.className = "w-[72px] h-[64px] rounded-2xl flex items-center justify-center text-4xl font-extrabold font-mono transition-all bg-[#EBF8D8] text-[#063B00] ring-2 ring-[#063B00]/20 cursor-pointer";
+    }
+
+    if (selectedPeriod === 'AM') {
+        periodAmBtn.className = "px-3 py-2 text-[11px] font-black transition-all bg-[#EBF8D8] text-[#063B00] cursor-pointer";
+        periodPmBtn.className = "px-3 py-2 text-[11px] font-black transition-all bg-white text-slate-500 hover:bg-slate-50 cursor-pointer";
+    } else {
+        periodAmBtn.className = "px-3 py-2 text-[11px] font-black transition-all bg-white text-slate-500 hover:bg-slate-50 cursor-pointer";
+        periodPmBtn.className = "px-3 py-2 text-[11px] font-black transition-all bg-[#EBF8D8] text-[#063B00] cursor-pointer";
+    }
+
+    // 2. Analog Face & SVG Pointer
+    const center = 120;
+    const radius = 82;
+    const grid = document.getElementById('clockNumbersGrid');
+    grid.innerHTML = '';
+
+    const handLine = document.getElementById('svgHandLine');
+    const bubble = document.getElementById('svgSelectionBubble');
+
+    let activeTargetX = center;
+    let activeTargetY = center - radius;
+
+    if (currentClockMode === 'hour') {
+        const hours = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+        hours.forEach(num => {
+            const angleDeg = (num % 12) * 30 - 90;
+            const angleRad = (angleDeg * Math.PI) / 180;
+            const x = Math.round(center + radius * Math.cos(angleRad));
+            const y = Math.round(center + radius * Math.sin(angleRad));
+
+            const isSelected = num === selectedHour12;
+            if (isSelected) {
+                activeTargetX = x;
+                activeTargetY = y;
+            }
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.style.position = 'absolute';
+            btn.style.left = `${x}px`;
+            btn.style.top = `${y}px`;
+            btn.style.transform = 'translate(-50%, -50%)';
+            btn.style.width = '32px';
+            btn.style.height = '32px';
+            btn.style.borderRadius = '9999px';
+            btn.style.display = 'flex';
+            btn.style.alignItems = 'center';
+            btn.style.justifyContent = 'center';
+            btn.style.fontSize = '12px';
+            btn.style.cursor = 'pointer';
+            btn.style.zIndex = '30';
+            btn.style.border = 'none';
+            btn.style.background = 'transparent';
+            btn.style.transition = 'all 0.15s ease';
+            btn.style.fontWeight = isSelected ? '900' : '600';
+            btn.style.color = isSelected ? '#ffffff' : '#334155';
+            btn.textContent = num;
+
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                selectedHour12 = num;
+                renderClockPicker();
+                setTimeout(() => {
+                    switchClockMode('minute');
+                }, 180);
+            };
+
+            grid.appendChild(btn);
+        });
+
+    } else {
+        // Minutes 00, 05, 10, 15, ..., 55
+        const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+        minutes.forEach(min => {
+            const angleDeg = (min / 60) * 360 - 90;
+            const angleRad = (angleDeg * Math.PI) / 180;
+            const x = Math.round(center + radius * Math.cos(angleRad));
+            const y = Math.round(center + radius * Math.sin(angleRad));
+
+            const isSelected = min === selectedMinute;
+            if (isSelected) {
+                activeTargetX = x;
+                activeTargetY = y;
+            }
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.style.position = 'absolute';
+            btn.style.left = `${x}px`;
+            btn.style.top = `${y}px`;
+            btn.style.transform = 'translate(-50%, -50%)';
+            btn.style.width = '32px';
+            btn.style.height = '32px';
+            btn.style.borderRadius = '9999px';
+            btn.style.display = 'flex';
+            btn.style.alignItems = 'center';
+            btn.style.justifyContent = 'center';
+            btn.style.fontSize = '11px';
+            btn.style.cursor = 'pointer';
+            btn.style.zIndex = '30';
+            btn.style.border = 'none';
+            btn.style.background = 'transparent';
+            btn.style.transition = 'all 0.15s ease';
+            btn.style.fontWeight = isSelected ? '900' : '600';
+            btn.style.color = isSelected ? '#ffffff' : '#334155';
+            btn.textContent = String(min).padStart(2, '0');
+
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                selectedMinute = min;
+                renderClockPicker();
+            };
+
+            grid.appendChild(btn);
+        });
+    }
+
+    // Update SVG Hand Line and Bubble position
+    handLine.setAttribute('x2', activeTargetX);
+    handLine.setAttribute('y2', activeTargetY);
+    bubble.setAttribute('cx', activeTargetX);
+    bubble.setAttribute('cy', activeTargetY);
+}
+
+function applySelectedTime() {
+    let h24 = selectedHour12 % 12;
+    if (selectedPeriod === 'PM') {
+        h24 += 12;
+    }
+    const formatted = `${String(h24).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`;
+    
+    if (currentTargetField === 'buka') {
+        document.getElementById('jamBukaRaw').value = formatted;
+        document.getElementById('jamBukaDisplay').textContent = formatted;
+    } else {
+        document.getElementById('jamTutupRaw').value = formatted;
+        document.getElementById('jamTutupDisplay').textContent = formatted;
+    }
+
+    const buka = document.getElementById('jamBukaRaw').value;
+    const tutup = document.getElementById('jamTutupRaw').value;
+    document.getElementById('jamOperasionalHidden').value = `${buka} - ${tutup} WIB`;
+
+    const err = document.getElementById('operatingHoursError');
+    if (err) err.classList.add('hidden');
+
+    closeClockPicker();
+}
 </script>
 @endsection
