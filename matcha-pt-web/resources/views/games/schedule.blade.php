@@ -113,6 +113,26 @@
         text-decoration: line-through !important;
         opacity: 0.45 !important;
     }
+    /* Jam Mulai dropdown style matching native Durasi select */
+    .jam-option-item {
+        color: #0f172a;
+        background-color: transparent;
+        transition: none !important;
+    }
+    .jam-option-item:hover:not(.jam-option-disabled) {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+    }
+    .jam-option-item:hover:not(.jam-option-disabled) * {
+        color: #ffffff !important;
+    }
+    .jam-option-item.jam-option-selected {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+    }
+    .jam-option-item.jam-option-selected * {
+        color: #ffffff !important;
+    }
 </style>
 <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
@@ -829,11 +849,9 @@
             allItems.forEach(item => {
                 const val = item.getAttribute('data-value');
                 if (val === timeStr) {
-                    item.classList.add('bg-blue-600', 'text-white', 'jam-option-selected');
-                    item.classList.remove('text-slate-900');
-                } else if (!item.classList.contains('jam-option-disabled')) {
-                    item.classList.remove('bg-blue-600', 'text-white', 'jam-option-selected');
-                    item.classList.add('text-slate-900');
+                    item.classList.add('jam-option-selected');
+                } else {
+                    item.classList.remove('jam-option-selected');
                 }
             });
         }
@@ -905,7 +923,7 @@
             itemDiv.className = `jam-option-item px-3 py-1.5 text-xs flex items-center justify-between ${
                 isDisabled
                     ? 'jam-option-disabled text-slate-400 bg-slate-50 cursor-not-allowed opacity-60'
-                    : 'cursor-pointer text-slate-900 hover:bg-blue-600 hover:text-white'
+                    : 'cursor-pointer'
             }`;
 
             let badgeText = '';
@@ -932,7 +950,7 @@
 
                 const itemDiv = document.createElement('div');
                 itemDiv.setAttribute('data-value', timeStr);
-                itemDiv.className = 'jam-option-item px-3 py-1.5 text-xs text-slate-900 hover:bg-blue-600 hover:text-white cursor-pointer flex items-center justify-between';
+                itemDiv.className = 'jam-option-item px-3 py-1.5 text-xs cursor-pointer flex items-center justify-between';
                 itemDiv.innerHTML = `<span>${timeStr} WIB</span>`;
                 itemDiv.onclick = () => selectJamOption(timeStr, false);
                 menu.appendChild(itemDiv);
@@ -956,8 +974,7 @@
         // Tandai opsi terpilih
         const selectedItem = menu.querySelector(`[data-value="${validSelectedValue}"]`);
         if (selectedItem && !selectedItem.classList.contains('jam-option-disabled')) {
-            selectedItem.classList.add('bg-blue-600', 'text-white', 'jam-option-selected');
-            selectedItem.classList.remove('text-slate-900');
+            selectedItem.classList.add('jam-option-selected');
         }
     }
 
