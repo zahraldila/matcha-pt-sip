@@ -7,6 +7,7 @@ import '../../community/presentation/community_page.dart';
 import '../../court/presentation/venue_directory_page.dart';
 import '../../home/presentation/home_page.dart';
 import '../../profile/presentation/profile_page.dart';
+import '../../recap/presentation/match_recap_page.dart';
 import '../../session/presentation/create_session_page.dart';
 import '../../session/presentation/session_detail_page.dart';
 import '../../session/presentation/session_list_page.dart';
@@ -706,7 +707,14 @@ class _MainShellPageState extends State<MainShellPage> {
                         label: 'Match Recap & Statistik',
                         onTap: () {
                           Navigator.pop(ctx);
-                          setState(() => _currentIndex = 1);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => MatchRecapPage(
+                                authController: widget.authController,
+                              ),
+                            ),
+                          );
                         },
                       ),
                       _buildDropdownMenuItem(
