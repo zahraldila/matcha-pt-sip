@@ -606,15 +606,15 @@
 <!-- ========================================================= -->
 <!-- MATERIAL DESIGN ANALOG & DIGITAL CLOCK PICKER MODAL -->
 <!-- ========================================================= -->
-<div id="clockPickerModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl p-6 shadow-2xl w-[320px] max-w-full space-y-4 border border-slate-100 animate-in fade-in zoom-in duration-150">
+<div id="clockPickerModal" class="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 flex flex-col gap-4 animate-in fade-in zoom-in duration-150" style="width: 320px; max-width: 95vw; box-sizing: border-box;">
         
         <!-- Top Label -->
         <div class="flex items-center justify-between">
-            <span id="clockModalLabel" class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+            <span id="clockModalLabel" class="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
                 PILIH JAM BUKA
             </span>
-            <button type="button" onclick="closeClockPicker()" class="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+            <button type="button" onclick="closeClockPicker()" class="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer p-1">
                 <i class="fa-solid fa-xmark text-sm"></i>
             </button>
         </div>
@@ -644,7 +644,7 @@
             </button>
 
             <!-- AM / PM Toggle Column -->
-            <div class="border border-slate-200 rounded-xl overflow-hidden flex flex-col ml-1">
+            <div class="border border-slate-200 rounded-xl overflow-hidden flex flex-col ml-1 bg-white">
                 <button
                     type="button"
                     id="periodAmBtn"
@@ -666,28 +666,29 @@
         </div>
 
         <!-- Analog Clock Face (Clean Grey Disc with SVG line and centered numbers) -->
-        <div class="flex items-center justify-center py-2">
+        <div class="flex items-center justify-center py-1">
             <div
                 id="clockDialContainer"
-                class="relative w-[230px] h-[230px] rounded-full bg-slate-100 flex items-center justify-center select-none cursor-pointer"
+                class="relative rounded-full select-none cursor-pointer bg-slate-100"
+                style="width: 240px; height: 240px; min-width: 240px; min-height: 240px; background-color: #f1f5f9; position: relative; border-radius: 9999px; overflow: hidden;"
             >
                 <!-- SVG Layer for Hand Line & Solid Selection Bubble -->
-                <svg id="clockSvg" viewBox="0 0 230 230" class="absolute inset-0 w-full h-full pointer-events-none z-10">
+                <svg id="clockSvg" viewBox="0 0 240 240" style="position: absolute; top: 0; left: 0; width: 240px; height: 240px; pointer-events: none; z-index: 10;">
                     <!-- Hand Line -->
-                    <line id="svgHandLine" x1="115" y1="115" x2="115" y2="40" stroke="#063B00" stroke-width="2.5" />
+                    <line id="svgHandLine" x1="120" y1="120" x2="120" y2="38" stroke="#063B00" stroke-width="2.5" />
                     <!-- Selected Number Circle Background -->
-                    <circle id="svgSelectionBubble" cx="115" cy="40" r="17" fill="#063B00" />
+                    <circle id="svgSelectionBubble" cx="120" cy="38" r="16" fill="#063B00" />
                     <!-- Center Dot -->
-                    <circle cx="115" cy="115" r="4" fill="#063B00" />
+                    <circle cx="120" cy="120" r="4" fill="#063B00" />
                 </svg>
 
                 <!-- 12 Clickable Number Elements Layer -->
-                <div id="clockNumbersGrid" class="absolute inset-0 z-20"></div>
+                <div id="clockNumbersGrid" style="position: absolute; top: 0; left: 0; width: 240px; height: 240px; z-index: 20;"></div>
             </div>
         </div>
 
         <!-- Bottom Actions: CANCEL / OK -->
-        <div class="flex items-center justify-end gap-3 pt-2">
+        <div class="flex items-center justify-end gap-3 pt-1 border-t border-slate-100">
             <button
                 type="button"
                 onclick="closeClockPicker()"
@@ -920,6 +921,36 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     });
+
+    const dial = document.getElementById('clockDialContainer');
+    if (dial) {
+        dial.addEventListener('click', function (e) {
+            const rect = dial.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            const dx = clickX - 120;
+            const dy = clickY - 120;
+            
+            let angleDeg = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+            if (angleDeg < 0) angleDeg += 360;
+
+            if (currentClockMode === 'hour') {
+                let hour = Math.round(angleDeg / 30);
+                if (hour === 0) hour = 12;
+                if (hour > 12) hour = 12;
+                selectedHour12 = hour;
+                renderClockPicker();
+                setTimeout(() => {
+                    switchClockMode('minute');
+                }, 180);
+            } else {
+                let min = Math.round(angleDeg / 30) * 5;
+                if (min >= 60) min = 0;
+                selectedMinute = min;
+                renderClockPicker();
+            }
+        });
+    }
 });
 
 // =========================================================
@@ -995,8 +1026,8 @@ function renderClockPicker() {
     }
 
     // 2. Analog Face & SVG Pointer
-    const center = 115;
-    const radius = 75;
+    const center = 120;
+    const radius = 82;
     const grid = document.getElementById('clockNumbersGrid');
     grid.innerHTML = '';
 
@@ -1022,9 +1053,24 @@ function renderClockPicker() {
 
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = `absolute w-8 h-8 -ml-4 -mt-4 rounded-full flex items-center justify-center text-xs transition-colors cursor-pointer ${isSelected ? 'text-white font-black z-30' : 'text-slate-700 font-semibold hover:text-slate-900 z-20'}`;
+            btn.style.position = 'absolute';
             btn.style.left = `${x}px`;
             btn.style.top = `${y}px`;
+            btn.style.transform = 'translate(-50%, -50%)';
+            btn.style.width = '32px';
+            btn.style.height = '32px';
+            btn.style.borderRadius = '9999px';
+            btn.style.display = 'flex';
+            btn.style.alignItems = 'center';
+            btn.style.justifyContent = 'center';
+            btn.style.fontSize = '12px';
+            btn.style.cursor = 'pointer';
+            btn.style.zIndex = '30';
+            btn.style.border = 'none';
+            btn.style.background = 'transparent';
+            btn.style.transition = 'all 0.15s ease';
+            btn.style.fontWeight = isSelected ? '900' : '600';
+            btn.style.color = isSelected ? '#ffffff' : '#334155';
             btn.textContent = num;
 
             btn.onclick = (e) => {
@@ -1056,9 +1102,24 @@ function renderClockPicker() {
 
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = `absolute w-8 h-8 -ml-4 -mt-4 rounded-full flex items-center justify-center text-xs transition-colors cursor-pointer ${isSelected ? 'text-white font-black z-30' : 'text-slate-700 font-semibold hover:text-slate-900 z-20'}`;
+            btn.style.position = 'absolute';
             btn.style.left = `${x}px`;
             btn.style.top = `${y}px`;
+            btn.style.transform = 'translate(-50%, -50%)';
+            btn.style.width = '32px';
+            btn.style.height = '32px';
+            btn.style.borderRadius = '9999px';
+            btn.style.display = 'flex';
+            btn.style.alignItems = 'center';
+            btn.style.justifyContent = 'center';
+            btn.style.fontSize = '11px';
+            btn.style.cursor = 'pointer';
+            btn.style.zIndex = '30';
+            btn.style.border = 'none';
+            btn.style.background = 'transparent';
+            btn.style.transition = 'all 0.15s ease';
+            btn.style.fontWeight = isSelected ? '900' : '600';
+            btn.style.color = isSelected ? '#ffffff' : '#334155';
             btn.textContent = String(min).padStart(2, '0');
 
             btn.onclick = (e) => {
