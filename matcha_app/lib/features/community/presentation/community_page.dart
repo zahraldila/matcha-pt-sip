@@ -5,6 +5,7 @@ import '../../auth/presentation/login_page.dart';
 import '../data/community_remote_data_source.dart';
 import '../domain/community_model.dart';
 import 'community_detail_page.dart';
+import 'create_community_page.dart';
 
 class CommunityPage extends StatefulWidget {
   final AuthController? authController;
@@ -93,240 +94,28 @@ class _CommunityPageState extends State<CommunityPage> {
     }).toList();
   }
 
-  void _showCreateCommunityModal() {
+  Future<void> _navigateToCreateCommunity() async {
     final user = widget.authController?.currentUser;
     if (user == null) {
-      Navigator.push(
+      final loggedIn = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (_) => LoginPage(authController: widget.authController),
+          builder: (_) => LoginPage(authController: widget.authController ?? AuthController()),
         ),
       );
-      return;
+      if (loggedIn != true || !mounted) return;
     }
 
-    final nameCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    final cityCtrl = TextEditingController(text: 'Bandung');
-    final taglineCtrl = TextEditingController();
-    String selectedSport = 'all_racquet';
-    String membershipStatus = 'Open';
-    bool isSubmitting = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (modalCtx) {
-        return StatefulBuilder(
-          builder: (ctx, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(22, 20, 22, 28),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.matchaSoftLime,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                  Icons.groups_rounded,
-                                  size: 20,
-                                  color: AppColors.matchaDark,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              const Text(
-                                'Buat Komunitas Baru',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF0F172A),
-                                ),
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            onPressed: () => Navigator.pop(modalCtx),
-                            icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Nama Komunitas / Klub *'),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: nameCtrl,
-                        decoration: _buildInputDecoration('Contoh: Bandung Padel Society'),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildFieldLabel('Cabang Olahraga'),
-                                const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
-                                  initialValue: selectedSport,
-                                  decoration: _buildInputDecoration(''),
-                                  items: const [
-                                    DropdownMenuItem(value: 'all_racquet', child: Text('Padel & Tennis')),
-                                    DropdownMenuItem(value: 'padel', child: Text('Padel Only')),
-                                    DropdownMenuItem(value: 'tennis', child: Text('Tennis Only')),
-                                  ],
-                                  onChanged: (v) {
-                                    if (v != null) setModalState(() => selectedSport = v);
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildFieldLabel('Kota / Homebase'),
-                                const SizedBox(height: 6),
-                                TextField(
-                                  controller: cityCtrl,
-                                  decoration: _buildInputDecoration('Bandung'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _buildFieldLabel('Tagline / Slogan'),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: taglineCtrl,
-                        decoration: _buildInputDecoration('Contoh: Komunitas Mabar Seru Setiap Weekend'),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildFieldLabel('Deskripsi Komunitas *'),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: descCtrl,
-                        maxLines: 3,
-                        decoration: _buildInputDecoration('Jelaskan tujuan dan aktivitas komunitasmu...'),
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 46,
-                        child: ElevatedButton(
-                          onPressed: isSubmitting
-                              ? null
-                              : () async {
-                                  if (nameCtrl.text.trim().isEmpty || descCtrl.text.trim().isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Nama dan deskripsi komunitas wajib diisi'),
-                                        backgroundColor: Colors.orange,
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-                                  setModalState(() => isSubmitting = true);
-                                  try {
-                                    final newCom = await _dataSource.createCommunity(
-                                      namaCommunity: nameCtrl.text.trim(),
-                                      deskripsi: descCtrl.text.trim(),
-                                      sport: selectedSport,
-                                      tagline: taglineCtrl.text.trim(),
-                                      kotaHomebase: cityCtrl.text.trim(),
-                                      statusKeanggotaan: membershipStatus,
-                                      createdBy: user.userId,
-                                      creatorName: user.nama,
-                                    );
-
-                                    if (!modalCtx.mounted) return;
-                                    Navigator.pop(modalCtx);
-                                    await _loadCommunities();
-
-                                    if (!mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Komunitas "${newCom.namaCommunity}" berhasil dibuat! 🎉'),
-                                        backgroundColor: AppColors.matchaDark,
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    setModalState(() => isSubmitting = false);
-                                    if (!mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Gagal membuat komunitas: $e'),
-                                        backgroundColor: Colors.redAccent,
-                                      ),
-                                    );
-                                  }
-                                },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.matchaDark,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          ),
-                          child: isSubmitting
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Text('Buat & Publikasikan Komunitas', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreateCommunityPage(authController: widget.authController),
+      ),
     );
-  }
 
-  Widget _buildFieldLabel(String label) {
-    return Text(
-      label,
-      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-    );
-  }
-
-  InputDecoration _buildInputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-      filled: true,
-      fillColor: const Color(0xFFF8FAFC),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
-    );
+    if (created == true) {
+      _loadCommunities();
+    }
   }
 
   @override
@@ -406,7 +195,7 @@ class _CommunityPageState extends State<CommunityPage> {
                 width: double.infinity,
                 height: 44,
                 child: ElevatedButton.icon(
-                  onPressed: _showCreateCommunityModal,
+                  onPressed: _navigateToCreateCommunity,
                   icon: const Icon(Icons.add_rounded, size: 18, color: Color(0xFFA8E63A)),
                   label: const Text(
                     'Buat Komunitas Baru',
