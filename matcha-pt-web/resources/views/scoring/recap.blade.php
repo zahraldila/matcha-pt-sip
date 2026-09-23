@@ -508,14 +508,10 @@
             </span>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="grid grid-cols-2 gap-3">
             <div class="p-3.5 rounded-2xl bg-white/70 border border-slate-200/80 text-center shadow-2xs">
                 <span class="text-xs text-slate-400 font-medium block">Total Poin</span>
                 <span class="text-xl font-black text-slate-900">{{ $playerRecap['total_points'] }}</span>
-            </div>
-            <div class="p-3.5 rounded-2xl bg-white/70 border border-slate-200/80 text-center shadow-2xs">
-                <span class="text-xs text-slate-400 font-medium block">Durasi Main</span>
-                <span class="text-xl font-black text-slate-900">{{ $playerRecap['duration_played'] }}</span>
             </div>
             <div class="p-3.5 rounded-2xl bg-white/70 border border-slate-200/80 text-center shadow-2xs">
                 <span class="text-xs text-slate-400 font-medium block">Win Rate</span>
@@ -895,19 +891,10 @@
                                         {{ isset($rankedPlayers[0]) && !empty($rankedPlayers[0]['matches']) ? round(($rankedPlayers[0]['wins'] / $rankedPlayers[0]['matches']) * 100) . '%' : $playerRecap['win_rate'] }}
                                     </p>
                                 </div>
-                                <div class="p-2 rounded-xl bg-white/5 border border-white/5">
+                                <div class="p-2 rounded-xl bg-white/5 border border-white/5 col-span-2">
                                     <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Match Record</p>
                                     <p class="text-base font-black text-slate-200 mt-0.5" id="stravaRecord">
                                         {{ isset($rankedPlayers[0]) ? ($rankedPlayers[0]['wins'] ?? $playerRecap['wins']) : $playerRecap['wins'] }}W - {{ isset($rankedPlayers[0]) ? ($rankedPlayers[0]['losses'] ?? $playerRecap['losses']) : $playerRecap['losses'] }}L
-                                    </p>
-                                </div>
-                                <div class="p-2 rounded-xl bg-white/5 border border-white/5">
-                                    <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Durasi Main</p>
-                                    <p class="text-base font-black text-slate-200 mt-0.5" id="stravaCalTime">
-                                        @php
-                                            $topPlayerName = isset($rankedPlayers[0]) ? ($rankedPlayers[0]['name'] ?? null) : null;
-                                        @endphp
-                                        {{ $topPlayerName && isset($storyPlayerStats[$topPlayerName]) ? ($storyPlayerStats[$topPlayerName]['duration_played'] ?? $playerRecap['duration_played']) : $playerRecap['duration_played'] }}
                                     </p>
                                 </div>
                             </div>
