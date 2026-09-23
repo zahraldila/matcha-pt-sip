@@ -15,51 +15,22 @@
 <div class="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-28 md:pb-12 space-y-8">
 
     <!-- Header Section -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/60 relative z-10">
-        <div>
-            <a href="{{ route('venues.show', $venue->venue_id) }}"
-                class="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-[#063B00] transition-colors mb-3 group">
-                <span class="w-7 h-7 rounded-xl bg-white/80 border border-slate-200/80 flex items-center justify-center text-slate-600 group-hover:bg-[#063B00] group-hover:text-white transition-all shadow-2xs">
-                    <i class="fa-solid fa-arrow-left text-[11px]"></i>
-                </span>
-                Kembali ke Detail Venue
-            </a>
+    <div class="pb-6 border-b border-slate-200/60 relative z-10">
+        <a href="{{ route('venues.show', $venue->venue_id) }}"
+            class="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-[#063B00] transition-colors mb-3 group">
+            <span class="w-7 h-7 rounded-xl bg-white/80 border border-slate-200/80 flex items-center justify-center text-slate-600 group-hover:bg-[#063B00] group-hover:text-white transition-all shadow-2xs">
+                <i class="fa-solid fa-arrow-left text-[11px]"></i>
+            </span>
+            Kembali ke Detail Venue
+        </a>
 
-            <div class="flex items-center gap-2.5">
-                <span class="px-2.5 py-0.5 rounded-full bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] text-[10px] font-extrabold uppercase tracking-wider">
-                    Venue Management
-                </span>
-                <span class="text-xs text-slate-400">•</span>
-                <span class="text-xs font-medium text-slate-500">
-                    ID Venue #{{ $venue->venue_id }}
-                </span>
-            </div>
+        <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Edit Informasi Venue
+        </h1>
 
-            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-                Edit Informasi Venue
-            </h1>
-
-            <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl leading-relaxed">
-                Perbarui rincian venue, jam operasional reguler, fasilitas, serta kontak PIC penanggung jawab lapangan Anda.
-            </p>
-        </div>
-
-        <div class="hidden sm:flex flex-col items-end gap-2">
-            <div class="px-4 py-2 rounded-2xl bg-white/60 backdrop-blur-md border border-white/80 shadow-2xs flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#063B00] to-emerald-900 text-white flex items-center justify-center font-bold text-sm shadow-xs">
-                    <i class="fa-solid fa-pen-to-square text-[#A8E63A]"></i>
-                </div>
-
-                <div class="text-right">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Status Edit
-                    </p>
-                    <p class="text-xs font-black text-[#063B00]">
-                        Mode Perubahan Data
-                    </p>
-                </div>
-            </div>
-        </div>
+        <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl leading-relaxed">
+            Perbarui rincian venue, jam operasional reguler, fasilitas, serta kontak PIC penanggung jawab lapangan Anda.
+        </p>
     </div>
 
     <!-- Main Glassmorphism Form Card -->
