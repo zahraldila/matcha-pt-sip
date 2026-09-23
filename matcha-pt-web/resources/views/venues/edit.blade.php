@@ -10,15 +10,6 @@
         $jamBukaVal = $hMatches[1];
         $jamTutupVal = $hMatches[2];
     }
-
-    $timeSlots = [];
-    for ($h = 5; $h <= 24; $h++) {
-        $formattedH = str_pad($h == 24 ? '24' : $h, 2, '0', STR_PAD_LEFT);
-        $timeSlots[] = "$formattedH:00";
-        if ($h < 24) {
-            $timeSlots[] = "$formattedH:30";
-        }
-    }
 @endphp
 
 <div class="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-28 md:pb-12 space-y-8">
@@ -406,7 +397,7 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                    <!-- Jam Buka & Tutup (Modern Select Dropdown) -->
+                    <!-- Jam Buka & Tutup: Modern Analog/Digital Trigger Cards -->
                     <div class="space-y-1.5">
                         <div class="flex items-center justify-between">
                             <label class="block font-bold text-slate-800">
@@ -417,44 +408,43 @@
                             </span>
                         </div>
 
+                        <!-- Hidden input agar format gabungan "06:00 - 23:00 WIB" tetap terkirim rapi -->
                         <input type="hidden" id="jamOperasionalHidden" name="jam_operasional" value="{{ old('jam_operasional', $venue->jam_operasional ?: '06:00 - 23:00 WIB') }}">
+                        <input type="hidden" id="jamBukaRaw" value="{{ $jamBukaVal }}">
+                        <input type="hidden" id="jamTutupRaw" value="{{ $jamTutupVal }}">
 
                         <div class="grid grid-cols-2 gap-3">
-                            <!-- Jam Buka -->
-                            <div class="space-y-1">
-                                <span class="text-[10px] font-bold text-slate-500 flex items-center gap-1">
-                                    <i class="fa-regular fa-clock text-slate-400"></i> Jam Buka
-                                </span>
-                                <div class="relative">
-                                    <select
-                                        id="jamBukaSelect"
-                                        class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-3.5 pr-8 py-3 text-slate-900 font-bold text-xs focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs cursor-pointer"
-                                    >
-                                        @foreach($timeSlots as $slot)
-                                            <option value="{{ $slot }}" @selected($jamBukaVal === $slot)>{{ $slot }}</option>
-                                        @endforeach
-                                    </select>
-                                    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <!-- Jam Buka Interactive Card -->
+                            <button
+                                type="button"
+                                onclick="openClockPicker('buka')"
+                                class="p-3 bg-slate-50/90 hover:bg-[#EBF8D8]/30 border border-slate-200/90 hover:border-[#063B00] rounded-2xl text-left transition-all duration-200 group shadow-2xs cursor-pointer"
+                            >
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-[10px] font-bold text-slate-400 group-hover:text-[#063B00] uppercase tracking-wider">Jam Buka</span>
+                                    <i class="fa-regular fa-clock text-slate-400 group-hover:text-[#063B00] text-xs transition-colors"></i>
                                 </div>
-                            </div>
+                                <div class="flex items-baseline gap-1.5">
+                                    <span id="jamBukaDisplay" class="text-lg font-black text-slate-900 group-hover:text-[#063B00] tracking-tight">{{ $jamBukaVal }}</span>
+                                    <span class="text-[10px] font-bold text-slate-400">WIB</span>
+                                </div>
+                            </button>
 
-                            <!-- Jam Tutup -->
-                            <div class="space-y-1">
-                                <span class="text-[10px] font-bold text-slate-500 flex items-center gap-1">
-                                    <i class="fa-regular fa-clock text-slate-400"></i> Jam Tutup
-                                </span>
-                                <div class="relative">
-                                    <select
-                                        id="jamTutupSelect"
-                                        class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-3.5 pr-8 py-3 text-slate-900 font-bold text-xs focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs cursor-pointer"
-                                    >
-                                        @foreach($timeSlots as $slot)
-                                            <option value="{{ $slot }}" @selected($jamTutupVal === $slot)>{{ $slot }}</option>
-                                        @endforeach
-                                    </select>
-                                    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <!-- Jam Tutup Interactive Card -->
+                            <button
+                                type="button"
+                                onclick="openClockPicker('tutup')"
+                                class="p-3 bg-slate-50/90 hover:bg-[#EBF8D8]/30 border border-slate-200/90 hover:border-[#063B00] rounded-2xl text-left transition-all duration-200 group shadow-2xs cursor-pointer"
+                            >
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-[10px] font-bold text-slate-400 group-hover:text-[#063B00] uppercase tracking-wider">Jam Tutup</span>
+                                    <i class="fa-regular fa-clock text-slate-400 group-hover:text-[#063B00] text-xs transition-colors"></i>
                                 </div>
-                            </div>
+                                <div class="flex items-baseline gap-1.5">
+                                    <span id="jamTutupDisplay" class="text-lg font-black text-slate-900 group-hover:text-[#063B00] tracking-tight">{{ $jamTutupVal }}</span>
+                                    <span class="text-[10px] font-bold text-slate-400">WIB</span>
+                                </div>
+                            </button>
                         </div>
 
                         <p id="operatingHoursError" class="hidden text-[10px] font-semibold text-rose-500">Jam buka dan jam tutup wajib ditentukan.</p>
@@ -622,6 +612,148 @@
     </div>
 </div>
 
+<!-- ========================================================= -->
+<!-- MATCHA MODERN ANALOG & DIGITAL CLOCK PICKER MODAL -->
+<!-- ========================================================= -->
+<div id="clockPickerModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200 border border-slate-100 relative">
+        
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-[#EBF8D8] text-[#063B00] flex items-center justify-center text-xs font-bold border border-[#063B00]/10">
+                    <i class="fa-regular fa-clock"></i>
+                </div>
+                <div>
+                    <h3 id="clockModalTitle" class="text-sm font-extrabold text-slate-900">Pilih Jam Operasional</h3>
+                    <p class="text-[10px] text-slate-400">Putar jarum jam atau klik angka</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeClockPicker()" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition-colors cursor-pointer">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Digital Time Display Bar with Tabs -->
+        <div class="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between shadow-inner">
+            <!-- Digital Digits -->
+            <div class="flex items-center gap-1.5 font-mono">
+                <button
+                    type="button"
+                    id="digitalHourBtn"
+                    onclick="switchClockMode('hour')"
+                    class="px-3 py-1.5 rounded-xl text-2xl font-black transition-all bg-[#063B00] text-[#A8E63A] ring-2 ring-[#A8E63A]/50 shadow-sm cursor-pointer"
+                >
+                    06
+                </button>
+                <span class="text-xl font-bold text-slate-500 animate-pulse">:</span>
+                <button
+                    type="button"
+                    id="digitalMinBtn"
+                    onclick="switchClockMode('minute')"
+                    class="px-3 py-1.5 rounded-xl text-2xl font-black text-slate-400 hover:text-white transition-all cursor-pointer"
+                >
+                    00
+                </button>
+                <span class="text-[11px] font-bold text-slate-400 ml-1">WIB</span>
+            </div>
+
+            <!-- AM / PM (Pagi vs Sore/Malam) Segmented Pill -->
+            <div class="flex flex-col gap-1 text-[10px] font-bold">
+                <button
+                    type="button"
+                    id="periodPagiBtn"
+                    onclick="setClockPeriod('AM')"
+                    class="px-2.5 py-1 rounded-lg bg-[#EBF8D8] text-[#063B00] font-extrabold transition-all cursor-pointer"
+                >
+                    Pagi (00-11)
+                </button>
+                <button
+                    type="button"
+                    id="periodMalamBtn"
+                    onclick="setClockPeriod('PM')"
+                    class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+                >
+                    Malam (12-23)
+                </button>
+            </div>
+        </div>
+
+        <!-- Mode Indicator (Jam vs Menit) -->
+        <div class="flex items-center justify-center gap-2 pt-1">
+            <button
+                type="button"
+                id="tabHour"
+                onclick="switchClockMode('hour')"
+                class="px-4 py-1 rounded-full text-xs font-bold transition-all bg-[#063B00] text-white shadow-xs cursor-pointer"
+            >
+                Pilih Jam
+            </button>
+            <button
+                type="button"
+                id="tabMinute"
+                onclick="switchClockMode('minute')"
+                class="px-4 py-1 rounded-full text-xs font-bold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
+            >
+                Pilih Menit
+            </button>
+        </div>
+
+        <!-- Analog Clock Face -->
+        <div class="flex items-center justify-center py-2">
+            <div id="analogClockDial" class="relative w-56 h-56 rounded-full bg-gradient-to-br from-slate-50 to-slate-100 border-4 border-slate-200/80 shadow-[inset_0_4px_12px_rgba(0,0,0,0.06)] flex items-center justify-center select-none">
+                
+                <!-- Center Pivot Pin -->
+                <div class="absolute w-3.5 h-3.5 rounded-full bg-[#063B00] ring-4 ring-[#A8E63A] z-20 shadow-md"></div>
+
+                <!-- Clock Hand Line -->
+                <div
+                    id="clockHand"
+                    class="absolute origin-bottom z-10 transition-transform duration-300 ease-out"
+                    style="width: 2.5px; height: 80px; bottom: 50%; left: calc(50% - 1.25px); background: linear-gradient(to top, #063B00, #A8E63A); transform: rotate(0deg);"
+                >
+                    <!-- Pointer End Circle Indicator -->
+                    <div class="absolute -top-3 -left-3.5 w-8 h-8 rounded-full bg-[#063B00] border-2 border-[#A8E63A] shadow-md flex items-center justify-center pointer-events-none">
+                        <span id="handThumbNumber" class="text-[11px] font-black text-[#A8E63A]">06</span>
+                    </div>
+                </div>
+
+                <!-- Clock Numbers Container (Populated via JS) -->
+                <div id="clockNumbersContainer" class="absolute inset-0 z-10 pointer-events-none"></div>
+            </div>
+        </div>
+
+        <!-- Quick Time Presets -->
+        <div class="flex items-center justify-center gap-1.5 flex-wrap pt-1">
+            <span class="text-[10px] font-bold text-slate-400 mr-1">Cepat:</span>
+            <button type="button" onclick="setQuickTime('06', '00', 'AM')" class="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-[#EBF8D8] text-slate-700 hover:text-[#063B00] text-[10px] font-bold transition-colors">06:00</button>
+            <button type="button" onclick="setQuickTime('08', '00', 'AM')" class="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-[#EBF8D8] text-slate-700 hover:text-[#063B00] text-[10px] font-bold transition-colors">08:00</button>
+            <button type="button" onclick="setQuickTime('05', '00', 'PM')" class="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-[#EBF8D8] text-slate-700 hover:text-[#063B00] text-[10px] font-bold transition-colors">17:00</button>
+            <button type="button" onclick="setQuickTime('10', '00', 'PM')" class="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-[#EBF8D8] text-slate-700 hover:text-[#063B00] text-[10px] font-bold transition-colors">22:00</button>
+            <button type="button" onclick="setQuickTime('11', '00', 'PM')" class="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-[#EBF8D8] text-slate-700 hover:text-[#063B00] text-[10px] font-bold transition-colors">23:00</button>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <button
+                type="button"
+                onclick="closeClockPicker()"
+                class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+            >
+                Batal
+            </button>
+            <button
+                type="button"
+                onclick="applySelectedTime()"
+                class="px-6 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md inline-flex items-center gap-2 transition-all cursor-pointer hover:scale-[1.01]"
+            >
+                <i class="fa-solid fa-check text-[#A8E63A]"></i>
+                <span>Terapkan Jam</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('venueEditForm');
@@ -638,11 +770,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const kotaSearch = document.getElementById('kotaWilayahSearch');
     const kotaOptions = document.getElementById('kotaWilayahOptions');
     const kotaError = document.getElementById('kotaWilayahError');
-
-    const jamBukaSelect = document.getElementById('jamBukaSelect');
-    const jamTutupSelect = document.getElementById('jamTutupSelect');
-    const jamOperasionalHidden = document.getElementById('jamOperasionalHidden');
-    const operatingHoursError = document.getElementById('operatingHoursError');
 
     const picName = document.getElementById('picName');
     const picNameError = document.getElementById('picNameError');
@@ -731,14 +858,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    function syncOperatingHours() {
-        if (jamBukaSelect && jamTutupSelect && jamOperasionalHidden) {
-            jamOperasionalHidden.value = `${jamBukaSelect.value} - ${jamTutupSelect.value} WIB`;
-        }
-    }
-    if (jamBukaSelect) jamBukaSelect.addEventListener('change', syncOperatingHours);
-    if (jamTutupSelect) jamTutupSelect.addEventListener('change', syncOperatingHours);
-
     if (surfaceType) {
         surfaceType.addEventListener('change', function () {
             if (this.value === 'Other') {
@@ -811,13 +930,12 @@ document.addEventListener('DOMContentLoaded', function () {
             clearError(kotaButton, kotaError);
         }
 
-        if (!jamBukaSelect.value || !jamTutupSelect.value) {
-            setError(jamBukaSelect, operatingHoursError, 'Jam buka dan tutup wajib diisi.');
+        const jamBukaVal = document.getElementById('jamBukaRaw').value;
+        const jamTutupVal = document.getElementById('jamTutupRaw').value;
+        if (!jamBukaVal || !jamTutupVal) {
+            const operatingHoursError = document.getElementById('operatingHoursError');
+            if (operatingHoursError) operatingHoursError.classList.remove('hidden');
             isValid = false;
-            if (!firstInvalid) firstInvalid = jamBukaSelect;
-        } else {
-            syncOperatingHours();
-            clearError(jamBukaSelect, operatingHoursError);
         }
 
         if (!picName.value.trim()) {
@@ -851,5 +969,213 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 });
+
+// =========================================================
+// MATCHA ANALOG & DIGITAL CLOCK PICKER LOGIC
+// =========================================================
+let currentTargetField = 'buka'; // 'buka' | 'tutup'
+let currentClockMode = 'hour';   // 'hour' | 'minute'
+let currentHour = 6;            // 0 - 23
+let currentMinute = 0;          // 0 - 59
+let currentPeriod = 'AM';       // 'AM' | 'PM'
+
+function openClockPicker(field) {
+    currentTargetField = field;
+    const rawVal = document.getElementById(field === 'buka' ? 'jamBukaRaw' : 'jamTutupRaw').value || (field === 'buka' ? '06:00' : '23:00');
+    
+    const parts = rawVal.split(':');
+    let h = parseInt(parts[0] || '6', 10);
+    let m = parseInt(parts[1] || '0', 10);
+
+    currentHour = isNaN(h) ? 6 : h;
+    currentMinute = isNaN(m) ? 0 : m;
+    currentPeriod = currentHour >= 12 ? 'PM' : 'AM';
+
+    document.getElementById('clockModalTitle').textContent = field === 'buka' ? 'Pilih Jam Buka' : 'Pilih Jam Tutup';
+    
+    currentClockMode = 'hour';
+    updateClockUI();
+    document.getElementById('clockPickerModal').classList.remove('hidden');
+}
+
+function closeClockPicker() {
+    document.getElementById('clockPickerModal').classList.add('hidden');
+}
+
+function switchClockMode(mode) {
+    currentClockMode = mode;
+    updateClockUI();
+}
+
+function setClockPeriod(period) {
+    currentPeriod = period;
+    let baseHour = currentHour % 12;
+    if (period === 'PM') {
+        currentHour = baseHour + 12;
+    } else {
+        currentHour = baseHour;
+    }
+    updateClockUI();
+}
+
+function setQuickTime(hourStr, minStr, period) {
+    currentPeriod = period;
+    let h = parseInt(hourStr, 10);
+    let m = parseInt(minStr, 10);
+    if (period === 'PM' && h < 12) h += 12;
+    if (period === 'AM' && h === 12) h = 0;
+    currentHour = h;
+    currentMinute = m;
+    updateClockUI();
+}
+
+function updateClockUI() {
+    // 1. Update Digital Header
+    const formattedHour = String(currentHour).padStart(2, '0');
+    const formattedMin = String(currentMinute).padStart(2, '0');
+
+    const digitalHourBtn = document.getElementById('digitalHourBtn');
+    const digitalMinBtn = document.getElementById('digitalMinBtn');
+    const tabHour = document.getElementById('tabHour');
+    const tabMinute = document.getElementById('tabMinute');
+
+    digitalHourBtn.textContent = formattedHour;
+    digitalMinBtn.textContent = formattedMin;
+
+    if (currentClockMode === 'hour') {
+        digitalHourBtn.className = "px-3 py-1.5 rounded-xl text-2xl font-black transition-all bg-[#063B00] text-[#A8E63A] ring-2 ring-[#A8E63A]/50 shadow-sm cursor-pointer";
+        digitalMinBtn.className = "px-3 py-1.5 rounded-xl text-2xl font-black text-slate-400 hover:text-white transition-all cursor-pointer";
+
+        tabHour.className = "px-4 py-1 rounded-full text-xs font-bold transition-all bg-[#063B00] text-white shadow-xs cursor-pointer";
+        tabMinute.className = "px-4 py-1 rounded-full text-xs font-bold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
+    } else {
+        digitalHourBtn.className = "px-3 py-1.5 rounded-xl text-2xl font-black text-slate-400 hover:text-white transition-all cursor-pointer";
+        digitalMinBtn.className = "px-3 py-1.5 rounded-xl text-2xl font-black transition-all bg-[#063B00] text-[#A8E63A] ring-2 ring-[#A8E63A]/50 shadow-sm cursor-pointer";
+
+        tabHour.className = "px-4 py-1 rounded-full text-xs font-bold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer";
+        tabMinute.className = "px-4 py-1 rounded-full text-xs font-bold transition-all bg-[#063B00] text-white shadow-xs cursor-pointer";
+    }
+
+    // Period buttons
+    const periodPagiBtn = document.getElementById('periodPagiBtn');
+    const periodMalamBtn = document.getElementById('periodMalamBtn');
+    if (currentPeriod === 'AM') {
+        periodPagiBtn.className = "px-2.5 py-1 rounded-lg bg-[#EBF8D8] text-[#063B00] font-extrabold transition-all cursor-pointer shadow-xs";
+        periodMalamBtn.className = "px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer";
+    } else {
+        periodPagiBtn.className = "px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer";
+        periodMalamBtn.className = "px-2.5 py-1 rounded-lg bg-[#EBF8D8] text-[#063B00] font-extrabold transition-all cursor-pointer shadow-xs";
+    }
+
+    // 2. Render Analog Dial Numbers & Calculate Hand Rotation
+    const numbersContainer = document.getElementById('clockNumbersContainer');
+    numbersContainer.innerHTML = '';
+
+    const hand = document.getElementById('clockHand');
+    const handThumbNumber = document.getElementById('handThumbNumber');
+
+    const dialRadius = 80; // pixels from center
+    const centerOffset = 112; // 224px / 2 = 112px center
+
+    if (currentClockMode === 'hour') {
+        // 12 hour positions
+        const hoursList = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+        let current12H = currentHour % 12;
+        if (current12H === 0) current12H = 12;
+
+        const handAngle = (current12H % 12) * 30; // 30 deg per hour
+        hand.style.transform = `rotate(${handAngle}deg)`;
+        handThumbNumber.textContent = String(currentHour).padStart(2, '0');
+
+        hoursList.forEach(num => {
+            const angleDeg = (num % 12) * 30 - 90;
+            const angleRad = (angleDeg * Math.PI) / 180;
+            const x = centerOffset + dialRadius * Math.cos(angleRad);
+            const y = centerOffset + dialRadius * Math.sin(angleRad);
+
+            // Display 24h number if PM
+            let displayNum = num;
+            if (currentPeriod === 'PM') {
+                displayNum = num === 12 ? 12 : num + 12;
+            } else {
+                displayNum = num === 12 ? 0 : num;
+            }
+            const displayStr = String(displayNum).padStart(2, '0');
+            const isSelected = displayNum === currentHour;
+
+            const node = document.createElement('button');
+            node.type = 'button';
+            node.className = `absolute w-7 h-7 -ml-3.5 -mt-3.5 rounded-full flex items-center justify-center text-[11px] font-extrabold transition-all pointer-events-auto cursor-pointer ${isSelected ? 'text-white font-black scale-110 z-30' : 'text-slate-700 hover:bg-[#EBF8D8] hover:text-[#063B00] z-20'}`;
+            node.style.left = `${x}px`;
+            node.style.top = `${y}px`;
+            node.textContent = displayStr;
+
+            node.onclick = (e) => {
+                e.stopPropagation();
+                currentHour = displayNum;
+                updateClockUI();
+                // Auto switch to minute mode on hour click for smooth UX
+                setTimeout(() => {
+                    switchClockMode('minute');
+                }, 200);
+            };
+
+            numbersContainer.appendChild(node);
+        });
+
+    } else {
+        // Minutes Mode: 00, 05, 10, 15, ..., 55
+        const minutesList = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+        const handAngle = (currentMinute / 60) * 360;
+        hand.style.transform = `rotate(${handAngle}deg)`;
+        handThumbNumber.textContent = String(currentMinute).padStart(2, '0');
+
+        minutesList.forEach(min => {
+            const angleDeg = (min / 60) * 360 - 90;
+            const angleRad = (angleDeg * Math.PI) / 180;
+            const x = centerOffset + dialRadius * Math.cos(angleRad);
+            const y = centerOffset + dialRadius * Math.sin(angleRad);
+
+            const displayStr = String(min).padStart(2, '0');
+            const isSelected = min === currentMinute;
+
+            const node = document.createElement('button');
+            node.type = 'button';
+            node.className = `absolute w-7 h-7 -ml-3.5 -mt-3.5 rounded-full flex items-center justify-center text-[11px] font-extrabold transition-all pointer-events-auto cursor-pointer ${isSelected ? 'text-white font-black scale-110 z-30' : 'text-slate-700 hover:bg-[#EBF8D8] hover:text-[#063B00] z-20'}`;
+            node.style.left = `${x}px`;
+            node.style.top = `${y}px`;
+            node.textContent = displayStr;
+
+            node.onclick = (e) => {
+                e.stopPropagation();
+                currentMinute = min;
+                updateClockUI();
+            };
+
+            numbersContainer.appendChild(node);
+        });
+    }
+}
+
+function applySelectedTime() {
+    const formatted = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
+    
+    if (currentTargetField === 'buka') {
+        document.getElementById('jamBukaRaw').value = formatted;
+        document.getElementById('jamBukaDisplay').textContent = formatted;
+    } else {
+        document.getElementById('jamTutupRaw').value = formatted;
+        document.getElementById('jamTutupDisplay').textContent = formatted;
+    }
+
+    const buka = document.getElementById('jamBukaRaw').value;
+    const tutup = document.getElementById('jamTutupRaw').value;
+    document.getElementById('jamOperasionalHidden').value = `${buka} - ${tutup} WIB`;
+
+    const err = document.getElementById('operatingHoursError');
+    if (err) err.classList.add('hidden');
+
+    closeClockPicker();
+}
 </script>
 @endsection
