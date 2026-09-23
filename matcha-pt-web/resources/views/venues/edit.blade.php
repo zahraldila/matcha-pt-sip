@@ -606,8 +606,8 @@
 <!-- ========================================================= -->
 <!-- MATERIAL DESIGN ANALOG & DIGITAL CLOCK PICKER MODAL -->
 <!-- ========================================================= -->
-<div id="clockPickerModal" class="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 flex flex-col gap-4 animate-in fade-in zoom-in duration-150" style="width: 320px; max-width: 95vw; box-sizing: border-box;">
+<div id="clockPickerModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeClockPicker();">
+    <div class="bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 flex flex-col gap-4" style="width: 320px; max-width: 95vw; box-sizing: border-box;" onclick="event.stopPropagation();">
         
         <!-- Top Label -->
         <div class="flex items-center justify-between">
@@ -669,8 +669,8 @@
         <div class="flex items-center justify-center py-1">
             <div
                 id="clockDialContainer"
-                class="relative rounded-full select-none cursor-pointer bg-slate-100"
-                style="width: 240px; height: 240px; min-width: 240px; min-height: 240px; background-color: #f1f5f9; position: relative; border-radius: 9999px; overflow: hidden;"
+                class="relative rounded-full select-none cursor-pointer"
+                style="width: 240px; height: 240px; min-width: 240px; min-height: 240px; background-color: #E2E8F0; position: relative; border-radius: 9999px;"
             >
                 <!-- SVG Layer for Hand Line & Solid Selection Bubble -->
                 <svg id="clockSvg" viewBox="0 0 240 240" style="position: absolute; top: 0; left: 0; width: 240px; height: 240px; pointer-events: none; z-index: 10;">
@@ -688,21 +688,26 @@
         </div>
 
         <!-- Bottom Actions: CANCEL / OK -->
-        <div class="flex items-center justify-end gap-3 pt-1 border-t border-slate-100">
-            <button
-                type="button"
-                onclick="closeClockPicker()"
-                class="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors uppercase tracking-wider cursor-pointer"
-            >
-                Batal
-            </button>
-            <button
-                type="button"
-                onclick="applySelectedTime()"
-                class="px-5 py-2 text-xs font-extrabold text-[#063B00] hover:bg-[#EBF8D8] rounded-xl transition-colors uppercase tracking-wider cursor-pointer"
-            >
-                OK
-            </button>
+        <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+            <div class="text-slate-400 pl-1">
+                <i class="fa-regular fa-clock text-sm"></i>
+            </div>
+            <div class="flex items-center gap-2">
+                <button
+                    type="button"
+                    onclick="closeClockPicker()"
+                    class="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors uppercase tracking-wider cursor-pointer"
+                >
+                    Batal
+                </button>
+                <button
+                    type="button"
+                    onclick="applySelectedTime()"
+                    class="px-5 py-2 text-xs font-extrabold text-[#063B00] hover:bg-[#EBF8D8] rounded-xl transition-colors uppercase tracking-wider cursor-pointer"
+                >
+                    OK
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -982,11 +987,17 @@ function openClockPicker(field) {
     
     currentClockMode = 'hour';
     renderClockPicker();
-    document.getElementById('clockPickerModal').classList.remove('hidden');
+    const modal = document.getElementById('clockPickerModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
 }
 
 function closeClockPicker() {
-    document.getElementById('clockPickerModal').classList.add('hidden');
+    const modal = document.getElementById('clockPickerModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 function switchClockMode(mode) {
