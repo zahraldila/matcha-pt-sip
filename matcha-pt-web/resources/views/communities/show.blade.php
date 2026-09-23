@@ -134,6 +134,7 @@
                                 <tr>
                                     <th class="py-2.5 px-3">#</th>
                                     <th class="py-2.5 px-3">Nama</th>
+                                    <th class="py-2.5 px-3">Status</th>
                                     <th class="py-2.5 px-3">Skill Level</th>
                                     <th class="py-2.5 px-3">Gender / Usia</th>
                                 </tr>
@@ -144,11 +145,23 @@
                                         <td class="py-2.5 px-3 text-slate-400 font-medium">{{ $index + 1 }}</td>
                                         <td class="py-2.5 px-3">
                                             <div class="flex items-center gap-2">
-                                                <div class="w-6 h-6 rounded-full bg-[#063B00] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
-                                                    {{ strtoupper(substr($player->nama ?? 'M', 0, 1)) }}
-                                                </div>
+                                                @php $avatar = $player->foto ?? ($player->user->foto ?? null); @endphp
+                                                @if($avatar)
+                                                    <img src="{{ $avatar }}" alt="{{ $player->nama }}" class="w-6 h-6 rounded-full object-cover">
+                                                @else
+                                                    <div class="w-6 h-6 rounded-full bg-[#063B00] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                                                        {{ strtoupper(substr($player->nama ?? 'M', 0, 1)) }}
+                                                    </div>
+                                                @endif
                                                 <span class="font-semibold text-slate-800">{{ $player->nama ?? 'Member' }}</span>
                                             </div>
+                                        </td>
+                                        <td class="py-2.5 px-3">
+                                            @if($player->user_id)
+                                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">Member</span>
+                                            @else
+                                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">Guest</span>
+                                            @endif
                                         </td>
                                         <td class="py-2.5 px-3">
                                             @if($player->level)
@@ -159,7 +172,7 @@
                                             @endif
                                         </td>
                                         <td class="py-2.5 px-3 text-slate-500">
-                                            {{ $player->gender ?? '-' }}{{ !empty($player->umur) ? ', ' . $player->umur . ' th' : '' }}
+                                            {{ $player->gender ?? '-' }}{{ !empty($player->usia) ? ', ' . $player->usia . ' th' : '' }}
                                         </td>
                                     </tr>
                                 @endforeach
