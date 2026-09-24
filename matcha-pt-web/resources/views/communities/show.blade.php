@@ -38,28 +38,16 @@
             </div>
         </div>
 
-        <div class="flex flex-col items-start sm:items-end gap-2 shrink-0">
-            <div class="px-4 py-2 rounded-2xl bg-white/60 backdrop-blur-md border border-white/80 shadow-2xs flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#063B00] to-emerald-900 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-                    <i class="fa-solid fa-users text-[#A8E63A]"></i>
-                </div>
-                <div class="text-right">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Anggota Aktif</p>
-                    <p class="text-xs font-black text-[#063B00]">{{ $community->players->count() }} Member</p>
-                </div>
+        @if(Auth::check() && (Auth::user()->role === 'admin' || Auth::id() === $community->created_by))
+            <div class="flex items-center gap-2 flex-wrap shrink-0">
+                <a href="{{ route('communities.edit', $community->community_id) }}" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-[#063B00] text-slate-800 hover:text-[#063B00] font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-pen-to-square text-[#063B00]"></i> Edit Komunitas
+                </a>
+                <button type="button" onclick="openDeleteCommunityModal()" class="px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-trash-can text-rose-600"></i> Hapus / Nonaktifkan
+                </button>
             </div>
-
-            @if(Auth::check() && (Auth::user()->role === 'admin' || Auth::id() === $community->created_by))
-                <div class="flex items-center gap-2 mt-1 flex-wrap">
-                    <a href="{{ route('communities.edit', $community->community_id) }}" class="px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-[#063B00] text-slate-800 hover:text-[#063B00] font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
-                        <i class="fa-solid fa-pen-to-square text-[#063B00]"></i> Edit Komunitas
-                    </a>
-                    <button type="button" onclick="openDeleteCommunityModal()" class="px-3.5 py-1.5 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
-                        <i class="fa-solid fa-trash-can text-rose-600"></i> Hapus / Nonaktifkan
-                    </button>
-                </div>
-            @endif
-        </div>
+        @endif
     </div>
 
     @if(session('success'))
@@ -274,25 +262,7 @@
                     </div>
                 </div>
 
-                @if(Auth::check() && ((int) $community->created_by === (int) Auth::id() || Auth::user()->role === 'admin'))
-                    <!-- Admin Action Zone -->
-                    <div class="pt-4 border-t border-slate-100 space-y-2.5">
-                        <div class="flex items-center justify-between">
-                            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Aksi Admin Komunitas</p>
-                            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">Owner</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <a href="{{ route('communities.edit', $community->community_id) }}" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-2xs">
-                                <i class="fa-solid fa-pen-to-square text-slate-500 text-xs"></i>
-                                <span>Edit</span>
-                            </a>
-                            <button type="button" onclick="openDeleteCommunityModal()" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-all border border-rose-200 hover:border-rose-300 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs">
-                                <i class="fa-solid fa-trash-can text-rose-500 text-xs"></i>
-                                <span>Hapus</span>
-                            </button>
-                        </div>
-                    </div>
-                @endif
+
             </div>
         </div>
     </div>
