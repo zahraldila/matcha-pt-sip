@@ -152,6 +152,7 @@ class VenueController extends Controller
 
         $isMine = Auth::check() && ($dbVenue->owner_user_id == Auth::id() || Auth::user()->role === 'admin');
 
+
         $facilities = array_values(array_filter(array_map('trim', explode(',', $dbVenue->fasilitas ?? ''))));
 
         $venue = [

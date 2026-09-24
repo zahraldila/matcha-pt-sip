@@ -1,147 +1,121 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 relative">
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-    <!-- Ambient Glowing Background Orbs -->
-    <div class="absolute w-96 h-96 bg-[#A8E63A]/20 rounded-full blur-3xl pointer-events-none -top-12 -left-12 -z-10"></div>
-    <div class="absolute w-96 h-96 bg-[#063B00]/10 rounded-full blur-3xl pointer-events-none top-1/2 -right-12 -z-10"></div>
-    <div class="absolute w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none -bottom-10 left-1/3 -z-10"></div>
-
-    <!-- Header Navigation -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/60 relative z-10">
-        <div class="min-w-0 flex-1 max-w-full">
-            <a href="{{ route('communities.index') }}" class="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-[#063B00] transition-colors mb-3 group">
-                <span class="w-7 h-7 rounded-xl bg-white/80 border border-slate-200/80 flex items-center justify-center text-slate-600 group-hover:bg-[#063B00] group-hover:text-white transition-all shadow-2xs">
-                    <i class="fa-solid fa-arrow-left text-[11px]"></i>
-                </span>
-                Kembali ke Daftar Komunitas
-            </a>
-            <div class="flex items-center gap-2.5">
-                <span class="px-2.5 py-0.5 rounded-full bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] text-[10px] font-extrabold uppercase tracking-wider shrink-0">
-                    {{ $community->sport_utama }}
-                </span>
-                <span class="text-xs text-slate-400 shrink-0">•</span>
-                <span class="text-xs font-medium text-slate-500 shrink-0">Komunitas Detail</span>
-            </div>
-            <div class="flex items-center gap-3.5 mt-2 min-w-0">
-                @if(!empty($community->logo))
-                    <img src="{{ $community->logo }}" alt="{{ $community->nama_community }}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200/80 shadow-sm shrink-0">
-                @else
-                    <img src="{{ asset('images/default-community.jpg') }}" alt="{{ $community->nama_community }}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200/80 shadow-sm shrink-0">
-                @endif
-                <div class="min-w-0 flex-1">
-                    <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight break-all break-words [overflow-wrap:anywhere]" title="{{ $community->nama_community }}">
-                        {{ $community->nama_community }}
-                    </h1>
-                </div>
-            </div>
-        </div>
-
-        <div class="flex flex-col items-start sm:items-end gap-2 shrink-0">
-            <div class="px-4 py-2 rounded-2xl bg-white/60 backdrop-blur-md border border-white/80 shadow-2xs flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#063B00] to-emerald-900 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-                    <i class="fa-solid fa-users text-[#A8E63A]"></i>
-                </div>
-                <div class="text-right">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Anggota Aktif</p>
-                    <p class="text-xs font-black text-[#063B00]">{{ $community->players->count() }} Member</p>
-                </div>
-            </div>
-
-            @if(Auth::check() && (Auth::user()->role === 'admin' || Auth::id() === $community->created_by))
-                <div class="flex items-center gap-2 mt-1 flex-wrap">
-                    <a href="{{ route('communities.edit', $community->community_id) }}" class="px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-[#063B00] text-slate-800 hover:text-[#063B00] font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
-                        <i class="fa-solid fa-pen-to-square text-[#063B00]"></i> Edit Komunitas
-                    </a>
-                    <button type="button" onclick="openDeleteCommunityModal()" class="px-3.5 py-1.5 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
-                        <i class="fa-solid fa-trash-can text-rose-600"></i> Hapus / Nonaktifkan
-                    </button>
-                </div>
-            @endif
-        </div>
-    </div>
-
+    <!-- Flash Messages -->
     @if(session('success'))
-        <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2.5">
-            <i class="fa-solid fa-circle-check text-emerald-600"></i>
-            <span>{{ session('success') }}</span>
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-xs font-bold text-emerald-800 flex items-center justify-between shadow-xs">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
+                <span>{{ session('success') }}</span>
+            </div>
+            <button type="button" onclick="this.parentElement.remove()" class="text-emerald-600 hover:text-emerald-800 cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
         </div>
     @endif
     @if(session('info'))
-        <div class="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold flex items-center gap-2.5">
-            <i class="fa-solid fa-circle-info text-blue-600"></i>
-            <span>{{ session('info') }}</span>
+        <div class="rounded-2xl border border-blue-200 bg-blue-50/90 px-4 py-3 text-xs font-bold text-blue-800 flex items-center justify-between shadow-xs">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-info text-blue-600 text-sm"></i>
+                <span>{{ session('info') }}</span>
+            </div>
+            <button type="button" onclick="this.parentElement.remove()" class="text-blue-600 hover:text-blue-800 cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
         </div>
     @endif
     @if(session('error'))
-        <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2.5">
-            <i class="fa-solid fa-circle-exclamation text-rose-600"></i>
-            <span>{{ session('error') }}</span>
+        <div class="rounded-2xl border border-rose-200 bg-rose-50/90 px-4 py-3 text-xs font-bold text-rose-800 flex items-center justify-between shadow-xs">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-exclamation text-rose-600 text-sm"></i>
+                <span>{{ session('error') }}</span>
+            </div>
+            <button type="button" onclick="this.parentElement.remove()" class="text-rose-600 hover:text-rose-800 cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
         </div>
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Main Content Column -->
-        <div class="lg:col-span-2 space-y-6 relative z-10">
-
-            <!-- Community Details Card -->
-            <div class="backdrop-blur-2xl bg-white/80 border border-white/90 rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(6,59,0,0.06)] space-y-6">
-                
-                <!-- Description Section -->
-                <div class="space-y-3">
-                    <h3 class="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-2.5">
-                        <span class="w-6 h-6 rounded-lg bg-[#063B00] text-white flex items-center justify-center text-xs">
-                            <i class="fa-solid fa-align-left"></i>
-                        </span>
-                        Tentang Komunitas
-                    </h3>
-                    <p class="text-sm leading-relaxed text-slate-700 break-words [overflow-wrap:anywhere]">{{ $community->deskripsi }}</p>
-                </div>
-
-                <!-- Details Grid -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                    <!-- Sport Type -->
-                    @if($community->sport_utama)
-                    <div class="space-y-1.5">
-                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Cabang Olahraga Utama</p>
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-lg bg-[#EBF8D8] text-[#063B00] flex items-center justify-center text-sm font-bold shrink-0">
-                                <i class="fa-solid fa-{{ $community->sport_utama === 'Padel' ? 'table-tennis-paddle-ball' : 'baseball' }}"></i>
-                            </div>
-                            <span class="font-semibold text-slate-900 break-words">{{ $community->sport_utama }}</span>
-                        </div>
-                    </div>
-                    @endif
-
-                    <!-- Schedule -->
-                    @if($community->jadwal_rutin)
-                    <div class="space-y-1.5">
-                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Jadwal Rutin Mabar</p>
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-lg bg-[#EBF8D8] text-[#063B00] flex items-center justify-center text-sm font-bold shrink-0">
-                                <i class="fa-regular fa-calendar-days"></i>
-                            </div>
-                            <span class="font-semibold text-slate-900 break-words [overflow-wrap:anywhere]">{{ $community->jadwal_rutin }}</span>
-                        </div>
-                    </div>
-                    @endif
+    <!-- Header -->
+    <div class="border-b border-slate-200 pb-4">
+        <a href="{{ route('communities.index') }}" class="text-xs text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 mb-2 transition-colors">
+            <i class="fa-solid fa-arrow-left"></i> Kembali ke Semua Komunitas
+        </a>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5 min-w-0">
+                @if(!empty($community->logo))
+                    <img src="{{ $community->logo }}" alt="{{ $community->nama_community }}" class="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0">
+                @else
+                    <img src="{{ asset('images/default-community.jpg') }}" alt="{{ $community->nama_community }}" class="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0">
+                @endif
+                <div class="min-w-0">
+                    <h1 class="text-2xl font-bold text-[#050608] break-all break-words" title="{{ $community->nama_community }}">
+                        {{ $community->nama_community }}
+                    </h1>
+                    <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <i class="fa-solid fa-users text-slate-400"></i> Komunitas Padel &amp; Tennis
+                        @if(!empty($community->jadwal_rutin))
+                            <span class="text-slate-300">•</span>
+                            <span class="text-slate-600 font-medium">Jadwal: {{ $community->jadwal_rutin }}</span>
+                        @endif
+                    </p>
                 </div>
             </div>
 
-            <!-- Members Section -->
-            <div class="backdrop-blur-2xl bg-white/80 border border-white/90 rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(6,59,0,0.06)] space-y-6">
-                <h3 class="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-2.5">
-                    <span class="w-6 h-6 rounded-lg bg-[#063B00] text-white flex items-center justify-center text-xs">
-                        <i class="fa-solid fa-users"></i>
-                    </span>
-                    Daftar Anggota Komunitas
+            <div class="flex items-center gap-2.5 flex-wrap">
+                <x-badge :type="strtolower($community->sport_utama) === 'tennis' ? 'tennis' : 'padel'">
+                    {{ $community->sport_utama }}
+                </x-badge>
+
+                @auth
+                    @if(Auth::user()->role === 'admin' || (int) Auth::id() === (int) $community->created_by)
+                        <a href="{{ route('communities.edit', $community->community_id) }}" class="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:border-[#063B00] text-slate-800 hover:text-[#063B00] font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-pen-to-square text-[#063B00]"></i> Edit Komunitas
+                        </a>
+                        <button type="button" onclick="openDeleteCommunityModal()" class="px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-trash-can text-rose-600"></i> Hapus / Nonaktifkan
+                        </button>
+                    @endif
+                @endauth
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Details & Members Column (2 Cols) -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Card Tentang Komunitas -->
+            <div class="glass-card rounded-3xl p-6 sm:p-8 space-y-5 border border-white/90 shadow-sm">
+                <h3 class="text-base font-bold text-slate-900">
+                    Tentang Komunitas
                 </h3>
+                <p class="text-xs sm:text-sm text-slate-600 leading-relaxed break-words">{{ $community->deskripsi ?: 'Tidak ada deskripsi tersedia.' }}</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                    <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 min-w-0">
+                        <span class="text-slate-500 block mb-0.5">Cabang Olahraga Utama</span>
+                        <strong class="text-slate-900 block truncate">{{ $community->sport_utama }}</strong>
+                    </div>
+                    <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 min-w-0">
+                        <span class="text-slate-500 block mb-0.5">Jadwal Rutin Mabar</span>
+                        <strong class="text-slate-900 block truncate">{{ $community->jadwal_rutin ?: 'Sesuai kesepakatan anggota' }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Daftar Anggota Komunitas -->
+            <div class="glass-card rounded-3xl p-6 sm:p-8 space-y-5 border border-white/90 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base font-bold text-slate-900">
+                        Daftar Anggota Komunitas
+                    </h3>
+                    <span class="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 inline-flex items-center gap-1">
+                        <i class="fa-solid fa-users text-emerald-600 text-[10px]"></i> {{ $community->players ? $community->players->count() : 0 }} Anggota
+                    </span>
+                </div>
 
                 @if($community->players && $community->players->count() > 0)
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs">
-                            <thead class="text-slate-500 bg-slate-50 uppercase tracking-wider text-[10px] border-b border-slate-200">
+                            <thead class="text-slate-500 bg-slate-50/80 uppercase tracking-wider text-[10px] border-b border-slate-200">
                                 <tr>
                                     <th class="py-2.5 px-3">#</th>
                                     <th class="py-2.5 px-3">Nama</th>
@@ -152,6 +126,23 @@
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 @foreach($community->players as $index => $player)
+                                    @php
+                                        $lvl = $player->level;
+                                        $gender = $player->gender;
+                                        $usia = $player->usia;
+                                        if (empty($lvl) || empty($gender) || empty($usia)) {
+                                            $fallback = \App\Models\Player::where('user_id', $player->user_id)
+                                                ->where(function($q) {
+                                                    $q->whereNotNull('level')->orWhereNotNull('gender');
+                                                })
+                                                ->first();
+                                            if ($fallback) {
+                                                $lvl = $lvl ?: $fallback->level;
+                                                $gender = $gender ?: $fallback->gender;
+                                                $usia = $usia ?: $fallback->usia;
+                                            }
+                                        }
+                                    @endphp
                                     <tr class="hover:bg-slate-50/80 transition-colors">
                                         <td class="py-2.5 px-3 text-slate-400 font-medium">{{ $index + 1 }}</td>
                                         <td class="py-2.5 px-3">
@@ -175,15 +166,14 @@
                                             @endif
                                         </td>
                                         <td class="py-2.5 px-3">
-                                            @if($player->level)
-                                                @php $lvl = strtolower($player->level); @endphp
-                                                <x-badge :type="$lvl">{{ $player->level }}</x-badge>
+                                            @if($lvl)
+                                                <x-badge :type="strtolower($lvl)">{{ $lvl }}</x-badge>
                                             @else
-                                                <span class="text-slate-400">-</span>
+                                                <span class="text-slate-400">—</span>
                                             @endif
                                         </td>
                                         <td class="py-2.5 px-3 text-slate-500">
-                                            {{ $player->gender ?? '-' }}{{ !empty($player->usia) ? ', ' . $player->usia . ' th' : '' }}
+                                            {{ $gender ?? '-' }}{{ !empty($usia) ? ', ' . $usia . ' th' : '' }}
                                         </td>
                                     </tr>
                                 @endforeach
@@ -191,48 +181,55 @@
                         </table>
                     </div>
                 @else
-                    <div class="p-8 rounded-2xl bg-slate-50/60 border border-dashed border-slate-200 text-center">
-                        <i class="fa-solid fa-users-slash text-[#063B00]/30 text-3xl mb-2"></i>
-                        <p class="text-sm text-slate-600">Belum ada anggota bergabung di komunitas ini.</p>
+                    <div class="text-center py-8 text-slate-400 text-xs bg-slate-50/80 rounded-2xl border border-dashed border-slate-200 space-y-2">
+                        <i class="fa-solid fa-users-slash text-slate-300 text-2xl"></i>
+                        <p class="font-medium text-slate-500">Belum ada anggota bergabung di komunitas ini.</p>
                     </div>
                 @endif
             </div>
         </div>
 
-        <!-- Sidebar -->
-        <div class="lg:col-span-1 relative z-10">
-            <!-- Join/Leave Card -->
+        <!-- Sidebar Column -->
+        <div class="space-y-6">
+            <!-- Join / Leave / Status Card -->
             @php
                 $isMember = Auth::check() && \App\Models\Player::where('user_id', Auth::id())
                     ->where('community_id', $community->community_id)
                     ->exists();
             @endphp
 
-            <div class="backdrop-blur-2xl bg-white/80 border border-white/90 rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(6,59,0,0.06)] space-y-4 sticky top-20">
-                
+            <div class="glass-card rounded-3xl p-6 space-y-5 border border-white/90 shadow-sm">
                 @if(Auth::check())
                     @if(Auth::user()->isAdmin())
-                        {{-- Admin: tidak bisa join/leave --}}
+                        {{-- Mode Administrator --}}
                         <div class="space-y-3">
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Mode Administrator</p>
-                            <div class="px-3 py-2.5 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-2">
-                                <i class="fa-solid fa-crown text-amber-500 text-xs"></i>
-                                <span class="text-xs font-bold text-amber-800">Admin mengelola, tidak bergabung sebagai anggota.</span>
+                            <h3 class="text-sm font-bold text-slate-900">Mode Administrator</h3>
+                            <div class="bg-amber-50 p-3.5 rounded-xl border border-amber-200 text-amber-900 space-y-1">
+                                <span class="font-semibold block flex items-center gap-1.5 text-xs">
+                                    <i class="fa-solid fa-crown text-amber-600"></i> Akses Pengelola
+                                </span>
+                                <p class="text-[11px] leading-relaxed text-amber-800">
+                                    Admin mengelola komunitas ini secara sistem dan tidak bergabung sebagai anggota pemain.
+                                </p>
                             </div>
                         </div>
                     @elseif($isMember)
-                        <!-- Leave Button -->
+                        <!-- Status Keanggotaan -->
                         <div class="space-y-3">
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Status Keanggotaan</p>
-                            <div class="px-3 py-2 rounded-2xl bg-green-100 border border-green-300 flex items-center gap-2">
-                                <i class="fa-solid fa-circle-check text-green-600 text-xs"></i>
-                                <span class="text-xs font-bold text-green-700">Anda adalah Anggota</span>
+                            <h3 class="text-sm font-bold text-slate-900">Status Keanggotaan</h3>
+                            <div class="bg-emerald-50 p-3.5 rounded-xl border border-emerald-200 text-emerald-900 space-y-1">
+                                <span class="font-semibold block flex items-center gap-1.5 text-xs">
+                                    <i class="fa-solid fa-circle-check text-emerald-600"></i> Anggota Komunitas
+                                </span>
+                                <p class="text-[11px] leading-relaxed text-emerald-800">
+                                    Anda telah terdaftar sebagai anggota resmi komunitas ini.
+                                </p>
                             </div>
 
                             <form action="{{ route('communities.leave', $community->community_id) }}" method="POST">
                                 @csrf
-                                <button type="submit" class="w-full px-4 py-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs transition-all border border-red-200 flex items-center justify-center gap-2 cursor-pointer">
-                                    <i class="fa-solid fa-sign-out-alt"></i>
+                                <button type="submit" class="w-full px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-all border border-rose-200 flex items-center justify-center gap-2 cursor-pointer">
+                                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
                                     Keluar dari Komunitas
                                 </button>
                             </form>
@@ -240,12 +237,12 @@
                     @else
                         <!-- Join Button -->
                         <div class="space-y-3">
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Siap Bergabung?</p>
-                            <p class="text-xs text-slate-600 leading-relaxed">Bergabunglah dengan komunitas ini untuk mengikuti sesi mabar dan turnamen!</p>
+                            <h3 class="text-sm font-bold text-slate-900">Gabung Komunitas</h3>
+                            <p class="text-xs text-slate-500 leading-relaxed">Bergabunglah dengan komunitas ini untuk mengikuti sesi mabar dan turnamen!</p>
 
                             <form action="{{ route('communities.join', $community->community_id) }}" method="POST">
                                 @csrf
-                                <button type="submit" class="w-full px-4 py-3 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                                <button type="submit" class="w-full px-4 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer">
                                     <i class="fa-solid fa-user-plus text-[#A8E63A]"></i>
                                     <span>Bergabung Sekarang</span>
                                 </button>
@@ -253,46 +250,23 @@
                         </div>
                     @endif
                 @else
-
                     <!-- Login Required -->
                     <div class="space-y-3">
-                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Akses Komunitas</p>
-                        <p class="text-xs text-slate-600 leading-relaxed">Silakan login terlebih dahulu untuk bergabung dengan komunitas ini.</p>
+                        <h3 class="text-sm font-bold text-slate-900">Akses Komunitas</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">Silakan login terlebih dahulu untuk bergabung dengan komunitas ini.</p>
 
-                        <a href="{{ route('login') }}" class="w-full px-4 py-3 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95 inline-flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-sign-in-alt text-[#A8E63A]"></i>
+                        <a href="{{ route('login') }}" class="w-full px-4 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all inline-flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-arrow-right-to-bracket text-[#A8E63A]"></i>
                             <span>Login Terlebih Dahulu</span>
                         </a>
                     </div>
                 @endif
 
                 <!-- Info Box -->
-                <div class="pt-4 border-t border-slate-100 space-y-2">
-                    <div class="flex items-start gap-2">
-                        <i class="fa-solid fa-info-circle text-[#063B00] text-xs mt-0.5"></i>
-                        <p class="text-[11px] text-slate-600 leading-relaxed">Sebagai anggota, Anda dapat mengikuti sesi mabar, turnamen, dan melihat leaderboard komunitas.</p>
-                    </div>
+                <div class="pt-3 border-t border-slate-100 flex items-start gap-2 text-[11px] text-slate-500">
+                    <i class="fa-solid fa-circle-info text-emerald-700 text-xs mt-0.5 shrink-0"></i>
+                    <p class="leading-relaxed">Sebagai anggota, Anda dapat mengikuti sesi mabar, turnamen, dan melihat leaderboard komunitas.</p>
                 </div>
-
-                @if(Auth::check() && ((int) $community->created_by === (int) Auth::id() || Auth::user()->role === 'admin'))
-                    <!-- Admin Action Zone -->
-                    <div class="pt-4 border-t border-slate-100 space-y-2.5">
-                        <div class="flex items-center justify-between">
-                            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Aksi Admin Komunitas</p>
-                            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">Owner</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <a href="{{ route('communities.edit', $community->community_id) }}" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-2xs">
-                                <i class="fa-solid fa-pen-to-square text-slate-500 text-xs"></i>
-                                <span>Edit</span>
-                            </a>
-                            <button type="button" onclick="openDeleteCommunityModal()" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-all border border-rose-200 hover:border-rose-300 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs">
-                                <i class="fa-solid fa-trash-can text-rose-500 text-xs"></i>
-                                <span>Hapus</span>
-                            </button>
-                        </div>
-                    </div>
-                @endif
             </div>
         </div>
     </div>

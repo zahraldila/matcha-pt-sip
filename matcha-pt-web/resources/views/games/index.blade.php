@@ -15,11 +15,11 @@
         </div>
 
         @auth
-            @if(Auth::user()->is_host)
+            @if(Auth::user()->is_host && !Auth::user()->isAdmin())
                 <a href="{{ route('games.schedule') }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01] shrink-0">
                     <i class="fa-solid fa-plus text-[#A8E63A] text-xs"></i> <span>Buat Sesi Mabar Baru</span>
                 </a>
-            @elseif(Auth::user()->role !== 'venue_owner')
+            @elseif(Auth::user()->role !== 'venue_owner' && !Auth::user()->isAdmin())
                 <a href="{{ route('player.profile', ['notice' => 'host_required']) }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-bold text-xs shadow-2xs transition-all hover:scale-[1.01] shrink-0" title="Aktifkan Mode Host untuk Membuat Sesi Mabar">
                     <i class="fa-solid fa-bolt text-[11px]"></i> <span>Jadi Host untuk Buat Mabar</span>
                 </a>
@@ -121,7 +121,7 @@
                     <i class="fa-solid fa-magnifying-glass text-[9px]"></i> "{{ $search }}"
                 </span>
             @endif
-            <span>
+            <span id="games-result-count">
                 Menampilkan <strong class="text-[#050608]">{{ $games->total() }}</strong> sesi
                 @if(($activeTab ?? 'all') === 'joined')
                     <span>yang kamu ikuti</span>
@@ -132,9 +132,36 @@
                 @endif
             </span>
             @if(Auth::check() && Auth::user()->role === 'admin' && $games->count() > 0)
-                <button type="button" id="btn-enter-select-mode" class="ml-2 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-xs cursor-pointer select-none">
+                {{-- Normal: "Pilih" button --}}
+                <button type="button" id="btn-enter-select-mode"
+                    class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-xs cursor-pointer select-none">
                     Pilih
                 </button>
+
+                {{-- Selection mode: compact inline toolbar (hidden by default) --}}
+                <div id="bulk-selection-container" class="hidden items-center gap-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap">
+                        <input type="checkbox" id="bulk-select-all"
+                            class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
+                        <span id="bulk-select-label" class="text-xs font-semibold text-slate-700">
+                            Pilih semua
+                        </span>
+                    </label>
+                    <button type="button" id="btn-cancel-select"
+                        class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs transition-all cursor-pointer whitespace-nowrap">
+                        Batal
+                    </button>
+                    <button type="button" id="btn-submit-bulk" disabled
+                        class="px-3 py-1.5 text-xs font-semibold rounded-lg shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        style="background-color:#dc2626;color:white;border:1px solid #b91c1c;">
+                        Hapus <span id="bulk-count-display">0</span> sesi
+                    </button>
+                    <form id="bulk-delete-form" action="{{ route('games.bulkDestroy') }}" method="POST" class="hidden">
+                        @csrf
+                        @method('DELETE')
+                        <div id="bulk-delete-inputs"></div>
+                    </form>
+                </div>
             @endif
         </div>
     </div>
@@ -148,16 +175,22 @@
 
     <!-- 3. Grid of Games or Empty States -->
     @if($games->count() > 0)
-        @if(Auth::check() && Auth::user()->role === 'admin')
-            <x-bulk-selection-toolbar itemName="sesi" :totalItems="$games->total()" :actionUrl="route('games.bulkDestroy')" />
-        @endif
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($games as $game)
+                @php
+                    $canDelete = !empty($game['can_delete']);
+                @endphp
                 <div class="bulk-item-wrapper relative h-full">
                     @if(Auth::check() && Auth::user()->role === 'admin')
-                        <label class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg p-1.5 cursor-pointer hover:bg-slate-50 transition-colors">
-                            <input type="checkbox" value="{{ $game['id'] }}" class="bulk-item-checkbox w-4.5 h-4.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shadow-xs">
-                        </label>
+                        @if($canDelete)
+                            <label class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg p-1.5 cursor-pointer hover:bg-slate-50 transition-colors" style="display:none" title="Pilih sesi untuk dihapus">
+                                <input type="checkbox" value="{{ $game['id'] }}" class="bulk-item-checkbox w-4.5 h-4.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shadow-xs">
+                            </label>
+                        @else
+                            <div class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-slate-100/90 backdrop-blur-sm border border-slate-200/80 shadow-xs rounded-lg px-2 py-1 select-none cursor-not-allowed opacity-75" style="display:none" title="Sesi mabar yang sedang berlangsung atau sudah selesai tidak dapat dihapus">
+                                <i class="fa-solid fa-lock text-[10px] text-slate-400"></i>
+                            </div>
+                        @endif
                     @endif
                     <div class="bulk-item-card flex-1 h-full transition-all duration-200 rounded-2xl">
                         <x-game-card :game="$game" />
@@ -243,3 +276,145 @@
 
 <x-join-modal />
 @endsection
+
+@push('styles')
+<style>
+.bulk-item-checkbox-container { display: none !important; }
+.bulk-item-wrapper.selection-mode-active .bulk-item-checkbox-container { display: flex !important; }
+#bulk-selection-container.show-toolbar { display: flex !important; }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnEnterSelect  = document.getElementById('btn-enter-select-mode');
+    const btnCancelSelect = document.getElementById('btn-cancel-select');
+    const btnSubmitBulk   = document.getElementById('btn-submit-bulk');
+    const bulkContainer   = document.getElementById('bulk-selection-container');
+    const bulkSelectAll   = document.getElementById('bulk-select-all');
+    const bulkSelectLabel = document.getElementById('bulk-select-label');
+    const bulkForm        = document.getElementById('bulk-delete-form');
+    const bulkInputsCont  = document.getElementById('bulk-delete-inputs');
+    const resultCount     = document.getElementById('games-result-count');
+
+    if (!btnEnterSelect || !bulkContainer) return;
+
+    let selectMode = false;
+
+    function getCheckboxes() { return document.querySelectorAll('.bulk-item-checkbox'); }
+    function getChecked()    { return document.querySelectorAll('.bulk-item-checkbox:checked'); }
+
+    function updateUI() {
+        const checkboxes   = getCheckboxes();
+        const checkedBoxes = getChecked();
+        const count        = checkedBoxes.length;
+        const pageDeletableTotal = checkboxes.length;
+
+        // Show/hide checkbox overlays via direct inline style
+        document.querySelectorAll('.bulk-item-checkbox-container').forEach(el => {
+            el.style.display = selectMode ? 'flex' : 'none';
+        });
+
+        // Card highlight based on checked state
+        checkboxes.forEach(cb => {
+            const wrapper = cb.closest('.bulk-item-wrapper');
+            const card    = wrapper ? wrapper.querySelector('.bulk-item-card') : null;
+            if (!selectMode) { cb.checked = false; }
+            if (card) {
+                if (selectMode && cb.checked) {
+                    card.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50/20');
+                } else {
+                    card.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50/20');
+                }
+            }
+        });
+
+        // Hide result count when toolbar is active
+        if (resultCount) resultCount.style.display = selectMode ? 'none' : '';
+
+        if (selectMode) {
+            btnEnterSelect.style.display = 'none';
+            bulkContainer.style.display  = 'flex';
+        } else {
+            btnEnterSelect.style.display = '';
+            bulkContainer.style.display  = 'none';
+            if (bulkSelectAll)   { bulkSelectAll.checked = false; bulkSelectAll.indeterminate = false; bulkSelectAll.disabled = false; }
+            if (bulkSelectLabel) bulkSelectLabel.textContent = 'Pilih semua';
+            if (btnSubmitBulk)   { btnSubmitBulk.disabled = true; btnSubmitBulk.innerHTML = 'Hapus 0 sesi'; }
+            return;
+        }
+
+        if (!bulkSelectAll || !bulkSelectLabel || !btnSubmitBulk) return;
+
+        if (pageDeletableTotal === 0) {
+            bulkSelectAll.checked = false;
+            bulkSelectAll.disabled = true;
+            bulkSelectLabel.innerHTML = '<span class="text-slate-400 text-[11px] italic">Semua sesi di halaman ini telah selesai / berlangsung</span>';
+            btnSubmitBulk.disabled = true;
+            btnSubmitBulk.innerHTML = 'Hapus 0 sesi';
+        } else if (count === 0) {
+            bulkSelectAll.checked = false;
+            bulkSelectAll.disabled = false;
+            bulkSelectAll.indeterminate = false;
+            bulkSelectLabel.textContent = `Pilih semua (${pageDeletableTotal} dapat dihapus)`;
+            btnSubmitBulk.disabled = true;
+            btnSubmitBulk.innerHTML = 'Hapus 0 sesi';
+        } else if (count === pageDeletableTotal && pageDeletableTotal > 0) {
+            bulkSelectAll.checked = true;
+            bulkSelectAll.disabled = false;
+            bulkSelectAll.indeterminate = false;
+            bulkSelectLabel.innerHTML = `Semua <strong>${count}</strong> sesi terpilih`;
+            btnSubmitBulk.disabled = false;
+            btnSubmitBulk.innerHTML = `Hapus ${count} sesi`;
+        } else {
+            bulkSelectAll.checked = false;
+            bulkSelectAll.disabled = false;
+            bulkSelectAll.indeterminate = true;
+            bulkSelectLabel.innerHTML = `<strong>${count}</strong> sesi dipilih`;
+            btnSubmitBulk.disabled = false;
+            btnSubmitBulk.innerHTML = `Hapus ${count} sesi`;
+        }
+    }
+
+    btnEnterSelect.addEventListener('click',  () => { selectMode = true;  updateUI(); });
+    btnCancelSelect.addEventListener('click', () => { selectMode = false; updateUI(); });
+
+    if (bulkSelectAll) {
+        bulkSelectAll.addEventListener('change', (e) => {
+            getCheckboxes().forEach(cb => { cb.checked = e.target.checked; });
+            updateUI();
+        });
+    }
+
+    document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('bulk-item-checkbox')) updateUI();
+    });
+
+    if (btnSubmitBulk && bulkForm && bulkInputsCont) {
+        btnSubmitBulk.addEventListener('click', () => {
+            const checkedBoxes = getChecked();
+            const count = checkedBoxes.length;
+            if (count === 0) return;
+
+            window.showConfirmDeleteModal({
+                title: `Hapus ${count} Sesi Mabar?`,
+                message: `Data ${count} sesi mabar yang dipilih akan dihapus secara permanen dari sistem. Tindakan ini tidak dapat dibatalkan.`,
+                confirmText: `Ya, Hapus ${count} Sesi`,
+                onConfirm: () => {
+                    bulkInputsCont.innerHTML = '';
+                    checkedBoxes.forEach(cb => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'selected_ids[]';
+                        input.value = cb.value;
+                        bulkInputsCont.appendChild(input);
+                    });
+                    bulkForm.submit();
+                }
+            });
+        });
+    }
+});
+</script>
+@endpush

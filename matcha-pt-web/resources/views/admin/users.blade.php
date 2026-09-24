@@ -149,7 +149,7 @@
                         <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">Email</th>
                         <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">No. HP</th>
                         <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">Role</th>
-                        <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">Host</th>
+                        <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">Gender / Usia</th>
                         <th class="px-4 py-3 text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">Aksi</th>
                     </tr>
                 </thead>
@@ -190,10 +190,18 @@
                                     {{ $roleLabel }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3">
-                                @if($user->is_host)
-                                    <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
-                                        <i class="fa-solid fa-circle-check text-emerald-500 text-xs"></i> Aktif
+                            <td class="px-4 py-3 text-slate-600 whitespace-nowrap">
+                                @if($user->player && ($user->player->gender || $user->player->usia))
+                                    @php
+                                        $genderText = match(strtolower($user->player->gender ?? '')) {
+                                            'male', 'laki-laki', 'l' => 'L',
+                                            'female', 'perempuan', 'p' => 'P',
+                                            default => $user->player->gender ?: '-',
+                                        };
+                                        $usiaText = $user->player->usia ? $user->player->usia . ' thn' : null;
+                                    @endphp
+                                    <span>
+                                        {{ $genderText }}{{ $usiaText ? ' / ' . $usiaText : '' }}
                                     </span>
                                 @else
                                     <span class="text-slate-400">—</span>
@@ -351,18 +359,6 @@
                 </div>
             </div>
 
-            <!-- Status Host Toggle -->
-            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between">
-                <div>
-                    <span class="block font-bold text-slate-800 text-xs">Status Host Aktif</span>
-                    <span class="text-[11px] text-slate-500">Izinkan pengguna membuat dan memandu sesi mabar</span>
-                </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="editUserIsHost" name="is_host" value="1" class="sr-only peer">
-                    <div class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#063B00]"></div>
-                </label>
-            </div>
-
             <!-- Password Baru (Opsional) -->
             <div class="space-y-1.5 pt-1">
                 <label class="block font-bold text-slate-800">
@@ -442,7 +438,6 @@
         document.getElementById('editUserEmail').value = user.email || '';
         document.getElementById('editUserNoHp').value = user.no_hp || '';
         document.getElementById('editUserRole').value = user.role || 'member';
-        document.getElementById('editUserIsHost').checked = !!user.is_host;
         document.getElementById('editUserPassword').value = '';
 
         if (modal) {

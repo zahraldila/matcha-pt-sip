@@ -47,6 +47,60 @@ class Player extends Model
         return $value;
     }
 
+    public function getLevelAttribute($value): ?string
+    {
+        if (! empty($value)) {
+            return $value;
+        }
+
+        if (! empty($this->user_id)) {
+            $userProfile = self::where('user_id', $this->user_id)
+                ->whereNotNull('level')
+                ->value('level');
+            if (! empty($userProfile)) {
+                return $userProfile;
+            }
+        }
+
+        return $value;
+    }
+
+    public function getGenderAttribute($value): ?string
+    {
+        if (! empty($value)) {
+            return $value;
+        }
+
+        if (! empty($this->user_id)) {
+            $userProfile = self::where('user_id', $this->user_id)
+                ->whereNotNull('gender')
+                ->value('gender');
+            if (! empty($userProfile)) {
+                return $userProfile;
+            }
+        }
+
+        return $value;
+    }
+
+    public function getUsiaAttribute($value): ?int
+    {
+        if (! empty($value)) {
+            return (int) $value;
+        }
+
+        if (! empty($this->user_id)) {
+            $userProfile = self::where('user_id', $this->user_id)
+                ->whereNotNull('usia')
+                ->value('usia');
+            if (! empty($userProfile)) {
+                return (int) $userProfile;
+            }
+        }
+
+        return $value ? (int) $value : null;
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');

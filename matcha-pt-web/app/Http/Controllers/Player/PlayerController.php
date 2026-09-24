@@ -485,6 +485,9 @@ class PlayerController extends Controller
 
         // Balikkan nilai boolean is_host
         $user->is_host = ! $user->is_host;
+        if (! in_array($user->role, ['admin', 'venue_owner'])) {
+            $user->role = $user->is_host ? 'host' : 'member';
+        }
         $user->save();
 
         $statusMsg = $user->is_host
@@ -551,15 +554,15 @@ class PlayerController extends Controller
             'email' => 'required|email|max:100|unique:tb_user,email,'.$user->user_id.',user_id',
             'no_hp' => 'nullable|string|max:20',
             'role' => 'required|in:member,host,venue_owner,admin',
-            'is_host' => 'nullable',
             'password' => 'nullable|string|min:6',
         ]);
 
+        $role = $validated['role'];
         $user->nama = $validated['nama'];
         $user->email = $validated['email'];
         $user->no_hp = $validated['no_hp'] ?? null;
-        $user->role = $validated['role'];
-        $user->is_host = $request->has('is_host') || $validated['role'] === 'host';
+        $user->role = $role;
+        $user->is_host = ($role === 'host');
 
         if (! empty($validated['password'])) {
             $user->password = Hash::make($validated['password']);

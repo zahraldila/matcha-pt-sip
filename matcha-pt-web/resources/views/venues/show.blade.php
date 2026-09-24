@@ -51,7 +51,7 @@
                         <a href="{{ route('games.create', ['venue_id' => $venue['venue_id'] ?? $venue['id'] ?? null]) }}" class="px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] inline-flex items-center gap-1.5">
                             <i class="fa-solid fa-plus text-[10px]"></i> Buat Mabar di Sini
                         </a>
-                    @elseif(Auth::user()->role !== 'venue_owner')
+                    @elseif(Auth::user()->role !== 'venue_owner' && !Auth::user()->isAdmin())
                         <a href="{{ route('player.profile', ['notice' => 'host_required']) }}" class="px-4 py-2 rounded-xl bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-semibold text-xs shadow-2xs transition-all hover:scale-[1.01] inline-flex items-center gap-1.5" title="Aktifkan Mode Host untuk Membuat Mabar">
                             <i class="fa-solid fa-bolt text-[10px]"></i> Jadi Host untuk Buat Mabar
                         </a>
@@ -138,7 +138,7 @@
                         <p class="text-[11px] text-slate-500 mt-0.5">Daftar court aktif dan jenis arena lapangan.</p>
                     </div>
 
-                    @if(auth()->check() && !empty($venue['is_mine']))
+                    @if(auth()->check() && !empty($venue['is_mine']) && !Auth::user()->isAdmin())
                         <a href="{{ route('venues.courts.create', $venue['id']) }}" class="px-3 py-1.5 rounded-lg bg-[#EBF8D8] hover:bg-[#d8f3b8] text-[#063B00] font-bold text-xs inline-flex items-center gap-1.5 border border-[#063B00]/20 transition-all">
                             <i class="fa-solid fa-plus text-[10px]"></i>
                             Tambah Court
@@ -162,7 +162,7 @@
                                     <span class="text-[10px] px-2 py-0.5 rounded font-semibold {{ $court['status'] === 'Available' ? 'bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25' : ($court['status'] === 'Maintenance' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-rose-50 text-rose-800 border border-rose-200') }}">
                                         {{ $court['status'] }}
                                     </span>
-                                    @if(auth()->check() && !empty($venue['is_mine']) && !empty($court['id']))
+                                    @if(auth()->check() && !empty($venue['is_mine']) && !empty($court['id']) && !Auth::user()->isAdmin())
                                         <div class="flex items-center gap-0.5">
                                             <button
                                                 type="button"

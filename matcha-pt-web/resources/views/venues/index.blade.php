@@ -91,30 +91,54 @@
                     <i class="fa-solid fa-magnifying-glass text-[9px]"></i> "{{ $search }}"
                 </span>
             @endif
-            <span>
+            <span id="venues-result-count">
                 Menampilkan <strong class="text-[#050608]">{{ $venues->total() }}</strong> venue
                 @if(($activeTab ?? 'all') === 'my_venues')
                     <span>yang Anda daftarkan</span>
                 @endif
             </span>
             @if(Auth::check() && Auth::user()->role === 'admin' && $venues->count() > 0)
-                <button type="button" id="btn-enter-select-mode" class="ml-2 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-xs cursor-pointer select-none">
+                {{-- Normal: "Pilih" button --}}
+                <button type="button" id="btn-enter-select-mode"
+                    class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-xs cursor-pointer select-none">
                     Pilih
                 </button>
+
+                {{-- Selection mode: compact inline toolbar (hidden by default) --}}
+                <div id="bulk-selection-container" class="hidden items-center gap-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap">
+                        <input type="checkbox" id="bulk-select-all"
+                            class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
+                        <span id="bulk-select-label" class="text-xs font-semibold text-slate-700">
+                            Pilih semua
+                        </span>
+                    </label>
+                    <button type="button" id="btn-cancel-select"
+                        class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs transition-all cursor-pointer whitespace-nowrap">
+                        Batal
+                    </button>
+                    <button type="button" id="btn-submit-bulk" disabled
+                        class="px-3 py-1.5 text-xs font-semibold rounded-lg shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        style="background-color:#dc2626;color:white;border:1px solid #b91c1c;">
+                        Hapus <span id="bulk-count-display">0</span> venue
+                    </button>
+                    <form id="bulk-delete-form" action="{{ route('venues.bulkDestroy') }}" method="POST" class="hidden">
+                        @csrf
+                        @method('DELETE')
+                        <div id="bulk-delete-inputs"></div>
+                    </form>
+                </div>
             @endif
         </div>
     </div>
 
     <!-- 3. Grid of Venues or Empty States -->
     @if($venues->count() > 0)
-        @if(Auth::check() && Auth::user()->role === 'admin')
-            <x-bulk-selection-toolbar itemName="venue" :totalItems="$venues->total()" :actionUrl="route('venues.bulkDestroy')" />
-        @endif
         <div id="venuesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($venues as $venue)
                 <div class="bulk-item-wrapper relative h-full">
                     @if(Auth::check() && Auth::user()->role === 'admin')
-                        <label class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg p-1.5 cursor-pointer hover:bg-slate-50 transition-colors">
+                        <label class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg p-1.5 cursor-pointer hover:bg-slate-50 transition-colors" style="display:none">
                             <input type="checkbox" value="{{ $venue['id'] }}" class="bulk-item-checkbox w-4.5 h-4.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shadow-xs">
                         </label>
                     @endif
@@ -262,3 +286,132 @@
     @endif
 </div>
 @endsection
+
+@push('styles')
+<style>
+.bulk-item-checkbox-container { display: none !important; }
+.bulk-item-wrapper.selection-mode-active .bulk-item-checkbox-container { display: flex !important; }
+#bulk-selection-container.show-toolbar { display: flex !important; }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnEnterSelect  = document.getElementById('btn-enter-select-mode');
+    const btnCancelSelect = document.getElementById('btn-cancel-select');
+    const btnSubmitBulk   = document.getElementById('btn-submit-bulk');
+    const bulkContainer   = document.getElementById('bulk-selection-container');
+    const bulkSelectAll   = document.getElementById('bulk-select-all');
+    const bulkSelectLabel = document.getElementById('bulk-select-label');
+    const bulkForm        = document.getElementById('bulk-delete-form');
+    const bulkInputsCont  = document.getElementById('bulk-delete-inputs');
+    const resultCount     = document.getElementById('venues-result-count');
+
+    if (!btnEnterSelect || !bulkContainer) return;
+
+    let selectMode = false;
+
+    function getCheckboxes() { return document.querySelectorAll('.bulk-item-checkbox'); }
+    function getChecked()    { return document.querySelectorAll('.bulk-item-checkbox:checked'); }
+
+    function updateUI() {
+        const checkboxes   = getCheckboxes();
+        const checkedBoxes = getChecked();
+        const count        = checkedBoxes.length;
+        const pageTotal    = checkboxes.length;
+
+        // Show/hide checkbox overlays via direct inline style
+        document.querySelectorAll('.bulk-item-checkbox-container').forEach(el => {
+            el.style.display = selectMode ? 'flex' : 'none';
+        });
+
+        // Card highlight based on checked state
+        checkboxes.forEach(cb => {
+            const wrapper = cb.closest('.bulk-item-wrapper');
+            const card    = wrapper ? wrapper.querySelector('.bulk-item-card') : null;
+            if (!selectMode) { cb.checked = false; }
+            if (card) {
+                if (selectMode && cb.checked) {
+                    card.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50/20');
+                    card.classList.remove('border-white/90');
+                } else {
+                    card.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50/20');
+                    card.classList.add('border-white/90');
+                }
+            }
+        });
+
+        // Hide result count when toolbar is active
+        if (resultCount) resultCount.style.display = selectMode ? 'none' : '';
+
+        if (selectMode) {
+            btnEnterSelect.style.display = 'none';
+            bulkContainer.style.display  = 'flex';
+        } else {
+            btnEnterSelect.style.display = '';
+            bulkContainer.style.display  = 'none';
+            if (bulkSelectAll)   { bulkSelectAll.checked = false; bulkSelectAll.indeterminate = false; }
+            if (bulkSelectLabel) bulkSelectLabel.textContent = 'Pilih semua';
+            if (btnSubmitBulk)   { btnSubmitBulk.disabled = true; btnSubmitBulk.innerHTML = 'Hapus 0 venue'; }
+            return;
+        }
+
+        if (!bulkSelectAll || !bulkSelectLabel || !btnSubmitBulk) return;
+
+        if (count === 0) {
+            bulkSelectAll.checked = false; bulkSelectAll.indeterminate = false;
+            bulkSelectLabel.textContent = 'Pilih semua';
+            btnSubmitBulk.disabled = true; btnSubmitBulk.innerHTML = 'Hapus 0 venue';
+        } else if (count === pageTotal && pageTotal > 0) {
+            bulkSelectAll.checked = true; bulkSelectAll.indeterminate = false;
+            bulkSelectLabel.innerHTML = `Semua <strong>${count}</strong> terpilih`;
+            btnSubmitBulk.disabled = false; btnSubmitBulk.innerHTML = `Hapus ${count} venue`;
+        } else {
+            bulkSelectAll.checked = false; bulkSelectAll.indeterminate = true;
+            bulkSelectLabel.innerHTML = `<strong>${count}</strong> dipilih`;
+            btnSubmitBulk.disabled = false; btnSubmitBulk.innerHTML = `Hapus ${count} venue`;
+        }
+    }
+
+    btnEnterSelect.addEventListener('click',  () => { selectMode = true;  updateUI(); });
+    btnCancelSelect.addEventListener('click', () => { selectMode = false; updateUI(); });
+
+    if (bulkSelectAll) {
+        bulkSelectAll.addEventListener('change', (e) => {
+            getCheckboxes().forEach(cb => { cb.checked = e.target.checked; });
+            updateUI();
+        });
+    }
+
+    document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('bulk-item-checkbox')) updateUI();
+    });
+
+    if (btnSubmitBulk && bulkForm && bulkInputsCont) {
+        btnSubmitBulk.addEventListener('click', () => {
+            const checkedBoxes = getChecked();
+            const count = checkedBoxes.length;
+            if (count === 0) return;
+
+            window.showConfirmDeleteModal({
+                title: `Hapus ${count} Venue?`,
+                message: `Data ${count} venue yang dipilih beserta seluruh informasi court terkait akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.`,
+                confirmText: `Ya, Hapus ${count} Venue`,
+                onConfirm: () => {
+                    bulkInputsCont.innerHTML = '';
+                    checkedBoxes.forEach(cb => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'selected_ids[]';
+                        input.value = cb.value;
+                        bulkInputsCont.appendChild(input);
+                    });
+                    bulkForm.submit();
+                }
+            });
+        });
+    }
+});
+</script>
+@endpush

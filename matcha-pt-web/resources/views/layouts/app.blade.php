@@ -71,6 +71,9 @@
         @include('components.footer')
     </div>
 
+    <!-- Global Delete Confirmation Modal (Glassmorphic) -->
+    @include('components.delete-confirm-modal')
+
     <!-- Notification Toast Container (Always on top of all modals and backdrops) -->
     <div id="toast-container" class="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[9999] flex flex-col space-y-2 pointer-events-none max-w-[calc(100vw-2rem)]"></div>
 

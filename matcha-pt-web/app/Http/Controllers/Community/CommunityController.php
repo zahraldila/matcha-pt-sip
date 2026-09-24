@@ -289,11 +289,20 @@ class CommunityController extends Controller
                     ->exists();
 
                 if (! $alreadyMember) {
+                    $profile = Player::where('user_id', $user->user_id)
+                        ->where(function ($q) {
+                            $q->whereNotNull('level')->orWhereNotNull('gender');
+                        })
+                        ->first();
+
                     Player::create([
                         'user_id' => $user->user_id,
                         'community_id' => $community->community_id,
                         'nama' => $user->nama,
-                        'rating' => 1.00,
+                        'rating' => $profile?->rating ?? 1.00,
+                        'gender' => $profile?->gender,
+                        'usia' => $profile?->usia,
+                        'level' => $profile?->level,
                         'no_hp' => $user->no_hp,
                         'email' => $user->email,
                     ]);
@@ -358,11 +367,20 @@ class CommunityController extends Controller
                 ->with('info', 'Anda sudah menjadi bagian dari komunitas ini.');
         }
 
+        $profile = Player::where('user_id', $user->user_id)
+            ->where(function ($q) {
+                $q->whereNotNull('level')->orWhereNotNull('gender');
+            })
+            ->first();
+
         Player::create([
             'user_id' => $user->user_id,
             'community_id' => (int) $id,
             'nama' => $user->nama,
-            'rating' => 1.00,
+            'rating' => $profile?->rating ?? 1.00,
+            'gender' => $profile?->gender,
+            'usia' => $profile?->usia,
+            'level' => $profile?->level,
             'no_hp' => $user->no_hp,
             'email' => $user->email,
         ]);
