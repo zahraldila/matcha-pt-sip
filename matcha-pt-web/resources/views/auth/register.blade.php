@@ -148,17 +148,31 @@
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        <div class="space-y-1">
+                        <!-- Gender -->
+                        <div class="space-y-1 relative" id="genderDropdownContainer">
                             <label class="block font-bold text-slate-800">
                                 Jenis Kelamin <span class="text-rose-500">*</span>
                             </label>
                             <div class="relative">
-                                <select name="gender" id="input_gender" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                                <select name="gender" id="input_gender" class="sr-only">
                                     <option value="" disabled {{ old('gender') ? '' : 'selected' }}>Pilih Jenis Kelamin</option>
                                     <option value="Male" {{ old('gender') === 'Male' ? 'selected' : '' }}>Laki-laki 🚹</option>
                                     <option value="Female" {{ old('gender') === 'Female' ? 'selected' : '' }}>Perempuan 🚺</option>
                                 </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+
+                                <button
+                                    type="button"
+                                    id="genderTrigger"
+                                    onclick="toggleDropdownMenu('genderMenu', 'genderArrow')"
+                                    class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs flex items-center justify-between cursor-pointer text-left"
+                                >
+                                    <span id="genderSelected" class="truncate font-semibold text-slate-900">
+                                        {{ old('gender') === 'Male' ? 'Laki-laki 🚹' : (old('gender') === 'Female' ? 'Perempuan 🚺' : 'Pilih Jenis Kelamin') }}
+                                    </span>
+                                    <i id="genderArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                                </button>
+
+                                <div id="genderMenu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
                             </div>
                             <p id="err_gender" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
                                 <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Jenis kelamin wajib dipilih.
@@ -166,6 +180,7 @@
                             <span class="text-[10px] text-slate-400 block font-medium">*Digunakan algoritma format Mixicano / Mix Americano.</span>
                         </div>
 
+                        <!-- Usia -->
                         <div class="space-y-1">
                             <label class="block font-bold text-slate-800">
                                 Usia (Tahun) <span class="text-rose-500">*</span>
@@ -176,19 +191,41 @@
                             </p>
                         </div>
 
-                        <div class="space-y-1">
+                        <!-- Skill Level -->
+                        <div class="space-y-1 relative" id="levelDropdownContainer">
                             <label class="block font-bold text-slate-800">
                                 Kategori Skill Level <span class="text-rose-500">*</span>
                             </label>
                             <div class="relative">
-                                <select name="level" id="input_level" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                                <select name="level" id="input_level" class="sr-only">
                                     <option value="" disabled {{ old('level') ? '' : 'selected' }}>Pilih Kategori Skill Level</option>
                                     <option value="Newbie" {{ old('level') === 'Newbie' ? 'selected' : '' }}>Newbie (Baru mulai / belajar)</option>
                                     <option value="Beginner" {{ old('level') === 'Beginner' ? 'selected' : '' }}>Beginner (Rally dasar lancar)</option>
                                     <option value="Intermediate" {{ old('level') === 'Intermediate' ? 'selected' : '' }}>Intermediate (Konsisten match play)</option>
                                     <option value="Advanced" {{ old('level') === 'Advanced' ? 'selected' : '' }}>Advanced (Turnamen & Kompetitif)</option>
                                 </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+
+                                <button
+                                    type="button"
+                                    id="levelTrigger"
+                                    onclick="toggleDropdownMenu('levelMenu', 'levelArrow')"
+                                    class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs flex items-center justify-between cursor-pointer text-left"
+                                >
+                                    <span id="levelSelected" class="truncate font-semibold text-slate-900">
+                                        @php
+                                            $lvlMap = [
+                                                'Newbie' => 'Newbie (Baru mulai / belajar)',
+                                                'Beginner' => 'Beginner (Rally dasar lancar)',
+                                                'Intermediate' => 'Intermediate (Konsisten match play)',
+                                                'Advanced' => 'Advanced (Turnamen & Kompetitif)',
+                                            ];
+                                        @endphp
+                                        {{ $lvlMap[old('level')] ?? 'Pilih Kategori Skill Level' }}
+                                    </span>
+                                    <i id="levelArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                                </button>
+
+                                <div id="levelMenu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
                             </div>
                             <p id="err_level" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
                                 <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Kategori skill level wajib dipilih.
@@ -196,12 +233,13 @@
                             <span class="text-[10px] text-slate-400 block font-medium">*Membantu sistem menyusun drawing tim yang seimbang.</span>
                         </div>
 
-                        <div class="space-y-1">
+                        <!-- Community -->
+                        <div class="space-y-1 relative" id="communityDropdownContainer">
                             <label class="block font-bold text-slate-800">
                                 Pilihan Komunitas (Opsional)
                             </label>
                             <div class="relative">
-                                <select name="community_id" id="input_community_id" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                                <select name="community_id" id="input_community_id" class="sr-only">
                                     <option value="" {{ old('community_id') ? '' : 'selected' }}>Pilih Komunitas</option>
                                     <option value="none" {{ old('community_id') === 'none' ? 'selected' : '' }}>Personal (Non-Community / Belum Ada)</option>
                                     @if(isset($communities))
@@ -214,7 +252,34 @@
                                         @endforeach
                                     @endif
                                 </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+
+                                <button
+                                    type="button"
+                                    id="communityTrigger"
+                                    onclick="toggleDropdownMenu('communityMenu', 'communityArrow')"
+                                    class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs flex items-center justify-between cursor-pointer text-left"
+                                >
+                                    <span id="communitySelected" class="truncate font-semibold text-slate-900">
+                                        @php
+                                            $selectedCommName = 'Pilih Komunitas';
+                                            if (old('community_id') === 'none') {
+                                                $selectedCommName = 'Personal (Non-Community / Belum Ada)';
+                                            } elseif (isset($communities) && old('community_id')) {
+                                                foreach($communities as $comm) {
+                                                    $cId = $comm->community_id ?? $comm['id'];
+                                                    if ($cId == old('community_id')) {
+                                                        $selectedCommName = $comm->nama_community ?? $comm['name'];
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        {{ $selectedCommName }}
+                                    </span>
+                                    <i id="communityArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                                </button>
+
+                                <div id="communityMenu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
                             </div>
                         </div>
                     </div>
@@ -302,24 +367,120 @@
         }
     }
 
+    const registerDropdownList = [
+        { selectId: 'input_gender', menuId: 'genderMenu', labelId: 'genderSelected', arrowId: 'genderArrow', containerId: 'genderDropdownContainer', defaultPlaceholder: 'Pilih Jenis Kelamin', errId: 'err_gender' },
+        { selectId: 'input_level', menuId: 'levelMenu', labelId: 'levelSelected', arrowId: 'levelArrow', containerId: 'levelDropdownContainer', defaultPlaceholder: 'Pilih Kategori Skill Level', errId: 'err_level' },
+        { selectId: 'input_community_id', menuId: 'communityMenu', labelId: 'communitySelected', arrowId: 'communityArrow', containerId: 'communityDropdownContainer', defaultPlaceholder: 'Pilih Komunitas' },
+    ];
+
+    function resetAllDropdownZIndices() {
+        registerDropdownList.forEach(item => {
+            const container = document.getElementById(item.containerId);
+            if (container) container.style.zIndex = '';
+        });
+    }
+
+    function renderSelectDropdown(selectId, menuId, labelId, onSelectCallback = null, defaultPlaceholder = null) {
+        const select = document.getElementById(selectId);
+        const menu = document.getElementById(menuId);
+        const label = document.getElementById(labelId);
+        if (!select || !menu || !label) return;
+
+        menu.innerHTML = '';
+        Array.from(select.options).forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            const isSelected = String(select.value) === String(opt.value);
+            btn.className = `w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+                isSelected && opt.value !== ''
+                    ? 'bg-[#EBF8D8] text-[#063B00] font-bold'
+                    : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
+            }`;
+            btn.innerHTML = `
+                <span class="truncate">${opt.textContent.trim()}</span>
+                ${isSelected && opt.value !== '' ? '<i class="fa-solid fa-check text-[#063B00] text-xs shrink-0 ml-2"></i>' : ''}
+            `;
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                select.value = opt.value;
+                select.dispatchEvent(new Event('change'));
+                label.textContent = opt.textContent.trim();
+                renderSelectDropdown(selectId, menuId, labelId, onSelectCallback, defaultPlaceholder);
+                menu.classList.add('hidden');
+                const arrow = document.getElementById(menuId.replace('Menu', 'Arrow'));
+                if (arrow) arrow.classList.remove('rotate-180');
+                resetAllDropdownZIndices();
+                if (onSelectCallback) onSelectCallback(opt.value);
+            };
+            menu.appendChild(btn);
+        });
+
+        const activeOpt = select.options[select.selectedIndex] || select.options[0];
+        if (activeOpt && activeOpt.value !== '') {
+            label.textContent = activeOpt.textContent.trim();
+        } else if (defaultPlaceholder) {
+            label.textContent = defaultPlaceholder;
+        }
+    }
+
+    window.toggleDropdownMenu = function (menuId, arrowId) {
+        const menu = document.getElementById(menuId);
+        const arrow = document.getElementById(arrowId);
+        if (!menu) return;
+
+        const willOpen = menu.classList.contains('hidden');
+
+        registerDropdownList.forEach(item => {
+            if (item.menuId !== menuId) {
+                document.getElementById(item.menuId)?.classList.add('hidden');
+                const otherArrow = document.getElementById(item.arrowId);
+                if (otherArrow) otherArrow.classList.remove('rotate-180');
+            }
+        });
+        resetAllDropdownZIndices();
+
+        if (willOpen) {
+            menu.classList.remove('hidden');
+            if (arrow) arrow.classList.add('rotate-180');
+            const currentItem = registerDropdownList.find(item => item.menuId === menuId);
+            if (currentItem && currentItem.containerId) {
+                const container = document.getElementById(currentItem.containerId);
+                if (container) container.style.zIndex = '50';
+            }
+        } else {
+            menu.classList.add('hidden');
+            if (arrow) arrow.classList.remove('rotate-180');
+        }
+    };
+
     let isFormConfirmed = false;
 
     function setFieldError(fieldId, errId, message) {
         const input = document.getElementById(fieldId);
+        const trigger = document.getElementById(fieldId.replace('input_', '') + 'Trigger');
+        const targetElement = (input && input.classList.contains('sr-only') && trigger) ? trigger : input;
         const err = document.getElementById(errId);
 
         if (message) {
-            input.classList.add('border-rose-400', 'bg-rose-50/40', 'focus:ring-rose-200', 'focus:border-rose-500');
-            input.classList.remove('border-slate-200/80', 'bg-slate-50/80');
-            err.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> <span>${message}</span>`;
-            err.classList.remove('hidden');
-            err.classList.add('flex');
+            if (targetElement) {
+                targetElement.classList.add('!border-rose-400', 'bg-rose-50/40', 'focus:ring-rose-200', 'focus:border-rose-500');
+                targetElement.classList.remove('border-slate-200/80', 'bg-slate-50/80');
+            }
+            if (err) {
+                err.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> <span>${message}</span>`;
+                err.classList.remove('hidden');
+                err.classList.add('flex');
+            }
             return true;
         } else {
-            input.classList.remove('border-rose-400', 'bg-rose-50/40', 'focus:ring-rose-200', 'focus:border-rose-500');
-            input.classList.add('border-slate-200/80', 'bg-slate-50/80');
-            err.classList.add('hidden');
-            err.classList.remove('flex');
+            if (targetElement) {
+                targetElement.classList.remove('!border-rose-400', 'bg-rose-50/40', 'focus:ring-rose-200', 'focus:border-rose-500');
+                targetElement.classList.add('border-slate-200/80', 'bg-slate-50/80');
+            }
+            if (err) {
+                err.classList.add('hidden');
+                err.classList.remove('flex');
+            }
             return false;
         }
     }
@@ -385,7 +546,7 @@
         }
 
         if (hasError) {
-            const firstErrorField = document.querySelector('.border-rose-400');
+            const firstErrorField = document.querySelector('.\\!border-rose-400') || document.querySelector('.border-rose-400');
             if (firstErrorField) {
                 firstErrorField.focus();
                 firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -404,6 +565,32 @@
         isFormConfirmed = true;
         document.getElementById('registerForm').submit();
     }
+
+    document.addEventListener('click', function (e) {
+        let clickedInsideAnyDropdown = false;
+        registerDropdownList.forEach(item => {
+            if (item.containerId && e.target.closest(`#${item.containerId}`)) {
+                clickedInsideAnyDropdown = true;
+            } else {
+                document.getElementById(item.menuId)?.classList.add('hidden');
+                const arrow = document.getElementById(item.arrowId);
+                if (arrow) arrow.classList.remove('rotate-180');
+            }
+        });
+        if (!clickedInsideAnyDropdown) {
+            resetAllDropdownZIndices();
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        registerDropdownList.forEach(item => {
+            renderSelectDropdown(item.selectId, item.menuId, item.labelId, (val) => {
+                if (item.errId) {
+                    setFieldError(item.selectId, item.errId, null);
+                }
+            }, item.defaultPlaceholder);
+        });
+    });
 </script>
 @endpush
 @endsection

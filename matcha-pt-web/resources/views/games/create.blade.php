@@ -554,38 +554,43 @@
 
                 <!-- Gender + Level -->
                 <div class="grid grid-cols-2 gap-3">
-
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 mb-1.5">
+                    <div id="manualGenderContainer" class="space-y-1 relative">
+                        <label class="block text-[11px] font-bold text-slate-700">
                             Gender
                         </label>
-
-                        <select
-                            id="manualPlayerGender"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none"
-                        >
-                            <option value="Male">Laki-laki</option>
-                            <option value="Female">Perempuan</option>
-                        </select>
+                        <div class="relative">
+                            <select id="manualPlayerGender" class="sr-only">
+                                <option value="Male" selected>Laki-laki</option>
+                                <option value="Female">Perempuan</option>
+                            </select>
+                            <button type="button" onclick="toggleManualDropdown('manualGenderMenu', 'manualGenderArrow')"
+                                class="w-full h-[40px] bg-slate-50 border border-slate-200 rounded-xl px-3 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] transition-colors flex items-center justify-between cursor-pointer text-left">
+                                <span id="manualGenderLabel" class="truncate">Laki-laki</span>
+                                <i id="manualGenderArrow" class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
+                            </button>
+                            <div id="manualGenderMenu" class="hidden absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-1 text-xs space-y-0.5 ring-1 ring-black/5"></div>
+                        </div>
                     </div>
 
-
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 mb-1.5">
+                    <div id="manualLevelContainer" class="space-y-1 relative">
+                        <label class="block text-[11px] font-bold text-slate-700">
                             Skill Level
                         </label>
-
-                        <select
-                            id="manualPlayerLevel"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none"
-                        >
-                            <option value="Newbie">Newbie</option>
-                            <option value="Beginner" selected>Beginner</option>
-                            <option value="Intermediate">Intermediate</option>
-                            <option value="Advanced">Advanced</option>
-                        </select>
+                        <div class="relative">
+                            <select id="manualPlayerLevel" class="sr-only">
+                                <option value="Newbie">Newbie</option>
+                                <option value="Beginner" selected>Beginner</option>
+                                <option value="Intermediate">Intermediate</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                            <button type="button" onclick="toggleManualDropdown('manualLevelMenu', 'manualLevelArrow')"
+                                class="w-full h-[40px] bg-slate-50 border border-slate-200 rounded-xl px-3 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] transition-colors flex items-center justify-between cursor-pointer text-left">
+                                <span id="manualLevelLabel" class="truncate">Beginner</span>
+                                <i id="manualLevelArrow" class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
+                            </button>
+                            <div id="manualLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-1 text-xs max-h-40 overflow-y-auto space-y-0.5 ring-1 ring-black/5"></div>
+                        </div>
                     </div>
-
                 </div>
 
 
@@ -1914,11 +1919,62 @@
         }
     }
 
+    function renderManualSelectDropdown(selectId, menuId, labelId) {
+        const select = document.getElementById(selectId);
+        const menu = document.getElementById(menuId);
+        const label = document.getElementById(labelId);
+        if (!select || !menu || !label) return;
+
+        menu.innerHTML = '';
+        Array.from(select.options).forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            const isSelected = String(select.value) === String(opt.value);
+            btn.className = `w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+                isSelected
+                    ? 'bg-[#EBF8D8] text-[#063B00] font-bold'
+                    : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
+            }`;
+            btn.innerHTML = `
+                <span class="truncate">${opt.textContent.trim()}</span>
+                ${isSelected ? '<i class="fa-solid fa-check text-[#063B00] text-[10px] shrink-0 ml-1"></i>' : ''}
+            `;
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                select.value = opt.value;
+                label.textContent = opt.textContent.trim();
+                renderManualSelectDropdown(selectId, menuId, labelId);
+                menu.classList.add('hidden');
+                const arrow = document.getElementById(menuId.replace('Menu', 'Arrow'));
+                if (arrow) arrow.classList.remove('rotate-180');
+            };
+            menu.appendChild(btn);
+        });
+
+        const activeOpt = select.options[select.selectedIndex] || select.options[0];
+        if (activeOpt) {
+            label.textContent = activeOpt.textContent.trim();
+        }
+    }
+
+    function toggleManualDropdown(menuId, arrowId) {
+        const menu = document.getElementById(menuId);
+        const arrow = document.getElementById(arrowId);
+        if (!menu) return;
+
+        const isHidden = menu.classList.toggle('hidden');
+        if (arrow) {
+            arrow.classList.toggle('rotate-180', !isHidden);
+        }
+    }
+
     // Inisialisasi awal custom dropdowns & outside click handler
     document.addEventListener('DOMContentLoaded', () => {
         filterVenuesBySport();
         renderNumCourtsDropdown();
         renderScoringDropdown();
+        renderManualSelectDropdown('manualPlayerGender', 'manualGenderMenu', 'manualGenderLabel');
+        renderManualSelectDropdown('manualPlayerLevel', 'manualLevelMenu', 'manualLevelLabel');
 
         document.addEventListener('click', (e) => {
             if (!e.target.closest('#numCourtsDropdownContainer')) {
@@ -1940,6 +1996,14 @@
             if (!e.target.closest('#quickCourtCountDropdownContainer')) {
                 document.getElementById('quickCourtCountDropdownMenu')?.classList.add('hidden');
                 document.getElementById('quickCourtCountDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+            if (!e.target.closest('#manualGenderContainer')) {
+                document.getElementById('manualGenderMenu')?.classList.add('hidden');
+                document.getElementById('manualGenderArrow')?.classList.remove('rotate-180');
+            }
+            if (!e.target.closest('#manualLevelContainer')) {
+                document.getElementById('manualLevelMenu')?.classList.add('hidden');
+                document.getElementById('manualLevelArrow')?.classList.remove('rotate-180');
             }
         });
     });

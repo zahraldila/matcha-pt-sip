@@ -70,29 +70,50 @@
             </div>
 
             <div>
-                <label class="block text-slate-700 font-semibold mb-1">Nama Pemain <span class="text-rose-500">*</span></label>
-                <input type="text" name="nama" id="joinPlayerName" placeholder="Contoh: Alex Pratama" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none" required>
+                <label class="block text-slate-700 font-semibold mb-1 text-xs">Nama Pemain <span class="text-rose-500">*</span></label>
+                <input type="text" name="nama" id="joinPlayerName" placeholder="Contoh: Alex Pratama" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none text-xs" required>
             </div>
             <div class="grid grid-cols-3 gap-2">
-                <div>
-                    <label class="block text-slate-700 font-semibold mb-1">Gender <span class="text-rose-500">*</span></label>
-                    <select name="gender" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none text-xs">
-                        <option value="Male">Laki-laki</option>
-                        <option value="Female">Perempuan</option>
-                    </select>
+                <!-- Gender -->
+                <div class="relative" id="joinGenderContainer">
+                    <label class="block text-slate-700 font-semibold mb-1 text-[11px]">Gender <span class="text-rose-500">*</span></label>
+                    <div class="relative">
+                        <select name="gender" id="joinGuestGender" class="sr-only">
+                            <option value="Male" selected>Laki-laki</option>
+                            <option value="Female">Perempuan</option>
+                        </select>
+                        <button type="button" onclick="toggleJoinDropdown('joinGenderMenu', 'joinGenderArrow')"
+                            class="w-full h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white transition-colors text-xs flex items-center justify-between cursor-pointer text-left">
+                            <span id="joinGenderLabel" class="truncate">Laki-laki</span>
+                            <i id="joinGenderArrow" class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
+                        </button>
+                        <div id="joinGenderMenu" class="hidden absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-1 text-xs space-y-0.5 ring-1 ring-black/5"></div>
+                    </div>
                 </div>
+
+                <!-- Usia -->
                 <div>
-                    <label class="block text-slate-700 font-semibold mb-1">Usia (Thn) <span class="text-rose-500">*</span></label>
-                    <input type="number" name="usia" min="10" max="90" placeholder="24" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none text-xs" required>
+                    <label class="block text-slate-700 font-semibold mb-1 text-[11px]">Usia (Thn) <span class="text-rose-500">*</span></label>
+                    <input type="number" name="usia" min="10" max="90" placeholder="24" class="w-full h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-2.5 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none text-xs" required>
                 </div>
-                <div>
-                    <label class="block text-slate-700 font-semibold mb-1">Skill Level <span class="text-rose-500">*</span></label>
-                    <select name="level" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none text-xs">
-                        <option value="Newbie">Newbie</option>
-                        <option value="Beginner">Beginner</option>
-                        <option value="Intermediate" selected>Intermediate</option>
-                        <option value="Advanced">Advanced</option>
-                    </select>
+
+                <!-- Skill Level -->
+                <div class="relative" id="joinLevelContainer">
+                    <label class="block text-slate-700 font-semibold mb-1 text-[11px]">Skill Level <span class="text-rose-500">*</span></label>
+                    <div class="relative">
+                        <select name="level" id="joinGuestLevel" class="sr-only">
+                            <option value="Newbie">Newbie</option>
+                            <option value="Beginner">Beginner</option>
+                            <option value="Intermediate" selected>Intermediate</option>
+                            <option value="Advanced">Advanced</option>
+                        </select>
+                        <button type="button" onclick="toggleJoinDropdown('joinLevelMenu', 'joinLevelArrow')"
+                            class="w-full h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white transition-colors text-xs flex items-center justify-between cursor-pointer text-left">
+                            <span id="joinLevelLabel" class="truncate">Intermediate</span>
+                            <i id="joinLevelArrow" class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
+                        </button>
+                        <div id="joinLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-1 text-xs max-h-40 overflow-y-auto space-y-0.5 ring-1 ring-black/5"></div>
+                    </div>
                 </div>
             </div>
             @endauth
@@ -113,6 +134,88 @@
     if (typeof currentJoinGameId === 'undefined') {
         var currentJoinGameId = null;
     }
+
+    const joinDropdownList = [
+        { selectId: 'joinGuestGender', menuId: 'joinGenderMenu', labelId: 'joinGenderLabel', arrowId: 'joinGenderArrow', containerId: 'joinGenderContainer' },
+        { selectId: 'joinGuestLevel', menuId: 'joinLevelMenu', labelId: 'joinLevelLabel', arrowId: 'joinLevelArrow', containerId: 'joinLevelContainer' },
+    ];
+
+    function renderJoinSelectDropdown(selectId, menuId, labelId) {
+        const select = document.getElementById(selectId);
+        const menu = document.getElementById(menuId);
+        const label = document.getElementById(labelId);
+        if (!select || !menu || !label) return;
+
+        menu.innerHTML = '';
+        Array.from(select.options).forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            const isSelected = String(select.value) === String(opt.value);
+            btn.className = `w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+                isSelected
+                    ? 'bg-[#EBF8D8] text-[#063B00] font-bold'
+                    : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
+            }`;
+            btn.innerHTML = `
+                <span class="truncate">${opt.textContent.trim()}</span>
+                ${isSelected ? '<i class="fa-solid fa-check text-[#063B00] text-[10px] shrink-0 ml-1"></i>' : ''}
+            `;
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                select.value = opt.value;
+                select.dispatchEvent(new Event('change'));
+                label.textContent = opt.textContent.trim();
+                renderJoinSelectDropdown(selectId, menuId, labelId);
+                menu.classList.add('hidden');
+                const arrow = document.getElementById(menuId.replace('Menu', 'Arrow'));
+                if (arrow) arrow.classList.remove('rotate-180');
+            };
+            menu.appendChild(btn);
+        });
+
+        const activeOpt = select.options[select.selectedIndex] || select.options[0];
+        if (activeOpt) {
+            label.textContent = activeOpt.textContent.trim();
+        }
+    }
+
+    function toggleJoinDropdown(menuId, arrowId) {
+        const menu = document.getElementById(menuId);
+        const arrow = document.getElementById(arrowId);
+        if (!menu) return;
+
+        const willOpen = menu.classList.contains('hidden');
+        joinDropdownList.forEach(item => {
+            if (item.menuId !== menuId) {
+                document.getElementById(item.menuId)?.classList.add('hidden');
+                document.getElementById(item.arrowId)?.classList.remove('rotate-180');
+            }
+        });
+
+        if (willOpen) {
+            menu.classList.remove('hidden');
+            if (arrow) arrow.classList.add('rotate-180');
+        } else {
+            menu.classList.add('hidden');
+            if (arrow) arrow.classList.remove('rotate-180');
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        joinDropdownList.forEach(item => {
+            const container = document.getElementById(item.containerId);
+            if (container && !container.contains(e.target)) {
+                document.getElementById(item.menuId)?.classList.add('hidden');
+                document.getElementById(item.arrowId)?.classList.remove('rotate-180');
+            }
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        joinDropdownList.forEach(item => {
+            renderJoinSelectDropdown(item.selectId, item.menuId, item.labelId);
+        });
+    });
 
     function showJoinModal(gameId, gameTitle) {
         currentJoinGameId = gameId;

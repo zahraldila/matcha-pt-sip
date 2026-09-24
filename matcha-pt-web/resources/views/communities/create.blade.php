@@ -159,34 +159,62 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                    <div class="space-y-1.5">
+                    <!-- Target Level Member -->
+                    <div class="space-y-1.5 relative" id="targetLevelDropdownContainer">
                         <label class="block font-bold text-slate-800">Target Level Member</label>
                         <div class="relative">
-                            <select name="target_level" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                            <select id="targetLevelSelect" name="target_level" class="sr-only">
                                 <option value="All Levels" {{ old('target_level', 'All Levels') === 'All Levels' ? 'selected' : '' }}>Semua Level (Newbie s/d Advanced)</option>
                                 <option value="Beginners" {{ old('target_level') === 'Beginners' ? 'selected' : '' }}>Fokus Newbie & Beginner</option>
                                 <option value="Intermediate" {{ old('target_level') === 'Intermediate' ? 'selected' : '' }}>Intermediate & Competitive</option>
                             </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+
+                            <button
+                                type="button"
+                                id="targetLevelTrigger"
+                                onclick="toggleDropdownMenu('targetLevelMenu', 'targetLevelArrow')"
+                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left"
+                            >
+                                <span id="targetLevelSelected" class="text-xs font-bold text-slate-900 truncate">
+                                    {{ old('target_level') === 'Beginners' ? 'Fokus Newbie & Beginner' : (old('target_level') === 'Intermediate' ? 'Intermediate & Competitive' : 'Semua Level (Newbie s/d Advanced)') }}
+                                </span>
+                                <i id="targetLevelArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                            </button>
+
+                            <div id="targetLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
                         </div>
                     </div>
 
-                    <div class="space-y-1.5">
+                    <!-- Status Keanggotaan -->
+                    <div class="space-y-1.5 relative" id="statusKeanggotaanDropdownContainer">
                         <label class="block font-bold text-slate-800">Status Keanggotaan</label>
                         <div class="relative">
-                            <select name="status_keanggotaan" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                            <select id="statusKeanggotaanSelect" name="status_keanggotaan" class="sr-only">
                                 <option value="Open" {{ old('status_keanggotaan', old('membership_status', 'Open')) === 'Open' ? 'selected' : '' }}>Terbuka untuk Umum (Free Join)</option>
                                 <option value="Approval" {{ old('status_keanggotaan', old('membership_status')) === 'Approval' ? 'selected' : '' }}>Memerlukan Persetujuan Admin</option>
                                 <option value="Private" {{ old('status_keanggotaan', old('membership_status')) === 'Private' ? 'selected' : '' }}>Undangan Khusus (Private)</option>
                             </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+
+                            <button
+                                type="button"
+                                id="statusKeanggotaanTrigger"
+                                onclick="toggleDropdownMenu('statusKeanggotaanMenu', 'statusKeanggotaanArrow')"
+                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left"
+                            >
+                                <span id="statusKeanggotaanSelected" class="text-xs font-bold text-slate-900 truncate">
+                                    {{ old('status_keanggotaan', old('membership_status')) === 'Approval' ? 'Memerlukan Persetujuan Admin' : (old('status_keanggotaan', old('membership_status')) === 'Private' ? 'Undangan Khusus (Private)' : 'Terbuka untuk Umum (Free Join)') }}
+                                </span>
+                                <i id="statusKeanggotaanArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                            </button>
+
+                            <div id="statusKeanggotaanMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- SECTION 3: Deskripsi & Jadwal Mabar Rutin -->
-            <div class="space-y-4 pt-2">
+            <div class="space-y-4 pt-2 relative" id="section3Container">
                 <div class="flex items-center gap-2.5 pb-2 border-b border-slate-100">
                     <span class="w-6 h-6 rounded-lg bg-[#063B00] text-white flex items-center justify-center text-xs font-black">3</span>
                     <h3 class="text-sm font-black text-slate-900 uppercase tracking-wide">Deskripsi & Jadwal Rutin Mabar</h3>
@@ -210,7 +238,7 @@
                             </div>
                         </div>
 
-                        <div class="space-y-1.5 relative">
+                        <div class="space-y-1.5 relative" id="homebaseVenueDropdownContainer">
                             <div class="flex items-center justify-between">
                                 <label class="block font-bold text-slate-800">Homebase Venue Utama</label>
                                 <button type="button" onclick="openQuickAddVenueModal()" class="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#063B00] bg-[#EBF8D8] hover:bg-[#d9f2b8] px-2.5 py-1 rounded-full border border-[#063B00]/20 transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer">
@@ -232,15 +260,14 @@
 
                             <!-- Custom Styled Trigger Button -->
                             <div class="relative">
-                                <button type="button" id="homebaseVenueTrigger" onclick="toggleHomebaseVenueDropdown(event)"
-                                    class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-10 py-3 text-xs text-slate-900 font-semibold text-left focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs flex items-center cursor-pointer">
-                                    <span id="homebaseVenueLabel" class="min-w-0 truncate text-slate-700 block">Pilih Venue Homebase (Opsional)</span>
+                                <button type="button" id="homebaseVenueTrigger" onclick="toggleDropdownMenu('homebaseVenueMenu', 'homebaseVenueIcon')"
+                                    class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl pl-10 pr-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left relative">
+                                    <i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                                    <span id="homebaseVenueSelected" class="text-xs font-bold text-slate-900 truncate">Pilih Venue Homebase (Opsional)</span>
+                                    <i id="homebaseVenueIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
                                 </button>
-                                <i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
-                                <i id="homebaseVenueIcon" class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none transition-transform duration-200"></i>
 
-                                <!-- Custom Dropdown Menu with Max Width & Height & Ellipsis Truncate -->
-                                <div id="homebaseVenueMenu" class="hidden absolute z-30 left-0 right-0 top-full mt-1.5 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl space-y-0.5 scrollbar-thin"></div>
+                                <div id="homebaseVenueMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
                             </div>
                         </div>
                     </div>
@@ -418,32 +445,43 @@
 
             <!-- Cabang Olahraga & Jumlah Court -->
             <div class="grid grid-cols-2 gap-2.5">
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                <div id="quickSportDropdownContainer" class="space-y-1 relative">
+                    <label class="block text-[11px] font-bold text-slate-700">
                         Cabang Olahraga <span class="text-rose-500">*</span>
                     </label>
                     <div class="relative">
                         <select
                             id="quickVenueSport"
                             required
-                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none appearance-none cursor-pointer"
+                            class="sr-only"
                         >
                             <option value="Padel">Padel</option>
                             <option value="Tennis">Tennis</option>
                         </select>
-                        <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+
+                        <button
+                            type="button"
+                            id="quickSportTrigger"
+                            onclick="toggleDropdownMenu('quickSportMenu', 'quickSportArrow')"
+                            class="w-full h-[40px] flex items-center justify-between bg-slate-50 hover:bg-white border border-slate-200 hover:border-[#063B00] rounded-xl px-3 text-xs text-slate-800 font-semibold focus:outline-none transition-colors cursor-pointer text-left"
+                        >
+                            <span id="quickSportSelected" class="truncate font-semibold text-slate-800">Padel</span>
+                            <i id="quickSportArrow" class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform"></i>
+                        </button>
+
+                        <div id="quickSportMenu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl ring-1 ring-black/5"></div>
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                <div id="quickCourtCountDropdownContainer" class="space-y-1 relative">
+                    <label class="block text-[11px] font-bold text-slate-700">
                         Jumlah Lapangan <span class="text-rose-500">*</span>
                     </label>
                     <div class="relative">
                         <select
                             id="quickVenueCourtCount"
                             required
-                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none appearance-none cursor-pointer"
+                            class="sr-only"
                         >
                             <option value="1">1 Court</option>
                             <option value="2" selected>2 Courts</option>
@@ -451,7 +489,18 @@
                             <option value="4">4 Courts</option>
                             <option value="5">5 Courts</option>
                         </select>
-                        <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+
+                        <button
+                            type="button"
+                            id="quickCourtCountTrigger"
+                            onclick="toggleDropdownMenu('quickCourtCountMenu', 'quickCourtCountArrow')"
+                            class="w-full h-[40px] flex items-center justify-between bg-slate-50 hover:bg-white border border-slate-200 hover:border-[#063B00] rounded-xl px-3 text-xs text-slate-800 font-semibold focus:outline-none transition-colors cursor-pointer text-left"
+                        >
+                            <span id="quickCourtCountSelected" class="truncate font-semibold text-slate-800">2 Courts</span>
+                            <i id="quickCourtCountArrow" class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform"></i>
+                        </button>
+
+                        <div id="quickCourtCountMenu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl ring-1 ring-black/5"></div>
                     </div>
                 </div>
             </div>
@@ -930,68 +979,126 @@
         }
     }
 
-    // Custom Dropdown Renderer for Homebase Venue
-    function renderHomebaseVenueDropdown() {
-        const select = document.getElementById('homebase_venue_select');
-        const menu = document.getElementById('homebaseVenueMenu');
-        const label = document.getElementById('homebaseVenueLabel');
+    const customDropdownList = [
+        { selectId: 'targetLevelSelect', menuId: 'targetLevelMenu', labelId: 'targetLevelSelected', arrowId: 'targetLevelArrow', containerId: 'targetLevelDropdownContainer', sectionId: 'section2Container' },
+        { selectId: 'statusKeanggotaanSelect', menuId: 'statusKeanggotaanMenu', labelId: 'statusKeanggotaanSelected', arrowId: 'statusKeanggotaanArrow', containerId: 'statusKeanggotaanDropdownContainer', sectionId: 'section2Container' },
+        { selectId: 'homebase_venue_select', menuId: 'homebaseVenueMenu', labelId: 'homebaseVenueSelected', arrowId: 'homebaseVenueIcon', containerId: 'homebaseVenueDropdownContainer', sectionId: 'section3Container', defaultPlaceholder: 'Pilih Venue Homebase (Opsional)' },
+        { selectId: 'quickVenueSport', menuId: 'quickSportMenu', labelId: 'quickSportSelected', arrowId: 'quickSportArrow', containerId: 'quickSportDropdownContainer' },
+        { selectId: 'quickVenueCourtCount', menuId: 'quickCourtCountMenu', labelId: 'quickCourtCountSelected', arrowId: 'quickCourtCountArrow', containerId: 'quickCourtCountDropdownContainer' },
+    ];
+
+    function resetAllDropdownZIndices() {
+        customDropdownList.forEach(item => {
+            if (item.containerId) {
+                const container = document.getElementById(item.containerId);
+                if (container) container.style.zIndex = '';
+            }
+            if (item.sectionId) {
+                const section = document.getElementById(item.sectionId);
+                if (section) section.style.zIndex = '';
+            }
+        });
+    }
+
+    function renderSelectDropdown(selectId, menuId, labelId, onSelectCallback = null, defaultPlaceholder = null) {
+        const select = document.getElementById(selectId);
+        const menu = document.getElementById(menuId);
+        const label = document.getElementById(labelId);
         if (!select || !menu || !label) return;
 
         menu.innerHTML = '';
-        Array.from(select.options).forEach((opt) => {
+        Array.from(select.options).forEach(opt => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-[#EBF8D8] hover:text-[#063B00] transition-colors truncate block ' + (opt.selected && opt.value ? 'bg-[#EBF8D8]/70 text-[#063B00] font-bold' : '');
-            btn.textContent = opt.textContent.trim();
-            btn.title = opt.textContent.trim();
+            const isSelected = String(select.value) === String(opt.value);
+            btn.className = `w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+                isSelected && opt.value !== ''
+                    ? 'bg-[#EBF8D8] text-[#063B00] font-bold'
+                    : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
+            }`;
+            btn.innerHTML = `
+                <span class="truncate">${opt.textContent.trim()}</span>
+                ${isSelected && opt.value !== '' ? '<i class="fa-solid fa-check text-[#063B00] text-xs shrink-0 ml-2"></i>' : ''}
+            `;
             btn.onclick = (e) => {
                 e.stopPropagation();
-                selectHomebaseVenueOption(opt.value);
+                select.value = opt.value;
+                select.dispatchEvent(new Event('change'));
+                label.textContent = opt.textContent.trim();
+                renderSelectDropdown(selectId, menuId, labelId, onSelectCallback, defaultPlaceholder);
+                menu.classList.add('hidden');
+                const arrow = document.getElementById(menuId.replace('Menu', 'Arrow')) || document.getElementById(menuId.replace('Menu', 'Icon'));
+                if (arrow) arrow.classList.remove('rotate-180');
+                resetAllDropdownZIndices();
+                if (onSelectCallback) onSelectCallback(opt.value);
             };
             menu.appendChild(btn);
         });
 
-        const selectedOpt = select.options[select.selectedIndex];
-        label.textContent = (selectedOpt && selectedOpt.value) ? selectedOpt.textContent.trim() : 'Pilih Venue Homebase (Opsional)';
-        label.title = label.textContent;
-    }
-
-    function toggleHomebaseVenueDropdown(e) {
-        if (e) e.stopPropagation();
-        const menu = document.getElementById('homebaseVenueMenu');
-        const icon = document.getElementById('homebaseVenueIcon');
-        if (!menu) return;
-        const isHidden = menu.classList.toggle('hidden');
-        if (icon) {
-            icon.classList.toggle('fa-chevron-down', isHidden);
-            icon.classList.toggle('fa-chevron-up', !isHidden);
+        const activeOpt = select.options[select.selectedIndex] || select.options[0];
+        if (activeOpt && activeOpt.value !== '') {
+            label.textContent = activeOpt.textContent.trim();
+        } else if (defaultPlaceholder) {
+            label.textContent = defaultPlaceholder;
         }
     }
 
-    function selectHomebaseVenueOption(value) {
-        const select = document.getElementById('homebase_venue_select');
-        const menu = document.getElementById('homebaseVenueMenu');
-        if (!select) return;
-        select.value = value;
-        renderHomebaseVenueDropdown();
-        if (menu) menu.classList.add('hidden');
-        document.getElementById('homebaseVenueIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
-    }
+    window.toggleDropdownMenu = function (menuId, arrowId) {
+        const menu = document.getElementById(menuId);
+        const arrow = document.getElementById(arrowId);
+        if (!menu) return;
 
-    // Close dropdown on outside click
-    document.addEventListener('click', function(e) {
-        const menu = document.getElementById('homebaseVenueMenu');
-        const trigger = document.getElementById('homebaseVenueTrigger');
-        if (menu && !menu.classList.contains('hidden')) {
-            if (!menu.contains(e.target) && !trigger?.contains(e.target)) {
-                menu.classList.add('hidden');
-                document.getElementById('homebaseVenueIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+        const willOpen = menu.classList.contains('hidden');
+
+        customDropdownList.forEach(item => {
+            if (item.menuId !== menuId) {
+                document.getElementById(item.menuId)?.classList.add('hidden');
+                const otherArrow = document.getElementById(item.arrowId);
+                if (otherArrow) otherArrow.classList.remove('rotate-180');
             }
+        });
+        resetAllDropdownZIndices();
+
+        if (willOpen) {
+            menu.classList.remove('hidden');
+            if (arrow) arrow.classList.add('rotate-180');
+            const currentItem = customDropdownList.find(item => item.menuId === menuId);
+            if (currentItem) {
+                if (currentItem.containerId) {
+                    const container = document.getElementById(currentItem.containerId);
+                    if (container) container.style.zIndex = '50';
+                }
+                if (currentItem.sectionId) {
+                    const section = document.getElementById(currentItem.sectionId);
+                    if (section) section.style.zIndex = '40';
+                }
+            }
+        } else {
+            menu.classList.add('hidden');
+            if (arrow) arrow.classList.remove('rotate-180');
+        }
+    };
+
+    document.addEventListener('click', function (e) {
+        let clickedInsideAnyCustomDropdown = false;
+        customDropdownList.forEach(item => {
+            if (item.containerId && e.target.closest(`#${item.containerId}`)) {
+                clickedInsideAnyCustomDropdown = true;
+            } else {
+                document.getElementById(item.menuId)?.classList.add('hidden');
+                const arrow = document.getElementById(item.arrowId);
+                if (arrow) arrow.classList.remove('rotate-180');
+            }
+        });
+        if (!clickedInsideAnyCustomDropdown) {
+            resetAllDropdownZIndices();
         }
     });
 
     document.addEventListener('DOMContentLoaded', function() {
-        renderHomebaseVenueDropdown();
+        customDropdownList.forEach(item => {
+            renderSelectDropdown(item.selectId, item.menuId, item.labelId, null, item.defaultPlaceholder);
+        });
     });
 </script>
 @endpush
