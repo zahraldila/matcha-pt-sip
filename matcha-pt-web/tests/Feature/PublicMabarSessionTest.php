@@ -331,4 +331,112 @@ class PublicMabarSessionTest extends TestCase
             ])
             ->assertForbidden();
     }
+
+    public function test_admin_can_delete_any_mabar_session(): void
+    {
+        $session = $this->createValidSession();
+        $admin = User::create([
+            'nama' => 'Super Admin',
+            'email' => 'admin@matcha.test',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->delete('/games/'.$session->session_id);
+
+        $response->assertRedirect(route('games.index'));
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('tb_session', [
+            'session_id' => $session->session_id,
+        ]);
+    }
+
+    public function test_host_cannot_delete_own_mabar_session(): void
+    {
+        $session = $this->createValidSession();
+        $host = User::findOrFail($session->host_user_id);
+
+        $response = $this->actingAs($host)
+            ->delete('/games/'.$session->session_id);
+
+        $response->assertRedirect(route('games.show', $session->session_id));
+        $response->assertSessionHas('error');
+
+        // Sesi mabar masih tetap ada di DB
+        $this->assertDatabaseHas('tb_session', [
+            'session_id' => $session->session_id,
+        ]);
+    }
+
+    public function test_non_host_member_cannot_delete_session(): void
+    {
+        $session = $this->createValidSession();
+        $otherMember = User::create([
+            'nama' => 'Other Member',
+            'email' => 'othermember@matcha.test',
+            'password' => bcrypt('password'),
+            'role' => 'member',
+        ]);
+
+        $response = $this->actingAs($otherMember)
+            ->delete('/games/'.$session->session_id);
+
+        $response->assertRedirect(route('games.show', $session->session_id));
+        $response->assertSessionHas('error');
+
+        $this->assertDatabaseHas('tb_session', [
+            'session_id' => $session->session_id,
+        ]);
+    }
+
+    public function test_guest_cannot_delete_session(): void
+    {
+        $session = $this->createValidSession();
+
+        $response = $this->delete('/games/'.$session->session_id);
+
+        $response->assertRedirect('/login');
+        $this->assertDatabaseHas('tb_session', [
+            'session_id' => $session->session_id,
+        ]);
+    }
+
+    public function test_delete_button_only_visible_to_admin_on_show_page(): void
+    {
+        $session = $this->createValidSession();
+        $host = User::findOrFail($session->host_user_id);
+        $member = User::create([
+            'nama' => 'Pemain Member',
+            'email' => 'memberplay@matcha.test',
+            'password' => bcrypt('password'),
+            'role' => 'member',
+        ]);
+        $admin = User::create([
+            'nama' => 'Platform Admin',
+            'email' => 'platformadmin@matcha.test',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+        ]);
+
+        // 1. Guest tidak melihat tombol Hapus
+        $this->get('/games/'.$session->session_id)
+            ->assertDontSee('Hapus Jadwal Mabar');
+
+        // 2. Member biasa tidak melihat tombol Hapus
+        $this->actingAs($member)
+            ->get('/games/'.$session->session_id)
+            ->assertDontSee('Hapus Jadwal Mabar');
+
+        // 3. Host game tidak melihat tombol Hapus
+        $this->actingAs($host)
+            ->get('/games/'.$session->session_id)
+            ->assertDontSee('Hapus Jadwal Mabar');
+
+        // 4. Admin platform melihat tombol Hapus
+        $this->actingAs($admin)
+            ->get('/games/'.$session->session_id)
+            ->assertSee('Hapus Jadwal Mabar');
+    }
 }

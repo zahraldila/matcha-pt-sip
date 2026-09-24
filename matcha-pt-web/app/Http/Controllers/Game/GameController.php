@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Game;
 use App\Http\Controllers\Controller;
 use App\Models\Court;
 use App\Models\Drawing;
+use App\Models\Game\MatchScore;
 use App\Models\GameMatch;
+use App\Models\Kudos;
 use App\Models\MatchParticipant;
 use App\Models\Player;
 use App\Models\SessionModel;
@@ -1467,6 +1469,98 @@ class GameController extends Controller
             ->with('success', 'Sesi mabar berhasil dibatalkan. Riwayat data dan peserta tetap tersimpan dengan aman.');
     }
 
+    /**
+     * Hapus jadwal mabar permanen beserta seluruh relasi (Khusus Admin Platform).
+     * Route: DELETE /games/{id}
+     */
+    public function destroy(Request $request, $id)
+    {
+        if (! Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        if (! is_numeric($id) || (int) $id <= 0) {
+            abort(404, 'Sesi mabar tidak ditemukan.');
+        }
+
+        $session = SessionModel::findOrFail((int) $id);
+
+        // Otorisasi: Khusus Admin Platform saja yang dapat menghapus jadwal mabar
+        if (Auth::user()->role !== 'admin') {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak: Hanya Administrator platform yang dapat menghapus jadwal mabar.',
+                ], 403);
+            }
+
+            return redirect()->route('games.show', $session->session_id)
+                ->with('error', 'Akses ditolak: Hanya Administrator platform yang dapat menghapus jadwal mabar.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // 1. Hapus Kudos terkait sesi jika tabel ada
+            if (Schema::hasTable('tb_kudos')) {
+                Kudos::where('session_id', $session->session_id)->delete();
+            }
+
+            // 2. Hapus Drawing dan Match terkait sesi jika tabel ada
+            if (Schema::hasTable('tb_drawing')) {
+                $drawings = Drawing::where('session_id', $session->session_id)->get();
+                foreach ($drawings as $drawing) {
+                    if (Schema::hasTable('tb_match')) {
+                        $matches = GameMatch::where('drawing_id', $drawing->drawing_id)->get();
+                        foreach ($matches as $match) {
+                            if (Schema::hasTable('tb_match_participant')) {
+                                MatchParticipant::where('match_id', $match->match_id)->delete();
+                            }
+                            if (Schema::hasTable('tb_match_score')) {
+                                MatchScore::where('match_id', $match->match_id)->delete();
+                            }
+                            $match->delete();
+                        }
+                    }
+                    $drawing->delete();
+                }
+            }
+
+            // 3. Detach pivot players & courts
+            $session->players()->detach();
+            $session->courts()->detach();
+
+            // 4. Hapus record session
+            $sessionTitle = $session->nama_session;
+            $session->delete();
+
+            DB::commit();
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Jadwal mabar \"{$sessionTitle}\" berhasil dihapus.",
+                ]);
+            }
+
+            return redirect()->route('games.index')
+                ->with('success', "Jadwal mabar \"{$sessionTitle}\" berhasil dihapus.");
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Error deleting session: '.$e->getMessage());
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menghapus jadwal mabar: '.$e->getMessage(),
+                ], 500);
+            }
+
+            return redirect()->back()
+                ->with('error', 'Gagal menghapus jadwal mabar: '.$e->getMessage());
+        }
+    }
+
     public function bulkDestroy(Request $request)
     {
         if (! Auth::check() || Auth::user()->role !== 'admin') {
@@ -1484,13 +1578,36 @@ class GameController extends Controller
             foreach ($ids as $id) {
                 $session = SessionModel::find($id);
                 if ($session) {
+                    if (Schema::hasTable('tb_kudos')) {
+                        Kudos::where('session_id', $session->session_id)->delete();
+                    }
+                    if (Schema::hasTable('tb_drawing')) {
+                        $drawings = Drawing::where('session_id', $session->session_id)->get();
+                        foreach ($drawings as $drawing) {
+                            if (Schema::hasTable('tb_match')) {
+                                $matches = GameMatch::where('drawing_id', $drawing->drawing_id)->get();
+                                foreach ($matches as $match) {
+                                    if (Schema::hasTable('tb_match_participant')) {
+                                        MatchParticipant::where('match_id', $match->match_id)->delete();
+                                    }
+                                    if (Schema::hasTable('tb_match_score')) {
+                                        MatchScore::where('match_id', $match->match_id)->delete();
+                                    }
+                                    $match->delete();
+                                }
+                            }
+                            $drawing->delete();
+                        }
+                    }
+                    $session->players()->detach();
+                    $session->courts()->detach();
                     $session->delete();
                 }
             }
             DB::commit();
 
             return back()->with('success', count($ids).' jadwal mabar berhasil dihapus.');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
 
             return back()->with('error', 'Gagal menghapus jadwal mabar: '.$e->getMessage());
