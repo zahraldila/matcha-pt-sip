@@ -7,7 +7,7 @@
         <div id="bulk-delete-inputs"></div>
     </form>
     
-    <div class="flex items-center gap-2.5">
+    <div class="flex items-center gap-1.5">
         <button
             type="button"
             id="btn-cancel-select"
