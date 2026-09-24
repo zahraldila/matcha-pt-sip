@@ -25,10 +25,11 @@
                 <span class="text-xs font-medium text-slate-500">Edit Data Komunitas</span>
             </div>
             <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-                Edit Komunitas: {{ $community->nama_community }}
+                Edit Profil Komunitas
             </h1>
-            <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl leading-relaxed">
-                Perbarui informasi klub, jadwal mabar, cabang olahraga, dan homebase komunitas.
+            <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl leading-relaxed flex items-center gap-1.5 flex-wrap">
+                <span>Perbarui informasi dan rincian untuk klub</span>
+                <span class="font-bold text-slate-800 bg-slate-100/90 px-2 py-0.5 rounded-lg border border-slate-200/80 inline-block max-w-xs sm:max-w-md truncate align-middle" title="{{ $community->nama_community }}">{{ $community->nama_community }}</span>
             </p>
         </div>
 
@@ -80,7 +81,7 @@
                         </label>
                         <div class="relative">
                             <i class="fa-solid fa-users-rectangle absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" id="input_nama_community" name="nama_community" value="{{ old('nama_community', $community->nama_community) }}" required class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <input type="text" id="input_nama_community" name="nama_community" value="{{ old('nama_community', $community->nama_community) }}" required maxlength="70" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                         </div>
                     </div>
 

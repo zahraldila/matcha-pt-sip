@@ -79,7 +79,7 @@
                         </label>
                         <div class="relative">
                             <i class="fa-solid fa-users-rectangle absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" id="input_nama_community" name="nama_community" value="{{ old('nama_community') }}" placeholder="Contoh: JTK Padel Club Bandung" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <input type="text" id="input_nama_community" name="nama_community" value="{{ old('nama_community') }}" placeholder="Contoh: JTK Padel Club Bandung" maxlength="70" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                         </div>
                         <p id="err_nama_community" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
                             <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Nama komunitas wajib diisi.

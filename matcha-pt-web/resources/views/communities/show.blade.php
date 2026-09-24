@@ -37,18 +37,18 @@
         <a href="{{ route('communities.index') }}" class="text-xs text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 mb-2 transition-colors">
             <i class="fa-solid fa-arrow-left"></i> Kembali ke Semua Komunitas
         </a>
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div class="flex items-center gap-3.5 min-w-0">
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div class="flex items-start gap-3.5 min-w-0 max-w-2xl">
                 @if(!empty($community->logo))
-                    <img src="{{ $community->logo }}" alt="{{ $community->nama_community }}" class="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0">
+                    <img src="{{ $community->logo }}" alt="{{ $community->nama_community }}" class="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0 mt-0.5">
                 @else
-                    <img src="{{ asset('images/default-community.jpg') }}" alt="{{ $community->nama_community }}" class="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0">
+                    <img src="{{ asset('images/default-community.jpg') }}" alt="{{ $community->nama_community }}" class="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0 mt-0.5">
                 @endif
-                <div class="min-w-0">
-                    <h1 class="text-2xl font-bold text-[#050608] break-all break-words" title="{{ $community->nama_community }}">
+                <div class="min-w-0 flex-1">
+                    <h1 class="text-2xl font-bold text-[#050608] break-words line-clamp-2 leading-snug" title="{{ $community->nama_community }}">
                         {{ $community->nama_community }}
                     </h1>
-                    <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                    <p class="text-xs text-slate-500 mt-1 flex items-center gap-1.5 flex-wrap">
                         <i class="fa-solid fa-users text-slate-400"></i> Komunitas Padel &amp; Tennis
                         @if(!empty($community->jadwal_rutin))
                             <span class="text-slate-300">•</span>
@@ -58,7 +58,7 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-2.5 flex-wrap">
+            <div class="flex items-center gap-2.5 flex-wrap shrink-0 sm:pt-1">
                 <x-badge :type="strtolower($community->sport_utama) === 'tennis' ? 'tennis' : 'padel'">
                     {{ $community->sport_utama }}
                 </x-badge>
