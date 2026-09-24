@@ -89,7 +89,7 @@
             @csrf
 
             <!-- SECTION 1: Informasi Utama Venue -->
-            <div class="space-y-4">
+            <div class="space-y-4 relative" id="section1Container">
 
                 <div class="flex items-center gap-2.5 pb-2 border-b border-slate-100">
                     <span class="w-6 h-6 rounded-lg bg-[#063B00] text-white flex items-center justify-center text-xs font-black">
@@ -277,7 +277,7 @@
 
 
             <!-- SECTION 2: Cabang Olahraga & Tipe Lapangan -->
-            <div class="space-y-4 pt-2">
+            <div class="space-y-4 pt-2 relative" id="section2Container">
 
                 <div class="flex items-center gap-2.5 pb-2 border-b border-slate-100">
                     <span class="w-6 h-6 rounded-lg bg-[#063B00] text-white flex items-center justify-center text-xs font-black">
@@ -401,11 +401,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
 
                     <!-- Jumlah Court -->
-                    <div class="space-y-1.5" id="jumlahCourtDropdownContainer">
+                    <div class="space-y-1.5 relative" id="jumlahCourtDropdownContainer">
                         <label class="block font-bold text-slate-800">
                             Jumlah Lapangan (Court)
                         </label>
-                        <div class="relative z-30">
+                        <div class="relative">
                             <select id="jumlahCourt" name="jumlah_court" class="sr-only">
                                 <option value="1" @selected(old('jumlah_court', '1') === '1')>1 Court</option>
                                 <option value="2" @selected(old('jumlah_court') === '2')>2 Courts</option>
@@ -426,16 +426,16 @@
                                 <i id="jumlahCourtArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
                             </button>
 
-                            <div id="jumlahCourtMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
+                            <div id="jumlahCourtMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
                         </div>
                     </div>
 
                     <!-- Tipe Arena -->
-                    <div class="space-y-1.5" id="tipeArenaDropdownContainer">
+                    <div class="space-y-1.5 relative" id="tipeArenaDropdownContainer">
                         <label class="block font-bold text-slate-800">
                             Tipe Arena
                         </label>
-                        <div class="relative z-30">
+                        <div class="relative">
                             <select id="tipeArena" name="tipe_arena" class="sr-only">
                                 <option value="Semi-Indoor" @selected(old('tipe_arena', 'Semi-Indoor') === 'Semi-Indoor')>Semi-Indoor (Atap Pelindung)</option>
                                 <option value="Indoor" @selected(old('tipe_arena') === 'Indoor')>Indoor (Full AC / Tertutup)</option>
@@ -454,16 +454,16 @@
                                 <i id="tipeArenaArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
                             </button>
 
-                            <div id="tipeArenaMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
+                            <div id="tipeArenaMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
                         </div>
                     </div>
 
                     <!-- Jenis Permukaan -->
-                    <div class="space-y-1.5" id="surfaceTypeDropdownContainer">
+                    <div class="space-y-1.5 relative" id="surfaceTypeDropdownContainer">
                         <label class="block font-bold text-slate-800">
                             Jenis Permukaan
                         </label>
-                        <div class="relative z-30">
+                        <div class="relative">
                             <select id="surfaceType" name="jenis_permukaan" class="sr-only">
                                 <option value="Artificial Turf" @selected(old('jenis_permukaan', 'Artificial Turf') === 'Artificial Turf')>Artificial Turf (Rumput Sintetis Padel)</option>
                                 <option value="Hard Court" @selected(old('jenis_permukaan') === 'Hard Court')>Hard Court (Plexipave / Acrylic)</option>
@@ -494,7 +494,7 @@
                                 <i id="surfaceTypeArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
                             </button>
 
-                            <div id="surfaceTypeMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
+                            <div id="surfaceTypeMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
                         </div>
 
                         <!-- Input jika memilih Lainnya -->
@@ -532,7 +532,7 @@
 
 
             <!-- SECTION 3: Jam Operasional & Kontak Pengelola -->
-            <div class="space-y-4 pt-2">
+            <div class="space-y-4 pt-2 relative" id="section3Container">
 
                 <div class="flex items-center gap-2.5 pb-2 border-b border-slate-100">
 
@@ -611,11 +611,11 @@
 
 
                     <!-- Hari Operasional (Dropdown Pilihan) -->
-                    <div class="space-y-1.5" id="openingDaysDropdownContainer">
+                    <div class="space-y-1.5 relative" id="openingDaysDropdownContainer">
                         <label for="openingDays" class="block font-bold text-slate-800">
                             Hari Operasional
                         </label>
-                        <div class="relative z-30">
+                        <div class="relative">
                             <select id="openingDays" name="hari_buka" class="sr-only">
                                 <option value="Setiap Hari (Senin - Minggu)" @selected(old('hari_buka', 'Setiap Hari (Senin - Minggu)') === 'Setiap Hari (Senin - Minggu)')>Setiap Hari (Senin - Minggu)</option>
                                 <option value="Senin - Sabtu (Minggu Libur)" @selected(old('hari_buka') === 'Senin - Sabtu (Minggu Libur)')>Senin - Sabtu (Minggu Libur)</option>
@@ -637,7 +637,7 @@
                                 <i id="openingDaysArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
                             </button>
 
-                            <div id="openingDaysMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
+                            <div id="openingDaysMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
                         </div>
                     </div>
 
@@ -1176,6 +1176,25 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleOtherSurface();
     }
 
+    const customDropdowns = [
+        { menuId: 'jumlahCourtMenu', arrowId: 'jumlahCourtArrow', containerId: 'jumlahCourtDropdownContainer', sectionId: 'section2Container' },
+        { menuId: 'tipeArenaMenu', arrowId: 'tipeArenaArrow', containerId: 'tipeArenaDropdownContainer', sectionId: 'section2Container' },
+        { menuId: 'surfaceTypeMenu', arrowId: 'surfaceTypeArrow', containerId: 'surfaceTypeDropdownContainer', sectionId: 'section2Container' },
+        { menuId: 'openingDaysMenu', arrowId: 'openingDaysArrow', containerId: 'openingDaysDropdownContainer', sectionId: 'section3Container' },
+    ];
+
+    function resetAllDropdownZIndices() {
+        customDropdowns.forEach(item => {
+            const container = document.getElementById(item.containerId);
+            const section = document.getElementById(item.sectionId);
+            if (container) container.style.zIndex = '';
+            if (section) section.style.zIndex = '';
+        });
+        const sec1 = document.getElementById('section1Container');
+        if (sec1) sec1.style.zIndex = '';
+        if (kotaWrapper) kotaWrapper.style.zIndex = '';
+    }
+
     // Generic Custom Select Dropdown Handler
     function renderSelectDropdown(selectId, menuId, labelId, onSelectCallback = null) {
         const select = document.getElementById(selectId);
@@ -1206,6 +1225,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 menu.classList.add('hidden');
                 const arrow = document.getElementById(menuId.replace('Menu', 'Arrow'));
                 if (arrow) arrow.classList.remove('rotate-180');
+                resetAllDropdownZIndices();
                 if (onSelectCallback) onSelectCallback(opt.value);
             };
             menu.appendChild(btn);
@@ -1222,17 +1242,31 @@ document.addEventListener('DOMContentLoaded', function () {
         const arrow = document.getElementById(arrowId);
         if (!menu) return;
 
-        ['jumlahCourtMenu', 'tipeArenaMenu', 'surfaceTypeMenu', 'openingDaysMenu'].forEach(id => {
-            if (id !== menuId) {
-                document.getElementById(id)?.classList.add('hidden');
-                const otherArrow = document.getElementById(id.replace('Menu', 'Arrow'));
-                if (otherArrow) otherArrow.classList.remove('rotate-180');
+        const willOpen = menu.classList.contains('hidden');
+
+        // Tutup semua menu lainnya & reset z-index
+        customDropdowns.forEach(item => {
+            if (item.menuId !== menuId) {
+                document.getElementById(item.menuId)?.classList.add('hidden');
+                document.getElementById(item.arrowId)?.classList.remove('rotate-180');
             }
         });
+        closeDropdown();
+        resetAllDropdownZIndices();
 
-        const isHidden = menu.classList.toggle('hidden');
-        if (arrow) {
-            arrow.classList.toggle('rotate-180', !isHidden);
+        if (willOpen) {
+            menu.classList.remove('hidden');
+            if (arrow) arrow.classList.add('rotate-180');
+            const currentItem = customDropdowns.find(item => item.menuId === menuId);
+            if (currentItem) {
+                const container = document.getElementById(currentItem.containerId);
+                const section = document.getElementById(currentItem.sectionId);
+                if (container) container.style.zIndex = '50';
+                if (section) section.style.zIndex = '40';
+            }
+        } else {
+            menu.classList.add('hidden');
+            if (arrow) arrow.classList.remove('rotate-180');
         }
     };
 
@@ -1366,6 +1400,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function openDropdown() {
         if (!kotaDropdown) return;
+        customDropdowns.forEach(item => {
+            document.getElementById(item.menuId)?.classList.add('hidden');
+            document.getElementById(item.arrowId)?.classList.remove('rotate-180');
+        });
+        resetAllDropdownZIndices();
+
+        const sec1 = document.getElementById('section1Container');
+        if (sec1) sec1.style.zIndex = '40';
+        if (kotaWrapper) kotaWrapper.style.zIndex = '50';
+
         kotaDropdown.classList.remove('hidden');
         if (kotaArrow) kotaArrow.classList.add('rotate-180');
         setTimeout(() => {
@@ -1377,6 +1421,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!kotaDropdown) return;
         kotaDropdown.classList.add('hidden');
         if (kotaArrow) kotaArrow.classList.remove('rotate-180');
+        if (kotaWrapper) kotaWrapper.style.zIndex = '';
+        const sec1 = document.getElementById('section1Container');
+        if (sec1) sec1.style.zIndex = '';
     }
 
     if (kotaButton) {
@@ -1409,21 +1456,17 @@ document.addEventListener('DOMContentLoaded', function () {
         if (kotaWrapper && !kotaWrapper.contains(e.target)) {
             closeDropdown();
         }
-        if (!e.target.closest('#jumlahCourtDropdownContainer')) {
-            document.getElementById('jumlahCourtMenu')?.classList.add('hidden');
-            document.getElementById('jumlahCourtArrow')?.classList.remove('rotate-180');
-        }
-        if (!e.target.closest('#tipeArenaDropdownContainer')) {
-            document.getElementById('tipeArenaMenu')?.classList.add('hidden');
-            document.getElementById('tipeArenaArrow')?.classList.remove('rotate-180');
-        }
-        if (!e.target.closest('#surfaceTypeDropdownContainer')) {
-            document.getElementById('surfaceTypeMenu')?.classList.add('hidden');
-            document.getElementById('surfaceTypeArrow')?.classList.remove('rotate-180');
-        }
-        if (!e.target.closest('#openingDaysDropdownContainer')) {
-            document.getElementById('openingDaysMenu')?.classList.add('hidden');
-            document.getElementById('openingDaysArrow')?.classList.remove('rotate-180');
+        let clickedInsideAnyCustomDropdown = false;
+        customDropdowns.forEach(item => {
+            if (e.target.closest(`#${item.containerId}`)) {
+                clickedInsideAnyCustomDropdown = true;
+            } else {
+                document.getElementById(item.menuId)?.classList.add('hidden');
+                document.getElementById(item.arrowId)?.classList.remove('rotate-180');
+            }
+        });
+        if (!clickedInsideAnyCustomDropdown && (!kotaWrapper || !kotaWrapper.contains(e.target))) {
+            resetAllDropdownZIndices();
         }
     });
 
