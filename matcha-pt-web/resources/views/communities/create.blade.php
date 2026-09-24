@@ -334,19 +334,22 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <p class="text-[11px] text-slate-500 flex items-center gap-1.5">
-                    <i class="fa-solid fa-circle-check text-[#063B00]"></i>
+            <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p class="text-[11px] text-slate-500 flex items-center gap-1.5 text-center sm:text-left">
+                    <i class="fa-solid fa-circle-check text-[#063B00] shrink-0"></i>
                     Komunitas akan langsung aktif dan dapat mulai membuka sesi mabar.
                 </p>
 
-                <div class="flex items-center gap-3 w-full sm:w-auto">
-                    <button type="reset" class="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all w-full sm:w-auto">
+                <div class="flex flex-col-reverse sm:flex-row items-center gap-3 w-full sm:w-auto">
+                    <button type="reset" class="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all text-center cursor-pointer">
                         Reset Form
                     </button>
-                    <button type="submit" class="px-7 py-3 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto">
-                        <i class="fa-solid fa-plus text-[#A8E63A]"></i>
-                        <span>Daftarkan Komunitas Sekarang</span>
+                    <button
+                        type="submit"
+                        class="w-full sm:w-auto min-w-[210px] px-6 py-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md shadow-[#063B00]/15 inline-flex items-center justify-center gap-2.5 transition-all cursor-pointer hover:scale-[1.01] shrink-0"
+                    >
+                        <i class="fa-solid fa-floppy-disk text-xs text-[#A8E63A]"></i>
+                        <span class="whitespace-nowrap">Daftarkan Komunitas Sekarang</span>
                     </button>
                 </div>
             </div>

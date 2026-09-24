@@ -187,13 +187,20 @@
             </div>
 
             <!-- Submit Action -->
-            <div class="flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
-                <a href="{{ route('communities.show', $community->community_id) }}" class="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors">
+            <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-end gap-3.5">
+                <a
+                    href="{{ route('communities.show', $community->community_id) }}"
+                    class="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs text-center transition-colors cursor-pointer shrink-0"
+                >
                     Batal
                 </a>
-                <button type="submit" class="px-8 py-3 rounded-2xl bg-gradient-to-r from-[#063B00] to-emerald-900 hover:opacity-95 text-white font-extrabold text-xs shadow-md shadow-[#063B00]/20 flex items-center gap-2 transition-all cursor-pointer hover:scale-[1.01]">
-                    <i class="fa-solid fa-check text-[#A8E63A]"></i>
-                    <span>Simpan Perubahan Komunitas</span>
+                <button
+                    type="submit"
+                    id="submitBtn"
+                    class="w-full sm:w-auto min-w-[210px] px-6 py-3 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md shadow-[#063B00]/15 inline-flex items-center justify-center gap-2.5 transition-all cursor-pointer hover:scale-[1.01] shrink-0"
+                >
+                    <i class="fa-solid fa-floppy-disk text-xs text-[#A8E63A]"></i>
+                    <span class="whitespace-nowrap">Simpan Perubahan Komunitas</span>
                 </button>
             </div>
         </form>
