@@ -206,16 +206,47 @@
                     </div>
 
                     <!-- Gender -->
-                    <div class="space-y-1">
+                    <div class="space-y-1 relative" id="wrapper_gender">
                         <label class="block font-bold text-slate-800">
                             Jenis Kelamin <span class="text-rose-500">*</span>
                         </label>
+                        @php
+                            $currGender = old('gender', $player->gender ?? 'Male');
+                            $genderMap = [
+                                'Male' => 'Laki-laki 🚹',
+                                'Female' => 'Perempuan 🚺',
+                            ];
+                            $currGenderLabel = $genderMap[$currGender] ?? 'Laki-laki 🚹';
+                        @endphp
+                        <input type="hidden" id="genderInput" name="gender" value="{{ $currGender }}">
                         <div class="relative">
-                            <select name="gender" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                                <option value="Male" {{ old('gender', $player->gender ?? 'Male') === 'Male' ? 'selected' : '' }}>Laki-laki 🚹</option>
-                                <option value="Female" {{ old('gender', $player->gender ?? '') === 'Female' ? 'selected' : '' }}>Perempuan 🚺</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="genderTrigger"
+                                onclick="toggleProfileCustomDropdown('gender', event)"
+                                class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                            >
+                                <span id="genderDisplay" class="truncate font-semibold">{{ $currGenderLabel }}</span>
+                                <i id="genderChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <div
+                                id="genderMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                onclick="event.stopPropagation()"
+                            >
+                                @foreach($genderMap as $gVal => $gLabel)
+                                    <button
+                                        type="button"
+                                        onclick="selectProfileCustomOption('gender', '{{ $gVal }}', '{{ $gLabel }}')"
+                                        class="gender-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $currGender === $gVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                        data-val="{{ $gVal }}"
+                                    >
+                                        <span>{{ $gLabel }}</span>
+                                        <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currGender === $gVal ? '' : 'hidden' }}"></i>
+                                    </button>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
 
@@ -229,42 +260,98 @@
                         </div>
 
                         <!-- Skill Level -->
-                        <div class="space-y-1">
+                        <div class="space-y-1 relative" id="wrapper_level">
                             <label class="block font-bold text-slate-800">
                                 Kategori Skill Level <span class="text-rose-500">*</span>
                             </label>
+                            @php
+                                $currLevel = old('level', $player->level ?? 'Intermediate');
+                                $levelMap = [
+                                    'Newbie' => 'Newbie (Baru mulai / belajar)',
+                                    'Beginner' => 'Beginner (Rally dasar lancar)',
+                                    'Intermediate' => 'Intermediate (Konsisten match play)',
+                                    'Advanced' => 'Advanced (Turnamen & Kompetitif)',
+                                ];
+                                $currLevelLabel = $levelMap[$currLevel] ?? $currLevel;
+                            @endphp
+                            <input type="hidden" id="levelInput" name="level" value="{{ $currLevel }}">
                             <div class="relative">
-                                <select name="level" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                                    <option value="Newbie" {{ old('level', $player->level ?? '') === 'Newbie' ? 'selected' : '' }}>Newbie (Baru mulai / belajar)</option>
-                                    <option value="Beginner" {{ old('level', $player->level ?? '') === 'Beginner' ? 'selected' : '' }}>Beginner (Rally dasar lancar)</option>
-                                    <option value="Intermediate" {{ old('level', $player->level ?? 'Intermediate') === 'Intermediate' ? 'selected' : '' }}>Intermediate (Konsisten match play)</option>
-                                    <option value="Advanced" {{ old('level', $player->level ?? '') === 'Advanced' ? 'selected' : '' }}>Advanced (Turnamen &amp; Kompetitif)</option>
-                                </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                                <button
+                                    type="button"
+                                    id="levelTrigger"
+                                    onclick="toggleProfileCustomDropdown('level', event)"
+                                    class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                                >
+                                    <span id="levelDisplay" class="truncate font-semibold">{{ $currLevelLabel }}</span>
+                                    <i id="levelChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                                </button>
+
+                                <div
+                                    id="levelMenu"
+                                    class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                    onclick="event.stopPropagation()"
+                                >
+                                    @foreach($levelMap as $lVal => $lLabel)
+                                        <button
+                                            type="button"
+                                            onclick="selectProfileCustomOption('level', '{{ $lVal }}', '{{ $lLabel }}')"
+                                            class="level-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $currLevel === $lVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                            data-val="{{ $lVal }}"
+                                        >
+                                            <span>{{ $lLabel }}</span>
+                                            <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currLevel === $lVal ? '' : 'hidden' }}"></i>
+                                        </button>
+                                    @endforeach
+                                </div>
                             </div>
                         </div>
 
                         <!-- Komunitas -->
-                        <div class="space-y-1">
+                        <div class="space-y-1 relative" id="wrapper_community_id">
                             <label class="block font-bold text-slate-800">
                                 Afiliasi Komunitas
                             </label>
+                            @php
+                                $currCommId = old('community_id', $player->community_id ?? 'none');
+                                $commOptions = ['none' => 'Personal (Non-Community / Belum Ada)'];
+                                if (isset($communities)) {
+                                    foreach ($communities as $comm) {
+                                        $cId = (string) ($comm->community_id ?? $comm['id']);
+                                        $cName = $comm->nama_community ?? $comm['name'];
+                                        $commOptions[$cId] = $cName;
+                                    }
+                                }
+                                $currCommLabel = $commOptions[(string)$currCommId] ?? 'Personal (Non-Community / Belum Ada)';
+                            @endphp
+                            <input type="hidden" id="community_idInput" name="community_id" value="{{ $currCommId }}">
                             <div class="relative">
-                                <select name="community_id" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                                    <option value="none" {{ empty($player->community_id) ? 'selected' : '' }}>Personal (Non-Community / Belum Ada)</option>
-                                    @if(isset($communities))
-                                        @foreach($communities as $comm)
-                                            @php
-                                                $cId = $comm->community_id ?? $comm['id'];
-                                                $cName = $comm->nama_community ?? $comm['name'];
-                                            @endphp
-                                            <option value="{{ $cId }}" {{ (old('community_id', $player->community_id ?? null) == $cId) ? 'selected' : '' }}>
-                                                {{ $cName }}
-                                            </option>
-                                        @endforeach
-                                    @endif
-                                </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                                <button
+                                    type="button"
+                                    id="community_idTrigger"
+                                    onclick="toggleProfileCustomDropdown('community_id', event)"
+                                    class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                                >
+                                    <span id="community_idDisplay" class="truncate font-semibold">{{ $currCommLabel }}</span>
+                                    <i id="community_idChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                                </button>
+
+                                <div
+                                    id="community_idMenu"
+                                    class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto"
+                                    onclick="event.stopPropagation()"
+                                >
+                                    @foreach($commOptions as $optId => $optName)
+                                        <button
+                                            type="button"
+                                            onclick="selectProfileCustomOption('community_id', '{{ $optId }}', '{{ addslashes($optName) }}')"
+                                            class="community_id-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ (string)$currCommId === (string)$optId ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                            data-val="{{ $optId }}"
+                                        >
+                                            <span class="truncate pr-2">{{ $optName }}</span>
+                                            <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ (string)$currCommId === (string)$optId ? '' : 'hidden' }}"></i>
+                                        </button>
+                                    @endforeach
+                                </div>
                             </div>
                         </div>
                     @endif
@@ -354,5 +441,77 @@
             badgeAlert.textContent = 'Foto akan dihapus saat disimpan';
         }
     }
+
+    // Profile Custom Dropdowns (gender, level, community_id)
+    const profileCustomDropdownIds = ['gender', 'level', 'community_id'];
+
+    function closeProfileCustomDropdowns() {
+        profileCustomDropdownIds.forEach(id => {
+            const menu = document.getElementById(id + 'Menu');
+            const chevron = document.getElementById(id + 'Chevron');
+            const wrapper = document.getElementById('wrapper_' + id);
+            if (menu) menu.classList.add('hidden');
+            if (chevron) chevron.classList.remove('rotate-180');
+            if (wrapper) wrapper.style.zIndex = '';
+        });
+    }
+
+    function toggleProfileCustomDropdown(id, e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById(id + 'Menu');
+        const chevron = document.getElementById(id + 'Chevron');
+        const wrapper = document.getElementById('wrapper_' + id);
+        if (!menu) return;
+
+        const isClosed = menu.classList.contains('hidden');
+        closeProfileCustomDropdowns();
+
+        if (isClosed) {
+            menu.classList.remove('hidden');
+            if (chevron) chevron.classList.add('rotate-180');
+            if (wrapper) wrapper.style.zIndex = '40';
+        }
+    }
+
+    function selectProfileCustomOption(fieldId, value, label) {
+        const input = document.getElementById(fieldId + 'Input');
+        const display = document.getElementById(fieldId + 'Display');
+        if (input) input.value = value;
+        if (display) display.textContent = label;
+
+        document.querySelectorAll('.' + fieldId + '-item-btn').forEach(btn => {
+            const isMatch = btn.getAttribute('data-val') === value;
+            const icon = btn.querySelector('.fa-circle-check');
+            if (isMatch) {
+                btn.className = fieldId + '-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/15';
+                if (icon) icon.classList.remove('hidden');
+            } else {
+                btn.className = fieldId + '-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer text-slate-700 hover:bg-slate-100 hover:text-slate-900';
+                if (icon) icon.classList.add('hidden');
+            }
+        });
+
+        closeProfileCustomDropdowns();
+    }
+
+    document.addEventListener('click', function (e) {
+        let isInsideAny = false;
+        profileCustomDropdownIds.forEach(id => {
+            const menu = document.getElementById(id + 'Menu');
+            const trigger = document.getElementById(id + 'Trigger');
+            if ((menu && menu.contains(e.target)) || (trigger && trigger.contains(e.target))) {
+                isInsideAny = true;
+            }
+        });
+        if (!isInsideAny) {
+            closeProfileCustomDropdowns();
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeProfileCustomDropdowns();
+        }
+    });
 </script>
 @endsection
