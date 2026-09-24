@@ -62,6 +62,8 @@ class PlayerController extends Controller
             $request->merge(['no_hp' => $cleanNoHp]);
         }
 
+        $isAdmin = $user->isAdmin();
+
         $request->validate([
             'nama' => 'required|string|max:255',
             'no_hp' => [
@@ -71,8 +73,8 @@ class PlayerController extends Controller
                 'unique:tb_user,no_hp,'.$user->user_id.',user_id',
             ],
             'gender' => 'required|in:Male,Female',
-            'usia' => 'required|integer|min:10|max:90',
-            'level' => 'required|in:Newbie,Beginner,Intermediate,Advanced',
+            'usia' => $isAdmin ? 'nullable|integer|min:10|max:90' : 'required|integer|min:10|max:90',
+            'level' => $isAdmin ? 'nullable|in:Newbie,Beginner,Intermediate,Advanced' : 'required|in:Newbie,Beginner,Intermediate,Advanced',
             'community_id' => 'nullable',
             'foto' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
         ], [
@@ -95,6 +97,8 @@ class PlayerController extends Controller
 
             $cleanNoHp = preg_replace('/[^0-9]/', '', (string) $request->no_hp);
             $communityId = ($request->community_id && $request->community_id !== 'none') ? (int) $request->community_id : null;
+            $playerLevel = $request->input('level', 'Intermediate');
+            $playerUsia = $request->filled('usia') ? (int) $request->usia : 25;
 
             // Handle Avatar Upload / Remove
             $fotoUrl = $user->foto;
@@ -141,8 +145,8 @@ class PlayerController extends Controller
                         'nama' => trim($request->nama),
                         'no_hp' => $cleanNoHp,
                         'gender' => $request->gender,
-                        'usia' => (int) $request->usia,
-                        'level' => $request->level,
+                        'usia' => $playerUsia,
+                        'level' => $playerLevel,
                         'community_id' => $communityId,
                         'foto' => $fotoUrl,
                     ]);
@@ -151,9 +155,9 @@ class PlayerController extends Controller
                     'user_id' => $user->user_id,
                     'community_id' => $communityId,
                     'nama' => trim($request->nama),
-                    'usia' => (int) $request->usia,
+                    'usia' => $playerUsia,
                     'gender' => $request->gender,
-                    'level' => $request->level,
+                    'level' => $playerLevel,
                     'rating' => 1.00,
                     'no_hp' => $cleanNoHp,
                     'email' => strtolower(trim($user->email)),
@@ -163,7 +167,9 @@ class PlayerController extends Controller
 
             DB::commit();
 
-            return back()->with('success', 'Profil pemain berhasil diperbarui!');
+            $successMsg = $isAdmin ? 'Profil administrator berhasil diperbarui!' : 'Profil pemain berhasil diperbarui!';
+
+            return back()->with('success', $successMsg);
         } catch (\Exception $e) {
             DB::rollBack();
 
