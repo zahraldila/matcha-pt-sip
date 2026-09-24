@@ -187,12 +187,12 @@
                         <p class="text-[10px] text-slate-400">Nama akun yang digunakan pada identitas sistem.</p>
                     </div>
 
-                    <!-- Email (Read-Only) -->
+                    <!-- Email (Akun Utama) -->
                     <div class="space-y-1">
                         <label class="block font-bold text-slate-800">
-                            Alamat Email (Akun Utama)
+                            Alamat Email (Akun Utama) <span class="text-rose-500">*</span>
                         </label>
-                        <input type="email" value="{{ $user->email ?? '' }}" readonly disabled class="w-full bg-slate-100/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-500 font-semibold cursor-not-allowed shadow-2xs">
+                        <input type="email" name="email" value="{{ old('email', $user->email ?? '') }}" required placeholder="contoh: admin@matcha.id" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                         <p class="text-[10px] text-slate-400">Email akun terhubung dan digunakan untuk masuk ke sistem.</p>
                     </div>
 

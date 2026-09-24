@@ -67,6 +67,12 @@ class PlayerController extends Controller
 
         $request->validate([
             'nama' => 'required|string|max:255',
+            'email' => [
+                'required',
+                'email',
+                'max:100',
+                'unique:tb_user,email,'.$user->user_id.',user_id',
+            ],
             'no_hp' => [
                 'required',
                 'string',
@@ -80,6 +86,9 @@ class PlayerController extends Controller
             'foto' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
         ], [
             'nama.required' => 'Nama lengkap wajib diisi.',
+            'email.required' => 'Alamat email wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.unique' => 'Alamat email ini sudah digunakan oleh akun lain.',
             'no_hp.required' => 'Nomor WhatsApp / HP wajib diisi.',
             'no_hp.regex' => 'Nomor WhatsApp hanya boleh berupa angka (9 - 15 digit).',
             'no_hp.unique' => 'Nomor WhatsApp ini sudah digunakan oleh akun lain.',
@@ -96,6 +105,7 @@ class PlayerController extends Controller
         try {
             DB::beginTransaction();
 
+            $cleanEmail = strtolower(trim($request->email));
             $cleanNoHp = preg_replace('/[^0-9]/', '', (string) $request->no_hp);
             $communityId = ($request->community_id && $request->community_id !== 'none') ? (int) $request->community_id : null;
             $playerLevel = $request->input('level', 'Intermediate');
@@ -127,6 +137,7 @@ class PlayerController extends Controller
 
             // 1. Update tb_user
             $user->nama = trim($request->nama);
+            $user->email = $cleanEmail;
             $user->no_hp = $cleanNoHp;
             $user->foto = $fotoUrl;
             $user->save();
@@ -144,6 +155,7 @@ class PlayerController extends Controller
                     ->update([
                         'user_id' => $user->user_id,
                         'nama' => trim($request->nama),
+                        'email' => $cleanEmail,
                         'no_hp' => $cleanNoHp,
                         'gender' => $request->gender,
                         'usia' => $playerUsia,
@@ -161,7 +173,7 @@ class PlayerController extends Controller
                     'level' => $playerLevel,
                     'rating' => 1.00,
                     'no_hp' => $cleanNoHp,
-                    'email' => strtolower(trim($user->email)),
+                    'email' => $cleanEmail,
                     'foto' => $fotoUrl,
                 ]);
             }

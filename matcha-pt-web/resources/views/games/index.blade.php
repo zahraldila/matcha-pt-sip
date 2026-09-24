@@ -132,7 +132,7 @@
                 @endif
             </span>
             @if(Auth::check() && Auth::user()->role === 'admin' && $games->count() > 0)
-                <button type="button" id="btn-enter-select-mode" class="ml-2 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-lg transition-colors border border-slate-200 shadow-xs cursor-pointer select-none">
+                <button type="button" id="btn-enter-select-mode" class="ml-2 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-xs cursor-pointer select-none">
                     Pilih
                 </button>
             @endif
@@ -153,14 +153,13 @@
         @endif
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($games as $game)
-                <div class="bulk-item-wrapper flex flex-col gap-2 h-full">
+                <div class="bulk-item-wrapper relative h-full">
                     @if(Auth::check() && Auth::user()->role === 'admin')
-                        <label class="bulk-item-checkbox-container items-center gap-2 px-3 py-2 bg-white border border-slate-200 shadow-sm rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
-                            <input type="checkbox" value="{{ $game['id'] }}" class="bulk-item-checkbox w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
-                            <span class="text-xs font-semibold text-slate-700">Pilih Item</span>
+                        <label class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg p-1.5 cursor-pointer hover:bg-slate-50 transition-colors">
+                            <input type="checkbox" value="{{ $game['id'] }}" class="bulk-item-checkbox w-4.5 h-4.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shadow-xs">
                         </label>
                     @endif
-                    <div class="bulk-item-card flex-1 transition-all duration-200 rounded-2xl">
+                    <div class="bulk-item-card flex-1 h-full transition-all duration-200 rounded-2xl">
                         <x-game-card :game="$game" />
                     </div>
                 </div>
