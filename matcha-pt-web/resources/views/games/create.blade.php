@@ -243,23 +243,29 @@
                 </div>
 
                 <!-- Number of Courts -->
-                <div class="space-y-1.5">
+                <div class="space-y-1.5" id="numCourtsDropdownContainer">
                     <label class="block text-xs font-bold text-slate-800">
                         Numbers of Court
                     </label>
-                    <div class="relative">
-                        <select id="numCourts" onchange="renderPlayers()" class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none appearance-none transition-all shadow-2xs">
+                    <div class="relative z-30">
+                        <select id="numCourts" onchange="renderPlayers()" class="sr-only">
                             <option value="1">1 Court</option>
-                            <option value="2">2 Court</option>
-                            <option value="3">3 Court</option>
-                            <option value="4">4 Court</option>
+                            <option value="2">2 Courts</option>
+                            <option value="3">3 Courts</option>
+                            <option value="4">4 Courts</option>
                         </select>
-                        <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+
+                        <button type="button" id="numCourtsDropdownTrigger" onclick="toggleNumCourtsDropdown()"
+                            class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold text-left focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none transition-all shadow-2xs flex items-center justify-between gap-3 cursor-pointer">
+                            <span id="numCourtsDropdownLabel" class="min-w-0 truncate">1 Court</span>
+                            <i id="numCourtsDropdownIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 shrink-0"></i>
+                        </button>
+                        <div id="numCourtsDropdownMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
                     </div>
                 </div>
 
                 <!-- Venue -->
-                <div class="space-y-1.5">
+                <div class="space-y-1.5" id="venueDropdownContainer">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <label class="block text-xs font-bold text-slate-800">
@@ -272,7 +278,7 @@
                         </button>
                     </div>
 
-                    <div class="relative z-40">
+                    <div class="relative z-20">
                         <select
                             id="venueId"
                             onchange="onVenueChanged()"
@@ -288,7 +294,7 @@
                         </select>
 
                         <button type="button" id="venueDropdownTrigger" onclick="toggleVenueDropdown()"
-                            class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold text-left focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none transition-all shadow-2xs flex items-center justify-between gap-3">
+                            class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold text-left focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none transition-all shadow-2xs flex items-center justify-between gap-3 cursor-pointer">
                             <span id="venueDropdownLabel" class="min-w-0 truncate">Pilih venue</span>
                             <i id="venueDropdownIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 shrink-0"></i>
                         </button>
@@ -297,13 +303,13 @@
                 </div>
 
                 <!-- Scoring System (General Only) -->
-                <div class="space-y-1.5">
+                <div class="space-y-1.5" id="scoringDropdownContainer">
                     <label class="block text-xs font-bold text-slate-800">
                         Scoring System
                     </label>
                     
-                    <div class="relative">
-                        <select id="scoringGeneralValue" onchange="renderPlayers()" class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none appearance-none transition-all shadow-2xs">
+                    <div class="relative z-10">
+                        <select id="scoringGeneralValue" onchange="renderPlayers()" class="sr-only">
                             <option value="Total of 3" selected>Total of 3</option>
                             <option value="Total of 4">Total of 4</option>
                             <option value="Total of 5">Total of 5</option>
@@ -314,7 +320,13 @@
                             <option value="First to 15">First to 15</option>
                             <option value="First to 21">First to 21</option>
                         </select>
-                        <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+
+                        <button type="button" id="scoringDropdownTrigger" onclick="toggleScoringDropdown()"
+                            class="w-full bg-slate-50/90 border border-slate-200/80 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold text-left focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/20 focus:outline-none transition-all shadow-2xs flex items-center justify-between gap-3 cursor-pointer">
+                            <span id="scoringDropdownLabel" class="min-w-0 truncate">Total of 3</span>
+                            <i id="scoringDropdownIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 shrink-0"></i>
+                        </button>
+                        <div id="scoringDropdownMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
                     </div>
                 </div>
 
@@ -773,6 +785,120 @@
         // Pre-filled with realistic data if Host clicks Add Yourself
     ];
 
+    function renderNumCourtsDropdown() {
+        const numCourtsSelect = document.getElementById('numCourts');
+        const menu = document.getElementById('numCourtsDropdownMenu');
+        const label = document.getElementById('numCourtsDropdownLabel');
+        if (!numCourtsSelect || !menu || !label) return;
+
+        menu.innerHTML = '';
+        Array.from(numCourtsSelect.options).forEach(option => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            const isSelected = String(numCourtsSelect.value) === String(option.value);
+            item.className = `w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+                isSelected 
+                    ? 'bg-[#EBF8D8] text-[#063B00] font-bold' 
+                    : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
+            }`;
+            item.innerHTML = `
+                <span>${option.textContent}</span>
+                ${isSelected ? '<i class="fa-solid fa-check text-[#063B00] text-xs"></i>' : ''}
+            `;
+            item.onclick = () => selectNumCourtsOption(option.value);
+            menu.appendChild(item);
+        });
+
+        const selected = numCourtsSelect.options[numCourtsSelect.selectedIndex] || numCourtsSelect.options[0];
+        label.textContent = selected ? selected.textContent : '1 Court';
+    }
+
+    function toggleNumCourtsDropdown() {
+        const menu = document.getElementById('numCourtsDropdownMenu');
+        const icon = document.getElementById('numCourtsDropdownIcon');
+        if (!menu) return;
+
+        // Close other dropdowns
+        document.getElementById('venueDropdownMenu')?.classList.add('hidden');
+        document.getElementById('venueDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+        document.getElementById('scoringDropdownMenu')?.classList.add('hidden');
+        document.getElementById('scoringDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+
+        const isHidden = menu.classList.toggle('hidden');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-down', isHidden);
+            icon.classList.toggle('fa-chevron-up', !isHidden);
+        }
+    }
+
+    function selectNumCourtsOption(value) {
+        const numCourtsSelect = document.getElementById('numCourts');
+        const menu = document.getElementById('numCourtsDropdownMenu');
+        if (!numCourtsSelect) return;
+        numCourtsSelect.value = value;
+        renderNumCourtsDropdown();
+        renderPlayers();
+        menu?.classList.add('hidden');
+        document.getElementById('numCourtsDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+    }
+
+    function renderScoringDropdown() {
+        const scoringSelect = document.getElementById('scoringGeneralValue');
+        const menu = document.getElementById('scoringDropdownMenu');
+        const label = document.getElementById('scoringDropdownLabel');
+        if (!scoringSelect || !menu || !label) return;
+
+        menu.innerHTML = '';
+        Array.from(scoringSelect.options).forEach(option => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            const isSelected = String(scoringSelect.value) === String(option.value);
+            item.className = `w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+                isSelected 
+                    ? 'bg-[#EBF8D8] text-[#063B00] font-bold' 
+                    : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
+            }`;
+            item.innerHTML = `
+                <span>${option.textContent}</span>
+                ${isSelected ? '<i class="fa-solid fa-check text-[#063B00] text-xs"></i>' : ''}
+            `;
+            item.onclick = () => selectScoringOption(option.value);
+            menu.appendChild(item);
+        });
+
+        const selected = scoringSelect.options[scoringSelect.selectedIndex] || scoringSelect.options[0];
+        label.textContent = selected ? selected.textContent : 'Total of 3';
+    }
+
+    function toggleScoringDropdown() {
+        const menu = document.getElementById('scoringDropdownMenu');
+        const icon = document.getElementById('scoringDropdownIcon');
+        if (!menu) return;
+
+        // Close other dropdowns
+        document.getElementById('numCourtsDropdownMenu')?.classList.add('hidden');
+        document.getElementById('numCourtsDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+        document.getElementById('venueDropdownMenu')?.classList.add('hidden');
+        document.getElementById('venueDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+
+        const isHidden = menu.classList.toggle('hidden');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-down', isHidden);
+            icon.classList.toggle('fa-chevron-up', !isHidden);
+        }
+    }
+
+    function selectScoringOption(value) {
+        const scoringSelect = document.getElementById('scoringGeneralValue');
+        const menu = document.getElementById('scoringDropdownMenu');
+        if (!scoringSelect) return;
+        scoringSelect.value = value;
+        renderScoringDropdown();
+        renderPlayers();
+        menu?.classList.add('hidden');
+        document.getElementById('scoringDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+    }
+
     function renderVenueDropdown() {
         const venueSelect = document.getElementById('venueId');
         const menu = document.getElementById('venueDropdownMenu');
@@ -784,10 +910,18 @@
             const item = document.createElement('button');
             item.type = 'button';
             item.disabled = option.disabled;
+            const isSelected = !option.disabled && String(venueSelect.value) === String(option.value);
             item.className = option.disabled
                 ? 'w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-400 cursor-not-allowed'
-                : 'w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-[#EBF8D8] hover:text-[#063B00] transition-colors truncate whitespace-nowrap';
-            item.textContent = option.textContent;
+                : `w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+                    isSelected
+                        ? 'bg-[#EBF8D8] text-[#063B00] font-bold'
+                        : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
+                }`;
+            item.innerHTML = `
+                <span class="truncate">${option.textContent}</span>
+                ${isSelected ? '<i class="fa-solid fa-check text-[#063B00] text-xs shrink-0 ml-2"></i>' : ''}
+            `;
             item.title = option.textContent;
             if (!option.disabled) {
                 item.onclick = () => selectVenueOption(option.value);
@@ -804,6 +938,13 @@
         const menu = document.getElementById('venueDropdownMenu');
         const icon = document.getElementById('venueDropdownIcon');
         if (!menu) return;
+
+        // Close other dropdowns
+        document.getElementById('numCourtsDropdownMenu')?.classList.add('hidden');
+        document.getElementById('numCourtsDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+        document.getElementById('scoringDropdownMenu')?.classList.add('hidden');
+        document.getElementById('scoringDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+
         const isHidden = menu.classList.toggle('hidden');
         if (icon) {
             icon.classList.toggle('fa-chevron-down', isHidden);
@@ -1003,6 +1144,7 @@
             numCourtsSelect.appendChild(opt);
         }
         numCourtsSelect.value = "1";
+        renderNumCourtsDropdown();
     }
 
     function selectSport(sport, icon) {
@@ -1652,9 +1794,26 @@
         }
     }
 
-    // Inisialisasi awal venue dropdown
+    // Inisialisasi awal custom dropdowns & outside click handler
     document.addEventListener('DOMContentLoaded', () => {
         filterVenuesBySport();
+        renderNumCourtsDropdown();
+        renderScoringDropdown();
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#numCourtsDropdownContainer')) {
+                document.getElementById('numCourtsDropdownMenu')?.classList.add('hidden');
+                document.getElementById('numCourtsDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+            if (!e.target.closest('#venueDropdownContainer')) {
+                document.getElementById('venueDropdownMenu')?.classList.add('hidden');
+                document.getElementById('venueDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+            if (!e.target.closest('#scoringDropdownContainer')) {
+                document.getElementById('scoringDropdownMenu')?.classList.add('hidden');
+                document.getElementById('scoringDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+        });
     });
 </script>
 @endpush
