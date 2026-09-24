@@ -554,30 +554,15 @@ class PlayerController extends Controller
             'email' => 'required|email|max:100|unique:tb_user,email,'.$user->user_id.',user_id',
             'no_hp' => 'nullable|string|max:20',
             'role' => 'required|in:member,host,venue_owner,admin',
-            'is_host' => 'nullable',
             'password' => 'nullable|string|min:6',
         ]);
 
         $role = $validated['role'];
-        $isHost = $request->has('is_host');
-
-        if ($role === 'admin' || $role === 'venue_owner') {
-            $user->role = $role;
-            $user->is_host = false;
-        } elseif ($role === 'host') {
-            if (! $isHost) {
-                // Jika awalnya host dan switch host dimatikan, otomatis berubah jadi member biasa
-                $user->role = 'member';
-                $user->is_host = false;
-            } else {
-                $user->role = 'host';
-                $user->is_host = true;
-            }
-        } else {
-            // Role member: sinkron dengan switch host
-            $user->role = $isHost ? 'host' : 'member';
-            $user->is_host = $isHost;
-        }
+        $user->nama = $validated['nama'];
+        $user->email = $validated['email'];
+        $user->no_hp = $validated['no_hp'] ?? null;
+        $user->role = $role;
+        $user->is_host = ($role === 'host');
 
         if (! empty($validated['password'])) {
             $user->password = Hash::make($validated['password']);

@@ -347,7 +347,6 @@
                             id="editUserRole"
                             name="role"
                             required
-                            onchange="handleRoleChange()"
                             class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-xl px-3.5 py-2.5 pr-8 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-xs"
                         >
                             <option value="member">Member</option>
@@ -358,18 +357,6 @@
                         <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
                     </div>
                 </div>
-            </div>
-
-            <!-- Status Host Toggle (Hanya untuk Role Member / Host) -->
-            <div id="editUserHostContainer" class="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between">
-                <div>
-                    <span class="block font-bold text-slate-800 text-xs">Status Host Aktif</span>
-                    <span class="text-[11px] text-slate-500">Izinkan pengguna membuat dan memandu sesi mabar</span>
-                </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="editUserIsHost" name="is_host" value="1" onchange="syncHostToggleWithRole()" class="sr-only peer">
-                    <div class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#063B00]"></div>
-                </label>
             </div>
 
             <!-- Password Baru (Opsional) -->
@@ -442,38 +429,6 @@
 </div>
 
 <script>
-    function handleRoleChange() {
-        const roleSelect = document.getElementById('editUserRole');
-        const hostContainer = document.getElementById('editUserHostContainer');
-        const hostCheckbox = document.getElementById('editUserIsHost');
-        const role = roleSelect.value;
-
-        if (role === 'admin' || role === 'venue_owner') {
-            // Khusus admin dan venue_owner tidak ada status host
-            hostContainer.style.display = 'none';
-            hostCheckbox.checked = false;
-        } else if (role === 'host') {
-            // Jika role Host, status host otomatis aktif
-            hostContainer.style.display = 'flex';
-            hostCheckbox.checked = true;
-        } else {
-            // Role Member
-            hostContainer.style.display = 'flex';
-        }
-    }
-
-    function syncHostToggleWithRole() {
-        const roleSelect = document.getElementById('editUserRole');
-        const hostCheckbox = document.getElementById('editUserIsHost');
-
-        // Jika role Host dan tombol status host dimatikan, otomatis berubah jadi Member
-        if (roleSelect.value === 'host' && !hostCheckbox.checked) {
-            roleSelect.value = 'member';
-        } else if (roleSelect.value === 'member' && hostCheckbox.checked) {
-            roleSelect.value = 'host';
-        }
-    }
-
     function openEditUserModal(user) {
         const modal = document.getElementById('editUserModal');
         const form = document.getElementById('editUserForm');
@@ -483,10 +438,7 @@
         document.getElementById('editUserEmail').value = user.email || '';
         document.getElementById('editUserNoHp').value = user.no_hp || '';
         document.getElementById('editUserRole').value = user.role || 'member';
-        document.getElementById('editUserIsHost').checked = (user.role === 'host') || (!['admin', 'venue_owner'].includes(user.role) && !!user.is_host);
         document.getElementById('editUserPassword').value = '';
-
-        handleRoleChange();
 
         if (modal) {
             modal.style.display = 'flex';
