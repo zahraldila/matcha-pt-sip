@@ -7,22 +7,24 @@
         <div id="bulk-delete-inputs"></div>
     </form>
     
-    <div class="flex flex-wrap items-center justify-between gap-3 w-full">
-        <div class="flex items-center gap-3">
-            <input type="checkbox" id="bulk-select-all" class="w-4.5 h-4.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shadow-xs">
-            <label for="bulk-select-all" id="bulk-select-label" class="text-xs font-bold text-emerald-900 cursor-pointer select-none">
-                Pilih semua di halaman ini
-            </label>
-        </div>
-        
-        <div class="flex items-center gap-2">
-            <button type="button" id="btn-cancel-select" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs transition-all">
-                Batal
-            </button>
-            <button type="button" id="btn-submit-bulk" disabled class="px-3 py-1.5 font-semibold rounded-lg shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed" style="background-color: #dc2626; color: white; border: 1px solid #b91c1c;">
-                Hapus <span id="bulk-count-display">0</span> {{ $itemName }}
-            </button>
-        </div>
+    <div class="flex items-center gap-2">
+        <button
+            type="button"
+            id="btn-cancel-select"
+            class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs transition-all"
+        >
+            Batal
+        </button>
+
+        <button
+            type="button"
+            id="btn-submit-bulk"
+            disabled
+            class="px-3 py-1.5 text-xs font-semibold rounded-lg shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            style="background-color: #dc2626; color: white; border: 1px solid #b91c1c;"
+        >
+            Hapus <span id="bulk-count-display">0</span> {{ $itemName }}
+        </button>
     </div>
 </div>
 
