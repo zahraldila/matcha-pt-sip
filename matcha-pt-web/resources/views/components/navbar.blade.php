@@ -29,9 +29,21 @@
                     <a href="{{ route('communities.index') }}" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ request()->routeIs('communities.*') ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'text-slate-600 hover:text-[#063B00] hover:bg-white/60' }}">
                         Komunitas
                     </a>
-                    <a href="{{ route('player.recap') }}" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ request()->routeIs('player.*') ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'text-slate-600 hover:text-[#063B00] hover:bg-white/60' }}">
-                        Match Recap
-                    </a>
+                    @auth
+                        @if(Auth::user()->isAdmin())
+                            <a href="{{ route('admin.users') }}" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ request()->routeIs('admin.*') ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'text-slate-600 hover:text-[#063B00] hover:bg-white/60' }}">
+                                Manajemen Pengguna
+                            </a>
+                        @else
+                            <a href="{{ route('player.recap') }}" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ request()->routeIs('player.*') ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'text-slate-600 hover:text-[#063B00] hover:bg-white/60' }}">
+                                Match Recap
+                            </a>
+                        @endif
+                    @else
+                        <a href="{{ route('player.recap') }}" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ request()->routeIs('player.*') ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'text-slate-600 hover:text-[#063B00] hover:bg-white/60' }}">
+                            Match Recap
+                        </a>
+                    @endauth
                 </nav>
             </div>
 
@@ -123,9 +135,15 @@
                                     <i class="fa-solid fa-crown text-amber-500 text-xs"></i> {{ Auth::user()->role === 'admin' ? 'Kelola Venue & Court' : 'Kelola Venue Saya' }}
                                 </a>
                             @endif
-                            <a href="{{ route('player.recap') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
-                                <i class="fa-solid fa-chart-line text-slate-400 text-xs"></i> Match Recap &amp; Statistik
-                            </a>
+                            @if(Auth::user()->isAdmin())
+                                <a href="{{ route('admin.users') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-800 bg-amber-50/70 hover:bg-amber-100 font-semibold transition-colors">
+                                    <i class="fa-solid fa-users-gear text-amber-500 text-xs"></i> Manajemen Pengguna
+                                </a>
+                            @else
+                                <a href="{{ route('player.recap') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
+                                    <i class="fa-solid fa-chart-line text-slate-400 text-xs"></i> Match Recap &amp; Statistik
+                                </a>
+                            @endif
                             <a href="{{ route('player.profile') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
                                 <i class="fa-solid fa-id-card text-slate-400 text-xs"></i> Profil &amp; Status Host
                             </a>

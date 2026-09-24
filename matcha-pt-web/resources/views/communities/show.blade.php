@@ -211,7 +211,16 @@
             <div class="backdrop-blur-2xl bg-white/80 border border-white/90 rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(6,59,0,0.06)] space-y-4 sticky top-20">
                 
                 @if(Auth::check())
-                    @if($isMember)
+                    @if(Auth::user()->isAdmin())
+                        {{-- Admin: tidak bisa join/leave --}}
+                        <div class="space-y-3">
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Mode Administrator</p>
+                            <div class="px-3 py-2.5 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-2">
+                                <i class="fa-solid fa-crown text-amber-500 text-xs"></i>
+                                <span class="text-xs font-bold text-amber-800">Admin mengelola, tidak bergabung sebagai anggota.</span>
+                            </div>
+                        </div>
+                    @elseif($isMember)
                         <!-- Leave Button -->
                         <div class="space-y-3">
                             <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Status Keanggotaan</p>
@@ -244,6 +253,7 @@
                         </div>
                     @endif
                 @else
+
                     <!-- Login Required -->
                     <div class="space-y-3">
                         <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Akses Komunitas</p>

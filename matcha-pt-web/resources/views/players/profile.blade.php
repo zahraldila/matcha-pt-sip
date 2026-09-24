@@ -16,10 +16,13 @@
                 </p>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('player.recap') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs shadow-2xs transition-all hover:scale-[1.01]">
-                    <i class="fa-solid fa-chart-line text-[#063B00]"></i> Lihat Match Recap
-                </a>
+                @if(!Auth::user()->isAdmin())
+                    <a href="{{ route('player.recap') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs shadow-2xs transition-all hover:scale-[1.01]">
+                        <i class="fa-solid fa-chart-line text-[#063B00]"></i> Lihat Match Recap
+                    </a>
+                @endif
             </div>
+
         </div>
 
         @if(session('info') || request('notice') === 'host_required')

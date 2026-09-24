@@ -110,3 +110,6 @@ Route::get('/community/{id?}', function ($id = null) {
 
     return redirect()->route('communities.show', (int) $id);
 });
+
+// Admin — Manajemen Pengguna
+Route::get('/admin/users', [PlayerController::class, 'manageUsers'])->name('admin.users')->middleware('auth');
