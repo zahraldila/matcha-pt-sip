@@ -98,7 +98,7 @@
                 @endif
             </span>
             @if(Auth::check() && Auth::user()->role === 'admin' && $venues->count() > 0)
-                <button type="button" id="btn-enter-select-mode" class="ml-2 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-lg transition-colors border border-slate-200 shadow-xs cursor-pointer select-none">
+                <button type="button" id="btn-enter-select-mode" class="ml-2 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-xs cursor-pointer select-none">
                     Pilih
                 </button>
             @endif
