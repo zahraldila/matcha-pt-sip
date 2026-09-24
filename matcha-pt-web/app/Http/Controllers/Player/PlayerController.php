@@ -495,7 +495,7 @@ class PlayerController extends Controller
         $search = trim($request->get('q', ''));
         $filterRole = $request->get('role', 'all');
 
-        $query = User::with('player')->orderBy('user_id', 'asc');
+        $query = User::with('player')->orderByRaw('LOWER(nama) ASC');
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
