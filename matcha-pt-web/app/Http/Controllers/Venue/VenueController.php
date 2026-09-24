@@ -150,7 +150,7 @@ class VenueController extends Controller
             $sportName = null;
         }
 
-        $isMine = Auth::check() && ($dbVenue->owner_user_id == Auth::id() || Auth::user()->role === 'admin');
+        $isMine = Auth::check() && ($dbVenue->owner_user_id == Auth::id());
 
         $facilities = array_values(array_filter(array_map('trim', explode(',', $dbVenue->fasilitas ?? ''))));
 
