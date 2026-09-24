@@ -29,16 +29,20 @@
                 type="button"
                 id="global-delete-modal-cancel"
                 class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer active:scale-95"
+                style="background-color: #f1f5f9; color: #334155;"
             >
                 Batal
             </button>
             <button
                 type="button"
                 id="global-delete-modal-confirm"
-                class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/25 flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                class="px-5 py-2.5 rounded-xl text-white font-extrabold text-xs shadow-md flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                style="background-color: #dc2626 !important; color: #ffffff !important; box-shadow: 0 4px 14px 0 rgba(220, 38, 38, 0.35);"
+                onmouseover="this.style.backgroundColor='#b91c1c'"
+                onmouseout="this.style.backgroundColor='#dc2626'"
             >
-                <i class="fa-solid fa-trash-can text-xs"></i>
-                <span id="global-delete-modal-btn-text">Ya, Hapus Sekarang</span>
+                <i class="fa-solid fa-trash-can text-xs text-white" style="color: #ffffff !important;"></i>
+                <span id="global-delete-modal-btn-text" class="text-white" style="color: #ffffff !important;">Ya, Hapus Sekarang</span>
             </button>
         </div>
     </div>
