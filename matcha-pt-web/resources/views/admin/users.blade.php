@@ -144,7 +144,7 @@
             <table class="w-full text-xs">
                 <thead>
                     <tr class="border-b border-slate-200/70 bg-slate-50/80">
-                        <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">ID</th>
+                        <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">NO</th>
                         <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">Pengguna</th>
                         <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">Email</th>
                         <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">No. HP</th>
@@ -170,7 +170,7 @@
                             };
                         @endphp
                         <tr class="hover:bg-slate-50/60 transition-colors {{ $user->role === 'admin' ? 'bg-amber-50/30' : '' }}">
-                            <td class="px-4 py-3 text-slate-400 font-mono">{{ $user->user_id }}</td>
+                            <td class="px-4 py-3 text-slate-400 font-mono">{{ $users->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2.5">
                                     <div class="w-8 h-8 rounded-full bg-[#063B00] flex items-center justify-center text-white font-black text-xs shrink-0 overflow-hidden border border-[#A8E63A]/30">
