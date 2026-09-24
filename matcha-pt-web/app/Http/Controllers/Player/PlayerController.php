@@ -485,6 +485,9 @@ class PlayerController extends Controller
 
         // Balikkan nilai boolean is_host
         $user->is_host = ! $user->is_host;
+        if (! in_array($user->role, ['admin', 'venue_owner'])) {
+            $user->role = $user->is_host ? 'host' : 'member';
+        }
         $user->save();
 
         $statusMsg = $user->is_host
