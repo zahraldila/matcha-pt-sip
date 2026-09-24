@@ -5,18 +5,18 @@
     <div class="space-y-5 sm:space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-slate-200/60 pb-4">
             <div>
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] text-[10px] font-black uppercase tracking-widest mb-1.5 sm:mb-2">
-                    <i class="fa-solid fa-id-card text-[#063B00]"></i> Akun &amp; Profil Pemain
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full {{ $user->isAdmin() ? 'bg-amber-100 border-amber-300 text-amber-900' : 'bg-[#EBF8D8] border-[#063B00]/20 text-[#063B00]' }} text-[10px] font-black uppercase tracking-widest mb-1.5 sm:mb-2 border">
+                    <i class="fa-solid {{ $user->isAdmin() ? 'fa-user-shield text-amber-700' : 'fa-id-card text-[#063B00]' }}"></i> {{ $user->isAdmin() ? 'Akun & Profil Administrator' : 'Akun & Profil Pemain' }}
                 </div>
                 <h1 class="text-xl sm:text-3xl font-extrabold text-[#050608] tracking-tight">
-                    Profil Member Pemain
+                    {{ $user->isAdmin() ? 'Profil Akun Administrator' : 'Profil Member Pemain' }}
                 </h1>
                 <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
-                    Kelola data identitas, kontak WhatsApp, skill level, dan status keanggotaan Host Anda
+                    {{ $user->isAdmin() ? 'Kelola data identitas akun, kontak WhatsApp, dan foto profil Administrator Matcha' : 'Kelola data identitas, kontak WhatsApp, skill level, dan status keanggotaan Host Anda' }}
                 </p>
             </div>
             <div class="flex items-center gap-2">
-                @if(!Auth::user()->isAdmin())
+                @if(!$user->isAdmin())
                     <a href="{{ route('player.recap') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs shadow-2xs transition-all hover:scale-[1.01]">
                         <i class="fa-solid fa-chart-line text-[#063B00]"></i> Lihat Match Recap
                     </a>
@@ -60,49 +60,51 @@
             </div>
         @endif
 
-        <!-- ================================================================= -->
-        <!-- CARD TOGGLE STATUS HOST                                          -->
-        <!-- ================================================================= -->
-        <div class="glass-card rounded-3xl p-4 sm:p-6 border {{ (request('notice') === 'host_required' || session('info')) && !$user->is_host ? 'border-[#063B00] ring-2 ring-[#063B00]/20 shadow-md' : 'border-white/90 shadow-sm' }} bg-gradient-to-r from-emerald-50/50 via-white to-slate-50/50 transition-all">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div class="space-y-1">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-slate-800">Status Akses Host Game:</span>
-                        @if($user->is_host)
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                                <i class="fa-solid fa-circle text-[8px] text-emerald-500 animate-pulse"></i> Host Game Active
-                            </span>
-                        @else
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-600 border border-slate-200">
-                                Pemain / Member Only
-                            </span>
-                        @endif
+        @if(!$user->isAdmin())
+            <!-- ================================================================= -->
+            <!-- CARD TOGGLE STATUS HOST                                          -->
+            <!-- ================================================================= -->
+            <div class="glass-card rounded-3xl p-4 sm:p-6 border {{ (request('notice') === 'host_required' || session('info')) && !$user->is_host ? 'border-[#063B00] ring-2 ring-[#063B00]/20 shadow-md' : 'border-white/90 shadow-sm' }} bg-gradient-to-r from-emerald-50/50 via-white to-slate-50/50 transition-all">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-slate-800">Status Akses Host Game:</span>
+                            @if($user->is_host)
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                                    <i class="fa-solid fa-circle text-[8px] text-emerald-500 animate-pulse"></i> Host Game Active
+                                </span>
+                            @else
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-600 border border-slate-200">
+                                    Pemain / Member Only
+                                </span>
+                            @endif
+                        </div>
+                        <p class="text-[11px] text-slate-500 leading-relaxed">
+                            @if($user->is_host)
+                                Mode Host Aktif. Kamu diizinkan untuk membuat jadwal mabar baru, mengelola drawing tim, dan live scoring.
+                            @else
+                                Aktifkan status Host untuk mendapatkan akses membuat sesi mabar, bagan drawing, dan pencatatan poin langsung.
+                            @endif
+                        </p>
                     </div>
-                    <p class="text-[11px] text-slate-500 leading-relaxed">
-                        @if($user->is_host)
-                            Mode Host Aktif. Kamu diizinkan untuk membuat jadwal mabar baru, mengelola drawing tim, dan live scoring.
-                        @else
-                            Aktifkan status Host untuk mendapatkan akses membuat sesi mabar, bagan drawing, dan pencatatan poin langsung.
-                        @endif
-                    </p>
-                </div>
 
-                <form action="{{ route('player.profile.toggle-host') }}" method="POST" class="shrink-0 w-full sm:w-auto">
-                    @csrf
-                    @if($user->is_host)
-                        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-xs border border-rose-200 transition-all cursor-pointer">
-                            <i class="fa-solid fa-power-off text-rose-500"></i>
-                            <span>Nonaktifkan Mode Host</span>
-                        </button>
-                    @else
-                        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer">
-                            <i class="fa-solid fa-bolt text-[#A8E63A]"></i>
-                            <span>Aktifkan Mode Host</span>
-                        </button>
-                    @endif
-                </form>
+                    <form action="{{ route('player.profile.toggle-host') }}" method="POST" class="shrink-0 w-full sm:w-auto">
+                        @csrf
+                        @if($user->is_host)
+                            <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-xs border border-rose-200 transition-all cursor-pointer">
+                                <i class="fa-solid fa-power-off text-rose-500"></i>
+                                <span>Nonaktifkan Mode Host</span>
+                            </button>
+                        @else
+                            <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer">
+                                <i class="fa-solid fa-bolt text-[#A8E63A]"></i>
+                                <span>Aktifkan Mode Host</span>
+                            </button>
+                        @endif
+                    </form>
+                </div>
             </div>
-        </div>
+        @endif
 
         <div class="glass-card rounded-3xl p-5 sm:p-8 space-y-6 border border-white/90 shadow-sm">
             <!-- Profile Edit Form (Includes Avatar Uploader) -->
@@ -136,8 +138,8 @@
                     <div class="text-center sm:text-left space-y-2 flex-1 min-w-0">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
                             <h2 class="text-lg font-bold text-slate-900 truncate">{{ $user->nama }}</h2>
-                            <span class="inline-block self-center sm:self-auto px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border {{ $user->is_host ? 'bg-amber-50 text-amber-800 border-amber-200' : ($user->role === 'venue_owner' ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200') }}">
-                                {{ $user->role === 'venue_owner' ? '🏢 Venue Owner' : ($user->is_host ? '👑 Host Game & Player' : '🎾 Member Pemain') }}
+                            <span class="inline-block self-center sm:self-auto px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border {{ $user->isAdmin() ? 'bg-amber-100 text-amber-900 border-amber-300' : ($user->is_host ? 'bg-amber-50 text-amber-800 border-amber-200' : ($user->role === 'venue_owner' ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200')) }}">
+                                {{ $user->isAdmin() ? '👑 Administrator Global' : ($user->role === 'venue_owner' ? '🏢 Venue Owner' : ($user->is_host ? '👑 Host Game & Player' : '🎾 Member Pemain')) }}
                             </span>
                         </div>
                         <p class="text-xs text-slate-500 font-medium break-words sm:break-normal">
@@ -157,19 +159,21 @@
                             </span>
                         </div>
 
-                        <div class="flex flex-wrap gap-1.5 pt-1 justify-center sm:justify-start">
-                            <span class="px-2.5 py-0.5 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200">
-                                ⭐ Skill: <strong class="text-[#063B00]">{{ $player->level ?? 'Intermediate' }}</strong>
-                            </span>
-                            <span class="px-2.5 py-0.5 rounded-xl bg-[#EBF8D8] text-[#063B00] text-[11px] font-semibold border border-[#063B00]/20">
-                                👥 Komunitas: <strong>{{ $player->community->nama_community ?? 'Personal' }}</strong>
-                            </span>
-                            @if(!empty($player->usia))
-                                <span class="px-2.5 py-0.5 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-semibold border border-slate-200">
-                                    🎂 Usia: {{ $player->usia }} thn
+                        @if(!$user->isAdmin())
+                            <div class="flex flex-wrap gap-1.5 pt-1 justify-center sm:justify-start">
+                                <span class="px-2.5 py-0.5 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200">
+                                    ⭐ Skill: <strong class="text-[#063B00]">{{ $player->level ?? 'Intermediate' }}</strong>
                                 </span>
-                            @endif
-                        </div>
+                                <span class="px-2.5 py-0.5 rounded-xl bg-[#EBF8D8] text-[#063B00] text-[11px] font-semibold border border-[#063B00]/20">
+                                    👥 Komunitas: <strong>{{ $player->community->nama_community ?? 'Personal' }}</strong>
+                                </span>
+                                @if(!empty($player->usia))
+                                    <span class="px-2.5 py-0.5 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-semibold border border-slate-200">
+                                        🎂 Usia: {{ $player->usia }} thn
+                                    </span>
+                                @endif
+                            </div>
+                        @endif
                     </div>
                 </div>
 
@@ -180,7 +184,7 @@
                             Nama Lengkap <span class="text-rose-500">*</span>
                         </label>
                         <input type="text" name="nama" value="{{ old('nama', $player->nama ?? $user->nama ?? '') }}" required placeholder="Contoh: Billy Santoso" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
-                        <p class="text-[10px] text-slate-400">Nama ini akan digunakan pada papan drawing pertandingan, bracket turnamen, dan leaderboard.</p>
+                        <p class="text-[10px] text-slate-400">Nama akun yang digunakan pada identitas sistem.</p>
                     </div>
 
                     <!-- Email (Read-Only) -->
@@ -198,7 +202,7 @@
                             Nomor WhatsApp / HP <span class="text-rose-500">*</span>
                         </label>
                         <input type="tel" name="no_hp" value="{{ old('no_hp', $player->no_hp ?? $user->no_hp ?? '') }}" required maxlength="15" oninput="this.value = this.value.replace(/[^0-9]/g, '')" placeholder="0812xxxxxxxx" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
-                        <p class="text-[10px] text-slate-400">Nomor kontak untuk koordinasi grup mabar &amp; notifikasi sesi.</p>
+                        <p class="text-[10px] text-slate-400">Nomor kontak resmi untuk koordinasi &amp; notifikasi sistem.</p>
                     </div>
 
                     <!-- Gender -->
@@ -215,53 +219,55 @@
                         </div>
                     </div>
 
-                    <!-- Usia -->
-                    <div class="space-y-1">
-                        <label class="block font-bold text-slate-800">
-                            Usia (Tahun) <span class="text-rose-500">*</span>
-                        </label>
-                        <input type="number" name="usia" value="{{ old('usia', $player->usia ?? 25) }}" min="10" max="90" required placeholder="Contoh: 26" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
-                    </div>
-
-                    <!-- Skill Level -->
-                    <div class="space-y-1">
-                        <label class="block font-bold text-slate-800">
-                            Kategori Skill Level <span class="text-rose-500">*</span>
-                        </label>
-                        <div class="relative">
-                            <select name="level" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                                <option value="Newbie" {{ old('level', $player->level ?? '') === 'Newbie' ? 'selected' : '' }}>Newbie (Baru mulai / belajar)</option>
-                                <option value="Beginner" {{ old('level', $player->level ?? '') === 'Beginner' ? 'selected' : '' }}>Beginner (Rally dasar lancar)</option>
-                                <option value="Intermediate" {{ old('level', $player->level ?? 'Intermediate') === 'Intermediate' ? 'selected' : '' }}>Intermediate (Konsisten match play)</option>
-                                <option value="Advanced" {{ old('level', $player->level ?? '') === 'Advanced' ? 'selected' : '' }}>Advanced (Turnamen &amp; Kompetitif)</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                    @if(!$user->isAdmin())
+                        <!-- Usia -->
+                        <div class="space-y-1">
+                            <label class="block font-bold text-slate-800">
+                                Usia (Tahun) <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="number" name="usia" value="{{ old('usia', $player->usia ?? 25) }}" min="10" max="90" required placeholder="Contoh: 26" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                         </div>
-                    </div>
 
-                    <!-- Komunitas -->
-                    <div class="space-y-1">
-                        <label class="block font-bold text-slate-800">
-                            Afiliasi Komunitas
-                        </label>
-                        <div class="relative">
-                            <select name="community_id" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                                <option value="none" {{ empty($player->community_id) ? 'selected' : '' }}>Personal (Non-Community / Belum Ada)</option>
-                                @if(isset($communities))
-                                    @foreach($communities as $comm)
-                                        @php
-                                            $cId = $comm->community_id ?? $comm['id'];
-                                            $cName = $comm->nama_community ?? $comm['name'];
-                                        @endphp
-                                        <option value="{{ $cId }}" {{ (old('community_id', $player->community_id ?? null) == $cId) ? 'selected' : '' }}>
-                                            {{ $cName }}
-                                        </option>
-                                    @endforeach
-                                @endif
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                        <!-- Skill Level -->
+                        <div class="space-y-1">
+                            <label class="block font-bold text-slate-800">
+                                Kategori Skill Level <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <select name="level" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                                    <option value="Newbie" {{ old('level', $player->level ?? '') === 'Newbie' ? 'selected' : '' }}>Newbie (Baru mulai / belajar)</option>
+                                    <option value="Beginner" {{ old('level', $player->level ?? '') === 'Beginner' ? 'selected' : '' }}>Beginner (Rally dasar lancar)</option>
+                                    <option value="Intermediate" {{ old('level', $player->level ?? 'Intermediate') === 'Intermediate' ? 'selected' : '' }}>Intermediate (Konsisten match play)</option>
+                                    <option value="Advanced" {{ old('level', $player->level ?? '') === 'Advanced' ? 'selected' : '' }}>Advanced (Turnamen &amp; Kompetitif)</option>
+                                </select>
+                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            </div>
                         </div>
-                    </div>
+
+                        <!-- Komunitas -->
+                        <div class="space-y-1">
+                            <label class="block font-bold text-slate-800">
+                                Afiliasi Komunitas
+                            </label>
+                            <div class="relative">
+                                <select name="community_id" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
+                                    <option value="none" {{ empty($player->community_id) ? 'selected' : '' }}>Personal (Non-Community / Belum Ada)</option>
+                                    @if(isset($communities))
+                                        @foreach($communities as $comm)
+                                            @php
+                                                $cId = $comm->community_id ?? $comm['id'];
+                                                $cName = $comm->nama_community ?? $comm['name'];
+                                            @endphp
+                                            <option value="{{ $cId }}" {{ (old('community_id', $player->community_id ?? null) == $cId) ? 'selected' : '' }}>
+                                                {{ $cName }}
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            </div>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="flex justify-end pt-5 border-t border-slate-200/60">

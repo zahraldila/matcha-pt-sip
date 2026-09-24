@@ -75,7 +75,9 @@
 
                 @auth
                     <!-- Role & Host State Action Buttons (Desktop Only) -->
-                    @if(Auth::user()->is_host)
+                    @if(Auth::user()->isAdmin())
+                        {{-- Administrator: Tidak menampilkan tombol Host Game / Tambah Venue --}}
+                    @elseif(Auth::user()->is_host)
                         <!-- Mode Host Aktif -> Langsung Buka Form Buat Game -->
                         <a href="{{ route('games.create') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
                             <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span>Host Game</span>
@@ -130,9 +132,9 @@
                                     </span>
                                 </div>
                             </div>
-                            @if(Auth::user()->role === 'venue_owner' || Auth::user()->role === 'admin')
-                                <a href="{{ route('venues.index', ['tab' => Auth::user()->role === 'admin' ? 'all' : 'my_venues']) }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#063B00] bg-emerald-50/70 hover:bg-emerald-100 font-bold transition-colors">
-                                    <i class="fa-solid fa-crown text-amber-500 text-xs"></i> {{ Auth::user()->role === 'admin' ? 'Kelola Venue & Court' : 'Kelola Venue Saya' }}
+                            @if(Auth::user()->role === 'venue_owner')
+                                <a href="{{ route('venues.index', ['tab' => 'my_venues']) }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#063B00] bg-emerald-50/70 hover:bg-emerald-100 font-bold transition-colors">
+                                    <i class="fa-solid fa-crown text-amber-500 text-xs"></i> Kelola Venue Saya
                                 </a>
                             @endif
                             @if(Auth::user()->isAdmin())
@@ -145,7 +147,7 @@
                                 </a>
                             @endif
                             <a href="{{ route('player.profile') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
-                                <i class="fa-solid fa-id-card text-slate-400 text-xs"></i> Profil &amp; Status Host
+                                <i class="fa-solid {{ Auth::user()->isAdmin() ? 'fa-user-shield text-amber-500' : 'fa-id-card text-slate-400' }} text-xs"></i> {{ Auth::user()->isAdmin() ? 'Profil Administrator' : 'Profil & Status Host' }}
                             </a>
                             <form id="desktopLogoutForm" action="{{ route('logout') }}" method="POST" class="pt-1 border-t border-slate-100">
                                 @csrf
