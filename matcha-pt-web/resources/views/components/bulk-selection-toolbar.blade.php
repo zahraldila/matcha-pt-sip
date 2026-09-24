@@ -19,7 +19,7 @@
             <button type="button" id="btn-cancel-select" class="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-lg border border-slate-200 shadow-sm transition-all">
                 Batal
             </button>
-            <button type="button" id="btn-submit-bulk" disabled class="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="button" id="btn-submit-bulk" disabled class="px-4 py-2.5 font-bold rounded-lg shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed" style="background-color: #dc2626; color: white; border: 1px solid #b91c1c;">
                 Hapus <span id="bulk-count-display">0</span> {{ $itemName }}
             </button>
         </div>
