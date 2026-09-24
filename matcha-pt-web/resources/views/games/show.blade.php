@@ -248,15 +248,9 @@
                                 </div>
                             @endif
 
-                            @if(Auth::check() && Auth::user()->role === 'admin' && empty($isFinished))
-                                <button type="button" onclick="openDeleteSessionModal()" class="w-full text-center py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2">
-                                    <i class="fa-solid fa-trash-can text-rose-600"></i> Hapus Jadwal Mabar
-                                </button>
-                            @endif
-
                         @else
                             {{-- TAMPILAN PESERTA & VENUE OWNER (NON-HOST) --}}
-                            @if(empty($isJoinedByMe) && !$isFull && empty($hasDrawingStarted) && empty($isFinished) && (Auth::guest() || Auth::user()->role !== 'venue_owner'))
+                            @if(empty($isJoinedByMe) && !$isFull && empty($hasDrawingStarted) && empty($isFinished) && (Auth::guest() || (Auth::user()->role !== 'venue_owner' && Auth::user()->role !== 'admin')))
                                 <button type="button" onclick="showJoinModal('{{ $game['id'] }}', '{{ addslashes($game['title']) }}')" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
                                     <i class="fa-solid fa-user-plus text-[#A8E63A]"></i> Gabung Sesi Mabar
                                 </button>
@@ -278,6 +272,12 @@
                                     Jadwal dan rotasi court akan muncul setelah Host melakukan drawing.
                                 </p>
                             @endif
+                        @endif
+
+                        @if(Auth::check() && Auth::user()->role === 'admin' && empty($isFinished))
+                            <button type="button" onclick="openDeleteSessionModal()" class="w-full text-center py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2">
+                                <i class="fa-solid fa-trash-can text-rose-600"></i> Hapus Jadwal Mabar
+                            </button>
                         @endif
                     </div>
 

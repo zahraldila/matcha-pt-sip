@@ -142,10 +142,10 @@
                     </a>
                 @endif
             </div>
-        @elseif(Auth::check() && Auth::user()->role === 'venue_owner')
-            {{-- Khusus Venue Owner: Satu tombol bersih "Lihat Detail" penuh --}}
+        @elseif(Auth::check() && (Auth::user()->role === 'venue_owner' || Auth::user()->role === 'admin'))
+            {{-- Khusus Admin & Venue Owner: Satu tombol bersih "Detail" penuh tanpa tombol Gabung Slot --}}
             <a href="{{ route('games.show', $game['id']) }}" class="w-full block text-center py-2 px-4 rounded-xl bg-white/90 hover:bg-white text-slate-800 text-xs font-bold transition-all border border-slate-200/80 shadow-xs hover:border-[#063B00]">
-                Lihat Detail
+                Detail
             </a>
         @elseif(!empty($game['is_joined_by_me']))
             <div class="grid grid-cols-2 gap-2">
