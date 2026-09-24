@@ -282,59 +282,101 @@
                 <!-- Tipe Arena & Jenis Permukaan -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                     <!-- Tipe Arena -->
-                    <div class="space-y-1.5">
+                    <div class="space-y-1.5 relative" id="wrapper_arenaType">
                         <label class="block font-bold text-slate-800">
                             Tipe Arena Lapangan
                         </label>
                         @php
                             $selectedArena = old('tipe_arena', $venue->tipe_arena ?: 'Semi-Indoor');
+                            $arenaOptions = [
+                                'Indoor' => 'Indoor (Full AC / Beratap Tertutup)',
+                                'Outdoor' => 'Outdoor (Terbuka)',
+                                'Semi-Indoor' => 'Semi-Indoor (Beratap Kanopi)',
+                                'Rooftop' => 'Rooftop Arena',
+                            ];
+                            $selectedArenaLabel = $arenaOptions[$selectedArena] ?? $selectedArena;
                         @endphp
+                        <input type="hidden" id="arenaType" name="tipe_arena" value="{{ $selectedArena }}">
                         <div class="relative">
-                            <select
-                                id="arenaType"
-                                name="tipe_arena"
-                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 pr-10 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                            <button
+                                type="button"
+                                id="arenaTypeTrigger"
+                                onclick="toggleVenueCustomDropdown('arenaType', event)"
+                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left cursor-pointer"
                             >
-                                <option value="Indoor" @selected($selectedArena === 'Indoor')>Indoor (Full AC / Beratap Tertutup)</option>
-                                <option value="Outdoor" @selected($selectedArena === 'Outdoor')>Outdoor (Terbuka)</option>
-                                <option value="Semi-Indoor" @selected($selectedArena === 'Semi-Indoor')>Semi-Indoor (Beratap Kanopi)</option>
-                                <option value="Rooftop" @selected($selectedArena === 'Rooftop')>Rooftop Arena</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                                <span id="arenaTypeDisplay" class="truncate font-semibold">{{ $selectedArenaLabel }}</span>
+                                <i id="arenaTypeChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <div
+                                id="arenaTypeMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                onclick="event.stopPropagation()"
+                            >
+                                @foreach($arenaOptions as $aVal => $aLabel)
+                                    <button
+                                        type="button"
+                                        onclick="selectVenueCustomOption('arenaType', '{{ $aVal }}', '{{ $aLabel }}')"
+                                        class="arenaType-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $selectedArena === $aVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                        data-val="{{ $aVal }}"
+                                    >
+                                        <span>{{ $aLabel }}</span>
+                                        <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $selectedArena === $aVal ? '' : 'hidden' }}"></i>
+                                    </button>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
 
                     <!-- Jenis Permukaan -->
-                    <div class="space-y-1.5">
+                    <div class="space-y-1.5 relative" id="wrapper_surfaceType">
                         <label class="block font-bold text-slate-800">
                             Jenis Permukaan / Karpet
                         </label>
                         @php
                             $selectedSurface = old('jenis_permukaan', $venue->jenis_permukaan ?: 'Artificial Grass / Rumput Sintetis (Padel)');
-                            $isPredefined = in_array($selectedSurface, [
-                                'Artificial Grass / Rumput Sintetis (Padel)',
-                                'Hard Court / Acrylic (Tenis)',
-                                'Clay / Tanah Liat',
-                                'Grass / Rumput Alami',
-                                'Taraflex / Vinyl Pro',
-                                'Karpet Interlock'
-                            ]);
+                            $surfaceOptions = [
+                                'Artificial Grass / Rumput Sintetis (Padel)' => 'Artificial Grass / Rumput Sintetis (Padel)',
+                                'Hard Court / Acrylic (Tenis)' => 'Hard Court / Acrylic (Tenis)',
+                                'Clay / Tanah Liat' => 'Clay / Tanah Liat',
+                                'Grass / Rumput Alami' => 'Grass / Rumput Alami',
+                                'Taraflex / Vinyl Pro' => 'Taraflex / Vinyl Pro',
+                                'Karpet Interlock' => 'Karpet Interlock',
+                                'Other' => 'Lainnya (Tulis Manual)',
+                            ];
+                            $isPredefined = array_key_exists($selectedSurface, $surfaceOptions) && $selectedSurface !== 'Other';
+                            $currentSurfaceVal = $isPredefined ? $selectedSurface : 'Other';
+                            $selectedSurfaceLabel = $isPredefined ? ($surfaceOptions[$selectedSurface] ?? $selectedSurface) : 'Lainnya (Tulis Manual)';
                         @endphp
+                        <input type="hidden" id="surfaceType" name="jenis_permukaan" value="{{ $currentSurfaceVal }}">
                         <div class="relative">
-                            <select
-                                id="surfaceType"
-                                name="jenis_permukaan"
-                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 pr-10 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                            <button
+                                type="button"
+                                id="surfaceTypeTrigger"
+                                onclick="toggleVenueCustomDropdown('surfaceType', event)"
+                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left cursor-pointer"
                             >
-                                <option value="Artificial Grass / Rumput Sintetis (Padel)" @selected($selectedSurface === 'Artificial Grass / Rumput Sintetis (Padel)')>Artificial Grass / Rumput Sintetis (Padel)</option>
-                                <option value="Hard Court / Acrylic (Tenis)" @selected($selectedSurface === 'Hard Court / Acrylic (Tenis)')>Hard Court / Acrylic (Tenis)</option>
-                                <option value="Clay / Tanah Liat" @selected($selectedSurface === 'Clay / Tanah Liat')>Clay / Tanah Liat</option>
-                                <option value="Grass / Rumput Alami" @selected($selectedSurface === 'Grass / Rumput Alami')>Grass / Rumput Alami</option>
-                                <option value="Taraflex / Vinyl Pro" @selected($selectedSurface === 'Taraflex / Vinyl Pro')>Taraflex / Vinyl Pro</option>
-                                <option value="Karpet Interlock" @selected($selectedSurface === 'Karpet Interlock')>Karpet Interlock</option>
-                                <option value="Other" @selected(!$isPredefined)>Lainnya (Tulis Manual)</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                                <span id="surfaceTypeDisplay" class="truncate font-semibold">{{ $selectedSurfaceLabel }}</span>
+                                <i id="surfaceTypeChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <div
+                                id="surfaceTypeMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-64 overflow-y-auto"
+                                onclick="event.stopPropagation()"
+                            >
+                                @foreach($surfaceOptions as $sVal => $sLabel)
+                                    <button
+                                        type="button"
+                                        onclick="selectVenueCustomOption('surfaceType', '{{ $sVal }}', '{{ $sLabel }}')"
+                                        class="surfaceType-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $currentSurfaceVal === $sVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                        data-val="{{ $sVal }}"
+                                    >
+                                        <span>{{ $sLabel }}</span>
+                                        <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currentSurfaceVal === $sVal ? '' : 'hidden' }}"></i>
+                                    </button>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
 
@@ -413,25 +455,49 @@
                     </div>
 
                     <!-- Hari Buka -->
-                    <div class="space-y-1.5">
+                    <div class="space-y-1.5 relative" id="wrapper_hariBuka">
                         <label class="block font-bold text-slate-800">
                             Hari Operasional
                         </label>
                         @php
                             $selectedHari = old('hari_buka', $venue->hari_buka ?: 'Setiap Hari (Senin - Minggu)');
+                            $hariOptions = [
+                                'Setiap Hari (Senin - Minggu)' => 'Setiap Hari (Senin - Minggu)',
+                                'Senin - Jumat (Weekday Only)' => 'Senin - Jumat (Weekday Only)',
+                                'Sabtu - Minggu (Weekend Only)' => 'Sabtu - Minggu (Weekend Only)',
+                                'Selasa - Minggu (Senin Libur)' => 'Selasa - Minggu (Senin Libur)',
+                            ];
+                            $selectedHariLabel = $hariOptions[$selectedHari] ?? $selectedHari;
                         @endphp
+                        <input type="hidden" id="hariBuka" name="hari_buka" value="{{ $selectedHari }}">
                         <div class="relative">
-                            <select
-                                id="hariBuka"
-                                name="hari_buka"
-                                class="w-full h-[48px] appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
+                            <button
+                                type="button"
+                                id="hariBukaTrigger"
+                                onclick="toggleVenueCustomDropdown('hariBuka', event)"
+                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left cursor-pointer"
                             >
-                                <option value="Setiap Hari (Senin - Minggu)" @selected($selectedHari === 'Setiap Hari (Senin - Minggu)')>Setiap Hari (Senin - Minggu)</option>
-                                <option value="Senin - Jumat (Weekday Only)" @selected($selectedHari === 'Senin - Jumat (Weekday Only)')>Senin - Jumat (Weekday Only)</option>
-                                <option value="Sabtu - Minggu (Weekend Only)" @selected($selectedHari === 'Sabtu - Minggu (Weekend Only)')>Sabtu - Minggu (Weekend Only)</option>
-                                <option value="Selasa - Minggu (Senin Libur)" @selected($selectedHari === 'Selasa - Minggu (Senin Libur)')>Selasa - Minggu (Senin Libur)</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                                <span id="hariBukaDisplay" class="truncate font-semibold">{{ $selectedHariLabel }}</span>
+                                <i id="hariBukaChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <div
+                                id="hariBukaMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                onclick="event.stopPropagation()"
+                            >
+                                @foreach($hariOptions as $hVal => $hLabel)
+                                    <button
+                                        type="button"
+                                        onclick="selectVenueCustomOption('hariBuka', '{{ $hVal }}', '{{ $hLabel }}')"
+                                        class="hariBuka-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $selectedHari === $hVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                        data-val="{{ $hVal }}"
+                                    >
+                                        <span>{{ $hLabel }}</span>
+                                        <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $selectedHari === $hVal ? '' : 'hidden' }}"></i>
+                                    </button>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
 
@@ -778,21 +844,90 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    document.addEventListener('click', function (e) {
-        if (kotaDropdown && !kotaDropdown.contains(e.target) && !kotaButton.contains(e.target)) {
-            closeKotaDropdown();
-        }
-    });
+    // Venue Custom Dropdowns (arenaType, surfaceType, hariBuka)
+    const venueCustomDropdownIds = ['arenaType', 'surfaceType', 'hariBuka'];
 
-    if (surfaceType) {
-        surfaceType.addEventListener('change', function () {
-            if (this.value === 'Other') {
+    window.closeVenueCustomDropdowns = function () {
+        venueCustomDropdownIds.forEach(id => {
+            const menu = document.getElementById(id + 'Menu');
+            const chevron = document.getElementById(id + 'Chevron');
+            const wrapper = document.getElementById('wrapper_' + id);
+            if (menu) menu.classList.add('hidden');
+            if (chevron) chevron.classList.remove('rotate-180');
+            if (wrapper) wrapper.style.zIndex = '';
+        });
+    };
+
+    window.toggleVenueCustomDropdown = function (id, e) {
+        if (e) e.stopPropagation();
+        closeKotaDropdown();
+        const menu = document.getElementById(id + 'Menu');
+        const chevron = document.getElementById(id + 'Chevron');
+        const wrapper = document.getElementById('wrapper_' + id);
+        if (!menu) return;
+
+        const isClosed = menu.classList.contains('hidden');
+        closeVenueCustomDropdowns();
+
+        if (isClosed) {
+            menu.classList.remove('hidden');
+            if (chevron) chevron.classList.add('rotate-180');
+            if (wrapper) wrapper.style.zIndex = '40';
+        }
+    };
+
+    window.selectVenueCustomOption = function (fieldId, value, label) {
+        const input = document.getElementById(fieldId);
+        const display = document.getElementById(fieldId + 'Display');
+        if (input) input.value = value;
+        if (display) display.textContent = label;
+
+        document.querySelectorAll('.' + fieldId + '-item-btn').forEach(btn => {
+            const isMatch = btn.getAttribute('data-val') === value;
+            const icon = btn.querySelector('.fa-circle-check');
+            if (isMatch) {
+                btn.className = fieldId + '-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/15';
+                if (icon) icon.classList.remove('hidden');
+            } else {
+                btn.className = fieldId + '-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer text-slate-700 hover:bg-slate-100 hover:text-slate-900';
+                if (icon) icon.classList.add('hidden');
+            }
+        });
+
+        if (fieldId === 'surfaceType' && otherSurfaceWrapper) {
+            if (value === 'Other') {
                 otherSurfaceWrapper.classList.remove('hidden');
             } else {
                 otherSurfaceWrapper.classList.add('hidden');
             }
+        }
+
+        closeVenueCustomDropdowns();
+    };
+
+    document.addEventListener('click', function (e) {
+        if (kotaDropdown && !kotaDropdown.contains(e.target) && !kotaButton.contains(e.target)) {
+            closeKotaDropdown();
+        }
+        let isInsideAnyCustom = false;
+        venueCustomDropdownIds.forEach(id => {
+            const menu = document.getElementById(id + 'Menu');
+            const trigger = document.getElementById(id + 'Trigger');
+            if ((menu && menu.contains(e.target)) || (trigger && trigger.contains(e.target))) {
+                isInsideAnyCustom = true;
+            }
         });
-    }
+        if (!isInsideAnyCustom) {
+            closeVenueCustomDropdowns();
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeKotaDropdown();
+            closeVenueCustomDropdowns();
+        }
+    });
 
     function setError(inputEl, errorEl, message) {
         if (inputEl) {
