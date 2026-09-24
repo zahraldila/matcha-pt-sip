@@ -14,9 +14,11 @@
             <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Gabung bersama komunitas pecinta olahraga raket, perluas koneksi tanding, atau bangun komunitasmu sendiri.</p>
         </div>
 
-        <a href="{{ route('communities.create') }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01] shrink-0">
-            <i class="fa-solid fa-plus text-[#A8E63A] text-xs"></i> <span>Buat Komunitas Baru</span>
-        </a>
+        @if(!Auth::check() || !Auth::user()->isAdmin())
+            <a href="{{ route('communities.create') }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01] shrink-0">
+                <i class="fa-solid fa-plus text-[#A8E63A] text-xs"></i> <span>Buat Komunitas Baru</span>
+            </a>
+        @endif
     </div>
 
     <!-- 1. Top Controls Bar: Community Tabs & Search Bar -->
@@ -367,15 +369,23 @@ document.addEventListener('DOMContentLoaded', function () {
             const checkedBoxes = getChecked();
             const count = checkedBoxes.length;
             if (count === 0) return;
-            if (confirm(`Hapus ${count} komunitas?\n\nData komunitas yang dipilih akan dihapus. Tindakan ini tidak dapat dibatalkan.`)) {
-                bulkInputsCont.innerHTML = '';
-                checkedBoxes.forEach(cb => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden'; input.name = 'selected_ids[]'; input.value = cb.value;
-                    bulkInputsCont.appendChild(input);
-                });
-                bulkForm.submit();
-            }
+
+            window.showConfirmDeleteModal({
+                title: `Hapus ${count} Komunitas?`,
+                message: `Data ${count} komunitas yang dipilih beserta seluruh relasi anggota akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.`,
+                confirmText: `Ya, Hapus ${count} Komunitas`,
+                onConfirm: () => {
+                    bulkInputsCont.innerHTML = '';
+                    checkedBoxes.forEach(cb => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'selected_ids[]';
+                        input.value = cb.value;
+                        bulkInputsCont.appendChild(input);
+                    });
+                    bulkForm.submit();
+                }
+            });
         });
     }
 });

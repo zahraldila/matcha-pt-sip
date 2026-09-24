@@ -149,17 +149,36 @@ document.addEventListener('DOMContentLoaded', function() {
         const count = checkedBoxes.length;
         if (count === 0) return;
         
-        const confirmMsg = `Hapus ${count} ${itemName}?\n\nData ${itemName} yang dipilih akan dihapus. Tindakan ini tidak dapat dibatalkan.`;
-        if (confirm(confirmMsg)) {
-            bulkInputsContainer.innerHTML = '';
-            checkedBoxes.forEach(cb => {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'selected_ids[]';
-                input.value = cb.value;
-                bulkInputsContainer.appendChild(input);
+        if (typeof window.showConfirmDeleteModal === 'function') {
+            window.showConfirmDeleteModal({
+                title: `Hapus ${count} ${itemName}?`,
+                message: `Data ${count} ${itemName} yang dipilih akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.`,
+                confirmText: `Ya, Hapus ${count} ${itemName}`,
+                onConfirm: () => {
+                    bulkInputsContainer.innerHTML = '';
+                    checkedBoxes.forEach(cb => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'selected_ids[]';
+                        input.value = cb.value;
+                        bulkInputsContainer.appendChild(input);
+                    });
+                    bulkForm.submit();
+                }
             });
-            bulkForm.submit();
+        } else {
+            const confirmMsg = `Hapus ${count} ${itemName}?\n\nData ${itemName} yang dipilih akan dihapus. Tindakan ini tidak dapat dibatalkan.`;
+            if (confirm(confirmMsg)) {
+                bulkInputsContainer.innerHTML = '';
+                checkedBoxes.forEach(cb => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'selected_ids[]';
+                    input.value = cb.value;
+                    bulkInputsContainer.appendChild(input);
+                });
+                bulkForm.submit();
+            }
         }
     });
 });

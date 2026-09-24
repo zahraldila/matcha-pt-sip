@@ -393,15 +393,23 @@ document.addEventListener('DOMContentLoaded', function () {
             const checkedBoxes = getChecked();
             const count = checkedBoxes.length;
             if (count === 0) return;
-            if (confirm(`Hapus ${count} venue?\n\nData venue yang dipilih akan dihapus. Tindakan ini tidak dapat dibatalkan.`)) {
-                bulkInputsCont.innerHTML = '';
-                checkedBoxes.forEach(cb => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden'; input.name = 'selected_ids[]'; input.value = cb.value;
-                    bulkInputsCont.appendChild(input);
-                });
-                bulkForm.submit();
-            }
+
+            window.showConfirmDeleteModal({
+                title: `Hapus ${count} Venue?`,
+                message: `Data ${count} venue yang dipilih beserta seluruh informasi court terkait akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.`,
+                confirmText: `Ya, Hapus ${count} Venue`,
+                onConfirm: () => {
+                    bulkInputsCont.innerHTML = '';
+                    checkedBoxes.forEach(cb => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'selected_ids[]';
+                        input.value = cb.value;
+                        bulkInputsCont.appendChild(input);
+                    });
+                    bulkForm.submit();
+                }
+            });
         });
     }
 });
