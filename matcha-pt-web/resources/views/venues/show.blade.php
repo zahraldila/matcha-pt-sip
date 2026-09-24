@@ -138,7 +138,7 @@
                         <p class="text-[11px] text-slate-500 mt-0.5">Daftar court aktif dan jenis arena lapangan.</p>
                     </div>
 
-                    @if(auth()->check() && !empty($venue['is_mine']))
+                    @if(auth()->check() && !empty($venue['is_mine']) && !Auth::user()->isAdmin())
                         <a href="{{ route('venues.courts.create', $venue['id']) }}" class="px-3 py-1.5 rounded-lg bg-[#EBF8D8] hover:bg-[#d8f3b8] text-[#063B00] font-bold text-xs inline-flex items-center gap-1.5 border border-[#063B00]/20 transition-all">
                             <i class="fa-solid fa-plus text-[10px]"></i>
                             Tambah Court
@@ -162,7 +162,7 @@
                                     <span class="text-[10px] px-2 py-0.5 rounded font-semibold {{ $court['status'] === 'Available' ? 'bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/25' : ($court['status'] === 'Maintenance' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-rose-50 text-rose-800 border border-rose-200') }}">
                                         {{ $court['status'] }}
                                     </span>
-                                    @if(auth()->check() && !empty($venue['is_mine']) && !empty($court['id']))
+                                    @if(auth()->check() && !empty($venue['is_mine']) && !empty($court['id']) && !Auth::user()->isAdmin())
                                         <div class="flex items-center gap-0.5">
                                             <button
                                                 type="button"
