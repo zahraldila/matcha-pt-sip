@@ -115,4 +115,8 @@ Route::get('/community/{id?}', function ($id = null) {
 });
 
 // Admin — Manajemen Pengguna
-Route::get('/admin/users', [PlayerController::class, 'manageUsers'])->name('admin.users')->middleware('auth');
+Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/users', [PlayerController::class, 'manageUsers'])->name('users');
+    Route::put('/users/{id}', [PlayerController::class, 'updateUser'])->whereNumber('id')->name('users.update');
+    Route::delete('/users/{id}', [PlayerController::class, 'destroyUser'])->whereNumber('id')->name('users.destroy');
+});
