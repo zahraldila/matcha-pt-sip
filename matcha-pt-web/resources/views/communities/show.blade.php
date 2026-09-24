@@ -273,6 +273,26 @@
                         <p class="text-[11px] text-slate-600 leading-relaxed">Sebagai anggota, Anda dapat mengikuti sesi mabar, turnamen, dan melihat leaderboard komunitas.</p>
                     </div>
                 </div>
+
+                @if(Auth::check() && ((int) $community->created_by === (int) Auth::id() || Auth::user()->role === 'admin'))
+                    <!-- Admin Action Zone -->
+                    <div class="pt-4 border-t border-slate-100 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Aksi Admin Komunitas</p>
+                            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">Owner</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <a href="{{ route('communities.edit', $community->community_id) }}" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-2xs">
+                                <i class="fa-solid fa-pen-to-square text-slate-500 text-xs"></i>
+                                <span>Edit</span>
+                            </a>
+                            <button type="button" onclick="openDeleteCommunityModal()" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-all border border-rose-200 hover:border-rose-300 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs">
+                                <i class="fa-solid fa-trash-can text-rose-500 text-xs"></i>
+                                <span>Hapus</span>
+                            </button>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     </div>

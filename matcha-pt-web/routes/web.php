@@ -99,10 +99,10 @@ Route::prefix('communities')->name('communities.')->group(function () {
         Route::post('/', [CommunityController::class, 'store'])->name('store');                  // [SMK 3] Simpan komunitas baru ke DB
         Route::get('/{id}/edit', [CommunityController::class, 'edit'])->whereNumber('id')->name('edit');     // Form edit komunitas
         Route::put('/{id}', [CommunityController::class, 'update'])->whereNumber('id')->name('update');      // Simpan perubahan komunitas
+        Route::delete('/bulk-destroy', [CommunityController::class, 'bulkDestroy'])->name('bulkDestroy');    // Bulk hapus komunitas
         Route::delete('/{id}', [CommunityController::class, 'destroy'])->whereNumber('id')->name('destroy'); // Nonaktif / Hapus komunitas
         Route::post('/{id}/join', [CommunityController::class, 'join'])->whereNumber('id')->name('join');   // [SMK 3] Join komunitas
         Route::post('/{id}/leave', [CommunityController::class, 'leave'])->whereNumber('id')->name('leave'); // [SMK 3] Leave komunitas
-        Route::delete('/bulk-destroy', [CommunityController::class, 'bulkDestroy'])->name('bulkDestroy'); // Bulk hapus komunitas
     });
 });
 
@@ -115,4 +115,8 @@ Route::get('/community/{id?}', function ($id = null) {
 });
 
 // Admin — Manajemen Pengguna
-Route::get('/admin/users', [PlayerController::class, 'manageUsers'])->name('admin.users')->middleware('auth');
+Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/users', [PlayerController::class, 'manageUsers'])->name('users');
+    Route::put('/users/{id}', [PlayerController::class, 'updateUser'])->whereNumber('id')->name('users.update');
+    Route::delete('/users/{id}', [PlayerController::class, 'destroyUser'])->whereNumber('id')->name('users.destroy');
+});

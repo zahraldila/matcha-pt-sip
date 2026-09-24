@@ -1466,14 +1466,15 @@ class GameController extends Controller
         return redirect()->route('games.show', $session->session_id)
             ->with('success', 'Sesi mabar berhasil dibatalkan. Riwayat data dan peserta tetap tersimpan dengan aman.');
     }
+
     public function bulkDestroy(Request $request)
     {
-        if (!Auth::check() || Auth::user()->role !== 'admin') {
+        if (! Auth::check() || Auth::user()->role !== 'admin') {
             abort(403, 'Akses ditolak: Hanya Admin yang dapat melakukan hapus massal.');
         }
 
         $ids = $request->input('selected_ids', []);
-        
+
         if (empty($ids)) {
             return back()->with('error', 'Tidak ada jadwal mabar yang dipilih untuk dihapus.');
         }
@@ -1487,10 +1488,12 @@ class GameController extends Controller
                 }
             }
             DB::commit();
-            return back()->with('success', count($ids) . ' jadwal mabar berhasil dihapus.');
+
+            return back()->with('success', count($ids).' jadwal mabar berhasil dihapus.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Gagal menghapus jadwal mabar: ' . $e->getMessage());
+
+            return back()->with('error', 'Gagal menghapus jadwal mabar: '.$e->getMessage());
         }
     }
 }

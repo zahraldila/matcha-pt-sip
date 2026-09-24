@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class PlayerController extends Controller
@@ -510,6 +511,109 @@ class PlayerController extends Controller
 
         $users = $query->paginate(20)->withQueryString();
 
-        return view('admin.users', compact('users', 'search', 'filterRole'));
+        $counts = [
+            'all' => User::count(),
+            'member' => User::where('role', 'member')->count(),
+            'host' => User::where('role', 'host')->count(),
+            'venue_owner' => User::where('role', 'venue_owner')->count(),
+            'admin' => User::where('role', 'admin')->count(),
+        ];
+
+        return view('admin.users', compact('users', 'search', 'filterRole', 'counts'));
+    }
+
+    /**
+     * Update data pengguna oleh Admin.
+     * Route: PUT /admin/users/{id}
+     */
+    public function updateUser(Request $request, $id)
+    {
+        if (! Auth::check() || ! Auth::user()->isAdmin()) {
+            abort(403, 'Akses ditolak: Hanya Administrator yang dapat melakukan tindakan ini.');
+        }
+
+        $user = User::findOrFail($id);
+
+        $validated = $request->validate([
+            'nama' => 'required|string|max:100',
+            'email' => 'required|email|max:100|unique:tb_user,email,'.$user->user_id.',user_id',
+            'no_hp' => 'nullable|string|max:20',
+            'role' => 'required|in:member,host,venue_owner,admin',
+            'is_host' => 'nullable',
+            'password' => 'nullable|string|min:6',
+        ]);
+
+        $user->nama = $validated['nama'];
+        $user->email = $validated['email'];
+        $user->no_hp = $validated['no_hp'] ?? null;
+        $user->role = $validated['role'];
+        $user->is_host = $request->has('is_host') || $validated['role'] === 'host';
+
+        if (! empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
+        }
+
+        $user->save();
+
+        // Sinkronisasi data ke player record jika ada
+        if ($user->player) {
+            $user->player->update([
+                'nama' => $user->nama,
+                'no_hp' => $user->no_hp,
+            ]);
+        }
+
+        return back()->with('success', "Data pengguna \"{$user->nama}\" berhasil diperbarui.");
+    }
+
+    /**
+     * Hapus akun pengguna oleh Admin.
+     * Route: DELETE /admin/users/{id}
+     */
+    public function destroyUser($id)
+    {
+        if (! Auth::check() || ! Auth::user()->isAdmin()) {
+            abort(403, 'Akses ditolak: Hanya Administrator yang dapat melakukan tindakan ini.');
+        }
+
+        $user = User::findOrFail($id);
+
+        // Jangan izinkan admin menghapus akunnya sendiri
+        if (Auth::id() == $user->user_id) {
+            return back()->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
+        }
+
+        // Cek apakah user adalah host di sesi mabar
+        if ($user->hostedSessions()->exists()) {
+            return back()->with('error', "Pengguna \"{$user->nama}\" tidak dapat dihapus karena masih tercatat sebagai Host sesi mabar. Harap alihkan atau selesaikan sesi terlebih dahulu.");
+        }
+
+        // Cek apakah user memiliki venue
+        if ($user->ownedVenues()->exists()) {
+            return back()->with('error', "Pengguna \"{$user->nama}\" tidak dapat dihapus karena masih memiliki venue terdaftar. Harap hapus atau alihkan kepemilikan venue terlebih dahulu.");
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Putus relasi player agar data riwayat pertandingan tetap terjaga
+            if ($user->player) {
+                $user->player->update(['user_id' => null]);
+            }
+
+            // Lepas keterikatan kominitas yang dibuat
+            Community::where('created_by', $user->user_id)->update(['created_by' => null]);
+
+            $userName = $user->nama;
+            $user->delete();
+
+            DB::commit();
+
+            return back()->with('success', "Pengguna \"{$userName}\" berhasil dihapus.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return back()->with('error', 'Gagal menghapus pengguna: '.$e->getMessage());
+        }
     }
 }

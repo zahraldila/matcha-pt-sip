@@ -491,42 +491,90 @@ class CommunityController extends Controller
     }
 
     /**
-     * Hapus atau nonaktifkan komunitas dengan relational safety.
+     * Hapus komunitas (Khusus Admin / Pembuat Komunitas).
      * Route: DELETE /communities/{id}
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         if (! Auth::check()) {
             return redirect()->route('login');
         }
 
+        if (! is_numeric($id) || (int) $id <= 0) {
+            abort(404, 'Komunitas tidak ditemukan.');
+        }
+
         $community = Community::findOrFail((int) $id);
 
         if (Auth::user()->role !== 'admin' && (int) $community->created_by !== (int) Auth::id()) {
-            abort(403, 'Akses ditolak: Anda tidak memiliki wewenang untuk menghapus komunitas ini.');
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak: Hanya admin pembuat komunitas yang dapat menghapus komunitas ini.',
+                ], 403);
+            }
+
+            return redirect()->route('communities.show', $community->community_id)
+                ->with('error', 'Akses ditolak: Hanya admin pembuat komunitas yang dapat menghapus komunitas ini.');
         }
 
-        // Relational safety check: Cek apakah ada anggota di komunitas
-        if ($community->players()->exists()) {
-            $community->update(['status_keanggotaan' => 'Inactive']);
+        try {
+            DB::beginTransaction();
+
+            // 1. Lepas keanggotaan seluruh pemain di komunitas ini agar tidak melanggar foreign key
+            Player::where('community_id', $community->community_id)->update(['community_id' => null]);
+
+            // 2. Hapus file logo dari storage jika berupa file lokal
+            if (! empty($community->logo) && str_contains($community->logo, 'uploads/community-logos/')) {
+                $localPath = public_path($community->logo);
+                if (file_exists($localPath)) {
+                    @unlink($localPath);
+                }
+            }
+
+            // 3. Hapus record komunitas
+            $communityName = $community->nama_community;
+            $community->delete();
+
+            DB::commit();
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Komunitas \"{$communityName}\" berhasil dihapus.",
+                ]);
+            }
 
             return redirect()->route('communities.index')
-                ->with('success', "Komunitas \"{$community->nama_community}\" memiliki anggota terdaftar, sehingga status keanggotaan dinonaktifkan (Inactive) untuk menjaga data pemain.");
+                ->with('success', "Komunitas \"{$communityName}\" berhasil dihapus.");
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Error deleting community: '.$e->getMessage());
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menghapus komunitas: '.$e->getMessage(),
+                ], 500);
+            }
+
+            return redirect()->back()
+                ->with('error', 'Gagal menghapus komunitas: '.$e->getMessage());
         }
-
-        $community->delete();
-
-        return redirect()->route('communities.index')
-            ->with('success', "Komunitas \"{$community->nama_community}\" berhasil dihapus.");
     }
+
+    /**
+     * Hapus massal komunitas (Khusus Platform Admin).
+     * Route: DELETE /communities/bulk-destroy
+     */
     public function bulkDestroy(Request $request)
     {
-        if (!Auth::check() || Auth::user()->role !== 'admin') {
+        if (! Auth::check() || Auth::user()->role !== 'admin') {
             abort(403, 'Akses ditolak: Hanya Admin yang dapat melakukan hapus massal.');
         }
 
         $ids = $request->input('selected_ids', []);
-        
+
         if (empty($ids)) {
             return back()->with('error', 'Tidak ada komunitas yang dipilih untuk dihapus.');
         }
@@ -536,18 +584,23 @@ class CommunityController extends Controller
             foreach ($ids as $id) {
                 $community = Community::find($id);
                 if ($community) {
-                    if ($community->players()->exists()) {
-                        $community->update(['status_keanggotaan' => 'Inactive']);
-                    } else {
-                        $community->delete();
+                    Player::where('community_id', $community->community_id)->update(['community_id' => null]);
+                    if (! empty($community->logo) && str_contains($community->logo, 'uploads/community-logos/')) {
+                        $localPath = public_path($community->logo);
+                        if (file_exists($localPath)) {
+                            @unlink($localPath);
+                        }
                     }
+                    $community->delete();
                 }
             }
             DB::commit();
-            return back()->with('success', count($ids) . ' komunitas berhasil diproses.');
-        } catch (\Exception $e) {
+
+            return back()->with('success', count($ids).' komunitas berhasil dihapus.');
+        } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->with('error', 'Gagal menghapus komunitas: ' . $e->getMessage());
+
+            return back()->with('error', 'Gagal menghapus komunitas: '.$e->getMessage());
         }
     }
 }

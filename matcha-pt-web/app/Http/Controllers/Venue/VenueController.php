@@ -601,14 +601,15 @@ class VenueController extends Controller
                 ->with('error', 'Gagal menghapus venue: '.$e->getMessage());
         }
     }
+
     public function bulkDestroy(Request $request)
     {
-        if (!Auth::check() || Auth::user()->role !== 'admin') {
+        if (! Auth::check() || Auth::user()->role !== 'admin') {
             abort(403, 'Akses ditolak: Hanya Admin yang dapat melakukan hapus massal.');
         }
 
         $ids = $request->input('selected_ids', []);
-        
+
         if (empty($ids)) {
             return back()->with('error', 'Tidak ada venue yang dipilih untuk dihapus.');
         }
@@ -624,7 +625,7 @@ class VenueController extends Controller
                             $court->update(['status_ketersediaan' => 'Inactive']);
                         }
                         $venue->update([
-                            'catatan' => ($venue->catatan ? $venue->catatan . ' • ' : '') . 'Venue dinonaktifkan oleh Administrator.',
+                            'catatan' => ($venue->catatan ? $venue->catatan.' • ' : '').'Venue dinonaktifkan oleh Administrator.',
                         ]);
                     } else {
                         $venue->courts()->delete();
@@ -633,10 +634,12 @@ class VenueController extends Controller
                 }
             }
             DB::commit();
-            return back()->with('success', count($ids) . ' venue berhasil diproses.');
+
+            return back()->with('success', count($ids).' venue berhasil diproses.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Gagal menghapus venue: ' . $e->getMessage());
+
+            return back()->with('error', 'Gagal menghapus venue: '.$e->getMessage());
         }
     }
 }
