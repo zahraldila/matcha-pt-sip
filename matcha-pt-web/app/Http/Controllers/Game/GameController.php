@@ -232,6 +232,7 @@ class GameController extends Controller
                 'joined_count' => $joinedCount,
                 'status' => $status,
                 'is_finished' => $isFinished,
+                'can_delete' => ! $isFinished && ! in_array(strtolower($s->status_session ?? ''), ['in progress', 'in_progress', 'live', 'playing', 'finished', 'completed', 'selesai']),
                 'level_recommendation' => 'All Level Welcome',
                 'match_format' => $formatString,
                 'scoring_system' => $s->scoring_system ?? 'Total of 3',

@@ -177,11 +177,20 @@
     @if($games->count() > 0)
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($games as $game)
+                @php
+                    $canDelete = !empty($game['can_delete']);
+                @endphp
                 <div class="bulk-item-wrapper relative h-full">
                     @if(Auth::check() && Auth::user()->role === 'admin')
-                        <label class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg p-1.5 cursor-pointer hover:bg-slate-50 transition-colors" style="display:none">
-                            <input type="checkbox" value="{{ $game['id'] }}" class="bulk-item-checkbox w-4.5 h-4.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shadow-xs">
-                        </label>
+                        @if($canDelete)
+                            <label class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg p-1.5 cursor-pointer hover:bg-slate-50 transition-colors" style="display:none" title="Pilih sesi untuk dihapus">
+                                <input type="checkbox" value="{{ $game['id'] }}" class="bulk-item-checkbox w-4.5 h-4.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shadow-xs">
+                            </label>
+                        @else
+                            <div class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-slate-100/90 backdrop-blur-sm border border-slate-200/80 shadow-xs rounded-lg px-2 py-1 select-none cursor-not-allowed opacity-75" style="display:none" title="Sesi mabar yang sedang berlangsung atau sudah selesai tidak dapat dihapus">
+                                <i class="fa-solid fa-lock text-[10px] text-slate-400"></i>
+                            </div>
+                        @endif
                     @endif
                     <div class="bulk-item-card flex-1 h-full transition-all duration-200 rounded-2xl">
                         <x-game-card :game="$game" />
@@ -300,7 +309,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const checkboxes   = getCheckboxes();
         const checkedBoxes = getChecked();
         const count        = checkedBoxes.length;
-        const pageTotal    = checkboxes.length;
+        const pageDeletableTotal = checkboxes.length;
 
         // Show/hide checkbox overlays via direct inline style
         document.querySelectorAll('.bulk-item-checkbox-container').forEach(el => {
@@ -330,7 +339,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             btnEnterSelect.style.display = '';
             bulkContainer.style.display  = 'none';
-            if (bulkSelectAll)   { bulkSelectAll.checked = false; bulkSelectAll.indeterminate = false; }
+            if (bulkSelectAll)   { bulkSelectAll.checked = false; bulkSelectAll.indeterminate = false; bulkSelectAll.disabled = false; }
             if (bulkSelectLabel) bulkSelectLabel.textContent = 'Pilih semua';
             if (btnSubmitBulk)   { btnSubmitBulk.disabled = true; btnSubmitBulk.innerHTML = 'Hapus 0 sesi'; }
             return;
@@ -338,18 +347,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!bulkSelectAll || !bulkSelectLabel || !btnSubmitBulk) return;
 
-        if (count === 0) {
-            bulkSelectAll.checked = false; bulkSelectAll.indeterminate = false;
-            bulkSelectLabel.textContent = 'Pilih semua';
-            btnSubmitBulk.disabled = true; btnSubmitBulk.innerHTML = 'Hapus 0 sesi';
-        } else if (count === pageTotal && pageTotal > 0) {
-            bulkSelectAll.checked = true; bulkSelectAll.indeterminate = false;
-            bulkSelectLabel.innerHTML = `Semua <strong>${count}</strong> terpilih`;
-            btnSubmitBulk.disabled = false; btnSubmitBulk.innerHTML = `Hapus ${count} sesi`;
+        if (pageDeletableTotal === 0) {
+            bulkSelectAll.checked = false;
+            bulkSelectAll.disabled = true;
+            bulkSelectLabel.innerHTML = '<span class="text-slate-400 text-[11px] italic">Semua sesi di halaman ini telah selesai / berlangsung</span>';
+            btnSubmitBulk.disabled = true;
+            btnSubmitBulk.innerHTML = 'Hapus 0 sesi';
+        } else if (count === 0) {
+            bulkSelectAll.checked = false;
+            bulkSelectAll.disabled = false;
+            bulkSelectAll.indeterminate = false;
+            bulkSelectLabel.textContent = `Pilih semua (${pageDeletableTotal} dapat dihapus)`;
+            btnSubmitBulk.disabled = true;
+            btnSubmitBulk.innerHTML = 'Hapus 0 sesi';
+        } else if (count === pageDeletableTotal && pageDeletableTotal > 0) {
+            bulkSelectAll.checked = true;
+            bulkSelectAll.disabled = false;
+            bulkSelectAll.indeterminate = false;
+            bulkSelectLabel.innerHTML = `Semua <strong>${count}</strong> sesi terpilih`;
+            btnSubmitBulk.disabled = false;
+            btnSubmitBulk.innerHTML = `Hapus ${count} sesi`;
         } else {
-            bulkSelectAll.checked = false; bulkSelectAll.indeterminate = true;
-            bulkSelectLabel.innerHTML = `<strong>${count}</strong> dipilih`;
-            btnSubmitBulk.disabled = false; btnSubmitBulk.innerHTML = `Hapus ${count} sesi`;
+            bulkSelectAll.checked = false;
+            bulkSelectAll.disabled = false;
+            bulkSelectAll.indeterminate = true;
+            bulkSelectLabel.innerHTML = `<strong>${count}</strong> sesi dipilih`;
+            btnSubmitBulk.disabled = false;
+            btnSubmitBulk.innerHTML = `Hapus ${count} sesi`;
         }
     }
 
