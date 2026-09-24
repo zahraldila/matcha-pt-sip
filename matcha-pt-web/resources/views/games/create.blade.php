@@ -670,7 +670,7 @@
 
             <!-- Cabang Olahraga & Jumlah Court -->
             <div class="grid grid-cols-2 gap-2.5">
-                <div>
+                <div id="quickSportDropdownContainer" class="relative z-30">
                     <label class="block text-[11px] font-bold text-slate-700 mb-1">
                         Cabang Olahraga <span class="text-rose-500">*</span>
                     </label>
@@ -678,16 +678,22 @@
                         <select
                             id="quickVenueSport"
                             required
-                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none appearance-none cursor-pointer"
+                            class="sr-only"
                         >
                             <option value="Padel">Padel</option>
                             <option value="Tennis">Tennis</option>
                         </select>
-                        <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+
+                        <button type="button" id="quickSportDropdownTrigger" onclick="toggleQuickSportDropdown()"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors flex items-center justify-between gap-2 cursor-pointer">
+                            <span id="quickSportDropdownLabel" class="min-w-0 truncate">Padel</span>
+                            <i id="quickSportDropdownIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 shrink-0"></i>
+                        </button>
+                        <div id="quickSportDropdownMenu" class="hidden absolute z-30 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl"></div>
                     </div>
                 </div>
 
-                <div>
+                <div id="quickCourtCountDropdownContainer" class="relative z-30">
                     <label class="block text-[11px] font-bold text-slate-700 mb-1">
                         Jumlah Lapangan <span class="text-rose-500">*</span>
                     </label>
@@ -695,7 +701,7 @@
                         <select
                             id="quickVenueCourtCount"
                             required
-                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none appearance-none cursor-pointer"
+                            class="sr-only"
                         >
                             <option value="1">1 Court</option>
                             <option value="2" selected>2 Courts</option>
@@ -704,7 +710,13 @@
                             <option value="5">5 Courts</option>
                             <option value="6">6 Courts</option>
                         </select>
-                        <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+
+                        <button type="button" id="quickCourtCountDropdownTrigger" onclick="toggleQuickCourtCountDropdown()"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors flex items-center justify-between gap-2 cursor-pointer">
+                            <span id="quickCourtCountDropdownLabel" class="min-w-0 truncate">2 Courts</span>
+                            <i id="quickCourtCountDropdownIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 shrink-0"></i>
+                        </button>
+                        <div id="quickCourtCountDropdownMenu" class="hidden absolute z-30 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl"></div>
                     </div>
                 </div>
             </div>
@@ -1026,12 +1038,120 @@
         renderVenueDropdown();
     }
 
+    function renderQuickSportDropdown() {
+        const sportSelect = document.getElementById('quickVenueSport');
+        const menu = document.getElementById('quickSportDropdownMenu');
+        const label = document.getElementById('quickSportDropdownLabel');
+        if (!sportSelect || !menu || !label) return;
+
+        menu.innerHTML = '';
+        Array.from(sportSelect.options).forEach(option => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            const isSelected = String(sportSelect.value) === String(option.value);
+            item.className = `w-full px-3 py-2 rounded-lg text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+                isSelected 
+                    ? 'bg-[#EBF8D8] text-[#063B00] font-bold' 
+                    : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
+            }`;
+            item.innerHTML = `
+                <span>${option.textContent}</span>
+                ${isSelected ? '<i class="fa-solid fa-check text-[#063B00] text-xs"></i>' : ''}
+            `;
+            item.onclick = () => selectQuickSportOption(option.value);
+            menu.appendChild(item);
+        });
+
+        const selected = sportSelect.options[sportSelect.selectedIndex] || sportSelect.options[0];
+        label.textContent = selected ? selected.textContent : 'Padel';
+    }
+
+    function toggleQuickSportDropdown() {
+        const menu = document.getElementById('quickSportDropdownMenu');
+        const icon = document.getElementById('quickSportDropdownIcon');
+        if (!menu) return;
+
+        document.getElementById('quickCourtCountDropdownMenu')?.classList.add('hidden');
+        document.getElementById('quickCourtCountDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+
+        const isHidden = menu.classList.toggle('hidden');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-down', isHidden);
+            icon.classList.toggle('fa-chevron-up', !isHidden);
+        }
+    }
+
+    function selectQuickSportOption(value) {
+        const sportSelect = document.getElementById('quickVenueSport');
+        const menu = document.getElementById('quickSportDropdownMenu');
+        if (!sportSelect) return;
+        sportSelect.value = value;
+        renderQuickSportDropdown();
+        menu?.classList.add('hidden');
+        document.getElementById('quickSportDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+    }
+
+    function renderQuickCourtCountDropdown() {
+        const countSelect = document.getElementById('quickVenueCourtCount');
+        const menu = document.getElementById('quickCourtCountDropdownMenu');
+        const label = document.getElementById('quickCourtCountDropdownLabel');
+        if (!countSelect || !menu || !label) return;
+
+        menu.innerHTML = '';
+        Array.from(countSelect.options).forEach(option => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            const isSelected = String(countSelect.value) === String(option.value);
+            item.className = `w-full px-3 py-2 rounded-lg text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+                isSelected 
+                    ? 'bg-[#EBF8D8] text-[#063B00] font-bold' 
+                    : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
+            }`;
+            item.innerHTML = `
+                <span>${option.textContent}</span>
+                ${isSelected ? '<i class="fa-solid fa-check text-[#063B00] text-xs"></i>' : ''}
+            `;
+            item.onclick = () => selectQuickCourtCountOption(option.value);
+            menu.appendChild(item);
+        });
+
+        const selected = countSelect.options[countSelect.selectedIndex] || countSelect.options[1] || countSelect.options[0];
+        label.textContent = selected ? selected.textContent : '2 Courts';
+    }
+
+    function toggleQuickCourtCountDropdown() {
+        const menu = document.getElementById('quickCourtCountDropdownMenu');
+        const icon = document.getElementById('quickCourtCountDropdownIcon');
+        if (!menu) return;
+
+        document.getElementById('quickSportDropdownMenu')?.classList.add('hidden');
+        document.getElementById('quickSportDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+
+        const isHidden = menu.classList.toggle('hidden');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-down', isHidden);
+            icon.classList.toggle('fa-chevron-up', !isHidden);
+        }
+    }
+
+    function selectQuickCourtCountOption(value) {
+        const countSelect = document.getElementById('quickVenueCourtCount');
+        const menu = document.getElementById('quickCourtCountDropdownMenu');
+        if (!countSelect) return;
+        countSelect.value = value;
+        renderQuickCourtCountDropdown();
+        menu?.classList.add('hidden');
+        document.getElementById('quickCourtCountDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+    }
+
     function openQuickAddVenueModal() {
         const modal = document.getElementById('quickAddVenueModal');
         const sportSelect = document.getElementById('quickVenueSport');
         const errDiv = document.getElementById('quickVenueError');
         if (errDiv) errDiv.classList.add('hidden');
         if (sportSelect) sportSelect.value = selectedSport;
+        renderQuickSportDropdown();
+        renderQuickCourtCountDropdown();
         const nameInput = document.getElementById('quickVenueName');
         if (nameInput) nameInput.value = '';
         const addressInput = document.getElementById('quickVenueAddress');
@@ -1812,6 +1932,14 @@
             if (!e.target.closest('#scoringDropdownContainer')) {
                 document.getElementById('scoringDropdownMenu')?.classList.add('hidden');
                 document.getElementById('scoringDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+            if (!e.target.closest('#quickSportDropdownContainer')) {
+                document.getElementById('quickSportDropdownMenu')?.classList.add('hidden');
+                document.getElementById('quickSportDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+            if (!e.target.closest('#quickCourtCountDropdownContainer')) {
+                document.getElementById('quickCourtCountDropdownMenu')?.classList.add('hidden');
+                document.getElementById('quickCourtCountDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
             }
         });
     });
