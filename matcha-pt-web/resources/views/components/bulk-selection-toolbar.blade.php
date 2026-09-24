@@ -7,11 +7,11 @@
         <div id="bulk-delete-inputs"></div>
     </form>
     
-    <div class="flex items-center gap-1.5">
+    <div class="flex items-center gap-2">
         <button
             type="button"
             id="btn-cancel-select"
-            class="h-9 min-w-[76px] px-4 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg border border-slate-200 shadow-sm transition-all duration-200"
+            class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs transition-all"
         >
             Batal
         </button>
@@ -20,7 +20,7 @@
             type="button"
             id="btn-submit-bulk"
             disabled
-            class="h-9 min-w-[130px] px-4 font-semibold text-sm rounded-lg shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-3 py-1.5 text-xs font-semibold rounded-lg shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             style="background-color: #dc2626; color: white; border: 1px solid #b91c1c;"
         >
             Hapus <span id="bulk-count-display">0</span> {{ $itemName }}
