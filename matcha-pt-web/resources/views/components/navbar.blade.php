@@ -1,4 +1,4 @@
-<header class="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-white/80 shadow-[0_1px_10px_rgba(0,0,0,0.02)] w-full">
+<header class="sticky top-0 z-50 bg-white/85 backdrop-blur-xl border-b border-slate-200/80 shadow-[0_1px_10px_rgba(0,0,0,0.03)] w-full transition-all">
     <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
             <!-- Brand Logo -->
@@ -29,9 +29,21 @@
                     <a href="{{ route('communities.index') }}" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ request()->routeIs('communities.*') ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'text-slate-600 hover:text-[#063B00] hover:bg-white/60' }}">
                         Komunitas
                     </a>
-                    <a href="{{ route('player.recap') }}" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ request()->routeIs('player.*') ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'text-slate-600 hover:text-[#063B00] hover:bg-white/60' }}">
-                        Match Recap
-                    </a>
+                    @auth
+                        @if(Auth::user()->isAdmin())
+                            <a href="{{ route('admin.users') }}" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ request()->routeIs('admin.*') ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'text-slate-600 hover:text-[#063B00] hover:bg-white/60' }}">
+                                Manajemen Pengguna
+                            </a>
+                        @else
+                            <a href="{{ route('player.recap') }}" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ request()->routeIs('player.*') ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'text-slate-600 hover:text-[#063B00] hover:bg-white/60' }}">
+                                Match Recap
+                            </a>
+                        @endif
+                    @else
+                        <a href="{{ route('player.recap') }}" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all {{ request()->routeIs('player.*') ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'text-slate-600 hover:text-[#063B00] hover:bg-white/60' }}">
+                            Match Recap
+                        </a>
+                    @endauth
                 </nav>
             </div>
 
@@ -93,8 +105,8 @@
                                 <span class="text-xs font-extrabold text-[#050608] leading-tight block truncate max-w-[110px]">
                                     {{ Auth::user()->nama }}
                                 </span>
-                                <span class="text-[9px] font-bold uppercase tracking-wider {{ Auth::user()->is_host ? 'text-emerald-700 font-extrabold' : (Auth::user()->role === 'venue_owner' ? 'text-sky-700' : 'text-slate-500') }} block">
-                                    {{ Auth::user()->role === 'venue_owner' ? 'Venue Owner' : (Auth::user()->is_host ? 'Host Game' : 'Member') }}
+                                <span class="text-[9px] font-bold uppercase tracking-wider {{ Auth::user()->role === 'admin' ? 'text-amber-800 font-extrabold' : (Auth::user()->is_host ? 'text-emerald-700 font-extrabold' : (Auth::user()->role === 'venue_owner' ? 'text-sky-700' : 'text-slate-500')) }} block">
+                                    {{ Auth::user()->role === 'admin' ? 'Administrator' : (Auth::user()->role === 'venue_owner' ? 'Venue Owner' : (Auth::user()->is_host ? 'Host Game' : 'Member')) }}
                                 </span>
                             </div>
                             <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 group-hover:text-slate-600 transition-transform"></i>
@@ -113,19 +125,25 @@
                                 <div class="min-w-0 flex-1">
                                     <p class="font-extrabold text-slate-900 truncate leading-tight">{{ Auth::user()->nama }}</p>
                                     <p class="text-[10px] text-slate-400 truncate">{{ Auth::user()->email }}</p>
-                                    <span class="inline-block mt-0.5 text-[9px] font-bold px-2 py-0.5 rounded-full {{ Auth::user()->is_host ? 'bg-emerald-100 text-emerald-800' : (Auth::user()->role === 'venue_owner' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-600') }}">
-                                        {{ Auth::user()->role === 'venue_owner' ? 'Venue Owner' : (Auth::user()->is_host ? 'Host Game & Player' : 'Member Pemain') }}
+                                    <span class="inline-block mt-0.5 text-[9px] font-bold px-2 py-0.5 rounded-full {{ Auth::user()->role === 'admin' ? 'bg-amber-100 text-amber-900 border border-amber-200' : (Auth::user()->is_host ? 'bg-emerald-100 text-emerald-800' : (Auth::user()->role === 'venue_owner' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-600')) }}">
+                                        {{ Auth::user()->role === 'admin' ? 'Administrator Global' : (Auth::user()->role === 'venue_owner' ? 'Venue Owner' : (Auth::user()->is_host ? 'Host Game & Player' : 'Member Pemain')) }}
                                     </span>
                                 </div>
                             </div>
-                            @if(Auth::user()->role === 'venue_owner')
-                                <a href="{{ route('venues.index', ['tab' => 'my_venues']) }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#063B00] bg-emerald-50/70 hover:bg-emerald-100 font-bold transition-colors">
-                                    <i class="fa-solid fa-crown text-amber-500 text-xs"></i> Kelola Venue Saya
+                            @if(Auth::user()->role === 'venue_owner' || Auth::user()->role === 'admin')
+                                <a href="{{ route('venues.index', ['tab' => Auth::user()->role === 'admin' ? 'all' : 'my_venues']) }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#063B00] bg-emerald-50/70 hover:bg-emerald-100 font-bold transition-colors">
+                                    <i class="fa-solid fa-crown text-amber-500 text-xs"></i> {{ Auth::user()->role === 'admin' ? 'Kelola Venue & Court' : 'Kelola Venue Saya' }}
                                 </a>
                             @endif
-                            <a href="{{ route('player.recap') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
-                                <i class="fa-solid fa-chart-line text-slate-400 text-xs"></i> Match Recap &amp; Statistik
-                            </a>
+                            @if(Auth::user()->isAdmin())
+                                <a href="{{ route('admin.users') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-800 bg-amber-50/70 hover:bg-amber-100 font-semibold transition-colors">
+                                    <i class="fa-solid fa-users-gear text-amber-500 text-xs"></i> Manajemen Pengguna
+                                </a>
+                            @else
+                                <a href="{{ route('player.recap') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
+                                    <i class="fa-solid fa-chart-line text-slate-400 text-xs"></i> Match Recap &amp; Statistik
+                                </a>
+                            @endif
                             <a href="{{ route('player.profile') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
                                 <i class="fa-solid fa-id-card text-slate-400 text-xs"></i> Profil &amp; Status Host
                             </a>

@@ -102,9 +102,30 @@
 
     <!-- 3. Grid of Venues or Empty States -->
     @if($venues->count() > 0)
+        @if(Auth::check() && Auth::user()->role === 'admin')
+            <form id="bulk-delete-form" action="{{ route('venues.bulkDestroy') }}" method="POST">
+                @csrf
+                @method('DELETE')
+                <div class="mb-4 flex items-center justify-between glass-card p-3 rounded-xl border border-red-100 shadow-sm bg-red-50/30">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="select-all" class="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer">
+                        <label for="select-all" class="text-xs font-semibold text-slate-700 cursor-pointer">Pilih Semua di Halaman Ini</label>
+                    </div>
+                    <button type="submit" onclick="return confirm('Yakin ingin menghapus item yang dipilih?')" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all">
+                        <i class="fa-solid fa-trash mr-1"></i> Hapus Terpilih
+                    </button>
+                </div>
+        @endif
         <div id="venuesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($venues as $venue)
-                <div class="venue-card glass-card rounded-3xl overflow-hidden flex flex-col justify-between group transition-all duration-200 {{ !empty($venue['is_mine']) ? 'border-2 border-emerald-500/40 shadow-sm ring-1 ring-emerald-500/15' : 'border border-white/90' }}">
+                <div class="flex flex-col gap-2 h-full">
+                    @if(Auth::check() && Auth::user()->role === 'admin')
+                        <label class="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 shadow-sm rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+                            <input type="checkbox" name="selected_ids[]" value="{{ $venue['id'] }}" class="item-checkbox w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer">
+                            <span class="text-xs font-semibold text-slate-700">Tandai untuk Dihapus</span>
+                        </label>
+                    @endif
+                    <div class="venue-card glass-card rounded-3xl overflow-hidden flex flex-col justify-between group transition-all duration-200 flex-1 {{ !empty($venue['is_mine']) ? 'border-2 border-emerald-500/40 shadow-sm ring-1 ring-emerald-500/15' : 'border border-white/90' }}">
                     <div>
                         <div class="relative h-44 overflow-hidden bg-slate-100">
                             <img src="{{ $venue['image'] }}" alt="{{ $venue['name'] }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
@@ -189,11 +210,22 @@
                         @endif
                     </div>
                 </div>
+                </div>
             @endforeach
         </div>
 
         <!-- Pagination Component -->
         <x-pagination :paginator="$venues" />
+        
+        @if(Auth::check() && Auth::user()->role === 'admin')
+            </form>
+            <script>
+                document.getElementById('select-all')?.addEventListener('change', function() {
+                    let checkboxes = document.querySelectorAll('.item-checkbox');
+                    checkboxes.forEach(cb => cb.checked = this.checked);
+                });
+            </script>
+        @endif
     @else
         <!-- Rich Clean Empty State -->
         <div class="glass-card rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto border border-white/90 space-y-4 shadow-sm">

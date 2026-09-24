@@ -474,4 +474,36 @@ class PlayerController extends Controller
 
         return back()->with('success', $statusMsg);
     }
+
+    /**
+     * Halaman manajemen akun/pengguna — khusus Admin.
+     * Route: GET /admin/users
+     */
+    public function manageUsers(Request $request)
+    {
+        if (! Auth::check() || ! Auth::user()->isAdmin()) {
+            abort(403, 'Akses ditolak: Hanya Administrator yang dapat mengakses halaman ini.');
+        }
+
+        $search = trim($request->get('q', ''));
+        $filterRole = $request->get('role', 'all');
+
+        $query = User::with('player')->orderBy('user_id', 'asc');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('nama', 'ilike', '%'.$search.'%')
+                    ->orWhere('email', 'ilike', '%'.$search.'%')
+                    ->orWhere('no_hp', 'ilike', '%'.$search.'%');
+            });
+        }
+
+        if ($filterRole !== 'all') {
+            $query->where('role', $filterRole);
+        }
+
+        $users = $query->paginate(20)->withQueryString();
+
+        return view('admin.users', compact('users', 'search', 'filterRole'));
+    }
 }

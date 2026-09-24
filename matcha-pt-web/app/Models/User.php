@@ -66,4 +66,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(SessionModel::class, 'host_user_id', 'user_id');
     }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
 }

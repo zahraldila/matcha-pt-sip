@@ -1695,6 +1695,10 @@ class ScoringController extends Controller
         }
 
         $user = Auth::user();
+        if ($user->role === 'admin') {
+            return true;
+        }
+
         $isHostRole = (bool) ($user->is_host ?? false) || ($user->role === 'host');
 
         return $isHostRole && (int) $user->user_id === (int) $session->host_user_id;

@@ -150,7 +150,7 @@ class VenueController extends Controller
             $sportName = null;
         }
 
-        $isMine = Auth::check() && ($dbVenue->owner_user_id == Auth::id());
+        $isMine = Auth::check() && ($dbVenue->owner_user_id == Auth::id() || Auth::user()->role === 'admin');
 
         $facilities = array_values(array_filter(array_map('trim', explode(',', $dbVenue->fasilitas ?? ''))));
 
@@ -214,9 +214,11 @@ class VenueController extends Controller
     {
         @set_time_limit(120);
 
-        $venue = Venue::where('venue_id', $id)
-            ->where('owner_user_id', Auth::id())
-            ->firstOrFail();
+        $query = Venue::where('venue_id', $id);
+        if (Auth::user()->role !== 'admin') {
+            $query->where('owner_user_id', Auth::id());
+        }
+        $venue = $query->firstOrFail();
 
         $request->validate([
             'existing_photos' => 'nullable|array',
@@ -263,8 +265,8 @@ class VenueController extends Controller
 
     public function create()
     {
-        if (Auth::user()->role !== 'venue_owner') {
-            return redirect()->route('venues.index')->with('error', 'Akses ditolak: Fitur pendaftaran venue khusus untuk Pemilik Venue.');
+        if (Auth::user()->role !== 'venue_owner' && Auth::user()->role !== 'admin') {
+            return redirect()->route('venues.index')->with('error', 'Akses ditolak: Fitur pendaftaran venue khusus untuk Pemilik Venue dan Admin.');
         }
 
         return view('venues.create');
@@ -276,9 +278,11 @@ class VenueController extends Controller
      */
     public function edit($id)
     {
-        $venue = Venue::where('venue_id', $id)
-            ->where('owner_user_id', Auth::id())
-            ->firstOrFail();
+        $query = Venue::where('venue_id', $id);
+        if (Auth::user()->role !== 'admin') {
+            $query->where('owner_user_id', Auth::id());
+        }
+        $venue = $query->firstOrFail();
 
         return view('venues.edit', compact('venue'));
     }
@@ -292,9 +296,11 @@ class VenueController extends Controller
         @set_time_limit(120);
         $user = Auth::user();
 
-        $venue = Venue::where('venue_id', $id)
-            ->where('owner_user_id', $user->user_id)
-            ->firstOrFail();
+        $query = Venue::where('venue_id', $id);
+        if ($user->role !== 'admin') {
+            $query->where('owner_user_id', $user->user_id);
+        }
+        $venue = $query->firstOrFail();
 
         $validated = $request->validate([
             'nama_venue' => ['required', 'string', 'max:100', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/', 'unique:tb_venue,nama_venue,'.$venue->venue_id.',venue_id'],
@@ -366,7 +372,7 @@ class VenueController extends Controller
         @set_time_limit(120);
         $user = Auth::user();
 
-        if (! $user || $user->role !== 'venue_owner') {
+        if (! $user || ($user->role !== 'venue_owner' && $user->role !== 'admin')) {
             return redirect()->route('venues.index')->with('error', 'Akses ditolak.');
         }
 
@@ -546,6 +552,94 @@ class VenueController extends Controller
                 'success' => false,
                 'message' => 'Gagal menambahkan venue: '.$e->getMessage(),
             ], 422);
+        }
+    }
+
+    /**
+     * Hapus atau nonaktifkan venue dengan relational safety.
+     * Route: DELETE /venues/{id}
+     */
+    public function destroy($id)
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        $query = Venue::where('venue_id', $id);
+        if ($user->role !== 'admin') {
+            $query->where('owner_user_id', $user->user_id);
+        }
+        $venue = $query->firstOrFail();
+
+        // Relational check: Jika venue memiliki sesi mabar
+        if ($venue->sessions()->exists()) {
+            // Safe deactivation: update seluruh court ke Inactive untuk menjaga data match & score
+            foreach ($venue->courts as $court) {
+                $court->update(['status_ketersediaan' => 'Inactive']);
+            }
+            $venue->update([
+                'catatan' => ($venue->catatan ? $venue->catatan.' • ' : '').'Venue dinonaktifkan oleh Administrator.',
+            ]);
+
+            return redirect()->route('venues.index')
+                ->with('success', "Venue \"{$venue->nama_venue}\" memiliki riwayat sesi mabar, sehingga seluruh lapangan telah dinonaktifkan untuk menjaga riwayat pertandingan.");
+        }
+
+        try {
+            DB::beginTransaction();
+            $venue->courts()->delete();
+            $venue->delete();
+            DB::commit();
+
+            return redirect()->route('venues.index')
+                ->with('success', "Venue \"{$venue->nama_venue}\" berhasil dihapus.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->route('venues.show', $venue->venue_id)
+                ->with('error', 'Gagal menghapus venue: '.$e->getMessage());
+        }
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        if (! Auth::check() || Auth::user()->role !== 'admin') {
+            abort(403, 'Akses ditolak: Hanya Admin yang dapat melakukan hapus massal.');
+        }
+
+        $ids = $request->input('selected_ids', []);
+
+        if (empty($ids)) {
+            return back()->with('error', 'Tidak ada venue yang dipilih untuk dihapus.');
+        }
+
+        try {
+            DB::beginTransaction();
+            foreach ($ids as $id) {
+                $venue = Venue::find($id);
+                if ($venue) {
+                    // Safe deactivation logic same as destroy
+                    if ($venue->sessions()->exists()) {
+                        foreach ($venue->courts as $court) {
+                            $court->update(['status_ketersediaan' => 'Inactive']);
+                        }
+                        $venue->update([
+                            'catatan' => ($venue->catatan ? $venue->catatan.' • ' : '').'Venue dinonaktifkan oleh Administrator.',
+                        ]);
+                    } else {
+                        $venue->courts()->delete();
+                        $venue->delete();
+                    }
+                }
+            }
+            DB::commit();
+
+            return back()->with('success', count($ids).' venue berhasil diproses.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return back()->with('error', 'Gagal menghapus venue: '.$e->getMessage());
         }
     }
 }

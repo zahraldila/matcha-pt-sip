@@ -208,14 +208,18 @@
                     <div class="space-y-2 pt-2">
                         @if(!empty($isHost))
                             {{-- TAMPILAN KHUSUS HOST --}}
-                            @if(empty($isJoinedByMe) && !$isFull && empty($hasDrawingStarted) && empty($isFinished))
-                                <button type="button" onclick="showJoinModal('{{ $game['id'] }}', '{{ addslashes($game['title']) }}')" class="w-full text-center py-2.5 rounded-xl bg-[#EBF8D8] hover:bg-[#A8E63A]/30 text-[#063B00] border border-[#063B00]/30 font-bold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
-                                    <i class="fa-solid fa-user-plus text-[#063B00]"></i> Ikut Serta Bermain (+ Add Yourself)
-                                </button>
-                            @elseif(!empty($isJoinedByMe))
-                                <div class="w-full text-center py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center justify-center gap-1.5">
-                                    <i class="fa-solid fa-circle-check text-emerald-600"></i> Anda Terdaftar Sebagai Pemain
-                                </div>
+                            @php $isAdminUser = Auth::check() && Auth::user()->isAdmin(); @endphp
+
+                            @if(!$isAdminUser)
+                                @if(empty($isJoinedByMe) && !$isFull && empty($hasDrawingStarted) && empty($isFinished))
+                                    <button type="button" onclick="showJoinModal('{{ $game['id'] }}', '{{ addslashes($game['title']) }}')" class="w-full text-center py-2.5 rounded-xl bg-[#EBF8D8] hover:bg-[#A8E63A]/30 text-[#063B00] border border-[#063B00]/30 font-bold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
+                                        <i class="fa-solid fa-user-plus text-[#063B00]"></i> Ikut Serta Bermain (+ Add Yourself)
+                                    </button>
+                                @elseif(!empty($isJoinedByMe))
+                                    <div class="w-full text-center py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-circle-check text-emerald-600"></i> Anda Terdaftar Sebagai Pemain
+                                    </div>
+                                @endif
                             @endif
 
                             @if(!empty($hasDrawingStarted))
@@ -226,15 +230,30 @@
                                 <a href="{{ route('scoring.live', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#063B00] font-semibold text-xs border-1.5 border-[#063B00] transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
                                     <i class="fa-solid fa-stopwatch text-[11px]"></i> Live Match Scoring
                                 </a>
-                            @elseif($isFull)
-                                <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
-                                    <i class="fa-solid fa-shuffle text-[11px] text-[#A8E63A]"></i> Buka Drawing Tim
-                                </a>
+                            @elseif(!$isAdminUser)
+                                {{-- Hanya Host non-admin yang bisa memulai drawing --}}
+                                @if($isFull)
+                                    <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
+                                        <i class="fa-solid fa-shuffle text-[11px] text-[#A8E63A]"></i> Buka Drawing Tim
+                                    </a>
+                                @else
+                                    <button type="button" onclick="openEarlyDrawingModal()" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
+                                        <i class="fa-solid fa-shuffle text-[11px] text-[#A8E63A]"></i> Mulai Drawing ({{ count($game['participants']) }}/{{ $game['quota'] }} Pemain)
+                                    </button>
+                                @endif
                             @else
-                                <button type="button" onclick="openEarlyDrawingModal()" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
-                                    <i class="fa-solid fa-shuffle text-[11px] text-[#A8E63A]"></i> Mulai Drawing ({{ count($game['participants']) }}/{{ $game['quota'] }} Pemain)
+                                {{-- Admin: drawing belum dimulai, tampilkan info --}}
+                                <div class="w-full text-center py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs font-semibold flex items-center justify-center gap-1.5 select-none">
+                                    <i class="fa-solid fa-hourglass-half text-[11px]"></i> Menunggu Host Memulai Drawing
+                                </div>
+                            @endif
+
+                            @if(empty($isFinished) && strtolower($game['status']) !== 'cancelled')
+                                <button type="button" onclick="openCancelSessionModal()" class="w-full text-center py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2">
+                                    <i class="fa-solid fa-ban text-rose-600"></i> Batalkan Sesi Mabar
                                 </button>
                             @endif
+
                         @else
                             {{-- TAMPILAN PESERTA & VENUE OWNER (NON-HOST) --}}
                             @if(empty($isJoinedByMe) && !$isFull && empty($hasDrawingStarted) && empty($isFinished) && (Auth::guest() || Auth::user()->role !== 'venue_owner'))
@@ -331,6 +350,51 @@
     }
 </script>
 @endif
+
+<!-- MODAL CANCEL SESSION CONFIRMATION -->
+<div id="cancelSessionModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeCancelSessionModal();">
+    <div class="bg-white rounded-3xl p-6 shadow-2xl space-y-4 my-8 border border-slate-100 flex flex-col" style="max-width: 440px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">
+        <div class="flex items-start gap-3.5">
+            <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-base border border-rose-100/80 shadow-2xs shrink-0 mt-0.5">
+                <i class="fa-solid fa-ban"></i>
+            </div>
+            <div class="space-y-1">
+                <h3 class="text-sm font-black text-slate-900">Batalkan Sesi Mabar</h3>
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    Apakah Anda yakin ingin membatalkan sesi mabar <strong class="text-slate-800 font-extrabold">{{ $game['title'] }}</strong>? Status sesi akan diubah menjadi Cancelled. Data peserta dan riwayat tetap tersimpan secara aman.
+                </p>
+            </div>
+        </div>
+
+        <form id="cancelSessionForm" action="{{ route('games.cancel', $game['id']) }}" method="POST" class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            @csrf
+            <button
+                type="button"
+                onclick="closeCancelSessionModal()"
+                class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+            >
+                Kembali
+            </button>
+            <button
+                type="submit"
+                class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
+            >
+                <i class="fa-solid fa-ban text-xs"></i> Ya, Batalkan Sesi
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openCancelSessionModal() {
+        const m = document.getElementById('cancelSessionModal');
+        if (m) m.style.display = 'flex';
+    }
+    function closeCancelSessionModal() {
+        const m = document.getElementById('cancelSessionModal');
+        if (m) m.style.display = 'none';
+    }
+</script>
 
 <x-join-modal />
 @endsection

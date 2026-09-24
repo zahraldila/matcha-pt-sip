@@ -42,6 +42,9 @@
                         <a href="{{ route('venues.edit', $venue['id']) }}" class="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:border-[#063B00] text-slate-800 hover:text-[#063B00] font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
                             <i class="fa-solid fa-pen-to-square text-[#063B00]"></i> Edit Venue
                         </a>
+                        <button type="button" onclick="openDeleteVenueModal()" class="px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-trash-can text-rose-600"></i> Hapus / Nonaktifkan
+                        </button>
                     @endif
 
                     @if(Auth::user()->is_host)
@@ -725,6 +728,52 @@
             </form>
         </div>
     </div>
+
+    <!-- MODAL DELETE VENUE CONFIRMATION -->
+    <div id="deleteVenueModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeDeleteVenueModal();">
+        <div class="bg-white rounded-3xl p-6 shadow-2xl space-y-4 my-8 border border-slate-100 flex flex-col" style="max-width: 440px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">
+            <div class="flex items-start gap-3.5">
+                <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-base border border-rose-100/80 shadow-2xs shrink-0 mt-0.5">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div class="space-y-1">
+                    <h3 class="text-sm font-black text-slate-900">Hapus / Nonaktifkan Venue</h3>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Apakah Anda yakin ingin menghapus atau menonaktifkan venue <strong class="text-slate-800 font-extrabold">{{ $venue['name'] }}</strong>? Jika venue memiliki riwayat sesi mabar, seluruh lapangan akan dinonaktifkan secara aman untuk melindungi riwayat pertandingan.
+                    </p>
+                </div>
+            </div>
+
+            <form id="deleteVenueForm" action="{{ route('venues.destroy', $venue['id']) }}" method="POST" class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                @csrf
+                @method('DELETE')
+                <button
+                    type="button"
+                    onclick="closeDeleteVenueModal()"
+                    class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                >
+                    Batal
+                </button>
+                <button
+                    type="submit"
+                    class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
+                >
+                    <i class="fa-solid fa-trash-can text-xs"></i> Ya, Hapus Venue
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openDeleteVenueModal() {
+            const m = document.getElementById('deleteVenueModal');
+            if (m) m.style.display = 'flex';
+        }
+        function closeDeleteVenueModal() {
+            const m = document.getElementById('deleteVenueModal');
+            if (m) m.style.display = 'none';
+        }
+    </script>
 @endif
 @endsection
 

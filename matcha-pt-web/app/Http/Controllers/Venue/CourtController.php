@@ -218,6 +218,15 @@ class CourtController extends Controller
     {
         $venue = $this->ownedVenue($id);
         $court = Court::where('venue_id', $venue->venue_id)->where('court_id', $courtId)->firstOrFail();
+
+        // Relational safety check: Jika court terikat pertandingan atau sesi
+        if ($court->matches()->exists() || $court->sessions()->exists()) {
+            $court->update(['status_ketersediaan' => 'Inactive']);
+
+            return redirect()->route('venues.show', $venue->venue_id)
+                ->with('success', "Lapangan \"{$court->nama_court}\" memiliki riwayat pertandingan/sesi, sehingga statusnya diubah menjadi Nonaktif (Inactive) untuk menjaga data.");
+        }
+
         $court->delete();
 
         return redirect()->route('venues.show', $venue->venue_id)
@@ -226,9 +235,11 @@ class CourtController extends Controller
 
     private function ownedVenue($id, bool $withCourts = false): Venue
     {
-        $query = Venue::query()
-            ->where('venue_id', $id)
-            ->where('owner_user_id', Auth::id());
+        $query = Venue::query()->where('venue_id', $id);
+
+        if (Auth::user()?->role !== 'admin') {
+            $query->where('owner_user_id', Auth::id());
+        }
 
         if ($withCourts) {
             $query->with('courts');

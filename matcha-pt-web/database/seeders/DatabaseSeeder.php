@@ -2,21 +2,23 @@
 
 namespace Database\Seeders;
 
+use App\Models\Community;
+use App\Models\Court;
+use App\Models\MatchFormat;
+use App\Models\Player;
+use App\Models\Sport;
+use App\Models\User;
+use App\Models\Venue;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use App\Models\Sport;
-use App\Models\MatchFormat;
-use App\Models\User;
-use App\Models\Player;
-use App\Models\Community;
-use App\Models\Venue;
-use App\Models\Court;
-use App\Models\VenueAvail;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // 0. Seed Admin Account
+        $this->call(AdminUserSeeder::class);
+
         // 1. Seed Sports
         $padel = Sport::firstOrCreate(['nama_sport' => 'Padel'], ['status_sport' => 'Active']);
         $tennis = Sport::firstOrCreate(['nama_sport' => 'Tennis'], ['status_sport' => 'Active']);
