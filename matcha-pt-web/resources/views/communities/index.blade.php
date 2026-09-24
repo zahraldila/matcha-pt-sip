@@ -113,13 +113,14 @@
         @endif
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($communities as $comm)
-                <div class="relative">
+                <div class="flex flex-col gap-2 h-full">
                     @if(Auth::check() && Auth::user()->role === 'admin')
-                        <div class="absolute -top-3 -right-3 z-10 bg-white p-1 rounded-md shadow-sm border border-slate-200 flex items-center justify-center">
-                            <input type="checkbox" name="selected_ids[]" value="{{ $comm['id'] }}" class="item-checkbox w-5 h-5 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer">
-                        </div>
+                        <label class="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 shadow-sm rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+                            <input type="checkbox" name="selected_ids[]" value="{{ $comm['id'] }}" class="item-checkbox w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer">
+                            <span class="text-xs font-semibold text-slate-700">Tandai untuk Dihapus</span>
+                        </label>
                     @endif
-                    <div class="glass-card rounded-3xl overflow-hidden flex flex-col justify-between group border border-white/90 transition-all duration-200 hover:shadow-md h-full">
+                    <div class="glass-card rounded-3xl overflow-hidden flex flex-col justify-between group border border-white/90 transition-all duration-200 hover:shadow-md flex-1">
                     <div>
                         <a href="{{ route('communities.show', $comm['id']) }}" class="block relative h-44 overflow-hidden bg-slate-100 group/thumb">
                             <img src="{{ $comm['image'] }}" alt="{{ $comm['name'] }}" class="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-300">

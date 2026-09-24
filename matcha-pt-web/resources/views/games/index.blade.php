@@ -159,13 +159,16 @@
         @endif
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($games as $game)
-                <div class="relative">
+                <div class="flex flex-col gap-2 h-full">
                     @if(Auth::check() && Auth::user()->role === 'admin')
-                        <div class="absolute -top-3 -right-3 z-10 bg-white p-1 rounded-md shadow-sm border border-slate-200 flex items-center justify-center">
-                            <input type="checkbox" name="selected_ids[]" value="{{ $game['id'] }}" class="item-checkbox w-5 h-5 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer">
-                        </div>
+                        <label class="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 shadow-sm rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+                            <input type="checkbox" name="selected_ids[]" value="{{ $game['id'] }}" class="item-checkbox w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer">
+                            <span class="text-xs font-semibold text-slate-700">Tandai untuk Dihapus</span>
+                        </label>
                     @endif
-                    <x-game-card :game="$game" />
+                    <div class="flex-1">
+                        <x-game-card :game="$game" />
+                    </div>
                 </div>
             @endforeach
         </div>

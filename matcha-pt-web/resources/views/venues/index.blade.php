@@ -118,13 +118,14 @@
         @endif
         <div id="venuesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($venues as $venue)
-                <div class="relative">
+                <div class="flex flex-col gap-2 h-full">
                     @if(Auth::check() && Auth::user()->role === 'admin')
-                        <div class="absolute -top-3 -right-3 z-10 bg-white p-1 rounded-md shadow-sm border border-slate-200 flex items-center justify-center">
-                            <input type="checkbox" name="selected_ids[]" value="{{ $venue['id'] }}" class="item-checkbox w-5 h-5 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer">
-                        </div>
+                        <label class="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 shadow-sm rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+                            <input type="checkbox" name="selected_ids[]" value="{{ $venue['id'] }}" class="item-checkbox w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer">
+                            <span class="text-xs font-semibold text-slate-700">Tandai untuk Dihapus</span>
+                        </label>
                     @endif
-                    <div class="venue-card glass-card rounded-3xl overflow-hidden flex flex-col justify-between group transition-all duration-200 h-full {{ !empty($venue['is_mine']) ? 'border-2 border-emerald-500/40 shadow-sm ring-1 ring-emerald-500/15' : 'border border-white/90' }}">
+                    <div class="venue-card glass-card rounded-3xl overflow-hidden flex flex-col justify-between group transition-all duration-200 flex-1 {{ !empty($venue['is_mine']) ? 'border-2 border-emerald-500/40 shadow-sm ring-1 ring-emerald-500/15' : 'border border-white/90' }}">
                     <div>
                         <div class="relative h-44 overflow-hidden bg-slate-100">
                             <img src="{{ $venue['image'] }}" alt="{{ $venue['name'] }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
@@ -207,6 +208,7 @@
                                 Lihat Court & Jadwal
                             </a>
                         @endif
+                    </div>
                 </div>
                 </div>
             @endforeach
