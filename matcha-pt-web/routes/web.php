@@ -38,6 +38,7 @@ Route::prefix('games')->name('games.')->group(function () {
         Route::post('/schedule', [GameController::class, 'storeSchedule'])->name('schedule.post');
         Route::post('/{id}/cancel', [GameController::class, 'cancelSession'])->whereNumber('id')->name('cancel');
         Route::delete('/bulk-destroy', [GameController::class, 'bulkDestroy'])->name('bulkDestroy');
+        Route::delete('/{id}', [GameController::class, 'destroy'])->whereNumber('id')->name('destroy');
     });
 });
 

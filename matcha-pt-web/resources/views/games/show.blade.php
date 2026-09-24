@@ -248,9 +248,9 @@
                                 </div>
                             @endif
 
-                            @if(empty($isFinished) && strtolower($game['status']) !== 'cancelled')
-                                <button type="button" onclick="openCancelSessionModal()" class="w-full text-center py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2">
-                                    <i class="fa-solid fa-ban text-rose-600"></i> Batalkan Sesi Mabar
+                            @if(Auth::check() && Auth::user()->role === 'admin' && empty($isFinished))
+                                <button type="button" onclick="openDeleteSessionModal()" class="w-full text-center py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2">
+                                    <i class="fa-solid fa-trash-can text-rose-600"></i> Hapus Jadwal Mabar
                                 </button>
                             @endif
 
@@ -351,50 +351,53 @@
 </script>
 @endif
 
-<!-- MODAL CANCEL SESSION CONFIRMATION -->
-<div id="cancelSessionModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeCancelSessionModal();">
+@if(Auth::check() && Auth::user()->role === 'admin')
+<!-- MODAL DELETE SESSION CONFIRMATION -->
+<div id="deleteSessionModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeDeleteSessionModal();">
     <div class="bg-white rounded-3xl p-6 shadow-2xl space-y-4 my-8 border border-slate-100 flex flex-col" style="max-width: 440px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">
         <div class="flex items-start gap-3.5">
             <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-base border border-rose-100/80 shadow-2xs shrink-0 mt-0.5">
-                <i class="fa-solid fa-ban"></i>
+                <i class="fa-solid fa-trash-can"></i>
             </div>
             <div class="space-y-1">
-                <h3 class="text-sm font-black text-slate-900">Batalkan Sesi Mabar</h3>
+                <h3 class="text-sm font-black text-slate-900">Hapus Jadwal Mabar</h3>
                 <p class="text-xs text-slate-500 leading-relaxed">
-                    Apakah Anda yakin ingin membatalkan sesi mabar <strong class="text-slate-800 font-extrabold">{{ $game['title'] }}</strong>? Status sesi akan diubah menjadi Cancelled. Data peserta dan riwayat tetap tersimpan secara aman.
+                    Apakah Anda yakin ingin menghapus jadwal sesi mabar <strong class="text-slate-800 font-extrabold">{{ $game['title'] }}</strong>? Jadwal ini akan dihapus secara permanen dari daftar dan seluruh data drawing terkait akan dibersihkan.
                 </p>
             </div>
         </div>
 
-        <form id="cancelSessionForm" action="{{ route('games.cancel', $game['id']) }}" method="POST" class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+        <form id="deleteSessionForm" action="{{ route('games.destroy', $game['id']) }}" method="POST" class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
             @csrf
+            @method('DELETE')
             <button
                 type="button"
-                onclick="closeCancelSessionModal()"
+                onclick="closeDeleteSessionModal()"
                 class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
             >
-                Kembali
+                Batal
             </button>
             <button
                 type="submit"
                 class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
             >
-                <i class="fa-solid fa-ban text-xs"></i> Ya, Batalkan Sesi
+                <i class="fa-solid fa-trash-can text-xs"></i> Ya, Hapus Jadwal
             </button>
         </form>
     </div>
 </div>
 
 <script>
-    function openCancelSessionModal() {
-        const m = document.getElementById('cancelSessionModal');
+    function openDeleteSessionModal() {
+        const m = document.getElementById('deleteSessionModal');
         if (m) m.style.display = 'flex';
     }
-    function closeCancelSessionModal() {
-        const m = document.getElementById('cancelSessionModal');
+    function closeDeleteSessionModal() {
+        const m = document.getElementById('deleteSessionModal');
         if (m) m.style.display = 'none';
     }
 </script>
+@endif
 
 <x-join-modal />
 @endsection
