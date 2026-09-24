@@ -35,7 +35,10 @@
                 $btnIcon = 'fa-plus';
                 $btnLabel = 'Host';
                 
-                if (Auth::check() && Auth::user()->role === 'venue_owner') {
+                if (Auth::check() && Auth::user()->isAdmin()) {
+                    $createRoute = route('communities.create');
+                    $btnLabel = 'Komunitas';
+                } elseif (Auth::check() && Auth::user()->role === 'venue_owner') {
                     $createRoute = route('venues.create');
                     $btnLabel = 'Venue';
                 } elseif (Auth::check() && Auth::user()->role === 'member') {
