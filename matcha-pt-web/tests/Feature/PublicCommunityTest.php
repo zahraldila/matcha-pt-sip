@@ -405,4 +405,107 @@ class PublicCommunityTest extends TestCase
         $player->refresh();
         $this->assertNull($player->community_id);
     }
+
+    /**
+     * Test 15: Pembuat komunitas (creator) dapat menghapus komunitasnya dan keanggotaan pemain di-detach dengan benar.
+     */
+    public function test_creator_can_delete_community_and_members_are_detached(): void
+    {
+        $creator = User::create([
+            'nama' => 'Community Creator',
+            'email' => 'creator@example.com',
+            'password' => bcrypt('secret'),
+            'role' => 'member',
+        ]);
+
+        $member = User::create([
+            'nama' => 'Regular Member',
+            'email' => 'member@example.com',
+            'password' => bcrypt('secret'),
+            'role' => 'member',
+        ]);
+
+        $community = $this->createCommunity([
+            'nama_community' => 'Club to Delete',
+            'created_by' => $creator->user_id,
+        ]);
+
+        $creatorPlayer = Player::create([
+            'user_id' => $creator->user_id,
+            'community_id' => $community->community_id,
+            'nama' => 'Community Creator',
+        ]);
+
+        $memberPlayer = Player::create([
+            'user_id' => $member->user_id,
+            'community_id' => $community->community_id,
+            'nama' => 'Regular Member',
+        ]);
+
+        $response = $this->actingAs($creator)->delete('/communities/'.$community->community_id);
+
+        $response->assertRedirect(route('communities.index'));
+        $response->assertSessionHas('success');
+
+        // Komunitas sudah terhapus dari DB
+        $this->assertDatabaseMissing('tb_community', [
+            'community_id' => $community->community_id,
+        ]);
+
+        // Anggota komunitas di-set community_id = null (tidak dihapus record pemainnya)
+        $creatorPlayer->refresh();
+        $memberPlayer->refresh();
+        $this->assertNull($creatorPlayer->community_id);
+        $this->assertNull($memberPlayer->community_id);
+    }
+
+    /**
+     * Test 16: User yang bukan pembuat komunitas ditolak saat mencoba menghapus komunitas.
+     */
+    public function test_non_creator_cannot_delete_community(): void
+    {
+        $creator = User::create([
+            'nama' => 'Real Creator',
+            'email' => 'realcreator@example.com',
+            'password' => bcrypt('secret'),
+            'role' => 'member',
+        ]);
+
+        $otherUser = User::create([
+            'nama' => 'Other User',
+            'email' => 'other@example.com',
+            'password' => bcrypt('secret'),
+            'role' => 'member',
+        ]);
+
+        $community = $this->createCommunity([
+            'nama_community' => 'Protected Club',
+            'created_by' => $creator->user_id,
+        ]);
+
+        $response = $this->actingAs($otherUser)->delete('/communities/'.$community->community_id);
+
+        $response->assertRedirect(route('communities.show', $community->community_id));
+        $response->assertSessionHas('error');
+
+        // Komunitas masih tetap ada di DB
+        $this->assertDatabaseHas('tb_community', [
+            'community_id' => $community->community_id,
+        ]);
+    }
+
+    /**
+     * Test 17: Guest diarahkan ke login saat mencoba menghapus komunitas.
+     */
+    public function test_guest_cannot_delete_community(): void
+    {
+        $community = $this->createCommunity(['nama_community' => 'Guest Protected Club']);
+
+        $response = $this->delete('/communities/'.$community->community_id);
+
+        $response->assertRedirect('/login');
+        $this->assertDatabaseHas('tb_community', [
+            'community_id' => $community->community_id,
+        ]);
+    }
 }

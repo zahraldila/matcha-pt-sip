@@ -95,6 +95,7 @@ Route::prefix('communities')->name('communities.')->group(function () {
         Route::post('/', [CommunityController::class, 'store'])->name('store');                  // [SMK 3] Simpan komunitas baru ke DB
         Route::post('/{id}/join', [CommunityController::class, 'join'])->whereNumber('id')->name('join');   // [SMK 3] Join komunitas
         Route::post('/{id}/leave', [CommunityController::class, 'leave'])->whereNumber('id')->name('leave'); // [SMK 3] Leave komunitas
+        Route::delete('/{id}', [CommunityController::class, 'destroy'])->whereNumber('id')->name('destroy'); // Hapus komunitas
     });
 });
 

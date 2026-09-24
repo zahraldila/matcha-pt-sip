@@ -252,6 +252,24 @@
                         <p class="text-[11px] text-slate-600 leading-relaxed">Sebagai anggota, Anda dapat mengikuti sesi mabar, turnamen, dan melihat leaderboard komunitas.</p>
                     </div>
                 </div>
+
+                @if(Auth::check() && (int) $community->created_by === (int) Auth::id())
+                    <!-- Admin Action / Delete Community Zone -->
+                    <div class="pt-4 border-t border-slate-100 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Aksi Admin Komunitas</p>
+                            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">Owner</span>
+                        </div>
+                        <form id="deleteCommunityForm" action="{{ route('communities.destroy', $community->community_id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus komunitas \'{{ addslashes($community->nama_community) }}\'? Seluruh data komunitas akan dihapus dan anggota akan dinonaktifkan.');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="w-full px-4 py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-all border border-rose-200 hover:border-rose-300 flex items-center justify-center gap-2 cursor-pointer shadow-2xs">
+                                <i class="fa-solid fa-trash-can text-rose-500 text-xs"></i>
+                                <span>Hapus Komunitas</span>
+                            </button>
+                        </form>
+                    </div>
+                @endif
             </div>
         </div>
     </div>

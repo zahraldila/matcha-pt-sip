@@ -396,4 +396,78 @@ class CommunityController extends Controller
         return redirect()->route('communities.index')
             ->with('success', 'Anda telah meninggalkan komunitas.');
     }
+
+    /**
+     * Hapus komunitas (Khusus Pembuat / Admin Komunitas).
+     * Route: DELETE /communities/{id}
+     */
+    public function destroy(Request $request, $id, SupabaseStorageService $storageService)
+    {
+        if (! Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        if (! is_numeric($id) || (int) $id <= 0) {
+            abort(404, 'Komunitas tidak ditemukan.');
+        }
+
+        $community = Community::findOrFail((int) $id);
+
+        // Otorisasi: Hanya pembuat komunitas (created_by) yang berhak menghapus komunitas
+        if ((int) $community->created_by !== (int) Auth::id()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak: Hanya admin pembuat komunitas yang dapat menghapus komunitas ini.',
+                ], 403);
+            }
+
+            return redirect()->route('communities.show', $community->community_id)
+                ->with('error', 'Akses ditolak: Hanya admin pembuat komunitas yang dapat menghapus komunitas ini.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // 1. Lepas keanggotaan seluruh pemain di komunitas ini agar tidak melanggar foreign key
+            Player::where('community_id', $community->community_id)->update(['community_id' => null]);
+
+            // 2. Hapus file logo dari storage jika berupa file lokal
+            if (! empty($community->logo) && str_contains($community->logo, 'uploads/community-logos/')) {
+                $localPath = public_path($community->logo);
+                if (file_exists($localPath)) {
+                    @unlink($localPath);
+                }
+            }
+
+            // 3. Hapus record komunitas
+            $communityName = $community->nama_community;
+            $community->delete();
+
+            DB::commit();
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Komunitas \"{$communityName}\" berhasil dihapus.",
+                ]);
+            }
+
+            return redirect()->route('communities.index')
+                ->with('success', "Komunitas \"{$communityName}\" berhasil dihapus.");
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Error deleting community: '.$e->getMessage());
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menghapus komunitas: '.$e->getMessage(),
+                ], 500);
+            }
+
+            return redirect()->back()
+                ->with('error', 'Gagal menghapus komunitas: '.$e->getMessage());
+        }
+    }
 }
