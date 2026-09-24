@@ -158,14 +158,16 @@
                         </p>
                     </div>
 
-                    <div class="space-y-2 pt-2">
-                        <a href="{{ route('scoring.recap', $game['id']) }}"
-                           style="background-color: #063B00 !important; color: #ffffff !important;"
-                           class="w-full text-center py-3 px-4 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
-                            <i class="fa-solid fa-trophy text-xs text-[#A8E63A]" style="color: #A8E63A !important;"></i>
-                            <span class="text-white font-extrabold" style="color: #ffffff !important;">Buka Hasil Akhir &amp; Podium</span>
-                        </a>
-                    </div>
+                    @if(Auth::guest() || (Auth::user()->role !== 'admin' && Auth::user()->role !== 'venue_owner'))
+                        <div class="space-y-2 pt-2">
+                            <a href="{{ route('scoring.recap', $game['id']) }}"
+                               style="background-color: #063B00 !important; color: #ffffff !important;"
+                               class="w-full text-center py-3 px-4 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                                <i class="fa-solid fa-trophy text-xs text-[#A8E63A]" style="color: #A8E63A !important;"></i>
+                                <span class="text-white font-extrabold" style="color: #ffffff !important;">Buka Hasil Akhir &amp; Podium</span>
+                            </a>
+                        </div>
+                    @endif
 
                     <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500 space-y-1.5">
                         <p class="flex items-center gap-1.5 text-emerald-800 font-medium">
@@ -188,9 +190,9 @@
                                 <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
                                     Drawing Siap
                                 </span>
-                            @else
-                                <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full {{ $isFull ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600 border border-slate-200' }}">
-                                    {{ $isFull ? 'Siap Drawing' : 'Pendaftaran' }}
+                            @elseif(!empty($isFull))
+                                <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                                    Siap Drawing
                                 </span>
                             @endif
                         </div>
@@ -241,11 +243,6 @@
                                         <i class="fa-solid fa-shuffle text-[11px] text-[#A8E63A]"></i> Mulai Drawing ({{ count($game['participants']) }}/{{ $game['quota'] }} Pemain)
                                     </button>
                                 @endif
-                            @else
-                                {{-- Admin: drawing belum dimulai, tampilkan info --}}
-                                <div class="w-full text-center py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs font-semibold flex items-center justify-center gap-1.5 select-none">
-                                    <i class="fa-solid fa-hourglass-half text-[11px]"></i> Menunggu Host Memulai Drawing
-                                </div>
                             @endif
 
                         @else
@@ -264,17 +261,10 @@
                                 <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
                                     <i class="fa-solid fa-eye text-[11px] text-[#A8E63A]"></i> Lihat Jadwal &amp; Rotasi Drawing
                                 </a>
-                            @else
-                                <button type="button" disabled class="w-full text-center py-2.5 rounded-xl bg-slate-100 text-slate-400 font-semibold text-xs border border-slate-200 cursor-not-allowed flex items-center justify-center gap-1.5 select-none" title="Menunggu Host memulai sesi drawing">
-                                    <i class="fa-solid fa-lock text-[11px]"></i> Menunggu Host Memulai Drawing
-                                </button>
-                                <p class="text-[10px] text-slate-400 text-center italic">
-                                    Jadwal dan rotasi court akan muncul setelah Host melakukan drawing.
-                                </p>
                             @endif
                         @endif
 
-                        @if(Auth::check() && Auth::user()->role === 'admin' && empty($isFinished))
+                        @if(Auth::check() && Auth::user()->role === 'admin' && empty($isFinished) && empty($hasDrawingStarted))
                             <button type="button" onclick="openDeleteSessionModal()" class="w-full text-center py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2">
                                 <i class="fa-solid fa-trash-can text-rose-600"></i> Hapus Jadwal Mabar
                             </button>
@@ -351,7 +341,7 @@
 </script>
 @endif
 
-@if(Auth::check() && Auth::user()->role === 'admin')
+@if(Auth::check() && Auth::user()->role === 'admin' && empty($isFinished) && empty($hasDrawingStarted))
 <!-- MODAL DELETE SESSION CONFIRMATION -->
 <div id="deleteSessionModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeDeleteSessionModal();">
     <div class="bg-white rounded-3xl p-6 shadow-2xl space-y-4 my-8 border border-slate-100 flex flex-col" style="max-width: 440px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">

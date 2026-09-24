@@ -118,7 +118,12 @@
 
     <!-- Action Buttons with Role & Membership Checking -->
     <div class="pt-2 border-t border-slate-200/40">
-        @if($isFinished)
+        @if(Auth::check() && (Auth::user()->role === 'venue_owner' || Auth::user()->role === 'admin'))
+            {{-- Khusus Admin & Venue Owner: Selalu satu tombol bersih "Detail" penuh tanpa tombol Hasil & Podium / Gabung Slot --}}
+            <a href="{{ route('games.show', $game['id']) }}" class="w-full block text-center py-2 px-4 rounded-xl bg-white/90 hover:bg-white text-slate-800 text-xs font-bold transition-all border border-slate-200/80 shadow-xs hover:border-[#063B00]">
+                Detail
+            </a>
+        @elseif($isFinished)
             <div class="grid grid-cols-2 gap-2">
                 <a href="{{ route('games.show', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-white/80 hover:bg-white text-slate-700 text-xs font-semibold transition-all border border-slate-200/60 shadow-xs flex items-center justify-center">
                     Detail
@@ -142,11 +147,6 @@
                     </a>
                 @endif
             </div>
-        @elseif(Auth::check() && (Auth::user()->role === 'venue_owner' || Auth::user()->role === 'admin'))
-            {{-- Khusus Admin & Venue Owner: Satu tombol bersih "Detail" penuh tanpa tombol Gabung Slot --}}
-            <a href="{{ route('games.show', $game['id']) }}" class="w-full block text-center py-2 px-4 rounded-xl bg-white/90 hover:bg-white text-slate-800 text-xs font-bold transition-all border border-slate-200/80 shadow-xs hover:border-[#063B00]">
-                Detail
-            </a>
         @elseif(!empty($game['is_joined_by_me']))
             <div class="grid grid-cols-2 gap-2">
                 <a href="{{ route('games.show', $game['id']) }}" class="text-center py-2 px-3 rounded-xl bg-white/80 hover:bg-white text-slate-700 text-xs font-semibold transition-all border border-slate-200/60 shadow-xs">
