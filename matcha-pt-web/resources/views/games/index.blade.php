@@ -372,15 +372,23 @@ document.addEventListener('DOMContentLoaded', function () {
             const checkedBoxes = getChecked();
             const count = checkedBoxes.length;
             if (count === 0) return;
-            if (confirm(`Hapus ${count} sesi?\n\nData sesi yang dipilih akan dihapus. Tindakan ini tidak dapat dibatalkan.`)) {
-                bulkInputsCont.innerHTML = '';
-                checkedBoxes.forEach(cb => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden'; input.name = 'selected_ids[]'; input.value = cb.value;
-                    bulkInputsCont.appendChild(input);
-                });
-                bulkForm.submit();
-            }
+
+            window.showConfirmDeleteModal({
+                title: `Hapus ${count} Sesi Mabar?`,
+                message: `Data ${count} sesi mabar yang dipilih akan dihapus secara permanen dari sistem. Tindakan ini tidak dapat dibatalkan.`,
+                confirmText: `Ya, Hapus ${count} Sesi`,
+                onConfirm: () => {
+                    bulkInputsCont.innerHTML = '';
+                    checkedBoxes.forEach(cb => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'selected_ids[]';
+                        input.value = cb.value;
+                        bulkInputsCont.appendChild(input);
+                    });
+                    bulkForm.submit();
+                }
+            });
         });
     }
 });
