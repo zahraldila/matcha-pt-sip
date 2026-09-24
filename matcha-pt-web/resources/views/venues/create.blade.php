@@ -401,125 +401,107 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
 
                     <!-- Jumlah Court -->
-                    <div class="space-y-1.5">
-
+                    <div class="space-y-1.5" id="jumlahCourtDropdownContainer">
                         <label class="block font-bold text-slate-800">
                             Jumlah Lapangan (Court)
                         </label>
-
-                        <div class="relative">
-
-                            <select
-                                id="jumlahCourt"
-                                name="jumlah_court"
-                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 pr-10 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
-                            >
-                                <option value="1" @selected(old('jumlah_court', '1') === '1')>
-                                    1 Court
-                                </option>
-
-                                <option value="2" @selected(old('jumlah_court') === '2')>
-                                    2 Courts
-                                </option>
-
-                                <option value="3" @selected(old('jumlah_court') === '3')>
-                                    3 Courts
-                                </option>
-
-                                <option value="4" @selected(old('jumlah_court') === '4')>
-                                    4 Courts
-                                </option>
-
-                                <option value="6" @selected(old('jumlah_court') === '6')>
-                                    6+ Courts (Arena Besar)
-                                </option>
+                        <div class="relative z-30">
+                            <select id="jumlahCourt" name="jumlah_court" class="sr-only">
+                                <option value="1" @selected(old('jumlah_court', '1') === '1')>1 Court</option>
+                                <option value="2" @selected(old('jumlah_court') === '2')>2 Courts</option>
+                                <option value="3" @selected(old('jumlah_court') === '3')>3 Courts</option>
+                                <option value="4" @selected(old('jumlah_court') === '4')>4 Courts</option>
+                                <option value="6" @selected(old('jumlah_court') === '6')>6+ Courts (Arena Besar)</option>
                             </select>
 
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="jumlahCourtTrigger"
+                                onclick="toggleDropdownMenu('jumlahCourtMenu', 'jumlahCourtArrow')"
+                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left"
+                            >
+                                <span id="jumlahCourtSelected" class="text-xs font-bold text-slate-900 truncate">
+                                    {{ old('jumlah_court') === '6' ? '6+ Courts (Arena Besar)' : (old('jumlah_court') ? old('jumlah_court') . ' Court' . (old('jumlah_court') > 1 ? 's' : '') : '1 Court') }}
+                                </span>
+                                <i id="jumlahCourtArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                            </button>
 
+                            <div id="jumlahCourtMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
                         </div>
                     </div>
 
-
                     <!-- Tipe Arena -->
-                    <div class="space-y-1.5">
-
+                    <div class="space-y-1.5" id="tipeArenaDropdownContainer">
                         <label class="block font-bold text-slate-800">
                             Tipe Arena
                         </label>
-
-                        <div class="relative">
-
-                            <select
-                                id="tipeArena"
-                                name="tipe_arena"
-                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 pr-10 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
-                            >
-                                <option value="Semi-Indoor" @selected(old('tipe_arena', 'Semi-Indoor') === 'Semi-Indoor')>
-                                    Semi-Indoor (Atap Pelindung)
-                                </option>
-
-                                <option value="Indoor" @selected(old('tipe_arena') === 'Indoor')>
-                                    Indoor (Full AC / Tertutup)
-                                </option>
-
-                                <option value="Outdoor" @selected(old('tipe_arena') === 'Outdoor')>
-                                    Outdoor (Terbuka)
-                                </option>
+                        <div class="relative z-30">
+                            <select id="tipeArena" name="tipe_arena" class="sr-only">
+                                <option value="Semi-Indoor" @selected(old('tipe_arena', 'Semi-Indoor') === 'Semi-Indoor')>Semi-Indoor (Atap Pelindung)</option>
+                                <option value="Indoor" @selected(old('tipe_arena') === 'Indoor')>Indoor (Full AC / Tertutup)</option>
+                                <option value="Outdoor" @selected(old('tipe_arena') === 'Outdoor')>Outdoor (Terbuka)</option>
                             </select>
 
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="tipeArenaTrigger"
+                                onclick="toggleDropdownMenu('tipeArenaMenu', 'tipeArenaArrow')"
+                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left"
+                            >
+                                <span id="tipeArenaSelected" class="text-xs font-bold text-slate-900 truncate">
+                                    {{ old('tipe_arena', 'Semi-Indoor (Atap Pelindung)') === 'Indoor' ? 'Indoor (Full AC / Tertutup)' : (old('tipe_arena') === 'Outdoor' ? 'Outdoor (Terbuka)' : 'Semi-Indoor (Atap Pelindung)') }}
+                                </span>
+                                <i id="tipeArenaArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                            </button>
 
+                            <div id="tipeArenaMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
                         </div>
                     </div>
 
-
                     <!-- Jenis Permukaan -->
-                    <div class="space-y-1.5">
-
+                    <div class="space-y-1.5" id="surfaceTypeDropdownContainer">
                         <label class="block font-bold text-slate-800">
                             Jenis Permukaan
                         </label>
-
-                        <div class="relative">
-
-                            <select
-                                id="surfaceType"
-                                name="jenis_permukaan"
-                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl px-4 py-3 pr-10 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
-                            >
-                                <option value="Artificial Turf" @selected(old('jenis_permukaan', 'Artificial Turf') === 'Artificial Turf')>
-                                    Artificial Turf (Rumput Sintetis Padel)
-                                </option>
-
-                                <option value="Hard Court" @selected(old('jenis_permukaan') === 'Hard Court')>
-                                    Hard Court (Plexipave / Acrylic)
-                                </option>
-
-                                <option value="Clay" @selected(old('jenis_permukaan') === 'Clay')>
-                                    Clay Court (Tanah Liat)
-                                </option>
-
-                                <option value="Grass" @selected(old('jenis_permukaan') === 'Grass')>
-                                    Grass Court (Rumput Alami)
-                                </option>
-
-                                <option value="Other" @selected(old('jenis_permukaan') === 'Other')>
-                                    Lainnya
-                                </option>
+                        <div class="relative z-30">
+                            <select id="surfaceType" name="jenis_permukaan" class="sr-only">
+                                <option value="Artificial Turf" @selected(old('jenis_permukaan', 'Artificial Turf') === 'Artificial Turf')>Artificial Turf (Rumput Sintetis Padel)</option>
+                                <option value="Hard Court" @selected(old('jenis_permukaan') === 'Hard Court')>Hard Court (Plexipave / Acrylic)</option>
+                                <option value="Clay" @selected(old('jenis_permukaan') === 'Clay')>Clay Court (Tanah Liat)</option>
+                                <option value="Grass" @selected(old('jenis_permukaan') === 'Grass')>Grass Court (Rumput Alami)</option>
+                                <option value="Other" @selected(old('jenis_permukaan') === 'Other')>Lainnya</option>
                             </select>
 
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="surfaceTypeTrigger"
+                                onclick="toggleDropdownMenu('surfaceTypeMenu', 'surfaceTypeArrow')"
+                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left"
+                            >
+                                <span id="surfaceTypeSelected" class="text-xs font-bold text-slate-900 truncate">
+                                    @php
+                                        $surfMap = [
+                                            'Artificial Turf' => 'Artificial Turf (Rumput Sintetis Padel)',
+                                            'Hard Court' => 'Hard Court (Plexipave / Acrylic)',
+                                            'Clay' => 'Clay Court (Tanah Liat)',
+                                            'Grass' => 'Grass Court (Rumput Alami)',
+                                            'Other' => 'Lainnya',
+                                        ];
+                                        $curSurf = old('jenis_permukaan', 'Artificial Turf');
+                                    @endphp
+                                    {{ $surfMap[$curSurf] ?? 'Artificial Turf (Rumput Sintetis Padel)' }}
+                                </span>
+                                <i id="surfaceTypeArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                            </button>
 
+                            <div id="surfaceTypeMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
                         </div>
-
 
                         <!-- Input jika memilih Lainnya -->
                         <div
                             id="otherSurfaceWrapper"
                             class="{{ old('jenis_permukaan') === 'Other' ? '' : 'hidden' }} mt-2"
                         >
-
                             <label
                                 for="otherSurface"
                                 class="block text-[10px] font-bold text-slate-700 mb-1"
@@ -542,9 +524,7 @@
                             >
                                 Silakan sebutkan jenis permukaan.
                             </p>
-
                         </div>
-
                     </div>
 
                 </div>
@@ -631,45 +611,34 @@
 
 
                     <!-- Hari Operasional (Dropdown Pilihan) -->
-                    <div class="space-y-1.5">
-
+                    <div class="space-y-1.5" id="openingDaysDropdownContainer">
                         <label for="openingDays" class="block font-bold text-slate-800">
                             Hari Operasional
                         </label>
-
-                        <div class="relative">
-
-                            <select
-                                id="openingDays"
-                                name="hari_buka"
-                                class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-10 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs"
-                            >
-                                <option value="Setiap Hari (Senin - Minggu)" @selected(old('hari_buka', 'Setiap Hari (Senin - Minggu)') === 'Setiap Hari (Senin - Minggu)')>
-                                    Setiap Hari (Senin - Minggu)
-                                </option>
-
-                                <option value="Senin - Sabtu (Minggu Libur)" @selected(old('hari_buka') === 'Senin - Sabtu (Minggu Libur)')>
-                                    Senin - Sabtu (Minggu Libur)
-                                </option>
-
-                                <option value="Senin - Jumat (Hari Kerja)" @selected(old('hari_buka') === 'Senin - Jumat (Hari Kerja)')>
-                                    Senin - Jumat (Hari Kerja Saja)
-                                </option>
-
-                                <option value="Selasa - Minggu (Senin Libur)" @selected(old('hari_buka') === 'Selasa - Minggu (Senin Libur)')>
-                                    Selasa - Minggu (Senin Libur)
-                                </option>
-
-                                <option value="Sabtu & Minggu (Weekend Saja)" @selected(old('hari_buka') === 'Sabtu & Minggu (Weekend Saja)')>
-                                    Sabtu & Minggu (Weekend Saja)
-                                </option>
+                        <div class="relative z-30">
+                            <select id="openingDays" name="hari_buka" class="sr-only">
+                                <option value="Setiap Hari (Senin - Minggu)" @selected(old('hari_buka', 'Setiap Hari (Senin - Minggu)') === 'Setiap Hari (Senin - Minggu)')>Setiap Hari (Senin - Minggu)</option>
+                                <option value="Senin - Sabtu (Minggu Libur)" @selected(old('hari_buka') === 'Senin - Sabtu (Minggu Libur)')>Senin - Sabtu (Minggu Libur)</option>
+                                <option value="Senin - Jumat (Hari Kerja)" @selected(old('hari_buka') === 'Senin - Jumat (Hari Kerja)')>Senin - Jumat (Hari Kerja Saja)</option>
+                                <option value="Selasa - Minggu (Senin Libur)" @selected(old('hari_buka') === 'Selasa - Minggu (Senin Libur)')>Selasa - Minggu (Senin Libur)</option>
+                                <option value="Sabtu & Minggu (Weekend Saja)" @selected(old('hari_buka') === 'Sabtu & Minggu (Weekend Saja)')>Sabtu & Minggu (Weekend Saja)</option>
                             </select>
 
-                            <i class="fa-regular fa-calendar-check absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="openingDaysTrigger"
+                                onclick="toggleDropdownMenu('openingDaysMenu', 'openingDaysArrow')"
+                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl pl-10 pr-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left relative"
+                            >
+                                <i class="fa-regular fa-calendar-check absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                                <span id="openingDaysSelected" class="text-xs font-bold text-slate-900 truncate">
+                                    {{ old('hari_buka', 'Setiap Hari (Senin - Minggu)') }}
+                                </span>
+                                <i id="openingDaysArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                            </button>
 
+                            <div id="openingDaysMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
                         </div>
-
                     </div>
 
 
@@ -1207,6 +1176,72 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleOtherSurface();
     }
 
+    // Generic Custom Select Dropdown Handler
+    function renderSelectDropdown(selectId, menuId, labelId, onSelectCallback = null) {
+        const select = document.getElementById(selectId);
+        const menu = document.getElementById(menuId);
+        const label = document.getElementById(labelId);
+        if (!select || !menu || !label) return;
+
+        menu.innerHTML = '';
+        Array.from(select.options).forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            const isSelected = String(select.value) === String(opt.value);
+            btn.className = `w-full px-4 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+                isSelected
+                    ? 'bg-[#EBF8D8] text-[#063B00] font-bold'
+                    : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
+            }`;
+            btn.innerHTML = `
+                <span class="truncate">${opt.textContent.trim()}</span>
+                ${isSelected ? '<i class="fa-solid fa-check text-[#063B00] text-xs shrink-0 ml-2"></i>' : ''}
+            `;
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                select.value = opt.value;
+                select.dispatchEvent(new Event('change'));
+                label.textContent = opt.textContent.trim();
+                renderSelectDropdown(selectId, menuId, labelId, onSelectCallback);
+                menu.classList.add('hidden');
+                const arrow = document.getElementById(menuId.replace('Menu', 'Arrow'));
+                if (arrow) arrow.classList.remove('rotate-180');
+                if (onSelectCallback) onSelectCallback(opt.value);
+            };
+            menu.appendChild(btn);
+        });
+
+        const activeOpt = select.options[select.selectedIndex] || select.options[0];
+        if (activeOpt) {
+            label.textContent = activeOpt.textContent.trim();
+        }
+    }
+
+    window.toggleDropdownMenu = function (menuId, arrowId) {
+        const menu = document.getElementById(menuId);
+        const arrow = document.getElementById(arrowId);
+        if (!menu) return;
+
+        ['jumlahCourtMenu', 'tipeArenaMenu', 'surfaceTypeMenu', 'openingDaysMenu'].forEach(id => {
+            if (id !== menuId) {
+                document.getElementById(id)?.classList.add('hidden');
+                const otherArrow = document.getElementById(id.replace('Menu', 'Arrow'));
+                if (otherArrow) otherArrow.classList.remove('rotate-180');
+            }
+        });
+
+        const isHidden = menu.classList.toggle('hidden');
+        if (arrow) {
+            arrow.classList.toggle('rotate-180', !isHidden);
+        }
+    };
+
+    // Initialize all section 2 & 3 custom select dropdowns
+    renderSelectDropdown('jumlahCourt', 'jumlahCourtMenu', 'jumlahCourtSelected');
+    renderSelectDropdown('tipeArena', 'tipeArenaMenu', 'tipeArenaSelected');
+    renderSelectDropdown('surfaceType', 'surfaceTypeMenu', 'surfaceTypeSelected', () => toggleOtherSurface());
+    renderSelectDropdown('openingDays', 'openingDaysMenu', 'openingDaysSelected');
+
     // =========================================================
     // KOTA / KABUPATEN SE-INDONESIA DROPDOWN & SEARCH
     // =========================================================
@@ -1373,6 +1408,22 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('click', function (e) {
         if (kotaWrapper && !kotaWrapper.contains(e.target)) {
             closeDropdown();
+        }
+        if (!e.target.closest('#jumlahCourtDropdownContainer')) {
+            document.getElementById('jumlahCourtMenu')?.classList.add('hidden');
+            document.getElementById('jumlahCourtArrow')?.classList.remove('rotate-180');
+        }
+        if (!e.target.closest('#tipeArenaDropdownContainer')) {
+            document.getElementById('tipeArenaMenu')?.classList.add('hidden');
+            document.getElementById('tipeArenaArrow')?.classList.remove('rotate-180');
+        }
+        if (!e.target.closest('#surfaceTypeDropdownContainer')) {
+            document.getElementById('surfaceTypeMenu')?.classList.add('hidden');
+            document.getElementById('surfaceTypeArrow')?.classList.remove('rotate-180');
+        }
+        if (!e.target.closest('#openingDaysDropdownContainer')) {
+            document.getElementById('openingDaysMenu')?.classList.add('hidden');
+            document.getElementById('openingDaysArrow')?.classList.remove('rotate-180');
         }
     });
 
@@ -1719,6 +1770,11 @@ document.addEventListener('DOMContentLoaded', function () {
             kotaSelected.textContent = 'Pilih Kota / Kabupaten';
             kotaSelected.classList.remove('text-slate-900', 'font-bold');
             kotaSelected.classList.add('text-slate-400');
+
+            renderSelectDropdown('jumlahCourt', 'jumlahCourtMenu', 'jumlahCourtSelected');
+            renderSelectDropdown('tipeArena', 'tipeArenaMenu', 'tipeArenaSelected');
+            renderSelectDropdown('surfaceType', 'surfaceTypeMenu', 'surfaceTypeSelected', () => toggleOtherSurface());
+            renderSelectDropdown('openingDays', 'openingDaysMenu', 'openingDaysSelected');
 
             clearAllFiles();
             toggleOtherSurface();
