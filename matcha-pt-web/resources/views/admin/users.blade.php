@@ -149,7 +149,7 @@
                         <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">Email</th>
                         <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">No. HP</th>
                         <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">Role</th>
-                        <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">Host</th>
+                        <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">Gender / Usia</th>
                         <th class="px-4 py-3 text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">Aksi</th>
                     </tr>
                 </thead>
@@ -190,10 +190,18 @@
                                     {{ $roleLabel }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3">
-                                @if(!in_array($user->role, ['admin', 'venue_owner']) && $user->is_host)
-                                    <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
-                                        <i class="fa-solid fa-circle-check text-emerald-500 text-xs"></i> Aktif
+                            <td class="px-4 py-3 text-slate-600 whitespace-nowrap">
+                                @if($user->player && ($user->player->gender || $user->player->usia))
+                                    @php
+                                        $genderText = match(strtolower($user->player->gender ?? '')) {
+                                            'male', 'laki-laki', 'l' => 'L',
+                                            'female', 'perempuan', 'p' => 'P',
+                                            default => $user->player->gender ?: '-',
+                                        };
+                                        $usiaText = $user->player->usia ? $user->player->usia . ' thn' : null;
+                                    @endphp
+                                    <span>
+                                        {{ $genderText }}{{ $usiaText ? ' / ' . $usiaText : '' }}
                                     </span>
                                 @else
                                     <span class="text-slate-400">—</span>
