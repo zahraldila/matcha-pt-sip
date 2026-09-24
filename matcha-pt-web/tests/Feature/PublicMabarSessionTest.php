@@ -434,9 +434,60 @@ class PublicMabarSessionTest extends TestCase
             ->get('/games/'.$session->session_id)
             ->assertDontSee('Hapus Jadwal Mabar');
 
-        // 4. Admin platform melihat tombol Hapus
+        // 4. Admin platform melihat tombol Hapus jika sesi belum mulai
         $this->actingAs($admin)
             ->get('/games/'.$session->session_id)
             ->assertSee('Hapus Jadwal Mabar');
+    }
+
+    public function test_admin_cannot_delete_started_or_finished_session(): void
+    {
+        $admin = User::create([
+            'nama' => 'Admin抹茶',
+            'email' => 'adminmatcha_started@matcha.test',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+        ]);
+
+        // Sesi yang sedang berjalan
+        $ongoingSession = $this->createValidSession('Sesi Berjalan');
+        $ongoingSession->update(['status_session' => 'In Progress']);
+
+        $responseOngoing = $this->actingAs($admin)->delete('/games/'.$ongoingSession->session_id);
+        $responseOngoing->assertRedirect(route('games.show', $ongoingSession->session_id));
+        $responseOngoing->assertSessionHas('error');
+        $this->assertDatabaseHas('tb_session', ['session_id' => $ongoingSession->session_id]);
+
+        // Sesi yang sudah selesai
+        $finishedSession = $this->createValidSession('Sesi Selesai');
+        $finishedSession->update(['status_session' => 'Finished']);
+
+        $responseFinished = $this->actingAs($admin)->delete('/games/'.$finishedSession->session_id);
+        $responseFinished->assertRedirect(route('games.show', $finishedSession->session_id));
+        $responseFinished->assertSessionHas('error');
+        $this->assertDatabaseHas('tb_session', ['session_id' => $finishedSession->session_id]);
+    }
+
+    public function test_admin_does_not_see_podium_button_on_finished_session(): void
+    {
+        $admin = User::create([
+            'nama' => 'Admin抹茶',
+            'email' => 'adminpodium@matcha.test',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+        ]);
+
+        $finishedSession = $this->createValidSession('Sesi Selesai Mabar');
+        $finishedSession->update(['status_session' => 'Finished']);
+
+        // Pada halaman show, admin tidak melihat tombol Buka Hasil Akhir & Podium
+        $this->actingAs($admin)
+            ->get('/games/'.$finishedSession->session_id)
+            ->assertDontSee('Buka Hasil Akhir & Podium');
+
+        // Pada halaman show, admin juga tidak melihat tombol Hapus karena sesi sudah selesai
+        $this->actingAs($admin)
+            ->get('/games/'.$finishedSession->session_id)
+            ->assertDontSee('Hapus Jadwal Mabar');
     }
 }
