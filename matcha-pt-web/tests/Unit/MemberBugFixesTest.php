@@ -28,6 +28,7 @@ class MemberBugFixesTest extends TestCase
             'level' => 'Beginner',
         ]);
         $player->player_id = 999999;
+        $player->setRelation('user', $user);
 
         $recap = PlayerController::calculateRealPlayerRecap($user, $player);
 

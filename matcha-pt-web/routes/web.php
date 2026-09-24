@@ -37,6 +37,7 @@ Route::prefix('games')->name('games.')->group(function () {
         Route::get('/schedule', [GameController::class, 'createSchedule'])->name('schedule');
         Route::post('/schedule', [GameController::class, 'storeSchedule'])->name('schedule.post');
         Route::post('/{id}/cancel', [GameController::class, 'cancelSession'])->whereNumber('id')->name('cancel');
+        Route::delete('/bulk-destroy', [GameController::class, 'bulkDestroy'])->name('bulkDestroy');
     });
 });
 
@@ -60,6 +61,7 @@ Route::prefix('venues')->name('venues.')->group(function () {
         Route::post('/{id}/courts', [CourtController::class, 'store'])->whereNumber('id')->name('courts.store');  // [SMK 2] Simpan court baru ke DB
         Route::put('/{id}/courts/{courtId}', [CourtController::class, 'update'])->whereNumber(['id', 'courtId'])->name('courts.update'); // Update court
         Route::delete('/{id}/courts/{courtId}', [CourtController::class, 'destroy'])->whereNumber(['id', 'courtId'])->name('courts.destroy'); // Hapus court
+        Route::delete('/bulk-destroy', [VenueController::class, 'bulkDestroy'])->name('bulkDestroy'); // Bulk hapus venue
     });
 });
 
@@ -100,6 +102,7 @@ Route::prefix('communities')->name('communities.')->group(function () {
         Route::delete('/{id}', [CommunityController::class, 'destroy'])->whereNumber('id')->name('destroy'); // Nonaktif / Hapus komunitas
         Route::post('/{id}/join', [CommunityController::class, 'join'])->whereNumber('id')->name('join');   // [SMK 3] Join komunitas
         Route::post('/{id}/leave', [CommunityController::class, 'leave'])->whereNumber('id')->name('leave'); // [SMK 3] Leave komunitas
+        Route::delete('/bulk-destroy', [CommunityController::class, 'bulkDestroy'])->name('bulkDestroy'); // Bulk hapus komunitas
     });
 });
 

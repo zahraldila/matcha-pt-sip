@@ -519,4 +519,35 @@ class CommunityController extends Controller
         return redirect()->route('communities.index')
             ->with('success', "Komunitas \"{$community->nama_community}\" berhasil dihapus.");
     }
+    public function bulkDestroy(Request $request)
+    {
+        if (!Auth::check() || Auth::user()->role !== 'admin') {
+            abort(403, 'Akses ditolak: Hanya Admin yang dapat melakukan hapus massal.');
+        }
+
+        $ids = $request->input('selected_ids', []);
+        
+        if (empty($ids)) {
+            return back()->with('error', 'Tidak ada komunitas yang dipilih untuk dihapus.');
+        }
+
+        try {
+            DB::beginTransaction();
+            foreach ($ids as $id) {
+                $community = Community::find($id);
+                if ($community) {
+                    if ($community->players()->exists()) {
+                        $community->update(['status_keanggotaan' => 'Inactive']);
+                    } else {
+                        $community->delete();
+                    }
+                }
+            }
+            DB::commit();
+            return back()->with('success', count($ids) . ' komunitas berhasil diproses.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menghapus komunitas: ' . $e->getMessage());
+        }
+    }
 }
