@@ -338,23 +338,64 @@
                 </div>
 
                 <!-- Role -->
-                <div class="space-y-1.5">
+                <div class="space-y-1.5 relative" id="wrapper_editUserRole">
                     <label class="block font-bold text-slate-800">
                         Role Akun <span class="text-rose-500">*</span>
                     </label>
+                    <input type="hidden" id="editUserRole" name="role" value="member">
                     <div class="relative">
-                        <select
-                            id="editUserRole"
-                            name="role"
-                            required
-                            class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-xl px-3.5 py-2.5 pr-8 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-xs"
+                        <button
+                            type="button"
+                            id="editUserRoleTrigger"
+                            onclick="toggleEditRoleDropdown(event)"
+                            class="w-full bg-slate-50/70 border border-slate-200/80 rounded-xl px-3.5 py-2.5 pr-8 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-xs text-left flex items-center justify-between cursor-pointer"
                         >
-                            <option value="member">Member</option>
-                            <option value="host">Host</option>
-                            <option value="venue_owner">Venue Owner</option>
-                            <option value="admin">Administrator</option>
-                        </select>
-                        <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
+                            <span id="editUserRoleDisplay" class="truncate font-semibold">Member</span>
+                            <i id="editUserRoleChevron" class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                        </button>
+
+                        <div
+                            id="editUserRoleMenu"
+                            class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                            onclick="event.stopPropagation()"
+                        >
+                            <button
+                                type="button"
+                                onclick="selectEditRole('member', 'Member')"
+                                class="edit-role-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer text-slate-700 hover:bg-slate-100"
+                                data-role="member"
+                            >
+                                <span>Member</span>
+                                <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 hidden"></i>
+                            </button>
+                            <button
+                                type="button"
+                                onclick="selectEditRole('host', 'Host')"
+                                class="edit-role-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer text-slate-700 hover:bg-slate-100"
+                                data-role="host"
+                            >
+                                <span>Host</span>
+                                <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 hidden"></i>
+                            </button>
+                            <button
+                                type="button"
+                                onclick="selectEditRole('venue_owner', 'Venue Owner')"
+                                class="edit-role-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer text-slate-700 hover:bg-slate-100"
+                                data-role="venue_owner"
+                            >
+                                <span>Venue Owner</span>
+                                <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 hidden"></i>
+                            </button>
+                            <button
+                                type="button"
+                                onclick="selectEditRole('admin', 'Administrator')"
+                                class="edit-role-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer text-slate-700 hover:bg-slate-100"
+                                data-role="admin"
+                            >
+                                <span>Administrator</span>
+                                <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 hidden"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -429,6 +470,56 @@
 </div>
 
 <script>
+    const roleLabels = {
+        'member': 'Member',
+        'host': 'Host',
+        'venue_owner': 'Venue Owner',
+        'admin': 'Administrator'
+    };
+
+    function toggleEditRoleDropdown(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('editUserRoleMenu');
+        const chevron = document.getElementById('editUserRoleChevron');
+        if (!menu) return;
+
+        const isHidden = menu.classList.contains('hidden');
+        if (isHidden) {
+            menu.classList.remove('hidden');
+            if (chevron) chevron.classList.add('rotate-180');
+        } else {
+            closeEditRoleDropdown();
+        }
+    }
+
+    function closeEditRoleDropdown() {
+        const menu = document.getElementById('editUserRoleMenu');
+        const chevron = document.getElementById('editUserRoleChevron');
+        if (menu) menu.classList.add('hidden');
+        if (chevron) chevron.classList.remove('rotate-180');
+    }
+
+    function selectEditRole(role, label) {
+        const input = document.getElementById('editUserRole');
+        const display = document.getElementById('editUserRoleDisplay');
+        if (input) input.value = role;
+        if (display) display.textContent = label || roleLabels[role] || role;
+
+        document.querySelectorAll('.edit-role-item-btn').forEach(btn => {
+            const isMatch = btn.getAttribute('data-role') === role;
+            const icon = btn.querySelector('.fa-circle-check');
+            if (isMatch) {
+                btn.className = 'edit-role-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/15';
+                if (icon) icon.classList.remove('hidden');
+            } else {
+                btn.className = 'edit-role-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer text-slate-700 hover:bg-slate-100 hover:text-slate-900';
+                if (icon) icon.classList.add('hidden');
+            }
+        });
+
+        closeEditRoleDropdown();
+    }
+
     function openEditUserModal(user) {
         const modal = document.getElementById('editUserModal');
         const form = document.getElementById('editUserForm');
@@ -437,8 +528,11 @@
         document.getElementById('editUserName').value = user.nama || '';
         document.getElementById('editUserEmail').value = user.email || '';
         document.getElementById('editUserNoHp').value = user.no_hp || '';
-        document.getElementById('editUserRole').value = user.role || 'member';
         document.getElementById('editUserPassword').value = '';
+
+        const currentRole = user.role || 'member';
+        selectEditRole(currentRole, roleLabels[currentRole] || 'Member');
+        closeEditRoleDropdown();
 
         if (modal) {
             modal.style.display = 'flex';
@@ -447,6 +541,7 @@
 
     function closeEditUserModal() {
         const modal = document.getElementById('editUserModal');
+        closeEditRoleDropdown();
         if (modal) {
             modal.style.display = 'none';
         }
@@ -473,5 +568,20 @@
             modal.style.display = 'none';
         }
     }
+
+    // Close on click outside & Escape key
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('editUserRoleMenu');
+        const trigger = document.getElementById('editUserRoleTrigger');
+        if (menu && !menu.classList.contains('hidden') && !menu.contains(e.target) && !trigger.contains(e.target)) {
+            closeEditRoleDropdown();
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeEditRoleDropdown();
+        }
+    });
 </script>
 @endsection

@@ -138,7 +138,7 @@
         color: #ffffff !important;
     }
 </style>
-<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-28 md:pb-12 space-y-6">
 
     <!-- Header Section -->
     <div class="flex items-center justify-between pb-4 border-b border-slate-200/60 relative z-10">
@@ -245,28 +245,73 @@
                 </div>
 
                 <!-- Sistem Skor Dropdown -->
-                <div class="space-y-1.5 pt-1">
+                <div class="space-y-1.5 pt-1 relative" id="wrapper_scoringSystem">
                     <label class="block font-bold text-slate-800 flex items-center justify-between">
                         <span>Sistem Skor Pertandingan</span>
                         <span class="text-[10px] text-slate-400 font-normal">Pilih sistem poin yang digunakan</span>
                     </label>
+                    @php
+                        $currScoring = old('scoring_system', 'Total of 3');
+                        $scoringLabels = [
+                            'Total of 3' => 'Total of 3 Poin',
+                            'Total of 4' => 'Total of 4 Poin',
+                            'Total of 5' => 'Total of 5 Poin',
+                            'Total of 6' => 'Total of 6 Poin',
+                            'Total of 7' => 'Total of 7 Poin',
+                            'First to 8' => 'First to 8 Poin (Tuntas)',
+                            'First to 11' => 'First to 11 Poin (Tuntas)',
+                            'First to 15' => 'First to 15 Poin (Tuntas)',
+                            'First to 21' => 'First to 21 Poin (Tuntas)',
+                        ];
+                        $currScoringLabel = $scoringLabels[$currScoring] ?? 'Total of 3 Poin';
+                    @endphp
+                    <input type="hidden" name="scoring_system" id="scoringSystemInput" value="{{ $currScoring }}">
                     <div class="relative">
-                        <select name="scoring_system" id="scoringSystemSelect" onchange="onFormatOrScoringChanged()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                            <optgroup label="Sistem Rotasi Poin (Total of X)">
-                                <option value="Total of 3" selected>Total of 3 Poin</option>
-                                <option value="Total of 4">Total of 4 Poin</option>
-                                <option value="Total of 5">Total of 5 Poin</option>
-                                <option value="Total of 6">Total of 6 Poin</option>
-                                <option value="Total of 7">Total of 7 Poin</option>
-                            </optgroup>
-                            <optgroup label="Sistem Langsung Tuntas (First to X)">
-                                <option value="First to 8">First to 8 Poin (Tuntas)</option>
-                                <option value="First to 11">First to 11 Poin (Tuntas)</option>
-                                <option value="First to 15">First to 15 Poin (Tuntas)</option>
-                                <option value="First to 21">First to 21 Poin (Tuntas)</option>
-                            </optgroup>
-                        </select>
-                        <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                        <button
+                            type="button"
+                            id="scoringSystemTrigger"
+                            onclick="toggleScheduleDropdown('scoringSystem', event)"
+                            class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                        >
+                            <span id="scoringSystemDisplay" class="truncate font-semibold">{{ $currScoringLabel }}</span>
+                            <i id="scoringSystemChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                        </button>
+
+                        <div
+                            id="scoringSystemMenu"
+                            class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-64 overflow-y-auto"
+                            onclick="event.stopPropagation()"
+                        >
+                            <div class="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
+                                Sistem Rotasi Poin (Total of X)
+                            </div>
+                            @foreach(['Total of 3' => 'Total of 3 Poin', 'Total of 4' => 'Total of 4 Poin', 'Total of 5' => 'Total of 5 Poin', 'Total of 6' => 'Total of 6 Poin', 'Total of 7' => 'Total of 7 Poin'] as $sVal => $sLabel)
+                                <button
+                                    type="button"
+                                    onclick="selectScheduleOption('scoringSystem', '{{ $sVal }}', '{{ $sLabel }}', onFormatOrScoringChanged)"
+                                    class="scoringSystem-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $currScoring === $sVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                    data-val="{{ $sVal }}"
+                                >
+                                    <span>{{ $sLabel }}</span>
+                                    <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currScoring === $sVal ? '' : 'hidden' }}"></i>
+                                </button>
+                            @endforeach
+
+                            <div class="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mt-2 mb-1">
+                                Sistem Langsung Tuntas (First to X)
+                            </div>
+                            @foreach(['First to 8' => 'First to 8 Poin (Tuntas)', 'First to 11' => 'First to 11 Poin (Tuntas)', 'First to 15' => 'First to 15 Poin (Tuntas)', 'First to 21' => 'First to 21 Poin (Tuntas)'] as $sVal => $sLabel)
+                                <button
+                                    type="button"
+                                    onclick="selectScheduleOption('scoringSystem', '{{ $sVal }}', '{{ $sLabel }}', onFormatOrScoringChanged)"
+                                    class="scoringSystem-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $currScoring === $sVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                    data-val="{{ $sVal }}"
+                                >
+                                    <span>{{ $sLabel }}</span>
+                                    <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currScoring === $sVal ? '' : 'hidden' }}"></i>
+                                </button>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
             </div>
@@ -303,23 +348,51 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div class="space-y-1.5 min-w-0">
-                        <label class="block font-bold text-slate-800 truncate">Pilih Venue / Tempat</label>
+                    <div class="space-y-1.5 min-w-0 relative" id="wrapper_venue">
+                        <label class="block font-bold text-slate-800 truncate">Pilih Venue / Tempat <span class="text-rose-500">*</span></label>
+                        <input type="hidden" name="venue_id" id="venueIdInput" value="{{ old('venue_id') }}" required>
                         <div class="relative min-w-0">
-                            <select name="venue_id" id="venueSelect" onchange="updateCourtsDropdown()" class="w-full min-w-0 bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 pr-8 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs truncate overflow-hidden" required>
-                                <option value="" disabled selected>Pilih venue sesuai olahraga</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="venueTrigger"
+                                onclick="toggleScheduleDropdown('venue', event)"
+                                class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                            >
+                                <span id="venueDisplay" class="truncate font-semibold text-slate-400">Pilih venue sesuai olahraga</span>
+                                <i id="venueChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <div
+                                id="venueMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto"
+                                onclick="event.stopPropagation()"
+                            >
+                                <!-- Populated dynamically via filterCourtsBySport() -->
+                            </div>
                         </div>
                     </div>
 
-                    <div class="space-y-1.5 min-w-0">
-                        <label class="block font-bold text-slate-800 truncate">Pilih Court / Lapangan</label>
+                    <div class="space-y-1.5 min-w-0 relative" id="wrapper_court">
+                        <label class="block font-bold text-slate-800 truncate">Pilih Court / Lapangan <span class="text-rose-500">*</span></label>
+                        <input type="hidden" name="court_id" id="courtIdInput" value="{{ old('court_id') }}" required>
                         <div class="relative min-w-0">
-                            <select name="court_id" id="courtSelect" class="w-full min-w-0 bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 pr-8 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs truncate overflow-hidden" required>
-                                <option value="" disabled selected>Pilih court</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="courtTrigger"
+                                onclick="toggleScheduleDropdown('court', event)"
+                                class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                            >
+                                <span id="courtDisplay" class="truncate font-semibold text-slate-400">Pilih court</span>
+                                <i id="courtChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <div
+                                id="courtMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto"
+                                onclick="event.stopPropagation()"
+                            >
+                                <!-- Populated dynamically via updateCourtsDropdown() -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -381,17 +454,40 @@
                         <p id="jamErrorNotice" class="text-[10px] text-rose-600 font-bold hidden"></p>
                     </div>
 
-                    <div class="space-y-1.5">
-                        <label class="block font-bold text-slate-800">Durasi</label>
+                    <div class="space-y-1.5 relative" id="wrapper_durasi">
+                        <label class="block font-bold text-slate-800">Durasi <span class="text-rose-500">*</span></label>
+                        @php
+                            $currDurasi = old('durasi', '2 Jam');
+                        @endphp
+                        <input type="hidden" name="durasi" id="durasiInput" value="{{ $currDurasi }}" required>
                         <div class="relative">
-                            <select name="durasi" id="durasiSelect" onchange="onDurasiChanged()" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs" required>
-                                <option value="" disabled selected>Pilih Durasi</option>
-                                <option value="1 Jam">1 Jam</option>
-                                <option value="2 Jam">2 Jam</option>
-                                <option value="3 Jam">3 Jam</option>
-                                <option value="4 Jam">4 Jam</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="durasiTrigger"
+                                onclick="toggleScheduleDropdown('durasi', event)"
+                                class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                            >
+                                <span id="durasiDisplay" class="truncate font-semibold">{{ $currDurasi }}</span>
+                                <i id="durasiChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <div
+                                id="durasiMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                onclick="event.stopPropagation()"
+                            >
+                                @foreach(['1 Jam', '2 Jam', '3 Jam', '4 Jam'] as $dOpt)
+                                    <button
+                                        type="button"
+                                        onclick="selectScheduleOption('durasi', '{{ $dOpt }}', '{{ $dOpt }}', onDurasiChanged)"
+                                        class="durasi-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $currDurasi === $dOpt ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                        data-val="{{ $dOpt }}"
+                                    >
+                                        <span>{{ $dOpt }}</span>
+                                        <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currDurasi === $dOpt ? '' : 'hidden' }}"></i>
+                                    </button>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -422,13 +518,27 @@
                     </div>
 
                     <!-- Kuota Maksimal Pemain -->
-                    <div class="space-y-1.5">
-                        <label class="block font-bold text-slate-800">Kuota Maksimal Pemain</label>
+                    <div class="space-y-1.5 relative" id="wrapper_jumlahPemain">
+                        <label class="block font-bold text-slate-800">Kuota Maksimal Pemain <span class="text-rose-500">*</span></label>
+                        <input type="hidden" name="jumlah_pemain" id="jumlahPemainInput" value="{{ old('jumlah_pemain') }}" required>
                         <div class="relative">
-                            <select name="jumlah_pemain" id="jumlahPemainSelect" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs" required>
-                                <option value="" disabled selected>Pilih Kuota Pemain</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="jumlahPemainTrigger"
+                                onclick="toggleScheduleDropdown('jumlahPemain', event)"
+                                class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                            >
+                                <span id="jumlahPemainDisplay" class="truncate font-semibold text-slate-400">Pilih Kuota Pemain</span>
+                                <i id="jumlahPemainChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <div
+                                id="jumlahPemainMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto"
+                                onclick="event.stopPropagation()"
+                            >
+                                <!-- Populated dynamically via onFormatOrScoringChanged() -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -440,16 +550,47 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-                    <div class="space-y-1.5">
+                    <div class="space-y-1.5 relative" id="wrapper_levelRekomendasi">
                         <label class="block font-bold text-slate-800">Rekomendasi Level</label>
+                        @php
+                            $currLevelRek = old('level_rekomendasi', 'All Level');
+                            $levelRekMap = [
+                                'All Level' => 'All Level Welcome (Bebas Semua Level)',
+                                'Newbie - Beginner' => 'Newbie & Beginner Only',
+                                'Intermediate' => 'Intermediate Only',
+                                'Advanced' => 'Advanced / Competitive Only',
+                            ];
+                            $currLevelRekLabel = $levelRekMap[$currLevelRek] ?? 'All Level Welcome (Bebas Semua Level)';
+                        @endphp
+                        <input type="hidden" name="level_rekomendasi" id="levelRekomendasiInput" value="{{ $currLevelRek }}">
                         <div class="relative">
-                            <select name="level_rekomendasi" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                                <option value="All Level">All Level Welcome (Bebas Semua Level)</option>
-                                <option value="Newbie - Beginner">Newbie &amp; Beginner Only</option>
-                                <option value="Intermediate">Intermediate Only</option>
-                                <option value="Advanced">Advanced / Competitive Only</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="levelRekomendasiTrigger"
+                                onclick="toggleScheduleDropdown('levelRekomendasi', event)"
+                                class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                            >
+                                <span id="levelRekomendasiDisplay" class="truncate font-semibold">{{ $currLevelRekLabel }}</span>
+                                <i id="levelRekomendasiChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <div
+                                id="levelRekomendasiMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                onclick="event.stopPropagation()"
+                            >
+                                @foreach($levelRekMap as $lVal => $lLabel)
+                                    <button
+                                        type="button"
+                                        onclick="selectScheduleOption('levelRekomendasi', '{{ $lVal }}', '{{ $lLabel }}')"
+                                        class="levelRekomendasi-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $currLevelRek === $lVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                        data-val="{{ $lVal }}"
+                                    >
+                                        <span class="truncate pr-2">{{ $lLabel }}</span>
+                                        <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currLevelRek === $lVal ? '' : 'hidden' }}"></i>
+                                    </button>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -526,41 +667,75 @@
 
             <!-- Cabang Olahraga & Jumlah Court -->
             <div class="grid grid-cols-2 gap-2.5">
-                <div>
+                <div class="relative" id="wrapper_quickVenueSport">
                     <label class="block text-[11px] font-bold text-slate-700 mb-1">
                         Cabang Olahraga <span class="text-rose-500">*</span>
                     </label>
+                    <input type="hidden" id="quickVenueSport" value="Padel">
                     <div class="relative">
-                        <select
-                            id="quickVenueSport"
-                            required
-                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none appearance-none cursor-pointer"
+                        <button
+                            type="button"
+                            id="quickVenueSportTrigger"
+                            onclick="toggleScheduleDropdown('quickVenueSport', event)"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors text-left flex items-center justify-between cursor-pointer"
                         >
-                            <option value="Padel">Padel</option>
-                            <option value="Tennis">Tennis</option>
-                        </select>
-                        <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <span id="quickVenueSportDisplay" class="truncate font-semibold">Padel</span>
+                            <i id="quickVenueSportChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                        </button>
+
+                        <div
+                            id="quickVenueSportMenu"
+                            class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-xl shadow-xl p-1 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                            onclick="event.stopPropagation()"
+                        >
+                            @foreach(['Padel', 'Tennis'] as $sName)
+                                <button
+                                    type="button"
+                                    onclick="selectScheduleOption('quickVenueSport', '{{ $sName }}', '{{ $sName }}')"
+                                    class="quickVenueSport-item-btn w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $sName === 'Padel' ? 'bg-[#EBF8D8] text-[#063B00] font-bold' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                    data-val="{{ $sName }}"
+                                >
+                                    <span>{{ $sName }}</span>
+                                    <i class="fa-solid fa-circle-check text-[#063B00] text-xs shrink-0 {{ $sName === 'Padel' ? '' : 'hidden' }}"></i>
+                                </button>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
 
-                <div>
+                <div class="relative" id="wrapper_quickVenueCourtCount">
                     <label class="block text-[11px] font-bold text-slate-700 mb-1">
                         Jumlah Lapangan <span class="text-rose-500">*</span>
                     </label>
+                    <input type="hidden" id="quickVenueCourtCount" value="2">
                     <div class="relative">
-                        <select
-                            id="quickVenueCourtCount"
-                            required
-                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none appearance-none cursor-pointer"
+                        <button
+                            type="button"
+                            id="quickVenueCourtCountTrigger"
+                            onclick="toggleScheduleDropdown('quickVenueCourtCount', event)"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors text-left flex items-center justify-between cursor-pointer"
                         >
-                            <option value="1">1 Court</option>
-                            <option value="2" selected>2 Court</option>
-                            <option value="3">3 Court</option>
-                            <option value="4">4 Court</option>
-                            <option value="6">6 Court</option>
-                            <option value="8">8 Court</option>
-                        </select>
-                        <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            <span id="quickVenueCourtCountDisplay" class="truncate font-semibold">2 Court</span>
+                            <i id="quickVenueCourtCountChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                        </button>
+
+                        <div
+                            id="quickVenueCourtCountMenu"
+                            class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-xl shadow-xl p-1 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-48 overflow-y-auto"
+                            onclick="event.stopPropagation()"
+                        >
+                            @foreach([1 => '1 Court', 2 => '2 Court', 3 => '3 Court', 4 => '4 Court', 6 => '6 Court', 8 => '8 Court'] as $cCount => $cLabel)
+                                <button
+                                    type="button"
+                                    onclick="selectScheduleOption('quickVenueCourtCount', '{{ $cCount }}', '{{ $cLabel }}')"
+                                    class="quickVenueCourtCount-item-btn w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $cCount == 2 ? 'bg-[#EBF8D8] text-[#063B00] font-bold' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                    data-val="{{ $cCount }}"
+                                >
+                                    <span>{{ $cLabel }}</span>
+                                    <i class="fa-solid fa-circle-check text-[#063B00] text-xs shrink-0 {{ $cCount == 2 ? '' : 'hidden' }}"></i>
+                                </button>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
             </div>
@@ -739,22 +914,89 @@
     let venuesData = @json($venues);
     let currentSportId = parseInt(document.querySelector('input[name="sport_id"]:checked')?.value || 1);
 
+    // =========================================================================
+    // Schedule Custom Dropdown System
+    // =========================================================================
+    const scheduleDropdownIds = [
+        'scoringSystem',
+        'venue',
+        'court',
+        'durasi',
+        'jumlahPemain',
+        'levelRekomendasi',
+        'quickVenueSport',
+        'quickVenueCourtCount'
+    ];
+
+    function closeScheduleDropdowns() {
+        scheduleDropdownIds.forEach(id => {
+            const menu = document.getElementById(id + 'Menu');
+            const chevron = document.getElementById(id + 'Chevron');
+            const wrapper = document.getElementById('wrapper_' + id);
+            if (menu) menu.classList.add('hidden');
+            if (chevron) chevron.classList.remove('rotate-180');
+            if (wrapper) wrapper.style.zIndex = '';
+        });
+    }
+
+    function toggleScheduleDropdown(id, e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById(id + 'Menu');
+        const chevron = document.getElementById(id + 'Chevron');
+        const wrapper = document.getElementById('wrapper_' + id);
+        if (!menu) return;
+
+        const isClosed = menu.classList.contains('hidden');
+        closeScheduleDropdowns();
+
+        if (isClosed) {
+            menu.classList.remove('hidden');
+            if (chevron) chevron.classList.add('rotate-180');
+            if (wrapper) wrapper.style.zIndex = '40';
+        }
+    }
+
+    function selectScheduleOption(fieldId, value, label, callback) {
+        const input = document.getElementById(fieldId + 'Input') || document.getElementById(fieldId);
+        const display = document.getElementById(fieldId + 'Display');
+        const trigger = document.getElementById(fieldId + 'Trigger');
+
+        if (input) input.value = value;
+        if (display) {
+            display.textContent = label;
+            display.classList.remove('text-slate-400');
+            display.classList.add('text-slate-900');
+        }
+        if (trigger) {
+            trigger.classList.remove('border-rose-400', 'bg-rose-50/50');
+        }
+
+        document.querySelectorAll('.' + fieldId + '-item-btn').forEach(btn => {
+            const isMatch = btn.getAttribute('data-val') === String(value);
+            const icon = btn.querySelector('.fa-circle-check');
+            if (isMatch) {
+                btn.className = fieldId + '-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/15';
+                if (icon) icon.classList.remove('hidden');
+            } else {
+                btn.className = fieldId + '-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer text-slate-700 hover:bg-slate-100 hover:text-slate-900';
+                if (icon) icon.classList.add('hidden');
+            }
+        });
+
+        closeScheduleDropdowns();
+        if (typeof callback === 'function') {
+            callback();
+        }
+    }
+
     function filterCourtsBySport(sportId, preserveVenueId = null) {
         currentSportId = parseInt(sportId);
-        const venueSelect = document.getElementById('venueSelect');
-        if (!venueSelect) return;
+        const venueMenu = document.getElementById('venueMenu');
+        const venueDisplay = document.getElementById('venueDisplay');
+        const venueInput = document.getElementById('venueIdInput');
+        if (!venueMenu || !venueInput) return;
 
-        venueSelect.innerHTML = '';
-
-        // Placeholder default kosong
-        const placeholderOpt = document.createElement('option');
-        placeholderOpt.value = '';
-        placeholderOpt.disabled = true;
-        placeholderOpt.innerText = 'Pilih venue sesuai olahraga';
-        if (!preserveVenueId) {
-            placeholderOpt.selected = true;
-        }
-        venueSelect.appendChild(placeholderOpt);
+        venueMenu.innerHTML = '';
 
         // Filter venues having courts for this sport with status Available
         const matchingVenues = venuesData.filter(v => {
@@ -763,25 +1005,67 @@
         });
 
         if (matchingVenues.length === 0) {
-            placeholderOpt.innerText = 'Tidak ada venue dengan lapangan tersedia untuk cabang olahraga ini';
+            venueInput.value = '';
+            if (venueDisplay) {
+                venueDisplay.textContent = 'Tidak ada venue tersedia untuk cabang olahraga ini';
+                venueDisplay.classList.add('text-slate-400');
+                venueDisplay.classList.remove('text-slate-900');
+            }
+            venueMenu.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 font-medium">Tidak ada venue dengan lapangan tersedia</div>';
             updateCourtsDropdown();
             return;
         }
 
+        let selectedVenueObj = null;
+        if (preserveVenueId) {
+            selectedVenueObj = matchingVenues.find(v => parseInt(v.venue_id) === parseInt(preserveVenueId));
+        }
+        if (!selectedVenueObj && venueInput.value) {
+            selectedVenueObj = matchingVenues.find(v => parseInt(v.venue_id) === parseInt(venueInput.value));
+        }
+
         matchingVenues.forEach(v => {
             const availableCount = v.courts.filter(c => parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available').length;
-            const opt = document.createElement('option');
-            opt.value = v.venue_id;
             const maxNameLen = 35;
             const truncatedName = v.nama_venue && v.nama_venue.length > maxNameLen ? v.nama_venue.substring(0, maxNameLen) + '...' : v.nama_venue;
             const label = `${truncatedName} (${availableCount} Court Tersedia)`;
-            opt.innerText = label;
-            opt.title = `${v.nama_venue} (${availableCount} Court Tersedia)`;
-            if (preserveVenueId && parseInt(v.venue_id) === parseInt(preserveVenueId)) {
-                opt.selected = true;
-            }
-            venueSelect.appendChild(opt);
+
+            const isSelected = selectedVenueObj && parseInt(selectedVenueObj.venue_id) === parseInt(v.venue_id);
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `venue-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer ${isSelected ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}`;
+            btn.setAttribute('data-val', v.venue_id);
+            btn.title = `${v.nama_venue} (${availableCount} Court Tersedia)`;
+            btn.innerHTML = `<span class="truncate pr-2">${label}</span><i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 ${isSelected ? '' : 'hidden'}"></i>`;
+            btn.onclick = () => {
+                selectScheduleOption('venue', v.venue_id, label, () => {
+                    updateCourtsDropdown();
+                    onTanggalChanged();
+                });
+            };
+            venueMenu.appendChild(btn);
         });
+
+        if (selectedVenueObj) {
+            const availableCount = selectedVenueObj.courts.filter(c => parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available').length;
+            const maxNameLen = 35;
+            const truncatedName = selectedVenueObj.nama_venue && selectedVenueObj.nama_venue.length > maxNameLen ? selectedVenueObj.nama_venue.substring(0, maxNameLen) + '...' : selectedVenueObj.nama_venue;
+            const label = `${truncatedName} (${availableCount} Court Tersedia)`;
+            venueInput.value = selectedVenueObj.venue_id;
+            if (venueDisplay) {
+                venueDisplay.textContent = label;
+                venueDisplay.classList.remove('text-slate-400');
+                venueDisplay.classList.add('text-slate-900');
+            }
+        } else {
+            venueInput.value = '';
+            if (venueDisplay) {
+                venueDisplay.textContent = 'Pilih venue sesuai olahraga';
+                venueDisplay.classList.add('text-slate-400');
+                venueDisplay.classList.remove('text-slate-900');
+            }
+        }
 
         updateCourtsDropdown();
     }
@@ -909,9 +1193,9 @@
             monthSelectorType: "static",
             disable: [
                 function(date) {
-                    const venueSelect = document.getElementById('venueSelect');
-                    if (!venueSelect || !venueSelect.value) return false;
-                    const venueId = parseInt(venueSelect.value);
+                    const venueInput = document.getElementById('venueIdInput');
+                    if (!venueInput || !venueInput.value) return false;
+                    const venueId = parseInt(venueInput.value);
                     const selectedVenue = venuesData.find(v => v.venue_id === venueId);
                     return isDateDisabledForVenue(date, selectedVenue);
                 }
@@ -1153,9 +1437,9 @@
             if (tanggalError) tanggalError.classList.add('hidden');
         }
 
-        const venueSelect = document.getElementById('venueSelect');
-        if (venueSelect && venueSelect.value) {
-            const venueId = parseInt(venueSelect.value);
+        const venueInput = document.getElementById('venueIdInput');
+        if (venueInput && venueInput.value) {
+            const venueId = parseInt(venueInput.value);
             const selectedVenue = venuesData.find(v => v.venue_id === venueId);
             updateVenueOperatingHours(selectedVenue);
         } else {
@@ -1217,18 +1501,18 @@
     }
 
     function validateTanggalAndJam() {
-        const venueSelect = document.getElementById('venueSelect');
+        const venueInput = document.getElementById('venueIdInput');
         const jamInput = document.getElementById('jamMulaiInput');
         const tanggalInput = document.getElementById('tanggalMabarInput');
-        const durasiSelect = document.getElementById('durasiSelect');
+        const durasiInput = document.getElementById('durasiInput');
         const jamError = document.getElementById('jamErrorNotice');
         const tanggalError = document.getElementById('tanggalErrorNotice');
         const submitBtn = document.querySelector('button[type="submit"]');
 
-        if (!venueSelect || !jamInput || !tanggalInput) return;
+        if (!venueInput || !jamInput || !tanggalInput) return;
 
-        const venueId = parseInt(venueSelect.value);
-        const selectedVenue = venuesData.find(v => v.venue_id === venueId);
+        const venueId = parseInt(venueInput.value);
+        const selectedVenue = isNaN(venueId) ? null : venuesData.find(v => v.venue_id === venueId);
         if (!selectedVenue) return;
 
         let hasError = false;
@@ -1250,7 +1534,7 @@
                 hasError = true;
             } else {
                 // Cek jika jam mulai + durasi melebihi jam tutup
-                const durasiHours = parseInt(durasiSelect?.value || '2');
+                const durasiHours = parseInt(durasiInput?.value || '2');
                 const [startH, startM] = jamVal.split(':').map(Number);
                 const [closeH, closeM] = hours.close.split(':').map(Number);
                 const endMinutes = (startH + durasiHours) * 60 + startM;
@@ -1306,54 +1590,79 @@
     }
 
     function updateCourtsDropdown() {
-        const venueSelect = document.getElementById('venueSelect');
-        const courtSelect = document.getElementById('courtSelect');
-        if (!venueSelect || !courtSelect) return;
-        courtSelect.innerHTML = '';
+        const venueInput = document.getElementById('venueIdInput');
+        const courtMenu = document.getElementById('courtMenu');
+        const courtDisplay = document.getElementById('courtDisplay');
+        const courtInput = document.getElementById('courtIdInput');
+        if (!courtMenu || !courtInput) return;
+        courtMenu.innerHTML = '';
 
-        const venueId = parseInt(venueSelect.value);
-        const selectedVenue = venuesData.find(v => v.venue_id === venueId);
+        const venueId = venueInput ? parseInt(venueInput.value) : NaN;
+        const selectedVenue = isNaN(venueId) ? null : venuesData.find(v => v.venue_id === venueId);
 
         // Update jam operasional & ketersediaan venue
         updateVenueOperatingHours(selectedVenue);
 
         if (!selectedVenue) {
-            const opt = document.createElement('option');
-            opt.value = '';
-            opt.disabled = true;
-            opt.selected = true;
-            opt.innerText = 'Pilih venue terlebih dahulu';
-            courtSelect.appendChild(opt);
+            courtInput.value = '';
+            if (courtDisplay) {
+                courtDisplay.textContent = 'Pilih venue terlebih dahulu';
+                courtDisplay.classList.add('text-slate-400');
+                courtDisplay.classList.remove('text-slate-900');
+            }
+            courtMenu.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 font-medium">Pilih venue terlebih dahulu</div>';
             return;
         }
 
-        const placeholderOpt = document.createElement('option');
-        placeholderOpt.value = '';
-        placeholderOpt.disabled = true;
-        placeholderOpt.selected = true;
-        placeholderOpt.innerText = 'Pilih court / lapangan';
-        courtSelect.appendChild(placeholderOpt);
+        const filteredCourts = (selectedVenue.courts || []).filter(c => 
+            parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available'
+        );
 
-        if (selectedVenue.courts && selectedVenue.courts.length > 0) {
-            const filteredCourts = selectedVenue.courts.filter(c => 
-                parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available'
-            );
-
-            if (filteredCourts.length > 0) {
-                filteredCourts.forEach(court => {
-                    const opt = document.createElement('option');
-                    opt.value = court.court_id;
-                    const maxCourtLen = 35;
-                    const truncatedCourt = court.nama_court && court.nama_court.length > maxCourtLen ? court.nama_court.substring(0, maxCourtLen) + '...' : court.nama_court;
-                    opt.innerText = truncatedCourt;
-                    opt.title = court.nama_court;
-                    courtSelect.appendChild(opt);
-                });
-            } else {
-                placeholderOpt.innerText = 'Tidak ada court yang tersedia untuk olahraga ini';
+        if (filteredCourts.length === 0) {
+            courtInput.value = '';
+            if (courtDisplay) {
+                courtDisplay.textContent = 'Tidak ada court yang tersedia';
+                courtDisplay.classList.add('text-slate-400');
+                courtDisplay.classList.remove('text-slate-900');
             }
-        } else {
-            placeholderOpt.innerText = 'Belum ada lapangan';
+            courtMenu.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 font-medium">Tidak ada court yang tersedia untuk olahraga ini</div>';
+            return;
+        }
+
+        let selectedCourtObj = null;
+        if (courtInput.value) {
+            selectedCourtObj = filteredCourts.find(c => parseInt(c.court_id) === parseInt(courtInput.value));
+        }
+        if (!selectedCourtObj) {
+            selectedCourtObj = filteredCourts[0];
+        }
+
+        filteredCourts.forEach(court => {
+            const maxCourtLen = 35;
+            const truncatedCourt = court.nama_court && court.nama_court.length > maxCourtLen ? court.nama_court.substring(0, maxCourtLen) + '...' : court.nama_court;
+            const isSelected = selectedCourtObj && parseInt(selectedCourtObj.court_id) === parseInt(court.court_id);
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `court-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer ${isSelected ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}`;
+            btn.setAttribute('data-val', court.court_id);
+            btn.title = court.nama_court;
+            btn.innerHTML = `<span class="truncate pr-2">${truncatedCourt}</span><i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 ${isSelected ? '' : 'hidden'}"></i>`;
+            btn.onclick = () => {
+                selectScheduleOption('court', court.court_id, truncatedCourt);
+            };
+            courtMenu.appendChild(btn);
+        });
+
+        if (selectedCourtObj) {
+            const maxCourtLen = 35;
+            const truncatedCourt = selectedCourtObj.nama_court && selectedCourtObj.nama_court.length > maxCourtLen ? selectedCourtObj.nama_court.substring(0, maxCourtLen) + '...' : selectedCourtObj.nama_court;
+            courtInput.value = selectedCourtObj.court_id;
+            if (courtDisplay) {
+                courtDisplay.textContent = truncatedCourt;
+                courtDisplay.classList.remove('text-slate-400');
+                courtDisplay.classList.add('text-slate-900');
+            }
         }
     }
 
@@ -1362,8 +1671,8 @@
     // =========================================================================
     function onFormatOrScoringChanged() {
         const formatInput = document.querySelector('input[name="format"]:checked')?.value || 'Americano';
-        const scoringSelect = document.getElementById('scoringSystemSelect');
-        const scoringSystem = scoringSelect ? scoringSelect.value : 'Total of 3';
+        const scoringInput = document.getElementById('scoringSystemInput');
+        const scoringSystem = scoringInput ? scoringInput.value : 'Total of 3';
         const isFirstTo = scoringSystem.toLowerCase().startsWith('first to');
         const isTeamAmericano = formatInput.toLowerCase().includes('team');
 
@@ -1371,7 +1680,9 @@
         const radioSingle = document.getElementById('radioSingle');
         const labelSingle = document.getElementById('labelSingle');
         const teamLockBadge = document.getElementById('teamLockBadge');
-        const quotaSelect = document.getElementById('jumlahPemainSelect');
+        const quotaMenu = document.getElementById('jumlahPemainMenu');
+        const quotaInput = document.getElementById('jumlahPemainInput');
+        const quotaDisplay = document.getElementById('jumlahPemainDisplay');
         const constraintNotice = document.getElementById('quotaConstraintNotice');
         const constraintText = document.getElementById('quotaConstraintText');
 
@@ -1386,21 +1697,19 @@
         }
 
         const isSingle = !isTeamAmericano && radioSingle && radioSingle.checked;
-        const currentVal = quotaSelect ? quotaSelect.value : null;
-        if (quotaSelect) quotaSelect.innerHTML = '';
+        const currentVal = quotaInput ? quotaInput.value : null;
+        if (quotaMenu) quotaMenu.innerHTML = '';
 
         let options = [];
         let noticeMessage = '';
 
         if (isTeamAmericano) {
             if (isFirstTo) {
-                // Team Americano First to X: Exact 4 players (2 fixed teams)
                 options = [
                     { val: '4', text: '4 Pemain (Tepat 2 Pasang Tim - First to X)' }
                 ];
                 noticeMessage = `🎯 <strong>Team Americano (${scoringSystem})</strong>: Pertandingan langsung tuntas 1 court, kuota terkunci <strong>tepat 4 pemain (2 tim)</strong>.`;
             } else {
-                // Team Americano Total of X: Even number >= 4
                 options = [
                     { val: '4', text: '4 Pemain (2 Pasangan Tim)' },
                     { val: '6', text: '6 Pemain (3 Pasangan Tim)' },
@@ -1412,13 +1721,11 @@
             }
         } else if (isSingle) {
             if (isFirstTo) {
-                // Americano Single First to X: Exact 2 players (1v1)
                 options = [
                     { val: '2', text: '2 Pemain (Tepat 1 vs 1 - First to X)' }
                 ];
                 noticeMessage = `🎯 <strong>Americano Single (${scoringSystem})</strong>: Pertandingan 1v1 langsung tuntas, kuota terkunci <strong>tepat 2 pemain</strong>.`;
             } else {
-                // Americano Single Total of X: 2 to 8 players
                 options = [
                     { val: '2', text: '2 Pemain (1 Court Non-Stop 1v1)' },
                     { val: '3', text: '3 Pemain (1 Court Rotasi 1 Istirahat)' },
@@ -1429,15 +1736,12 @@
                 noticeMessage = `🎾 <strong>Americano Single (1v1)</strong>: Setiap pemain saling berhadapan secara round-robin individu.`;
             }
         } else {
-            // Americano Double (2v2)
             if (isFirstTo) {
-                // Americano Double First to X: Exact 4 players (2v2)
                 options = [
                     { val: '4', text: '4 Pemain (Tepat 2 vs 2 - First to X)' }
                 ];
                 noticeMessage = `🎯 <strong>Americano Double (${scoringSystem})</strong>: Pertandingan 2v2 langsung tuntas, kuota terkunci <strong>tepat 4 pemain</strong>.`;
             } else {
-                // Americano Double Total of X: 4 to 12 players
                 options = [
                     { val: '4', text: '4 Pemain (1 Court Non-Stop 2v2)' },
                     { val: '5', text: '5 Pemain (1 Court Rotasi Bench 1 Istirahat)' },
@@ -1451,28 +1755,28 @@
             }
         }
 
-        const quotaPlaceholder = document.createElement('option');
-        quotaPlaceholder.value = '';
-        quotaPlaceholder.disabled = true;
-        quotaPlaceholder.innerText = 'Pilih Kuota Pemain';
-        let isSelected = false;
+        let selectedOpt = options.find(o => String(o.val) === String(currentVal)) || options[0];
 
-        options.forEach((o) => {
-            const opt = document.createElement('option');
-            opt.value = o.val;
-            opt.innerText = o.text;
-            if (currentVal && String(o.val) === String(currentVal)) {
-                opt.selected = true;
-                isSelected = true;
-            }
-            if (quotaSelect) quotaSelect.appendChild(opt);
-        });
-
-        if (!isSelected) {
-            quotaPlaceholder.selected = true;
+        if (quotaMenu) {
+            options.forEach((o) => {
+                const isSelected = selectedOpt && String(o.val) === String(selectedOpt.val);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `jumlahPemain-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer ${isSelected ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}`;
+                btn.setAttribute('data-val', o.val);
+                btn.innerHTML = `<span class="truncate pr-2">${o.text}</span><i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 ${isSelected ? '' : 'hidden'}"></i>`;
+                btn.onclick = () => {
+                    selectScheduleOption('jumlahPemain', o.val, o.text);
+                };
+                quotaMenu.appendChild(btn);
+            });
         }
-        if (quotaSelect) {
-            quotaSelect.insertBefore(quotaPlaceholder, quotaSelect.firstChild);
+
+        if (selectedOpt && quotaInput && quotaDisplay) {
+            quotaInput.value = selectedOpt.val;
+            quotaDisplay.textContent = selectedOpt.text;
+            quotaDisplay.classList.remove('text-slate-400');
+            quotaDisplay.classList.add('text-slate-900');
         }
 
         if (constraintText) {
@@ -1485,15 +1789,33 @@
     // =========================================================================
     function openQuickAddVenueModal() {
         const modal = document.getElementById('quickAddVenueModal');
-        const sportSelect = document.getElementById('quickVenueSport');
+        const sportInput = document.getElementById('quickVenueSport');
+        const sportDisplay = document.getElementById('quickVenueSportDisplay');
+        const countInput = document.getElementById('quickVenueCourtCount');
+        const countDisplay = document.getElementById('quickVenueCourtCountDisplay');
         const errDiv = document.getElementById('quickVenueError');
         if (errDiv) errDiv.classList.add('hidden');
         
         const activeSportRadio = document.querySelector('input[name="sport_id"]:checked');
         const activeSportName = activeSportRadio ? activeSportRadio.getAttribute('data-sport-name') : 'Padel';
-        if (sportSelect && activeSportName) {
-            sportSelect.value = activeSportName;
+        if (sportInput && activeSportName) {
+            sportInput.value = activeSportName;
+            if (sportDisplay) sportDisplay.textContent = activeSportName;
+            document.querySelectorAll('.quickVenueSport-item-btn').forEach(btn => {
+                const isMatch = btn.getAttribute('data-val') === activeSportName;
+                const icon = btn.querySelector('.fa-circle-check');
+                if (isMatch) {
+                    btn.className = 'quickVenueSport-item-btn w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer bg-[#EBF8D8] text-[#063B00]';
+                    if (icon) icon.classList.remove('hidden');
+                } else {
+                    btn.className = 'quickVenueSport-item-btn w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer text-slate-700 hover:bg-slate-100 hover:text-slate-900';
+                    if (icon) icon.classList.add('hidden');
+                }
+            });
         }
+
+        if (countInput) countInput.value = 2;
+        if (countDisplay) countDisplay.textContent = '2 Court';
 
         const nameInput = document.getElementById('quickVenueName');
         if (nameInput) nameInput.value = '';
@@ -1613,9 +1935,9 @@
         filterCourtsBySport(currentSportId);
         onFormatOrScoringChanged();
 
-        const venueSelect = document.getElementById('venueSelect');
-        if (venueSelect && venueSelect.value) {
-            const venueId = parseInt(venueSelect.value);
+        const venueInput = document.getElementById('venueIdInput');
+        if (venueInput && venueInput.value) {
+            const venueId = parseInt(venueInput.value);
             const selectedVenue = venuesData.find(v => v.venue_id === venueId);
             if (selectedVenue) {
                 updateVenueOperatingHours(selectedVenue);
@@ -1674,15 +1996,25 @@
             });
         }
 
-        // Clear error style ketika user memilih opsi
-        ['venueSelect', 'courtSelect', 'durasiSelect', 'jumlahPemainSelect'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('change', function() {
-                    if (this.value) {
-                        this.classList.remove('border-rose-400', 'bg-rose-50/50');
-                    }
-                });
+        // Global Outside click listener untuk custom dropdowns
+        document.addEventListener('click', function (e) {
+            let isInsideAny = false;
+            scheduleDropdownIds.forEach(id => {
+                const menu = document.getElementById(id + 'Menu');
+                const trigger = document.getElementById(id + 'Trigger');
+                if ((menu && menu.contains(e.target)) || (trigger && trigger.contains(e.target))) {
+                    isInsideAny = true;
+                }
+            });
+            if (!isInsideAny) {
+                closeScheduleDropdowns();
+            }
+        });
+
+        // Global Escape key listener untuk menutup dropdown
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeScheduleDropdowns();
             }
         });
 
@@ -1706,21 +2038,23 @@
                 }
 
                 // 2. Validasi Venue
-                const vSelect = document.getElementById('venueSelect');
-                if (vSelect && !vSelect.value) {
-                    vSelect.classList.add('border-rose-400', 'bg-rose-50/50');
-                    if (!firstInvalidField) firstInvalidField = vSelect;
-                } else if (vSelect) {
-                    vSelect.classList.remove('border-rose-400', 'bg-rose-50/50');
+                const vInput = document.getElementById('venueIdInput');
+                const vTrigger = document.getElementById('venueTrigger');
+                if (vInput && !vInput.value) {
+                    if (vTrigger) vTrigger.classList.add('border-rose-400', 'bg-rose-50/50');
+                    if (!firstInvalidField) firstInvalidField = vTrigger;
+                } else if (vTrigger) {
+                    vTrigger.classList.remove('border-rose-400', 'bg-rose-50/50');
                 }
 
                 // 3. Validasi Court
-                const cSelect = document.getElementById('courtSelect');
-                if (cSelect && !cSelect.value) {
-                    cSelect.classList.add('border-rose-400', 'bg-rose-50/50');
-                    if (!firstInvalidField) firstInvalidField = cSelect;
-                } else if (cSelect) {
-                    cSelect.classList.remove('border-rose-400', 'bg-rose-50/50');
+                const cInput = document.getElementById('courtIdInput');
+                const cTrigger = document.getElementById('courtTrigger');
+                if (cInput && !cInput.value) {
+                    if (cTrigger) cTrigger.classList.add('border-rose-400', 'bg-rose-50/50');
+                    if (!firstInvalidField) firstInvalidField = cTrigger;
+                } else if (cTrigger) {
+                    cTrigger.classList.remove('border-rose-400', 'bg-rose-50/50');
                 }
 
                 // 4. Validasi Tanggal
@@ -1749,21 +2083,23 @@
                 }
 
                 // 6. Validasi Durasi
-                const dSelect = document.getElementById('durasiSelect');
-                if (dSelect && !dSelect.value) {
-                    dSelect.classList.add('border-rose-400', 'bg-rose-50/50');
-                    if (!firstInvalidField) firstInvalidField = dSelect;
-                } else if (dSelect) {
-                    dSelect.classList.remove('border-rose-400', 'bg-rose-50/50');
+                const dInput = document.getElementById('durasiInput');
+                const dTrigger = document.getElementById('durasiTrigger');
+                if (dInput && !dInput.value) {
+                    if (dTrigger) dTrigger.classList.add('border-rose-400', 'bg-rose-50/50');
+                    if (!firstInvalidField) firstInvalidField = dTrigger;
+                } else if (dTrigger) {
+                    dTrigger.classList.remove('border-rose-400', 'bg-rose-50/50');
                 }
 
                 // 7. Validasi Kuota Pemain
-                const kSelect = document.getElementById('jumlahPemainSelect');
-                if (kSelect && !kSelect.value) {
-                    kSelect.classList.add('border-rose-400', 'bg-rose-50/50');
-                    if (!firstInvalidField) firstInvalidField = kSelect;
-                } else if (kSelect) {
-                    kSelect.classList.remove('border-rose-400', 'bg-rose-50/50');
+                const kInput = document.getElementById('jumlahPemainInput');
+                const kTrigger = document.getElementById('jumlahPemainTrigger');
+                if (kInput && !kInput.value) {
+                    if (kTrigger) kTrigger.classList.add('border-rose-400', 'bg-rose-50/50');
+                    if (!firstInvalidField) firstInvalidField = kTrigger;
+                } else if (kTrigger) {
+                    kTrigger.classList.remove('border-rose-400', 'bg-rose-50/50');
                 }
 
                 if (firstInvalidField) {
