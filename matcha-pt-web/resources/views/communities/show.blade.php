@@ -83,18 +83,18 @@
         <div class="lg:col-span-2 space-y-6">
 
             <!-- Card Tentang Komunitas -->
-            <div class="clean-card rounded-xl p-5 sm:p-6 space-y-4">
-                <h3 class="text-sm font-bold text-slate-900">
+            <div class="glass-card rounded-3xl p-6 sm:p-8 space-y-5 border border-white/90 shadow-sm">
+                <h3 class="text-base font-bold text-slate-900">
                     Tentang Komunitas
                 </h3>
                 <p class="text-xs sm:text-sm text-slate-600 leading-relaxed break-words">{{ $community->deskripsi ?: 'Tidak ada deskripsi tersedia.' }}</p>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
-                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 min-w-0">
+                    <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 min-w-0">
                         <span class="text-slate-500 block mb-0.5">Cabang Olahraga Utama</span>
                         <strong class="text-slate-900 block truncate">{{ $community->sport_utama }}</strong>
                     </div>
-                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 min-w-0">
+                    <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 min-w-0">
                         <span class="text-slate-500 block mb-0.5">Jadwal Rutin Mabar</span>
                         <strong class="text-slate-900 block truncate">{{ $community->jadwal_rutin ?: 'Sesuai kesepakatan anggota' }}</strong>
                     </div>
@@ -102,9 +102,9 @@
             </div>
 
             <!-- Card Daftar Anggota Komunitas -->
-            <div class="clean-card rounded-xl p-5 sm:p-6 space-y-4">
+            <div class="glass-card rounded-3xl p-6 sm:p-8 space-y-5 border border-white/90 shadow-sm">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-bold text-slate-900">
+                    <h3 class="text-base font-bold text-slate-900">
                         Daftar Anggota Komunitas
                     </h3>
                     <span class="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 inline-flex items-center gap-1">
@@ -115,7 +115,7 @@
                 @if($community->players && $community->players->count() > 0)
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs">
-                            <thead class="text-slate-500 bg-slate-50 uppercase tracking-wider text-[10px] border-b border-slate-200">
+                            <thead class="text-slate-500 bg-slate-50/80 uppercase tracking-wider text-[10px] border-b border-slate-200">
                                 <tr>
                                     <th class="py-2.5 px-3">#</th>
                                     <th class="py-2.5 px-3">Nama</th>
@@ -126,6 +126,23 @@
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 @foreach($community->players as $index => $player)
+                                    @php
+                                        $lvl = $player->level;
+                                        $gender = $player->gender;
+                                        $usia = $player->usia;
+                                        if (empty($lvl) || empty($gender) || empty($usia)) {
+                                            $fallback = \App\Models\Player::where('user_id', $player->user_id)
+                                                ->where(function($q) {
+                                                    $q->whereNotNull('level')->orWhereNotNull('gender');
+                                                })
+                                                ->first();
+                                            if ($fallback) {
+                                                $lvl = $lvl ?: $fallback->level;
+                                                $gender = $gender ?: $fallback->gender;
+                                                $usia = $usia ?: $fallback->usia;
+                                            }
+                                        }
+                                    @endphp
                                     <tr class="hover:bg-slate-50/80 transition-colors">
                                         <td class="py-2.5 px-3 text-slate-400 font-medium">{{ $index + 1 }}</td>
                                         <td class="py-2.5 px-3">
@@ -149,15 +166,14 @@
                                             @endif
                                         </td>
                                         <td class="py-2.5 px-3">
-                                            @if($player->level)
-                                                @php $lvl = strtolower($player->level); @endphp
-                                                <x-badge :type="$lvl">{{ $player->level }}</x-badge>
+                                            @if($lvl)
+                                                <x-badge :type="strtolower($lvl)">{{ $lvl }}</x-badge>
                                             @else
                                                 <span class="text-slate-400">—</span>
                                             @endif
                                         </td>
                                         <td class="py-2.5 px-3 text-slate-500">
-                                            {{ $player->gender ?? '-' }}{{ !empty($player->usia) ? ', ' . $player->usia . ' th' : '' }}
+                                            {{ $gender ?? '-' }}{{ !empty($usia) ? ', ' . $usia . ' th' : '' }}
                                         </td>
                                     </tr>
                                 @endforeach
@@ -165,7 +181,7 @@
                         </table>
                     </div>
                 @else
-                    <div class="text-center py-8 text-slate-400 text-xs bg-slate-50 rounded-xl border border-dashed border-slate-200 space-y-2">
+                    <div class="text-center py-8 text-slate-400 text-xs bg-slate-50/80 rounded-2xl border border-dashed border-slate-200 space-y-2">
                         <i class="fa-solid fa-users-slash text-slate-300 text-2xl"></i>
                         <p class="font-medium text-slate-500">Belum ada anggota bergabung di komunitas ini.</p>
                     </div>
@@ -182,13 +198,13 @@
                     ->exists();
             @endphp
 
-            <div class="clean-card rounded-xl p-5 space-y-4">
+            <div class="glass-card rounded-3xl p-6 space-y-5 border border-white/90 shadow-sm">
                 @if(Auth::check())
                     @if(Auth::user()->isAdmin())
                         {{-- Mode Administrator --}}
                         <div class="space-y-3">
                             <h3 class="text-sm font-bold text-slate-900">Mode Administrator</h3>
-                            <div class="bg-amber-50 p-3 rounded-lg border border-amber-200 text-amber-900 space-y-1">
+                            <div class="bg-amber-50 p-3.5 rounded-xl border border-amber-200 text-amber-900 space-y-1">
                                 <span class="font-semibold block flex items-center gap-1.5 text-xs">
                                     <i class="fa-solid fa-crown text-amber-600"></i> Akses Pengelola
                                 </span>
@@ -201,7 +217,7 @@
                         <!-- Status Keanggotaan -->
                         <div class="space-y-3">
                             <h3 class="text-sm font-bold text-slate-900">Status Keanggotaan</h3>
-                            <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-200 text-emerald-900 space-y-1">
+                            <div class="bg-emerald-50 p-3.5 rounded-xl border border-emerald-200 text-emerald-900 space-y-1">
                                 <span class="font-semibold block flex items-center gap-1.5 text-xs">
                                     <i class="fa-solid fa-circle-check text-emerald-600"></i> Anggota Komunitas
                                 </span>
