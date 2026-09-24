@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 relative">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-28 md:pb-12 space-y-8 relative">
 
     <!-- Ambient Glowing Background Orbs -->
     <div class="absolute w-96 h-96 bg-[#A8E63A]/20 rounded-full blur-3xl pointer-events-none -top-12 -left-12 -z-10"></div>
@@ -102,47 +102,143 @@
                     </div>
 
                     <!-- Cabang Olahraga Utama -->
-                    <div class="space-y-1.5">
+                    <div class="space-y-1.5 relative" id="wrapper_sport">
                         <label class="block font-bold text-slate-800">Cabang Olahraga <span class="text-rose-500">*</span></label>
+                        @php
+                            $currSport = old('sport', strtolower($community->sport ?? 'padel'));
+                            if (in_array($currSport, ['both', 'padel & tennis'])) {
+                                $currSport = 'all_racquet';
+                            }
+                            $sportMap = [
+                                'padel' => '🏓 Padel',
+                                'tennis' => '🎾 Tennis',
+                                'all_racquet' => '🏓🎾 Keduanya (All Racquet)',
+                            ];
+                            $currSportLabel = $sportMap[$currSport] ?? '🏓 Padel';
+                        @endphp
+                        <input type="hidden" id="input_sport" name="sport" value="{{ $currSport }}">
                         <div class="relative">
-                            <select name="sport" class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-4 pr-10 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
-                                <option value="padel" {{ old('sport', strtolower($community->sport ?? '')) === 'padel' ? 'selected' : '' }}>🏓 Padel</option>
-                                <option value="tennis" {{ old('sport', strtolower($community->sport ?? '')) === 'tennis' ? 'selected' : '' }}>🎾 Tennis</option>
-                                <option value="all_racquet" {{ in_array(old('sport', strtolower($community->sport ?? '')), ['all_racquet', 'both', 'padel & tennis']) ? 'selected' : '' }}>🏓🎾 Keduanya (All Racquet)</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="sportDropdownTrigger"
+                                onclick="toggleCustomDropdown('sport', event)"
+                                class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-4 pr-10 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                            >
+                                <span id="sportDropdownDisplay" class="truncate font-semibold">{{ $currSportLabel }}</span>
+                                <i id="sportDropdownChevron" class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <div
+                                id="sportDropdownMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                onclick="event.stopPropagation()"
+                            >
+                                @foreach($sportMap as $sVal => $sLabel)
+                                    <button
+                                        type="button"
+                                        onclick="selectCustomOption('sport', '{{ $sVal }}', '{{ $sLabel }}')"
+                                        class="sport-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $currSport === $sVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                        data-val="{{ $sVal }}"
+                                    >
+                                        <span>{{ $sLabel }}</span>
+                                        <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currSport === $sVal ? '' : 'hidden' }}"></i>
+                                    </button>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
 
                     <!-- Target Kemampuan Pemain -->
-                    <div class="space-y-1.5">
+                    <div class="space-y-1.5 relative" id="wrapper_target_level">
                         <label class="block font-bold text-slate-800">Target Level Pemain</label>
+                        @php
+                            $currLevel = old('target_level', $community->target_level ?: 'Semua Level (Open to All)');
+                            $levelMap = [
+                                'Semua Level (Open to All)' => '🌟 Semua Level (Open to All)',
+                                'Beginner Friendly' => '🟢 Beginner Friendly (Newbie - Pemula)',
+                                'Intermediate' => '🟡 Intermediate (Menengah)',
+                                'Advanced & Competitive' => '🔴 Advanced & Competitive',
+                            ];
+                            $currLevelLabel = $levelMap[$currLevel] ?? $currLevel;
+                        @endphp
+                        <input type="hidden" id="input_target_level" name="target_level" value="{{ $currLevel }}">
                         <div class="relative">
-                            <select name="target_level" class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-4 pr-10 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
-                                <option value="Semua Level (Open to All)" {{ old('target_level', $community->target_level) === 'Semua Level (Open to All)' ? 'selected' : '' }}>Semua Level (Open to All)</option>
-                                <option value="Beginner Friendly" {{ old('target_level', $community->target_level) === 'Beginner Friendly' ? 'selected' : '' }}>Beginner Friendly (Newbie - Pemula)</option>
-                                <option value="Intermediate" {{ old('target_level', $community->target_level) === 'Intermediate' ? 'selected' : '' }}>Intermediate (Menengah)</option>
-                                <option value="Advanced & Competitive" {{ old('target_level', $community->target_level) === 'Advanced & Competitive' ? 'selected' : '' }}>Advanced &amp; Competitive</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="target_levelDropdownTrigger"
+                                onclick="toggleCustomDropdown('target_level', event)"
+                                class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-4 pr-10 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                            >
+                                <span id="target_levelDropdownDisplay" class="truncate font-semibold">{{ $currLevelLabel }}</span>
+                                <i id="target_levelDropdownChevron" class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <div
+                                id="target_levelDropdownMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                onclick="event.stopPropagation()"
+                            >
+                                @foreach($levelMap as $lVal => $lLabel)
+                                    <button
+                                        type="button"
+                                        onclick="selectCustomOption('target_level', '{{ $lVal }}', '{{ $lLabel }}')"
+                                        class="target_level-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $currLevel === $lVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                        data-val="{{ $lVal }}"
+                                    >
+                                        <span>{{ $lLabel }}</span>
+                                        <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currLevel === $lVal ? '' : 'hidden' }}"></i>
+                                    </button>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
 
                     <!-- Status Keanggotaan -->
-                    <div class="space-y-1.5">
+                    <div class="space-y-1.5 relative" id="wrapper_status_keanggotaan">
                         <label class="block font-bold text-slate-800">Status Keanggotaan</label>
+                        @php
+                            $currStatus = old('status_keanggotaan', $community->status_keanggotaan ?: 'Open');
+                            $statusMap = [
+                                'Open' => '🟢 Terbuka (Open to Public)',
+                                'Closed' => '🟡 Tertutup Sementara (Closed)',
+                                'Inactive' => '⚪ Nonaktif (Inactive)',
+                            ];
+                            $currStatusLabel = $statusMap[$currStatus] ?? $currStatus;
+                        @endphp
+                        <input type="hidden" id="input_status_keanggotaan" name="status_keanggotaan" value="{{ $currStatus }}">
                         <div class="relative">
-                            <select name="status_keanggotaan" class="w-full appearance-none bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-4 pr-10 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
-                                <option value="Open" {{ old('status_keanggotaan', $community->status_keanggotaan) === 'Open' ? 'selected' : '' }}>Terbuka (Open to Public)</option>
-                                <option value="Closed" {{ old('status_keanggotaan', $community->status_keanggotaan) === 'Closed' ? 'selected' : '' }}>Tertutup Sementara (Closed)</option>
-                                <option value="Inactive" {{ old('status_keanggotaan', $community->status_keanggotaan) === 'Inactive' ? 'selected' : '' }}>Nonaktif (Inactive)</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                            <button
+                                type="button"
+                                id="status_keanggotaanDropdownTrigger"
+                                onclick="toggleCustomDropdown('status_keanggotaan', event)"
+                                class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-4 pr-10 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                            >
+                                <span id="status_keanggotaanDropdownDisplay" class="truncate font-semibold">{{ $currStatusLabel }}</span>
+                                <i id="status_keanggotaanDropdownChevron" class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <div
+                                id="status_keanggotaanDropdownMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                onclick="event.stopPropagation()"
+                            >
+                                @foreach($statusMap as $stVal => $stLabel)
+                                    <button
+                                        type="button"
+                                        onclick="selectCustomOption('status_keanggotaan', '{{ $stVal }}', '{{ $stLabel }}')"
+                                        class="status_keanggotaan-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $currStatus === $stVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                        data-val="{{ $stVal }}"
+                                    >
+                                        <span>{{ $stLabel }}</span>
+                                        <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currStatus === $stVal ? '' : 'hidden' }}"></i>
+                                    </button>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
 
                     <!-- Homebase Venue Utama (Searchable Custom Glass Dropdown) -->
-                    <div class="space-y-1.5 relative">
+                    <div class="space-y-1.5 relative" id="wrapper_venue">
                         <label class="block font-bold text-slate-800">Homebase Venue Utama</label>
                         
                         <!-- Hidden input to store selected value for form submission -->
@@ -287,33 +383,78 @@
 
 @push('scripts')
 <script>
+    const dropdownIds = ['sport', 'target_level', 'status_keanggotaan', 'venue'];
+
+    function closeAllDropdowns() {
+        dropdownIds.forEach(id => {
+            const menu = document.getElementById(id === 'venue' ? 'venueDropdownMenu' : id + 'DropdownMenu');
+            const chevron = document.getElementById(id === 'venue' ? 'venueDropdownChevron' : id + 'DropdownChevron');
+            const wrapper = document.getElementById('wrapper_' + id);
+            if (menu) menu.classList.add('hidden');
+            if (chevron) chevron.classList.remove('rotate-180');
+            if (wrapper) wrapper.style.zIndex = '';
+        });
+    }
+
+    function toggleCustomDropdown(id, e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById(id + 'DropdownMenu');
+        const chevron = document.getElementById(id + 'DropdownChevron');
+        const wrapper = document.getElementById('wrapper_' + id);
+        if (!menu) return;
+
+        const isClosed = menu.classList.contains('hidden');
+        closeAllDropdowns();
+
+        if (isClosed) {
+            menu.classList.remove('hidden');
+            if (chevron) chevron.classList.add('rotate-180');
+            if (wrapper) wrapper.style.zIndex = '40';
+        }
+    }
+
+    function selectCustomOption(fieldId, value, label) {
+        const input = document.getElementById('input_' + fieldId);
+        const display = document.getElementById(fieldId + 'DropdownDisplay');
+        if (input) input.value = value;
+        if (display) display.textContent = label;
+
+        document.querySelectorAll('.' + fieldId + '-item-btn').forEach(btn => {
+            const isMatch = btn.getAttribute('data-val') === value;
+            const icon = btn.querySelector('.fa-circle-check');
+            if (isMatch) {
+                btn.className = fieldId + '-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/15';
+                if (icon) icon.classList.remove('hidden');
+            } else {
+                btn.className = fieldId + '-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer text-slate-700 hover:bg-slate-100 hover:text-slate-900';
+                if (icon) icon.classList.add('hidden');
+            }
+        });
+
+        closeAllDropdowns();
+    }
+
     function toggleVenueDropdown(e) {
         if (e) e.stopPropagation();
         const menu = document.getElementById('venueDropdownMenu');
         const chevron = document.getElementById('venueDropdownChevron');
+        const wrapper = document.getElementById('wrapper_venue');
         const searchInput = document.getElementById('venueSearchInput');
-
         if (!menu) return;
 
         const isHidden = menu.classList.contains('hidden');
+        closeAllDropdowns();
+
         if (isHidden) {
             menu.classList.remove('hidden');
             if (chevron) chevron.classList.add('rotate-180');
+            if (wrapper) wrapper.style.zIndex = '40';
             if (searchInput) {
                 searchInput.value = '';
                 filterVenueList('');
                 setTimeout(() => searchInput.focus(), 50);
             }
-        } else {
-            closeVenueDropdown();
         }
-    }
-
-    function closeVenueDropdown() {
-        const menu = document.getElementById('venueDropdownMenu');
-        const chevron = document.getElementById('venueDropdownChevron');
-        if (menu) menu.classList.add('hidden');
-        if (chevron) chevron.classList.remove('rotate-180');
     }
 
     function selectVenue(venueName, displayLabel) {
@@ -344,7 +485,7 @@
             }
         });
 
-        closeVenueDropdown();
+        closeAllDropdowns();
     }
 
     function filterVenueList(query) {
@@ -378,16 +519,22 @@
 
     // Close on click outside & Escape key
     document.addEventListener('click', function(e) {
-        const menu = document.getElementById('venueDropdownMenu');
-        const trigger = document.getElementById('venueDropdownTrigger');
-        if (menu && !menu.classList.contains('hidden') && !menu.contains(e.target) && !trigger.contains(e.target)) {
-            closeVenueDropdown();
+        let isInsideAny = false;
+        dropdownIds.forEach(id => {
+            const menu = document.getElementById(id === 'venue' ? 'venueDropdownMenu' : id + 'DropdownMenu');
+            const trigger = document.getElementById(id === 'venue' ? 'venueDropdownTrigger' : id + 'DropdownTrigger');
+            if (menu && menu.contains(e.target) || (trigger && trigger.contains(e.target))) {
+                isInsideAny = true;
+            }
+        });
+        if (!isInsideAny) {
+            closeAllDropdowns();
         }
     });
 
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            closeVenueDropdown();
+            closeAllDropdowns();
         }
     });
 </script>
