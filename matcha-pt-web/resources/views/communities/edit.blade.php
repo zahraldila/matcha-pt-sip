@@ -25,10 +25,11 @@
                 <span class="text-xs font-medium text-slate-500">Edit Data Komunitas</span>
             </div>
             <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-                Edit Komunitas: {{ $community->nama_community }}
+                Edit Profil Komunitas
             </h1>
-            <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl leading-relaxed">
-                Perbarui informasi klub, jadwal mabar, cabang olahraga, dan homebase komunitas.
+            <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl leading-relaxed flex items-center gap-1.5 flex-wrap">
+                <span>Perbarui informasi dan rincian untuk klub</span>
+                <span class="font-bold text-slate-800 bg-slate-100/90 px-2 py-0.5 rounded-lg border border-slate-200/80 inline-block max-w-xs sm:max-w-md truncate align-middle" title="{{ $community->nama_community }}">{{ $community->nama_community }}</span>
             </p>
         </div>
 
@@ -80,7 +81,7 @@
                         </label>
                         <div class="relative">
                             <i class="fa-solid fa-users-rectangle absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" id="input_nama_community" name="nama_community" value="{{ old('nama_community', $community->nama_community) }}" required class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <input type="text" id="input_nama_community" name="nama_community" value="{{ old('nama_community', $community->nama_community) }}" required maxlength="70" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
                         </div>
                     </div>
 
@@ -140,16 +141,92 @@
                         </div>
                     </div>
 
-                    <!-- Homebase Venue Utama -->
-                    <div class="space-y-1.5">
+                    <!-- Homebase Venue Utama (Searchable Custom Glass Dropdown) -->
+                    <div class="space-y-1.5 relative">
                         <label class="block font-bold text-slate-800">Homebase Venue Utama</label>
+                        
+                        <!-- Hidden input to store selected value for form submission -->
+                        <input type="hidden" id="input_homebase_venue" name="homebase_venue" value="{{ old('homebase_venue', $community->homebase_venue) }}">
+
+                        <!-- Trigger Button -->
                         <div class="relative">
-                            <input type="text" name="homebase_venue" value="{{ old('homebase_venue', $community->homebase_venue) }}" placeholder="Contoh: Gelora Sports Center Jakarta" list="venueList" class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-4 pr-4 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
-                            <datalist id="venueList">
-                                @foreach($venues as $v)
-                                    <option value="{{ $v->nama_venue }}">{{ $v->kota ? "({$v->kota})" : '' }}</option>
-                                @endforeach
-                            </datalist>
+                            <button
+                                type="button"
+                                id="venueDropdownTrigger"
+                                onclick="toggleVenueDropdown(event)"
+                                class="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl pl-10 pr-10 py-3 text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                            >
+                                <span id="venueDropdownDisplay" class="truncate font-semibold {{ old('homebase_venue', $community->homebase_venue) ? 'text-slate-900' : 'text-slate-400' }}">
+                                    {{ old('homebase_venue', $community->homebase_venue) ?: 'Pilih Venue Homebase (Opsional)' }}
+                                </span>
+                                <i class="fa-solid fa-map-pin absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                                <i id="venueDropdownChevron" class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs transition-transform duration-200 pointer-events-none"></i>
+                            </button>
+
+                            <!-- Dropdown Menu Popover -->
+                            <div
+                                id="venueDropdownMenu"
+                                class="hidden absolute left-0 right-0 top-full mt-2 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-2xl p-2.5 space-y-2 max-h-72 flex flex-col animate-in fade-in zoom-in-95 duration-150"
+                                onclick="event.stopPropagation()"
+                            >
+                                <!-- Search Input Bar -->
+                                <div class="relative px-1 pt-1">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                                    <input
+                                        type="text"
+                                        id="venueSearchInput"
+                                        placeholder="Cari nama venue atau kota..."
+                                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 font-semibold placeholder:text-slate-400 focus:bg-white focus:border-[#063B00] focus:ring-1 focus:ring-[#063B00] focus:outline-none transition-all"
+                                        oninput="filterVenueList(this.value)"
+                                    >
+                                </div>
+
+                                <!-- Venue Items Container (Scrollable) -->
+                                <div id="venueListContainer" class="overflow-y-auto max-h-48 space-y-1 scrollbar-thin px-1 pb-1">
+                                    <!-- Option: Kosongkan -->
+                                    <button
+                                        type="button"
+                                        onclick="selectVenue('', 'Pilih Venue Homebase (Opsional)')"
+                                        class="venue-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-all flex items-center justify-between group cursor-pointer"
+                                        data-venue-name=""
+                                        data-venue-city=""
+                                    >
+                                        <span class="flex items-center gap-2">
+                                            <i class="fa-solid fa-circle-xmark text-slate-400 text-xs"></i>
+                                            <span>Kosongkan / Belum Ada Venue Tetap</span>
+                                        </span>
+                                    </button>
+
+                                    @foreach($venues as $v)
+                                        @php
+                                            $isSelected = old('homebase_venue', $community->homebase_venue) == $v->nama_venue;
+                                        @endphp
+                                        <button
+                                            type="button"
+                                            onclick="selectVenue('{{ addslashes($v->nama_venue) }}', '{{ addslashes($v->nama_venue . ($v->kota ? " ({$v->kota})" : '')) }}')"
+                                            class="venue-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer {{ $isSelected ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                            data-venue-name="{{ strtolower($v->nama_venue) }}"
+                                            data-venue-city="{{ strtolower($v->kota ?? '') }}"
+                                        >
+                                            <div class="flex flex-col min-w-0 pr-2">
+                                                <span class="truncate font-bold {{ $isSelected ? 'text-[#063B00]' : 'text-slate-800' }}">{{ $v->nama_venue }}</span>
+                                                @if($v->kota)
+                                                    <span class="text-[10px] {{ $isSelected ? 'text-[#063B00]/70' : 'text-slate-400' }} truncate">📍 {{ $v->kota }}</span>
+                                                @endif
+                                            </div>
+                                            @if($isSelected)
+                                                <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0"></i>
+                                            @endif
+                                        </button>
+                                    @endforeach
+
+                                    <!-- Empty state if search finds nothing -->
+                                    <div id="venueSearchEmpty" class="hidden py-4 text-center text-xs text-slate-400">
+                                        <i class="fa-solid fa-magnifying-glass text-slate-300 text-sm mb-1 block"></i>
+                                        Venue tidak ditemukan
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -207,3 +284,111 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    function toggleVenueDropdown(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('venueDropdownMenu');
+        const chevron = document.getElementById('venueDropdownChevron');
+        const searchInput = document.getElementById('venueSearchInput');
+
+        if (!menu) return;
+
+        const isHidden = menu.classList.contains('hidden');
+        if (isHidden) {
+            menu.classList.remove('hidden');
+            if (chevron) chevron.classList.add('rotate-180');
+            if (searchInput) {
+                searchInput.value = '';
+                filterVenueList('');
+                setTimeout(() => searchInput.focus(), 50);
+            }
+        } else {
+            closeVenueDropdown();
+        }
+    }
+
+    function closeVenueDropdown() {
+        const menu = document.getElementById('venueDropdownMenu');
+        const chevron = document.getElementById('venueDropdownChevron');
+        if (menu) menu.classList.add('hidden');
+        if (chevron) chevron.classList.remove('rotate-180');
+    }
+
+    function selectVenue(venueName, displayLabel) {
+        const hiddenInput = document.getElementById('input_homebase_venue');
+        const displaySpan = document.getElementById('venueDropdownDisplay');
+
+        if (hiddenInput) hiddenInput.value = venueName;
+        if (displaySpan) {
+            displaySpan.textContent = venueName ? (displayLabel || venueName) : 'Pilih Venue Homebase (Opsional)';
+            if (venueName) {
+                displaySpan.classList.remove('text-slate-400');
+                displaySpan.classList.add('text-slate-900');
+            } else {
+                displaySpan.classList.remove('text-slate-900');
+                displaySpan.classList.add('text-slate-400');
+            }
+        }
+
+        // Highlight selected item in dropdown list
+        document.querySelectorAll('.venue-item-btn').forEach(btn => {
+            const isMatch = btn.getAttribute('data-venue-name') === (venueName ? venueName.toLowerCase() : '');
+            if (isMatch && venueName !== '') {
+                btn.className = 'venue-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all flex items-center justify-between group cursor-pointer bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/15';
+            } else if (isMatch && venueName === '') {
+                btn.className = 'venue-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 bg-slate-100 transition-all flex items-center justify-between group cursor-pointer';
+            } else {
+                btn.className = 'venue-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-all flex items-center justify-between group cursor-pointer';
+            }
+        });
+
+        closeVenueDropdown();
+    }
+
+    function filterVenueList(query) {
+        const cleanQuery = query.toLowerCase().trim();
+        const items = document.querySelectorAll('.venue-item-btn');
+        let visibleCount = 0;
+
+        items.forEach(btn => {
+            const name = btn.getAttribute('data-venue-name') || '';
+            const city = btn.getAttribute('data-venue-city') || '';
+            
+            // Tampilkan opsi kosongkan jika query kosong
+            if (name === '') {
+                btn.style.display = cleanQuery === '' ? 'flex' : 'none';
+                return;
+            }
+
+            if (name.includes(cleanQuery) || city.includes(cleanQuery)) {
+                btn.style.display = 'flex';
+                visibleCount++;
+            } else {
+                btn.style.display = 'none';
+            }
+        });
+
+        const emptyEl = document.getElementById('venueSearchEmpty');
+        if (emptyEl) {
+            emptyEl.style.display = (visibleCount === 0 && cleanQuery !== '') ? 'block' : 'none';
+        }
+    }
+
+    // Close on click outside & Escape key
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('venueDropdownMenu');
+        const trigger = document.getElementById('venueDropdownTrigger');
+        if (menu && !menu.classList.contains('hidden') && !menu.contains(e.target) && !trigger.contains(e.target)) {
+            closeVenueDropdown();
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeVenueDropdown();
+        }
+    });
+</script>
+@endpush

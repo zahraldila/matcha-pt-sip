@@ -172,7 +172,7 @@ class CommunityController extends Controller
     {
         // Validasi request
         $validated = $request->validate([
-            'nama_community' => ['required', 'string', 'max:255', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/'],
+            'nama_community' => ['required', 'string', 'max:70', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/'],
             'sport' => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
             'sport_focus' => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
             'deskripsi' => ['required', 'string', 'not_regex:/<[^>]*script/i'],
@@ -453,7 +453,7 @@ class CommunityController extends Controller
         }
 
         $validated = $request->validate([
-            'nama_community' => ['required', 'string', 'max:255', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/'],
+            'nama_community' => ['required', 'string', 'max:70', 'not_regex:/<[^>]*script/i', 'not_regex:/[<>]/'],
             'sport' => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
             'sport_focus' => 'nullable|string|in:padel,tennis,all_racquet,Padel,Tennis,Both,both',
             'deskripsi' => ['required', 'string', 'not_regex:/<[^>]*script/i'],
