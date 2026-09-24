@@ -102,20 +102,20 @@
                 </button>
 
                 {{-- Selection mode: compact inline toolbar (hidden by default) --}}
-                <div id="bulk-selection-container" class="hidden items-center gap-2 flex-wrap">
-                    <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                <div id="bulk-selection-container" class="hidden items-center gap-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap">
                         <input type="checkbox" id="bulk-select-all"
                             class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
-                        <span id="bulk-select-label" class="text-xs font-semibold text-slate-700 whitespace-nowrap">
-                            Pilih semua di halaman ini
+                        <span id="bulk-select-label" class="text-xs font-semibold text-slate-700">
+                            Pilih semua
                         </span>
                     </label>
                     <button type="button" id="btn-cancel-select"
-                        class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs transition-all cursor-pointer">
+                        class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs transition-all cursor-pointer whitespace-nowrap">
                         Batal
                     </button>
                     <button type="button" id="btn-submit-bulk" disabled
-                        class="px-3 py-1.5 text-xs font-semibold rounded-lg shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="px-3 py-1.5 text-xs font-semibold rounded-lg shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                         style="background-color:#dc2626;color:white;border:1px solid #b91c1c;">
                         Hapus <span id="bulk-count-display">0</span> komunitas
                     </button>
@@ -135,7 +135,7 @@
             @foreach($communities as $comm)
                 <div class="bulk-item-wrapper relative h-full">
                     @if(Auth::check() && Auth::user()->role === 'admin')
-                        <label class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg p-1.5 cursor-pointer hover:bg-slate-50 transition-colors">
+                        <label class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg p-1.5 cursor-pointer hover:bg-slate-50 transition-colors" style="display:none">
                             <input type="checkbox" value="{{ $comm['id'] }}" class="bulk-item-checkbox w-4.5 h-4.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shadow-xs">
                         </label>
                     @endif
@@ -279,105 +279,78 @@ document.addEventListener('DOMContentLoaded', function () {
     const bulkSelectLabel  = document.getElementById('bulk-select-label');
     const bulkForm         = document.getElementById('bulk-delete-form');
     const bulkInputsCont   = document.getElementById('bulk-delete-inputs');
+    const resultCount      = document.getElementById('communities-result-count');
 
-    // Only initialise if "Pilih" button exists (admin + cards present)
     if (!btnEnterSelect || !bulkContainer) return;
 
     let selectMode = false;
 
-    function getCheckboxes()  { return document.querySelectorAll('.bulk-item-checkbox'); }
-    function getChecked()     { return document.querySelectorAll('.bulk-item-checkbox:checked'); }
+    function getCheckboxes() { return document.querySelectorAll('.bulk-item-checkbox'); }
+    function getChecked()    { return document.querySelectorAll('.bulk-item-checkbox:checked'); }
 
     function updateUI() {
-        const checkboxes = getCheckboxes();
+        const checkboxes   = getCheckboxes();
         const checkedBoxes = getChecked();
-        const count     = checkedBoxes.length;
-        const pageTotal = checkboxes.length;
+        const count        = checkedBoxes.length;
+        const pageTotal    = checkboxes.length;
 
-        // Show/hide checkbox overlays and card highlights
+        // Show/hide checkbox overlays on each card via direct inline style
+        document.querySelectorAll('.bulk-item-checkbox-container').forEach(el => {
+            el.style.display = selectMode ? 'flex' : 'none';
+        });
+
+        // Card highlight based on checked state
         checkboxes.forEach(cb => {
             const wrapper = cb.closest('.bulk-item-wrapper');
             const card    = wrapper ? wrapper.querySelector('.bulk-item-card') : null;
-
-            if (selectMode) {
-                if (wrapper) wrapper.classList.add('selection-mode-active');
-                if (card) {
-                    if (cb.checked) {
-                        card.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50/20');
-                        card.classList.remove('border-white/90');
-                    } else {
-                        card.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50/20');
-                        card.classList.add('border-white/90');
-                    }
-                }
-            } else {
-                if (wrapper) wrapper.classList.remove('selection-mode-active');
-                cb.checked = false;
-                if (card) {
+            if (!selectMode) { cb.checked = false; }
+            if (card) {
+                if (selectMode && cb.checked) {
+                    card.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50/20');
+                    card.classList.remove('border-white/90');
+                } else {
                     card.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50/20');
                     card.classList.add('border-white/90');
                 }
             }
         });
 
-        // Toggle "Pilih" button vs inline toolbar
+        // Hide result count text when toolbar is active
+        if (resultCount) resultCount.style.display = selectMode ? 'none' : '';
+
+        // Toggle Pilih button vs toolbar
         if (selectMode) {
-            btnEnterSelect.classList.add('hidden');
-            bulkContainer.classList.remove('hidden');
-            bulkContainer.classList.add('show-toolbar');
+            btnEnterSelect.style.display = 'none';
+            bulkContainer.style.display  = 'flex';
         } else {
-            btnEnterSelect.classList.remove('hidden');
-            bulkContainer.classList.add('hidden');
-            bulkContainer.classList.remove('show-toolbar');
-            if (bulkSelectAll) {
-                bulkSelectAll.checked       = false;
-                bulkSelectAll.indeterminate = false;
-            }
-            if (bulkSelectLabel) bulkSelectLabel.textContent = 'Pilih semua di halaman ini';
-            if (btnSubmitBulk) {
-                btnSubmitBulk.disabled   = true;
-                btnSubmitBulk.innerHTML  = 'Hapus 0 komunitas';
-            }
+            btnEnterSelect.style.display = '';
+            bulkContainer.style.display  = 'none';
+            if (bulkSelectAll)   { bulkSelectAll.checked = false; bulkSelectAll.indeterminate = false; }
+            if (bulkSelectLabel) bulkSelectLabel.textContent = 'Pilih semua';
+            if (btnSubmitBulk)   { btnSubmitBulk.disabled = true; btnSubmitBulk.innerHTML = 'Hapus 0 komunitas'; }
             return;
         }
 
-        // Update select-all checkbox state and action button label
         if (!bulkSelectAll || !bulkSelectLabel || !btnSubmitBulk) return;
 
         if (count === 0) {
-            bulkSelectAll.checked       = false;
-            bulkSelectAll.indeterminate = false;
-            bulkSelectLabel.textContent = 'Pilih semua di halaman ini';
-            btnSubmitBulk.disabled      = true;
-            btnSubmitBulk.innerHTML     = 'Hapus 0 komunitas';
+            bulkSelectAll.checked = false; bulkSelectAll.indeterminate = false;
+            bulkSelectLabel.textContent = 'Pilih semua';
+            btnSubmitBulk.disabled = true; btnSubmitBulk.innerHTML = 'Hapus 0 komunitas';
         } else if (count === pageTotal && pageTotal > 0) {
-            bulkSelectAll.checked       = true;
-            bulkSelectAll.indeterminate = false;
-            bulkSelectLabel.innerHTML   = `Semua <strong>${count}</strong> komunitas di halaman ini dipilih`;
-            btnSubmitBulk.disabled      = false;
-            btnSubmitBulk.innerHTML     = `Hapus ${count} komunitas`;
+            bulkSelectAll.checked = true; bulkSelectAll.indeterminate = false;
+            bulkSelectLabel.innerHTML = `Semua <strong>${count}</strong> terpilih`;
+            btnSubmitBulk.disabled = false; btnSubmitBulk.innerHTML = `Hapus ${count} komunitas`;
         } else {
-            bulkSelectAll.checked       = false;
-            bulkSelectAll.indeterminate = true;
-            bulkSelectLabel.innerHTML   = `<strong>${count}</strong> item dipilih`;
-            btnSubmitBulk.disabled      = false;
-            btnSubmitBulk.innerHTML     = `Hapus ${count} komunitas`;
+            bulkSelectAll.checked = false; bulkSelectAll.indeterminate = true;
+            bulkSelectLabel.innerHTML = `<strong>${count}</strong> dipilih`;
+            btnSubmitBulk.disabled = false; btnSubmitBulk.innerHTML = `Hapus ${count} komunitas`;
         }
     }
 
-    // Enter selection mode
-    btnEnterSelect.addEventListener('click', () => {
-        selectMode = true;
-        updateUI();
-    });
+    btnEnterSelect.addEventListener('click',  () => { selectMode = true;  updateUI(); });
+    btnCancelSelect.addEventListener('click', () => { selectMode = false; updateUI(); });
 
-    // Cancel selection mode
-    btnCancelSelect.addEventListener('click', () => {
-        selectMode = false;
-        updateUI();
-    });
-
-    // Select all / deselect all
     if (bulkSelectAll) {
         bulkSelectAll.addEventListener('change', (e) => {
             getCheckboxes().forEach(cb => { cb.checked = e.target.checked; });
@@ -385,26 +358,20 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Individual card checkbox change
     document.addEventListener('change', (e) => {
         if (e.target.classList.contains('bulk-item-checkbox')) updateUI();
     });
 
-    // Submit bulk delete
     if (btnSubmitBulk && bulkForm && bulkInputsCont) {
         btnSubmitBulk.addEventListener('click', () => {
             const checkedBoxes = getChecked();
             const count = checkedBoxes.length;
             if (count === 0) return;
-
-            const msg = `Hapus ${count} komunitas?\n\nData komunitas yang dipilih akan dihapus. Tindakan ini tidak dapat dibatalkan.`;
-            if (confirm(msg)) {
+            if (confirm(`Hapus ${count} komunitas?\n\nData komunitas yang dipilih akan dihapus. Tindakan ini tidak dapat dibatalkan.`)) {
                 bulkInputsCont.innerHTML = '';
                 checkedBoxes.forEach(cb => {
                     const input = document.createElement('input');
-                    input.type  = 'hidden';
-                    input.name  = 'selected_ids[]';
-                    input.value = cb.value;
+                    input.type = 'hidden'; input.name = 'selected_ids[]'; input.value = cb.value;
                     bulkInputsCont.appendChild(input);
                 });
                 bulkForm.submit();
@@ -414,4 +381,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 @endpush
+
 
