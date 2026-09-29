@@ -16,6 +16,38 @@ use Illuminate\Support\Facades\DB;
 
 class VenueController extends Controller
 {
+    public static function resolveVenueSport(Venue $v): string
+    {
+        $sports = $v->courts->pluck('sport.nama_sport')->filter()->unique()->values();
+        if ($sports->count() === 1) {
+            return $sports->first();
+        } elseif ($sports->count() > 1) {
+            return 'Padel & Tennis';
+        }
+
+        // Fallback 1: Cek kolom sport_type di tb_venue
+        $sportType = strtolower(trim((string) ($v->sport_type ?? '')));
+        if ($sportType !== '') {
+            $hasPadel = str_contains($sportType, 'padel');
+            $hasTennis = str_contains($sportType, 'tennis') || str_contains($sportType, 'tenis');
+            if ($hasPadel && $hasTennis) {
+                return 'Padel & Tennis';
+            } elseif ($hasTennis) {
+                return 'Tennis';
+            } elseif ($hasPadel) {
+                return 'Padel';
+            }
+        }
+
+        // Fallback 2: Cek nama venue
+        $nameLower = strtolower(trim((string) ($v->nama_venue ?? '')));
+        if (str_contains($nameLower, 'tennis') || str_contains($nameLower, 'tenis')) {
+            return 'Tennis';
+        }
+
+        return 'Padel';
+    }
+
     public function index(Request $request)
     {
         $currentUserId = Auth::id();
@@ -32,14 +64,7 @@ class VenueController extends Controller
                 }, $rawPhotos));
                 $mainPhoto = $resolvedPhotos[0] ?? 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80';
 
-                $sports = $v->courts->pluck('sport.nama_sport')->filter()->unique()->values();
-                if ($sports->count() === 1) {
-                    $sportName = $sports->first();
-                } elseif ($sports->count() > 1) {
-                    $sportName = 'Padel & Tennis';
-                } else {
-                    $sportName = 'Padel';
-                }
+                $sportName = self::resolveVenueSport($v);
 
                 $isMine = $currentUserId && ($v->owner_user_id == $currentUserId);
 
@@ -141,17 +166,9 @@ class VenueController extends Controller
         $resolvedPhotos = $validPhotos;
         $mainPhoto = $resolvedPhotos[0] ?? null;
 
-        $sports = $dbVenue->courts->pluck('sport.nama_sport')->filter()->unique()->values();
-        if ($sports->count() === 1) {
-            $sportName = $sports->first();
-        } elseif ($sports->count() > 1) {
-            $sportName = 'Padel & Tennis';
-        } else {
-            $sportName = null;
-        }
+        $sportName = self::resolveVenueSport($dbVenue);
 
         $isMine = Auth::check() && ($dbVenue->owner_user_id == Auth::id() || Auth::user()->role === 'admin');
-
 
         $facilities = array_values(array_filter(array_map('trim', explode(',', $dbVenue->fasilitas ?? ''))));
 
