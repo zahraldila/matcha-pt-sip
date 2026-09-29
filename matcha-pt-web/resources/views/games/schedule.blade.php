@@ -1066,8 +1066,8 @@
 
         venueMenu.innerHTML = `
             <div class="p-2 border-b border-slate-100 bg-white/95 backdrop-blur-md shrink-0" onclick="event.stopPropagation()">
-                <div class="relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                <div class="relative flex items-center">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 text-slate-400 text-xs pointer-events-none z-10"></i>
                     <input
                         type="text"
                         id="venueScheduleSearchInput"
@@ -1075,7 +1075,8 @@
                         value="${venueScheduleSearchQuery}"
                         onclick="event.stopPropagation()"
                         oninput="filterVenueListSearch(this.value)"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8.5 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                        style="padding-left: 2.35rem !important;"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
                     >
                 </div>
             </div>
