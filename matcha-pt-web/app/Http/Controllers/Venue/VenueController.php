@@ -19,29 +19,36 @@ class VenueController extends Controller
     public static function resolveVenueSport(Venue $v): string
     {
         $sports = $v->courts->pluck('sport.nama_sport')->filter()->unique()->values();
-        if ($sports->count() === 1) {
-            return $sports->first();
-        } elseif ($sports->count() > 1) {
+        if ($sports->count() > 1) {
             return 'Padel & Tennis';
         }
 
-        // Fallback 1: Cek kolom sport_type di tb_venue
+        // Cek indikator multi-sport dari sport_type atau nama venue
         $sportType = strtolower(trim((string) ($v->sport_type ?? '')));
-        if ($sportType !== '') {
-            $hasPadel = str_contains($sportType, 'padel');
-            $hasTennis = str_contains($sportType, 'tennis') || str_contains($sportType, 'tenis');
-            if ($hasPadel && $hasTennis) {
-                return 'Padel & Tennis';
-            } elseif ($hasTennis) {
-                return 'Tennis';
-            } elseif ($hasPadel) {
-                return 'Padel';
-            }
+        $nameLower = strtolower(trim((string) ($v->nama_venue ?? '')));
+
+        $hasPadelInType = str_contains($sportType, 'padel');
+        $hasTennisInType = str_contains($sportType, 'tennis') || str_contains($sportType, 'tenis');
+        $hasPadelInName = str_contains($nameLower, 'padel');
+        $hasTennisInName = str_contains($nameLower, 'tennis') || str_contains($nameLower, 'tenis');
+
+        if (($hasPadelInType && $hasTennisInType) || ($hasPadelInName && $hasTennisInName)) {
+            return 'Padel & Tennis';
         }
 
-        // Fallback 2: Cek nama venue
-        $nameLower = strtolower(trim((string) ($v->nama_venue ?? '')));
-        if (str_contains($nameLower, 'tennis') || str_contains($nameLower, 'tenis')) {
+        if ($sports->count() === 1) {
+            return $sports->first();
+        }
+
+        // Fallback 1: sport_type
+        if ($hasTennisInType) {
+            return 'Tennis';
+        } elseif ($hasPadelInType) {
+            return 'Padel';
+        }
+
+        // Fallback 2: nama venue
+        if ($hasTennisInName) {
             return 'Tennis';
         }
 
