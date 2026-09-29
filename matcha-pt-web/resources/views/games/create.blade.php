@@ -916,25 +916,92 @@
         document.getElementById('scoringDropdownIcon')?.classList.replace('fa-chevron-up', 'fa-chevron-down');
     }
 
+    let venueCreateSearchQuery = '';
+
+    function filterCreateVenueListSearch(keyword) {
+        venueCreateSearchQuery = (keyword || '').toLowerCase().trim();
+        const items = document.querySelectorAll('.venue-create-item-btn');
+        let visibleCount = 0;
+        items.forEach(item => {
+            const text = (item.getAttribute('data-search') || item.textContent || '').toLowerCase();
+            if (!venueCreateSearchQuery || text.includes(venueCreateSearchQuery)) {
+                item.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+
+        const emptyMsg = document.getElementById('venueCreateEmptyMsg');
+        if (emptyMsg) {
+            if (visibleCount === 0) {
+                emptyMsg.classList.remove('hidden');
+            } else {
+                emptyMsg.classList.add('hidden');
+            }
+        }
+    }
+
+    function isCreateCourtAvailable(court) {
+        if (!court) return false;
+        if (!court.status_ketersediaan) return true;
+        return court.status_ketersediaan.toLowerCase() === 'available';
+    }
+
+    function isCourtMatchSport(court, sportName) {
+        if (!court) return false;
+        const courtSport = court.sport ? (court.sport.nama_sport || '') : '';
+        if (courtSport && courtSport.toLowerCase() === sportName.toLowerCase()) return true;
+        if (court.sport_id) {
+            const expectedId = sportName.toLowerCase() === 'padel' ? 1 : 2;
+            if (parseInt(court.sport_id) === expectedId) return true;
+        }
+        return false;
+    }
+
     function renderVenueDropdown() {
         const venueSelect = document.getElementById('venueId');
         const menu = document.getElementById('venueDropdownMenu');
         const label = document.getElementById('venueDropdownLabel');
         if (!venueSelect || !menu || !label) return;
 
-        menu.innerHTML = '';
+        menu.innerHTML = `
+            <div class="p-1 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur-md z-10" onclick="event.stopPropagation()">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
+                    <input
+                        type="text"
+                        id="venueCreateSearchInput"
+                        placeholder="Cari venue..."
+                        value="${venueCreateSearchQuery}"
+                        onclick="event.stopPropagation()"
+                        oninput="filterCreateVenueListSearch(this.value)"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-7 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                    >
+                </div>
+            </div>
+            <div id="venueCreateItemsContainer" class="space-y-0.5 pt-1"></div>
+            <div id="venueCreateEmptyMsg" class="hidden p-3 text-center text-xs text-slate-400 font-medium">Tidak ada venue yang sesuai pencarian</div>
+        `;
+
+        const itemsContainer = document.getElementById('venueCreateItemsContainer');
+
         Array.from(venueSelect.options).forEach(option => {
+            if (option.disabled && option.value === '') {
+                return;
+            }
             const item = document.createElement('button');
             item.type = 'button';
             item.disabled = option.disabled;
             const isSelected = !option.disabled && String(venueSelect.value) === String(option.value);
-            item.className = option.disabled
-                ? 'w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-400 cursor-not-allowed'
-                : `w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
-                    isSelected
+            item.className = `venue-create-item-btn w-full px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+                option.disabled
+                    ? 'text-slate-400 cursor-not-allowed'
+                    : isSelected
                         ? 'bg-[#EBF8D8] text-[#063B00] font-bold'
                         : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
-                }`;
+            }`;
+            item.setAttribute('data-search', option.textContent || '');
             item.innerHTML = `
                 <span class="truncate">${option.textContent}</span>
                 ${isSelected ? '<i class="fa-solid fa-check text-[#063B00] text-xs shrink-0 ml-2"></i>' : ''}
@@ -943,8 +1010,14 @@
             if (!option.disabled) {
                 item.onclick = () => selectVenueOption(option.value);
             }
-            menu.appendChild(item);
+            if (itemsContainer) {
+                itemsContainer.appendChild(item);
+            }
         });
+
+        if (venueCreateSearchQuery) {
+            filterCreateVenueListSearch(venueCreateSearchQuery);
+        }
 
         const selected = venueSelect.options[venueSelect.selectedIndex];
         label.textContent = selected?.value ? selected.textContent : (venueSelect.options[0]?.textContent || 'Pilih venue');
@@ -966,6 +1039,13 @@
         if (icon) {
             icon.classList.toggle('fa-chevron-down', isHidden);
             icon.classList.toggle('fa-chevron-up', !isHidden);
+        }
+
+        if (!isHidden) {
+            setTimeout(() => {
+                const searchInput = document.getElementById('venueCreateSearchInput');
+                if (searchInput) searchInput.focus();
+            }, 50);
         }
     }
 
@@ -994,9 +1074,7 @@
         const matchingVenues = allVenues.filter(venue => {
             if (!venue.courts || !Array.isArray(venue.courts)) return false;
             return venue.courts.some(court => {
-                const sportName = court.sport ? (court.sport.nama_sport || '') : '';
-                return sportName.toLowerCase() === selectedSport.toLowerCase() &&
-                       court.status_ketersediaan === 'Available';
+                return isCourtMatchSport(court, selectedSport) && isCreateCourtAvailable(court);
             });
         });
 
@@ -1022,9 +1100,7 @@
         let selectedIndexToSet = 1;
         matchingVenues.forEach((venue, idx) => {
             const availableCourts = venue.courts.filter(court => {
-                const sportName = court.sport ? (court.sport.nama_sport || '') : '';
-                return sportName.toLowerCase() === selectedSport.toLowerCase() &&
-                       court.status_ketersediaan === 'Available';
+                return isCourtMatchSport(court, selectedSport) && isCreateCourtAvailable(court);
             });
 
             const opt = document.createElement('option');

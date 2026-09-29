@@ -953,11 +953,19 @@
             menu.classList.remove('hidden');
             if (chevron) chevron.classList.add('rotate-180');
             if (wrapper) wrapper.style.zIndex = '40';
+            if (id === 'venue') {
+                setTimeout(() => {
+                    const searchInput = document.getElementById('venueScheduleSearchInput');
+                    if (searchInput) searchInput.focus();
+                }, 50);
+            }
         }
     }
 
     function selectScheduleOption(fieldId, value, label, callback) {
-        const input = document.getElementById(fieldId + 'Input') || document.getElementById(fieldId);
+        const input = document.getElementById(fieldId + 'IdInput') || 
+                      document.getElementById(fieldId + 'Input') || 
+                      document.getElementById(fieldId);
         const display = document.getElementById(fieldId + 'Display');
         const trigger = document.getElementById(fieldId + 'Trigger');
 
@@ -989,6 +997,38 @@
         }
     }
 
+    let venueScheduleSearchQuery = '';
+
+    function filterVenueListSearch(keyword) {
+        venueScheduleSearchQuery = (keyword || '').toLowerCase().trim();
+        const items = document.querySelectorAll('.venue-item-btn');
+        let visibleCount = 0;
+        items.forEach(item => {
+            const searchData = (item.getAttribute('data-search') || item.textContent || '').toLowerCase();
+            if (!venueScheduleSearchQuery || searchData.includes(venueScheduleSearchQuery)) {
+                item.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+
+        const emptyMsg = document.getElementById('venueEmptySearchMsg');
+        if (emptyMsg) {
+            if (visibleCount === 0) {
+                emptyMsg.classList.remove('hidden');
+            } else {
+                emptyMsg.classList.add('hidden');
+            }
+        }
+    }
+
+    function isCourtAvailable(court) {
+        if (!court) return false;
+        if (!court.status_ketersediaan) return true;
+        return court.status_ketersediaan.toLowerCase() === 'available';
+    }
+
     function filterCourtsBySport(sportId, preserveVenueId = null) {
         currentSportId = parseInt(sportId);
         const venueMenu = document.getElementById('venueMenu');
@@ -1001,7 +1041,7 @@
         // Filter venues having courts for this sport with status Available
         const matchingVenues = venuesData.filter(v => {
             if (!v.courts || !Array.isArray(v.courts)) return false;
-            return v.courts.some(c => parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available');
+            return v.courts.some(c => parseInt(c.sport_id) === currentSportId && isCourtAvailable(c));
         });
 
         if (matchingVenues.length === 0) {
@@ -1024,8 +1064,29 @@
             selectedVenueObj = matchingVenues.find(v => parseInt(v.venue_id) === parseInt(venueInput.value));
         }
 
+        venueMenu.innerHTML = `
+            <div class="p-1 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur-md z-10" onclick="event.stopPropagation()">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
+                    <input
+                        type="text"
+                        id="venueScheduleSearchInput"
+                        placeholder="Cari venue atau kota..."
+                        value="${venueScheduleSearchQuery}"
+                        onclick="event.stopPropagation()"
+                        oninput="filterVenueListSearch(this.value)"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-7 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                    >
+                </div>
+            </div>
+            <div id="venueListItems" class="space-y-1 pt-1"></div>
+            <div id="venueEmptySearchMsg" class="hidden p-3 text-center text-xs text-slate-400 font-medium">Tidak ada venue yang sesuai pencarian</div>
+        `;
+
+        const listContainer = document.getElementById('venueListItems');
+
         matchingVenues.forEach(v => {
-            const availableCount = v.courts.filter(c => parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available').length;
+            const availableCount = v.courts.filter(c => parseInt(c.sport_id) === currentSportId && isCourtAvailable(c)).length;
             const maxNameLen = 35;
             const truncatedName = v.nama_venue && v.nama_venue.length > maxNameLen ? v.nama_venue.substring(0, maxNameLen) + '...' : v.nama_venue;
             const label = `${truncatedName} (${availableCount} Court Tersedia)`;
@@ -1036,6 +1097,7 @@
             btn.type = 'button';
             btn.className = `venue-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer ${isSelected ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}`;
             btn.setAttribute('data-val', v.venue_id);
+            btn.setAttribute('data-search', `${v.nama_venue || ''} ${v.kota || ''} ${v.alamat || ''}`);
             btn.title = `${v.nama_venue} (${availableCount} Court Tersedia)`;
             btn.innerHTML = `<span class="truncate pr-2">${label}</span><i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 ${isSelected ? '' : 'hidden'}"></i>`;
             btn.onclick = () => {
@@ -1044,11 +1106,17 @@
                     onTanggalChanged();
                 });
             };
-            venueMenu.appendChild(btn);
+            if (listContainer) {
+                listContainer.appendChild(btn);
+            }
         });
 
+        if (venueScheduleSearchQuery) {
+            filterVenueListSearch(venueScheduleSearchQuery);
+        }
+
         if (selectedVenueObj) {
-            const availableCount = selectedVenueObj.courts.filter(c => parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available').length;
+            const availableCount = selectedVenueObj.courts.filter(c => parseInt(c.sport_id) === currentSportId && isCourtAvailable(c)).length;
             const maxNameLen = 35;
             const truncatedName = selectedVenueObj.nama_venue && selectedVenueObj.nama_venue.length > maxNameLen ? selectedVenueObj.nama_venue.substring(0, maxNameLen) + '...' : selectedVenueObj.nama_venue;
             const label = `${truncatedName} (${availableCount} Court Tersedia)`;
@@ -1615,7 +1683,7 @@
         }
 
         const filteredCourts = (selectedVenue.courts || []).filter(c => 
-            parseInt(c.sport_id) === currentSportId && c.status_ketersediaan === 'Available'
+            parseInt(c.sport_id) === currentSportId && isCourtAvailable(c)
         );
 
         if (filteredCourts.length === 0) {
