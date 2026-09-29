@@ -364,7 +364,7 @@
 
                             <div
                                 id="venueMenu"
-                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl animate-in fade-in zoom-in-95 duration-150 max-h-64 flex flex-col overflow-hidden"
                                 onclick="event.stopPropagation()"
                             >
                                 <!-- Populated dynamically via filterCourtsBySport() -->
@@ -1065,21 +1065,21 @@
         }
 
         venueMenu.innerHTML = `
-            <div class="p-1 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur-md z-10" onclick="event.stopPropagation()">
+            <div class="p-2 border-b border-slate-100 bg-white/95 backdrop-blur-md shrink-0" onclick="event.stopPropagation()">
                 <div class="relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                     <input
                         type="text"
                         id="venueScheduleSearchInput"
-                        placeholder="Cari venue atau kota..."
+                        placeholder="Cari nama venue atau kota..."
                         value="${venueScheduleSearchQuery}"
                         onclick="event.stopPropagation()"
                         oninput="filterVenueListSearch(this.value)"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-7 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8.5 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
                     >
                 </div>
             </div>
-            <div id="venueListItems" class="space-y-1 pt-1"></div>
+            <div id="venueListItems" class="space-y-1 p-1.5 max-h-48 overflow-y-auto flex-1"></div>
             <div id="venueEmptySearchMsg" class="hidden p-3 text-center text-xs text-slate-400 font-medium">Tidak ada venue yang sesuai pencarian</div>
         `;
 

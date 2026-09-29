@@ -298,7 +298,7 @@
                             <span id="venueDropdownLabel" class="min-w-0 truncate">Pilih venue</span>
                             <i id="venueDropdownIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 shrink-0"></i>
                         </button>
-                        <div id="venueDropdownMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
+                        <div id="venueDropdownMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-64 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"></div>
                     </div>
                 </div>
 
@@ -966,21 +966,21 @@
         if (!venueSelect || !menu || !label) return;
 
         menu.innerHTML = `
-            <div class="p-1 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur-md z-10" onclick="event.stopPropagation()">
+            <div class="p-2 border-b border-slate-100 bg-white/95 backdrop-blur-md shrink-0" onclick="event.stopPropagation()">
                 <div class="relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                     <input
                         type="text"
                         id="venueCreateSearchInput"
-                        placeholder="Cari venue..."
+                        placeholder="Cari nama venue atau kota..."
                         value="${venueCreateSearchQuery}"
                         onclick="event.stopPropagation()"
                         oninput="filterCreateVenueListSearch(this.value)"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-7 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8.5 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
                     >
                 </div>
             </div>
-            <div id="venueCreateItemsContainer" class="space-y-0.5 pt-1"></div>
+            <div id="venueCreateItemsContainer" class="space-y-0.5 p-1.5 max-h-48 overflow-y-auto flex-1"></div>
             <div id="venueCreateEmptyMsg" class="hidden p-3 text-center text-xs text-slate-400 font-medium">Tidak ada venue yang sesuai pencarian</div>
         `;
 
