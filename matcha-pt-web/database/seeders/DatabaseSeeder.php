@@ -148,5 +148,7 @@ class DatabaseSeeder extends Seeder
             ['nama_court' => 'Court A (Padel Glass)', 'venue_id' => $jtkVenue->venue_id],
             ['sport_id' => $padel->sport_id, 'status_ketersediaan' => 'Available', 'deskripsi' => 'Padel court outdoor']
         );
+
+        $this->call(SyncVenueCourtsSeeder::class);
     }
 }
