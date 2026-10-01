@@ -368,50 +368,18 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
 
                     const SizedBox(height: 16),
 
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildFieldLabel('Target Level Member'),
-                              const SizedBox(height: 6),
-                              _buildDropdown(
-                                value: _selectedTargetLevel,
-                                items: const [
-                                  DropdownMenuItem(value: 'All Levels', child: Text('Semua Level')),
-                                  DropdownMenuItem(value: 'Beginners', child: Text('Newbie / Beginner')),
-                                  DropdownMenuItem(value: 'Intermediate', child: Text('Intermediate+')),
-                                ],
-                                onChanged: (v) {
-                                  if (v != null) setState(() => _selectedTargetLevel = v);
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildFieldLabel('Status Keanggotaan'),
-                              const SizedBox(height: 6),
-                              _buildDropdown(
-                                value: _selectedStatusKeanggotaan,
-                                items: const [
-                                  DropdownMenuItem(value: 'Open', child: Text('Terbuka (Free)')),
-                                  DropdownMenuItem(value: 'Approval', child: Text('Approval')),
-                                  DropdownMenuItem(value: 'Private', child: Text('Private')),
-                                ],
-                                onChanged: (v) {
-                                  if (v != null) setState(() => _selectedStatusKeanggotaan = v);
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
+                    _buildFieldLabel('Target Level Member'),
+                    const SizedBox(height: 6),
+                    _buildDropdown(
+                      value: _selectedTargetLevel,
+                      items: const [
+                        DropdownMenuItem(value: 'All Levels', child: Text('Semua Level')),
+                        DropdownMenuItem(value: 'Beginners', child: Text('Newbie / Beginner')),
+                        DropdownMenuItem(value: 'Intermediate', child: Text('Intermediate+')),
                       ],
+                      onChanged: (v) {
+                        if (v != null) setState(() => _selectedTargetLevel = v);
+                      },
                     ),
 
                     const SizedBox(height: 28),
