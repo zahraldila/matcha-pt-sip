@@ -28,6 +28,101 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
   bool _isLoadingVenues = true;
   final TextEditingController _activityNameController = TextEditingController();
 
+  static const List<DropdownMenuItem<String>> _scoringSystemItems = [
+    // Header 1: Sistem Rotasi Poin (Total of X)
+    DropdownMenuItem<String>(
+      enabled: false,
+      value: '__header_total_of__',
+      child: Text(
+        'Sistem Rotasi Poin (Total of X)',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF64748B),
+          letterSpacing: 0.3,
+        ),
+      ),
+    ),
+    DropdownMenuItem<String>(
+      value: 'Total of 3 Poin',
+      child: Padding(
+        padding: EdgeInsets.only(left: 8),
+        child: Text('Total of 3 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+      ),
+    ),
+    DropdownMenuItem<String>(
+      value: 'Total of 4 Poin',
+      child: Padding(
+        padding: EdgeInsets.only(left: 8),
+        child: Text('Total of 4 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+      ),
+    ),
+    DropdownMenuItem<String>(
+      value: 'Total of 5 Poin',
+      child: Padding(
+        padding: EdgeInsets.only(left: 8),
+        child: Text('Total of 5 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+      ),
+    ),
+    DropdownMenuItem<String>(
+      value: 'Total of 6 Poin',
+      child: Padding(
+        padding: EdgeInsets.only(left: 8),
+        child: Text('Total of 6 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+      ),
+    ),
+    DropdownMenuItem<String>(
+      value: 'Total of 7 Poin',
+      child: Padding(
+        padding: EdgeInsets.only(left: 8),
+        child: Text('Total of 7 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+      ),
+    ),
+
+    // Header 2: Sistem Langsung Tuntas (First to X)
+    DropdownMenuItem<String>(
+      enabled: false,
+      value: '__header_first_to__',
+      child: Text(
+        'Sistem Langsung Tuntas (First to X)',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF64748B),
+          letterSpacing: 0.3,
+        ),
+      ),
+    ),
+    DropdownMenuItem<String>(
+      value: 'First to 8 Poin (Tuntas)',
+      child: Padding(
+        padding: EdgeInsets.only(left: 8),
+        child: Text('First to 8 Poin (Tuntas)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+      ),
+    ),
+    DropdownMenuItem<String>(
+      value: 'First to 11 Poin (Tuntas)',
+      child: Padding(
+        padding: EdgeInsets.only(left: 8),
+        child: Text('First to 11 Poin (Tuntas)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+      ),
+    ),
+    DropdownMenuItem<String>(
+      value: 'First to 15 Poin (Tuntas)',
+      child: Padding(
+        padding: EdgeInsets.only(left: 8),
+        child: Text('First to 15 Poin (Tuntas)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+      ),
+    ),
+    DropdownMenuItem<String>(
+      value: 'First to 21 Poin (Tuntas)',
+      child: Padding(
+        padding: EdgeInsets.only(left: 8),
+        child: Text('First to 21 Poin (Tuntas)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+      ),
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -677,16 +772,15 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: _config.scoringSystem,
+              value: _scoringSystemItems.any((item) => item.value == _config.scoringSystem)
+                  ? _config.scoringSystem
+                  : 'Total of 3 Poin',
               isExpanded: true,
-              items: ['Total of 3', 'Total of 7', 'First to 4', 'First to 6'].map((sys) {
-                return DropdownMenuItem<String>(
-                  value: sys,
-                  child: Text(sys, style: const TextStyle(fontSize: 13)),
-                );
-              }).toList(),
+              items: _scoringSystemItems,
               onChanged: (val) {
-                if (val != null) setState(() => _config.scoringSystem = val);
+                if (val != null && !val.startsWith('__header_')) {
+                  setState(() => _config.scoringSystem = val);
+                }
               },
             ),
           ),

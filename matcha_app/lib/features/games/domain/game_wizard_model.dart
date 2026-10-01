@@ -55,7 +55,7 @@ class GameWizardConfig {
   int courtCount;
   int? venueId;
   String? venueName;
-  String scoringSystem; // 'Total of 3', 'Total of 7', 'First to 4', 'First to 6'
+  String scoringSystem; // 'Total of 3 Poin', 'Total of 4 Poin', ..., 'First to 21 Poin (Tuntas)'
   String leaderboardRankedBy; // 'Point' or 'Win'
   String playMode; // 'Double' or 'Single'
   List<GamePlayerItem> players;
@@ -68,7 +68,7 @@ class GameWizardConfig {
     this.courtCount = 1,
     this.venueId,
     this.venueName,
-    this.scoringSystem = 'Total of 3',
+    this.scoringSystem = 'Total of 3 Poin',
     this.leaderboardRankedBy = 'Point',
     this.playMode = 'Double',
     List<GamePlayerItem>? players,
@@ -76,11 +76,15 @@ class GameWizardConfig {
   }) : players = players ?? [];
 
   int get maxTargetPoints {
-    if (scoringSystem.contains('3')) return 3;
-    if (scoringSystem.contains('7')) return 7;
-    if (scoringSystem.contains('4')) return 4;
-    if (scoringSystem.contains('6')) return 6;
     if (scoringSystem.contains('21')) return 21;
+    if (scoringSystem.contains('15')) return 15;
+    if (scoringSystem.contains('11')) return 11;
+    if (scoringSystem.contains('8')) return 8;
+    if (scoringSystem.contains('7')) return 7;
+    if (scoringSystem.contains('6')) return 6;
+    if (scoringSystem.contains('5')) return 5;
+    if (scoringSystem.contains('4')) return 4;
+    if (scoringSystem.contains('3')) return 3;
     if (scoringSystem.contains('32')) return 32;
     return 3;
   }
