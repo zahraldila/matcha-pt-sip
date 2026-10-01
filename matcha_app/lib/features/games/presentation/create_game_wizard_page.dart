@@ -155,6 +155,233 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
     }
   }
 
+  void _showVenueSearchPickerModal() {
+    final sportId = _config.sport.toLowerCase() == 'tennis' ? 2 : 1;
+    final availableVenues = _venues.where((v) {
+      return v.courts.isEmpty || v.courts.any((c) => c.sportId == sportId);
+    }).toList();
+    final targetVenues = availableVenues.isNotEmpty ? availableVenues : _venues;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filteredVenues = targetVenues.where((v) {
+              final query = searchQuery.toLowerCase().trim();
+              if (query.isEmpty) return true;
+              final nameMatch = v.namaVenue.toLowerCase().contains(query);
+              final cityMatch = v.kota != null && v.kota!.toLowerCase().contains(query);
+              final addressMatch = v.alamat != null && v.alamat!.toLowerCase().contains(query);
+              return nameMatch || cityMatch || addressMatch;
+            }).toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.78,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Pilih Venue Lapangan',
+                              style: AppTextStyles.h2.copyWith(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${targetVenues.length} venue tersedia untuk ${_config.sport}',
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 11,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 22),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextField(
+                        autofocus: false,
+                        onChanged: (val) {
+                          setModalState(() {
+                            searchQuery = val;
+                          });
+                        },
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                        decoration: InputDecoration(
+                          hintText: 'Cari nama venue, kota, atau alamat...',
+                          hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 20),
+                          suffixIcon: searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear_rounded, color: Color(0xFF94A3B8), size: 18),
+                                  onPressed: () {
+                                    setModalState(() {
+                                      searchQuery = '';
+                                    });
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  Expanded(
+                    child: filteredVenues.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search_off_rounded, size: 48, color: Colors.grey.shade400),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'Venue tidak ditemukan',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Tidak ada venue yang sesuai dengan kata kunci "$searchQuery"',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            itemCount: filteredVenues.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                            itemBuilder: (context, index) {
+                              final venue = filteredVenues[index];
+                              final isSelected = _config.venueId == venue.venueId;
+                              final courtCount = venue.courts.isNotEmpty ? venue.courts.length : 1;
+
+                              return InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _config.venueId = venue.venueId;
+                                    _config.venueName = venue.namaVenue;
+                                  });
+                                  Navigator.pop(context);
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? AppColors.matchaSoftLime.withValues(alpha: 0.5) : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? AppColors.matchaDark : const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          Icons.sports_tennis_rounded,
+                                          color: isSelected ? const Color(0xFFA8E63A) : const Color(0xFF64748B),
+                                          size: 18,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              venue.namaVenue,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                                color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              '${venue.kota ?? venue.alamat ?? 'Semua Lokasi'} • $courtCount Court',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: isSelected ? AppColors.matchaDark.withValues(alpha: 0.8) : const Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        Icon(
+                                          Icons.check_circle_rounded,
+                                          color: AppColors.matchaDark,
+                                          size: 20,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _addCurrentHost() {
     final user = widget.authController?.currentUser;
     if (user == null) return;
@@ -747,43 +974,79 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
           ],
         ),
         const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: _isLoadingVenues
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
-                )
-              : DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _config.venueId,
-                    isExpanded: true,
-                    hint: const Text('Pilih Lapangan Venue...', style: TextStyle(fontSize: 13)),
-                    items: _venues.map((venue) {
-                      return DropdownMenuItem<int>(
-                        value: venue.venueId,
-                        child: Text(
-                          venue.namaVenue,
-                          style: const TextStyle(fontSize: 13),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _config.venueId = val;
-                          _config.venueName = _venues.firstWhere((v) => v.venueId == val).namaVenue;
-                        });
-                      }
-                    },
-                  ),
+        InkWell(
+          onTap: _isLoadingVenues ? null : _showVenueSearchPickerModal,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _config.venueId != null ? AppColors.matchaDark.withValues(alpha: 0.4) : const Color(0xFFE2E8F0),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
+              ],
+            ),
+            child: _isLoadingVenues
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
+                  )
+                : Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.matchaSoftLime,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(Icons.location_on_rounded, color: AppColors.matchaDark, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _config.venueName ?? 'Pilih Lapangan Venue...',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: _config.venueName != null ? FontWeight.w700 : FontWeight.normal,
+                                color: _config.venueName != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (_config.venueId != null && _venues.any((v) => v.venueId == _config.venueId)) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_venues.firstWhere((v) => v.venueId == _config.venueId).kota ?? _venues.firstWhere((v) => v.venueId == _config.venueId).alamat ?? "Lokasi Terdaftar"}',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+          ),
         ),
         const SizedBox(height: 16),
 
