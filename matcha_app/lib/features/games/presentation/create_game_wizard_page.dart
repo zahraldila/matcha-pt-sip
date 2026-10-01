@@ -447,6 +447,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
         'badgeColor': const Color(0xFF22C55E),
         'desc': 'Semua pemain berpasangan secara bergantian (Round Robin)',
         'icon': Icons.swap_horiz_rounded,
+        'isEnabled': true,
       },
       {
         'title': 'Team Americano',
@@ -454,41 +455,47 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
         'badgeColor': const Color(0xFF3B82F6),
         'desc': 'Format pasangan tetap/tim tetap saling melawan seluruh tim lainnya',
         'icon': Icons.group_rounded,
+        'isEnabled': true,
       },
       {
         'title': 'Mexicano',
-        'badge': 'SEDANG AKHIR',
-        'badgeColor': const Color(0xFF64748B),
+        'badge': 'SEGERA HADIR',
+        'badgeColor': const Color(0xFF94A3B8),
         'desc': 'Sistem berpasangan peringkat sementara agar pertandingan selalu imbang',
         'icon': Icons.trending_up_rounded,
+        'isEnabled': false,
       },
       {
         'title': 'Team Mexicano',
-        'badge': 'SEDANG AKHIR',
-        'badgeColor': const Color(0xFF64748B),
+        'badge': 'SEGERA HADIR',
+        'badgeColor': const Color(0xFF94A3B8),
         'desc': 'Format Mexicano kompetitif dengan pasangan tim yang tetap',
         'icon': Icons.view_comfortable_rounded,
+        'isEnabled': false,
       },
       {
         'title': 'Mixicano',
-        'badge': 'SEDANG AKHIR',
-        'badgeColor': const Color(0xFF64748B),
+        'badge': 'SEGERA HADIR',
+        'badgeColor': const Color(0xFF94A3B8),
         'desc': 'Sistem selalu memasangkan 1 pria & 1 wanita dalam tiap tim secara dinamis',
         'icon': Icons.favorite_border_rounded,
+        'isEnabled': false,
       },
       {
         'title': 'Mix Americano',
-        'badge': 'SEDANG AKHIR',
-        'badgeColor': const Color(0xFF64748B),
+        'badge': 'SEGERA HADIR',
+        'badgeColor': const Color(0xFF94A3B8),
         'desc': 'Dilarang berpasangan sama, selalu dengan komposisi pria dan wanita seimbang',
         'icon': Icons.volunteer_activism_rounded,
+        'isEnabled': false,
       },
       {
         'title': 'King of the Court',
-        'badge': 'SEDANG AKHIR',
-        'badgeColor': const Color(0xFF64748B),
+        'badge': 'SEGERA HADIR',
+        'badgeColor': const Color(0xFF94A3B8),
         'desc': 'Pemenang court naik ke court atas, tim kalah turun ke court bawah',
         'icon': Icons.emoji_events_outlined,
+        'isEnabled': false,
       },
     ];
 
@@ -519,91 +526,111 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
         const SizedBox(height: 14),
         ...gameTypes.map((item) {
           final title = item['title'] as String;
+          final isEnabled = item['isEnabled'] as bool? ?? true;
           final isSelected = _config.gameType == title;
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                setState(() {
-                  _config.gameType = title;
-                  _currentStep = 3;
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
-                    width: isSelected ? 1.8 : 1,
+            child: Opacity(
+              opacity: isEnabled ? 1.0 : 0.55,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: isEnabled
+                    ? () {
+                        setState(() {
+                          _config.gameType = title;
+                          _currentStep = 3;
+                        });
+                      }
+                    : null,
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isEnabled ? Colors.white : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.matchaDark
+                          : isEnabled
+                              ? const Color(0xFFE2E8F0)
+                              : const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+                      width: isSelected ? 1.8 : 1,
+                    ),
+                    boxShadow: isEnabled
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.matchaSoftLime,
-                        borderRadius: BorderRadius.circular(12),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isEnabled ? AppColors.matchaSoftLime : const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          item['icon'] as IconData,
+                          color: isEnabled ? AppColors.matchaDark : const Color(0xFF94A3B8),
+                          size: 20,
+                        ),
                       ),
-                      child: Icon(item['icon'] as IconData, color: AppColors.matchaDark, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                title,
-                                style: AppTextStyles.h2.copyWith(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF0F172A),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: (item['badgeColor'] as Color).withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  item['badge'] as String,
-                                  style: TextStyle(
-                                    fontSize: 9,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  title,
+                                  style: AppTextStyles.h2.copyWith(
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w800,
-                                    color: item['badgeColor'] as Color,
+                                    color: isEnabled ? const Color(0xFF0F172A) : const Color(0xFF64748B),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            item['desc'] as String,
-                            style: AppTextStyles.caption.copyWith(
-                              fontSize: 11,
-                              color: const Color(0xFF64748B),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: (item['badgeColor'] as Color).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    item['badge'] as String,
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      color: item['badgeColor'] as Color,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 3),
+                            Text(
+                              item['desc'] as String,
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 11,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 20),
-                  ],
+                      Icon(
+                        isEnabled ? Icons.chevron_right_rounded : Icons.lock_outline_rounded,
+                        color: const Color(0xFF94A3B8),
+                        size: isEnabled ? 20 : 18,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
