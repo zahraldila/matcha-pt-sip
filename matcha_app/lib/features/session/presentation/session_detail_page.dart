@@ -560,6 +560,13 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
         session.statusSession.toLowerCase() == 'live' ||
         session.statusSession.toLowerCase() == 'completed';
 
+    // Scoring terbuka hanya jika host sudah kunci drawing (status In Progress/Live/Completed)
+    final isScoringOpen =
+        session.statusSession.toLowerCase() == 'in_progress' ||
+        session.statusSession.toLowerCase() == 'in progress' ||
+        session.statusSession.toLowerCase() == 'live' ||
+        session.statusSession.toLowerCase() == 'completed';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -601,51 +608,76 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
 
           // Jika kuota sudah penuh / ready: tampilkan tombol Drawing & Scoring
           if (isDrawingReady) ...[
-            // Tombol Buka Drawing Tim
-            SizedBox(
-              width: double.infinity,
-              height: 40,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const DrawingResultPage()),
-                  );
-                },
-                icon: const Icon(Icons.shuffle_rounded, size: 16),
-                label: const Text('Buka Drawing Tim', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.matchaDark,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            // Tombol Buka Drawing Tim — hanya untuk host/admin
+            if (canManage) ...[
+              SizedBox(
+                width: double.infinity,
+                height: 40,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DrawingResultPage()),
+                    );
+                  },
+                  icon: const Icon(Icons.shuffle_rounded, size: 16),
+                  label: const Text('Buka Drawing Tim', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.matchaDark,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
+            ],
 
-            // Tombol Live Match Scoring
-            SizedBox(
-              width: double.infinity,
-              height: 40,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const MatchScoringPage(),
+            // Tombol Live Match Scoring — hanya muncul setelah host kunci drawing
+            if (isScoringOpen)
+              SizedBox(
+                width: double.infinity,
+                height: 40,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MatchScoringPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.timer_outlined, size: 16),
+                  label: const Text('Live Match Scoring', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.matchaDark,
+                    side: const BorderSide(color: AppColors.matchaDark, width: 1.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              )
+            else if (!canManage)
+              // Informasi mode penonton untuk non-host saat drawing belum dikunci
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.visibility_outlined, size: 16, color: Color(0xFF64748B)),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Mode Penonton: Live scoring akan tersedia setelah host membuka pertandingan.',
+                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                      ),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.timer_outlined, size: 16),
-                label: const Text('Live Match Scoring', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.matchaDark,
-                  side: const BorderSide(color: AppColors.matchaDark, width: 1.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ],
                 ),
               ),
-            ),
             if (canManage) const SizedBox(height: 8),
           ] else ...[
             // Jika kuota belum penuh: tampilkan box informasi terkunci

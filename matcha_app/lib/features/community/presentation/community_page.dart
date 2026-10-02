@@ -121,6 +121,7 @@ class _CommunityPageState extends State<CommunityPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isGuest = widget.authController?.currentUser == null;
     final filtered = _filteredCommunities;
     final totalCount = _allCommunities.length;
     final myCount = _allCommunities.where((c) => c.isMember).length;
@@ -225,16 +226,18 @@ class _CommunityPageState extends State<CommunityPage> {
                       isSelected: _activeTab == 'all',
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildMainTab(
-                      key: 'joined',
-                      icon: Icons.check_circle_rounded,
-                      label: 'Komunitas Saya',
-                      count: myCount,
-                      isSelected: _activeTab == 'joined',
+                  if (!isGuest) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildMainTab(
+                        key: 'joined',
+                        icon: Icons.check_circle_rounded,
+                        label: 'Komunitas Saya',
+                        count: myCount,
+                        isSelected: _activeTab == 'joined',
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
 

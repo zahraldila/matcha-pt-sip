@@ -191,31 +191,7 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                     ),
-                    if (isGuest)
-                      TextButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => LoginPage(authController: widget.authController),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.login_rounded, size: 14, color: AppColors.matchaDark),
-                        label: const Text(
-                          'Masuk',
-                          style: TextStyle(
-                            color: AppColors.matchaDark,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                        style: TextButton.styleFrom(
-                          backgroundColor: AppColors.matchaSoftLime,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        ),
-                      ),
+
                   ],
                 ),
               ),
