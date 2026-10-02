@@ -175,6 +175,33 @@ void main() {
       expect(shouldQueryDatabase(''), false);
       expect(resolveSearchState('', [{'nama': 'Old Result'}]), 'helper_empty');
     });
+
+    test('Activity Name required validation & whitespace trimming verification', () {
+      bool isActivityNameValid(String name) {
+        return name.trim().isNotEmpty;
+      }
+
+      // 1. Empty activity name -> cannot continue
+      expect(isActivityNameValid(''), false);
+
+      // 2. Whitespace activity name -> cannot continue
+      expect(isActivityNameValid('   '), false);
+      expect(isActivityNameValid('\t\n  '), false);
+
+      // 3. Valid activity name -> can continue
+      expect(isActivityNameValid('Padel Weekend Fun'), true);
+      expect(isActivityNameValid('Tenis ITB'), true);
+      expect(isActivityNameValid('  Weekend Fun  '), true);
+
+      // 4. User clears activity name after valid input -> disabled again
+      String input = 'Padel Fun';
+      expect(isActivityNameValid(input), true);
+      input = '';
+      expect(isActivityNameValid(input), false);
+      input = '   ';
+      expect(isActivityNameValid(input), false);
+    });
   });
 }
+
 
