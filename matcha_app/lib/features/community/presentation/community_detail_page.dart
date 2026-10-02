@@ -114,10 +114,64 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     }
   }
 
+  Future<void> _handleDeactivateCommunity() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Tutup Pendaftaran Komunitas?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(
+          'Komunitas "${_community.namaCommunity}" akan diubah statusnya menjadi Closed. Data anggota & riwayat permainan tetap aman.',
+          style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Tutup Komunitas'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      setState(() => _isLoading = true);
+      await _dataSource.deactivateCommunity(_community.communityId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Status komunitas berhasil diperbarui.'),
+          backgroundColor: AppColors.matchaDark,
+        ),
+      );
+      await _loadDetail();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menonaktifkan komunitas: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = widget.authController?.currentUser;
     final isLoggedIn = user != null;
+    final canManage = user != null && (user.isAdmin || user.userId == _community.createdBy);
     final isMember = _community.isMember;
     final memberCount = _members.isNotEmpty ? _members.length : _community.memberCount;
 
@@ -144,6 +198,42 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
         ),
         centerTitle: true,
+        actions: [
+          if (canManage)
+            PopupMenuButton<String>(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.more_vert_rounded, size: 18, color: Color(0xFF0F172A)),
+              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (val) {
+                if (val == 'deactivate') {
+                  _handleDeactivateCommunity();
+                }
+              },
+              itemBuilder: (ctx) => [
+                PopupMenuItem(
+                  value: 'deactivate',
+                  child: Row(
+                    children: [
+                      Icon(Icons.block_rounded, size: 16, color: Colors.red.shade700),
+                      const SizedBox(width: 8),
+                      Text(
+                        user.isAdmin ? 'Tutup Komunitas (Admin)' : 'Tutup Komunitas',
+                        style: TextStyle(fontSize: 13, color: Colors.red.shade700, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            const SizedBox(width: 8),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.matchaDark))
@@ -288,7 +378,59 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                       ],
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 14),
+
+                    // Admin Action Buttons & Mode Administrator Banner
+                    if (user != null && user.isAdmin) ...[
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFFBEB),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFFDE68A)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Row(
+                              children: [
+                                Icon(Icons.workspace_premium_rounded, size: 16, color: Color(0xFFB45309)),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Akses Pengelola (Mode Administrator)',
+                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF92400E)),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Admin mengelola komunitas ini secara sistem dan tidak bergabung sebagai anggota pemain.',
+                              style: TextStyle(fontSize: 11.5, color: Color(0xFF78350F), height: 1.3),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFEF2F2),
+                                foregroundColor: const Color(0xFFDC2626),
+                                side: const BorderSide(color: Color(0xFFFECACA)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                              onPressed: _handleDeactivateCommunity,
+                              icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                              label: const Text('Hapus / Nonaktifkan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                    ],
 
                     // CARD 1: TENTANG KOMUNITAS
                     _buildAboutCard(),

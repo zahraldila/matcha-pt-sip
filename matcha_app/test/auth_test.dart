@@ -42,6 +42,35 @@ void main() {
       expect(user.playerId, 10);
       expect(user.level, 'Advanced');
       expect(user.usia, 26);
+      expect(user.isAdmin, false);
+    });
+
+    test('Admin role detection test (role: admin)', () {
+      final adminUser = UserModel(
+        userId: 999,
+        nama: 'Global Administrator',
+        email: 'admin@matcha.id',
+        role: 'admin',
+      );
+
+      expect(adminUser.isAdmin, true);
+      expect(adminUser.role, 'admin');
+
+      final memberUser = UserModel(
+        userId: 2,
+        nama: 'Member User',
+        email: 'member@matcha.id',
+        role: 'member',
+      );
+      expect(memberUser.isAdmin, false);
+
+      final venueOwner = UserModel(
+        userId: 3,
+        nama: 'Venue Owner',
+        email: 'owner@matcha.id',
+        role: 'venue_owner',
+      );
+      expect(venueOwner.isAdmin, false);
     });
   });
 }

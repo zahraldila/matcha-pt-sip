@@ -21,6 +21,7 @@ class AuthController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _currentUser != null;
   bool get isHost => _currentUser?.isHost ?? false;
+  bool get isAdmin => _currentUser?.isAdmin ?? false;
 
   /// Memeriksa apakah ada sesi login tersimpan di SharedPreferences (Auto-Login)
   Future<bool> checkSavedSession() async {

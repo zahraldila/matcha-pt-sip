@@ -126,6 +126,8 @@ class UserModel {
     );
   }
 
+  bool get isAdmin => role.toLowerCase() == 'admin';
+
   Map<String, dynamic> toJson() {
     return {
       'user_id': userId,

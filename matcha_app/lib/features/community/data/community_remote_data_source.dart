@@ -245,4 +245,18 @@ class CommunityRemoteDataSource {
       }
     }
   }
+
+  /// Menonaktifkan komunitas (Soft delete/deactivation oleh Admin atau Pembuat)
+  Future<void> deactivateCommunity(int communityId) async {
+    try {
+      await _supabase
+          .from('tb_community')
+          .update({'status_keanggotaan': 'Closed'})
+          .eq('community_id', communityId);
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal menonaktifkan komunitas: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
+    }
+  }
 }

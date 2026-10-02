@@ -8,6 +8,7 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../auth/presentation/register_page.dart';
 import '../../recap/presentation/match_recap_page.dart';
+import '../../admin/presentation/admin_user_management_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final AuthController? authController;
@@ -569,6 +570,11 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
               _buildPageHeader(),
               const SizedBox(height: 16),
 
+              if (user.isAdmin) ...[
+                _buildAdminStatusCard(),
+                const SizedBox(height: 16),
+              ],
+
               // 2. Status Akses Host Game Card (Matching web)
               _buildHostStatusCard(isHost),
               const SizedBox(height: 16),
@@ -647,6 +653,87 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAdminStatusCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.admin_panel_settings_rounded, color: Color(0xFFA8E63A), size: 24),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Administrator Global',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Akses pengelolaan global aktif untuk Komunitas, Venue, Sesi Mabar, dan User.',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 38,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E293B),
+                foregroundColor: const Color(0xFFA8E63A),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AdminUserManagementPage(authController: widget.authController),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.people_alt_rounded, size: 16),
+              label: const Text(
+                'Buka Manajemen Pengguna',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
