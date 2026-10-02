@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../data/community_remote_data_source.dart';
@@ -321,34 +322,10 @@ class _CommunityPageState extends State<CommunityPage> {
                   ),
                 )
               else if (_errorMessage != null)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.red.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.error_outline_rounded, size: 32, color: Colors.redAccent),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Gagal memuat komunitas: $_errorMessage',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 12, color: Colors.redAccent),
-                      ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: _loadCommunities,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.matchaDark,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Coba Lagi'),
-                      ),
-                    ],
-                  ),
+                OfflineStateWidget(
+                  error: _errorMessage,
+                  customTitle: 'Gagal Memuat Komunitas',
+                  onRetry: _loadCommunities,
                 )
               else if (filtered.isEmpty)
                 Container(

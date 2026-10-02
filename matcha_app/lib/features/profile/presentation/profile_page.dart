@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/app_error_handler.dart';
 import '../../auth/domain/models/user_model.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
@@ -165,13 +166,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gagal mengubah status host: $e'),
-              backgroundColor: Colors.redAccent,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          AppErrorHandler.showErrorSnackBar(context, e);
         }
       } finally {
         if (mounted) setState(() => _isTogglingHost = false);
@@ -198,12 +193,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengambil gambar: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        AppErrorHandler.showErrorSnackBar(context, e, customMessage: 'Gagal mengambil gambar dari perangkat.');
       }
     }
   }
@@ -320,43 +310,13 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         _currentFotoUrl = authCtrl.currentUser?.foto;
         _removeFoto = false;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    '🎉 Profil pemain berhasil diperbarui!',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF065F46),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        AppErrorHandler.showSuccessSnackBar(context, '🎉 Profil pemain berhasil diperbarui!');
       } else if (mounted && authCtrl.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(authCtrl.errorMessage!),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorHandler.showErrorSnackBar(context, authCtrl.errorMessage);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menyimpan profil: $e'),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorHandler.showErrorSnackBar(context, e);
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

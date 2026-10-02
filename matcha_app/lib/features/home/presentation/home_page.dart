@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../court/data/venue_service.dart';
@@ -300,22 +301,12 @@ class _HomePageState extends State<HomePage> {
             else if (_errorMessage != null)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        const Icon(Icons.error_outline_rounded, size: 36, color: Colors.redAccent),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Gagal memuat jadwal mabar: $_errorMessage',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.caption.copyWith(
-                            color: const Color(0xFF64748B),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: OfflineStateWidget(
+                    error: _errorMessage,
+                    customTitle: 'Gagal Memuat Jadwal Mabar',
+                    onRetry: _loadData,
+                    isCompact: true,
                   ),
                 ),
               )

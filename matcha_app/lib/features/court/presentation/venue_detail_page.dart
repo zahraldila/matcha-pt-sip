@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/app_error_handler.dart';
+import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../session/presentation/create_session_page.dart';
@@ -156,24 +158,12 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
       });
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Foto venue berhasil ditambahkan!'),
-          backgroundColor: Color(0xFF047857),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppErrorHandler.showSuccessSnackBar(context, 'Foto venue berhasil ditambahkan!');
     } catch (e) {
       if (!mounted) return;
       setState(() => _isUploadingPhoto = false);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal mengunggah foto: $e'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppErrorHandler.showErrorSnackBar(context, e);
     }
   }
 
@@ -648,30 +638,10 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
       body: _isLoading && venue == null
           ? const Center(child: CircularProgressIndicator(color: AppColors.matchaDark))
           : _errorMessage != null && venue == null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
-                        const SizedBox(height: 12),
-                        Text('Gagal memuat venue', style: AppTextStyles.h2),
-                        const SizedBox(height: 6),
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.caption.copyWith(color: const Color(0xFF64748B)),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadVenueDetail,
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.matchaDark),
-                          child: const Text('Coba Lagi', style: TextStyle(color: Colors.white)),
-                        ),
-                      ],
-                    ),
-                  ),
+              ? OfflineStateWidget(
+                  error: _errorMessage,
+                  customTitle: 'Gagal Memuat Detail Venue',
+                  onRetry: _loadVenueDetail,
                 )
               : venue == null
                   ? const SizedBox.shrink()

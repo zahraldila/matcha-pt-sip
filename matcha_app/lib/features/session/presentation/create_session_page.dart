@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/app_error_handler.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../court/data/venue_service.dart';
 import '../../court/domain/court_model.dart';
@@ -90,13 +91,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memuat venue: $e'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppErrorHandler.showErrorSnackBar(context, e);
     }
   }
 
@@ -842,25 +837,14 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       if (!mounted) return;
       Navigator.pop(context, true);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Sesi mabar "${_titleController.text.trim()}" berhasil dibuat dan dipublikasikan! 🎉',
-          ),
-          backgroundColor: AppColors.matchaDark,
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppErrorHandler.showSuccessSnackBar(
+        context,
+        'Sesi mabar "${_titleController.text.trim()}" berhasil dibuat dan dipublikasikan! 🎉',
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal membuat sesi: $e'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppErrorHandler.showErrorSnackBar(context, e);
     }
   }
 
