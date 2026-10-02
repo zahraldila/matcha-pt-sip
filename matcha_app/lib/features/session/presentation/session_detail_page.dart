@@ -88,52 +88,6 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     );
   }
 
-  Future<void> _handleLeaveSession(int playerId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Batalkan Keikutsertaan?'),
-        content: const Text('Slot kuota kamu akan dikosongkan dan dapat diisi oleh pemain lain.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Ya, Batalkan', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      await _sessionService.leaveSession(
-        sessionId: widget.sessionId,
-        playerId: playerId,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Kamu telah keluar dari sesi mabar ini.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      _loadSessionDetail();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal keluar sesi: $e'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
 
   String _formatDisplayDate(DateTime? dt) {
     if (dt == null) return 'Selasa, 22 Sep 2026';
@@ -623,6 +577,14 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                 widget.authController?.currentUser?.userId == session.hostUserId)) &&
         session.statusSession.toLowerCase() != 'cancelled';
 
+    final isDrawingReady = session.isFull ||
+        session.statusSession.toLowerCase() == 'ready' ||
+        session.statusSession.toLowerCase() == 'ready for drawing' ||
+        session.statusSession.toLowerCase() == 'in_progress' ||
+        session.statusSession.toLowerCase() == 'in progress' ||
+        session.statusSession.toLowerCase() == 'live' ||
+        session.statusSession.toLowerCase() == 'completed';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -651,9 +613,9 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           ),
           const SizedBox(height: 3),
           Text(
-            session.isFull
-                ? 'Pemain telah lengkap. Host dapat mengacak tim dan memulai scoring poin.'
-                : 'Sesi mabar masih membuka pendaftaran (${session.currentPlayersCount}/${session.jumlahPemain}). Masih dibutuhkan ${session.availableSlots} pemain lagi.',
+            isDrawingReady
+                ? 'Kuota pemain telah lengkap (${session.currentPlayersCount}/${session.jumlahPemain}). Host dapat mengacak susunan tim dan memulai scoring pertandingan.'
+                : 'Sesi mabar masih membuka pendaftaran (${session.currentPlayersCount}/${session.jumlahPemain}). Masih dibutuhkan ${session.availableSlots} pemain lagi untuk memulai drawing.',
             style: AppTextStyles.caption.copyWith(
               color: const Color(0xFF64748B),
               fontSize: 11,
@@ -662,10 +624,8 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           ),
           const SizedBox(height: 12),
 
-          // Action buttons: If full or ready, show drawing and scoring
-          if (session.isFull ||
-              session.statusSession.toLowerCase() == 'ready' ||
-              session.statusSession.toLowerCase() == 'in_progress') ...[
+          // Jika kuota sudah penuh / ready: tampilkan tombol Drawing & Scoring
+          if (isDrawingReady) ...[
             // Tombol Buka Drawing Tim
             SizedBox(
               width: double.infinity,
@@ -712,6 +672,29 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
               ),
             ),
             if (canManage) const SizedBox(height: 8),
+          ] else ...[
+            // Jika kuota belum penuh: tampilkan box informasi terkunci
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.lock_outline_rounded, size: 18, color: Color(0xFF64748B)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Drawing dan live scoring belum dapat dimulai karena kuota pemain belum lengkap (${session.currentPlayersCount}/${session.jumlahPemain}).',
+                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (canManage) const SizedBox(height: 10),
           ],
 
           // Tombol Hapus Jadwal Mabar (Shown if admin/host)
@@ -1057,57 +1040,28 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           width: double.infinity,
           height: 48,
           child: isUserJoined
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0FDF4),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF86EFAC), width: 1.2),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 18),
-                            SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                'Kamu Sudah Bergabung',
-                                style: TextStyle(
-                                  color: Color(0xFF16A34A),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+              ? Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFF86EFAC), width: 1.2),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Kamu Sudah Terdaftar di Sesi Ini',
+                        style: TextStyle(
+                          color: Color(0xFF16A34A),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (myPlayerId != null) {
-                          _handleLeaveSession(myPlayerId);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFEF2F2),
-                        foregroundColor: Colors.redAccent,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: const BorderSide(color: Color(0xFFFECACA), width: 1.2),
-                        ),
-                      ),
-                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    ),
-                  ],
+                    ],
+                  ),
                 )
               : ElevatedButton(
                   onPressed: session.isFull ? null : _openJoinModal,
