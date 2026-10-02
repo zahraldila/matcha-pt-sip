@@ -1294,6 +1294,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                                 const SizedBox(height: 6),
                                 DropdownButtonFormField<String>(
                                   initialValue: _selectedDuration,
+                                  isExpanded: true,
                                   decoration: _buildInputDecoration(hint: 'Durasi').copyWith(
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                   ),

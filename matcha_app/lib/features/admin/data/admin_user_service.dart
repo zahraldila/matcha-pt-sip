@@ -19,7 +19,6 @@ class AdminUserService {
             no_hp,
             role,
             is_host,
-            status_user,
             foto,
             created_at,
             updated_at,
@@ -51,46 +50,103 @@ class AdminUserService {
     }
   }
 
-  /// Memperbarui role dan status akun pengguna oleh Admin
-  Future<void> updateUserRoleAndStatus({
+  /// Memperbarui profil, peran, dan detail pengguna oleh Admin
+  Future<void> updateUser({
     required int userId,
+    required String nama,
+    required String email,
+    String? noHp,
     required String role,
     required bool isHost,
-    required String statusUser,
+    String? gender,
+    int? usia,
+    String? level,
   }) async {
     try {
-      await _supabase.from('tb_user').update({
-        'role': role,
+      // 1. Update tb_user
+      final userUpdate = <String, dynamic>{
+        'nama': nama.trim(),
+        'email': email.trim().toLowerCase(),
+        'no_hp': noHp?.trim(),
+        'role': role.trim(),
         'is_host': isHost,
-        'status_user': statusUser,
         'updated_at': DateTime.now().toIso8601String(),
-      }).eq('user_id', userId);
+      };
+
+      await _supabase.from('tb_user').update(userUpdate).eq('user_id', userId);
+
+      // 2. Update tb_player jika ada data gender/usia/level
+      final existingPlayer = await _supabase
+          .from('tb_player')
+          .select('player_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (existingPlayer != null) {
+        final playerUpdate = <String, dynamic>{
+          'nama': nama.trim(),
+          if (gender != null) 'gender': gender,
+          if (usia != null) 'usia': usia,
+          if (level != null) 'level': level,
+        };
+        await _supabase
+            .from('tb_player')
+            .update(playerUpdate)
+            .eq('user_id', userId);
+      } else {
+        await _supabase.from('tb_player').insert({
+          'user_id': userId,
+          'nama': nama.trim(),
+          'gender': gender ?? 'Male',
+          'usia': usia ?? 22,
+          'level': level ?? 'Intermediate',
+          'rating': 1.00,
+        });
+      }
     } on PostgrestException catch (e) {
-      throw Exception('Gagal memperbarui pengguna: ${e.message}');
+      throw Exception('Gagal memperbarui data pengguna: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
     }
   }
 
-  /// Menonaktifkan akun pengguna (Soft Delete / Inactive) demi menjaga relasi database
-  Future<void> deactivateUser(int userId) async {
+  /// Menghapus akun pengguna dari database secara permanen oleh Admin
+  Future<void> deleteUser(int userId) async {
     try {
-      await _supabase.from('tb_user').update({
-        'status_user': 'Inactive',
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('user_id', userId);
-    } on PostgrestException catch (e) {
-      throw Exception('Gagal menonaktifkan pengguna: ${e.message}');
-    }
-  }
+      // 1. Lepaskan atau hapus data relasi player
+      try {
+        await _supabase.from('tb_player').delete().eq('user_id', userId);
+      } catch (_) {
+        try {
+          await _supabase
+              .from('tb_player')
+              .update({'user_id': null})
+              .eq('user_id', userId);
+        } catch (_) {}
+      }
 
-  /// Mengaktifkan kembali akun pengguna
-  Future<void> activateUser(int userId) async {
-    try {
-      await _supabase.from('tb_user').update({
-        'status_user': 'Active',
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('user_id', userId);
+      // 2. Lepaskan keterkaitan venue owner jika ada
+      try {
+        await _supabase
+            .from('tb_venue')
+            .update({'created_by': null})
+            .eq('created_by', userId);
+      } catch (_) {}
+
+      // 3. Lepaskan keterkaitan community creator jika ada
+      try {
+        await _supabase
+            .from('tb_community')
+            .update({'created_by': null})
+            .eq('created_by', userId);
+      } catch (_) {}
+
+      // 4. Hapus record dari tb_user
+      await _supabase.from('tb_user').delete().eq('user_id', userId);
     } on PostgrestException catch (e) {
-      throw Exception('Gagal mengaktifkan pengguna: ${e.message}');
+      throw Exception('Gagal menghapus pengguna: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
     }
   }
 }

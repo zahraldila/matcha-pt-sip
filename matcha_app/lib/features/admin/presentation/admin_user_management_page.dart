@@ -88,9 +88,15 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   }
 
   void _showEditUserModal(UserModel user) {
+    final nameCtrl = TextEditingController(text: user.nama);
+    final emailCtrl = TextEditingController(text: user.email);
+    final phoneCtrl = TextEditingController(text: user.noHp ?? '');
+    final ageCtrl = TextEditingController(text: (user.usia ?? 22).toString());
+
     String selectedRole = user.role.toLowerCase();
     bool isHostVal = user.isHost;
-    String selectedStatus = user.statusUser;
+    String selectedGender = user.gender ?? 'Male';
+    String selectedLevel = user.level ?? 'Intermediate';
 
     showModalBottomSheet(
       context: context,
@@ -104,168 +110,283 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFCBD5E1),
-                      borderRadius: BorderRadius.circular(2),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Edit Data & Peran Pengguna',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            user.email,
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  const SizedBox(height: 14),
+
+                  // Nama Lengkap
+                  const Text('Nama Lengkap *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Email & No HP
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Email *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: emailCtrl,
+                              decoration: InputDecoration(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('No. WhatsApp / HP', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: phoneCtrl,
+                              decoration: InputDecoration(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Role & Mode Host
+                  const Text('Role Pengguna', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedRole,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'member', child: Text('Member (Pemain Biasa)', style: TextStyle(fontSize: 13))),
+                      DropdownMenuItem(value: 'host', child: Text('Host (Pembuat Sesi/Mabar)', style: TextStyle(fontSize: 13))),
+                      DropdownMenuItem(value: 'venue_owner', child: Text('Venue Owner (Pemilik Lapangan)', style: TextStyle(fontSize: 13))),
+                      DropdownMenuItem(value: 'admin', child: Text('Administrator (Akses Global)', style: TextStyle(fontSize: 13))),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setModalState(() {
+                          selectedRole = val;
+                          if (val == 'host') isHostVal = true;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Mode Host Switch
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Edit Peran & Status Pengguna',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
-                          ),
+                          'Izin Buka Sesi Mabar (Status Host)',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          user.nama,
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        Switch(
+                          value: isHostVal,
+                          activeTrackColor: AppColors.matchaDark,
+                          onChanged: (val) {
+                            setModalState(() => isHostVal = val);
+                          },
                         ),
                       ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                const SizedBox(height: 14),
-
-                // Pilih Role
-                const Text(
-                  'Role Pengguna',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
-                ),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedRole,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'member', child: Text('Member (Pemain Biasa)', style: TextStyle(fontSize: 13))),
-                    DropdownMenuItem(value: 'host', child: Text('Host (Pembuat Sesi/Mabar)', style: TextStyle(fontSize: 13))),
-                    DropdownMenuItem(value: 'venue_owner', child: Text('Venue Owner (Pemilik Lapangan)', style: TextStyle(fontSize: 13))),
-                    DropdownMenuItem(value: 'admin', child: Text('Administrator (Akses Global)', style: TextStyle(fontSize: 13))),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      setModalState(() {
-                        selectedRole = val;
-                        if (val == 'host') isHostVal = true;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 14),
+                  const SizedBox(height: 12),
 
-                // Mode Host Switch
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Izin Buka Sesi Mabar (Mode Host)',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-                    ),
-                    Switch(
-                      value: isHostVal,
-                      activeTrackColor: AppColors.matchaDark,
-                      onChanged: (val) {
-                        setModalState(() => isHostVal = val);
+                  // Gender, Usia, Level
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Gender', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                            const SizedBox(height: 6),
+                            DropdownButtonFormField<String>(
+                              initialValue: selectedGender.toLowerCase().startsWith('f') ? 'Female' : 'Male',
+                              decoration: InputDecoration(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: 'Male', child: Text('L (Male)', style: TextStyle(fontSize: 12))),
+                                DropdownMenuItem(value: 'Female', child: Text('P (Female)', style: TextStyle(fontSize: 12))),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) setModalState(() => selectedGender = val);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Usia (Tahun)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: ageCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Skill Level', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                            const SizedBox(height: 6),
+                            DropdownButtonFormField<String>(
+                              initialValue: selectedLevel,
+                              decoration: InputDecoration(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: 'Beginner', child: Text('Beginner', style: TextStyle(fontSize: 11))),
+                                DropdownMenuItem(value: 'Intermediate', child: Text('Intermediate', style: TextStyle(fontSize: 11))),
+                                DropdownMenuItem(value: 'Advanced', child: Text('Advanced', style: TextStyle(fontSize: 11))),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) setModalState(() => selectedLevel = val);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Save button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.matchaDark,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      onPressed: () async {
+                        if (nameCtrl.text.trim().isEmpty || emailCtrl.text.trim().isEmpty) return;
+                        final messenger = ScaffoldMessenger.of(context);
+                        Navigator.pop(context);
+                        setState(() => _isLoading = true);
+
+                        try {
+                          await _adminUserService.updateUser(
+                            userId: user.userId,
+                            nama: nameCtrl.text.trim(),
+                            email: emailCtrl.text.trim(),
+                            noHp: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                            role: selectedRole,
+                            isHost: isHostVal,
+                            gender: selectedGender,
+                            usia: int.tryParse(ageCtrl.text.trim()) ?? 22,
+                            level: selectedLevel,
+                          );
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Data akun "${nameCtrl.text.trim()}" berhasil diperbarui.'),
+                              backgroundColor: AppColors.matchaDark,
+                            ),
+                          );
+                          await _loadUsers();
+                        } catch (e) {
+                          if (!mounted) return;
+                          setState(() => _isLoading = false);
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Gagal memperbarui pengguna: $e'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
                       },
+                      child: const Text('Simpan Perubahan Pengguna', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // Status User
-                const Text(
-                  'Status Akun',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
-                ),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedStatus,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'Active', child: Text('Active (Akun Aktif)', style: TextStyle(fontSize: 13))),
-                    DropdownMenuItem(value: 'Inactive', child: Text('Inactive (Dinonaktifkan)', style: TextStyle(fontSize: 13, color: Colors.red))),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      setModalState(() => selectedStatus = val);
-                    }
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // Save button
-                SizedBox(
-                  width: double.infinity,
-                  height: 44,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.matchaDark,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () async {
-                      final messenger = ScaffoldMessenger.of(context);
-                      Navigator.pop(context);
-                      try {
-                        await _adminUserService.updateUserRoleAndStatus(
-                          userId: user.userId,
-                          role: selectedRole,
-                          isHost: isHostVal,
-                          statusUser: selectedStatus,
-                        );
-                        if (!mounted) return;
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text('Peran akun "${user.nama}" berhasil diperbarui.'),
-                            backgroundColor: AppColors.matchaDark,
-                          ),
-                        );
-                        _loadUsers();
-                      } catch (e) {
-                        if (!mounted) return;
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text('Gagal memperbarui pengguna: $e'),
-                            backgroundColor: Colors.redAccent,
-                          ),
-                        );
-                      }
-                    },
-                    child: const Text('Simpan Perubahan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -273,34 +394,91 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     );
   }
 
-  Future<void> _handleToggleUserStatus(UserModel user) async {
-    final isCurrentlyActive = user.statusUser.toLowerCase() != 'inactive';
-    final actionText = isCurrentlyActive ? 'Nonaktifkan' : 'Aktifkan Kembali';
-
+  Future<void> _handleDeleteUser(UserModel user) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('$actionText Akun?', style: const TextStyle(fontWeight: FontWeight.bold)),
-        content: Text(
-          isCurrentlyActive
-              ? 'Akun "${user.nama}" (${user.email}) akan dinonaktifkan. Pengguna tidak dapat login, namun histori pertandingan dan skor tetap aman di database.'
-              : 'Aktifkan kembali akun "${user.nama}" agar pengguna dapat login kembali ke Matcha.',
-          style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF1F2),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFFECDD3)),
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                color: Color(0xFFE11D48),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Hapus Pengguna Permanen?',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF475569),
+                        height: 1.4,
+                      ),
+                      children: [
+                        const TextSpan(text: 'Apakah Anda yakin ingin menghapus akun '),
+                        TextSpan(
+                          text: user.nama,
+                          style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                        ),
+                        TextSpan(
+                          text: ' (${user.email})? Tindakan ini akan menghapus data pengguna secara permanen dari sistem.',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         actions: [
-          TextButton(
+          OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.delete_outline_rounded, size: 15),
+            label: const Text('Ya, Hapus Pengguna', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isCurrentlyActive ? const Color(0xFFDC2626) : AppColors.matchaDark,
+              backgroundColor: const Color(0xFFE11D48),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(actionText),
           ),
         ],
       ),
@@ -308,25 +486,25 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
 
     if (confirmed != true) return;
 
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _isLoading = true);
+
     try {
-      if (isCurrentlyActive) {
-        await _adminUserService.deactivateUser(user.userId);
-      } else {
-        await _adminUserService.activateUser(user.userId);
-      }
+      await _adminUserService.deleteUser(user.userId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
-          content: Text('Status akun "${user.nama}" berhasil diubah menjadi ${isCurrentlyActive ? "Inactive" : "Active"}.'),
+          content: Text('Pengguna "${user.nama}" berhasil dihapus.'),
           backgroundColor: AppColors.matchaDark,
         ),
       );
-      _loadUsers();
+      await _loadUsers();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      setState(() => _isLoading = false);
+      messenger.showSnackBar(
         SnackBar(
-          content: Text('Gagal mengubah status akun: $e'),
+          content: Text('Gagal menghapus pengguna: $e'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -344,17 +522,6 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
         elevation: 0,
         scrolledUnderElevation: 1,
         surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: Color(0xFF0F172A)),
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text(
           'Manajemen Pengguna',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
@@ -599,7 +766,8 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   }
 
   Widget _buildUserCard(UserModel user, int index) {
-    final isInactive = user.statusUser.toLowerCase() == 'inactive';
+    final genderStr = user.gender != null && user.gender!.toLowerCase().startsWith('f') ? 'P' : 'L';
+    final ageStr = user.usia != null ? '${user.usia} thn' : '22 thn';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -607,7 +775,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isInactive ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -620,11 +788,14 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Index number
-          Text(
-            '$index',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)),
+          Container(
+            width: 22,
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              '$index',
+              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)),
+            ),
           ),
-          const SizedBox(width: 10),
 
           // Avatar
           ClipRRect(
@@ -632,8 +803,8 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             child: user.foto != null && user.foto!.isNotEmpty
                 ? Image.network(
                     user.foto!,
-                    width: 40,
-                    height: 40,
+                    width: 38,
+                    height: 38,
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) => _buildAvatarFallback(user),
                   )
@@ -651,15 +822,16 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                     Expanded(
                       child: Text(
                         user.nama,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w800,
-                          color: isInactive ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
+                          color: Color(0xFF0F172A),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 6),
                     _buildRoleBadge(user),
                   ],
                 ),
@@ -670,28 +842,26 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
-                Row(
+                const SizedBox(height: 3),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       user.noHp != null && user.noHp!.isNotEmpty ? user.noHp! : 'Tanpa No. HP',
                       style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                     ),
-                    const Text(' • ', style: TextStyle(color: Color(0xFFCBD5E1))),
+                    const Text('•', style: TextStyle(fontSize: 10, color: Color(0xFFCBD5E1))),
                     Text(
-                      '${user.gender != null && user.gender!.toLowerCase().startsWith('m') ? "L" : "P"} / ${user.usia ?? 25} thn',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      '$genderStr / $ageStr',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
                     ),
-                    if (isInactive) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF2F2),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: const Color(0xFFFECACA)),
-                        ),
-                        child: const Text('Inactive', style: TextStyle(fontSize: 9, color: Color(0xFFDC2626), fontWeight: FontWeight.bold)),
+                    if (user.level != null && user.level!.isNotEmpty) ...[
+                      const Text('•', style: TextStyle(fontSize: 10, color: Color(0xFFCBD5E1))),
+                      Text(
+                        user.level!,
+                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF063B00)),
                       ),
                     ],
                   ],
@@ -699,27 +869,28 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
 
           // Action buttons (Edit & Delete)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF063B00)),
                 visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 onPressed: () => _showEditUserModal(user),
-                tooltip: 'Edit Peran',
+                tooltip: 'Edit Data Pengguna',
               ),
+              const SizedBox(width: 8),
               IconButton(
-                icon: Icon(
-                  isInactive ? Icons.restart_alt_rounded : Icons.delete_outline_rounded,
-                  size: 18,
-                  color: isInactive ? const Color(0xFF15803D) : const Color(0xFFDC2626),
-                ),
+                icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFE11D48)),
                 visualDensity: VisualDensity.compact,
-                onPressed: () => _handleToggleUserStatus(user),
-                tooltip: isInactive ? 'Aktifkan Kembali' : 'Nonaktifkan Akun',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => _handleDeleteUser(user),
+                tooltip: 'Hapus Pengguna',
               ),
             ],
           ),
@@ -730,17 +901,17 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
 
   Widget _buildAvatarFallback(UserModel user) {
     return Container(
-      width: 40,
-      height: 40,
+      width: 38,
+      height: 38,
       decoration: BoxDecoration(
         color: AppColors.matchaDark,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(19),
       ),
       child: Center(
         child: Text(
           user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.bold,
             color: Color(0xFFA8E63A),
           ),
@@ -751,26 +922,26 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
 
   Widget _buildRoleBadge(UserModel user) {
     final role = user.role.toLowerCase();
-    if (role == 'admin') {
+    if (role == 'admin' || role == 'administrator' || role == 'superadmin') {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         decoration: BoxDecoration(
           color: const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF0F172A), width: 1.2),
+          border: Border.all(color: const Color(0xFFCBD5E1)),
         ),
         child: const Text(
           'Administrator',
-          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF334155)),
         ),
       );
     } else if (user.isHost || role == 'host') {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         decoration: BoxDecoration(
           color: const Color(0xFFFEF3C7),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFCD34D)),
+          border: Border.all(color: const Color(0xFFFDE68A)),
         ),
         child: const Text(
           'Host',
@@ -779,28 +950,28 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
       );
     } else if (role == 'venue_owner') {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         decoration: BoxDecoration(
-          color: const Color(0xFFEFF6FF),
+          color: const Color(0xFFE0F2FE),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFBFDBFE)),
+          border: Border.all(color: const Color(0xFFBAE6FD)),
         ),
         child: const Text(
           'Venue Owner',
-          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF1D4ED8)),
+          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF0284C7)),
         ),
       );
     } else {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         decoration: BoxDecoration(
-          color: const Color(0xFFF1F5F9),
+          color: const Color(0xFFEBF8D8),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFCBD5E1)),
+          border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
         ),
         child: const Text(
           'Member',
-          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF475569)),
+          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF166534)),
         ),
       );
     }
