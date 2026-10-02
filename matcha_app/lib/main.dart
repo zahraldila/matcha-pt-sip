@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
+import 'core/services/app_link_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/splash/presentation/splash_page.dart';
@@ -23,6 +24,9 @@ void main() async {
 }
 
 final supabase = Supabase.instance.client;
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<ScaffoldMessengerState> appScaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 
 class MatchaApp extends StatefulWidget {
   const MatchaApp({super.key});
@@ -38,10 +42,17 @@ class _MatchaAppState extends State<MatchaApp> {
   void initState() {
     super.initState();
     _authController = AuthController();
+    AppLinkService().configure(
+      navigatorKey: appNavigatorKey,
+      messengerKey: appScaffoldMessengerKey,
+      authController: _authController,
+    );
+    AppLinkService().init();
   }
 
   @override
   void dispose() {
+    AppLinkService().dispose();
     _authController.dispose();
     super.dispose();
   }
@@ -49,6 +60,8 @@ class _MatchaAppState extends State<MatchaApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
+      scaffoldMessengerKey: appScaffoldMessengerKey,
       title: 'Matcha - Tennis & Padel Community Arena',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,

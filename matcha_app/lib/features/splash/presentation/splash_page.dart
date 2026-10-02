@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/services/app_link_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
@@ -49,7 +50,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
 
     if (!mounted) return;
 
-    Navigator.of(context).pushReplacement(
+    await Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (ctx, animation, secondaryAnim) =>
             MainShellPage(authController: widget.authController),
@@ -58,6 +59,8 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
         transitionDuration: const Duration(milliseconds: 500),
       ),
     );
+
+    AppLinkService().setAppReady();
   }
 
   @override

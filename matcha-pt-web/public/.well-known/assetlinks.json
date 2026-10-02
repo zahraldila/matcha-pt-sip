@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.example.matcha_app",
+      "sha256_cert_fingerprints": [
+        "6A:34:5E:2C:F2:59:CB:BE:1E:E3:00:FA:6A:F3:08:AB:1C:E5:FF:9E:0E:84:0E:C2:DD:FE:A9:93:75:50:3A:3C"
+      ]
+    }
+  }
+]

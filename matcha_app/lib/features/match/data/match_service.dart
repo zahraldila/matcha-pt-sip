@@ -97,7 +97,7 @@ class MatchService {
         try {
           final participants = await _supabase
               .from('tb_match_participant')
-              .select('player_id, side, group_no')
+              .select('player_id, side')
               .eq('match_id', matchId);
 
           for (final p in participants) {
@@ -116,9 +116,8 @@ class MatchService {
             if (playerName == null || playerName.isEmpty) continue;
 
             final sideVal = (p['side'] ?? '').toString().toLowerCase();
-            final groupNo = p['group_no'];
 
-            if (sideVal.contains('b') || groupNo == 2) {
+            if (sideVal.contains('b')) {
               sideBPlayers.add(playerName);
             } else {
               sideAPlayers.add(playerName);

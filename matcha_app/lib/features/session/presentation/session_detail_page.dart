@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/app_error_handler.dart';
@@ -6,7 +7,7 @@ import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../drawing/presentation/drawing_result_page.dart';
 import '../../match/presentation/match_scoring_page.dart';
-import '../../recap/presentation/match_recap_page.dart';
+import '../../recap/presentation/session_match_recap_page.dart';
 import '../data/session_service.dart';
 import '../domain/session_model.dart';
 import 'widgets/join_session_modal.dart';
@@ -91,6 +92,46 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     );
   }
 
+
+  Future<void> _handleShareSession() async {
+    final session = _session;
+    final shareToken = session?.shareToken?.trim();
+
+    if (session == null || shareToken == null || shareToken.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Link share sesi belum tersedia.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final shareUrl = session.shareUrl ?? 'https://matcha.siproduktif.com/games/share/$shareToken';
+    final shareText = 'Mabar yuk di MATCHA!\n\n${session.namaSession}\n\n$shareUrl';
+
+    try {
+      final box = context.findRenderObject() as RenderBox?;
+      final originRect = box != null
+          ? box.localToGlobal(Offset.zero) & box.size
+          : null;
+
+      await Share.share(
+        shareText,
+        subject: 'Mabar: ${session.namaSession}',
+        sharePositionOrigin: originRect,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal membuka menu bagikan. Silakan coba lagi.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   String _formatDisplayDate(DateTime? dt) {
     if (dt == null) return 'Selasa, 22 Sep 2026';
@@ -262,7 +303,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     );
   }
 
-  /// Header matching `show.blade.php` (Title, Sport Badge, Status Badge)
+  /// Header matching `show.blade.php` (Title, Sport Badge, Status Badge, Share Action)
   Widget _buildWebMatchingHeader(SessionModel session) {
     final statusLower = session.statusSession.trim().toLowerCase();
     final isFinished = statusLower == 'finished' ||
@@ -305,20 +346,20 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        Text(
+          session.namaSession,
+          style: AppTextStyles.h1.copyWith(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Expanded(
-              child: Text(
-                session.namaSession,
-                style: AppTextStyles.h1.copyWith(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFF0F172A),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
             // Sport Badge
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -336,7 +377,6 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 6),
             // Status Badge
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -351,6 +391,37 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                   color: statusText,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            // Compact Share Button
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+                onTap: _handleShareSession,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.share_outlined, size: 12, color: Color(0xFF475569)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Share',
+                        style: TextStyle(
+                          color: Color(0xFF475569),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -603,12 +674,17 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isFinished ? const Color(0xFFFFFBEB) : Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isFinished ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0),
+          width: isFinished ? 1.5 : 1.0,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: isFinished
+                ? const Color(0xFFD97706).withValues(alpha: 0.05)
+                : Colors.black.withValues(alpha: 0.02),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -617,12 +693,30 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (isFinished) ...[
+            const Row(
+              children: [
+                Icon(Icons.emoji_events_rounded, size: 14, color: Color(0xFFB45309)),
+                SizedBox(width: 5),
+                Text(
+                  'HASIL AKHIR MABAR',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFB45309),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+          ],
           Text(
             isFinished
-                ? 'Rekap & Hasil Pertandingan'
+                ? 'Hasil Akhir & Podium'
                 : (isLive ? 'Pertandingan Berlangsung' : 'Drawing & Pertandingan'),
             style: AppTextStyles.h3.copyWith(
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w800,
               color: const Color(0xFF0F172A),
             ),
@@ -630,69 +724,70 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           const SizedBox(height: 3),
           Text(
             isFinished
-                ? 'Sesi mabar ini telah selesai. Seluruh rangkaian pertandingan dan pencatatan skor telah rampung.'
+                ? 'Seluruh pertandingan pada sesi mabar ini telah selesai dimainkan dan skor akhir telah direkap secara resmi.'
                 : (isDrawingReady
                     ? 'Kuota pemain telah lengkap (${session.currentPlayersCount}/${session.jumlahPemain}). Host dapat mengacak susunan tim dan memulai scoring pertandingan.'
                     : 'Sesi mabar masih membuka pendaftaran (${session.currentPlayersCount}/${session.jumlahPemain}). Masih dibutuhkan ${session.availableSlots} pemain lagi untuk memulai drawing.'),
             style: AppTextStyles.caption.copyWith(
               color: const Color(0xFF64748B),
-              fontSize: 11,
+              fontSize: 11.5,
               height: 1.35,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // 1. Jika sesi Selesai (Finished)
+          // 1. Jika sesi Selesai (Finished) -> Tampilan Persis Seperti di Web
           if (isFinished) ...[
             SizedBox(
               width: double.infinity,
-              height: 40,
+              height: 44,
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => MatchRecapPage(
+                      builder: (_) => SessionMatchRecapPage(
+                        sessionId: session.sessionId,
+                        session: session,
                         authController: widget.authController,
                       ),
                     ),
                   );
                 },
-                icon: const Icon(Icons.leaderboard_rounded, size: 16),
+                icon: const Icon(Icons.emoji_events_rounded, size: 16),
                 label: const Text(
-                  'Lihat Rekap Skor & Leaderboard',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  'Buka Hasil Akhir & Podium',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.matchaDark,
+                  backgroundColor: const Color(0xFF063B00),
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              height: 40,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const DrawingResultPage()),
-                  );
-                },
-                icon: const Icon(Icons.people_alt_outlined, size: 16),
-                label: const Text(
-                  'Lihat Bagan Tim Drawing',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            const SizedBox(height: 12),
+            const Row(
+              children: [
+                Icon(Icons.check_rounded, size: 14, color: Color(0xFF16A34A)),
+                SizedBox(width: 6),
+                Text(
+                  'Rekap skor & statistik total per set',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF475569)),
                 ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF334155),
-                  side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Row(
+              children: [
+                Icon(Icons.check_rounded, size: 14, color: Color(0xFF16A34A)),
+                SizedBox(width: 6),
+                Text(
+                  'Peringkat klasemen & juara turnamen',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF475569)),
                 ),
-              ),
+              ],
             ),
           ]
           // 2. Jika sesi Kuota Lengkap / Sedang Live
