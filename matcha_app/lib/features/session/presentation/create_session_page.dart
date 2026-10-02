@@ -34,10 +34,10 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
   bool _isSubmitting = false;
 
   // 1. Cabang Olahraga
-  int _selectedSportId = 1; // 1: Padel, 2: Tennis
+  int? _selectedSportId; // 1: Padel, 2: Tennis (default null: no border)
 
   // 2. Format Pertandingan & Sistem Skor
-  String _selectedFormat = 'Americano'; // 'Americano' or 'Team Americano'
+  String? _selectedFormat; // 'Americano' or 'Team Americano' (default null: no border)
   String _selectedScoringSystem = 'Total of 3 Poin'; // 'Total of 3 Poin', 'Total of 4 Poin', 'Total of 7 Sets', 'First to 15 Points', 'First to 21 Points'
 
   // 3. Lokasi Venue & Lapangan
@@ -87,7 +87,9 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
         _isLoading = false;
       });
 
-      _applySportSelection(_selectedSportId, initialVenueId: widget.initialVenueId);
+      if (_selectedSportId != null) {
+        _applySportSelection(_selectedSportId!, initialVenueId: widget.initialVenueId);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -718,7 +720,12 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                                   if (!mounted) return;
                                   setState(() {
                                     _allVenues = updatedVenues;
-                                    _applySportSelection(_selectedSportId, initialVenueId: newVenue.venueId);
+                                    if (_selectedSportId != null) {
+                                      _applySportSelection(_selectedSportId!, initialVenueId: newVenue.venueId);
+                                    } else {
+                                      _selectedVenue = newVenue;
+                                      _selectedCourt = newVenue.courts.firstOrNull;
+                                    }
                                   });
 
                                   messenger.showSnackBar(
@@ -767,6 +774,28 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedSportId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih cabang olahraga (Padel atau Tennis) terlebih dahulu.'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedFormat == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih format pertandingan (Americano atau Team Americano) terlebih dahulu.'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
     if (_selectedVenue == null || _selectedCourt == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -818,7 +847,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
           '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
 
       await _sessionService.createScheduleSession(
-        sportId: _selectedSportId,
+        sportId: _selectedSportId!,
         venueId: _selectedVenue!.venueId,
         courtId: _selectedCourt!.courtId,
         namaSession: _titleController.text.trim(),
@@ -851,15 +880,17 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
   @override
   Widget build(BuildContext context) {
     // Matching venues for current sport
-    final matchingVenues = _allVenues.where((v) {
-      return v.courts.any((c) =>
-          c.sportId == _selectedSportId &&
-          (c.statusKetersediaan == null ||
-              c.statusKetersediaan!.toLowerCase() == 'available'));
-    }).toList();
+    final matchingVenues = _selectedSportId == null
+        ? <VenueModel>[]
+        : _allVenues.where((v) {
+            return v.courts.any((c) =>
+                c.sportId == _selectedSportId &&
+                (c.statusKetersediaan == null ||
+                    c.statusKetersediaan!.toLowerCase() == 'available'));
+          }).toList();
 
     // Matching courts for current selected venue
-    final matchingCourts = _selectedVenue != null
+    final matchingCourts = _selectedVenue != null && _selectedSportId != null
         ? _selectedVenue!.courts.where((c) =>
             c.sportId == _selectedSportId &&
             (c.statusKetersediaan == null ||
@@ -1815,7 +1846,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
           color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+            color: isSelected ? AppColors.matchaDark : Colors.transparent,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -1881,7 +1912,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
           color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+            color: isSelected ? AppColors.matchaDark : Colors.transparent,
             width: isSelected ? 1.5 : 1,
           ),
         ),
