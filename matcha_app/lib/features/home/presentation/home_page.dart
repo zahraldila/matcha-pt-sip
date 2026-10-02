@@ -9,7 +9,6 @@ import '../../court/presentation/venue_detail_page.dart';
 import '../../session/data/session_service.dart';
 import '../../session/domain/session_model.dart';
 import '../../session/presentation/session_detail_page.dart';
-import '../../session/presentation/widgets/join_session_modal.dart';
 
 class HomePage extends StatefulWidget {
   final AuthController? authController;
@@ -463,16 +462,6 @@ class _HomePageState extends State<HomePage> {
       ).then((_) => _loadData());
     }
 
-    void openJoin() {
-      if (session.isFull) return;
-      JoinSessionModal.show(
-        context: context,
-        session: session,
-        authController: widget.authController,
-        onJoinedSuccess: _loadData,
-      );
-    }
-
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
@@ -676,48 +665,26 @@ class _HomePageState extends State<HomePage> {
                 const Divider(height: 1, color: Color(0xFFF1F5F9)),
                 const SizedBox(height: 10),
 
-                // Action Buttons Row: Detail & Gabung Slot
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: openDetail,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF334155),
-                          side: const BorderSide(color: Color(0xFFE2E8F0)),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Detail', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                            SizedBox(width: 4),
-                            Icon(Icons.chevron_right_rounded, size: 16),
-                          ],
-                        ),
+                // Detail Button (Full width matching web UI)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: openDetail,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF334155),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text(
+                      'Detail',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Color(0xFF334155),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: session.isFull ? null : openJoin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.matchaDark,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: const Color(0xFFE2E8F0),
-                          disabledForegroundColor: const Color(0xFF94A3B8),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: Text(
-                          session.isFull ? 'Penuh' : 'Gabung Slot 🎾',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),

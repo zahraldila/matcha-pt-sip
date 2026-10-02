@@ -308,4 +308,111 @@ class SessionService {
       throw Exception('Terjadi kesalahan: $e');
     }
   }
+
+  /// Membatalkan sesi mabar (mengubah status menjadi Cancelled)
+  Future<void> cancelSession(int sessionId) async {
+    try {
+      await _supabase
+          .from('tb_session')
+          .update({'status_session': 'Cancelled'})
+          .eq('session_id', sessionId);
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal membatalkan sesi: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
+    }
+  }
+
+  /// Menghapus sesi mabar secara permanen dari database
+  Future<void> deleteSession(int sessionId) async {
+    try {
+      // 1. Ambil drawing_id yang terhubung
+      final drawings = await _supabase
+          .from('tb_drawing')
+          .select('drawing_id')
+          .eq('session_id', sessionId);
+
+      final drawingIds = (drawings as List)
+          .map((d) => d['drawing_id'])
+          .where((id) => id != null)
+          .toList();
+
+      if (drawingIds.isNotEmpty) {
+        // Ambil match_id yang terhubung
+        final matches = await _supabase
+            .from('tb_match')
+            .select('match_id')
+            .inFilter('drawing_id', drawingIds);
+
+        final matchIds = (matches as List)
+            .map((m) => m['match_id'])
+            .where((id) => id != null)
+            .toList();
+
+        if (matchIds.isNotEmpty) {
+          try {
+            await _supabase
+                .from('tb_match_player')
+                .delete()
+                .inFilter('match_id', matchIds);
+          } catch (_) {}
+
+          try {
+            await _supabase
+                .from('tb_score')
+                .delete()
+                .inFilter('match_id', matchIds);
+          } catch (_) {}
+        }
+
+        try {
+          await _supabase
+              .from('tb_match')
+              .delete()
+              .inFilter('drawing_id', drawingIds);
+        } catch (_) {}
+
+        try {
+          await _supabase
+              .from('tb_drawing')
+              .delete()
+              .eq('session_id', sessionId);
+        } catch (_) {}
+      }
+
+      // 2. Hapus tb_kudos jika ada
+      try {
+        await _supabase
+            .from('tb_kudos')
+            .delete()
+            .eq('session_id', sessionId);
+      } catch (_) {}
+
+      // 3. Hapus relasi pemain di tb_session_player
+      try {
+        await _supabase
+            .from('tb_session_player')
+            .delete()
+            .eq('session_id', sessionId);
+      } catch (_) {}
+
+      // 4. Hapus relasi court di tb_session_court
+      try {
+        await _supabase
+            .from('tb_session_court')
+            .delete()
+            .eq('session_id', sessionId);
+      } catch (_) {}
+
+      // 5. Hapus row utama di tb_session
+      await _supabase
+          .from('tb_session')
+          .delete()
+          .eq('session_id', sessionId);
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal menghapus sesi dari database: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan saat menghapus sesi: $e');
+    }
+  }
 }

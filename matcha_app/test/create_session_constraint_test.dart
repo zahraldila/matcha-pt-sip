@@ -31,14 +31,13 @@ void main() {
 
     test('First to X format constraints (Single vs Double)', () {
       // Rule 1: First to X Double -> Exactly 4 players
-      const isFirstTo = true;
       const gameTypeDouble = 'Double';
-      final quotaDouble = isFirstTo ? (gameTypeDouble == 'Double' ? 4 : 2) : 6;
+      final quotaDouble = gameTypeDouble == 'Double' ? 4 : 2;
       expect(quotaDouble, 4);
 
       // Rule 2: First to X Single -> Exactly 2 players
       const gameTypeSingle = 'Single';
-      final quotaSingle = isFirstTo ? (gameTypeSingle == 'Double' ? 4 : 2) : 2;
+      final quotaSingle = gameTypeSingle == 'Double' ? 4 : 2;
       expect(quotaSingle, 2);
     });
 
@@ -55,8 +54,7 @@ void main() {
       }
 
       // First to X on Team Americano locks to 4 players
-      const isFirstTo = true;
-      final quotaTeamFirstTo = isFirstTo ? 4 : 6;
+      const quotaTeamFirstTo = 4;
       expect(quotaTeamFirstTo, 4);
     });
 

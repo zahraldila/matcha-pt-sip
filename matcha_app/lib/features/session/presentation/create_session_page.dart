@@ -216,15 +216,26 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         String searchQuery = '';
+        final searchCtrl = TextEditingController();
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final query = searchQuery.toLowerCase().trim();
+            final tokens = query.isEmpty ? <String>[] : query.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+
             final filteredVenues = venues.where((v) {
-              final query = searchQuery.toLowerCase().trim();
-              if (query.isEmpty) return true;
-              final nameMatch = v.namaVenue.toLowerCase().contains(query);
-              final cityMatch = v.kota != null && v.kota!.toLowerCase().contains(query);
-              final addressMatch = v.alamat != null && v.alamat!.toLowerCase().contains(query);
-              return nameMatch || cityMatch || addressMatch;
+              if (tokens.isEmpty) return true;
+              final searchableText = [
+                v.namaVenue,
+                v.alamat ?? '',
+                v.kota ?? '',
+                v.fasilitas ?? '',
+                v.catatan ?? '',
+                v.namaPic ?? '',
+                v.sportName,
+                ...v.courts.map((c) => '${c.namaCourt} ${c.tipeCourt ?? ''}'),
+              ].join(' ').toLowerCase();
+
+              return tokens.every((token) => searchableText.contains(token));
             }).toList();
 
             return Container(
@@ -289,6 +300,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: TextField(
+                        controller: searchCtrl,
                         autofocus: false,
                         onChanged: (val) {
                           setModalState(() {
@@ -304,6 +316,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                               ? IconButton(
                                   icon: const Icon(Icons.clear_rounded, color: Color(0xFF94A3B8), size: 18),
                                   onPressed: () {
+                                    searchCtrl.clear();
                                     setModalState(() {
                                       searchQuery = '';
                                     });

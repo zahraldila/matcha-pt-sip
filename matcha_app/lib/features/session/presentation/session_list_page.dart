@@ -5,7 +5,6 @@ import '../data/session_service.dart';
 import '../domain/session_model.dart';
 import 'create_session_page.dart';
 import 'session_detail_page.dart';
-import 'widgets/join_session_modal.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 
 class SessionListPage extends StatefulWidget {
@@ -25,6 +24,7 @@ class SessionListPage extends StatefulWidget {
 class _SessionListPageState extends State<SessionListPage> {
   final SessionService _sessionService = SessionService();
 
+  final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
   String? _errorMessage;
   List<SessionModel> _allSessions = [];
@@ -42,6 +42,7 @@ class _SessionListPageState extends State<SessionListPage> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     widget.authController?.removeListener(_onAuthChanged);
     super.dispose();
   }
@@ -75,11 +76,24 @@ class _SessionListPageState extends State<SessionListPage> {
   }
 
   void _applyFilters() {
+    final query = _searchQuery.trim().toLowerCase();
+    final tokens = query.isEmpty ? <String>[] : query.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+
     _filteredSessions = _allSessions.where((s) {
-      final matchesSearch = _searchQuery.isEmpty ||
-          s.namaSession.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          s.venueName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (s.venueCity != null && s.venueCity!.toLowerCase().contains(_searchQuery.toLowerCase()));
+      final matchesSearch = tokens.isEmpty || () {
+        final searchableText = [
+          s.namaSession,
+          s.venueName,
+          s.venueCity ?? '',
+          s.venueAddress ?? '',
+          s.courtName ?? '',
+          s.sportName,
+          s.scoringSystem,
+          s.hostName,
+        ].join(' ').toLowerCase();
+
+        return tokens.every((token) => searchableText.contains(token));
+      }();
 
       final matchesSport = _selectedSport == 'Semua Cabang' ||
           s.sportName.toLowerCase() == _selectedSport.toLowerCase();
@@ -183,6 +197,7 @@ class _SessionListPageState extends State<SessionListPage> {
                         ],
                       ),
                       child: TextField(
+                        controller: _searchController,
                         onChanged: _onSearch,
                         decoration: InputDecoration(
                           hintText: 'Cari sesi mabar, venue, kota...',
@@ -191,6 +206,15 @@ class _SessionListPageState extends State<SessionListPage> {
                             fontSize: 13,
                           ),
                           prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8), size: 20),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 18),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _onSearch('');
+                                  },
+                                )
+                              : null,
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
@@ -390,16 +414,6 @@ class _SessionListPageState extends State<SessionListPage> {
           ),
         ).then((_) => _loadSessions());
       }
-    }
-
-    void openJoin() {
-      if (session.isFull) return;
-      JoinSessionModal.show(
-        context: context,
-        session: session,
-        authController: widget.authController,
-        onJoinedSuccess: _loadSessions,
-      );
     }
 
     return Container(
@@ -605,48 +619,26 @@ class _SessionListPageState extends State<SessionListPage> {
                 const Divider(height: 1, color: Color(0xFFF1F5F9)),
                 const SizedBox(height: 10),
 
-                // Action Buttons Row: Detail & Gabung Slot
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: openDetail,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF334155),
-                          side: const BorderSide(color: Color(0xFFE2E8F0)),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Detail', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                            SizedBox(width: 4),
-                            Icon(Icons.chevron_right_rounded, size: 16),
-                          ],
-                        ),
+                // Detail Button (Full width matching web UI)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: openDetail,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF334155),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text(
+                      'Detail',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Color(0xFF334155),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: session.isFull ? null : openJoin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.matchaDark,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: const Color(0xFFE2E8F0),
-                          disabledForegroundColor: const Color(0xFF94A3B8),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: Text(
-                          session.isFull ? 'Penuh' : 'Gabung Slot 🎾',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
