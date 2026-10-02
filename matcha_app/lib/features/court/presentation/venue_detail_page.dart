@@ -167,9 +167,21 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
       if (!mounted) return;
       setState(() => _isUploadingPhoto = false);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      final errStr = e.toString().toLowerCase();
+      String humanError;
+      if (errStr.contains('camera_access_denied') ||
+          errStr.contains('camera_access_restricted') ||
+          errStr.contains('camera')) {
+        humanError = 'Akses kamera ditolak. Silakan berikan izin kamera di pengaturan HP Anda untuk mengambil foto.';
+      } else if (errStr.contains('photo_access_denied') ||
+          errStr.contains('photo_access_restricted')) {
+        humanError = 'Akses galeri ditolak. Silakan berikan izin akses galeri di pengaturan HP Anda.';
+      } else {
+        humanError = 'Gagal mengunggah foto: ${e.toString().replaceAll(RegExp(r'^Exception:\s*'), '')}';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal mengunggah foto: $e'),
+          content: Text(humanError),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
         ),
