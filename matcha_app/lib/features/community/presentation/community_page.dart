@@ -284,31 +284,45 @@ class _CommunityPageState extends State<CommunityPage> {
 
               // 5. Sport Filter Pills Card
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildSportPill('all', 'Semua Cabang', null),
-                          const SizedBox(width: 8),
-                          _buildSportPill('Tennis', 'Tennis', '🎾'),
-                          const SizedBox(width: 8),
-                          _buildSportPill('Padel', 'Padel', '🏓'),
-                        ],
+                    // Pills — scrollable
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildSportPill('all', 'Semua Cabang', null),
+                            const SizedBox(width: 8),
+                            _buildSportPill('Tennis', '🎾 Tennis', null),
+                            const SizedBox(width: 8),
+                            _buildSportPill('Padel', '🏓 Padel', null),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(width: 10),
+                    // Counter — right aligned like web
                     Text(
-                      'Menampilkan ${filtered.length} komunitas',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                      '${filtered.length} komunitas',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -450,32 +464,26 @@ class _CommunityPageState extends State<CommunityPage> {
     final isSelected = _selectedSport == key;
     return InkWell(
       onTap: () => setState(() => _selectedSport = key),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF063B00) : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? const Color(0xFF063B00) : const Color(0xFFE2E8F0),
           ),
+          boxShadow: isSelected
+              ? [BoxShadow(color: const Color(0xFF063B00).withValues(alpha: 0.15), blurRadius: 4, offset: const Offset(0, 2))]
+              : null,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (emoji != null) ...[
-              Text(emoji, style: const TextStyle(fontSize: 10)),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                color: isSelected ? Colors.white : const Color(0xFF475569),
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+            color: isSelected ? Colors.white : const Color(0xFF475569),
+          ),
         ),
       ),
     );
@@ -514,7 +522,7 @@ class _CommunityPageState extends State<CommunityPage> {
           Stack(
             children: [
               SizedBox(
-                height: 140,
+                height: 176,
                 width: double.infinity,
                 child: Image.network(
                   com.displayImage,
@@ -527,6 +535,7 @@ class _CommunityPageState extends State<CommunityPage> {
                   ),
                 ),
               ),
+              // Sport badge (top left)
               Positioned(
                 top: 10,
                 left: 10,
@@ -547,6 +556,28 @@ class _CommunityPageState extends State<CommunityPage> {
                   ),
                 ),
               ),
+              // Member badge (top right) — like web
+              if (com.isMember)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF15803D).withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF4ADE80).withValues(alpha: 0.4)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle_rounded, size: 10, color: Color(0xFFA8E63A)),
+                        SizedBox(width: 4),
+                        Text('Anggota', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
 
