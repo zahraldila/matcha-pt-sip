@@ -79,6 +79,7 @@ class SessionModel {
   final String hostLevel;
   final String? hostAvatar;
   final List<SessionPlayerModel> registeredPlayers;
+  final String? shareToken;
 
   SessionModel({
     required this.sessionId,
@@ -102,7 +103,12 @@ class SessionModel {
     this.hostLevel = 'Intermediate',
     this.hostAvatar,
     this.registeredPlayers = const [],
+    this.shareToken,
   });
+
+  String? get shareUrl => shareToken != null && shareToken!.trim().isNotEmpty
+      ? 'https://matcha.siproduktif.com/games/share/${shareToken!.trim()}'
+      : null;
 
   static int _toInt(dynamic val, {int defaultVal = 0}) {
     if (val == null) return defaultVal;
@@ -202,6 +208,7 @@ class SessionModel {
       hostLevel: hLevel,
       hostAvatar: hAvatar,
       registeredPlayers: players,
+      shareToken: map['share_token']?.toString(),
     );
   }
 

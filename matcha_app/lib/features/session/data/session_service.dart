@@ -39,6 +39,7 @@ class SessionService {
         status_session,
         jumlah_pemain,
         jenis_permainan,
+        share_token,
         tb_sport (
           sport_id,
           nama_sport
@@ -129,6 +130,7 @@ class SessionService {
             status_session,
             jumlah_pemain,
             jenis_permainan,
+            share_token,
             tb_sport (
               sport_id,
               nama_sport
@@ -170,6 +172,76 @@ class SessionService {
       return SessionModel.fromMap(Map<String, dynamic>.from(response));
     } on PostgrestException catch (e) {
       throw Exception('Gagal mengambil detail sesi: ${e.message}');
+    }
+  }
+
+  /// Mengambil detail sesi mabar berdasarkan share_token (Android App Links / Deep Link)
+  Future<SessionModel?> getSessionByShareToken(String shareToken) async {
+    final cleanToken = shareToken.trim();
+    if (cleanToken.isEmpty) {
+      return null;
+    }
+
+    try {
+      final response = await _supabase
+          .from('tb_session')
+          .select('''
+            session_id,
+            host_user_id,
+            sport_id,
+            venue_id,
+            nama_session,
+            scoring_system,
+            waktu_session,
+            datetime,
+            status_session,
+            jumlah_pemain,
+            jenis_permainan,
+            share_token,
+            tb_sport (
+              sport_id,
+              nama_sport
+            ),
+            tb_venue (
+              venue_id,
+              nama_venue,
+              kota,
+              alamat,
+              foto,
+              fasilitas,
+              jam_operasional
+            ),
+            tb_session_court (
+              court_id,
+              tb_court (
+                court_id,
+                nama_court
+              )
+            ),
+            tb_session_player (
+              player_id,
+              tb_player (
+                player_id,
+                user_id,
+                nama,
+                level,
+                gender,
+                usia,
+                foto,
+                no_hp,
+                email
+              )
+            )
+          ''')
+          .eq('share_token', cleanToken)
+          .maybeSingle();
+
+      if (response == null) return null;
+      return SessionModel.fromMap(Map<String, dynamic>.from(response));
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal mencari sesi berdasarkan share token: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan saat memuat sesi: $e');
     }
   }
 
