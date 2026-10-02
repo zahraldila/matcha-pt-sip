@@ -126,11 +126,19 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
   @override
   void initState() {
     super.initState();
+    _activityNameController.addListener(_onActivityNameChanged);
     _loadVenues();
+  }
+
+  void _onActivityNameChanged() {
+    setState(() {
+      _config.activityName = _activityNameController.text;
+    });
   }
 
   @override
   void dispose() {
+    _activityNameController.removeListener(_onActivityNameChanged);
     _activityNameController.dispose();
     super.dispose();
   }
@@ -875,6 +883,8 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
 
   // --- STEP 3: GAME CONFIG ---
   Widget _buildStep3GameConfig() {
+    final isActivityNameValid = _activityNameController.text.trim().isNotEmpty;
+
     return ListView(
       key: const ValueKey(3),
       padding: const EdgeInsets.all(20),
@@ -1142,15 +1152,27 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: () {
-              if (_activityNameController.text.trim().isEmpty) {
-                _config.activityName = '${_config.sport} ${_config.gameType} Fun';
-              }
-              setState(() => _currentStep = 4);
-            },
+            onPressed: isActivityNameValid
+                ? () {
+                    final trimmedName = _activityNameController.text.trim();
+                    if (trimmedName.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Nama aktivitas wajib diisi.'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                      return;
+                    }
+                    _config.activityName = trimmedName;
+                    setState(() => _currentStep = 4);
+                  }
+                : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.matchaDark,
+              disabledBackgroundColor: const Color(0xFFCBD5E1),
               foregroundColor: Colors.white,
+              disabledForegroundColor: const Color(0xFF94A3B8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               elevation: 0,
             ),
