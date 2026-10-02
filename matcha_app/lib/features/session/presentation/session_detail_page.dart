@@ -577,6 +577,14 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                 widget.authController?.currentUser?.userId == session.hostUserId)) &&
         session.statusSession.toLowerCase() != 'cancelled';
 
+    final isDrawingReady = session.isFull ||
+        session.statusSession.toLowerCase() == 'ready' ||
+        session.statusSession.toLowerCase() == 'ready for drawing' ||
+        session.statusSession.toLowerCase() == 'in_progress' ||
+        session.statusSession.toLowerCase() == 'in progress' ||
+        session.statusSession.toLowerCase() == 'live' ||
+        session.statusSession.toLowerCase() == 'completed';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -605,9 +613,9 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           ),
           const SizedBox(height: 3),
           Text(
-            session.isFull
-                ? 'Pemain telah lengkap. Host dapat mengacak tim dan memulai scoring poin.'
-                : 'Sesi mabar masih membuka pendaftaran (${session.currentPlayersCount}/${session.jumlahPemain}). Masih dibutuhkan ${session.availableSlots} pemain lagi.',
+            isDrawingReady
+                ? 'Kuota pemain telah lengkap (${session.currentPlayersCount}/${session.jumlahPemain}). Host dapat mengacak susunan tim dan memulai scoring pertandingan.'
+                : 'Sesi mabar masih membuka pendaftaran (${session.currentPlayersCount}/${session.jumlahPemain}). Masih dibutuhkan ${session.availableSlots} pemain lagi untuk memulai drawing.',
             style: AppTextStyles.caption.copyWith(
               color: const Color(0xFF64748B),
               fontSize: 11,
@@ -616,10 +624,8 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           ),
           const SizedBox(height: 12),
 
-          // Action buttons: If full or ready, show drawing and scoring
-          if (session.isFull ||
-              session.statusSession.toLowerCase() == 'ready' ||
-              session.statusSession.toLowerCase() == 'in_progress') ...[
+          // Jika kuota sudah penuh / ready: tampilkan tombol Drawing & Scoring
+          if (isDrawingReady) ...[
             // Tombol Buka Drawing Tim
             SizedBox(
               width: double.infinity,
@@ -666,6 +672,29 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
               ),
             ),
             if (canManage) const SizedBox(height: 8),
+          ] else ...[
+            // Jika kuota belum penuh: tampilkan box informasi terkunci
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.lock_outline_rounded, size: 18, color: Color(0xFF64748B)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Drawing dan live scoring belum dapat dimulai karena kuota pemain belum lengkap (${session.currentPlayersCount}/${session.jumlahPemain}).',
+                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (canManage) const SizedBox(height: 10),
           ],
 
           // Tombol Hapus Jadwal Mabar (Shown if admin/host)
