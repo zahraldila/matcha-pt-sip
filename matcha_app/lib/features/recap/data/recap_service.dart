@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/recap_models.dart';
 
@@ -411,6 +412,574 @@ class RecapService {
     }
   }
 
+  /// Mengambil data rekap pertandingan lengkap untuk sesi tertentu (seperti web /scoring/recap/{sessionId})
+  Future<SessionMatchRecapData> getSessionMatchRecap(
+    int sessionId, {
+    int? currentUserId,
+  }) async {
+    try {
+      // 1. Ambil Data Session
+      final sessionRes = await _supabase
+          .from('tb_session')
+          .select('''
+            session_id,
+            nama_session,
+            sport_id,
+            venue_id,
+            datetime,
+            waktu_session,
+            jumlah_pemain,
+            status_session,
+            scoring_system,
+            tb_sport (nama_sport),
+            tb_venue (nama_venue),
+            tb_session_court (tb_court (nama_court)),
+            tb_session_player (tb_player (player_id, user_id, nama, gender, level, foto))
+          ''')
+          .eq('session_id', sessionId)
+          .maybeSingle();
+
+      if (sessionRes == null) {
+        throw Exception('Sesi mabar tidak ditemukan di database.');
+      }
+
+      final sMap = Map<String, dynamic>.from(sessionRes);
+      final sessionName = (sMap['nama_session']?.toString()) ?? 'Sesi Mabar';
+      final sportMap = sMap['tb_sport'] as Map<String, dynamic>?;
+      final sportName = (sportMap?['nama_sport']?.toString()) ?? 'Padel';
+      final venueMap = sMap['tb_venue'] as Map<String, dynamic>?;
+      final venueName = (venueMap?['nama_venue']?.toString()) ?? 'Arena Lapangan';
+      final scoringSystem = (sMap['scoring_system']?.toString()) ?? 'Total of 3';
+
+      String? courtName;
+      final courtsList = sMap['tb_session_court'] as List<dynamic>?;
+      if (courtsList != null && courtsList.isNotEmpty) {
+        final firstCourt = courtsList.first as Map<String, dynamic>?;
+        final cObj = firstCourt?['tb_court'] as Map<String, dynamic>?;
+        if (cObj != null && cObj['nama_court'] != null) {
+          courtName = cObj['nama_court'].toString();
+        }
+      }
+
+      // 2. Ambil Pemain Terdaftar
+      final registeredPlayers = <Map<String, dynamic>>[];
+      final rawPlayersList = sMap['tb_session_player'] as List<dynamic>? ?? [];
+      for (final rp in rawPlayersList) {
+        final rpMap = rp as Map<String, dynamic>;
+        final pObj = rpMap['tb_player'] as Map<String, dynamic>?;
+        if (pObj != null) {
+          registeredPlayers.add(pObj);
+        }
+      }
+
+      // 3. Ambil court count sesi untuk kalkulasi nomor ronde
+      int sessionCourtCount = 1;
+      try {
+        final scRes = await _supabase
+            .from('tb_session_court')
+            .select('court_id')
+            .eq('session_id', sessionId);
+        if ((scRes as List<dynamic>).isNotEmpty) {
+          sessionCourtCount = math.max(1, scRes.length);
+        }
+      } catch (_) {}
+
+      // Ambil data Drawing dari tb_drawing
+      final drawingsRes = await _supabase
+          .from('tb_drawing')
+          .select('drawing_id')
+          .eq('session_id', sessionId);
+
+      final drawingIds = (drawingsRes as List<dynamic>)
+          .map((d) => _toNullableInt(d['drawing_id']))
+          .where((id) => id != null)
+          .cast<int>()
+          .toList();
+
+      List<dynamic> rawMatches = [];
+      if (drawingIds.isNotEmpty) {
+        final mRes = await _supabase
+            .from('tb_match')
+            .select('''
+              *,
+              tb_court (nama_court),
+              tb_score (*),
+              tb_match_participant (
+                player_id,
+                side,
+                tb_player (player_id, user_id, nama, level, foto, gender)
+              )
+            ''')
+            .inFilter('drawing_id', drawingIds)
+            .order('match_id', ascending: true);
+        rawMatches = mRes as List<dynamic>;
+      } else {
+        // Coba query langsung jika tb_match memiliki session_id
+        try {
+          final mRes = await _supabase
+              .from('tb_match')
+              .select('''
+                *,
+                tb_court (nama_court),
+                tb_score (*),
+                tb_match_participant (
+                  player_id,
+                  side,
+                  tb_player (player_id, user_id, nama, level, foto, gender)
+                )
+              ''')
+              .eq('session_id', sessionId)
+              .order('match_id', ascending: true);
+          rawMatches = mRes as List<dynamic>;
+        } catch (_) {}
+      }
+
+      // Deteksi format sistem scoring (Sets vs Games / Points)
+      final lowerScoring = scoringSystem.toLowerCase();
+      final isSets = lowerScoring.contains('set') || lowerScoring.contains('total of');
+
+      // 4. Strukturisasi Ronde & Perhitungan Skor
+      final Map<int, List<SessionMatchItem>> roundMatchesMap = {};
+      final Map<int, Map<String, dynamic>> playerStatsMap = {};
+
+      // Inisialisasi statistik pemain terdaftar
+      for (final p in registeredPlayers) {
+        final pId = _toInt(p['player_id']);
+        final pName = (p['nama']?.toString()) ?? 'Pemain';
+        playerStatsMap[pId] = {
+          'playerId': pId,
+          'nama': pName,
+          'level': (p['level']?.toString()) ?? 'Intermediate',
+          'foto': p['foto']?.toString(),
+          'gender': (p['gender']?.toString()) ?? 'Male',
+          'userId': _toNullableInt(p['user_id']),
+          'matchesPlayed': 0,
+          'matchesWon': 0,
+          'matchesLost': 0,
+          'setsWon': 0,
+          'setsLost': 0,
+          'gamesWon': 0,
+          'gamesLost': 0,
+          'pointsFor': 0,
+          'pointsAgainst': 0,
+          'durationMinutes': 0,
+        };
+      }
+
+      int matchCounter = 0;
+      for (final rawM in rawMatches) {
+        final mMap = Map<String, dynamic>.from(rawM as Map);
+        matchCounter++;
+        final matchId = _toInt(mMap['match_id'], matchCounter);
+        final matchNo = _toInt(mMap['nomor_match'], matchCounter);
+        final roundNum = _toInt(mMap['round_number'], ((matchNo - 1) ~/ sessionCourtCount) + 1);
+
+        final courtObj = mMap['tb_court'] as Map<String, dynamic>?;
+        final cName = (courtObj?['nama_court']?.toString()) ?? courtName ?? 'Court 1';
+
+        final participants = mMap['tb_match_participant'] as List<dynamic>? ?? [];
+        final sideANames = <String>[];
+        final sideBNames = <String>[];
+        final sideAPlayerIds = <int>[];
+        final sideBPlayerIds = <int>[];
+
+        for (final part in participants) {
+          final partMap = part as Map<String, dynamic>;
+          final pId = _toNullableInt(partMap['player_id']);
+          final pObj = partMap['tb_player'] as Map<String, dynamic>?;
+          final pName = (pObj?['nama']?.toString()) ?? 'Pemain';
+          final side = (partMap['side']?.toString() ?? '').toLowerCase();
+
+          if (pId != null && !playerStatsMap.containsKey(pId)) {
+            playerStatsMap[pId] = {
+              'playerId': pId,
+              'nama': pName,
+              'level': (pObj?['level']?.toString()) ?? 'Intermediate',
+              'foto': pObj?['foto']?.toString(),
+              'gender': (pObj?['gender']?.toString()) ?? 'Male',
+              'userId': _toNullableInt(pObj?['user_id']),
+              'matchesPlayed': 0,
+              'matchesWon': 0,
+              'matchesLost': 0,
+              'setsWon': 0,
+              'setsLost': 0,
+              'gamesWon': 0,
+              'gamesLost': 0,
+              'pointsFor': 0,
+              'pointsAgainst': 0,
+              'durationMinutes': 0,
+            };
+          }
+
+          if (side.contains('b')) {
+            sideBNames.add(pName);
+            if (pId != null) sideBPlayerIds.add(pId);
+          } else {
+            sideANames.add(pName);
+            if (pId != null) sideAPlayerIds.add(pId);
+          }
+        }
+
+        // Skor pertandingan
+        final scores = mMap['tb_score'] as List<dynamic>? ?? [];
+        int mSetsA = 0;
+        int mSetsB = 0;
+        int mGamesA = 0;
+        int mGamesB = 0;
+        final List<String> setPills = [];
+
+        if (scores.isNotEmpty) {
+          int shSetsA = 0;
+          int shSetsB = 0;
+          int shGamesA = 0;
+          int shGamesB = 0;
+
+          for (int i = 0; i < scores.length; i++) {
+            final sc = scores[i] as Map<String, dynamic>;
+            final setNum = _toInt(sc['set_number'], i + 1);
+            final scoreSideA = _toInt(sc['score_side_a']);
+            final scoreSideB = _toInt(sc['score_side_b']);
+            final gameA = _toInt(sc['game_score_a']);
+            final gameB = _toInt(sc['game_score_b']);
+            final setScoreA = _toInt(sc['set_score_a']);
+            final setScoreB = _toInt(sc['set_score_b']);
+
+            mSetsA = math.max(mSetsA, setScoreA);
+            mSetsB = math.max(mSetsB, setScoreB);
+            mGamesA += gameA;
+            mGamesB += gameB;
+
+            final ga = gameA > 0 ? gameA : scoreSideA;
+            final gb = gameB > 0 ? gameB : scoreSideB;
+            shGamesA += ga;
+            shGamesB += gb;
+            if (ga > gb) {
+              shSetsA++;
+            } else if (gb > ga) {
+              shSetsB++;
+            }
+
+            setPills.add('Set $setNum: $ga-$gb');
+          }
+
+          if (mSetsA == 0 && mSetsB == 0) {
+            mSetsA = shSetsA;
+            mSetsB = shSetsB;
+          }
+          if (mGamesA == 0 && mGamesB == 0) {
+            mGamesA = shGamesA;
+            mGamesB = shGamesB;
+          }
+        } else if (mMap['hasil_pertandingan'] != null && mMap['hasil_pertandingan'].toString().isNotEmpty) {
+          setPills.add(mMap['hasil_pertandingan'].toString());
+        }
+
+        // Hitung durasi match
+        int matchDuration = 0;
+        if (mMap['waktu_mulai'] != null && mMap['waktu_selesai'] != null) {
+          try {
+            final sTime = DateTime.parse(mMap['waktu_mulai'].toString());
+            final eTime = DateTime.parse(mMap['waktu_selesai'].toString());
+            if (eTime.isAfter(sTime)) {
+              matchDuration = eTime.difference(sTime).inMinutes;
+            }
+          } catch (_) {}
+        }
+
+        // Tentukan pemenang & poin akumulasi sesuai ScoringService web
+        String? winnerSide;
+        int ptsForA = 0;
+        int ptsForB = 0;
+
+        if (isSets) {
+          if (mSetsA == 0 && mSetsB == 0 && (mGamesA > 0 || mGamesB > 0)) {
+            mSetsA = mGamesA >= mGamesB ? 1 : 0;
+            mSetsB = mGamesB > mGamesA ? 1 : 0;
+          }
+          if (mSetsA > mSetsB) {
+            winnerSide = 'A';
+          } else if (mSetsB > mSetsA) {
+            winnerSide = 'B';
+          } else if (mGamesA > mGamesB) {
+            winnerSide = 'A';
+          } else if (mGamesB > mGamesA) {
+            winnerSide = 'B';
+          }
+          ptsForA = mGamesA > 0 ? mGamesA : mSetsA;
+          ptsForB = mGamesB > 0 ? mGamesB : mSetsB;
+        } else {
+          if (mGamesA > mGamesB) {
+            winnerSide = 'A';
+          } else if (mGamesB > mGamesA) {
+            winnerSide = 'B';
+          }
+          ptsForA = mGamesA;
+          ptsForB = mGamesB;
+        }
+
+        final isSideAWinner = winnerSide == 'A';
+        final isSideBWinner = winnerSide == 'B';
+        final isDraw = winnerSide == null;
+
+        // Akumulasi statistik pemain Tim A
+        for (final pId in sideAPlayerIds) {
+          if (playerStatsMap.containsKey(pId)) {
+            final st = playerStatsMap[pId]!;
+            st['matchesPlayed'] = _toInt(st['matchesPlayed']) + 1;
+            st['setsWon'] = _toInt(st['setsWon']) + mSetsA;
+            st['setsLost'] = _toInt(st['setsLost']) + mSetsB;
+            st['gamesWon'] = _toInt(st['gamesWon']) + mGamesA;
+            st['gamesLost'] = _toInt(st['gamesLost']) + mGamesB;
+            st['pointsFor'] = _toInt(st['pointsFor']) + ptsForA;
+            st['pointsAgainst'] = _toInt(st['pointsAgainst']) + ptsForB;
+            st['durationMinutes'] = _toInt(st['durationMinutes']) + matchDuration;
+            if (isSideAWinner) {
+              st['matchesWon'] = _toInt(st['matchesWon']) + 1;
+            } else if (isSideBWinner) {
+              st['matchesLost'] = _toInt(st['matchesLost']) + 1;
+            }
+          }
+        }
+
+        // Akumulasi statistik pemain Tim B
+        for (final pId in sideBPlayerIds) {
+          if (playerStatsMap.containsKey(pId)) {
+            final st = playerStatsMap[pId]!;
+            st['matchesPlayed'] = _toInt(st['matchesPlayed']) + 1;
+            st['setsWon'] = _toInt(st['setsWon']) + mSetsB;
+            st['setsLost'] = _toInt(st['setsLost']) + mSetsA;
+            st['gamesWon'] = _toInt(st['gamesWon']) + mGamesB;
+            st['gamesLost'] = _toInt(st['gamesLost']) + mGamesA;
+            st['pointsFor'] = _toInt(st['pointsFor']) + ptsForB;
+            st['pointsAgainst'] = _toInt(st['pointsAgainst']) + ptsForA;
+            st['durationMinutes'] = _toInt(st['durationMinutes']) + matchDuration;
+            if (isSideBWinner) {
+              st['matchesWon'] = _toInt(st['matchesWon']) + 1;
+            } else if (isSideAWinner) {
+              st['matchesLost'] = _toInt(st['matchesLost']) + 1;
+            }
+          }
+        }
+
+        final scoreDisplayA = isSets ? (mGamesA > 0 ? mGamesA : mSetsA) : mGamesA;
+        final scoreDisplayB = isSets ? (mGamesB > 0 ? mGamesB : mSetsB) : mGamesB;
+        final setDetails = setPills.isNotEmpty ? 'Rincian: ${setPills.join(', ')}' : 'Set 1: $scoreDisplayA-$scoreDisplayB';
+
+        final matchItem = SessionMatchItem(
+          matchId: matchId,
+          roundNumber: roundNum,
+          courtName: cName,
+          sideANames: sideANames.isNotEmpty ? sideANames : ['Side A'],
+          sideBNames: sideBNames.isNotEmpty ? sideBNames : ['Side B'],
+          scoreA: scoreDisplayA,
+          scoreB: scoreDisplayB,
+          setDetails: setDetails,
+          isSideAWinner: isSideAWinner,
+          isSideBWinner: isSideBWinner,
+          isDraw: isDraw,
+        );
+
+        roundMatchesMap.putIfAbsent(roundNum, () => []).add(matchItem);
+      }
+
+      // 5. Susun Ronde
+      final List<SessionRoundRecapItem> rounds = [];
+      final sortedRoundKeys = roundMatchesMap.keys.toList()..sort();
+      for (final k in sortedRoundKeys) {
+        rounds.add(
+          SessionRoundRecapItem(
+            roundNumber: k,
+            matches: roundMatchesMap[k]!,
+          ),
+        );
+      }
+
+      // 6. Susun Klasemen / Standings (Menggunakan Urutan Sort ScoringService Web)
+      final rawStandings = playerStatsMap.values.toList();
+      rawStandings.sort((a, b) {
+        final ptsForA = _toInt(a['pointsFor']);
+        final ptsForB = _toInt(b['pointsFor']);
+        if (ptsForB != ptsForA) return ptsForB.compareTo(ptsForA);
+
+        final ptDiffA = ptsForA - _toInt(a['pointsAgainst']);
+        final ptDiffB = ptsForB - _toInt(b['pointsAgainst']);
+        if (ptDiffB != ptDiffA) return ptDiffB.compareTo(ptDiffA);
+
+        final winsA = _toInt(a['matchesWon']);
+        final winsB = _toInt(b['matchesWon']);
+        if (winsB != winsA) return winsB.compareTo(winsA);
+
+        final gWonA = _toInt(a['gamesWon']);
+        final gWonB = _toInt(b['gamesWon']);
+        if (gWonB != gWonA) return gWonB.compareTo(gWonA);
+
+        final gDiffA = gWonA - _toInt(a['gamesLost']);
+        final gDiffB = gWonB - _toInt(b['gamesLost']);
+        if (gDiffB != gDiffA) return gDiffB.compareTo(gDiffA);
+
+        return (a['nama']?.toString() ?? '').toLowerCase().compareTo((b['nama']?.toString() ?? '').toLowerCase());
+      });
+
+      final List<SessionPlayerStanding> standings = [];
+      for (int i = 0; i < rawStandings.length; i++) {
+        final item = rawStandings[i];
+        final gWon = _toInt(item['gamesWon']);
+        final gLost = _toInt(item['gamesLost']);
+        final sWon = _toInt(item['setsWon']);
+        final sLost = _toInt(item['setsLost']);
+        final pFor = _toInt(item['pointsFor']);
+        final pAgainst = _toInt(item['pointsAgainst']);
+
+        standings.add(
+          SessionPlayerStanding(
+            rank: i + 1,
+            playerId: _toInt(item['playerId']),
+            nama: item['nama'].toString(),
+            level: item['level'].toString(),
+            foto: item['foto']?.toString(),
+            gender: item['gender']?.toString() ?? 'Male',
+            matchesPlayed: _toInt(item['matchesPlayed']),
+            matchesWon: _toInt(item['matchesWon']),
+            matchesLost: _toInt(item['matchesLost']),
+            setsWon: sWon,
+            setsLost: sLost,
+            gamesWon: gWon,
+            gamesLost: gLost,
+            pointsFor: pFor,
+            pointsAgainst: pAgainst,
+            pointDiff: pFor - pAgainst,
+            gameDiff: gWon - gLost,
+            setDiff: sWon - sLost,
+            scoreWon: pFor,
+            gamesDiff: gWon - gLost,
+          ),
+        );
+      }
+
+      // 7. Ambil Data Kudos dari tb_kudos
+      final Map<int, Map<String, int>> kudosMap = {};
+      final Map<int, Set<String>> userGivenKudos = {};
+
+      try {
+        final kudosRes = await _supabase
+            .from('tb_kudos')
+            .select('*')
+            .eq('session_id', sessionId);
+        final List<dynamic> rawKudos = kudosRes as List<dynamic>;
+
+        for (final k in rawKudos) {
+          final kMap = k as Map<String, dynamic>;
+          final recId = _toNullableInt(kMap['recipient_player_id']);
+          final badge = kMap['badge']?.toString() ?? '';
+          final giverId = _toNullableInt(kMap['giver_user_id']);
+
+          if (recId != null && badge.isNotEmpty) {
+            kudosMap.putIfAbsent(recId, () => {});
+            kudosMap[recId]![badge] = (kudosMap[recId]![badge] ?? 0) + 1;
+
+            if (currentUserId != null && giverId == currentUserId) {
+              userGivenKudos.putIfAbsent(recId, () => {});
+              userGivenKudos[recId]!.add(badge);
+            }
+          }
+        }
+      } catch (_) {}
+
+      // 8. Hitung Statistik Pribadi untuk User Saat Ini (Sesuai buildPlayerRecap web)
+      SessionPersonalStat? myStats;
+      Map<String, dynamic>? selectedPlayerEntry;
+
+      if (currentUserId != null) {
+        for (final item in rawStandings) {
+          if (_toNullableInt(item['userId']) == currentUserId) {
+            selectedPlayerEntry = item;
+            break;
+          }
+        }
+      }
+      selectedPlayerEntry ??= rawStandings.isNotEmpty ? rawStandings.first : null;
+
+      if (selectedPlayerEntry != null) {
+        final mPlayed = _toInt(selectedPlayerEntry['matchesPlayed']);
+        final mWon = _toInt(selectedPlayerEntry['matchesWon']);
+        final mLost = _toInt(selectedPlayerEntry['matchesLost']);
+        final winRate = mPlayed > 0 ? ((mWon / mPlayed) * 100).round() : 0;
+        final dur = _toInt(selectedPlayerEntry['durationMinutes']);
+
+        myStats = SessionPersonalStat(
+          nama: selectedPlayerEntry['nama'].toString(),
+          level: selectedPlayerEntry['level'].toString(),
+          foto: selectedPlayerEntry['foto']?.toString(),
+          sportName: sportName,
+          totalPoints: _toInt(selectedPlayerEntry['pointsFor']),
+          winRatePercent: winRate,
+          durationPlayed: dur > 0 ? '${dur}m' : '0m',
+          wins: mWon,
+          losses: mLost,
+        );
+      }
+
+      return SessionMatchRecapData(
+        sessionId: sessionId,
+        sessionName: sessionName,
+        venueName: venueName,
+        courtName: courtName,
+        sportName: sportName,
+        scoringSystem: scoringSystem,
+        isSets: isSets,
+        totalRounds: rounds.isNotEmpty ? rounds.length : 1,
+        totalPlayers: standings.isNotEmpty ? standings.length : registeredPlayers.length,
+        rounds: rounds,
+        standings: standings,
+        myStats: myStats,
+        kudosMap: kudosMap,
+        userGivenKudos: userGivenKudos,
+      );
+    } catch (e) {
+      throw Exception('Gagal memuat rekap pertandingan sesi: $e');
+    }
+  }
+
+  /// Toggle Kudos ke database tb_kudos
+  Future<bool> toggleKudos({
+    required int sessionId,
+    required int? giverUserId,
+    required int? recipientPlayerId,
+    required String recipientName,
+    required String badge,
+  }) async {
+    try {
+      var query = _supabase
+          .from('tb_kudos')
+          .select('kudos_id')
+          .eq('session_id', sessionId)
+          .eq('recipient_name', recipientName)
+          .eq('badge', badge);
+
+      if (giverUserId != null) {
+        query = query.eq('giver_user_id', giverUserId);
+      }
+
+      final existing = await query;
+      if (existing.isNotEmpty) {
+        final kId = existing.first['kudos_id'];
+        await _supabase.from('tb_kudos').delete().eq('kudos_id', kId);
+        return false;
+      } else {
+        await _supabase.from('tb_kudos').insert({
+          'session_id': sessionId,
+          'giver_user_id': giverUserId,
+          'recipient_player_id': recipientPlayerId,
+          'recipient_name': recipientName,
+          'badge': badge,
+        });
+        return true;
+      }
+    } catch (_) {
+      return true;
+    }
+  }
+
   static String formatDate(DateTime dt) {
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
@@ -419,3 +988,4 @@ class RecapService {
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 }
+
