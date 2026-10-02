@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/app_error_handler.dart';
@@ -91,6 +92,46 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     );
   }
 
+
+  Future<void> _handleShareSession() async {
+    final session = _session;
+    final shareToken = session?.shareToken?.trim();
+
+    if (session == null || shareToken == null || shareToken.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Link share sesi belum tersedia.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final shareUrl = session.shareUrl ?? 'https://matcha.siproduktif.com/games/share/$shareToken';
+    final shareText = 'Mabar yuk di MATCHA!\n\n${session.namaSession}\n\n$shareUrl';
+
+    try {
+      final box = context.findRenderObject() as RenderBox?;
+      final originRect = box != null
+          ? box.localToGlobal(Offset.zero) & box.size
+          : null;
+
+      await Share.share(
+        shareText,
+        subject: 'Mabar: ${session.namaSession}',
+        sharePositionOrigin: originRect,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal membuka menu bagikan. Silakan coba lagi.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   String _formatDisplayDate(DateTime? dt) {
     if (dt == null) return 'Selasa, 22 Sep 2026';
@@ -262,7 +303,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     );
   }
 
-  /// Header matching `show.blade.php` (Title, Sport Badge, Status Badge)
+  /// Header matching `show.blade.php` (Title, Sport Badge, Status Badge, Share Action)
   Widget _buildWebMatchingHeader(SessionModel session) {
     final statusLower = session.statusSession.trim().toLowerCase();
     final isFinished = statusLower == 'finished' ||
@@ -305,20 +346,20 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        Text(
+          session.namaSession,
+          style: AppTextStyles.h1.copyWith(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Expanded(
-              child: Text(
-                session.namaSession,
-                style: AppTextStyles.h1.copyWith(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFF0F172A),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
             // Sport Badge
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -336,7 +377,6 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 6),
             // Status Badge
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -351,6 +391,37 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                   color: statusText,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            // Compact Share Button
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+                onTap: _handleShareSession,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.share_outlined, size: 12, color: Color(0xFF475569)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Share',
+                        style: TextStyle(
+                          color: Color(0xFF475569),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

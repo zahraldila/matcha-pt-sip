@@ -23,7 +23,7 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
   // Controllers
   final _namaController = TextEditingController();
   final _taglineController = TextEditingController();
-  final _kotaController = TextEditingController(text: 'Bandung');
+  final _kotaController = TextEditingController();
   final _deskripsiController = TextEditingController();
   final _jadwalRutinController = TextEditingController();
   final _homebaseVenueController = TextEditingController();
@@ -71,7 +71,7 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
     setState(() {
       _namaController.clear();
       _taglineController.clear();
-      _kotaController.text = 'Bandung';
+      _kotaController.clear();
       _deskripsiController.clear();
       _jadwalRutinController.clear();
       _homebaseVenueController.clear();
@@ -379,6 +379,22 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
                       ],
                       onChanged: (v) {
                         if (v != null) setState(() => _selectedTargetLevel = v);
+                      },
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    _buildFieldLabel('Status Keanggotaan'),
+                    const SizedBox(height: 6),
+                    _buildDropdown(
+                      value: _selectedStatusKeanggotaan,
+                      items: const [
+                        DropdownMenuItem(value: 'Open', child: Text('Terbuka untuk Umum (Free Join)')),
+                        DropdownMenuItem(value: 'Approval', child: Text('Memerlukan Persetujuan Admin')),
+                        DropdownMenuItem(value: 'Private', child: Text('Undangan Khusus (Private)')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setState(() => _selectedStatusKeanggotaan = v);
                       },
                     ),
 
