@@ -920,32 +920,6 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
             ),
           ],
         ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.matchaSoftLime,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.matchaDark.withValues(alpha: 0.2)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.calendar_month_rounded, size: 13, color: AppColors.matchaDark),
-                const SizedBox(width: 4),
-                Text(
-                  'Publikasikan',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.matchaDark,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(
