@@ -27,6 +27,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
 
   String _searchQuery = '';
   String _selectedSport = 'Semua Cabang';
+  String _selectedOwnerFilter = 'all';
 
   @override
   void initState() {
@@ -43,7 +44,24 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   }
 
   void _onAuthChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {
+      if (!_canFilterByOwner) _selectedOwnerFilter = 'all';
+      _applyFilter();
+    });
+  }
+
+  bool get _canFilterByOwner {
+    final user = widget.authController?.currentUser;
+    if (user == null) return false;
+    return user.role.toLowerCase() == 'venue_owner' ||
+        _venues.any((venue) => venue.ownerUserId == user.userId);
+  }
+
+  int get _myVenuesCount {
+    final userId = widget.authController?.currentUser?.userId;
+    if (userId == null) return 0;
+    return _venues.where((venue) => venue.ownerUserId == userId).length;
   }
 
   Future<void> _loadVenues() async {
@@ -71,6 +89,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   }
 
   void _applyFilter() {
+    final userId = widget.authController?.currentUser?.userId;
     final query = _searchQuery.trim().toLowerCase();
     final tokens = query.isEmpty ? <String>[] : query.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
 
@@ -96,7 +115,10 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
               (_selectedSport == 'Padel' && c.sportId == 1) ||
               (_selectedSport == 'Tennis' && c.sportId == 2));
 
-      return matchesSearch && matchesSport;
+        final matchesOwner = _selectedOwnerFilter != 'mine' ||
+          (userId != null && v.ownerUserId == userId);
+
+        return matchesSearch && matchesSport && matchesOwner;
     }).toList();
   }
 
@@ -110,6 +132,13 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   void _onSportSelect(String sport) {
     setState(() {
       _selectedSport = sport;
+      _applyFilter();
+    });
+  }
+
+  void _onOwnerFilterSelect(String filter) {
+    setState(() {
+      _selectedOwnerFilter = filter;
       _applyFilter();
     });
   }
@@ -216,6 +245,29 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    if (_canFilterByOwner) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildOwnerFilterChip(
+                              'all',
+                              'Semua Venue',
+                              _venues.length,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildOwnerFilterChip(
+                              'mine',
+                              'Venue Saya',
+                              _myVenuesCount,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                    ],
 
                     // Sport Filters
                     SingleChildScrollView(
@@ -355,6 +407,50 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
                 color: isSelected ? Colors.white : const Color(0xFF475569),
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOwnerFilterChip(String value, String label, int count) {
+    final isSelected = _selectedOwnerFilter == value;
+    return GestureDetector(
+      onTap: () => _onOwnerFilterSelect(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.matchaDark : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '$count',
+              style: TextStyle(
+                color: isSelected ? const Color(0xFFA8E63A) : const Color(0xFF64748B),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
