@@ -431,49 +431,53 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           const SizedBox(height: 12),
 
           // Grid Item 1 & 2: Venue & Jadwal
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _buildGridInfoTile(
-                  label: 'Venue',
-                  mainValue: session.venueName,
-                  subValue: session.courtName ?? 'Court 1',
-                  isSubHighlighted: true,
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _buildGridInfoTile(
+                    label: 'Venue',
+                    mainValue: session.venueName,
+                    subValue: session.courtName ?? 'Court 1',
+                    isSubHighlighted: true,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildGridInfoTile(
-                  label: 'Jadwal',
-                  mainValue: session.waktuSession ?? '18:30 WIB',
-                  subValue: _formatDisplayDate(session.datetime),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildGridInfoTile(
+                    label: 'Jadwal',
+                    mainValue: session.waktuSession ?? '18:30 WIB',
+                    subValue: _formatDisplayDate(session.datetime),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 8),
 
           // Grid Item 3 & 4: Durasi & Kuota and Format
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _buildGridInfoTile(
-                  label: 'Durasi & Kuota',
-                  mainValue: '-',
-                  subValue: '${session.currentPlayersCount} / ${session.jumlahPemain} Pemain',
-                  isSubBold: true,
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _buildGridInfoTile(
+                    label: 'Durasi & Kuota',
+                    mainValue: RegExp(r'\(([^)]+)\)').firstMatch(session.waktuSession ?? '')?.group(1) ?? '-',
+                    subValue: '${session.currentPlayersCount} / ${session.jumlahPemain} Pemain',
+                    isSubBold: true,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildGridInfoTile(
-                  label: 'Format',
-                  mainValue: 'Americano / ${session.jenisPermainan}',
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildGridInfoTile(
+                    label: 'Format',
+                    mainValue: 'Americano / ${session.jenisPermainan}',
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 8),
 
@@ -562,7 +566,8 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      constraints: const BoxConstraints(minHeight: 70),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(10),
@@ -570,6 +575,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             label,
@@ -1052,26 +1058,30 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           height: 48,
           child: isUserJoined
               ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14),
-                        alignment: Alignment.centerLeft,
                         decoration: BoxDecoration(
                           color: const Color(0xFFF0FDF4),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF86EFAC)),
+                          border: Border.all(color: const Color(0xFF86EFAC), width: 1.2),
                         ),
                         child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 18),
                             SizedBox(width: 8),
-                            Text(
-                              'Kamu Sudah Bergabung',
-                              style: TextStyle(
-                                color: Color(0xFF16A34A),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                            Flexible(
+                              child: Text(
+                                'Kamu Sudah Bergabung',
+                                style: TextStyle(
+                                  color: Color(0xFF16A34A),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -1089,12 +1099,13 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                         backgroundColor: const Color(0xFFFEF2F2),
                         foregroundColor: Colors.redAccent,
                         elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: const BorderSide(color: Color(0xFFFECACA)),
+                          side: const BorderSide(color: Color(0xFFFECACA), width: 1.2),
                         ),
                       ),
-                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
                   ],
                 )
