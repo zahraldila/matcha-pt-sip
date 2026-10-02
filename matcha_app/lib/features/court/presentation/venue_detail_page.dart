@@ -163,7 +163,17 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
       if (!mounted) return;
       setState(() => _isUploadingPhoto = false);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      AppErrorHandler.showErrorSnackBar(context, e);
+      final errStr = e.toString().toLowerCase();
+      String? customMsg;
+      if (errStr.contains('camera_access_denied') ||
+          errStr.contains('camera_access_restricted') ||
+          errStr.contains('camera')) {
+        customMsg = 'Akses kamera ditolak. Silakan berikan izin kamera di pengaturan HP Anda untuk mengambil foto.';
+      } else if (errStr.contains('photo_access_denied') ||
+          errStr.contains('photo_access_restricted')) {
+        customMsg = 'Akses galeri ditolak. Silakan berikan izin akses galeri di pengaturan HP Anda.';
+      }
+      AppErrorHandler.showErrorSnackBar(context, e, customMessage: customMsg);
     }
   }
 

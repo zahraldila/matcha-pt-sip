@@ -71,7 +71,18 @@ class AppErrorHandler {
       }
     }
 
-    // 5. Exception umum
+    // 5. Izin Kamera & Galeri
+    final errStr = error.toString().toLowerCase();
+    if (errStr.contains('camera_access_denied') ||
+        errStr.contains('camera_access_restricted')) {
+      return 'Akses kamera ditolak. Silakan berikan izin kamera di pengaturan HP Anda untuk mengambil foto.';
+    }
+    if (errStr.contains('photo_access_denied') ||
+        errStr.contains('photo_access_restricted')) {
+      return 'Akses galeri ditolak. Silakan berikan izin akses galeri di pengaturan HP Anda.';
+    }
+
+    // 6. Exception umum
     return _cleanMessage(error.toString());
   }
 
