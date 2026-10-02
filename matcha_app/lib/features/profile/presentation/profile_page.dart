@@ -832,17 +832,30 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     height: 76,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFF063B00),
-                      border: Border.all(color: const Color(0xFFBEF264), width: 2.5),
+                      color: displayImage != null ? Colors.transparent : const Color(0xFF063B00),
+                      border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: displayImage != null
-                        ? Image(
-                            image: displayImage,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => _buildAvatarFallback(user.nama),
-                          )
-                        : _buildAvatarFallback(user.nama),
+                    child: ClipOval(
+                      child: displayImage != null
+                          ? Image(
+                              image: displayImage,
+                              width: 76,
+                              height: 76,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Container(
+                                color: const Color(0xFF063B00),
+                                child: _buildAvatarFallback(user.nama),
+                              ),
+                            )
+                          : _buildAvatarFallback(user.nama),
+                    ),
                   ),
                   Positioned(
                     bottom: 0,
