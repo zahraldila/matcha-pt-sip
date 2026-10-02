@@ -66,8 +66,8 @@ class GameWizardConfig {
   int? sessionId;
 
   GameWizardConfig({
-    this.sport = 'Padel',
-    this.gameType = 'Americano',
+    this.sport = '',
+    this.gameType = '',
     this.activityName = '',
     this.courtCount = 1,
     this.venueId,

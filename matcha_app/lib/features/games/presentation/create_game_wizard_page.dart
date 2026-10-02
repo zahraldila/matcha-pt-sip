@@ -627,12 +627,12 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+            color: isSelected ? AppColors.matchaDark : Colors.transparent,
             width: isSelected ? 1.8 : 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -748,7 +748,9 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Select game type (${_config.sport})',
+              _config.sport.isNotEmpty
+                  ? 'Select game type (${_config.sport})'
+                  : 'Select game type',
               style: AppTextStyles.h2.copyWith(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -768,7 +770,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
         ...gameTypes.map((item) {
           final title = item['title'] as String;
           final isEnabled = item['isEnabled'] as bool? ?? true;
-          final isSelected = _config.gameType == title;
+          final isSelected = _config.gameType.isNotEmpty && _config.gameType == title;
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -793,14 +795,14 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                       color: isSelected
                           ? AppColors.matchaDark
                           : isEnabled
-                              ? const Color(0xFFE2E8F0)
+                              ? Colors.transparent
                               : const Color(0xFFE2E8F0).withValues(alpha: 0.6),
                       width: isSelected ? 1.8 : 1,
                     ),
                     boxShadow: isEnabled
                         ? [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.02),
+                              color: Colors.black.withValues(alpha: 0.04),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
