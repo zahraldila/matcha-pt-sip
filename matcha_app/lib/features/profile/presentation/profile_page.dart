@@ -31,7 +31,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   String _selectedGender = 'Male';
   String _selectedLevel = 'Intermediate';
-  int? _selectedCommunityId;
 
   String? _currentFotoUrl;
   Uint8List? _pickedImageBytes;
@@ -40,7 +39,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   bool _isSaving = false;
   bool _isTogglingHost = false;
-  List<Map<String, dynamic>> _communities = [];
 
   final ImagePicker _picker = ImagePicker();
 
@@ -57,7 +55,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     );
 
     _initFormValues();
-    _loadCommunities();
     widget.authController?.addListener(_onAuthChanged);
   }
 
@@ -78,22 +75,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       _selectedLevel = 'Intermediate';
     }
 
-    _selectedCommunityId = user?.communityId;
     _currentFotoUrl = user?.foto;
     _removeFoto = false;
     _pickedImageBytes = null;
-  }
-
-  Future<void> _loadCommunities() async {
-    final authCtrl = widget.authController;
-    if (authCtrl != null) {
-      final list = await authCtrl.getCommunities();
-      if (mounted) {
-        setState(() {
-          _communities = list;
-        });
-      }
-    }
   }
 
   @override
@@ -384,7 +368,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         gender: _selectedGender,
         usia: usiaVal,
         level: _selectedLevel,
-        communityId: _selectedCommunityId,
+        communityId: authCtrl.currentUser?.communityId,
         fotoUrl: finalFotoUrl,
         removeFoto: _removeFoto,
       );
@@ -492,7 +476,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   Widget _buildLoggedInProfileView(UserModel user) {
     final isHost = user.isHost;
     final isVenueOwner = user.role == 'venue_owner';
-    final currentCommunityName = _getCommunityName(_selectedCommunityId);
     final usernameTag = '@${user.nama.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_')}';
 
     return Scaffold(
@@ -580,7 +563,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
               const SizedBox(height: 16),
 
               // 3. Profil & Form Data Pemain Card (Matching web)
-              _buildProfileFormCard(user, isHost, isVenueOwner, usernameTag, currentCommunityName),
+              _buildProfileFormCard(user, isHost, isVenueOwner, usernameTag),
               const SizedBox(height: 20),
 
               // 4. Action Save Button
@@ -595,15 +578,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         ),
       ),
     );
-  }
-
-  String _getCommunityName(int? id) {
-    if (id == null) return 'Personal';
-    final found = _communities.firstWhere(
-      (c) => c['community_id'] == id,
-      orElse: () => {'nama_community': 'Personal'},
-    );
-    return found['nama_community']?.toString() ?? 'Personal';
   }
 
   Widget _buildPageHeader() {
@@ -873,7 +847,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     bool isHost,
     bool isVenueOwner,
     String usernameTag,
-    String currentCommunityName,
   ) {
     ImageProvider? displayImage;
     if (_pickedImageBytes != null) {
@@ -881,49 +854,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     } else if (!_removeFoto && _currentFotoUrl != null && _currentFotoUrl!.isNotEmpty) {
       displayImage = NetworkImage(_currentFotoUrl!);
     }
-
-    // Bangun daftar opsi Komunitas secara aman
-    final communityItems = <DropdownMenuItem<int?>>[
-      const DropdownMenuItem<int?>(
-        value: null,
-        child: Text('Personal (Non-Community / Belum Ada)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-      ),
-    ];
-
-    // Jika community_id user belum ada di list (karena masih loading atau khusus), tambahkan secara aman
-    if (_selectedCommunityId != null && !_communities.any((c) => c['community_id'] == _selectedCommunityId)) {
-      communityItems.add(
-        DropdownMenuItem<int?>(
-          value: _selectedCommunityId,
-          child: Text(
-            currentCommunityName != 'Personal' ? currentCommunityName : 'Komunitas (ID: $_selectedCommunityId)',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      );
-    }
-
-    for (final c in _communities) {
-      final cId = c['community_id'] as int?;
-      if (cId != null && !communityItems.any((item) => item.value == cId)) {
-        communityItems.add(
-          DropdownMenuItem<int?>(
-            value: cId,
-            child: Text(
-              c['nama_community']?.toString() ?? 'Komunitas',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        );
-      }
-    }
-
-    // Validasi value agar pasti ada di dalam items
-    final safeCommunityValue = communityItems.any((i) => i.value == _selectedCommunityId)
-        ? _selectedCommunityId
-        : null;
 
     final safeGenderValue = ['Male', 'Female'].contains(_selectedGender) ? _selectedGender : 'Male';
     final safeLevelValue = ['Newbie', 'Beginner', 'Intermediate', 'Advanced'].contains(_selectedLevel)
@@ -1107,13 +1037,12 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
           const SizedBox(height: 14),
 
-          // 3 Info Chips (Skill, Komunitas, Usia)
+          // Info Chips (Skill, Usia)
           Wrap(
             spacing: 6,
             runSpacing: 6,
             children: [
               _buildInfoPill('⭐ Skill: $_selectedLevel', const Color(0xFFFEF3C7), const Color(0xFFB45309)),
-              _buildInfoPill('👥 Komunitas: $currentCommunityName', const Color(0xFFF0FDF4), const Color(0xFF15803D)),
               _buildInfoPill('🎂 Usia: ${_usiaController.text.trim()} thn', const Color(0xFFF8FAFC), const Color(0xFF475569)),
             ],
           ),
@@ -1259,21 +1188,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
               if (val != null) setState(() => _selectedLevel = val);
             },
           ),
-          const SizedBox(height: 14),
-
-          // Form Field 7: Afiliasi Komunitas (Safe against missing IDs)
-          _buildFormFieldTitle('Afiliasi Komunitas'),
-          const SizedBox(height: 6),
-          DropdownButtonFormField<int?>(
-            value: safeCommunityValue,
-            isExpanded: true,
-            decoration: _inputDecoration(),
-            items: communityItems,
-            onChanged: (val) {
-              setState(() => _selectedCommunityId = val);
-            },
-          ),
-          _buildFieldCaption('Pilih komunitas jika kamu tergabung dalam klub resmi.'),
         ],
       ),
     );

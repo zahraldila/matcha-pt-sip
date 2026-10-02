@@ -105,9 +105,15 @@ class _EditVenuePageState extends State<EditVenuePage> {
     _nameController = TextEditingController(text: v.namaVenue);
     _addressController = TextEditingController(text: v.alamat ?? '');
     _googleMapsController = TextEditingController();
-    _picNameController = TextEditingController(text: v.namaPic ?? '');
-    _picPhoneController = TextEditingController(text: v.noWhatsapp ?? '');
-    _notesController = TextEditingController(text: v.catatan ?? '');
+    _picNameController = TextEditingController(
+      text: (v.namaPic?.isNotEmpty == true) ? v.namaPic! : 'Marcello Este Camaro',
+    );
+    _picPhoneController = TextEditingController(
+      text: (v.noWhatsapp?.isNotEmpty == true) ? v.noWhatsapp! : '082119765944',
+    );
+    _notesController = TextEditingController(
+      text: (v.catatan?.isNotEmpty == true) ? v.catatan! : 'Sesuai jadwal ketersediaan lapangan reguler.',
+    );
 
     // City initial
     if (v.kota != null && v.kota!.isNotEmpty) {
@@ -143,15 +149,37 @@ class _EditVenuePageState extends State<EditVenuePage> {
       }
     }
 
-    // Facilities
-    if (v.fasilitas != null && v.fasilitas!.isNotEmpty) {
-      _selectedFacilities = v.fasilitas!
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toSet();
-    } else {
-      _selectedFacilities = {'Parkir Luas', 'Toilet / Restroom', 'Ruang Ganti'};
+    // Facilities Smart Fuzzy Matching
+    final rawFacilities = (v.fasilitas ?? 'Parkir, Toilet, Ruang Ganti')
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    _selectedFacilities = {};
+    for (final raw in rawFacilities) {
+      final rawLower = raw.toLowerCase();
+      for (final master in _facilityMaster) {
+        final masterName = master['name'] as String;
+        final masterLower = masterName.toLowerCase();
+        if (masterLower == rawLower ||
+            masterLower.contains(rawLower) ||
+            rawLower.contains(masterLower) ||
+            (rawLower.contains('parkir') && masterLower.contains('parkir')) ||
+            (rawLower.contains('toilet') && masterLower.contains('toilet')) ||
+            (rawLower.contains('ganti') && masterLower.contains('ganti')) ||
+            (rawLower.contains('kantin') && masterLower.contains('kantin')) ||
+            (rawLower.contains('musholla') && masterLower.contains('musholla')) ||
+            (rawLower.contains('wifi') && masterLower.contains('wi-fi')) ||
+            (rawLower.contains('raket') && masterLower.contains('raket')) ||
+            (rawLower.contains('loker') && masterLower.contains('loker')) ||
+            (rawLower.contains('shower') && masterLower.contains('shower')) ||
+            (rawLower.contains('lampu') && masterLower.contains('lampu')) ||
+            (rawLower.contains('tribun') && masterLower.contains('tribun')) ||
+            (rawLower.contains('p3k') && masterLower.contains('p3k'))) {
+          _selectedFacilities.add(masterName);
+        }
+      }
     }
   }
 

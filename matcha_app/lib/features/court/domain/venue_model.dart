@@ -39,6 +39,14 @@ class VenueModel {
           .toList();
     }
 
+    final ownerUser = map['tb_user'] is Map ? map['tb_user'] as Map<String, dynamic> : null;
+    final picName = (map['nama_pic'] as String?)?.isNotEmpty == true
+        ? map['nama_pic'] as String
+        : (ownerUser?['nama'] as String? ?? 'Marcello Este Camaro');
+    final picPhone = (map['no_whatsapp'] as String?)?.isNotEmpty == true
+        ? map['no_whatsapp'] as String
+        : (ownerUser?['no_hp'] as String? ?? '082119765944');
+
     return VenueModel(
       venueId: map['venue_id'] as int,
       ownerUserId: map['owner_user_id'] as int?,
@@ -50,8 +58,8 @@ class VenueModel {
       catatan: map['catatan'] as String?,
       jamOperasional: map['jam_operasional'] as String?,
       hariBuka: map['hari_buka'] as String?,
-      noWhatsapp: map['no_whatsapp'] as String?,
-      namaPic: map['nama_pic'] as String?,
+      noWhatsapp: picPhone,
+      namaPic: picName,
       courts: courtsList,
     );
   }

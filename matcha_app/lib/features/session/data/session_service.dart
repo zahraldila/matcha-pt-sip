@@ -216,6 +216,29 @@ class SessionService {
     }
   }
 
+  /// Mencari pemain dari tb_player berdasarkan nama
+  Future<List<Map<String, dynamic>>> searchPlayers({
+    String? query,
+    int limit = 20,
+  }) async {
+    try {
+      var req = _supabase
+          .from('tb_player')
+          .select('player_id, user_id, nama, gender, level, usia, foto');
+
+      if (query != null && query.trim().isNotEmpty) {
+        req = req.ilike('nama', '%${query.trim()}%');
+      }
+
+      final res = await req.order('player_id', ascending: false).limit(limit);
+      return List<Map<String, dynamic>>.from(res as List);
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal mencari pemain: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan saat mencari pemain: $e');
+    }
+  }
+
   /// Membatalkan keikutsertaan pemain dari sesi mabar
   Future<void> leaveSession({
     required int sessionId,

@@ -6,6 +6,7 @@ class GamePlayerItem {
   final bool isGuest;
   final String? avatarUrl;
   final int? userId;
+  final int? playerId;
 
   const GamePlayerItem({
     required this.id,
@@ -15,6 +16,7 @@ class GamePlayerItem {
     this.isGuest = false,
     this.avatarUrl,
     this.userId,
+    this.playerId,
   });
 
   Map<String, dynamic> toMap() {
@@ -26,6 +28,7 @@ class GamePlayerItem {
       'is_guest': isGuest,
       'avatar_url': avatarUrl,
       'user_id': userId,
+      'player_id': playerId,
     };
   }
 
@@ -38,6 +41,7 @@ class GamePlayerItem {
       isGuest: map['is_guest'] == true,
       avatarUrl: map['avatar_url'] ?? map['foto'],
       userId: map['user_id'] is int ? map['user_id'] : int.tryParse(map['user_id']?.toString() ?? ''),
+      playerId: map['player_id'] is int ? map['player_id'] : int.tryParse(map['player_id']?.toString() ?? ''),
     );
   }
 }

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
@@ -8,6 +7,7 @@ import '../../court/data/venue_service.dart';
 import '../../court/domain/venue_model.dart';
 import '../../drawing/domain/matcha_drawing_engine.dart';
 import '../../drawing/presentation/drawing_result_page.dart';
+import '../../session/data/session_service.dart';
 import '../domain/game_wizard_model.dart';
 
 class CreateGameWizardPage extends StatefulWidget {
@@ -126,11 +126,19 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
   @override
   void initState() {
     super.initState();
+    _activityNameController.addListener(_onActivityNameChanged);
     _loadVenues();
+  }
+
+  void _onActivityNameChanged() {
+    setState(() {
+      _config.activityName = _activityNameController.text;
+    });
   }
 
   @override
   void dispose() {
+    _activityNameController.removeListener(_onActivityNameChanged);
     _activityNameController.dispose();
     super.dispose();
   }
@@ -419,8 +427,14 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _AddPlayerBottomSheet(
+        currentPlayers: _config.players,
+        sessionId: _config.sessionId,
         onAddPlayer: (player) {
-          if (_config.players.any((p) => p.name.toLowerCase() == player.name.toLowerCase())) {
+          final isDuplicate = _config.players.any((p) =>
+              (player.playerId != null && p.playerId == player.playerId) ||
+              (player.userId != null && p.userId == player.userId) ||
+              p.name.trim().toLowerCase() == player.name.trim().toLowerCase());
+          if (isDuplicate) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Pemain "${player.name}" sudah ada di daftar.'),
@@ -869,6 +883,8 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
 
   // --- STEP 3: GAME CONFIG ---
   Widget _buildStep3GameConfig() {
+    final isActivityNameValid = _activityNameController.text.trim().isNotEmpty;
+
     return ListView(
       key: const ValueKey(3),
       padding: const EdgeInsets.all(20),
@@ -1136,15 +1152,27 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: () {
-              if (_activityNameController.text.trim().isEmpty) {
-                _config.activityName = '${_config.sport} ${_config.gameType} Fun';
-              }
-              setState(() => _currentStep = 4);
-            },
+            onPressed: isActivityNameValid
+                ? () {
+                    final trimmedName = _activityNameController.text.trim();
+                    if (trimmedName.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Nama aktivitas wajib diisi.'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                      return;
+                    }
+                    _config.activityName = trimmedName;
+                    setState(() => _currentStep = 4);
+                  }
+                : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.matchaDark,
+              disabledBackgroundColor: const Color(0xFFCBD5E1),
               foregroundColor: Colors.white,
+              disabledForegroundColor: const Color(0xFF94A3B8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               elevation: 0,
             ),
@@ -1531,9 +1559,15 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
 
 // --- ADD PLAYER MODAL (DUAL TAB) ---
 class _AddPlayerBottomSheet extends StatefulWidget {
+  final List<GamePlayerItem> currentPlayers;
+  final int? sessionId;
   final ValueChanged<GamePlayerItem> onAddPlayer;
 
-  const _AddPlayerBottomSheet({required this.onAddPlayer});
+  const _AddPlayerBottomSheet({
+    required this.onAddPlayer,
+    this.currentPlayers = const [],
+    this.sessionId,
+  });
 
   @override
   State<_AddPlayerBottomSheet> createState() => _AddPlayerBottomSheetState();
@@ -1543,13 +1577,19 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _manualNameController = TextEditingController();
+  final SessionService _sessionService = SessionService();
+
+  static const int _minSearchQueryLength = 2;
 
   String _selectedGender = 'Laki-laki';
   String _selectedLevel = 'Beginner';
 
   List<Map<String, dynamic>> _searchResults = [];
   bool _isSearching = false;
+  String? _searchErrorMessage;
   Timer? _debounceTimer;
+
+  bool _isSubmittingManual = false;
 
   @override
   void initState() {
@@ -1566,36 +1606,368 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
     super.dispose();
   }
 
+  Future<void> _fetchDatabasePlayers(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.length < _minSearchQueryLength) {
+      if (mounted) {
+        setState(() {
+          _searchResults = [];
+          _isSearching = false;
+          _searchErrorMessage = null;
+        });
+      }
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+      _searchErrorMessage = null;
+    });
+
+    try {
+      final res = await _sessionService.searchPlayers(query: cleanQuery, limit: 30);
+      if (mounted) {
+        setState(() {
+          _searchResults = res;
+          _isSearching = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isSearching = false;
+          _searchErrorMessage = 'Terjadi kesalahan saat mengambil data player';
+        });
+      }
+    }
+  }
+
   void _onSearchChanged(String query) {
     _debounceTimer?.cancel();
-    if (query.trim().isEmpty) {
+    final cleanQuery = query.trim();
+
+    if (cleanQuery.length < _minSearchQueryLength) {
       setState(() {
         _searchResults = [];
         _isSearching = false;
+        _searchErrorMessage = null;
       });
       return;
     }
 
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
-      setState(() => _isSearching = true);
-      try {
-        final supabase = Supabase.instance.client;
-        final res = await supabase
-            .from('tb_user')
-            .select('id, nama, jenis_kelamin, level, foto')
-            .ilike('nama', '%${query.trim()}%')
-            .limit(10);
-
-        if (mounted) {
-          setState(() {
-            _searchResults = List<Map<String, dynamic>>.from(res);
-            _isSearching = false;
-          });
-        }
-      } catch (_) {
-        if (mounted) setState(() => _isSearching = false);
-      }
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _fetchDatabasePlayers(cleanQuery);
     });
+  }
+
+  bool _isPlayerAlreadyAdded(Map<String, dynamic> dbPlayer) {
+    final dbPlayerId = dbPlayer['player_id'] is int
+        ? dbPlayer['player_id'] as int
+        : int.tryParse(dbPlayer['player_id']?.toString() ?? '');
+    final dbUserId = dbPlayer['user_id'] is int
+        ? dbPlayer['user_id'] as int
+        : int.tryParse(dbPlayer['user_id']?.toString() ?? '');
+    final dbName = (dbPlayer['nama'] ?? '').toString().trim().toLowerCase();
+
+    return widget.currentPlayers.any((p) {
+      if (dbPlayerId != null && p.playerId == dbPlayerId) return true;
+      if (dbUserId != null && p.userId == dbUserId) return true;
+      return p.name.trim().toLowerCase() == dbName;
+    });
+  }
+
+  Future<void> _onSelectDatabasePlayer(Map<String, dynamic> u) async {
+    final name = (u['nama'] ?? 'Player').toString();
+    final rawGender = (u['gender'] ?? '').toString();
+    final gender = (rawGender.toLowerCase() == 'female' || rawGender.toLowerCase() == 'perempuan')
+        ? 'Perempuan'
+        : 'Laki-laki';
+    final rawLevel = (u['level'] ?? '').toString();
+    final level = rawLevel.isNotEmpty ? rawLevel : 'Beginner';
+    final playerId = u['player_id'] is int ? u['player_id'] as int : int.tryParse(u['player_id'].toString());
+    final userId = u['user_id'] is int ? u['user_id'] as int : int.tryParse(u['user_id']?.toString() ?? '');
+    final isGuest = userId == null;
+    final avatarUrl = u['foto'] as String?;
+
+    if (_isPlayerAlreadyAdded(u)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Pemain "$name" sudah ada dalam daftar game.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (widget.sessionId != null && playerId != null) {
+      try {
+        await _sessionService.joinSession(
+          sessionId: widget.sessionId!,
+          playerId: playerId,
+        );
+      } catch (_) {
+        // Fallback gracefully if already joined or offline
+      }
+    }
+
+    widget.onAddPlayer(
+      GamePlayerItem(
+        id: isGuest ? 'guest_db_$playerId' : 'user_$userId',
+        playerId: playerId,
+        userId: userId,
+        name: name,
+        gender: gender,
+        level: level,
+        isGuest: isGuest,
+        avatarUrl: avatarUrl,
+      ),
+    );
+
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Pemain "$name" berhasil ditambahkan.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.matchaDark,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onSubmitManualPlayer() async {
+    final name = _manualNameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nama player tidak boleh kosong.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final isDuplicate = widget.currentPlayers.any(
+      (p) => p.name.trim().toLowerCase() == name.toLowerCase(),
+    );
+    if (isDuplicate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Pemain dengan nama "$name" sudah ada di daftar.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSubmittingManual = true);
+
+    try {
+      final genderDb = _selectedGender == 'Laki-laki' ? 'Male' : 'Female';
+      final guestPlayerId = await _sessionService.registerGuestPlayer(
+        nama: name,
+        gender: genderDb,
+        level: _selectedLevel,
+      );
+
+      if (widget.sessionId != null) {
+        try {
+          await _sessionService.joinSession(
+            sessionId: widget.sessionId!,
+            playerId: guestPlayerId,
+          );
+        } catch (_) {
+          // Gracefully continue
+        }
+      }
+
+      final playerItem = GamePlayerItem(
+        id: 'guest_$guestPlayerId',
+        playerId: guestPlayerId,
+        name: name,
+        gender: _selectedGender,
+        level: _selectedLevel,
+        isGuest: true,
+      );
+
+      if (!mounted) return;
+      widget.onAddPlayer(playerItem);
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Pemain tamu "$name" berhasil didaftarkan & ditambahkan.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.matchaDark,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmittingManual = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mendaftarkan pemain tamu: $e'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _showGenderPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Text(
+                'Pilih Gender',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...['Laki-laki', 'Perempuan'].map((gender) {
+                final isSelected = _selectedGender == gender;
+                return InkWell(
+                  onTap: () {
+                    setState(() => _selectedGender = gender);
+                    Navigator.pop(ctx);
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFFF0FDF4) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          gender,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? AppColors.matchaDark : const Color(0xFF1E293B),
+                          ),
+                        ),
+                        if (isSelected)
+                          const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.matchaDark),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showLevelPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Text(
+                'Pilih Skill Level',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...['Beginner', 'Intermediate', 'Advanced'].map((lvl) {
+                final isSelected = _selectedLevel == lvl;
+                return InkWell(
+                  onTap: () {
+                    setState(() => _selectedLevel = lvl);
+                    Navigator.pop(ctx);
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFFF0FDF4) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          lvl,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? AppColors.matchaDark : const Color(0xFF1E293B),
+                          ),
+                        ),
+                        if (isSelected)
+                          const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.matchaDark),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -1642,31 +2014,49 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
           ),
           const SizedBox(height: 14),
 
-          // Dual Tab Selector
+          // Dual Tab Selector (Clean Underline Tab)
           Container(
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(10),
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: AppColors.lightSurfaceBorder,
+                  width: 1.0,
+                ),
+              ),
             ),
             child: TabBar(
               controller: _tabController,
-              indicator: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 4,
-                  ),
-                ],
+              indicatorSize: TabBarIndicatorSize.label,
+              indicator: const UnderlineTabIndicator(
+                borderSide: BorderSide(
+                  width: 2.5,
+                  color: AppColors.matchaDark,
+                ),
+                borderRadius: BorderRadius.all(Radius.circular(2)),
               ),
+              dividerColor: Colors.transparent,
+              splashFactory: NoSplash.splashFactory,
+              overlayColor: WidgetStateProperty.all(Colors.transparent),
               labelColor: AppColors.matchaDark,
-              unselectedLabelColor: const Color(0xFF64748B),
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              unselectedLabelColor: AppColors.textSecondary,
+              labelStyle: AppTextStyles.button.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+              unselectedLabelStyle: AppTextStyles.bodyMedium.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
               tabs: const [
-                Tab(text: 'Dari Database'),
-                Tab(text: 'Input Manual'),
+                Tab(
+                  height: 38,
+                  text: 'Dari Database',
+                ),
+                Tab(
+                  height: 38,
+                  text: 'Input Manual',
+                ),
               ],
             ),
           ),
@@ -1674,7 +2064,7 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
 
           // Tab Content
           SizedBox(
-            height: 280,
+            height: 300,
             child: TabBarView(
               controller: _tabController,
               children: [
@@ -1690,6 +2080,9 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
 
   // Tab 1: Database Search
   Widget _buildDatabaseTab() {
+    final cleanQuery = _searchController.text.trim();
+    final availableResults = _searchResults.where((p) => !_isPlayerAlreadyAdded(p)).toList();
+
     return Column(
       children: [
         TextField(
@@ -1706,61 +2099,138 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5),
+            ),
           ),
         ),
         const SizedBox(height: 10),
         Expanded(
           child: _isSearching
-              ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-              : _searchResults.isEmpty
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.matchaDark,
+                  ),
+                )
+              : _searchErrorMessage != null
                   ? Center(
-                      child: Text(
-                        _searchController.text.isEmpty
-                            ? 'Ketik nama player untuk mencari'
-                            : 'Pemain tidak ditemukan',
-                        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _searchResults.length,
-                      itemBuilder: (ctx, idx) {
-                        final u = _searchResults[idx];
-                        final name = u['nama'] ?? 'User';
-                        final gender = u['jenis_kelamin'] ?? 'Laki-laki';
-                        final level = u['level'] ?? 'Beginner';
-                        final userId = u['id'] is int ? u['id'] as int : int.tryParse(u['id'].toString());
-
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.matchaSoftLime,
-                            child: Text(
-                              name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.matchaDark),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline_rounded, size: 30, color: Colors.redAccent),
+                          const SizedBox(height: 8),
+                          Text(
+                            _searchErrorMessage!,
+                            style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: () => _fetchDatabasePlayers(_searchController.text),
+                            icon: const Icon(Icons.refresh_rounded, size: 16, color: AppColors.matchaDark),
+                            label: const Text(
+                              'Coba Lagi',
+                              style: TextStyle(color: AppColors.matchaDark, fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                           ),
-                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          subtitle: Text('$gender • $level', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.matchaDark),
-                            onPressed: () {
-                              widget.onAddPlayer(
-                                GamePlayerItem(
-                                  id: 'user_$userId',
-                                  name: name,
-                                  gender: gender,
-                                  level: level,
-                                  isGuest: false,
-                                  userId: userId,
-                                  avatarUrl: u['foto'],
-                                ),
-                              );
-                              Navigator.pop(context);
-                            },
+                        ],
+                      ),
+                    )
+                  : cleanQuery.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Ketik nama player untuk mencari',
+                            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                           ),
-                        );
-                      },
-                    ),
+                        )
+                      : cleanQuery.length < _minSearchQueryLength
+                          ? const Center(
+                              child: Text(
+                                'Ketik minimal 2 karakter untuk mencari',
+                                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                              ),
+                            )
+                          : _searchResults.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'Player tidak ditemukan',
+                                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                                  ),
+                                )
+                              : availableResults.isEmpty
+                                  ? const Center(
+                                      child: Text(
+                                        'Semua player yang cocok sudah ditambahkan ke game',
+                                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                                      ),
+                                    )
+                                  : ListView.builder(
+                              itemCount: availableResults.length,
+                              itemBuilder: (ctx, idx) {
+                                final u = availableResults[idx];
+                                final name = (u['nama'] ?? 'Player').toString();
+                                final rawGender = (u['gender'] ?? '').toString();
+                                final gender = (rawGender.toLowerCase() == 'female' || rawGender.toLowerCase() == 'perempuan')
+                                    ? 'Perempuan'
+                                    : 'Laki-laki';
+                                final rawLevel = (u['level'] ?? '').toString();
+                                final level = rawLevel.isNotEmpty ? rawLevel : 'Beginner';
+                                final isGuest = u['user_id'] == null;
+
+                                return ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                                  leading: CircleAvatar(
+                                    backgroundColor: isGuest ? const Color(0xFFFEF3C7) : AppColors.matchaSoftLime,
+                                    child: Text(
+                                      name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: isGuest ? const Color(0xFFD97706) : AppColors.matchaDark,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          name,
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (isGuest)
+                                        Container(
+                                          margin: const EdgeInsets.only(left: 6),
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFEF3C7),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Text(
+                                            'Guest',
+                                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  subtitle: Text(
+                                    '$gender • $level',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.matchaDark),
+                                    onPressed: () => _onSelectDatabasePlayer(u),
+                                  ),
+                                );
+                              },
+                            ),
         ),
       ],
     );
@@ -1770,7 +2240,10 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
   Widget _buildManualTab() {
     return ListView(
       children: [
-        const Text('Nama Player', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+        const Text(
+          'Nama Player',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: _manualNameController,
@@ -1784,6 +2257,14 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5),
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -1793,25 +2274,39 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Gender', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                  const Text(
+                    'Gender',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                  ),
                   const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedGender,
-                        isExpanded: true,
-                        items: ['Laki-laki', 'Perempuan'].map((g) {
-                          return DropdownMenuItem(value: g, child: Text(g, style: const TextStyle(fontSize: 12)));
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedGender = val);
-                        },
+                  InkWell(
+                    onTap: _showGenderPicker,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      height: 42,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _selectedGender,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: Color(0xFF64748B),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1823,25 +2318,39 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Skill Level', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                  const Text(
+                    'Skill Level',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                  ),
                   const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedLevel,
-                        isExpanded: true,
-                        items: ['Beginner', 'Intermediate', 'Advanced'].map((l) {
-                          return DropdownMenuItem(value: l, child: Text(l, style: const TextStyle(fontSize: 12)));
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedLevel = val);
-                        },
+                  InkWell(
+                    onTap: _showLevelPicker,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      height: 42,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _selectedLevel,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: Color(0xFF64748B),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1864,7 +2373,7 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Guest Player: Pemain non-user tidak terdaftar di database dan akan ditambahkan sebagai guest.',
+                  'Pemain manual akan didaftarkan sebagai Guest Player di database MATCHA dan ditambahkan ke daftar pemain.',
                   style: TextStyle(fontSize: 10, color: Color(0xFF92400E)),
                 ),
               ),
@@ -1876,28 +2385,21 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
           width: double.infinity,
           height: 42,
           child: ElevatedButton(
-            onPressed: () {
-              final name = _manualNameController.text.trim();
-              if (name.isEmpty) return;
-
-              widget.onAddPlayer(
-                GamePlayerItem(
-                  id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
-                  name: name,
-                  gender: _selectedGender,
-                  level: _selectedLevel,
-                  isGuest: true,
-                ),
-              );
-              Navigator.pop(context);
-            },
+            onPressed: _isSubmittingManual ? null : _onSubmitManualPlayer,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.matchaDark,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               elevation: 0,
+              disabledBackgroundColor: AppColors.matchaDark.withValues(alpha: 0.6),
             ),
-            child: const Text('+ Tambahkan Player', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            child: _isSubmittingManual
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('+ Tambahkan Player', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           ),
         ),
       ],

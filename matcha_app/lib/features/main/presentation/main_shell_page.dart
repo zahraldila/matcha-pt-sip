@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../admin/presentation/admin_user_management_page.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../community/presentation/community_page.dart';
@@ -42,8 +43,9 @@ class _MainShellPageState extends State<MainShellPage> {
   }
 
   void _onTabTapped(int index) {
-    if (index == 2) {
-      // Tab Host Center Button clicked
+    final isAdmin = widget.authController?.currentUser?.isAdmin ?? false;
+    if (!isAdmin && index == 2) {
+      // Tab Host Center Button clicked for non-admin
       _handleHostAction();
       return;
     }
@@ -184,17 +186,16 @@ class _MainShellPageState extends State<MainShellPage> {
   @override
   Widget build(BuildContext context) {
     final user = widget.authController?.currentUser;
+    final isAdmin = user?.isAdmin ?? false;
     final isHost = user?.isHost ?? false;
 
-    final tabs = [
-      // Tab 0: Home Dashboard
+    // Tabs for Admin: Beranda (0), Mabar (1), Venue (2), Komunitas (3), Pengguna (4)
+    final adminTabs = [
       HomePage(
         authController: widget.authController,
         onExploreSessions: () => setState(() => _currentIndex = 1),
         onExploreCommunity: () => setState(() => _currentIndex = 3),
       ),
-
-      // Tab 1: Sesi Mabar
       SessionListPage(
         authController: widget.authController,
         onSessionTap: (sessionId) {
@@ -209,16 +210,39 @@ class _MainShellPageState extends State<MainShellPage> {
           );
         },
       ),
-
-      // Tab 2: Placeholder for Host Center Tab Action
-      const SizedBox.shrink(),
-
-      // Tab 3: Komunitas
+      VenueDirectoryPage(authController: widget.authController),
       CommunityPage(authController: widget.authController),
+      AdminUserManagementPage(authController: widget.authController),
+    ];
 
-      // Tab 4: Direktori Venue & Court
+    // Tabs for Non-Admin: Beranda (0), Mabar (1), Host (2), Komunitas (3), Venue (4)
+    final memberTabs = [
+      HomePage(
+        authController: widget.authController,
+        onExploreSessions: () => setState(() => _currentIndex = 1),
+        onExploreCommunity: () => setState(() => _currentIndex = 3),
+      ),
+      SessionListPage(
+        authController: widget.authController,
+        onSessionTap: (sessionId) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SessionDetailPage(
+                sessionId: sessionId,
+                authController: widget.authController,
+              ),
+            ),
+          );
+        },
+      ),
+      const SizedBox.shrink(), // Placeholder for Host center button
+      CommunityPage(authController: widget.authController),
       VenueDirectoryPage(authController: widget.authController),
     ];
+
+    final currentTabs = isAdmin ? adminTabs : memberTabs;
+    final activeIndex = _currentIndex.clamp(0, currentTabs.length - 1);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -387,8 +411,8 @@ class _MainShellPageState extends State<MainShellPage> {
         ),
       ),
       body: IndexedStack(
-        index: _currentIndex == 2 ? 0 : _currentIndex,
-        children: tabs,
+        index: (isAdmin ? activeIndex : (_currentIndex == 2 ? 0 : activeIndex)),
+        children: currentTabs,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -407,34 +431,76 @@ class _MainShellPageState extends State<MainShellPage> {
             height: 64,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(
-                  index: 0,
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home_rounded,
-                  label: 'Beranda',
-                ),
-                _buildNavItem(
-                  index: 1,
-                  icon: Icons.emoji_events_outlined,
-                  activeIcon: Icons.emoji_events_rounded,
-                  label: 'Mabar',
-                ),
-                // Center Host Button (+)
-                _buildCenterHostButton(isHost: isHost),
-                _buildNavItem(
-                  index: 3,
-                  icon: Icons.groups_outlined,
-                  activeIcon: Icons.groups_rounded,
-                  label: 'Komunitas',
-                ),
-                _buildNavItem(
-                  index: 4,
-                  icon: Icons.location_on_outlined,
-                  activeIcon: Icons.location_on_rounded,
-                  label: 'Venue',
-                ),
-              ],
+              children: isAdmin
+                  ? [
+                      // Admin Tab 0: Beranda
+                      _buildNavItem(
+                        index: 0,
+                        icon: Icons.home_outlined,
+                        activeIcon: Icons.home_rounded,
+                        label: 'Beranda',
+                      ),
+                      // Admin Tab 1: Mabar
+                      _buildNavItem(
+                        index: 1,
+                        icon: Icons.emoji_events_outlined,
+                        activeIcon: Icons.emoji_events_rounded,
+                        label: 'Mabar',
+                      ),
+                      // Admin Tab 2: Venue
+                      _buildNavItem(
+                        index: 2,
+                        icon: Icons.location_on_outlined,
+                        activeIcon: Icons.location_on_rounded,
+                        label: 'Venue',
+                      ),
+                      // Admin Tab 3: Komunitas
+                      _buildNavItem(
+                        index: 3,
+                        icon: Icons.groups_outlined,
+                        activeIcon: Icons.groups_rounded,
+                        label: 'Komunitas',
+                      ),
+                      // Admin Tab 4: Pengguna
+                      _buildNavItem(
+                        index: 4,
+                        icon: Icons.manage_accounts_outlined,
+                        activeIcon: Icons.manage_accounts_rounded,
+                        label: 'Pengguna',
+                      ),
+                    ]
+                  : [
+                      // Member Tab 0: Beranda
+                      _buildNavItem(
+                        index: 0,
+                        icon: Icons.home_outlined,
+                        activeIcon: Icons.home_rounded,
+                        label: 'Beranda',
+                      ),
+                      // Member Tab 1: Mabar
+                      _buildNavItem(
+                        index: 1,
+                        icon: Icons.emoji_events_outlined,
+                        activeIcon: Icons.emoji_events_rounded,
+                        label: 'Mabar',
+                      ),
+                      // Center Host Button (+)
+                      _buildCenterHostButton(isHost: isHost),
+                      // Member Tab 3: Komunitas
+                      _buildNavItem(
+                        index: 3,
+                        icon: Icons.groups_outlined,
+                        activeIcon: Icons.groups_rounded,
+                        label: 'Komunitas',
+                      ),
+                      // Member Tab 4: Venue
+                      _buildNavItem(
+                        index: 4,
+                        icon: Icons.location_on_outlined,
+                        activeIcon: Icons.location_on_rounded,
+                        label: 'Venue',
+                      ),
+                    ],
             ),
           ),
         ),

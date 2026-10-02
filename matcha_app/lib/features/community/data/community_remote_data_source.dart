@@ -259,4 +259,70 @@ class CommunityRemoteDataSource {
       throw Exception('Terjadi kesalahan: $e');
     }
   }
+
+  /// Memperbarui informasi data komunitas (Admin / Pembuat)
+  Future<void> updateCommunity({
+    required int communityId,
+    required String namaCommunity,
+    required String deskripsi,
+    required String sport,
+    String? tagline,
+    String? kotaHomebase,
+    String? targetLevel,
+    String? statusKeanggotaan,
+    String? jadwalRutin,
+    String? homebaseVenue,
+    List<String>? benefits,
+    String? logo,
+  }) async {
+    try {
+      final updateData = <String, dynamic>{
+        'nama_community': namaCommunity,
+        'deskripsi': deskripsi,
+        'sport': sport,
+        if (tagline != null) 'tagline': tagline,
+        if (kotaHomebase != null) 'kota_homebase': kotaHomebase,
+        if (targetLevel != null) 'target_level': targetLevel,
+        if (statusKeanggotaan != null) 'status_keanggotaan': statusKeanggotaan,
+        if (jadwalRutin != null) 'jadwal_rutin': jadwalRutin,
+        if (homebaseVenue != null) 'homebase_venue': homebaseVenue,
+        if (benefits != null) 'benefits': benefits,
+        if (logo != null && logo.isNotEmpty) 'logo': logo,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      await _supabase.from('tb_community').update(updateData).eq('community_id', communityId);
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal memperbarui komunitas: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
+    }
+  }
+
+  /// Menghapus komunitas secara permanen dari database (Admin / Pembuat)
+  Future<void> deleteCommunity(int communityId) async {
+    try {
+      // 1. Bersihkan relasi anggota komunitas di tb_player
+      try {
+        await _supabase
+            .from('tb_player')
+            .delete()
+            .eq('community_id', communityId);
+      } catch (_) {
+        try {
+          await _supabase
+              .from('tb_player')
+              .update({'community_id': null})
+              .eq('community_id', communityId);
+        } catch (_) {}
+      }
+
+      // 2. Hapus record komunitas dari tb_community
+      await _supabase.from('tb_community').delete().eq('community_id', communityId);
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal menghapus komunitas: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
+    }
+  }
 }

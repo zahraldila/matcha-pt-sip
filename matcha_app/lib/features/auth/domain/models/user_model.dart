@@ -126,7 +126,15 @@ class UserModel {
     );
   }
 
-  bool get isAdmin => role.toLowerCase() == 'admin';
+  bool get isAdmin {
+    final r = role.toLowerCase().trim();
+    return r == 'admin' || r == 'administrator' || r == 'superadmin' || r.contains('admin');
+  }
+
+  bool get isVenueOwner {
+    final r = role.toLowerCase().trim();
+    return r == 'venue_owner' || r == 'owner' || r.contains('venue');
+  }
 
   Map<String, dynamic> toJson() {
     return {
