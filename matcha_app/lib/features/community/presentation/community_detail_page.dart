@@ -484,36 +484,10 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
               color: AppColors.matchaDark,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Top Breadcrumb Link: "← Kembali ke Semua Komunitas"
-                    InkWell(
-                      onTap: () => Navigator.pop(context),
-                      borderRadius: BorderRadius.circular(8),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.arrow_back_rounded, size: 14, color: Color(0xFF64748B)),
-                            SizedBox(width: 6),
-                            Text(
-                              'Kembali ke Semua Komunitas',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
                     // HEADER SECTION: Logo, Title, Subtitle, Sport pill & Admin Actions
                     _buildHeaderSection(canManage),
 

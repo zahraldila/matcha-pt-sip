@@ -237,8 +237,6 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
         ? session.registeredPlayers.any((p) => p.playerId == user.playerId || (p.userId != null && p.userId == user.userId))
         : false;
 
-    final canManageSession = session != null && user != null && (user.isAdmin || user.userId == session.hostUserId);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -258,49 +256,6 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           ),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
-            onPressed: _loadSessionDetail,
-            tooltip: 'Perbarui data',
-          ),
-          IconButton(
-            icon: const Icon(Icons.share_outlined, color: Color(0xFF64748B)),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Tautan sesi mabar disalin! Siap dibagikan ke WhatsApp 📲'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-          ),
-          if (canManageSession && session.statusSession.toLowerCase() != 'cancelled')
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF64748B)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              onSelected: (val) {
-                if (val == 'delete') {
-                  _handleDeleteSession();
-                }
-              },
-              itemBuilder: (ctx) => [
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red.shade700),
-                      const SizedBox(width: 8),
-                      Text(
-                        user.isAdmin ? 'Hapus Jadwal Mabar (Admin)' : 'Hapus Jadwal Mabar',
-                        style: TextStyle(fontSize: 13, color: Colors.red.shade700, fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-        ],
       ),
       body: _isLoading && session == null
           ? const Center(child: CircularProgressIndicator(color: AppColors.matchaDark))

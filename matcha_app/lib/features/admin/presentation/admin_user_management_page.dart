@@ -555,13 +555,6 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
-            onPressed: _loadUsers,
-            tooltip: 'Segarkan data',
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.matchaDark))
@@ -571,26 +564,22 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
                 children: [
-                  // 1. Header Banner Administrator Panel
-                  _buildHeaderBanner(),
-                  const SizedBox(height: 16),
-
-                  // 2. Role Filter Tabs (Pills)
+                  // 1. Role Filter Tabs (Pills)
                   _buildRoleFilterPills(),
                   const SizedBox(height: 14),
 
-                  // 3. Search Bar
+                  // 2. Search Bar
                   _buildSearchBar(),
                   const SizedBox(height: 12),
 
-                  // 4. Counter info
+                  // 3. Counter info
                   Text(
                     'Menampilkan ${filtered.length} pengguna',
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
                   ),
                   const SizedBox(height: 10),
 
-                  // 5. User List
+                  // 4. User List
                   if (filtered.isEmpty)
                     Center(
                       child: Padding(
@@ -615,60 +604,6 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _buildHeaderBanner() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFFDCFCE7),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF86EFAC)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFF16A34A),
-                ),
-              ),
-              const SizedBox(width: 6),
-              const Text(
-                'Administrator Panel',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF15803D),
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Manajemen Pengguna',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF0F172A),
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'Daftar seluruh akun pengguna terdaftar di aplikasi Matcha beserta pengelolaan data dan peran.',
-          style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B), height: 1.4),
-        ),
-      ],
     );
   }
 

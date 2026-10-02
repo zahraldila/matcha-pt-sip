@@ -644,24 +644,6 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
           ),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
-            onPressed: _loadVenueDetail,
-            tooltip: 'Perbarui data',
-          ),
-          IconButton(
-            icon: const Icon(Icons.share_outlined, color: Color(0xFF64748B)),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Tautan venue disalin! Siap dibagikan ke teman mabar 🎾'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: _isLoading && venue == null
           ? const Center(child: CircularProgressIndicator(color: AppColors.matchaDark))
@@ -812,31 +794,6 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // "← Kembali ke Semua Venue" Link
-        InkWell(
-          onTap: () => Navigator.pop(context),
-          borderRadius: BorderRadius.circular(6),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.arrow_back_rounded, size: 14, color: Color(0xFF64748B)),
-                const SizedBox(width: 4),
-                Text(
-                  'Kembali ke Semua Venue',
-                  style: AppTextStyles.caption.copyWith(
-                    color: const Color(0xFF64748B),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-
         // Title & Location
         Text(
           venue.namaVenue,
