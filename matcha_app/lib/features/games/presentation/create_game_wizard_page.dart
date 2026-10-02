@@ -1642,31 +1642,49 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
           ),
           const SizedBox(height: 14),
 
-          // Dual Tab Selector
+          // Dual Tab Selector (Option A: Clean Underline Tab)
           Container(
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(10),
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: AppColors.lightSurfaceBorder,
+                  width: 1.0,
+                ),
+              ),
             ),
             child: TabBar(
               controller: _tabController,
-              indicator: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 4,
-                  ),
-                ],
+              indicatorSize: TabBarIndicatorSize.label,
+              indicator: const UnderlineTabIndicator(
+                borderSide: BorderSide(
+                  width: 2.5,
+                  color: AppColors.matchaDark,
+                ),
+                borderRadius: BorderRadius.all(Radius.circular(2)),
               ),
+              dividerColor: Colors.transparent,
+              splashFactory: NoSplash.splashFactory,
+              overlayColor: WidgetStateProperty.all(Colors.transparent),
               labelColor: AppColors.matchaDark,
-              unselectedLabelColor: const Color(0xFF64748B),
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              unselectedLabelColor: AppColors.textSecondary,
+              labelStyle: AppTextStyles.button.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+              unselectedLabelStyle: AppTextStyles.bodyMedium.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
               tabs: const [
-                Tab(text: 'Dari Database'),
-                Tab(text: 'Input Manual'),
+                Tab(
+                  height: 38,
+                  text: 'Dari Database',
+                ),
+                Tab(
+                  height: 38,
+                  text: 'Input Manual',
+                ),
               ],
             ),
           ),
