@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/app_error_handler.dart';
 import '../../auth/domain/models/user_model.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
@@ -165,13 +166,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gagal mengubah status host: $e'),
-              backgroundColor: Colors.redAccent,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          AppErrorHandler.showErrorSnackBar(context, e);
         }
       } finally {
         if (mounted) setState(() => _isTogglingHost = false);
@@ -198,12 +193,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengambil gambar: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        AppErrorHandler.showErrorSnackBar(context, e, customMessage: 'Gagal mengambil gambar dari perangkat.');
       }
     }
   }
@@ -256,67 +246,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                   _pickImage(ImageSource.camera);
                 },
               ),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.link_rounded, color: Color(0xFF475569)),
-                ),
-                title: const Text('Input URL Foto Online', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showUrlInputDialog();
-                },
-              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showUrlInputDialog() {
-    final urlCtrl = TextEditingController(text: _currentFotoUrl ?? '');
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('URL Foto Profil', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: TextField(
-          controller: urlCtrl,
-          decoration: InputDecoration(
-            hintText: 'https://...',
-            prefixIcon: const Icon(Icons.image_outlined, size: 20),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final val = urlCtrl.text.trim();
-              if (val.isNotEmpty) {
-                setState(() {
-                  _currentFotoUrl = val;
-                  _pickedImageBytes = null;
-                  _removeFoto = false;
-                });
-              }
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF063B00),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Gunakan'),
-          ),
-        ],
       ),
     );
   }
@@ -378,43 +310,13 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         _currentFotoUrl = authCtrl.currentUser?.foto;
         _removeFoto = false;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    '🎉 Profil pemain berhasil diperbarui!',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF065F46),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        AppErrorHandler.showSuccessSnackBar(context, '🎉 Profil pemain berhasil diperbarui!');
       } else if (mounted && authCtrl.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(authCtrl.errorMessage!),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorHandler.showErrorSnackBar(context, authCtrl.errorMessage);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menyimpan profil: $e'),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorHandler.showErrorSnackBar(context, e);
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -890,17 +792,30 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     height: 76,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFF063B00),
-                      border: Border.all(color: const Color(0xFFBEF264), width: 2.5),
+                      color: displayImage != null ? Colors.transparent : const Color(0xFF063B00),
+                      border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: displayImage != null
-                        ? Image(
-                            image: displayImage,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => _buildAvatarFallback(user.nama),
-                          )
-                        : _buildAvatarFallback(user.nama),
+                    child: ClipOval(
+                      child: displayImage != null
+                          ? Image(
+                              image: displayImage,
+                              width: 76,
+                              height: 76,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Container(
+                                color: const Color(0xFF063B00),
+                                child: _buildAvatarFallback(user.nama),
+                              ),
+                            )
+                          : _buildAvatarFallback(user.nama),
+                    ),
                   ),
                   Positioned(
                     bottom: 0,

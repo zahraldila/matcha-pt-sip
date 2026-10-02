@@ -321,25 +321,40 @@ class _MainShellPageState extends State<MainShellPage> {
                         height: 34,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF063B00),
+                          color: (user.foto != null && user.foto!.isNotEmpty) ? Colors.transparent : const Color(0xFF063B00),
                           border: Border.all(
-                            color: const Color(0xFFBEF264),
-                            width: 1.8,
+                            color: const Color(0xFFE2E8F0),
+                            width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 4,
-                              offset: const Offset(0, 2),
+                              offset: const Offset(0, 1),
                             ),
                           ],
                         ),
-                        clipBehavior: Clip.antiAlias,
-                        child: (user.foto != null && user.foto!.isNotEmpty)
-                            ? Image.network(
-                                user.foto!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => Center(
+                        child: ClipOval(
+                          child: (user.foto != null && user.foto!.isNotEmpty)
+                              ? Image.network(
+                                  user.foto!,
+                                  width: 34,
+                                  height: 34,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => Container(
+                                    color: const Color(0xFF063B00),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Center(
                                   child: Text(
                                     user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
                                     style: const TextStyle(
@@ -349,17 +364,7 @@ class _MainShellPageState extends State<MainShellPage> {
                                     ),
                                   ),
                                 ),
-                              )
-                            : Center(
-                                child: Text(
-                                  user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
+                        ),
                       ),
                       const SizedBox(width: 4),
                       const Icon(
@@ -676,18 +681,33 @@ class _MainShellPageState extends State<MainShellPage> {
                               height: 38,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: const Color(0xFF063B00),
+                                color: (user.foto != null && user.foto!.isNotEmpty) ? Colors.transparent : const Color(0xFF063B00),
                                 border: Border.all(
-                                  color: const Color(0xFFBEF264),
+                                  color: const Color(0xFFE2E8F0),
                                   width: 1.5,
                                 ),
                               ),
-                              clipBehavior: Clip.antiAlias,
-                              child: (user.foto != null && user.foto!.isNotEmpty)
-                                  ? Image.network(
-                                      user.foto!,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, _, _) => Center(
+                              child: ClipOval(
+                                child: (user.foto != null && user.foto!.isNotEmpty)
+                                    ? Image.network(
+                                        user.foto!,
+                                        width: 38,
+                                        height: 38,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, _, _) => Container(
+                                          color: const Color(0xFF063B00),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : Center(
                                         child: Text(
                                           user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
                                           style: const TextStyle(
@@ -697,17 +717,7 @@ class _MainShellPageState extends State<MainShellPage> {
                                           ),
                                         ),
                                       ),
-                                    )
-                                  : Center(
-                                      child: Text(
-                                        user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w900,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(

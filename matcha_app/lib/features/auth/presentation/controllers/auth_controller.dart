@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/data/mock_data_service.dart';
+import '../../../../core/utils/app_error_handler.dart';
 import '../../data/datasource/auth_remote_data_source.dart';
 import '../../domain/models/user_model.dart';
 
@@ -71,7 +72,7 @@ class AuthController extends ChangeNotifier {
       return true;
     } catch (e) {
       _isLoading = false;
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = AppErrorHandler.getReadableMessage(e);
       notifyListeners();
       return false;
     }
@@ -109,7 +110,7 @@ class AuthController extends ChangeNotifier {
       return true;
     } catch (e) {
       _isLoading = false;
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = AppErrorHandler.getReadableMessage(e);
       notifyListeners();
       return false;
     }

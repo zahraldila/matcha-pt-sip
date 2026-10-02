@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/app_error_handler.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../data/community_remote_data_source.dart';
@@ -103,12 +104,9 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
 
       await _loadDetail();
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Gagal memperbarui status keanggotaan: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      if (mounted) {
+        AppErrorHandler.showErrorSnackBar(context, e);
+      }
     } finally {
       if (mounted) setState(() => _isActionLoading = false);
     }
@@ -211,30 +209,23 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
 
-    final messenger = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
     setState(() => _isLoading = true);
 
     try {
       await _dataSource.deleteCommunity(_community.communityId);
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Komunitas "${_community.namaCommunity}" berhasil dihapus.'),
-          backgroundColor: AppColors.matchaDark,
-        ),
+      AppErrorHandler.showSuccessSnackBar(
+        context,
+        'Komunitas "${_community.namaCommunity}" berhasil dihapus.',
       );
       nav.pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Gagal menghapus komunitas: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      AppErrorHandler.showErrorSnackBar(context, e);
     }
   }
 

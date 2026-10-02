@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/app_error_handler.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../court/data/venue_service.dart';
 import '../../court/domain/court_model.dart';
@@ -90,13 +91,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memuat venue: $e'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppErrorHandler.showErrorSnackBar(context, e);
     }
   }
 
@@ -376,7 +371,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                         : ListView.separated(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             itemCount: filteredVenues.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                            separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                             itemBuilder: (context, index) {
                               final venue = filteredVenues[index];
                               final isSelected = _selectedVenue?.venueId == venue.venueId;
@@ -508,10 +503,11 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
 
   void _showQuickAddVenueModal() {
     final venueNameCtrl = TextEditingController();
-    final cityCtrl = TextEditingController(text: 'Bandung');
+    final cityCtrl = TextEditingController();
     final addressCtrl = TextEditingController();
-    int numberOfCourts = 2;
+    int? numberOfCourts;
     bool isAddingVenue = false;
+    String? errorMessage;
 
     showModalBottomSheet(
       context: context,
@@ -573,6 +569,11 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                     const SizedBox(height: 6),
                     TextField(
                       controller: venueNameCtrl,
+                      onChanged: (_) {
+                        if (errorMessage != null) {
+                          setModalState(() => errorMessage = null);
+                        }
+                      },
                       decoration: _buildInputDecoration(hint: 'Contoh: Bonang Padel Arena & Club'),
                     ),
                     const SizedBox(height: 12),
@@ -582,7 +583,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildFieldLabel('Kota / Wilayah *'),
+                              _buildFieldLabel('Kota / Wilayah'),
                               const SizedBox(height: 6),
                               TextField(
                                 controller: cityCtrl,
@@ -596,19 +597,28 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildFieldLabel('Jumlah Court'),
+                              _buildFieldLabel('Jumlah Court *'),
                               const SizedBox(height: 6),
                               DropdownButtonFormField<int>(
                                 initialValue: numberOfCourts,
-                                decoration: _buildInputDecoration(hint: 'Jumlah'),
+                                hint: const Text(
+                                  'Pilih Jumlah',
+                                  style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                ),
+                                decoration: _buildInputDecoration(hint: 'Pilih Jumlah'),
                                 items: const [
                                   DropdownMenuItem(value: 1, child: Text('1 Court')),
-                                  DropdownMenuItem(value: 2, child: Text('2 Court')),
-                                  DropdownMenuItem(value: 3, child: Text('3 Court')),
-                                  DropdownMenuItem(value: 4, child: Text('4 Court')),
+                                  DropdownMenuItem(value: 2, child: Text('2 Courts')),
+                                  DropdownMenuItem(value: 3, child: Text('3 Courts')),
+                                  DropdownMenuItem(value: 4, child: Text('4 Courts')),
+                                  DropdownMenuItem(value: 5, child: Text('5 Courts')),
+                                  DropdownMenuItem(value: 6, child: Text('6 Courts')),
                                 ],
                                 onChanged: (val) {
-                                  if (val != null) setModalState(() => numberOfCourts = val);
+                                  setModalState(() {
+                                    numberOfCourts = val;
+                                    if (errorMessage != null) errorMessage = null;
+                                  });
                                 },
                               ),
                             ],
@@ -623,6 +633,34 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                       controller: addressCtrl,
                       decoration: _buildInputDecoration(hint: 'Contoh: Jl. Riau No. 123'),
                     ),
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFECACA)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
@@ -632,23 +670,40 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                             ? null
                             : () async {
                                 if (venueNameCtrl.text.trim().isEmpty) {
+                                  setModalState(() => errorMessage = 'Nama venue wajib diisi');
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text('Nama venue wajib diisi'),
                                       backgroundColor: Colors.orange,
+                                      behavior: SnackBarBehavior.floating,
                                     ),
                                   );
                                   return;
                                 }
 
-                                setModalState(() => isAddingVenue = true);
+                                if (numberOfCourts == null || numberOfCourts! <= 0) {
+                                  setModalState(() => errorMessage = 'Jumlah court wajib dipilih');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Jumlah court wajib dipilih'),
+                                      backgroundColor: Colors.orange,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                setModalState(() {
+                                  isAddingVenue = true;
+                                  errorMessage = null;
+                                });
                                 try {
                                   final messenger = ScaffoldMessenger.of(context);
                                   final newVenue = await _venueService.quickAddVenue(
                                     namaVenue: venueNameCtrl.text.trim(),
-                                    kota: cityCtrl.text.trim(),
+                                    kota: cityCtrl.text.trim().isNotEmpty ? cityCtrl.text.trim() : 'Jakarta',
                                     alamat: addressCtrl.text.trim(),
-                                    numberOfCourts: numberOfCourts,
+                                    numberOfCourts: numberOfCourts!,
                                     sportId: _selectedSportId,
                                     ownerUserId: widget.authController?.currentUser?.userId,
                                   );
@@ -782,25 +837,14 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       if (!mounted) return;
       Navigator.pop(context, true);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Sesi mabar "${_titleController.text.trim()}" berhasil dibuat dan dipublikasikan! 🎉',
-          ),
-          backgroundColor: AppColors.matchaDark,
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppErrorHandler.showSuccessSnackBar(
+        context,
+        'Sesi mabar "${_titleController.text.trim()}" berhasil dibuat dan dipublikasikan! 🎉',
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal membuat sesi: $e'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppErrorHandler.showErrorSnackBar(context, e);
     }
   }
 
@@ -860,32 +904,6 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
             ),
           ],
         ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.matchaSoftLime,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.matchaDark.withValues(alpha: 0.2)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.calendar_month_rounded, size: 13, color: AppColors.matchaDark),
-                const SizedBox(width: 4),
-                Text(
-                  'Publikasikan',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.matchaDark,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(

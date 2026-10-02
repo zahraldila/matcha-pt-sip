@@ -251,6 +251,66 @@ class SessionService {
     required int playerId,
   }) async {
     try {
+      // 1. Cek apakah session masih membuka slot atau sudah penuh
+      final sessionData = await _supabase
+          .from('tb_session')
+          .select('jumlah_pemain, status_session')
+          .eq('session_id', sessionId)
+          .single();
+
+      final maxPlayers = (sessionData['jumlah_pemain'] as num?)?.toInt() ?? 6;
+      final status = (sessionData['status_session'] ?? 'Open').toString().toLowerCase();
+      if (status == 'closed' || status == 'completed' || status == 'cancelled') {
+        throw Exception('Sesi mabar sudah ditutup atau dibatalkan.');
+      }
+
+      // 2. Cek apakah player_id ini sudah terdaftar di sesi ini
+      final existing = await _supabase
+          .from('tb_session_player')
+          .select('session_player_id')
+          .eq('session_id', sessionId)
+          .eq('player_id', playerId)
+          .maybeSingle();
+
+      if (existing != null) {
+        throw Exception('Kamu sudah terdaftar di sesi mabar ini!');
+      }
+
+      // 3. Cek juga jika player tersebut terhubung ke user_id yang sama
+      final playerInfo = await _supabase
+          .from('tb_player')
+          .select('user_id')
+          .eq('player_id', playerId)
+          .maybeSingle();
+
+      if (playerInfo != null && playerInfo['user_id'] != null) {
+        final userId = playerInfo['user_id'];
+        final allSessionPlayers = await _supabase
+            .from('tb_session_player')
+            .select('player_id, tb_player(user_id)')
+            .eq('session_id', sessionId);
+
+        for (final sp in (allSessionPlayers as List)) {
+          if (sp is Map && sp['tb_player'] is Map) {
+            final uId = sp['tb_player']['user_id'];
+            if (uId != null && uId == userId) {
+              throw Exception('Akun kamu sudah terdaftar di sesi mabar ini!');
+            }
+          }
+        }
+      }
+
+      // 4. Cek total pemain saat ini agar tidak melebihi kuota
+      final currentPlayers = await _supabase
+          .from('tb_session_player')
+          .select('session_player_id')
+          .eq('session_id', sessionId);
+
+      if ((currentPlayers as List).length >= maxPlayers) {
+        throw Exception('Maaf, kuota slot sesi mabar ini sudah penuh!');
+      }
+
+      // 5. Insert ke tb_session_player
       await _supabase.from('tb_session_player').insert({
         'session_id': sessionId,
         'player_id': playerId,

@@ -36,7 +36,7 @@ class _CourtFormItem {
     required String initialName,
     this.sportId = 1,
     this.arenaType = 'Indoor',
-    String initialPrice = '150000',
+    String initialPrice = '',
   })  : nameController = TextEditingController(text: initialName),
         priceController = TextEditingController(text: initialPrice);
 
@@ -64,7 +64,7 @@ class _CreateCourtPageState extends State<CreateCourtPage> {
         initialName: 'Court ${widget.venue.courts.length + index + 1}',
         sportId: defaultSportId,
         arenaType: widget.initialArenaType,
-        initialPrice: widget.requirePriceInput ? '' : '150000',
+        initialPrice: '',
       ));
     }
   }
@@ -84,7 +84,7 @@ class _CreateCourtPageState extends State<CreateCourtPage> {
         initialName: 'Court $nextNumber',
         sportId: _courtItems.isNotEmpty ? _courtItems.last.sportId : 1,
         arenaType: _courtItems.isNotEmpty ? _courtItems.last.arenaType : 'Indoor',
-        initialPrice: widget.requirePriceInput ? '' : '150000',
+        initialPrice: '',
       ));
     });
   }
@@ -243,48 +243,30 @@ class _CreateCourtPageState extends State<CreateCourtPage> {
 
               const SizedBox(height: 24),
 
-              // Action Buttons
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF475569),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text('Lewati', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                    ),
+              // Action Button (Simpan Semua Lapangan)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isSaving ? null : _submitCourts,
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.check_circle_outline_rounded, size: 18, color: Color(0xFFA8E63A)),
+                  label: Text(
+                    _isSaving ? 'Menyimpan...' : 'Simpan Semua Lapangan (${_courtItems.length})',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 4,
-                    child: ElevatedButton.icon(
-                      onPressed: _isSaving ? null : _submitCourts,
-                      icon: _isSaving
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Icon(Icons.check_circle_outline_rounded, size: 18, color: Color(0xFFA8E63A)),
-                      label: Text(
-                        _isSaving ? 'Menyimpan...' : 'Simpan Semua Lapangan (${_courtItems.length})',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.matchaDark,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.matchaDark,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                ],
+                ),
               ),
             ],
           ),
@@ -511,7 +493,17 @@ class _CreateCourtPageState extends State<CreateCourtPage> {
             keyboardType: TextInputType.number,
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             decoration: _inputDecoration('Contoh: 150000', prefix: 'Rp '),
-            validator: (v) => (v == null || v.trim().isEmpty) ? 'Harga wajib diisi' : null,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return 'Harga per jam wajib diisi';
+              }
+              final clean = v.replaceAll(RegExp(r'[^0-9]'), '');
+              final num = double.tryParse(clean);
+              if (num == null || num <= 0) {
+                return 'Harga per jam harus lebih dari 0';
+              }
+              return null;
+            },
           ),
         ],
       ),
