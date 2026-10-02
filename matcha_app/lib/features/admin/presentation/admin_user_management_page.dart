@@ -91,299 +91,315 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     final nameCtrl = TextEditingController(text: user.nama);
     final emailCtrl = TextEditingController(text: user.email);
     final phoneCtrl = TextEditingController(text: user.noHp ?? '');
-    final ageCtrl = TextEditingController(text: (user.usia ?? 22).toString());
+    final passwordCtrl = TextEditingController();
 
-    String selectedRole = user.role.toLowerCase();
-    bool isHostVal = user.isHost;
-    String selectedGender = user.gender ?? 'Male';
-    String selectedLevel = user.level ?? 'Intermediate';
+    String rawRole = user.role.toLowerCase();
+    String selectedRole = 'member';
+    if (rawRole.contains('admin')) {
+      selectedRole = 'admin';
+    } else if (rawRole == 'venue_owner') {
+      selectedRole = 'venue_owner';
+    } else if (rawRole == 'host' || user.isHost) {
+      selectedRole = 'host';
+    } else {
+      selectedRole = 'member';
+    }
 
-    showModalBottomSheet(
+    bool obscurePassword = true;
+
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
-          return Container(
-            padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 24),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
+          return Dialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFCBD5E1),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Edit Data & Peran Pengguna',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            user.email,
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                  const SizedBox(height: 14),
-
-                  // Nama Lengkap
-                  const Text('Nama Lengkap *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Email & No HP
+                  // Header
                   Row(
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Email *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                            const SizedBox(height: 6),
-                            TextField(
-                              controller: emailCtrl,
-                              decoration: InputDecoration(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                              ),
-                            ),
-                          ],
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCFCE7),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF86EFAC)),
+                        ),
+                        child: const Icon(
+                          Icons.person_outline_rounded,
+                          size: 20,
+                          color: Color(0xFF15803D),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('No. WhatsApp / HP', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                            const SizedBox(height: 6),
-                            TextField(
-                              controller: phoneCtrl,
-                              decoration: InputDecoration(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                          children: const [
+                            Text(
+                              'Edit Data Pengguna',
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            SizedBox(height: 1),
+                            Text(
+                              'Perbarui profil, role, atau akses akun pengguna.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF64748B),
                               ),
                             ),
                           ],
                         ),
                       ),
+                      InkWell(
+                        onTap: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF1F5F9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            size: 16,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
                     ],
+                  ),
+                  const SizedBox(height: 14),
+                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  const SizedBox(height: 14),
+
+                  // 1. Nama Lengkap *
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                      children: [
+                        TextSpan(text: 'Nama Lengkap '),
+                        TextSpan(text: '*', style: TextStyle(color: Color(0xFFEF4444))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  TextField(
+                    controller: nameCtrl,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                    ),
                   ),
                   const SizedBox(height: 12),
 
-                  // Role & Mode Host
-                  const Text('Role Pengguna', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedRole,
+                  // 2. Alamat Email *
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                      children: [
+                        TextSpan(text: 'Alamat Email '),
+                        TextSpan(text: '*', style: TextStyle(color: Color(0xFFEF4444))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  TextField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
                     decoration: InputDecoration(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 3. Nomor HP / WhatsApp
+                  const Text(
+                    'Nomor HP / WhatsApp',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                  ),
+                  const SizedBox(height: 5),
+                  TextField(
+                    controller: phoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    decoration: InputDecoration(
+                      hintText: '08xxxxxxxxxx',
+                      hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 4. Role Akun *
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                      children: [
+                        TextSpan(text: 'Role Akun '),
+                        TextSpan(text: '*', style: TextStyle(color: Color(0xFFEF4444))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedRole,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'member', child: Text('Member (Pemain Biasa)', style: TextStyle(fontSize: 13))),
-                      DropdownMenuItem(value: 'host', child: Text('Host (Pembuat Sesi/Mabar)', style: TextStyle(fontSize: 13))),
-                      DropdownMenuItem(value: 'venue_owner', child: Text('Venue Owner (Pemilik Lapangan)', style: TextStyle(fontSize: 13))),
-                      DropdownMenuItem(value: 'admin', child: Text('Administrator (Akses Global)', style: TextStyle(fontSize: 13))),
+                      DropdownMenuItem(value: 'member', child: Text('Member')),
+                      DropdownMenuItem(value: 'host', child: Text('Host')),
+                      DropdownMenuItem(value: 'venue_owner', child: Text('Venue Owner')),
+                      DropdownMenuItem(value: 'admin', child: Text('Administrator')),
                     ],
                     onChanged: (val) {
                       if (val != null) {
                         setModalState(() {
                           selectedRole = val;
-                          if (val == 'host') isHostVal = true;
                         });
                       }
                     },
                   ),
                   const SizedBox(height: 12),
 
-                  // Mode Host Switch
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // 5. Password Baru (opsional)
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
                       children: [
-                        const Text(
-                          'Izin Buka Sesi Mabar (Status Host)',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
-                        ),
-                        Switch(
-                          value: isHostVal,
-                          activeTrackColor: AppColors.matchaDark,
-                          onChanged: (val) {
-                            setModalState(() => isHostVal = val);
-                          },
-                        ),
+                        TextSpan(text: 'Password Baru '),
+                        TextSpan(text: '(opsional)', style: TextStyle(fontWeight: FontWeight.normal, color: Color(0xFF94A3B8))),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 5),
+                  TextField(
+                    controller: passwordCtrl,
+                    obscureText: obscurePassword,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    decoration: InputDecoration(
+                      hintText: 'Kosongkan jika tidak ingin mengubah password.',
+                      hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          size: 18,
+                          color: const Color(0xFF94A3B8),
+                        ),
+                        onPressed: () => setModalState(() => obscurePassword = !obscurePassword),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
-                  // Gender, Usia, Level
+                  // Action Buttons (Batal & Simpan Perubahan)
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Gender', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                            const SizedBox(height: 6),
-                            DropdownButtonFormField<String>(
-                              initialValue: selectedGender.toLowerCase().startsWith('f') ? 'Female' : 'Male',
-                              decoration: InputDecoration(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                              ),
-                              items: const [
-                                DropdownMenuItem(value: 'Male', child: Text('L (Male)', style: TextStyle(fontSize: 12))),
-                                DropdownMenuItem(value: 'Female', child: Text('P (Female)', style: TextStyle(fontSize: 12))),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) setModalState(() => selectedGender = val);
-                              },
-                            ),
-                          ],
+                      OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF475569),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        ),
+                        child: const Text(
+                          'Batal',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Usia (Tahun)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                            const SizedBox(height: 6),
-                            TextField(
-                              controller: ageCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      ElevatedButton(
+                        onPressed: () async {
+                          if (nameCtrl.text.trim().isEmpty || emailCtrl.text.trim().isEmpty) return;
+                          final messenger = ScaffoldMessenger.of(context);
+                          Navigator.pop(context);
+                          setState(() => _isLoading = true);
+
+                          try {
+                            await _adminUserService.updateUser(
+                              userId: user.userId,
+                              nama: nameCtrl.text.trim(),
+                              email: emailCtrl.text.trim(),
+                              noHp: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                              role: selectedRole,
+                              isHost: selectedRole == 'host',
+                              password: passwordCtrl.text.trim().isNotEmpty ? passwordCtrl.text.trim() : null,
+                              gender: user.gender,
+                              usia: user.usia,
+                              level: user.level,
+                            );
+                            if (!mounted) return;
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Data akun "${nameCtrl.text.trim()}" berhasil diperbarui.'),
+                                backgroundColor: AppColors.matchaDark,
                               ),
-                            ),
-                          ],
+                            );
+                            await _loadUsers();
+                          } catch (e) {
+                            if (!mounted) return;
+                            setState(() => _isLoading = false);
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Gagal memperbarui pengguna: $e'),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.matchaDark,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Skill Level', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                            const SizedBox(height: 6),
-                            DropdownButtonFormField<String>(
-                              initialValue: selectedLevel,
-                              decoration: InputDecoration(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                              ),
-                              items: const [
-                                DropdownMenuItem(value: 'Beginner', child: Text('Beginner', style: TextStyle(fontSize: 11))),
-                                DropdownMenuItem(value: 'Intermediate', child: Text('Intermediate', style: TextStyle(fontSize: 11))),
-                                DropdownMenuItem(value: 'Advanced', child: Text('Advanced', style: TextStyle(fontSize: 11))),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) setModalState(() => selectedLevel = val);
-                              },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.check_rounded, size: 16, color: Color(0xFFA8E63A)),
+                            SizedBox(width: 6),
+                            Text(
+                              'Simpan Perubahan',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Save button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.matchaDark,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
-                      ),
-                      onPressed: () async {
-                        if (nameCtrl.text.trim().isEmpty || emailCtrl.text.trim().isEmpty) return;
-                        final messenger = ScaffoldMessenger.of(context);
-                        Navigator.pop(context);
-                        setState(() => _isLoading = true);
-
-                        try {
-                          await _adminUserService.updateUser(
-                            userId: user.userId,
-                            nama: nameCtrl.text.trim(),
-                            email: emailCtrl.text.trim(),
-                            noHp: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
-                            role: selectedRole,
-                            isHost: isHostVal,
-                            gender: selectedGender,
-                            usia: int.tryParse(ageCtrl.text.trim()) ?? 22,
-                            level: selectedLevel,
-                          );
-                          if (!mounted) return;
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text('Data akun "${nameCtrl.text.trim()}" berhasil diperbarui.'),
-                              backgroundColor: AppColors.matchaDark,
-                            ),
-                          );
-                          await _loadUsers();
-                        } catch (e) {
-                          if (!mounted) return;
-                          setState(() => _isLoading = false);
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text('Gagal memperbarui pengguna: $e'),
-                              backgroundColor: Colors.redAccent,
-                            ),
-                          );
-                        }
-                      },
-                      child: const Text('Simpan Perubahan Pengguna', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    ),
                   ),
                 ],
               ),
@@ -397,94 +413,106 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   Future<void> _handleDeleteUser(UserModel user) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-        content: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF1F2),
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFFECDD3)),
-              ),
-              child: const Icon(
-                Icons.error_outline_rounded,
-                color: Color(0xFFE11D48),
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Hapus Pengguna Permanen?',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF1F2),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFFECDD3)),
+                    ),
+                    child: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Color(0xFFE11D48),
+                      size: 20,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF475569),
-                        height: 1.4,
-                      ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const TextSpan(text: 'Apakah Anda yakin ingin menghapus akun '),
-                        TextSpan(
-                          text: user.nama,
-                          style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                        const Text(
+                          'Hapus Akun Pengguna',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
                         ),
-                        TextSpan(
-                          text: ' (${user.email})? Tindakan ini akan menghapus data pengguna secara permanen dari sistem.',
+                        const SizedBox(height: 4),
+                        RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                              height: 1.4,
+                            ),
+                            children: [
+                              const TextSpan(text: 'Apakah Anda yakin ingin menghapus akun pengguna '),
+                              TextSpan(
+                                text: user.nama,
+                                style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                              ),
+                              const TextSpan(
+                                text: '? Tindakan ini tidak dapat dibatalkan.',
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF475569),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    ),
+                    child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    icon: const Icon(Icons.delete_rounded, size: 15),
+                    label: const Text('Hapus Akun', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE11D48),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF475569),
-              side: const BorderSide(color: Color(0xFFCBD5E1)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            ),
-            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.delete_outline_rounded, size: 15),
-            label: const Text('Ya, Hapus Pengguna', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE11D48),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            ),
-          ),
-        ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _isLoading = true);

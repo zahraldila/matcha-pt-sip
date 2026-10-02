@@ -1,3 +1,4 @@
+import 'package:bcrypt/bcrypt.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../auth/domain/models/user_model.dart';
 
@@ -58,20 +59,27 @@ class AdminUserService {
     String? noHp,
     required String role,
     required bool isHost,
+    String? password,
     String? gender,
     int? usia,
     String? level,
   }) async {
     try {
+      final cleanPhone = noHp?.replaceAll(RegExp(r'[^0-9]'), '');
+
       // 1. Update tb_user
       final userUpdate = <String, dynamic>{
         'nama': nama.trim(),
         'email': email.trim().toLowerCase(),
-        'no_hp': noHp?.trim(),
+        'no_hp': cleanPhone != null && cleanPhone.isNotEmpty ? cleanPhone : null,
         'role': role.trim(),
         'is_host': isHost,
         'updated_at': DateTime.now().toIso8601String(),
       };
+
+      if (password != null && password.trim().isNotEmpty) {
+        userUpdate['password'] = BCrypt.hashpw(password.trim(), BCrypt.gensalt());
+      }
 
       await _supabase.from('tb_user').update(userUpdate).eq('user_id', userId);
 
