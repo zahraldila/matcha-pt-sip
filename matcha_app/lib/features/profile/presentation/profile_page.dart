@@ -256,67 +256,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                   _pickImage(ImageSource.camera);
                 },
               ),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.link_rounded, color: Color(0xFF475569)),
-                ),
-                title: const Text('Input URL Foto Online', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showUrlInputDialog();
-                },
-              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showUrlInputDialog() {
-    final urlCtrl = TextEditingController(text: _currentFotoUrl ?? '');
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('URL Foto Profil', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: TextField(
-          controller: urlCtrl,
-          decoration: InputDecoration(
-            hintText: 'https://...',
-            prefixIcon: const Icon(Icons.image_outlined, size: 20),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final val = urlCtrl.text.trim();
-              if (val.isNotEmpty) {
-                setState(() {
-                  _currentFotoUrl = val;
-                  _pickedImageBytes = null;
-                  _removeFoto = false;
-                });
-              }
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF063B00),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Gunakan'),
-          ),
-        ],
       ),
     );
   }
