@@ -6,7 +6,7 @@ class VenueService {
   final SupabaseClient _supabase;
 
   VenueService({SupabaseClient? supabaseClient})
-      : _supabase = supabaseClient ?? Supabase.instance.client;
+    : _supabase = supabaseClient ?? Supabase.instance.client;
 
   /// Mengambil semua venue beserta daftar court/lapangan
   Future<List<VenueModel>> getVenues() async {
@@ -86,6 +86,45 @@ class VenueService {
       return VenueModel.fromMap(Map<String, dynamic>.from(response));
     } on PostgrestException catch (e) {
       throw Exception('Gagal mengambil detail venue: ${e.message}');
+    }
+  }
+
+  /// Mendaftarkan venue dengan pemilik dan metadata dari form Venue Owner.
+  Future<VenueModel> createVenue({
+    required int ownerUserId,
+    required String namaVenue,
+    required String alamat,
+    required String kota,
+    required String jamOperasional,
+    required String hariBuka,
+    required String namaPic,
+    required String noWhatsapp,
+    required List<String> fasilitas,
+    required List<String> photos,
+    String? catatan,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('tb_venue')
+          .insert({
+            'owner_user_id': ownerUserId,
+            'nama_venue': namaVenue.trim(),
+            'alamat': alamat.trim(),
+            'kota': kota.trim(),
+            'jam_operasional': jamOperasional,
+            'hari_buka': hariBuka,
+            'nama_pic': namaPic.trim(),
+            'no_whatsapp': noWhatsapp.trim(),
+            'catatan': catatan?.trim(),
+            'fasilitas': fasilitas.join(', '),
+            'foto': photos.isEmpty ? null : photos.join(', '),
+          })
+          .select()
+          .single();
+
+      return VenueModel.fromMap(Map<String, dynamic>.from(response));
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal mendaftarkan venue: ${e.message}');
     }
   }
 
@@ -175,13 +214,15 @@ class VenueService {
   }) async {
     try {
       final List<Map<String, dynamic>> payload = courts.map((c) {
+        final arenaType = c['tipe_court'] ?? 'Indoor';
+        final pricePerHour = c['harga_per_jam'] ?? 0;
         return {
           'venue_id': venueId,
           'nama_court': c['nama_court'] ?? 'Court',
           'sport_id': c['sport_id'] ?? 1,
-          'tipe_court': c['tipe_court'] ?? 'Indoor',
-          'deskripsi': 'Tipe: ${c['tipe_court'] ?? "Indoor"}',
-          'harga_per_jam': c['harga_per_jam'] ?? 0,
+          'tipe_court': arenaType,
+          'deskripsi': 'Tipe: $arenaType • Rp $pricePerHour/jam',
+          'harga_per_jam': pricePerHour,
           'status_ketersediaan': 'Available',
         };
       }).toList();
@@ -197,25 +238,35 @@ class VenueService {
   /// Upload foto venue ke Supabase Storage bucket 'venues'
   Future<String> uploadVenuePhoto(Uint8List bytes, String filename) async {
     try {
-      final ext = filename.contains('.') ? filename.split('.').last.toLowerCase() : 'jpg';
-      final cleanName = filename.split('.').first.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-      final storagePath = 'venue_${DateTime.now().millisecondsSinceEpoch}_$cleanName.$ext';
+      final ext = filename.contains('.')
+          ? filename.split('.').last.toLowerCase()
+          : 'jpg';
+      final cleanName = filename
+          .split('.')
+          .first
+          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      final storagePath =
+          'venue_${DateTime.now().millisecondsSinceEpoch}_$cleanName.$ext';
 
-      await _supabase.storage.from('venues').uploadBinary(
+      await _supabase.storage
+          .from('venues')
+          .uploadBinary(
             storagePath,
             bytes,
-            fileOptions: FileOptions(
-              contentType: 'image/$ext',
-              upsert: true,
-            ),
+            fileOptions: FileOptions(contentType: 'image/$ext', upsert: true),
           );
 
       return _supabase.storage.from('venues').getPublicUrl(storagePath);
     } catch (e) {
       try {
-        final ext = filename.contains('.') ? filename.split('.').last.toLowerCase() : 'jpg';
-        final storagePath = 'venue_${DateTime.now().millisecondsSinceEpoch}.$ext';
-        await _supabase.storage.from('general').uploadBinary(
+        final ext = filename.contains('.')
+            ? filename.split('.').last.toLowerCase()
+            : 'jpg';
+        final storagePath =
+            'venue_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        await _supabase.storage
+            .from('general')
+            .uploadBinary(
               storagePath,
               bytes,
               fileOptions: FileOptions(contentType: 'image/$ext', upsert: true),
@@ -291,4 +342,3 @@ class VenueService {
     }
   }
 }
-

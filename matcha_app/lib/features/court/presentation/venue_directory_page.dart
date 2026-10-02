@@ -5,6 +5,7 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 import '../data/venue_service.dart';
 import '../domain/venue_model.dart';
 import 'create_court_page.dart';
+import 'create_venue_page.dart';
 import 'venue_detail_page.dart';
 
 class VenueDirectoryPage extends StatefulWidget {
@@ -143,6 +144,16 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
     });
   }
 
+  Future<void> _openCreateVenue() async {
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreateVenuePage(authController: widget.authController),
+      ),
+    );
+    if (created == true) await _loadVenues();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -205,6 +216,28 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
+
+                    if (widget.authController?.currentUser?.role.toLowerCase() == 'venue_owner') ...[
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: ElevatedButton.icon(
+                          onPressed: _openCreateVenue,
+                          icon: const Icon(Icons.add_business_rounded, size: 18),
+                          label: const Text(
+                            'Daftarkan Venue Baru',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.matchaDark,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
 
                     // Search Bar
                     Container(

@@ -7,11 +7,19 @@ import '../domain/venue_model.dart';
 class CreateCourtPage extends StatefulWidget {
   final VenueModel venue;
   final AuthController? authController;
+  final int initialCourtCount;
+  final int? initialSportId;
+  final String initialArenaType;
+  final bool requirePriceInput;
 
   const CreateCourtPage({
     super.key,
     required this.venue,
     this.authController,
+    this.initialCourtCount = 1,
+    this.initialSportId,
+    this.initialArenaType = 'Indoor',
+    this.requirePriceInput = false,
   });
 
   @override
@@ -48,12 +56,17 @@ class _CreateCourtPageState extends State<CreateCourtPage> {
   @override
   void initState() {
     super.initState();
-    // Default 1 court
-    final nextNumber = widget.venue.courts.length + 1;
-    _courtItems.add(_CourtFormItem(
-      initialName: 'Court $nextNumber',
-      sportId: widget.venue.sportName.toLowerCase().contains('tennis') ? 2 : 1,
-    ));
+    final initialCount = widget.initialCourtCount.clamp(1, 12);
+    final defaultSportId = widget.initialSportId ??
+        (widget.venue.sportName.toLowerCase().contains('tennis') ? 2 : 1);
+    for (var index = 0; index < initialCount; index++) {
+      _courtItems.add(_CourtFormItem(
+        initialName: 'Court ${widget.venue.courts.length + index + 1}',
+        sportId: defaultSportId,
+        arenaType: widget.initialArenaType,
+        initialPrice: widget.requirePriceInput ? '' : '150000',
+      ));
+    }
   }
 
   @override
@@ -71,6 +84,7 @@ class _CreateCourtPageState extends State<CreateCourtPage> {
         initialName: 'Court $nextNumber',
         sportId: _courtItems.isNotEmpty ? _courtItems.last.sportId : 1,
         arenaType: _courtItems.isNotEmpty ? _courtItems.last.arenaType : 'Indoor',
+        initialPrice: widget.requirePriceInput ? '' : '150000',
       ));
     });
   }
@@ -196,18 +210,31 @@ class _CreateCourtPageState extends State<CreateCourtPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF93C5FD), style: BorderStyle.solid),
+                    border: Border.all(
+                      color: const Color(0xFFCBD5E1),
+                      style: BorderStyle.solid,
+                    ),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.add_rounded, size: 18, color: Color(0xFF2563EB)),
-                      SizedBox(width: 6),
-                      Text(
-                        '+ Tambah Lapangan Lain',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF2563EB)),
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(color: const Color(0xFFCBD5E1)),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.add_rounded, size: 13, color: AppColors.matchaDark),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Tambah Lapangan Lain',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF475569)),
                       ),
                     ],
                   ),
@@ -431,7 +458,9 @@ class _CreateCourtPageState extends State<CreateCourtPage> {
                     const SizedBox(height: 6),
                     DropdownButtonFormField<int>(
                       initialValue: item.sportId,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      isExpanded: true,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF94A3B8)),
                       decoration: _inputDecoration(''),
                       items: const [
                         DropdownMenuItem(value: 1, child: Text('Padel')),
@@ -453,11 +482,14 @@ class _CreateCourtPageState extends State<CreateCourtPage> {
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
                       initialValue: item.arenaType,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      isExpanded: true,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF94A3B8)),
                       decoration: _inputDecoration(''),
                       items: const [
                         DropdownMenuItem(value: 'Indoor', child: Text('Indoor')),
                         DropdownMenuItem(value: 'Outdoor', child: Text('Outdoor')),
+                        DropdownMenuItem(value: 'Semi-Indoor', child: Text('Semi-Indoor')),
                       ],
                       onChanged: (v) {
                         if (v != null) setState(() => item.arenaType = v);
