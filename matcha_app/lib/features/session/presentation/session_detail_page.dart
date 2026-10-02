@@ -88,52 +88,6 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     );
   }
 
-  Future<void> _handleLeaveSession(int playerId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Batalkan Keikutsertaan?'),
-        content: const Text('Slot kuota kamu akan dikosongkan dan dapat diisi oleh pemain lain.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Ya, Batalkan', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      await _sessionService.leaveSession(
-        sessionId: widget.sessionId,
-        playerId: playerId,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Kamu telah keluar dari sesi mabar ini.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      _loadSessionDetail();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal keluar sesi: $e'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
 
   String _formatDisplayDate(DateTime? dt) {
     if (dt == null) return 'Selasa, 22 Sep 2026';
@@ -1057,57 +1011,28 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           width: double.infinity,
           height: 48,
           child: isUserJoined
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0FDF4),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF86EFAC), width: 1.2),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 18),
-                            SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                'Kamu Sudah Bergabung',
-                                style: TextStyle(
-                                  color: Color(0xFF16A34A),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+              ? Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFF86EFAC), width: 1.2),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Kamu Sudah Terdaftar di Sesi Ini',
+                        style: TextStyle(
+                          color: Color(0xFF16A34A),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (myPlayerId != null) {
-                          _handleLeaveSession(myPlayerId);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFEF2F2),
-                        foregroundColor: Colors.redAccent,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: const BorderSide(color: Color(0xFFFECACA), width: 1.2),
-                        ),
-                      ),
-                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    ),
-                  ],
+                    ],
+                  ),
                 )
               : ElevatedButton(
                   onPressed: session.isFull ? null : _openJoinModal,
