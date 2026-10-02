@@ -244,4 +244,51 @@ class VenueService {
       throw Exception('Terjadi kesalahan saat memperbarui foto: $e');
     }
   }
+
+  /// Memperbarui informasi venue
+  Future<VenueModel> updateVenue({
+    required int venueId,
+    required String namaVenue,
+    required String alamat,
+    required String kota,
+    String? jamOperasional,
+    String? hariBuka,
+    String? namaPic,
+    String? noWhatsapp,
+    String? fasilitas,
+    String? catatan,
+  }) async {
+    try {
+      final payload = <String, dynamic>{
+        'nama_venue': namaVenue,
+        'alamat': alamat,
+        'kota': kota,
+      };
+      if (jamOperasional != null) payload['jam_operasional'] = jamOperasional;
+      if (hariBuka != null) payload['hari_buka'] = hariBuka;
+      if (namaPic != null) payload['nama_pic'] = namaPic;
+      if (noWhatsapp != null) payload['no_whatsapp'] = noWhatsapp;
+      if (fasilitas != null) payload['fasilitas'] = fasilitas;
+      if (catatan != null) payload['catatan'] = catatan;
+
+      await _supabase.from('tb_venue').update(payload).eq('venue_id', venueId);
+      return await getVenueById(venueId);
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal memperbarui informasi venue: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan saat memperbarui venue: $e');
+    }
+  }
+
+  /// Menghapus venue
+  Future<void> deleteVenue(int venueId) async {
+    try {
+      await _supabase.from('tb_venue').delete().eq('venue_id', venueId);
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal menghapus venue: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan saat menghapus venue: $e');
+    }
+  }
 }
+

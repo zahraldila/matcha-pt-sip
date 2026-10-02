@@ -19,6 +19,7 @@ class VenueDirectoryPage extends StatefulWidget {
 class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   final VenueService _venueService = VenueService();
 
+  final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
   String? _errorMessage;
   List<VenueModel> _venues = [];
@@ -36,6 +37,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     widget.authController?.removeListener(_onAuthChanged);
     super.dispose();
   }
@@ -69,17 +71,30 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   }
 
   void _applyFilter() {
+    final query = _searchQuery.trim().toLowerCase();
+    final tokens = query.isEmpty ? <String>[] : query.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+
     _filteredVenues = _venues.where((v) {
-      final matchesSearch = _searchQuery.isEmpty ||
-          v.namaVenue.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (v.alamat != null && v.alamat!.toLowerCase().contains(_searchQuery.toLowerCase())) ||
-          (v.kota != null && v.kota!.toLowerCase().contains(_searchQuery.toLowerCase())) ||
-          (v.fasilitas != null && v.fasilitas!.toLowerCase().contains(_searchQuery.toLowerCase()));
+      final matchesSearch = tokens.isEmpty || () {
+        final searchableText = [
+          v.namaVenue,
+          v.alamat ?? '',
+          v.kota ?? '',
+          v.fasilitas ?? '',
+          v.catatan ?? '',
+          v.namaPic ?? '',
+          v.sportName,
+          ...v.courts.map((c) => '${c.namaCourt} ${c.deskripsi ?? ''} ${c.tipeCourt ?? ''}'),
+        ].join(' ').toLowerCase();
+
+        return tokens.every((token) => searchableText.contains(token));
+      }();
 
       final matchesSport = _selectedSport == 'Semua Cabang' ||
-          (v.courts.any((c) =>
+          v.sportName.toLowerCase().contains(_selectedSport.toLowerCase()) ||
+          v.courts.any((c) =>
               (_selectedSport == 'Padel' && c.sportId == 1) ||
-              (_selectedSport == 'Tennis' && c.sportId == 2)));
+              (_selectedSport == 'Tennis' && c.sportId == 2));
 
       return matchesSearch && matchesSport;
     }).toList();
@@ -177,6 +192,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
                         ],
                       ),
                       child: TextField(
+                        controller: _searchController,
                         onChanged: _onSearch,
                         decoration: InputDecoration(
                           hintText: 'Cari venue, kota, fasilitas...',
@@ -185,6 +201,15 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
                             fontSize: 13,
                           ),
                           prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8), size: 20),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 18),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _onSearch('');
+                                  },
+                                )
+                              : null,
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),

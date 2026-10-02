@@ -8,6 +8,7 @@ import '../../session/presentation/create_session_page.dart';
 import '../data/venue_service.dart';
 import '../domain/venue_model.dart';
 import 'create_court_page.dart';
+import 'edit_venue_page.dart';
 
 class VenueDetailPage extends StatefulWidget {
   final int venueId;
@@ -727,9 +728,81 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
     );
   }
 
+  Future<void> _openEditVenuePage(VenueModel venue) async {
+    final updated = await Navigator.push<VenueModel>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditVenuePage(
+          venue: venue,
+          authController: widget.authController,
+        ),
+      ),
+    );
+
+    if (updated != null) {
+      setState(() => _venue = updated);
+      _loadVenueDetail();
+    }
+  }
+
+  Future<void> _handleDeleteVenue(VenueModel venue) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Hapus / Nonaktifkan Venue?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(
+          'Venue "${venue.namaVenue}" akan dihapus dari sistem. Tindakan ini hanya dapat dilakukan oleh Administrator / Pemilik Venue.',
+          style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ya, Hapus Venue'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      setState(() => _isLoading = true);
+      await _venueService.deleteVenue(venue.venueId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Venue "${venue.namaVenue}" berhasil dihapus.'),
+          backgroundColor: AppColors.matchaDark,
+        ),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menghapus venue: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
   Widget _buildVenueHeader(VenueModel venue) {
     final user = widget.authController?.currentUser;
     final isOwner = user != null && venue.ownerUserId != null && venue.ownerUserId == user.userId;
+    final isAdmin = user?.isAdmin == true;
+    final canManage = isOwner || isAdmin;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -820,6 +893,49 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
             ),
           ],
         ),
+
+        // Admin / Owner Action Buttons (Edit Venue & Hapus/Nonaktifkan matching web screenshot 2)
+        if (canManage) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _openEditVenuePage(venue),
+                  icon: const Icon(Icons.edit_outlined, size: 14),
+                  label: const Text(
+                    'Edit Venue',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF334155),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _handleDeleteVenue(venue),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 14),
+                  label: const Text(
+                    'Hapus / Nonaktifkan',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFEF2F2),
+                    foregroundColor: const Color(0xFFDC2626),
+                    side: const BorderSide(color: Color(0xFFFECACA)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -876,19 +992,21 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
 
               // Badges / Action on Top Right
               if (widget.authController?.currentUser != null &&
-                  venue.ownerUserId != null &&
-                  venue.ownerUserId == widget.authController!.currentUser!.userId)
+                  ((venue.ownerUserId != null && venue.ownerUserId == widget.authController!.currentUser!.userId) ||
+                      widget.authController!.currentUser!.isAdmin))
                 Positioned(
                   top: 10,
                   right: 10,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Badge "👑 Venue Anda"
+                      // Badge "👑 Venue Anda" / "🛡️ Admin"
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF047857),
+                          color: widget.authController!.currentUser!.isAdmin
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFF047857),
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
@@ -898,13 +1016,16 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
                             ),
                           ],
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('👑 ', style: TextStyle(fontSize: 9)),
                             Text(
-                              'Venue Anda',
-                              style: TextStyle(
+                              widget.authController!.currentUser!.isAdmin ? '🛡️ ' : '👑 ',
+                              style: const TextStyle(fontSize: 9),
+                            ),
+                            Text(
+                              widget.authController!.currentUser!.isAdmin ? 'Admin' : 'Venue Anda',
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
