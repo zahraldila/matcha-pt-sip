@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/session_model.dart';
 
@@ -245,6 +246,38 @@ class SessionService {
     }
   }
 
+  /// Memastikan sesi memiliki share_token valid. Jika belum ada (null), generate dan simpan ke database.
+  Future<String> ensureShareToken(int sessionId) async {
+    try {
+      final res = await _supabase
+          .from('tb_session')
+          .select('share_token')
+          .eq('session_id', sessionId)
+          .maybeSingle();
+
+      final existing = res?['share_token']?.toString().trim();
+      if (existing != null && existing.isNotEmpty) {
+        return existing;
+      }
+
+      // Generate random 32-character hexadecimal token
+      final random = Random.secure();
+      final values = List<int>.generate(16, (i) => random.nextInt(256));
+      final token = values.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+
+      await _supabase
+          .from('tb_session')
+          .update({'share_token': token})
+          .eq('session_id', sessionId);
+
+      return token;
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal membuat share token sesi: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan saat memproses share token: $e');
+    }
+  }
+
   /// Quick Join Sesi untuk Tamu (Guest) atau Member
   Future<void> joinSession({
     required int sessionId,
@@ -410,6 +443,10 @@ class SessionService {
           '${tanggal.year}-${tanggal.month.toString().padLeft(2, '0')}-${tanggal.day.toString().padLeft(2, '0')}';
       final dateTimeStr = '$dateStr $jam:00';
 
+      final random = Random.secure();
+      final values = List<int>.generate(16, (i) => random.nextInt(256));
+      final generatedToken = values.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+
       // 1. Insert session
       final sessionRes = await _supabase
           .from('tb_session')
@@ -424,6 +461,7 @@ class SessionService {
             'jumlah_pemain': jumlahPemain.toString(),
             'jenis_permainan': jenisPermainan,
             'scoring_system': scoringSystem ?? 'Total of 3',
+            'share_token': generatedToken,
           })
           .select('session_id')
           .single();

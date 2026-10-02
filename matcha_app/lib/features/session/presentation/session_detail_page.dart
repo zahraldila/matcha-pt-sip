@@ -95,20 +95,32 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
 
   Future<void> _handleShareSession() async {
     final session = _session;
-    final shareToken = session?.shareToken?.trim();
+    if (session == null) return;
 
-    if (session == null || shareToken == null || shareToken.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Link share sesi belum tersedia.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
+    String? shareToken = session.shareToken?.trim();
+
+    // Jika sesi belum memiliki share_token di database, buat otomatis on-the-fly
+    if (shareToken == null || shareToken.isEmpty) {
+      try {
+        shareToken = await _sessionService.ensureShareToken(session.sessionId);
+        if (mounted) {
+          setState(() {
+            _session = session.copyWith(shareToken: shareToken);
+          });
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal menyiapkan link share sesi. Silakan coba lagi.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
     }
 
-    final shareUrl = session.shareUrl ?? 'https://matcha.siproduktif.com/games/share/$shareToken';
+    final shareUrl = 'https://matcha.siproduktif.com/games/share/$shareToken';
     final shareText = 'Mabar yuk di MATCHA!\n\n${session.namaSession}\n\n$shareUrl';
 
     try {

@@ -110,6 +110,56 @@ class SessionModel {
       ? 'https://matcha.siproduktif.com/games/share/${shareToken!.trim()}'
       : null;
 
+  SessionModel copyWith({
+    int? sessionId,
+    int? hostUserId,
+    int? sportId,
+    int? venueId,
+    String? namaSession,
+    String? scoringSystem,
+    String? waktuSession,
+    DateTime? datetime,
+    String? statusSession,
+    int? jumlahPemain,
+    String? jenisPermainan,
+    String? sportName,
+    String? venueName,
+    String? venueAddress,
+    String? venueCity,
+    String? venueFoto,
+    String? courtName,
+    String? hostName,
+    String? hostLevel,
+    String? hostAvatar,
+    List<SessionPlayerModel>? registeredPlayers,
+    String? shareToken,
+  }) {
+    return SessionModel(
+      sessionId: sessionId ?? this.sessionId,
+      hostUserId: hostUserId ?? this.hostUserId,
+      sportId: sportId ?? this.sportId,
+      venueId: venueId ?? this.venueId,
+      namaSession: namaSession ?? this.namaSession,
+      scoringSystem: scoringSystem ?? this.scoringSystem,
+      waktuSession: waktuSession ?? this.waktuSession,
+      datetime: datetime ?? this.datetime,
+      statusSession: statusSession ?? this.statusSession,
+      jumlahPemain: jumlahPemain ?? this.jumlahPemain,
+      jenisPermainan: jenisPermainan ?? this.jenisPermainan,
+      sportName: sportName ?? this.sportName,
+      venueName: venueName ?? this.venueName,
+      venueAddress: venueAddress ?? this.venueAddress,
+      venueCity: venueCity ?? this.venueCity,
+      venueFoto: venueFoto ?? this.venueFoto,
+      courtName: courtName ?? this.courtName,
+      hostName: hostName ?? this.hostName,
+      hostLevel: hostLevel ?? this.hostLevel,
+      hostAvatar: hostAvatar ?? this.hostAvatar,
+      registeredPlayers: registeredPlayers ?? this.registeredPlayers,
+      shareToken: shareToken ?? this.shareToken,
+    );
+  }
+
   static int _toInt(dynamic val, {int defaultVal = 0}) {
     if (val == null) return defaultVal;
     if (val is num) return val.toInt();
