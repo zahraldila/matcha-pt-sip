@@ -16,9 +16,6 @@ class DrawingRemoteDataSource {
           .from('tb_drawing')
           .insert({
             if (round.sessionId != null) 'session_id': round.sessionId,
-            'round_number': round.roundNumber,
-            'drawing_method': round.drawingMethod,
-            'status_drawing': round.statusDrawing,
           })
           .select()
           .single();
@@ -35,19 +32,6 @@ class DrawingRemoteDataSource {
               .insert({
                 'drawing_id': drawingId,
                 'court_id': match.courtId,
-                'round_number': match.roundNumber,
-                'side_a_player1': match.sideAPlayerIds != null && match.sideAPlayerIds!.isNotEmpty
-                    ? match.sideAPlayerIds![0]
-                    : null,
-                'side_a_player2': match.sideAPlayerIds != null && match.sideAPlayerIds!.length > 1
-                    ? match.sideAPlayerIds![1]
-                    : null,
-                'side_b_player1': match.sideBPlayerIds != null && match.sideBPlayerIds!.isNotEmpty
-                    ? match.sideBPlayerIds![0]
-                    : null,
-                'side_b_player2': match.sideBPlayerIds != null && match.sideBPlayerIds!.length > 1
-                    ? match.sideBPlayerIds![1]
-                    : null,
                 'status_match': match.statusMatch,
               })
               .select()
@@ -77,13 +61,10 @@ class DrawingRemoteDataSource {
           .select('''
             drawing_id,
             session_id,
-            round_number,
-            drawing_method,
-            status_drawing,
             created_at
           ''')
           .eq('session_id', sessionId)
-          .order('round_number', ascending: true);
+          .order('drawing_id', ascending: true);
 
       final List<dynamic> data = response as List<dynamic>;
       return data.map((json) => DrawingRoundModel.fromJson(json as Map<String, dynamic>)).toList();
