@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/app_error_handler.dart';
@@ -289,22 +292,24 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
   void _showShareModal(BuildContext context, SessionMatchRecapData data) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return Container(
-          padding: const EdgeInsets.all(20),
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Handle bar
               Center(
                 child: Container(
-                  width: 40,
-                  height: 4,
+                  width: 44,
+                  height: 4.5,
                   decoration: BoxDecoration(
                     color: const Color(0xFFE2E8F0),
                     borderRadius: BorderRadius.circular(10),
@@ -312,66 +317,1672 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Header with close button
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEBF8D8),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.share_rounded, size: 18, color: Color(0xFF063B00)),
-                  ),
-                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Bagikan Hasil Rekap Mabar',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEBF8D8),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.share_rounded, size: 12, color: Color(0xFF063B00)),
+                              SizedBox(width: 4),
+                              Text(
+                                'Share Game',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF063B00),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        Text(
-                          data.sessionName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Bagikan Hasil Pertandingan',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        const Text(
+                          'Rayakan serunya momen mabar dan kemenangan bersama teman atau komunitasmu!',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: Color(0xFF64748B),
+                            height: 1.35,
+                          ),
                         ),
                       ],
                     ),
                   ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(ctx),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFFF1F5F9),
+                      ),
+                      child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 18),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.link_rounded, color: Color(0xFF0F172A), size: 20),
+              const SizedBox(height: 20),
+
+              // Option 1: Share as Web Preview
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
-                title: const Text('Salin Tautan Rekap', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                subtitle: const Text('Bagikan tautan hasil pertandingan ke teman', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Tautan rekap pertandingan berhasil disalin! 🔗'),
-                      backgroundColor: Color(0xFF063B00),
-                      behavior: SnackBarBehavior.floating,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD1FAE5),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFA7F3D0)),
+                          ),
+                          child: const Icon(Icons.language_rounded, size: 19, color: Color(0xFF063B00)),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Share as Web Preview',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12.5,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Tampilkan hasil pertandingan lengkap dalam format web. Cocok untuk grup WhatsApp / Telegram.',
+                                style: TextStyle(fontSize: 11, color: Color(0xFF64748B), height: 1.3),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  );
-                },
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        // Salin Link Button
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              final url = 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
+                              Clipboard.setData(ClipboardData(text: url));
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Tautan rekap web berhasil disalin! 🔗'),
+                                  backgroundColor: Color(0xFF063B00),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 9),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.03),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.copy_rounded, size: 14, color: Color(0xFF64748B)),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Salin Link',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 11.5,
+                                      color: Color(0xFF334155),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Bagikan Link Direct Button
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              final url = 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
+                              final shareText = '🎾 Hasil Mabar: ${data.sessionName}\n🏆 Pemenang: ${data.standings.isNotEmpty ? data.standings.first.nama : '-'}\nLihat rekap selengkapnya di: $url';
+                              Clipboard.setData(ClipboardData(text: shareText));
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Teks & tautan siap dibagikan ke WhatsApp/Telegram! 🚀'),
+                                  backgroundColor: Color(0xFF063B00),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 9),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF063B00),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF063B00).withValues(alpha: 0.25),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.send_rounded, size: 14, color: Color(0xFFA8E63A)),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Bagikan Link',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 11.5,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
+
+              // Option 2: Share as Image / Story (Template Studio)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFECFDF5), Color(0xFFF7FEE7), Colors.white],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF063B00),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.auto_awesome_rounded, size: 19, color: Color(0xFFA8E63A)),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Text(
+                                    'Share as Image / Story',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 12.5,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF063B00),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      '9:16',
+                                      style: TextStyle(
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Ubah hasil mabar jadi kartu gambar story ala Strava/SKOR dengan foto dari galerimu!',
+                                style: TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.3),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Pilih Template Story Button
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _showStoryTemplateModal(context, data);
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 10.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF063B00),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF063B00).withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.style_rounded, size: 15, color: Color(0xFFA8E63A)),
+                            SizedBox(width: 6),
+                            Text(
+                              'Pilih Template Story',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         );
       },
+    );
+  }
+
+  /// 2. Modal: Template Studio (9:16 Story Customizer)
+  void _showStoryTemplateModal(BuildContext context, SessionMatchRecapData data) {
+    int selectedTemplate = 0; // 0: Minimalist Podium, 1: Glass Leaderboard, 2: Match Highlights, 3: Strava Athletic
+    File? pickedBgImage;
+    String overlayFilter = 'contrast'; // 'contrast', 'matcha', 'clean'
+    SessionPlayerStanding? selectedPlayer = data.standings.isNotEmpty ? data.standings.first : null;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.92,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Column(
+                children: [
+                  // Top Handle bar & Header
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                      border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 44,
+                            height: 4.5,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFCBD5E1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Text(
+                                        'Select Template Story',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEBF8D8),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
+                                        ),
+                                        child: const Text(
+                                          '9:16 HD',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w900,
+                                            color: Color(0xFF063B00),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text(
+                                    'Pilih template, pasang foto dokumentasi mabar dari galeri, dan unduh/bagikan.',
+                                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => Navigator.pop(ctx),
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white,
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Scrollable Workspace
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. Live 9:16 Story Card Preview with Navigation Chevrons
+                          Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Prev Button (<)
+                                GestureDetector(
+                                  onTap: () {
+                                    setModalState(() {
+                                      selectedTemplate = (selectedTemplate - 1 + 4) % 4;
+                                    });
+                                  },
+                                  child: Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: const Color(0xFFF1F5F9),
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: const Icon(Icons.chevron_left_rounded, size: 20, color: Color(0xFF334155)),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+
+                                // 9:16 Card Container
+                                _buildStoryCardContainer(
+                                  data: data,
+                                  templateIdx: selectedTemplate,
+                                  pickedImage: pickedBgImage,
+                                  overlayFilter: overlayFilter,
+                                  selectedPlayer: selectedPlayer,
+                                ),
+
+                                const SizedBox(width: 8),
+
+                                // Next Button (>)
+                                GestureDetector(
+                                  onTap: () {
+                                    setModalState(() {
+                                      selectedTemplate = (selectedTemplate + 1) % 4;
+                                    });
+                                  },
+                                  child: Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: const Color(0xFFF1F5F9),
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFF334155)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // 2. Pilih Template Grid (2x2)
+                          const Text(
+                            'PILIH TEMPLATE',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF475569),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                            childAspectRatio: 2.3,
+                            children: [
+                              _buildTemplateTabButton(
+                                index: 0,
+                                title: '1. Minimalist Podium',
+                                subtitle: 'Bottom 3-avatar overlay',
+                                isSelected: selectedTemplate == 0,
+                                onTap: () => setModalState(() => selectedTemplate = 0),
+                              ),
+                              _buildTemplateTabButton(
+                                index: 1,
+                                title: '2. Glass Leaderboard',
+                                subtitle: 'Tabel ranking 1st - 4th',
+                                isSelected: selectedTemplate == 1,
+                                onTap: () => setModalState(() => selectedTemplate = 1),
+                              ),
+                              _buildTemplateTabButton(
+                                index: 2,
+                                title: '3. Match Highlights',
+                                subtitle: 'Rekap skor tiap match',
+                                isSelected: selectedTemplate == 2,
+                                onTap: () => setModalState(() => selectedTemplate = 2),
+                              ),
+                              _buildTemplateTabButton(
+                                index: 3,
+                                title: '4. Strava Athletic',
+                                subtitle: 'Personal performance card',
+                                isSelected: selectedTemplate == 3,
+                                onTap: () => setModalState(() => selectedTemplate = 3),
+                              ),
+                            ],
+                          ),
+
+                          // 3. Player Selector (Only for Template 4 / Strava Athletic)
+                          if (selectedTemplate == 3) ...[
+                            const SizedBox(height: 16),
+                            const Text(
+                              'PILIH PEMAIN UNTUK HIGHLIGHT',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF475569),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<SessionPlayerStanding>(
+                                  value: selectedPlayer,
+                                  isExpanded: true,
+                                  icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF063B00)),
+                                  items: data.standings.map((p) {
+                                    return DropdownMenuItem<SessionPlayerStanding>(
+                                      value: p,
+                                      child: Text(
+                                        '#${p.rank} • ${p.nama} (${p.pointsFor} pts)',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setModalState(() => selectedPlayer = val);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 16),
+
+                          // 4. Background Foto Lapangan
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'BACKGROUND FOTO LAPANGAN',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF334155),
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    if (pickedBgImage != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEBF8D8),
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
+                                        ),
+                                        child: const Text(
+                                          'Foto Terpasang',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF063B00),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                const Text(
+                                  'Pasang foto momen mabar dari galeri HP atau komputermu.',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () async {
+                                          final picker = ImagePicker();
+                                          final picked = await picker.pickImage(source: ImageSource.gallery);
+                                          if (picked != null) {
+                                            setModalState(() {
+                                              pickedBgImage = File(picked.path);
+                                            });
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 9),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.02),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              const Icon(Icons.camera_alt_rounded, size: 14, color: Color(0xFF063B00)),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                pickedBgImage != null ? 'Ganti Foto Galeri' : 'Insert Photo dari Galeri',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 11.5,
+                                                  color: Color(0xFF0F172A),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    if (pickedBgImage != null) ...[
+                                      const SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTap: () => setModalState(() => pickedBgImage = null),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(9),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFF1F2),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: const Color(0xFFFECDD3)),
+                                          ),
+                                          child: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFE11D48)),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // 5. Filter Gelap Overlay
+                          const Text(
+                            'FILTER GELAP OVERLAY',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF475569),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _buildFilterOptionButton(
+                                label: 'Dark Contrast',
+                                isSelected: overlayFilter == 'contrast',
+                                onTap: () => setModalState(() => overlayFilter = 'contrast'),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildFilterOptionButton(
+                                label: 'Matcha Glow',
+                                isSelected: overlayFilter == 'matcha',
+                                onTap: () => setModalState(() => overlayFilter = 'matcha'),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildFilterOptionButton(
+                                label: 'Minimal',
+                                isSelected: overlayFilter == 'clean',
+                                onTap: () => setModalState(() => overlayFilter = 'clean'),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 22),
+
+                          // 6. Export Actions
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Story Template siap dibagikan ke Instagram & WhatsApp Story! 📸✨'),
+                                  backgroundColor: Color(0xFF063B00),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF063B00),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF063B00).withValues(alpha: 0.3),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.share_rounded, size: 16, color: Color(0xFFA8E63A)),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Share Image / Story',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Gambar story berhasil disimpan dalam resolusi 1080x1920 HD! ⬇️'),
+                                  backgroundColor: Color(0xFF063B00),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFCBD5E1)),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.download_rounded, size: 15, color: Color(0xFF063B00)),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Download PNG (1080x1920)',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11.5,
+                                      color: Color(0xFF334155),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildTemplateTabButton({
+    required int index,
+    required String title,
+    required String subtitle,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF063B00) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF063B00) : const Color(0xFFE2E8F0),
+            width: isSelected ? 1.5 : 1.0,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF063B00).withValues(alpha: 0.2),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: isSelected ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 9.5,
+                color: isSelected ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterOptionButton({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF063B00) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? const Color(0xFF063B00) : const Color(0xFFE2E8F0),
+              width: isSelected ? 1.5 : 1.0,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? Colors.white : const Color(0xFF334155),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Live Story 9:16 Card Container & Sub-template Renderers
+  Widget _buildStoryCardContainer({
+    required SessionMatchRecapData data,
+    required int templateIdx,
+    required File? pickedImage,
+    required String overlayFilter,
+    required SessionPlayerStanding? selectedPlayer,
+  }) {
+    // Determine Gradient Tint Overlay
+    List<Color> gradientColors;
+    if (overlayFilter == 'matcha') {
+      gradientColors = [
+        const Color(0xFF063B00).withValues(alpha: 0.88),
+        Colors.black.withValues(alpha: 0.4),
+        const Color(0xFF063B00).withValues(alpha: 0.95),
+      ];
+    } else if (overlayFilter == 'clean') {
+      gradientColors = [
+        Colors.black.withValues(alpha: 0.65),
+        Colors.black.withValues(alpha: 0.2),
+        Colors.black.withValues(alpha: 0.75),
+      ];
+    } else {
+      // Dark contrast (default)
+      gradientColors = [
+        Colors.black.withValues(alpha: 0.85),
+        Colors.black.withValues(alpha: 0.35),
+        Colors.black.withValues(alpha: 0.92),
+      ];
+    }
+
+    return Container(
+      width: 220,
+      height: 391, // 9:16 ratio (220 x 391.1)
+      decoration: BoxDecoration(
+        color: const Color(0xFF090D10),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFF1E293B)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(21),
+        child: Stack(
+          children: [
+            // 1. Background Photo or Pattern
+            if (pickedImage != null)
+              Positioned.fill(
+                child: Image.file(pickedImage, fit: BoxFit.cover),
+              )
+            else
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF0F172A), Color(0xFF020617)],
+                    ),
+                  ),
+                ),
+              ),
+
+            // 2. Tint Overlay
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: gradientColors,
+                  ),
+                ),
+              ),
+            ),
+
+            // 3. Template Content
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: _buildStoryTemplateContent(
+                data: data,
+                templateIdx: templateIdx,
+                selectedPlayer: selectedPlayer,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStoryTemplateContent({
+    required SessionMatchRecapData data,
+    required int templateIdx,
+    required SessionPlayerStanding? selectedPlayer,
+  }) {
+    switch (templateIdx) {
+      case 0:
+        return _buildStoryTemplatePodium(data);
+      case 1:
+        return _buildStoryTemplateLeaderboard(data);
+      case 2:
+        return _buildStoryTemplateHighlights(data);
+      case 3:
+        return _buildStoryTemplateStrava(data, selectedPlayer);
+      default:
+        return _buildStoryTemplatePodium(data);
+    }
+  }
+
+  /// Template 1: Minimalist Podium (Bottom 3-avatar overlay)
+  Widget _buildStoryTemplatePodium(SessionMatchRecapData data) {
+    final p1 = data.standings.isNotEmpty ? data.standings[0] : null;
+    final p2 = data.standings.length > 1 ? data.standings[1] : null;
+    final p3 = data.standings.length > 2 ? data.standings[2] : null;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Top Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data.sessionName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10.5, color: Colors.white),
+                  ),
+                  Text(
+                    '${data.standings.length} Players • ${data.totalRounds} Rounds • ${data.scoringSystem}',
+                    style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A)),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              ),
+              child: const Text('MATCHA', style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1)),
+            ),
+          ],
+        ),
+
+        // Bottom Frosted Podium Box
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEBF8D8).withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.4)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('🏆', style: TextStyle(fontSize: 8)),
+                  SizedBox(width: 3),
+                  Text('Match Results', style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w900, color: Color(0xFFA8E63A))),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // 2nd Place
+                  Expanded(
+                    child: p2 == null
+                        ? const SizedBox()
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Stack(
+                                alignment: Alignment.topRight,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor: const Color(0xFF475569),
+                                    child: Text(p2.nama.isNotEmpty ? p2.nama[0] : '2', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFCBD5E1)),
+                                    child: const Text('2', style: TextStyle(fontSize: 6, fontWeight: FontWeight.w900, color: Colors.black)),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(p2.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
+                              Text('${p2.matchesWon}-${p2.matchesLost}', style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+                              Container(
+                                margin: const EdgeInsets.only(top: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(4)),
+                                child: Text('${p2.pointsFor} pts', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                  ),
+
+                  // 1st Place (Center / Taller)
+                  Expanded(
+                    child: p1 == null
+                        ? const SizedBox()
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Stack(
+                                alignment: Alignment.topRight,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor: const Color(0xFFD97706),
+                                    child: Text(p1.nama.isNotEmpty ? p1.nama[0] : '1', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                  ),
+                                  const Text('🥇', style: TextStyle(fontSize: 10)),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(p1.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFFFDE047))),
+                              Text('${p1.matchesWon}-${p1.matchesLost}', style: const TextStyle(fontSize: 7, color: Color(0xFFFEF08A))),
+                              Container(
+                                margin: const EdgeInsets.only(top: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                decoration: BoxDecoration(color: const Color(0xFFFACC15), borderRadius: BorderRadius.circular(4)),
+                                child: Text('${p1.pointsFor} pts', style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Color(0xFF78350F))),
+                              ),
+                            ],
+                          ),
+                  ),
+
+                  // 3rd Place
+                  Expanded(
+                    child: p3 == null
+                        ? const SizedBox()
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Stack(
+                                alignment: Alignment.topRight,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor: const Color(0xFF7C2D12),
+                                    child: Text(p3.nama.isNotEmpty ? p3.nama[0] : '3', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFFB923C)),
+                                    child: const Text('3', style: TextStyle(fontSize: 6, fontWeight: FontWeight.w900, color: Colors.black)),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(p3.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
+                              Text('${p3.matchesWon}-${p3.matchesLost}', style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+                              Container(
+                                margin: const EdgeInsets.only(top: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(4)),
+                                child: Text('${p3.pointsFor} pts', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Template 2: Glass Leaderboard (Tabel ranking 1st - 4th)
+  Widget _buildStoryTemplateLeaderboard(SessionMatchRecapData data) {
+    final topPlayers = data.standings.take(4).toList();
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Top Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('MATCHA', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 10, color: Colors.white, letterSpacing: 1)),
+                Text('LEADERBOARD', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 7, color: Color(0xFFA8E63A), letterSpacing: 1.5)),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF063B00),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.3)),
+              ),
+              child: Text(data.sportName, style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A))),
+            ),
+          ],
+        ),
+
+        // Glass Leaderboard Table
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+          ),
+          child: Column(
+            children: [
+              // Table Header
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  children: [
+                    SizedBox(width: 16, child: Text('POS', style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
+                    Expanded(child: Text('PLAYER', style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
+                    SizedBox(width: 24, child: Text('W-L', textAlign: TextAlign.center, style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
+                    SizedBox(width: 22, child: Text('DIFF', textAlign: TextAlign.center, style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
+                    SizedBox(width: 24, child: Text('PTS', textAlign: TextAlign.right, style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
+                  ],
+                ),
+              ),
+              const Divider(color: Colors.white12, height: 6),
+
+              // Rows
+              ...topPlayers.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final rp = entry.value;
+                final isFirst = idx == 0;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isFirst ? const Color(0xFFFACC15).withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: isFirst ? const Color(0xFFFACC15).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.05)),
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        child: Text(
+                          idx == 0 ? '🥇' : idx == 1 ? '🥈' : idx == 2 ? '🥉' : '#${idx + 1}',
+                          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          rp.nama,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            color: isFirst ? const Color(0xFFFEF08A) : Colors.white,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '${rp.matchesWon}-${rp.matchesLost}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 7.5, color: Color(0xFFCBD5E1)),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 22,
+                        child: Text(
+                          '${rp.gameDiff >= 0 ? '+' : ''}${rp.gameDiff}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 7.5,
+                            fontWeight: FontWeight.bold,
+                            color: rp.gameDiff >= 0 ? const Color(0xFFA8E63A) : const Color(0xFFFB7185),
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '${rp.pointsFor}',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+
+        // Footer
+        Column(
+          children: [
+            Text(data.sessionName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text('${data.venueName} • Matcha Match Arena', style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Template 3: Match Highlights (Rekap skor tiap match)
+  Widget _buildStoryTemplateHighlights(SessionMatchRecapData data) {
+    final sampleMatches = data.rounds.expand((r) => r.matches).take(3).toList();
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Top Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(data.sessionName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10, color: Colors.white)),
+                  const Text('Match Recap Highlights', style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A))),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              ),
+              child: Text('${data.totalRounds} Rounds', style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
+          ],
+        ),
+
+        // Match Result Cards List
+        Column(
+          children: sampleMatches.map((m) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Round ${m.roundNumber}', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.w900, color: Color(0xFFA8E63A))),
+                      Text(m.courtName.isNotEmpty ? m.courtName : 'Court 1', style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: m.isSideAWinner ? const Color(0xFF063B00) : Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(6),
+                            border: m.isSideAWinner ? Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.4)) : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  m.sideANames.join(' & '),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ),
+                              Text(
+                                '${m.scoreA}',
+                                style: TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: m.isSideAWinner ? const Color(0xFFA8E63A) : const Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: m.isSideBWinner ? const Color(0xFF063B00) : Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(6),
+                            border: m.isSideBWinner ? Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.4)) : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  m.sideBNames.join(' & '),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ),
+                              Text(
+                                '${m.scoreB}',
+                                style: TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: m.isSideBWinner ? const Color(0xFFA8E63A) : const Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+
+        // Footer
+        Text(
+          '🏆 Winner: ${data.standings.isNotEmpty ? data.standings.first.nama : '-'}',
+          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A)),
+        ),
+      ],
+    );
+  }
+
+  /// Template 4: Strava Athletic (Personal Performance Card)
+  Widget _buildStoryTemplateStrava(SessionMatchRecapData data, SessionPlayerStanding? player) {
+    final p = player ?? (data.standings.isNotEmpty ? data.standings.first : null);
+    final playerName = p?.nama ?? 'Pemain Matcha';
+    final points = p?.pointsFor ?? data.myStats?.totalPoints ?? 0;
+    final totalMatches = p?.matchesPlayed ?? (p != null ? p.matchesWon + p.matchesLost : 0);
+    final winRate = totalMatches > 0 && p != null ? ((p.matchesWon / totalMatches) * 100).round() : (data.myStats?.winRatePercent ?? 0);
+    final wins = p?.matchesWon ?? data.myStats?.wins ?? 0;
+    final losses = p?.matchesLost ?? data.myStats?.losses ?? 0;
+    final duration = data.myStats?.durationPlayed ?? '45m';
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Top Header Strava Style
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    CircleAvatar(radius: 3, backgroundColor: Color(0xFFA8E63A)),
+                    SizedBox(width: 4),
+                    Text('MATCHA ACTIVITY', style: TextStyle(fontSize: 7, fontWeight: FontWeight.w900, color: Color(0xFFA8E63A), letterSpacing: 1.2)),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(4)),
+                  child: const Text('MATCHA', style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 12,
+                  backgroundColor: const Color(0xFF059669),
+                  child: Text(playerName.isNotEmpty ? playerName[0] : 'P', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(playerName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: Colors.white)),
+                      Text('${data.sportName} • ${data.venueName}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 7, color: Color(0xFFCBD5E1))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+
+        // 2x2 Athletic Metrics Grid
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
+                      child: Column(
+                        children: [
+                          const Text('TOTAL POIN', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5)),
+                          const SizedBox(height: 2),
+                          Text('$points', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF063B00).withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.4)),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text('WIN RATE', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A), letterSpacing: 0.5)),
+                          const SizedBox(height: 2),
+                          Text('$winRate%', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFFA8E63A))),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
+                      child: Column(
+                        children: [
+                          const Text('MATCH RECORD', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5)),
+                          const SizedBox(height: 2),
+                          Text('${wins}W - ${losses}L', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
+                      child: Column(
+                        children: [
+                          const Text('DURASI MAIN', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5)),
+                          const SizedBox(height: 2),
+                          Text(duration, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Footer
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('MATCHA Tennis & Padel', style: TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+            Text('${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}', style: const TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A))),
+          ],
+        ),
+      ],
     );
   }
 
