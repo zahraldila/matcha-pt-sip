@@ -447,9 +447,15 @@ class _HomePageState extends State<HomePage> {
         ? session.registeredPlayers.any((p) => p.playerId == user.playerId || (p.userId != null && p.userId == user.userId))
         : false;
 
-    final isLive = session.statusSession.toLowerCase() == 'in progress' ||
-        session.statusSession.toLowerCase() == 'live';
-    final isFull = session.isFull;
+    final statusLower = session.statusSession.trim().toLowerCase();
+    final isFinished = statusLower == 'finished' ||
+        statusLower == 'completed' ||
+        statusLower == 'selesai';
+    final isLive = !isFinished &&
+        (statusLower == 'in progress' ||
+            statusLower == 'in_progress' ||
+            statusLower == 'live');
+    final isFull = !isFinished && session.isFull;
     final progress = session.jumlahPemain > 0
         ? (session.currentPlayersCount / session.jumlahPemain).clamp(0.0, 1.0)
         : 0.0;
@@ -489,7 +495,12 @@ class _HomePageState extends State<HomePage> {
     Color statusBorder;
     Color statusText;
 
-    if (isLive) {
+    if (isFinished) {
+      statusBadgeLabel = 'Selesai';
+      statusBg = const Color(0xFFF1F5F9);
+      statusBorder = const Color(0xFFCBD5E1);
+      statusText = const Color(0xFF64748B);
+    } else if (isLive) {
       statusBadgeLabel = 'LIVE NOW';
       statusBg = Colors.redAccent.withValues(alpha: 0.1);
       statusBorder = Colors.redAccent.withValues(alpha: 0.4);
@@ -767,26 +778,34 @@ class _HomePageState extends State<HomePage> {
                         child: SizedBox(
                           height: 40,
                           child: ElevatedButton(
-                            onPressed: isJoined
+                            onPressed: isFinished
                                 ? openDetail
-                                : isFull
-                                    ? null
-                                    : handleJoin,
+                                : (isJoined
+                                    ? openDetail
+                                    : (isFull ? null : handleJoin)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: isJoined ? const Color(0xFF15803D) : AppColors.matchaDark,
-                              foregroundColor: Colors.white,
+                              backgroundColor: isFinished
+                                  ? const Color(0xFFF1F5F9)
+                                  : (isJoined ? const Color(0xFF15803D) : AppColors.matchaDark),
+                              foregroundColor: isFinished ? const Color(0xFF64748B) : Colors.white,
                               disabledBackgroundColor: const Color(0xFFE2E8F0),
                               disabledForegroundColor: const Color(0xFF94A3B8),
                               elevation: 0,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
                             child: Text(
-                              isJoined
-                                  ? 'Sudah Bergabung'
-                                  : isFull
-                                      ? 'Slot Penuh'
-                                      : 'Gabung Slot',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              isFinished
+                                  ? 'Selesai'
+                                  : (isJoined
+                                      ? 'Sudah Bergabung'
+                                      : (isFull
+                                          ? 'Slot Penuh'
+                                          : 'Gabung Slot')),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: isFinished ? const Color(0xFF64748B) : Colors.white,
+                              ),
                             ),
                           ),
                         ),
