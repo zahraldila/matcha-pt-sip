@@ -20,6 +20,15 @@
             <x-badge :type="str_contains(strtolower($game['status']), 'selesai') || !empty($game['is_finished']) ? 'finished' : (str_contains(strtolower($game['status']), 'sedang') || str_contains(strtolower($game['status']), 'in progress') ? 'playing' : (str_contains(strtolower($game['status']), 'ready') ? 'full' : 'open'))">
                 {{ $game['status'] }}
             </x-badge>
+            <button
+                type="button"
+                onclick="openShareModal('{{ $shareUrl }}', '{{ addslashes($game['title']) }}', '{{ $game['sport'] }}', '{{ \Carbon\Carbon::parse($game['date'])->isoFormat('D MMM Y') }}', '{{ $game['time'] }}', '{{ addslashes($game['venue_name']) }}')"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 font-bold text-xs shadow-2xs transition-all hover:scale-[1.02] active:scale-95 cursor-pointer ml-1"
+                title="Bagikan link jadwal mabar ini"
+            >
+                <i class="fa-solid fa-share-nodes text-emerald-600 text-xs"></i>
+                <span>Share Jadwal</span>
+            </button>
         </div>
     </div>
 
@@ -388,6 +397,15 @@
     }
 </script>
 @endif
+
+<x-share-modal
+    :shareUrl="$shareUrl"
+    :gameTitle="$game['title']"
+    :sport="$game['sport']"
+    :date="\Carbon\Carbon::parse($game['date'])->isoFormat('dddd, D MMM Y')"
+    :time="$game['time']"
+    :venue="$game['venue_name']"
+/>
 
 <x-join-modal />
 @endsection

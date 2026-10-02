@@ -23,7 +23,27 @@ class SessionModel extends Model
         'status_session',
         'jumlah_pemain',
         'jenis_permainan',
+        'share_token',
     ];
+
+    public function ensureShareToken(): string
+    {
+        if (empty($this->share_token)) {
+            do {
+                $token = bin2hex(random_bytes(16));
+            } while (static::where('share_token', $token)->exists());
+
+            $this->share_token = $token;
+            $this->save();
+        }
+
+        return $this->share_token;
+    }
+
+    public function getShareUrlAttribute(): string
+    {
+        return route('games.share', ['token' => $this->ensureShareToken()]);
+    }
 
     public function getJenisPermainanAttribute($value): string
     {

@@ -752,6 +752,39 @@ class GameController extends Controller
     {
         $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])->findOrFail((int) $id);
 
+        $payload = $this->buildGameDetailPayload($dbSession);
+
+        return view('games.show', array_merge($payload, [
+            'shareUrl' => $payload['game']['share_url'],
+        ]));
+    }
+
+    /**
+     * Tampilkan detail jadwal mabar dari link share publik yang aman.
+     */
+    public function share($token)
+    {
+        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])
+            ->where('share_token', $token)
+            ->first();
+
+        if (! $dbSession) {
+            abort(404, 'Jadwal mabar tidak ditemukan atau link sudah tidak berlaku.');
+        }
+
+        $payload = $this->buildGameDetailPayload($dbSession);
+
+        return view('games.share', array_merge($payload, [
+            'shareUrl' => $payload['game']['share_url'],
+            'isPublicShare' => true,
+        ]));
+    }
+
+    /**
+     * Helper untuk memetakan payload detail sesi mabar secara konsisten antara halaman show dan share.
+     */
+    private function buildGameDetailPayload(SessionModel $dbSession): array
+    {
         $quota = (int) ($dbSession->jumlah_pemain ?? 6);
         $joinedCount = $dbSession->players->count();
         $slotLeft = max(0, $quota - $joinedCount);
@@ -804,6 +837,9 @@ class GameController extends Controller
             }
         }
 
+        $shareToken = $dbSession->ensureShareToken();
+        $shareUrl = route('games.share', ['token' => $shareToken]);
+
         $game = [
             'id' => $dbSession->session_id,
             'title' => $dbSession->nama_session,
@@ -823,6 +859,8 @@ class GameController extends Controller
             'level_recommendation' => 'All Level Welcome',
             'match_format' => $formatString,
             'scoring_system' => $dbSession->scoring_system ?? 'Total of 3',
+            'share_token' => $shareToken,
+            'share_url' => $shareUrl,
             'host' => [
                 'name' => $dbSession->host->nama ?? 'Host Matcha',
                 'role' => 'Host Game',
@@ -845,7 +883,13 @@ class GameController extends Controller
             'is_joined_by_me' => $isJoinedByMe,
         ];
 
-        return view('games.show', compact('game', 'isFinished', 'isHost', 'hasDrawingStarted', 'isJoinedByMe'));
+        return [
+            'game' => $game,
+            'isFinished' => $isFinished,
+            'isHost' => $isHost,
+            'hasDrawingStarted' => $hasDrawingStarted,
+            'isJoinedByMe' => $isJoinedByMe,
+        ];
     }
 
     /**

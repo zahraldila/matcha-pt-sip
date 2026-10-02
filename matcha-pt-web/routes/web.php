@@ -24,6 +24,7 @@ Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 // Game & Mabar
 Route::prefix('games')->name('games.')->group(function () {
     Route::get('/', [GameController::class, 'index'])->name('index');
+    Route::get('/share/{token}', [GameController::class, 'share'])->name('share');
     Route::get('/{id}', [GameController::class, 'show'])->whereNumber('id')->name('show');
     Route::get('/{id}/drawing', [GameController::class, 'drawing'])->whereNumber('id')->name('drawing');
     Route::post('/{id}/join', [GameController::class, 'joinSession'])->whereNumber('id')->name('join'); // Support Member & Guest Player join
@@ -41,6 +42,8 @@ Route::prefix('games')->name('games.')->group(function () {
         Route::delete('/{id}', [GameController::class, 'destroy'])->whereNumber('id')->name('destroy');
     });
 });
+
+Route::get('/mabar/share/{token}', [GameController::class, 'share'])->name('mabar.share');
 
 // Venues & Courts
 Route::prefix('venues')->name('venues.')->group(function () {
