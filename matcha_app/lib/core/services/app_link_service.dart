@@ -108,9 +108,21 @@ class AppLinkService {
     }
 
     // If app is not ready (still bootstrapping / in splash screen), save pending
-    if (!_isAppReady || _navigatorKey?.currentState == null) {
+    if (!_isAppReady) {
       debugPrint('[AppLinkService] App not ready, queueing pending URI: $uri');
       _pendingUri = uri;
+      return;
+    }
+
+    if (_navigatorKey?.currentState == null) {
+      debugPrint('[AppLinkService] Navigator state not ready yet, retrying in 300ms...');
+      _pendingUri = uri;
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (_pendingUri == uri) {
+          _pendingUri = null;
+          handleUri(uri);
+        }
+      });
       return;
     }
 

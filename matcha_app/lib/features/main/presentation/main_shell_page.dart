@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/app_link_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../admin/presentation/admin_user_management_page.dart';
@@ -30,6 +31,9 @@ class _MainShellPageState extends State<MainShellPage> {
   void initState() {
     super.initState();
     widget.authController?.addListener(_onAuthChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppLinkService().setAppReady();
+    });
   }
 
   @override
