@@ -123,62 +123,18 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        leadingWidth: 160,
-        leading: TextButton.icon(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A), size: 20),
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_rounded, size: 18, color: Color(0xFF0F172A)),
-          label: const Text(
-            'Detail Mabar',
-            style: TextStyle(
-              color: Color(0xFF0F172A),
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
+        ),
+        title: const Text(
+          'Detail Mabar',
+          style: TextStyle(
+            color: Color(0xFF0F172A),
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
           ),
         ),
-        actions: [
-          // Match Finished Badge
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0FDF4),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF86EFAC)),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF16A34A)),
-                SizedBox(width: 4),
-                Text(
-                  'Match Finished',
-                  style: TextStyle(
-                    color: Color(0xFF16A34A),
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          // Share Button
-          IconButton(
-            icon: const Icon(Icons.share_outlined, size: 20, color: Color(0xFF0F172A)),
-            tooltip: 'Bagikan Hasil Rekap',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Kartu rekap pertandingan siap dibagikan! 🏆📸'),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.matchaDark,
-                ),
-              );
-            },
-          ),
-          const SizedBox(width: 10),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.matchaDark))
@@ -199,6 +155,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // 0. Top Action Breadcrumbs Row (Kembali ke Daftar Mabar & Bagikan)
+                            _buildTopActionBreadcrumbsRow(_data!),
+
+                            const SizedBox(height: 12),
+
                             // 1. Hero Winner Card
                             _buildHeroWinnerCard(_data!),
 
@@ -228,6 +189,189 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         ),
                       ),
                     ),
+    );
+  }
+
+  /// 0. Top Action Breadcrumbs Row (Matching Web /scoring/recap layout)
+  Widget _buildTopActionBreadcrumbsRow(SessionMatchRecapData data) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Kembali ke Daftar Mabar
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.arrow_back_rounded, size: 13, color: Color(0xFF64748B)),
+              SizedBox(width: 4),
+              Text(
+                'Kembali ke Daftar Mabar',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Badges & Actions (Match Finished + Bagikan Button)
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Badge Match Finished
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEBF8D8),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.25)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check_circle_rounded, size: 11, color: Color(0xFF063B00)),
+                  SizedBox(width: 3),
+                  Text(
+                    'Match Finished',
+                    style: TextStyle(
+                      color: Color(0xFF063B00),
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Button Bagikan (Dark Green with Lime Share Icon)
+            GestureDetector(
+              onTap: () => _showShareModal(context, data),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF063B00),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF063B00).withValues(alpha: 0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.share_rounded, size: 12, color: Color(0xFFA8E63A)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Bagikan',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _showShareModal(BuildContext context, SessionMatchRecapData data) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBF8D8),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.share_rounded, size: 18, color: Color(0xFF063B00)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Bagikan Hasil Rekap Mabar',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+                        ),
+                        Text(
+                          data.sessionName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.link_rounded, color: Color(0xFF0F172A), size: 20),
+                ),
+                title: const Text('Salin Tautan Rekap', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: const Text('Bagikan tautan hasil pertandingan ke teman', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Tautan rekap pertandingan berhasil disalin! 🔗'),
+                      backgroundColor: Color(0xFF063B00),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
     );
   }
 

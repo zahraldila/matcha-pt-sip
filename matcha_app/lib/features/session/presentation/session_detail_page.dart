@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/app_error_handler.dart';
@@ -111,26 +111,118 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     final shareUrl = session.shareUrl ?? 'https://matcha.siproduktif.com/games/share/$shareToken';
     final shareText = 'Mabar yuk di MATCHA!\n\n${session.namaSession}\n\n$shareUrl';
 
-    try {
-      final box = context.findRenderObject() as RenderBox?;
-      final originRect = box != null
-          ? box.localToGlobal(Offset.zero) & box.size
-          : null;
-
-      await Share.share(
-        shareText,
-        subject: 'Mabar: ${session.namaSession}',
-        sharePositionOrigin: originRect,
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Gagal membuka menu bagikan. Silakan coba lagi.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBF8D8),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.share_rounded, size: 18, color: Color(0xFF063B00)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Bagikan Sesi Mabar',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+                        ),
+                        Text(
+                          session.namaSession,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.link_rounded, color: Color(0xFF0F172A), size: 20),
+                ),
+                title: const Text('Salin Link Sesi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: const Text('Salin tautan langsung untuk gabung sesi ini', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: shareUrl));
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Link sesi berhasil disalin ke clipboard! 🔗'),
+                      backgroundColor: Color(0xFF063B00),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.copy_rounded, color: Color(0xFF0F172A), size: 18),
+                ),
+                title: const Text('Salin Teks Undangan Lengkap', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: const Text('Salin pesan ajakan mabar beserta tautan', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: shareText));
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Pesan undangan mabar berhasil disalin! 📋'),
+                      backgroundColor: Color(0xFF063B00),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   String _formatDisplayDate(DateTime? dt) {
