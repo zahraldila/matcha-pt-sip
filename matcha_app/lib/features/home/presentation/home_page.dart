@@ -115,22 +115,52 @@ class _HomePageState extends State<HomePage> {
                 child: Row(
                   children: [
                     // Avatar
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
-                          ? NetworkImage(avatarUrl)
-                          : null,
-                      backgroundColor: AppColors.matchaSoftLime,
-                      child: (avatarUrl == null || avatarUrl.isEmpty)
-                          ? Text(
-                              userFirstName[0].toUpperCase(),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: AppColors.matchaDark,
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: (avatarUrl != null && avatarUrl.isNotEmpty) ? Colors.transparent : AppColors.matchaSoftLime,
+                        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: (avatarUrl != null && avatarUrl.isNotEmpty)
+                            ? Image.network(
+                                avatarUrl,
+                                width: 44,
+                                height: 44,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Container(
+                                  color: AppColors.matchaSoftLime,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    userFirstName.isNotEmpty ? userFirstName[0].toUpperCase() : 'U',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: AppColors.matchaDark,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  userFirstName.isNotEmpty ? userFirstName[0].toUpperCase() : 'U',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: AppColors.matchaDark,
+                                  ),
+                                ),
                               ),
-                            )
-                          : null,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(

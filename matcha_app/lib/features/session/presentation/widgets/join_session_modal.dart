@@ -23,6 +23,33 @@ class JoinSessionModal extends StatefulWidget {
     AuthController? authController,
     required VoidCallback onJoinedSuccess,
   }) {
+    final user = authController?.currentUser;
+    final isAlreadyJoined = (user != null && user.playerId != null && user.playerId! > 0)
+        ? session.registeredPlayers.any((p) => p.playerId == user.playerId || (p.userId != null && p.userId == user.userId))
+        : false;
+
+    if (isAlreadyJoined) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kamu sudah terdaftar di sesi mabar ini!'),
+          backgroundColor: Color(0xFF15803D),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return Future.value();
+    }
+
+    if (session.isFull) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Maaf, kuota slot sesi mabar ini sudah penuh!'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return Future.value();
+    }
+
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -77,6 +104,14 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
 
     try {
       final user = widget.authController?.currentUser;
+      final isAlreadyJoined = (user != null && user.playerId != null && user.playerId! > 0)
+          ? widget.session.registeredPlayers.any((p) => p.playerId == user.playerId || (p.userId != null && p.userId == user.userId))
+          : false;
+
+      if (isAlreadyJoined) {
+        throw Exception('Kamu sudah terdaftar di sesi mabar ini!');
+      }
+
       int playerIdToJoin;
 
       if (user != null && user.playerId != null && user.playerId! > 0) {
