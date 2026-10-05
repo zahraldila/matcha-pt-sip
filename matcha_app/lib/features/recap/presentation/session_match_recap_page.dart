@@ -1856,100 +1856,177 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           ],
         ),
 
-        // Match Result Cards List
-        Column(
-          children: sampleMatches.map((m) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 6),
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.65),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Round ${m.roundNumber}', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.w900, color: Color(0xFFA8E63A))),
-                      Text(m.courtName.isNotEmpty ? m.courtName : 'Court 1', style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: m.isSideAWinner ? const Color(0xFF063B00) : Colors.white.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(6),
-                            border: m.isSideAWinner ? Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.4)) : null,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  m.sideANames.join(' & '),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white),
+        // Match Result Cards List (with fallback if empty)
+        if (sampleMatches.isNotEmpty)
+          Column(
+            children: sampleMatches.map((m) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Round ${m.roundNumber}', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.w900, color: Color(0xFFA8E63A))),
+                        Text(m.courtName.isNotEmpty ? m.courtName : 'Court 1', style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: m.isSideAWinner ? const Color(0xFF063B00) : Colors.white.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(6),
+                              border: m.isSideAWinner ? Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.4)) : null,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    m.sideANames.join(' & '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                '${m.scoreA}',
-                                style: TextStyle(
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.w900,
-                                  color: m.isSideAWinner ? const Color(0xFFA8E63A) : const Color(0xFF94A3B8),
+                                Text(
+                                  '${m.scoreA}',
+                                  style: TextStyle(
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w900,
+                                    color: m.isSideAWinner ? const Color(0xFFA8E63A) : const Color(0xFF94A3B8),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: m.isSideBWinner ? const Color(0xFF063B00) : Colors.white.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(6),
-                            border: m.isSideBWinner ? Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.4)) : null,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  m.sideBNames.join(' & '),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white),
-                                ),
-                              ),
-                              Text(
-                                '${m.scoreB}',
-                                style: TextStyle(
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.w900,
-                                  color: m.isSideBWinner ? const Color(0xFFA8E63A) : const Color(0xFF94A3B8),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: m.isSideBWinner ? const Color(0xFF063B00) : Colors.white.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(6),
+                              border: m.isSideBWinner ? Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.4)) : null,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    m.sideBNames.join(' & '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                ),
+                                Text(
+                                  '${m.scoreB}',
+                                  style: TextStyle(
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w900,
+                                    color: m.isSideBWinner ? const Color(0xFFA8E63A) : const Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.65),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('MATCH SUMMARY', style: TextStyle(fontSize: 7, fontWeight: FontWeight.w900, color: Color(0xFFA8E63A), letterSpacing: 0.5)),
+                    Text('${data.sportName} • ${data.scoringSystem}', style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (data.standings.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF063B00),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('🥇', style: TextStyle(fontSize: 9)),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            data.standings.first.nama,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Color(0xFFFEF08A)),
+                          ),
+                        ),
+                        Text(
+                          '${data.standings.first.matchesWon} Win • ${data.standings.first.pointsFor} Pts',
+                          style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A)),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(height: 5),
+                  if (data.standings.length > 1)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Text('🥈', style: TextStyle(fontSize: 9)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              data.standings[1].nama,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ),
+                          Text(
+                            '${data.standings[1].matchesWon} Win • ${data.standings[1].pointsFor} Pts',
+                            style: const TextStyle(fontSize: 7.5, color: Color(0xFFCBD5E1)),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
-              ),
-            );
-          }).toList(),
-        ),
+              ],
+            ),
+          ),
 
         // Footer
         Text(
