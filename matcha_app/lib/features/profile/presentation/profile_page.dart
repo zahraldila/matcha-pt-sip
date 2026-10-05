@@ -398,46 +398,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             color: Color(0xFF0F172A),
           ),
         ),
-        actions: [
-          // Quick Button: Lihat Match Recap (Matching web)
-          Container(
-            margin: const EdgeInsets.only(right: 12),
-            child: InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MatchRecapPage(authController: widget.authController),
-                  ),
-                );
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.show_chart_rounded, size: 15, color: Color(0xFF063B00)),
-                    SizedBox(width: 4),
-                    Text(
-                      'Match Recap',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF063B00),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(color: const Color(0xFFE2E8F0), height: 1),
@@ -528,6 +488,53 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             height: 1.4,
           ),
         ),
+        const SizedBox(height: 12),
+
+        // Quick Button: Lihat Match Recap (Full-width matching web mobile layout)
+        InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MatchRecapPage(authController: widget.authController),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.show_chart_rounded, size: 18, color: Color(0xFF063B00)),
+                SizedBox(width: 8),
+                Text(
+                  'Lihat Match Recap',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Color(0xFFE2E8F0)),
       ],
     );
   }
