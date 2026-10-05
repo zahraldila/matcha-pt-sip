@@ -1431,6 +1431,8 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                 child: career.avatar.isNotEmpty
                     ? Image.network(
                         career.avatar,
+                        width: 44,
+                        height: 44,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => _buildStoryInitial(career.playerName),
                       )
@@ -1813,6 +1815,8 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
             child: career.avatar.isNotEmpty
                 ? Image.network(
                     career.avatar,
+                    width: 56,
+                    height: 56,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => _buildStoryInitial(career.playerName, size: 22),
                   )
@@ -3013,16 +3017,26 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                       color: const Color(0xFF063B00),
                       border: Border.all(color: const Color(0xFFBEF264), width: 2),
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Image.network(
-                      career.avatar,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Center(
-                        child: Text(
-                          career.playerName.isNotEmpty ? career.playerName[0].toUpperCase() : 'U',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-                        ),
-                      ),
+                    child: ClipOval(
+                      child: career.avatar.isNotEmpty
+                          ? Image.network(
+                              career.avatar,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Center(
+                                child: Text(
+                                  career.playerName.isNotEmpty ? career.playerName[0].toUpperCase() : 'U',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                career.playerName.isNotEmpty ? career.playerName[0].toUpperCase() : 'U',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(width: 12),

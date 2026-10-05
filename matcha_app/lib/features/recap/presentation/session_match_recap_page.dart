@@ -2779,6 +2779,8 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             child: (foto != null && foto.isNotEmpty)
                 ? Image.network(
                     foto,
+                    width: isGold ? 52 : 44,
+                    height: isGold ? 52 : 44,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Container(
                       color: AppColors.matchaSoftLime,
@@ -2836,6 +2838,8 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
               child: (player.foto != null && player.foto!.isNotEmpty)
                   ? Image.network(
                       player.foto!,
+                      width: 32,
+                      height: 32,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Center(
                         child: Text(player.nama.isNotEmpty ? player.nama[0].toUpperCase() : 'P', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
@@ -3001,7 +3005,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 ),
                 child: ClipOval(
                   child: (player.foto != null && player.foto!.isNotEmpty)
-                      ? Image.network(player.foto!, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Center(child: Text(player.nama[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10))))
+                      ? Image.network(player.foto!, width: 28, height: 28, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Center(child: Text(player.nama[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10))))
                       : Center(child: Text(player.nama.isNotEmpty ? player.nama[0].toUpperCase() : 'P', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10))),
                 ),
               ),
@@ -3129,7 +3133,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 ),
                 child: ClipOval(
                   child: (stat.foto != null && stat.foto!.isNotEmpty)
-                      ? Image.network(stat.foto!, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Center(child: Text(stat.nama[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold))))
+                      ? Image.network(stat.foto!, width: 36, height: 36, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Center(child: Text(stat.nama[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold))))
                       : Center(child: Text(stat.nama.isNotEmpty ? stat.nama[0].toUpperCase() : 'P', style: const TextStyle(fontWeight: FontWeight.bold))),
                 ),
               ),
