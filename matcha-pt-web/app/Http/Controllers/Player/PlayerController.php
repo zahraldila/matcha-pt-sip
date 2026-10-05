@@ -283,7 +283,20 @@ class PlayerController extends Controller
         $communityName = $player->community->nama_community ?? 'Personal (Non-Community)';
         $roleName = ($user && $user->role === 'venue_owner') ? 'Venue Owner' : (($user && $user->is_host) ? 'Host Game' : 'Member');
 
-        if (! $player) {
+        // Kumpulkan semua player_id milik user ini (agar semua riwayat mabar tercakup)
+        $playerIds = [];
+        if ($user) {
+            $playerIds = Player::where('user_id', $user->user_id)
+                ->orWhere('email', $user->email)
+                ->orWhere('nama', $user->nama)
+                ->pluck('player_id')
+                ->toArray();
+        }
+        if ($player && ! in_array($player->player_id, $playerIds)) {
+            $playerIds[] = $player->player_id;
+        }
+
+        if (empty($playerIds)) {
             return [
                 'player' => [
                     'name' => $playerName,
@@ -308,7 +321,7 @@ class PlayerController extends Controller
         // Ambil semua partisipasi pertandingan yang match-nya sudah Completed
         $participations = collect([]);
         try {
-            $participations = MatchParticipant::where('player_id', $player->player_id)
+            $participations = MatchParticipant::whereIn('player_id', $playerIds)
                 ->with([
                     'match.drawing.session.sport',
                     'match.drawing.session.venue',
@@ -329,7 +342,7 @@ class PlayerController extends Controller
 
         foreach ($participations as $part) {
             $match = $part->match;
-            if (! $match || strtolower($match->status_match ?? '') !== 'completed') {
+            if (! $match || ! in_array(strtolower($match->status_match ?? ''), ['completed', 'finished'])) {
                 continue;
             }
 
@@ -343,7 +356,7 @@ class PlayerController extends Controller
 
             if (! empty($winnerTeam)) {
                 $winnerSideA = str_contains(strtolower($winnerTeam), 'a');
-                $isWinner = ($isSideA && $winnerSideA) || (! $isSideA && ! $winnerSideA);
+                $isWinner = ($isSideA && winnerSideA) || (! $isSideA && ! winnerSideA);
             } else {
                 // Evaluasi dari tb_score jika winner_team belum terisi eksplisit
                 $scoreA = $match->scores->sum('game_score_a') + $match->scores->sum('set_score_a');
@@ -372,7 +385,7 @@ class PlayerController extends Controller
             $partnerName = 'Solo';
             $opponents = [];
             foreach ($match->participants as $otherPart) {
-                if ($otherPart->player_id == $player->player_id) {
+                if (in_array($otherPart->player_id, $playerIds)) {
                     continue;
                 }
                 $otherSideA = str_contains(strtolower($otherPart->side ?? ''), 'a');

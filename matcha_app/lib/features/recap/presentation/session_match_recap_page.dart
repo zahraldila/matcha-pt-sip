@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -1198,32 +1199,47 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                         return;
                                       }
 
-                                      Directory? targetDir;
-                                      if (Platform.isAndroid) {
-                                        final picturesDir = Directory('/storage/emulated/0/Pictures/Matcha');
-                                        if (!await picturesDir.exists()) {
-                                          try {
-                                            await picturesDir.create(recursive: true);
-                                            targetDir = picturesDir;
-                                          } catch (_) {
-                                            targetDir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
+                                      // 1. Simpan ke Galeri HP via Gal (MediaStore Android / Photos iOS)
+                                      bool savedToGallery = false;
+                                      try {
+                                        final hasAccess = await Gal.hasAccess();
+                                        if (!hasAccess) {
+                                          final granted = await Gal.requestAccess();
+                                          if (!granted) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text('Izin akses galeri diperlukan untuk menyimpan foto ke HP.'),
+                                                  backgroundColor: Color(0xFFE11D48),
+                                                ),
+                                              );
+                                            }
+                                            return;
                                           }
-                                        } else {
-                                          targetDir = picturesDir;
                                         }
-                                      } else {
-                                        targetDir = await getApplicationDocumentsDirectory();
+
+                                        await Gal.putImageBytes(
+                                          pngBytes,
+                                          name: 'matcha_story_${data.sessionId}_${DateTime.now().millisecondsSinceEpoch}',
+                                        );
+                                        savedToGallery = true;
+                                      } catch (galError) {
+                                        debugPrint('Gal save error: $galError');
                                       }
 
+                                      // 2. Simpan juga salinan file lokal untuk aksi Buka/Share
+                                      final tempDir = await getTemporaryDirectory();
                                       final fileName = 'matcha_story_${data.sessionId}_${DateTime.now().millisecondsSinceEpoch}.png';
-                                      final savedFile = File('${targetDir.path}/$fileName');
+                                      final savedFile = File('${tempDir.path}/$fileName');
                                       await savedFile.writeAsBytes(pngBytes);
 
                                       if (context.mounted) {
                                         Navigator.pop(ctx);
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('Gambar story berhasil disimpan ke galeri/storage! 📁✨ (${savedFile.path.split('/').last})'),
+                                            content: Text(savedToGallery
+                                                ? 'Gambar story berhasil tersimpan di Galeri foto HP! 🖼️✨'
+                                                : 'Gambar story berhasil tersimpan di perangkat! 📁✨'),
                                             backgroundColor: const Color(0xFF063B00),
                                             behavior: SnackBarBehavior.floating,
                                             duration: const Duration(seconds: 5),
