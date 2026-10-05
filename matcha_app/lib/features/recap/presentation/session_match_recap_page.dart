@@ -1,7 +1,11 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/app_error_handler.dart';
@@ -665,6 +669,21 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     File? pickedBgImage;
     String overlayFilter = 'contrast'; // 'contrast', 'matcha', 'clean'
     SessionPlayerStanding? selectedPlayer = data.standings.isNotEmpty ? data.standings.first : null;
+    final GlobalKey storyCardKey = GlobalKey();
+    bool isProcessing = false;
+
+    Future<Uint8List?> capturePng() async {
+      try {
+        final boundary = storyCardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        if (boundary == null) return null;
+        final image = await boundary.toImage(pixelRatio: 3.5);
+        final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+        return byteData?.buffer.asUint8List();
+      } catch (e) {
+        debugPrint('Error capturing story: $e');
+        return null;
+      }
+    }
 
     showModalBottomSheet(
       context: context,
@@ -797,13 +816,16 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 ),
                                 const SizedBox(width: 8),
 
-                                // 9:16 Card Container
-                                _buildStoryCardContainer(
-                                  data: data,
-                                  templateIdx: selectedTemplate,
-                                  pickedImage: pickedBgImage,
-                                  overlayFilter: overlayFilter,
-                                  selectedPlayer: selectedPlayer,
+                                // 9:16 Card Container wrapped in RepaintBoundary for high-res screenshot capture
+                                RepaintBoundary(
+                                  key: storyCardKey,
+                                  child: _buildStoryCardContainer(
+                                    data: data,
+                                    templateIdx: selectedTemplate,
+                                    pickedImage: pickedBgImage,
+                                    overlayFilter: overlayFilter,
+                                    selectedPlayer: selectedPlayer,
+                                  ),
                                 ),
 
                                 const SizedBox(width: 8),
@@ -1085,16 +1107,42 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
                           // 6. Export Actions
                           GestureDetector(
-                            onTap: () {
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Story Template siap dibagikan ke Instagram & WhatsApp Story! 📸✨'),
-                                  backgroundColor: Color(0xFF063B00),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
+                            onTap: isProcessing
+                                ? null
+                                : () async {
+                                    setModalState(() => isProcessing = true);
+                                    try {
+                                      final pngBytes = await capturePng();
+                                      if (pngBytes == null) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Gagal membuat gambar template story.')),
+                                          );
+                                        }
+                                        return;
+                                      }
+                                      final tempDir = await getTemporaryDirectory();
+                                      final fileName = 'matcha_story_${data.sessionId}_${DateTime.now().millisecondsSinceEpoch}.png';
+                                      final file = File('${tempDir.path}/$fileName');
+                                      await file.writeAsBytes(pngBytes);
+
+                                      if (context.mounted) {
+                                        Navigator.pop(ctx);
+                                        await Share.shareXFiles(
+                                          [XFile(file.path)],
+                                          text: '🎾 Rekap Mabar: ${data.sessionName}\n🏆 Juara: ${data.standings.isNotEmpty ? data.standings.first.nama : '-'}\n#MatchaApp #MatchaStory',
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Gagal membagikan story: $e')),
+                                        );
+                                      }
+                                    } finally {
+                                      setModalState(() => isProcessing = false);
+                                    }
+                                  },
                             child: Container(
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(vertical: 13),
@@ -1109,14 +1157,21 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                   ),
                                 ],
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.share_rounded, size: 16, color: Color(0xFFA8E63A)),
-                                  SizedBox(width: 6),
+                                  if (isProcessing)
+                                    const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA8E63A)),
+                                    )
+                                  else
+                                    const Icon(Icons.share_rounded, size: 16, color: Color(0xFFA8E63A)),
+                                  const SizedBox(width: 8),
                                   Text(
-                                    'Share Image / Story',
-                                    style: TextStyle(
+                                    isProcessing ? 'Memproses Story...' : 'Share Image / Story',
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.w900,
                                       fontSize: 13,
                                       color: Colors.white,
@@ -1128,16 +1183,70 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                           ),
                           const SizedBox(height: 8),
                           GestureDetector(
-                            onTap: () {
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Gambar story berhasil disimpan dalam resolusi 1080x1920 HD! ⬇️'),
-                                  backgroundColor: Color(0xFF063B00),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
+                            onTap: isProcessing
+                                ? null
+                                : () async {
+                                    setModalState(() => isProcessing = true);
+                                    try {
+                                      final pngBytes = await capturePng();
+                                      if (pngBytes == null) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Gagal merender gambar template story.')),
+                                          );
+                                        }
+                                        return;
+                                      }
+
+                                      Directory? targetDir;
+                                      if (Platform.isAndroid) {
+                                        final picturesDir = Directory('/storage/emulated/0/Pictures/Matcha');
+                                        if (!await picturesDir.exists()) {
+                                          try {
+                                            await picturesDir.create(recursive: true);
+                                            targetDir = picturesDir;
+                                          } catch (_) {
+                                            targetDir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
+                                          }
+                                        } else {
+                                          targetDir = picturesDir;
+                                        }
+                                      } else {
+                                        targetDir = await getApplicationDocumentsDirectory();
+                                      }
+
+                                      final fileName = 'matcha_story_${data.sessionId}_${DateTime.now().millisecondsSinceEpoch}.png';
+                                      final savedFile = File('${targetDir.path}/$fileName');
+                                      await savedFile.writeAsBytes(pngBytes);
+
+                                      if (context.mounted) {
+                                        Navigator.pop(ctx);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Gambar story berhasil disimpan ke galeri/storage! 📁✨ (${savedFile.path.split('/').last})'),
+                                            backgroundColor: const Color(0xFF063B00),
+                                            behavior: SnackBarBehavior.floating,
+                                            duration: const Duration(seconds: 5),
+                                            action: SnackBarAction(
+                                              label: 'Buka/Share',
+                                              textColor: const Color(0xFFA8E63A),
+                                              onPressed: () {
+                                                Share.shareXFiles([XFile(savedFile.path)]);
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Gagal menyimpan gambar: $e')),
+                                        );
+                                      }
+                                    } finally {
+                                      setModalState(() => isProcessing = false);
+                                    }
+                                  },
                             child: Container(
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(vertical: 10),
