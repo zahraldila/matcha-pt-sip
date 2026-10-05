@@ -74,6 +74,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
       final careerFuture = _recapService.getPlayerCareerRecap(
         user.userId,
         playerId: user.playerId,
+        userEmail: user.email,
         userNama: user.nama,
         userFoto: user.foto,
         userRole: user.role == 'venue_owner'

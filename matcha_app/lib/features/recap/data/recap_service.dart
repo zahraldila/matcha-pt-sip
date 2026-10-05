@@ -154,38 +154,96 @@ class RecapService {
     }
   }
 
-  /// Mengambil data performa karier pemain dari database
+  /// Mengambil data performa karier pemain dari database (persis seperti PlayerController di matcha-pt-web)
   Future<PlayerCareerRecapData> getPlayerCareerRecap(
     int userId, {
     int? playerId,
+    String? userEmail,
     String? userNama,
     String? userFoto,
     String? userRole,
     String? userLevel,
   }) async {
     try {
-      final playerName = userNama ?? 'Pemain Matcha';
-      final username = '@${playerName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_')}';
-      final avatar = (userFoto != null && userFoto.isNotEmpty)
-          ? userFoto
-          : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
-
-      int? targetPlayerId = playerId;
+      String playerName = userNama ?? 'Pemain Matcha';
       String currentLevel = userLevel ?? 'Intermediate';
+      String? playerAvatar = (userFoto != null && userFoto.isNotEmpty) ? userFoto : null;
 
-      if (targetPlayerId == null) {
-        final pRes = await _supabase
+      // 1. Kumpulkan SEMUA player_id milik user ini (user_id, email, atau nama)
+      // Hal ini krusial karena satu user sering memiliki beberapa player_id historis di database
+      final Set<int> allPlayerIds = {};
+      if (playerId != null) allPlayerIds.add(playerId);
+
+      // Cek via user_id
+      try {
+        final pUserRes = await _supabase
             .from('tb_player')
-            .select('player_id, nama, level, foto')
+            .select('player_id, nama, level, foto, email, user_id')
             .eq('user_id', userId);
-        if (pRes.isNotEmpty) {
-          final first = pRes.first;
-          targetPlayerId = _toNullableInt(first['player_id']);
-          if (first['level'] != null) currentLevel = first['level'].toString();
+        for (final p in pUserRes as List<dynamic>) {
+          final pid = _toNullableInt(p['player_id']);
+          if (pid != null) allPlayerIds.add(pid);
+          if (p['nama'] != null && p['nama'].toString().isNotEmpty && playerName == 'Pemain Matcha') {
+            playerName = p['nama'].toString();
+          }
+          if (p['level'] != null && p['level'].toString().isNotEmpty) {
+            currentLevel = p['level'].toString();
+          }
+          if (playerAvatar == null && p['foto'] != null && p['foto'].toString().isNotEmpty) {
+            playerAvatar = p['foto'].toString();
+          }
         }
+      } catch (_) {}
+
+      // Cek via email (seperti di web PlayerController)
+      if (userEmail != null && userEmail.trim().isNotEmpty) {
+        try {
+          final pEmailRes = await _supabase
+              .from('tb_player')
+              .select('player_id, nama, level, foto, email, user_id')
+              .eq('email', userEmail.trim().toLowerCase());
+          for (final p in pEmailRes as List<dynamic>) {
+            final pid = _toNullableInt(p['player_id']);
+            if (pid != null) allPlayerIds.add(pid);
+            if (p['nama'] != null && p['nama'].toString().isNotEmpty && playerName == 'Pemain Matcha') {
+              playerName = p['nama'].toString();
+            }
+            if (p['level'] != null && p['level'].toString().isNotEmpty) {
+              currentLevel = p['level'].toString();
+            }
+            if (playerAvatar == null && p['foto'] != null && p['foto'].toString().isNotEmpty) {
+              playerAvatar = p['foto'].toString();
+            }
+          }
+        } catch (_) {}
       }
 
-      if (targetPlayerId == null) {
+      // Cek via nama
+      if (playerName.isNotEmpty && playerName != 'Pemain Matcha') {
+        try {
+          final pNamaRes = await _supabase
+              .from('tb_player')
+              .select('player_id, nama, level, foto, email, user_id')
+              .ilike('nama', playerName.trim());
+          for (final p in pNamaRes as List<dynamic>) {
+            final pid = _toNullableInt(p['player_id']);
+            if (pid != null) allPlayerIds.add(pid);
+            if (p['level'] != null && p['level'].toString().isNotEmpty) {
+              currentLevel = p['level'].toString();
+            }
+            if (playerAvatar == null && p['foto'] != null && p['foto'].toString().isNotEmpty) {
+              playerAvatar = p['foto'].toString();
+            }
+          }
+        } catch (_) {}
+      }
+
+      final username = '@${playerName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_')}';
+      final avatar = (playerAvatar != null && playerAvatar.isNotEmpty)
+          ? playerAvatar
+          : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
+
+      if (allPlayerIds.isEmpty) {
         return PlayerCareerRecapData(
           playerName: playerName,
           username: username,
@@ -204,60 +262,88 @@ class RecapService {
         );
       }
 
-      final partsResponse = await _supabase
+      // 2. Ambil data partisipasi pertandingan dari SEMUA player_id milik user
+      final simpleParts = await _supabase
           .from('tb_match_participant')
+          .select('match_id, player_id, side')
+          .inFilter('player_id', allPlayerIds.toList());
+
+      final partsList = simpleParts as List<dynamic>;
+      if (partsList.isEmpty) {
+        return PlayerCareerRecapData(
+          playerName: playerName,
+          username: username,
+          role: userRole ?? 'Member',
+          level: currentLevel,
+          avatar: avatar,
+          totalMatches: 0,
+          wins: 0,
+          losses: 0,
+          winRate: '0%',
+          totalHours: '0 Jam',
+          streak: '0 Match',
+          hasMatches: false,
+          recentMatches: [],
+          headToHead: [],
+        );
+      }
+
+      final Map<int, String> mySidePerMatch = {};
+      final Set<int> matchIdSet = {};
+      for (final p in partsList) {
+        final mId = _toNullableInt(p['match_id']);
+        if (mId != null) {
+          matchIdSet.add(mId);
+          mySidePerMatch[mId] = (p['side']?.toString()) ?? 'Team A';
+        }
+      }
+
+      // 3. Ambil data detail pertandingan dari tb_match
+      final matchesList = await _supabase
+          .from('tb_match')
           .select('''
-            *,
-            tb_match (
-              match_id,
-              status_match,
-              winner_team,
-              hasil_pertandingan,
-              updated_at,
-              tb_drawing (
-                tb_session (
-                  nama_session,
-                  datetime,
-                  tb_sport (nama_sport),
-                  tb_venue (nama_venue)
-                )
-              ),
-              tb_score (
-                *
-              ),
-              tb_match_participant (
-                player_id,
-                side,
-                tb_player (
-                  player_id,
-                  nama,
-                  level,
-                  foto
-                )
+            match_id,
+            drawing_id,
+            status_match,
+            winner_team,
+            hasil_pertandingan,
+            updated_at,
+            tb_score (*),
+            tb_match_participant (
+              player_id,
+              side,
+              tb_player (player_id, nama, level, foto)
+            ),
+            tb_drawing (
+              session_id,
+              tb_session (
+                session_id,
+                nama_session,
+                datetime,
+                tb_sport (nama_sport),
+                tb_venue (nama_venue)
               )
             )
           ''')
-          .eq('player_id', targetPlayerId);
-
-      final List<dynamic> rawParts = partsResponse as List<dynamic>;
+          .inFilter('match_id', matchIdSet.toList())
+          .order('match_id', ascending: true);
 
       int totalWins = 0;
       int totalLosses = 0;
-      int currentStreak = 0;
       final Map<String, Map<String, dynamic>> headToHeadMap = {};
-      final List<PlayerMatchHistoryItem> completedMatches = [];
+      final List<Map<String, dynamic>> rawCompletedList = [];
 
-      for (final part in rawParts) {
-        final pMap = Map<String, dynamic>.from(part as Map);
-        final match = pMap['tb_match'] as Map<String, dynamic>?;
-        if (match == null) continue;
+      for (final rawMatch in matchesList as List<dynamic>) {
+        final match = Map<String, dynamic>.from(rawMatch as Map);
+        final matchId = _toInt(match['match_id']);
 
         final statusMatch = (match['status_match']?.toString())?.toLowerCase() ?? '';
-        if (statusMatch != 'completed' && statusMatch != 'finished') continue;
+        if (!statusMatch.contains('complete') && !statusMatch.contains('finish')) continue;
 
-        final mySide = (pMap['side']?.toString()) ?? 'Team A';
+        final mySide = mySidePerMatch[matchId] ?? 'Team A';
         final isSideA = mySide.toLowerCase().contains('a');
 
+        // Evaluasi pemenang persis seperti PlayerController di web
         final winnerTeam = (match['winner_team']?.toString()) ?? '';
         bool isWinner = false;
         bool isDraw = false;
@@ -285,12 +371,11 @@ class RecapService {
 
         if (isWinner) {
           totalWins++;
-          currentStreak++;
         } else if (!isDraw) {
           totalLosses++;
-          currentStreak = 0;
         }
 
+        // Cari partner dan lawan bermain
         String partnerName = 'Solo';
         final List<String> opponents = [];
 
@@ -298,7 +383,7 @@ class RecapService {
         for (final other in allParts) {
           final oMap = other as Map<String, dynamic>;
           final oPlayerId = _toNullableInt(oMap['player_id']);
-          if (oPlayerId == targetPlayerId) continue;
+          if (oPlayerId != null && allPlayerIds.contains(oPlayerId)) continue; // Diri sendiri
 
           final oSide = (oMap['side']?.toString()) ?? '';
           final oSideA = oSide.toLowerCase().contains('a');
@@ -322,6 +407,7 @@ class RecapService {
           }
         }
 
+        // Info sesi & cabang olahraga
         final drawing = match['tb_drawing'] as Map<String, dynamic>?;
         final session = drawing?['tb_session'] as Map<String, dynamic>?;
         final sportMap = session?['tb_sport'] as Map<String, dynamic>?;
@@ -339,7 +425,8 @@ class RecapService {
         final matchDate = dt != null ? formatDate(dt) : 'Hari Ini';
         final timestamp = dt != null ? dt.millisecondsSinceEpoch : 0;
 
-        String scoreDisplay = (match['hasil_pertandingan']?.toString()) ?? 'Set Selesai';
+        // Hitung format skor (persis web: sum game_score atau hasil_pertandingan)
+        String scoreDisplay = (match['hasil_pertandingan']?.toString()) ?? '';
         final scoresList = match['tb_score'] as List<dynamic>? ?? [];
         if (scoresList.isNotEmpty) {
           int sumA = 0;
@@ -351,27 +438,58 @@ class RecapService {
           }
           scoreDisplay = isSideA ? '$sumA - $sumB' : '$sumB - $sumA';
         }
+        if (scoreDisplay.isEmpty) scoreDisplay = 'Set Selesai';
 
-        completedMatches.add(
-          PlayerMatchHistoryItem(
-            sport: sportName,
-            venue: venueName,
-            result: isWinner ? 'WIN' : (isDraw ? 'DRAW' : 'LOSE'),
-            score: scoreDisplay,
-            partner: partnerName,
-            opponents: opponents.isNotEmpty ? opponents : ['Lawan'],
-            matchDate: matchDate,
-            timestamp: timestamp,
-          ),
-        );
+        rawCompletedList.add({
+          'sport': sportName,
+          'venue': venueName,
+          'result': isWinner ? 'WIN' : (isDraw ? 'DRAW' : 'LOSE'),
+          'score': scoreDisplay,
+          'partner': partnerName,
+          'opponents': opponents.isNotEmpty ? opponents : ['Lawan'],
+          'matchDate': matchDate,
+          'timestamp': timestamp,
+          'isWinner': isWinner,
+          'isDraw': isDraw,
+        });
       }
 
-      completedMatches.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      // Hitung streak secara kronologis (dari pertandingan terlama ke terbaru)
+      rawCompletedList.sort((a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
+      int currentStreak = 0;
+      for (final item in rawCompletedList) {
+        if (item['isWinner'] == true) {
+          currentStreak++;
+        } else {
+          currentStreak = 0;
+        }
+      }
+
+      // Urutkan riwayat pertandingan dari yang paling baru (descending)
+      rawCompletedList.sort((a, b) => (b['timestamp'] as int).compareTo(a['timestamp'] as int));
+      final List<PlayerMatchHistoryItem> completedMatches = rawCompletedList.map((m) {
+        return PlayerMatchHistoryItem(
+          sport: m['sport'] as String,
+          venue: m['venue'] as String,
+          result: m['result'] as String,
+          score: m['score'] as String,
+          partner: m['partner'] as String,
+          opponents: List<String>.from(m['opponents'] as List),
+          matchDate: m['matchDate'] as String,
+          timestamp: m['timestamp'] as int,
+        );
+      }).toList();
+
       final totalMatches = completedMatches.length;
       final winRatePercent = totalMatches > 0 ? ((totalWins / totalMatches) * 100).round() : 0;
-      final totalHours = totalMatches > 0 ? '${(totalMatches * 0.5).toStringAsFixed(totalMatches % 2 == 0 ? 0 : 1)} Jam' : '0 Jam';
-      final streakDisplay = currentStreak > 0 ? '🔥 $currentStreak Win Streak' : (totalMatches > 0 ? '0 Win Streak' : '0 Match');
+      final totalHours = totalMatches > 0
+          ? '${(totalMatches * 0.5).toStringAsFixed(totalMatches % 2 == 0 ? 0 : 1)} Jam'
+          : '0 Jam';
+      final streakDisplay = currentStreak > 0
+          ? '🔥 $currentStreak Win Streak'
+          : (totalMatches > 0 ? '0 Win Streak' : '0 Match');
 
+      // Head to Head (diurutkan berdasarkan jumlah main terbanyak, top 5)
       final List<HeadToHeadItem> headToHeadList = [];
       for (final entry in headToHeadMap.values) {
         final played = _toInt(entry['played']);
