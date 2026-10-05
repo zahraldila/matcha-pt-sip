@@ -362,22 +362,48 @@ class SessionService {
     String? noHp,
   }) async {
     try {
-      final res = await _supabase
-          .from('tb_player')
-          .insert({
-            'nama': nama,
-            'gender': gender,
-            'level': level,
-            'usia': usia,
-            'no_hp': noHp,
-            'user_id': null, // Guest player tidak punya user_id
-          })
-          .select('player_id')
-          .single();
+      final payload = <String, dynamic>{
+        'nama': nama.trim(),
+        'gender': gender,
+        'level': level,
+        'rating': 1200,
+        if (usia != null) 'usia': usia,
+        if (noHp != null && noHp.trim().isNotEmpty) 'no_hp': noHp.trim(),
+        'user_id': null, // Guest player tidak punya user_id
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
 
-      return res['player_id'] as int;
+      try {
+        final res = await _supabase
+            .from('tb_player')
+            .insert(payload)
+            .select('player_id')
+            .single();
+        return res['player_id'] is int
+            ? res['player_id'] as int
+            : int.parse(res['player_id'].toString());
+      } catch (_) {
+        // Fallback with minimal essential fields if any extra columns differ
+        final minimalPayload = <String, dynamic>{
+          'nama': nama.trim(),
+          'gender': gender,
+          'level': level,
+          'user_id': null,
+        };
+        final res = await _supabase
+            .from('tb_player')
+            .insert(minimalPayload)
+            .select('player_id')
+            .single();
+        return res['player_id'] is int
+            ? res['player_id'] as int
+            : int.parse(res['player_id'].toString());
+      }
     } on PostgrestException catch (e) {
       throw Exception('Gagal mendaftarkan pemain tamu: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan mendaftarkan tamu: $e');
     }
   }
 
@@ -499,6 +525,142 @@ class SessionService {
       throw Exception('Gagal membuat sesi mabar: ${e.message}');
     } catch (e) {
       throw Exception('Terjadi kesalahan: $e');
+    }
+  }
+
+  /// Membuat sesi pertandingan Host Game dari Wizard dan menyimpannya ke Supabase
+  Future<int> createHostGameSession({
+    required int sportId,
+    required int venueId,
+    int? courtId,
+    required String namaSession,
+    required String scoringSystem,
+    required String jenisPermainan,
+    required String playMode,
+    required int jumlahPemain,
+    String statusSession = 'In Progress',
+    int? hostUserId,
+    int? hostPlayerId,
+    List<int>? playerIds,
+  }) async {
+    try {
+      final now = DateTime.now();
+      final dateStr =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final jamStr =
+          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      final waktuSession = '$jamStr WIB (2 Jam)';
+      final dateTimeStr = '$dateStr $jamStr:00';
+
+      final random = Random.secure();
+      final values = List<int>.generate(16, (i) => random.nextInt(256));
+      final generatedToken = values.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+
+      // 1. Insert session
+      final sessionRes = await _supabase
+          .from('tb_session')
+          .insert({
+            'host_user_id': hostUserId,
+            'sport_id': sportId,
+            'venue_id': venueId,
+            'nama_session': namaSession,
+            'waktu_session': waktuSession,
+            'datetime': dateTimeStr,
+            'status_session': statusSession,
+            'jumlah_pemain': jumlahPemain.toString(),
+            'jenis_permainan': playMode.isNotEmpty ? playMode : jenisPermainan,
+            'scoring_system': scoringSystem,
+            'share_token': generatedToken,
+          })
+          .select('session_id')
+          .single();
+
+      final sessionId = sessionRes['session_id'] is int
+          ? sessionRes['session_id'] as int
+          : int.parse(sessionRes['session_id'].toString());
+
+      // 2. Hubungkan court ke session di tb_session_court
+      int? effectiveCourtId = courtId;
+      if (effectiveCourtId == null || effectiveCourtId <= 0) {
+        try {
+          final courtRes = await _supabase
+              .from('tb_court')
+              .select('court_id')
+              .eq('venue_id', venueId)
+              .limit(1)
+              .maybeSingle();
+          if (courtRes != null && courtRes['court_id'] != null) {
+            effectiveCourtId = courtRes['court_id'] as int;
+          }
+        } catch (_) {}
+      }
+
+      if (effectiveCourtId != null && effectiveCourtId > 0) {
+        try {
+          await _supabase.from('tb_session_court').insert({
+            'session_id': sessionId,
+            'court_id': effectiveCourtId,
+          });
+        } catch (_) {}
+      }
+
+      // 3. Daftarkan semua player ke tb_session_player
+      final Set<int> allPlayerIds = {};
+      if (hostPlayerId != null && hostPlayerId > 0) {
+        allPlayerIds.add(hostPlayerId);
+      } else if (hostUserId != null) {
+        try {
+          final pRes = await _supabase
+              .from('tb_player')
+              .select('player_id')
+              .eq('user_id', hostUserId)
+              .maybeSingle();
+          if (pRes != null && pRes['player_id'] != null) {
+            allPlayerIds.add(pRes['player_id'] as int);
+          }
+        } catch (_) {}
+      }
+
+      if (playerIds != null) {
+        for (final pId in playerIds) {
+          if (pId > 0) allPlayerIds.add(pId);
+        }
+      }
+
+      for (final pId in allPlayerIds) {
+        try {
+          await _supabase.from('tb_session_player').insert({
+            'session_id': sessionId,
+            'player_id': pId,
+          });
+        } catch (_) {}
+      }
+
+      return sessionId;
+    } on PostgrestException catch (e) {
+      throw Exception('Gagal membuat sesi host game: ${e.message}');
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
+    }
+  }
+
+  /// Mengubah status sesi mabar (misal: 'In Progress', 'Finished', 'Cancelled')
+  Future<void> updateSessionStatus(int sessionId, String status) async {
+    try {
+      await _supabase
+          .from('tb_session')
+          .update({
+            'status_session': status,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('session_id', sessionId);
+    } catch (_) {
+      try {
+        await _supabase
+            .from('tb_session')
+            .update({'status_session': status})
+            .eq('session_id', sessionId);
+      } catch (_) {}
     }
   }
 
