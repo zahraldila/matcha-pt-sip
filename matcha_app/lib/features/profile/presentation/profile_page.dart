@@ -784,44 +784,44 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Avatar with camera badge
-              Stack(
-                children: [
-                  Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: displayImage != null ? Colors.transparent : const Color(0xFF063B00),
-                      border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+              // Avatar with camera badge (clickable directly)
+              GestureDetector(
+                onTap: _showImageSourceDialog,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: displayImage != null ? Colors.transparent : const Color(0xFF063B00),
+                        border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: displayImage != null
+                            ? Image(
+                                image: displayImage,
+                                width: 76,
+                                height: 76,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Container(
+                                  color: const Color(0xFF063B00),
+                                  child: _buildAvatarFallback(user.nama),
+                                ),
+                              )
+                            : _buildAvatarFallback(user.nama),
+                      ),
                     ),
-                    child: ClipOval(
-                      child: displayImage != null
-                          ? Image(
-                              image: displayImage,
-                              width: 76,
-                              height: 76,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => Container(
-                                color: const Color(0xFF063B00),
-                                child: _buildAvatarFallback(user.nama),
-                              ),
-                            )
-                          : _buildAvatarFallback(user.nama),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: GestureDetector(
-                      onTap: _showImageSourceDialog,
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
                       child: Container(
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
@@ -832,8 +832,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                         child: const Icon(Icons.camera_alt_rounded, size: 13, color: Color(0xFFA8E63A)),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(width: 14),
 
@@ -889,61 +889,32 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 10),
-
-                    // Avatar action buttons (Pilih Foto & Hapus Foto)
-                    Row(
-                      children: [
-                        InkWell(
-                          onTap: _showImageSourceDialog,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFCBD5E1)),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.cloud_upload_outlined, size: 13, color: Color(0xFF334155)),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Pilih Foto',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
-                                ),
-                              ],
-                            ),
+                    if (displayImage != null) ...[
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: _handleRemoveFoto,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFFECACA)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.delete_outline_rounded, size: 13, color: Color(0xFFDC2626)),
+                              SizedBox(width: 4),
+                              Text(
+                                'Hapus Foto',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        if (displayImage != null)
-                          InkWell(
-                            onTap: _handleRemoveFoto,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFFFECACA)),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.delete_outline_rounded, size: 13, color: Color(0xFFDC2626)),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'Hapus Foto',
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ],
                 ),
               ),
