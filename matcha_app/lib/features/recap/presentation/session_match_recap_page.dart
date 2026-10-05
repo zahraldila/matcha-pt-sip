@@ -12,6 +12,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/app_error_handler.dart';
 import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
+import '../../main/presentation/main_shell_page.dart';
 import '../../session/domain/session_model.dart';
 import '../data/recap_service.dart';
 import '../domain/recap_models.dart';
@@ -123,27 +124,47 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A), size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Detail Mabar',
-          style: TextStyle(
-            color: Color(0xFF0F172A),
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-          ),
+  void _handleBackNavigation() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MainShellPage(
+          authController: widget.authController,
+          initialIndex: 1, // Tab 1: Sesi Mabar
         ),
       ),
+      (route) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _handleBackNavigation();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A), size: 20),
+            onPressed: _handleBackNavigation,
+          ),
+          title: const Text(
+            'Detail Mabar',
+            style: TextStyle(
+              color: Color(0xFF0F172A),
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
+        ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.matchaDark))
           : _errorMessage != null && _data == null
@@ -197,34 +218,15 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         ),
                       ),
                     ),
+      ),
     );
   }
 
   /// 0. Top Action Breadcrumbs Row (Matching Web /scoring/recap layout)
   Widget _buildTopActionBreadcrumbsRow(SessionMatchRecapData data) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        // Kembali ke Daftar Mabar
-        GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.arrow_back_rounded, size: 13, color: Color(0xFF64748B)),
-              SizedBox(width: 4),
-              Text(
-                'Kembali ke Daftar Mabar',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-        ),
-
         // Badges & Actions (Match Finished + Bagikan Button)
         Row(
           mainAxisSize: MainAxisSize.min,
