@@ -148,26 +148,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
-            onPressed: _isLoading ? null : _loadData,
-            tooltip: 'Muat Ulang',
-          ),
-          if (isHost)
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.matchaDark),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CreateSessionPage(authController: widget.authController),
-                  ),
-                ).then((_) => _loadData());
-              },
-              tooltip: 'Buat Sesi Mabar',
-            ),
-        ],
+        actions: const [],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.matchaDark))
