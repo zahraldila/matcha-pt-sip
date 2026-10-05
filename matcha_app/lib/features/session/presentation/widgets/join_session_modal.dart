@@ -150,9 +150,10 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
+      final errorMsg = e.toString().replaceFirst('Exception: ', '');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal gabung sesi: $e'),
+          content: Text('Gagal gabung sesi: $errorMsg'),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
         ),

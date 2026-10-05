@@ -291,7 +291,10 @@ class SessionService {
           .eq('session_id', sessionId)
           .single();
 
-      final maxPlayers = (sessionData['jumlah_pemain'] as num?)?.toInt() ?? 6;
+      final rawJumlah = sessionData['jumlah_pemain'];
+      final maxPlayers = (rawJumlah is num)
+          ? rawJumlah.toInt()
+          : (rawJumlah is String ? (int.tryParse(rawJumlah) ?? 6) : 6);
       final status = (sessionData['status_session'] ?? 'Open').toString().toLowerCase();
       if (status == 'closed' || status == 'completed' || status == 'cancelled') {
         throw Exception('Sesi mabar sudah ditutup atau dibatalkan.');
@@ -300,7 +303,7 @@ class SessionService {
       // 2. Cek apakah player_id ini sudah terdaftar di sesi ini
       final existing = await _supabase
           .from('tb_session_player')
-          .select('session_player_id')
+          .select('player_id')
           .eq('session_id', sessionId)
           .eq('player_id', playerId)
           .maybeSingle();
@@ -336,7 +339,7 @@ class SessionService {
       // 4. Cek total pemain saat ini agar tidak melebihi kuota
       final currentPlayers = await _supabase
           .from('tb_session_player')
-          .select('session_player_id')
+          .select('player_id')
           .eq('session_id', sessionId);
 
       if ((currentPlayers as List).length >= maxPlayers) {
