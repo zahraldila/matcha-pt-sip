@@ -150,10 +150,6 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
         setState(() {
           _venues = venues;
           _isLoadingVenues = false;
-          if (venues.isNotEmpty && _config.venueId == null) {
-            _config.venueId = venues.first.venueId;
-            _config.venueName = venues.first.namaVenue;
-          }
         });
       }
     } catch (_) {
@@ -302,6 +298,20 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                                     textAlign: TextAlign.center,
                                     style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                                   ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      _showQuickAddVenueModal();
+                                    },
+                                    icon: const Icon(Icons.add_rounded, size: 16),
+                                    label: const Text('Tambah Venue Cepat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.matchaDark,
+                                      foregroundColor: const Color(0xFFA8E63A),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -381,7 +391,472 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                             },
                           ),
                   ),
+
+                  // Bottom sticky banner: Input Venue Baru (Persis seperti web)
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border(top: BorderSide(color: Colors.grey.shade100)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          offset: const Offset(0, -3),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showQuickAddVenueModal();
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4FBEA),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFD6F3B0)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.add_circle_outline_rounded, size: 18, color: AppColors.matchaDark),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Input Venue Baru',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.matchaDark,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.matchaDark,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '+ Baru',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showQuickAddVenueModal() {
+    final venueNameCtrl = TextEditingController();
+    final cityCtrl = TextEditingController();
+    final addressCtrl = TextEditingController();
+    String selectedSportName = _config.sport.isNotEmpty ? _config.sport : 'Padel';
+    int? numberOfCourts = 2; // Default 2 courts like web
+    bool isAddingVenue = false;
+    String? errorMessage;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(modalCtx).viewInsets.bottom),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(22, 20, 22, 28),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header (Matches Web)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEBF8D8),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.add_business_rounded,
+                                size: 20,
+                                color: AppColors.matchaDark,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Tambah Venue Baru',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                                Text(
+                                  'Daftarkan venue & court secara instan',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(modalCtx),
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Nama Venue *
+                    _buildSectionLabel('Nama Venue *'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: venueNameCtrl,
+                      onChanged: (_) {
+                        if (errorMessage != null) {
+                          setModalState(() => errorMessage = null);
+                        }
+                      },
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      decoration: InputDecoration(
+                        hintText: 'Contoh: Matcha Padel Arena Dago',
+                        hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        prefixIcon: const Icon(Icons.apartment_rounded, color: Color(0xFF94A3B8), size: 18),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Cabang Olahraga & Jumlah Court
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionLabel('Cabang Olahraga *'),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: selectedSportName,
+                                    isExpanded: true,
+                                    items: const [
+                                      DropdownMenuItem(value: 'Padel', child: Text('Padel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                      DropdownMenuItem(value: 'Tennis', child: Text('Tennis', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) setModalState(() => selectedSportName = val);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionLabel('Jumlah Court *'),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<int>(
+                                    value: numberOfCourts,
+                                    isExpanded: true,
+                                    items: const [
+                                      DropdownMenuItem(value: 1, child: Text('1 Court', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                      DropdownMenuItem(value: 2, child: Text('2 Courts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                      DropdownMenuItem(value: 3, child: Text('3 Courts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                      DropdownMenuItem(value: 4, child: Text('4 Courts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                      DropdownMenuItem(value: 5, child: Text('5 Courts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                      DropdownMenuItem(value: 6, child: Text('6 Courts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) setModalState(() => numberOfCourts = val);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Kota / Wilayah & Alamat Singkat
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionLabel('Kota / Wilayah'),
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: cityCtrl,
+                                style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                                decoration: InputDecoration(
+                                  hintText: 'Contoh: Bandung',
+                                  hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                  filled: true,
+                                  fillColor: const Color(0xFFF8FAFC),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionLabel('Alamat Singkat'),
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: addressCtrl,
+                                style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                                decoration: InputDecoration(
+                                  hintText: 'Contoh: Jl. Ir. H. Juanda No. 10',
+                                  hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                  filled: true,
+                                  fillColor: const Color(0xFFF8FAFC),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Info Box (Matches Web)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4FBEA),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFD6F3B0)),
+                      ),
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline_rounded, color: AppColors.matchaDark, size: 16),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Sistem otomatis mendaftarkan court (Court 1, Court 2, dst) dan langsung memilih venue ini untuk sesi game Anda.',
+                              style: TextStyle(
+                                color: AppColors.matchaDark,
+                                fontSize: 11,
+                                height: 1.3,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFECACA)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+
+                    // Action Buttons (Batal & Simpan & Pilih)
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: SizedBox(
+                            height: 44,
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(modalCtx),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text('Batal', style: TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.bold, fontSize: 13)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: SizedBox(
+                            height: 44,
+                            child: ElevatedButton(
+                              onPressed: isAddingVenue
+                                  ? null
+                                  : () async {
+                                      if (venueNameCtrl.text.trim().isEmpty) {
+                                        setModalState(() => errorMessage = 'Nama venue wajib diisi');
+                                        return;
+                                      }
+                                      if (numberOfCourts == null || numberOfCourts! <= 0) {
+                                        setModalState(() => errorMessage = 'Jumlah court wajib dipilih');
+                                        return;
+                                      }
+
+                                      setModalState(() {
+                                        isAddingVenue = true;
+                                        errorMessage = null;
+                                      });
+
+                                      try {
+                                        final targetSportId = selectedSportName.toLowerCase() == 'tennis' ? 2 : 1;
+                                        final newVenue = await _venueService.quickAddVenue(
+                                          namaVenue: venueNameCtrl.text.trim(),
+                                          kota: cityCtrl.text.trim().isNotEmpty ? cityCtrl.text.trim() : 'Bandung',
+                                          alamat: addressCtrl.text.trim(),
+                                          numberOfCourts: numberOfCourts!,
+                                          sportId: targetSportId,
+                                          ownerUserId: widget.authController?.currentUser?.userId,
+                                        );
+
+                                        if (modalCtx.mounted) {
+                                          Navigator.pop(modalCtx);
+                                        }
+                                        if (!mounted) return;
+
+                                        final updatedVenues = await _venueService.getVenues();
+                                        if (!mounted) return;
+
+                                        setState(() {
+                                          _venues = updatedVenues;
+                                          _config.venueId = newVenue.venueId;
+                                          _config.venueName = newVenue.namaVenue;
+                                        });
+
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Venue "${newVenue.namaVenue}" berhasil ditambahkan & dipilih! 🎉'),
+                                            backgroundColor: AppColors.matchaDark,
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        if (modalCtx.mounted) {
+                                          setModalState(() {
+                                            isAddingVenue = false;
+                                            errorMessage = 'Gagal menambah venue: $e';
+                                          });
+                                        }
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.matchaDark,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
+                              child: isAddingVenue
+                                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.save_rounded, size: 16),
+                                        SizedBox(width: 6),
+                                        Text('Simpan & Pilih', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      ],
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -452,6 +927,18 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
   }
 
   void _onGenerateDrawing() {
+    if (_config.venueId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Silakan pilih venue terlebih dahulu.'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      setState(() => _currentStep = 3);
+      return;
+    }
+
     final minRequired = _config.playMode == 'Single' ? 2 : 4;
     if (_config.players.length < minRequired) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -885,267 +1372,350 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
 
   // --- STEP 3: GAME CONFIG ---
   Widget _buildStep3GameConfig() {
-    final isActivityNameValid = _activityNameController.text.trim().isNotEmpty;
-
     return ListView(
       key: const ValueKey(3),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
       children: [
         // Selected Format Banner
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            children: [
-              Text(
-                'SELECTED FORMAT',
-                style: AppTextStyles.caption.copyWith(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.1,
-                  color: const Color(0xFF94A3B8),
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.matchaDark.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              const SizedBox(height: 4),
-              Text(
-                _config.gameType,
-                style: AppTextStyles.h2.copyWith(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF0F172A),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.matchaSoftLime,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.sports_tennis_rounded, color: AppColors.matchaDark, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'FORMAT PERTANDINGAN',
+                      style: AppTextStyles.caption.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
+                        color: const Color(0xFF94A3B8),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_config.sport} • ${_config.gameType}',
+                      style: AppTextStyles.h2.copyWith(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 18),
-
-        // Activity Name
-        _buildSectionLabel('Activity Name'),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _activityNameController,
-          onChanged: (val) => _config.activityName = val,
-          decoration: InputDecoration(
-            hintText: 'Contoh: ${_config.sport} Weekend Fun / Tenis ITB',
-            hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5),
-            ),
-          ),
-        ),
         const SizedBox(height: 16),
 
-        // Numbers of Court
-        _buildSectionLabel('Numbers of Court'),
-        const SizedBox(height: 6),
+        // Form Card (matching create_session_page style)
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<int>(
-              value: _config.courtCount,
-              isExpanded: true,
-              items: [1, 2, 3, 4].map((count) {
-                return DropdownMenuItem<int>(
-                  value: count,
-                  child: Text('$count Court', style: const TextStyle(fontSize: 13)),
-                );
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) setState(() => _config.courtCount = val);
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Venue
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildSectionLabel('Venue'),
-            Text(
-              'Khusus Lapangan ${_config.sport}',
-              style: AppTextStyles.caption.copyWith(fontSize: 11, color: const Color(0xFF94A3B8)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        InkWell(
-          onTap: _isLoadingVenues ? null : _showVenueSearchPickerModal,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _config.venueId != null ? AppColors.matchaDark.withValues(alpha: 0.4) : const Color(0xFFE2E8F0),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.matchaDark.withValues(alpha: 0.04),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Activity Name
+              _buildSectionLabel('Activity Name *'),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _activityNameController,
+                onChanged: (val) => _config.activityName = val,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                decoration: InputDecoration(
+                  hintText: 'Contoh: ${_config.sport} Weekend Fun / Tenis ITB',
+                  hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5),
+                  ),
                 ),
-              ],
-            ),
-            child: _isLoadingVenues
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4),
-                    child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
-                  )
-                : Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.matchaSoftLime,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(Icons.location_on_rounded, color: AppColors.matchaDark, size: 18),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '*Nama ini akan menjadi judul kartu game di Dashboard.',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+              ),
+              const SizedBox(height: 20),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 20),
+
+              // Numbers of Court
+              _buildSectionLabel('Numbers of Court *'),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: _config.courtCount,
+                    isExpanded: true,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8)),
+                    items: [1, 2, 3, 4].map((count) {
+                      return DropdownMenuItem<int>(
+                        value: count,
+                        child: Text('$count Court', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _config.courtCount = val);
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 20),
+
+              // Venue
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildSectionLabel('Venue *'),
+                  InkWell(
+                    onTap: () => _showQuickAddVenueModal(),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.matchaDark,
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _config.venueName ?? 'Pilih Lapangan Venue...',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: _config.venueName != null ? FontWeight.w700 : FontWeight.normal,
-                                color: _config.venueName != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add_rounded, size: 13, color: Color(0xFFA8E63A)),
+                          SizedBox(width: 4),
+                          Text(
+                            'Tambah Venue',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
-                            if (_config.venueId != null && _venues.any((v) => v.venueId == _config.venueId)) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                '${_venues.firstWhere((v) => v.venueId == _config.venueId).kota ?? _venues.firstWhere((v) => v.venueId == _config.venueId).alamat ?? "Lokasi Terdaftar"}',
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              InkWell(
+                onTap: _isLoadingVenues ? null : _showVenueSearchPickerModal,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: _config.venueId != null ? AppColors.matchaDark.withValues(alpha: 0.5) : const Color(0xFFE2E8F0),
+                      width: _config.venueId != null ? 1.5 : 1,
+                    ),
+                  ),
+                  child: _isLoadingVenues
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4),
+                          child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.matchaDark))),
+                        )
+                      : Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: _config.venueId != null ? AppColors.matchaSoftLime : const Color(0xFFE2E8F0),
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                            ],
+                              child: Icon(
+                                Icons.location_on_rounded,
+                                color: _config.venueId != null ? AppColors.matchaDark : const Color(0xFF94A3B8),
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _config.venueName ?? 'Pilih Lapangan Venue...',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: _config.venueName != null ? FontWeight.w700 : FontWeight.normal,
+                                      color: _config.venueName != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (_config.venueId != null && _venues.any((v) => v.venueId == _config.venueId)) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _venues.firstWhere((v) => v.venueId == _config.venueId).kota ??
+                                          _venues.firstWhere((v) => v.venueId == _config.venueId).alamat ??
+                                          "Lokasi Terdaftar",
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
+                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
-                      ),
-                    ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 20),
+
+              // Scoring System
+              _buildSectionLabel('Scoring System'),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _scoringSystemItems.any((item) => item.value == _config.scoringSystem)
+                        ? _config.scoringSystem
+                        : 'Total of 3 Poin',
+                    isExpanded: true,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8)),
+                    items: _scoringSystemItems,
+                    onChanged: (val) {
+                      if (val != null && !val.startsWith('__header_')) {
+                        setState(() => _config.scoringSystem = val);
+                      }
+                    },
                   ),
-          ),
-        ),
-        const SizedBox(height: 16),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 20),
 
-        // Scoring System
-        _buildSectionLabel('Scoring System'),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _scoringSystemItems.any((item) => item.value == _config.scoringSystem)
-                  ? _config.scoringSystem
-                  : 'Total of 3 Poin',
-              isExpanded: true,
-              items: _scoringSystemItems,
-              onChanged: (val) {
-                if (val != null && !val.startsWith('__header_')) {
-                  setState(() => _config.scoringSystem = val);
-                }
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
+              // Leaderboard Ranked by
+              _buildSectionLabel('Leaderboard Ranked by'),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSegmentButton(
+                      label: 'Point',
+                      icon: Icons.check_circle_outline_rounded,
+                      isSelected: _config.leaderboardRankedBy == 'Point',
+                      onTap: () => setState(() => _config.leaderboardRankedBy = 'Point'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildSegmentButton(
+                      label: 'Win',
+                      icon: Icons.emoji_events_outlined,
+                      isSelected: _config.leaderboardRankedBy == 'Win',
+                      onTap: () => setState(() => _config.leaderboardRankedBy = 'Win'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 20),
 
-        // Leaderboard Ranked by
-        _buildSectionLabel('Leaderboard Ranked by'),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Expanded(
-              child: _buildSegmentButton(
-                label: 'Point',
-                icon: Icons.check_circle_outline_rounded,
-                isSelected: _config.leaderboardRankedBy == 'Point',
-                onTap: () => setState(() => _config.leaderboardRankedBy = 'Point'),
+              // Jenis Permainan
+              _buildSectionLabel('Jenis Permainan'),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildPlayModeCard(
+                      title: 'Double',
+                      subtitle: '2vs2',
+                      icon: Icons.people_alt_outlined,
+                      isSelected: _config.playMode == 'Double',
+                      onTap: () => setState(() => _config.playMode = 'Double'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildPlayModeCard(
+                      title: 'Single',
+                      subtitle: '1vs1',
+                      icon: Icons.person_outline_rounded,
+                      isSelected: _config.playMode == 'Single',
+                      onTap: () => setState(() => _config.playMode = 'Single'),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildSegmentButton(
-                label: 'Win',
-                icon: Icons.emoji_events_outlined,
-                isSelected: _config.leaderboardRankedBy == 'Win',
-                onTap: () => setState(() => _config.leaderboardRankedBy = 'Win'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Jenis Permainan
-        _buildSectionLabel('Jenis Permainan'),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Expanded(
-              child: _buildPlayModeCard(
-                title: 'Double',
-                subtitle: '2vs2',
-                icon: Icons.people_alt_outlined,
-                isSelected: _config.playMode == 'Double',
-                onTap: () => setState(() => _config.playMode = 'Double'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildPlayModeCard(
-                title: 'Single',
-                subtitle: '1vs1',
-                icon: Icons.person_outline_rounded,
-                isSelected: _config.playMode == 'Single',
-                onTap: () => setState(() => _config.playMode = 'Single'),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 24),
 
@@ -1154,22 +1724,31 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: isActivityNameValid
-                ? () {
-                    final trimmedName = _activityNameController.text.trim();
-                    if (trimmedName.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Nama aktivitas wajib diisi.'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                      return;
-                    }
-                    _config.activityName = trimmedName;
-                    setState(() => _currentStep = 4);
-                  }
-                : null,
+            onPressed: () {
+              final trimmedName = _activityNameController.text.trim();
+              if (trimmedName.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Nama aktivitas wajib diisi.'),
+                    backgroundColor: Colors.orange,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              if (_config.venueId == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Silakan pilih venue terlebih dahulu.'),
+                    backgroundColor: Colors.orange,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              _config.activityName = trimmedName;
+              setState(() => _currentStep = 4);
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.matchaDark,
               disabledBackgroundColor: const Color(0xFFCBD5E1),
@@ -1195,10 +1774,10 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
   Widget _buildSectionLabel(String label) {
     return Text(
       label,
-      style: AppTextStyles.caption.copyWith(
-        fontSize: 12,
+      style: const TextStyle(
+        fontSize: 11,
         fontWeight: FontWeight.w700,
-        color: const Color(0xFF334155),
+        color: Color(0xFF334155),
       ),
     );
   }
@@ -1212,12 +1791,13 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.matchaDark : Colors.white,
+          color: isSelected ? AppColors.matchaDark : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+            width: isSelected ? 1.5 : 1,
           ),
         ),
         child: Row(
@@ -1249,9 +1829,9 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.matchaDark : Colors.white,
+          color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
@@ -1260,21 +1840,21 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
         ),
         child: Column(
           children: [
-            Icon(icon, size: 20, color: isSelected ? Colors.white : const Color(0xFF64748B)),
-            const SizedBox(height: 4),
+            Icon(icon, size: 22, color: isSelected ? AppColors.matchaDark : const Color(0xFF64748B)),
+            const SizedBox(height: 6),
             Text(
               title,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? Colors.white : const Color(0xFF0F172A),
+                color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
               ),
             ),
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: 10,
-                color: isSelected ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF94A3B8),
+                fontSize: 11,
+                color: isSelected ? AppColors.matchaDark.withValues(alpha: 0.8) : const Color(0xFF64748B),
               ),
             ),
           ],
