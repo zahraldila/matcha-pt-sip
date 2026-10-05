@@ -50,7 +50,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
 
     if (!mounted) return;
 
-    await Navigator.of(context).pushReplacement(
+    Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (ctx, animation, secondaryAnim) =>
             MainShellPage(authController: widget.authController),
@@ -60,7 +60,9 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       ),
     );
 
-    AppLinkService().setAppReady();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppLinkService().setAppReady();
+    });
   }
 
   @override
