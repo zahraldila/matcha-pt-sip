@@ -969,24 +969,24 @@ class _SessionListPageState extends State<SessionListPage> {
                 else
                   Row(
                     children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 40,
-                          child: OutlinedButton(
-                            onPressed: openDetail,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF334155),
-                              side: const BorderSide(color: Color(0xFFCBD5E1)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                            child: const Text('Detail', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      SizedBox(
+                        width: 80,
+                        height: 42,
+                        child: OutlinedButton(
+                          onPressed: openDetail,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            foregroundColor: const Color(0xFF334155),
+                            side: const BorderSide(color: Color(0xFFCBD5E1)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
+                          child: const Text('Detail', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: SizedBox(
-                          height: 40,
+                          height: 42,
                           child: ElevatedButton(
                             onPressed: isFinished
                                 ? openDetail
@@ -994,6 +994,7 @@ class _SessionListPageState extends State<SessionListPage> {
                                     ? openDetail
                                     : (isFull ? null : handleJoin)),
                             style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
                               backgroundColor: isFinished
                                   ? const Color(0xFFF1F5F9)
                                   : (isJoined ? const Color(0xFF15803D) : AppColors.matchaDark),
@@ -1003,18 +1004,22 @@ class _SessionListPageState extends State<SessionListPage> {
                               elevation: 0,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
-                            child: Text(
-                              isFinished
-                                  ? 'Selesai'
-                                  : (isJoined
-                                      ? 'Sudah Bergabung'
-                                      : (isFull
-                                          ? 'Slot Penuh'
-                                          : 'Gabung Slot')),
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: isFinished ? const Color(0xFF64748B) : Colors.white,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                isFinished
+                                    ? 'Selesai'
+                                    : (isJoined
+                                        ? 'Sudah Bergabung'
+                                        : (isFull
+                                            ? 'Slot Penuh'
+                                            : 'Gabung Slot')),
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: isFinished ? const Color(0xFF64748B) : Colors.white,
+                                ),
                               ),
                             ),
                           ),

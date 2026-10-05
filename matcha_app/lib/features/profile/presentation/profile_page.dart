@@ -592,9 +592,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
-            height: 38,
+            height: 44,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 backgroundColor: const Color(0xFF1E293B),
                 foregroundColor: const Color(0xFFA8E63A),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -609,9 +610,13 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                 );
               },
               icon: const Icon(Icons.people_alt_rounded, size: 16),
-              label: const Text(
-                'Buka Manajemen Pengguna',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+              label: const FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'Buka Manajemen Pengguna',
+                  maxLines: 1,
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
               ),
             ),
           ),
@@ -708,10 +713,11 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           // Toggle Host Button (Matching web)
           SizedBox(
             width: double.infinity,
-            height: 38,
+            height: 44,
             child: OutlinedButton(
               onPressed: _isTogglingHost ? null : _handleToggleHost,
               style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 foregroundColor: isHost ? const Color(0xFFDC2626) : const Color(0xFF063B00),
                 backgroundColor: isHost ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5),
                 side: BorderSide(
@@ -730,16 +736,22 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       children: [
                         Icon(
                           Icons.power_settings_new_rounded,
-                          size: 16,
+                          size: 18,
                           color: isHost ? const Color(0xFFDC2626) : const Color(0xFF065F46),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          isHost ? 'Nonaktifkan Mode Host' : 'Aktifkan Mode Host',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.bold,
-                            color: isHost ? const Color(0xFFDC2626) : const Color(0xFF065F46),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              isHost ? 'Nonaktifkan Mode Host' : 'Aktifkan Mode Host',
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isHost ? const Color(0xFFDC2626) : const Color(0xFF065F46),
+                              ),
+                            ),
                           ),
                         ),
                       ],
