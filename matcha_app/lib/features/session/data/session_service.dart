@@ -47,6 +47,7 @@ class SessionService {
         ),
         tb_venue (
           venue_id,
+          owner_user_id,
           nama_venue,
           kota,
           alamat,
@@ -138,6 +139,7 @@ class SessionService {
             ),
             tb_venue (
               venue_id,
+              owner_user_id,
               nama_venue,
               kota,
               alamat,
@@ -205,6 +207,7 @@ class SessionService {
             ),
             tb_venue (
               venue_id,
+              owner_user_id,
               nama_venue,
               kota,
               alamat,

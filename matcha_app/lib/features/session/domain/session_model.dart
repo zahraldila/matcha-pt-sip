@@ -74,6 +74,7 @@ class SessionModel {
   final String? venueAddress;
   final String? venueCity;
   final String? venueFoto;
+  final int? venueOwnerUserId;
   final String? courtName;
   final String hostName;
   final String hostLevel;
@@ -98,6 +99,7 @@ class SessionModel {
     this.venueAddress,
     this.venueCity,
     this.venueFoto,
+    this.venueOwnerUserId,
     this.courtName,
     this.hostName = 'Host Mabar',
     this.hostLevel = 'Intermediate',
@@ -127,6 +129,7 @@ class SessionModel {
     String? venueAddress,
     String? venueCity,
     String? venueFoto,
+    int? venueOwnerUserId,
     String? courtName,
     String? hostName,
     String? hostLevel,
@@ -151,6 +154,7 @@ class SessionModel {
       venueAddress: venueAddress ?? this.venueAddress,
       venueCity: venueCity ?? this.venueCity,
       venueFoto: venueFoto ?? this.venueFoto,
+      venueOwnerUserId: venueOwnerUserId ?? this.venueOwnerUserId,
       courtName: courtName ?? this.courtName,
       hostName: hostName ?? this.hostName,
       hostLevel: hostLevel ?? this.hostLevel,
@@ -179,12 +183,16 @@ class SessionModel {
     String? vAddr;
     String? vCity;
     String? vFoto;
+    int? vOwnerId;
     if (map['tb_venue'] is Map) {
       final v = map['tb_venue'] as Map<String, dynamic>;
       vName = (v['nama_venue'] ?? 'Venue Lapangan').toString();
       vAddr = v['alamat']?.toString();
       vCity = v['kota']?.toString();
       vFoto = v['foto']?.toString();
+      if (v['owner_user_id'] != null) {
+        vOwnerId = _toInt(v['owner_user_id']);
+      }
     }
 
     // Parse court
@@ -253,6 +261,7 @@ class SessionModel {
       venueAddress: vAddr,
       venueCity: vCity,
       venueFoto: vFoto,
+      venueOwnerUserId: vOwnerId,
       courtName: cName ?? 'Court 1',
       hostName: hName,
       hostLevel: hLevel,
