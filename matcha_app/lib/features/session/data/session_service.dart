@@ -415,26 +415,59 @@ class SessionService {
     }
   }
 
-  /// Mencari pemain dari tb_player berdasarkan nama
+  /// Mencari pemain dari tb_player berdasarkan nama (termasuk foto dari tb_player / tb_user)
   Future<List<Map<String, dynamic>>> searchPlayers({
     String? query,
-    int limit = 20,
+    int limit = 30,
   }) async {
     try {
       var req = _supabase
           .from('tb_player')
-          .select('player_id, user_id, nama, gender, level, usia, foto');
+          .select('''
+            player_id,
+            user_id,
+            nama,
+            gender,
+            level,
+            usia,
+            foto,
+            tb_user (
+              foto
+            )
+          ''');
 
       if (query != null && query.trim().isNotEmpty) {
         req = req.ilike('nama', '%${query.trim()}%');
       }
 
       final res = await req.order('player_id', ascending: false).limit(limit);
-      return List<Map<String, dynamic>>.from(res as List);
-    } on PostgrestException catch (e) {
-      throw Exception('Gagal mencari pemain: ${e.message}');
-    } catch (e) {
-      throw Exception('Terjadi kesalahan saat mencari pemain: $e');
+      final rawList = List<Map<String, dynamic>>.from(res as List);
+      return rawList.map((p) {
+        String? fotoUrl = p['foto'] as String?;
+        if ((fotoUrl == null || fotoUrl.trim().isEmpty) && p['tb_user'] is Map) {
+          fotoUrl = p['tb_user']['foto'] as String?;
+        }
+        final copy = Map<String, dynamic>.from(p);
+        copy['foto'] = (fotoUrl != null && fotoUrl.trim().isNotEmpty) ? fotoUrl.trim() : null;
+        return copy;
+      }).toList();
+    } catch (_) {
+      try {
+        var req = _supabase
+            .from('tb_player')
+            .select('player_id, user_id, nama, gender, level, usia, foto');
+
+        if (query != null && query.trim().isNotEmpty) {
+          req = req.ilike('nama', '%${query.trim()}%');
+        }
+
+        final res = await req.order('player_id', ascending: false).limit(limit);
+        return List<Map<String, dynamic>>.from(res as List);
+      } on PostgrestException catch (e) {
+        throw Exception('Gagal mencari pemain: ${e.message}');
+      } catch (e) {
+        throw Exception('Terjadi kesalahan saat mencari pemain: $e');
+      }
     }
   }
 
