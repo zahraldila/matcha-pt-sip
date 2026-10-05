@@ -16,20 +16,26 @@ import '../../session/presentation/session_list_page.dart';
 
 class MainShellPage extends StatefulWidget {
   final AuthController? authController;
+  final int initialIndex;
 
-  const MainShellPage({super.key, this.authController});
+  const MainShellPage({
+    super.key,
+    this.authController,
+    this.initialIndex = 0,
+  });
 
   @override
   State<MainShellPage> createState() => _MainShellPageState();
 }
 
 class _MainShellPageState extends State<MainShellPage> {
-  int _currentIndex = 0;
+  late int _currentIndex;
   final GlobalKey _avatarKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
     widget.authController?.addListener(_onAuthChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AppLinkService().setAppReady();
@@ -74,7 +80,9 @@ class _MainShellPageState extends State<MainShellPage> {
             authController: widget.authController,
           ),
         ),
-      );
+      ).then((_) {
+        if (mounted) setState(() {});
+      });
     } else {
       // Member tapi belum aktif mode host: tampilkan modal aktifkan host
       _showHostInfoModal(isGuest: false);

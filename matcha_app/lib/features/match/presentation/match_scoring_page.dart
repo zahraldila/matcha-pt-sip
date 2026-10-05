@@ -5,6 +5,7 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../drawing/domain/matcha_drawing_engine.dart';
 import '../../games/domain/game_wizard_model.dart';
 import '../../games/presentation/game_final_recap_page.dart';
+import '../../session/data/session_service.dart';
 
 class MatchScoringPage extends StatefulWidget {
   final GameWizardConfig? config;
@@ -103,6 +104,9 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
   }
 
   void _finishSessionAndShowRecap() {
+    if (_config.sessionId != null && _config.sessionId! > 0) {
+      SessionService().updateSessionStatus(_config.sessionId!, 'Finished');
+    }
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(

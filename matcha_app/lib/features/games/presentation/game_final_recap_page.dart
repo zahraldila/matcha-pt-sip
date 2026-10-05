@@ -3,6 +3,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../drawing/domain/matcha_drawing_engine.dart';
+import '../../main/presentation/main_shell_page.dart';
 import '../domain/game_wizard_model.dart';
 
 class GameFinalRecapPage extends StatefulWidget {
@@ -128,7 +129,18 @@ class _GameFinalRecapPageState extends State<GameFinalRecapPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-          onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MainShellPage(
+                  authController: widget.authController,
+                  initialIndex: 0,
+                ),
+              ),
+              (route) => false,
+            );
+          },
         ),
         title: Text(
           'Rekap Pertandingan & Podium',
@@ -321,21 +333,73 @@ class _GameFinalRecapPageState extends State<GameFinalRecapPage> {
           _buildKudosSection(),
           const SizedBox(height: 20),
 
-          // Selesai & Kembali ke Beranda
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.matchaDark,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
+          // Action Buttons: Lihat di Jadwal Mabar & Kembali ke Beranda
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 46,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MainShellPage(
+                            authController: widget.authController,
+                            initialIndex: 0,
+                          ),
+                        ),
+                        (route) => false,
+                      );
+                    },
+                    icon: const Icon(Icons.home_rounded, size: 16),
+                    label: const Text(
+                      'Beranda',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF334155),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
               ),
-              child: const Text('Selesai & Kembali ke Dashboard', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: SizedBox(
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MainShellPage(
+                            authController: widget.authController,
+                            initialIndex: 1, // Tab Mabar
+                          ),
+                        ),
+                        (route) => false,
+                      );
+                    },
+                    icon: const Icon(Icons.sports_tennis_rounded, size: 16),
+                    label: const Text(
+                      'Lihat di Jadwal Mabar',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.matchaDark,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 30),
         ],
       ),
     );
