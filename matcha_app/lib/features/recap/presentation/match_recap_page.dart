@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/app_error_handler.dart';
+import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../drawing/presentation/drawing_result_page.dart';
 import '../../match/presentation/match_scoring_page.dart';
@@ -59,7 +61,10 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
   }
 
   void _onAuthChanged() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
@@ -143,32 +148,51 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
             ),
           ],
         ),
-        actions: const [],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
+            onPressed: _isLoading ? null : _loadData,
+            tooltip: 'Muat Ulang',
+          ),
+          if (isHost)
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.matchaDark),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CreateSessionPage(authController: widget.authController),
+                  ),
+                ).then((_) => _loadData());
+              },
+              tooltip: 'Buat Sesi Mabar',
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.matchaDark))
           : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
-                        const SizedBox(height: 12),
-                        Text('Gagal memuat rekap', style: AppTextStyles.h3),
-                        const SizedBox(height: 6),
-                        Text(_errorMessage!, textAlign: TextAlign.center, style: AppTextStyles.caption),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadData,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.matchaDark,
-                            foregroundColor: Colors.white,
-                          ),
-                          child: const Text('Coba Lagi'),
-                        ),
-                      ],
+              ? RefreshIndicator(
+                  onRefresh: _loadData,
+                  color: AppColors.matchaDark,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Container(
+                      alignment: Alignment.center,
+                      constraints: BoxConstraints(
+                        minHeight: MediaQuery.of(context).size.height * 0.75,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: OfflineStateWidget(
+                        error: _errorMessage,
+                        customTitle: AppErrorHandler.isNetworkError(_errorMessage)
+                            ? 'Koneksi Internet Terputus'
+                            : 'Gagal Memuat Rekap',
+                        customMessage: AppErrorHandler.isNetworkError(_errorMessage)
+                            ? 'Tidak dapat terhubung ke server. Periksa jaringan internet Anda lalu coba lagi.'
+                            : AppErrorHandler.getReadableMessage(_errorMessage),
+                        onRetry: _loadData,
+                      ),
                     ),
                   ),
                 )
