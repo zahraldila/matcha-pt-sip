@@ -658,7 +658,7 @@ class _CommunityPageState extends State<CommunityPage> {
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  height: 42,
+                  height: 44,
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.push(
@@ -678,12 +678,12 @@ class _CommunityPageState extends State<CommunityPage> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        'Detail Komunitas',
-                        maxLines: 1,
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    child: const Text(
+                      'Detail Komunitas',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ),

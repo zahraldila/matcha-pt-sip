@@ -2390,7 +2390,48 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: player.isGuest ? const Color(0xFFFEF3C7) : AppColors.matchaSoftLime,
+                            border: Border.all(
+                              color: isExcess ? const Color(0xFFFECDD3) : const Color(0xFFE2E8F0),
+                              width: 1.2,
+                            ),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: (player.avatarUrl != null && player.avatarUrl!.trim().isNotEmpty)
+                              ? Image.network(
+                                  player.avatarUrl!.trim(),
+                                  width: 32,
+                                  height: 32,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => Center(
+                                    child: Text(
+                                      player.name.isNotEmpty ? player.name[0].toUpperCase() : 'P',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: player.isGuest ? const Color(0xFFD97706) : AppColors.matchaDark,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Center(
+                                  child: Text(
+                                    player.name.isNotEmpty ? player.name[0].toUpperCase() : 'P',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: player.isGuest ? const Color(0xFFD97706) : AppColors.matchaDark,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2685,7 +2726,8 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
     final playerId = u['player_id'] is int ? u['player_id'] as int : int.tryParse(u['player_id'].toString());
     final userId = u['user_id'] is int ? u['user_id'] as int : int.tryParse(u['user_id']?.toString() ?? '');
     final isGuest = userId == null;
-    final avatarUrl = u['foto'] as String?;
+    final rawFoto = (u['foto'] as String?)?.trim();
+    final avatarUrl = (rawFoto != null && rawFoto.isNotEmpty) ? rawFoto : null;
 
     if (_isPlayerAlreadyAdded(u)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3193,18 +3235,48 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
                                 final rawLevel = (u['level'] ?? '').toString();
                                 final level = rawLevel.isNotEmpty ? rawLevel : 'Beginner';
                                 final isGuest = u['user_id'] == null;
+                                final fotoUrl = (u['foto'] as String?)?.trim();
+                                final hasFoto = fotoUrl != null && fotoUrl.isNotEmpty;
 
                                 return ListTile(
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                                  leading: CircleAvatar(
-                                    backgroundColor: isGuest ? const Color(0xFFFEF3C7) : AppColors.matchaSoftLime,
-                                    child: Text(
-                                      name.isNotEmpty ? name[0].toUpperCase() : 'P',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: isGuest ? const Color(0xFFD97706) : AppColors.matchaDark,
+                                  leading: Container(
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isGuest ? const Color(0xFFFEF3C7) : AppColors.matchaSoftLime,
+                                      border: Border.all(
+                                        color: const Color(0xFFE2E8F0),
+                                        width: 1.2,
                                       ),
                                     ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: hasFoto
+                                        ? Image.network(
+                                            fotoUrl,
+                                            width: 38,
+                                            height: 38,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, _, _) => Center(
+                                              child: Text(
+                                                name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isGuest ? const Color(0xFFD97706) : AppColors.matchaDark,
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                        : Center(
+                                            child: Text(
+                                              name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: isGuest ? const Color(0xFFD97706) : AppColors.matchaDark,
+                                              ),
+                                            ),
+                                          ),
                                   ),
                                   title: Row(
                                     children: [
