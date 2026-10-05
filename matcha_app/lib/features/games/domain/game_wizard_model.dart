@@ -79,7 +79,10 @@ class GameWizardConfig {
     this.sessionId,
   }) : players = players ?? [];
 
+  int? customTotalRounds;
+
   int get maxTargetPoints {
+    if (scoringSystem.contains('32')) return 32;
     if (scoringSystem.contains('21')) return 21;
     if (scoringSystem.contains('15')) return 15;
     if (scoringSystem.contains('11')) return 11;
@@ -89,11 +92,26 @@ class GameWizardConfig {
     if (scoringSystem.contains('5')) return 5;
     if (scoringSystem.contains('4')) return 4;
     if (scoringSystem.contains('3')) return 3;
-    if (scoringSystem.contains('32')) return 32;
     return 3;
   }
 
   int get totalRounds {
+    if (customTotalRounds != null && customTotalRounds! > 0) {
+      return customTotalRounds!;
+    }
+    final clean = scoringSystem.toLowerCase();
+    // Sistem Langsung Tuntas (First to X) adalah 1 ronde match langsung
+    if (clean.contains('first to')) {
+      return 1;
+    }
+    if (clean.contains('total of 7')) return 7;
+    if (clean.contains('total of 6')) return 6;
+    if (clean.contains('total of 5')) return 5;
+    if (clean.contains('total of 4')) return 4;
+    if (clean.contains('total of 3')) return 3;
+    if (clean.contains('total of 8')) return 8;
+
+    if (playMode.toLowerCase() == 'single' && players.length == 2) return 1;
     if (players.length <= 4) return 3;
     return (players.length - 1).clamp(3, 7);
   }

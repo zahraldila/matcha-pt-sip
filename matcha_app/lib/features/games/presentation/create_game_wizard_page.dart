@@ -23,6 +23,8 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
   int _currentStep = 1; // 1 to 4
   final GameWizardConfig _config = GameWizardConfig();
   final VenueService _venueService = VenueService();
+  final SessionService _sessionService = SessionService();
+  bool _isSavingHostGame = false;
 
   List<VenueModel> _venues = [];
   bool _isLoadingVenues = true;
@@ -128,6 +130,26 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
     super.initState();
     _activityNameController.addListener(_onActivityNameChanged);
     _loadVenues();
+
+    final user = widget.authController?.currentUser;
+    if (user != null) {
+      final genderStr = user.gender?.toLowerCase() ?? '';
+      final hostPlayer = GamePlayerItem(
+        id: 'user_${user.userId}',
+        playerId: user.playerId,
+        userId: user.userId,
+        name: user.nama.isNotEmpty ? user.nama : 'Host Player',
+        gender: (genderStr == 'female' || genderStr == 'perempuan')
+            ? 'Perempuan'
+            : 'Laki-laki',
+        level: (user.level != null && user.level!.isNotEmpty) ? user.level! : 'Beginner',
+        isGuest: false,
+        avatarUrl: user.foto,
+      );
+      if (_config.players.isEmpty) {
+        _config.players.add(hostPlayer);
+      }
+    }
   }
 
   void _onActivityNameChanged() {
@@ -869,6 +891,25 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
     final user = widget.authController?.currentUser;
     if (user == null) return;
 
+    final isFirstTo = _config.scoringSystem.toLowerCase().startsWith('first to');
+    final maxAllowed = isFirstTo
+        ? (_config.playMode == 'Single' ? _config.courtCount * 2 : _config.courtCount * 4)
+        : null;
+
+    if (maxAllowed != null && _config.players.length >= maxAllowed) {
+      final modeLabel = _config.playMode == 'Single' ? 'Single (1 vs 1)' : 'Double (2 vs 2)';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Kapasitas pemain untuk format ${_config.scoringSystem} ($modeLabel) dengan ${_config.courtCount} court sudah penuh (maksimal $maxAllowed pemain).',
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     // Check if already added
     if (_config.players.any((p) => p.userId == user.userId || p.name.toLowerCase() == user.nama.toLowerCase())) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -897,6 +938,25 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
   }
 
   void _openAddPlayerModal() {
+    final isFirstTo = _config.scoringSystem.toLowerCase().startsWith('first to');
+    final maxAllowed = isFirstTo
+        ? (_config.playMode == 'Single' ? _config.courtCount * 2 : _config.courtCount * 4)
+        : null;
+    final modeLabel = _config.playMode == 'Single' ? 'Single (1 vs 1)' : 'Double (2 vs 2)';
+
+    if (maxAllowed != null && _config.players.length >= maxAllowed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Kapasitas pemain untuk format ${_config.scoringSystem} ($modeLabel) dengan ${_config.courtCount} court sudah penuh (maksimal $maxAllowed pemain).',
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -904,6 +964,10 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
       builder: (ctx) => _AddPlayerBottomSheet(
         currentPlayers: _config.players,
         sessionId: _config.sessionId,
+        maxAllowed: maxAllowed,
+        scoringSystem: _config.scoringSystem,
+        modeLabel: modeLabel,
+        courtCount: _config.courtCount,
         onAddPlayer: (player) {
           final isDuplicate = _config.players.any((p) =>
               (player.playerId != null && p.playerId == player.playerId) ||
@@ -926,7 +990,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
     );
   }
 
-  void _onGenerateDrawing() {
+  Future<void> _onGenerateDrawing() async {
     if (_config.venueId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -939,35 +1003,170 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
       return;
     }
 
-    final minRequired = _config.playMode == 'Single' ? 2 : 4;
+    final isFirstTo = _config.scoringSystem.toLowerCase().startsWith('first to');
+    final isTeamAmericano = _config.gameType.toLowerCase().contains('team');
+    final numCourts = _config.courtCount;
+    final isSingle = _config.playMode == 'Single';
+    final exactRequired = isSingle ? (numCourts * 2) : (numCourts * 4);
+    final modeLabel = isSingle ? 'Single (1 vs 1)' : 'Double (2 vs 2)';
+
+    // Validasi 1: First to X (harus TEPAT kapasitas court)
+    if (isFirstTo) {
+      if (_config.players.length != exactRequired) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Untuk format ${_config.scoringSystem} ($modeLabel) dengan $numCourts court, jumlah pemain harus tepat $exactRequired orang (saat ini: ${_config.players.length} pemain).',
+            ),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Validasi 2: Team Americano (harus genap & minimal 4)
+    if (isTeamAmericano) {
+      if (_config.players.length < 4) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Team Americano membutuhkan minimal 4 pemain (2 tim berpasangan).'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      if (_config.players.length % 2 != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Jumlah pemain Team Americano harus genap (4, 6, 8, dst) karena setiap tim terdiri dari 2 orang pasangan tetap (saat ini: ${_config.players.length} pemain).',
+            ),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Validasi 3: Minimal Pemain Umum
+    final minRequired = isSingle ? 2 : 4;
     if (_config.players.length < minRequired) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Minimal $minRequired pemain untuk membuat drawing ${_config.playMode}.'),
+          backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
 
-    final rounds = MatchaDrawingEngine.generateDrawing(
-      players: _config.players,
-      courtCount: _config.courtCount,
-      gameType: _config.gameType,
-      playMode: _config.playMode,
-      roundCount: _config.totalRounds,
-    );
+    setState(() => _isSavingHostGame = true);
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DrawingResultPage(
-          config: _config,
-          initialRounds: rounds,
-          authController: widget.authController,
+    try {
+      final user = widget.authController?.currentUser;
+      final sportId = _config.sport.toLowerCase().contains('tennis') ? 2 : 1;
+
+      // 1. Pastikan semua pemain guest terdaftar dan memiliki player_id database
+      final List<int> validPlayerIds = [];
+      for (int i = 0; i < _config.players.length; i++) {
+        final p = _config.players[i];
+        int? effectivePid = p.playerId;
+        if (effectivePid == null || effectivePid <= 0) {
+          try {
+            final genderDb = (p.gender.toLowerCase() == 'perempuan' || p.gender.toLowerCase() == 'female')
+                ? 'Female'
+                : 'Male';
+            effectivePid = await _sessionService.registerGuestPlayer(
+              nama: p.name,
+              gender: genderDb,
+              level: p.level,
+            );
+            _config.players[i] = GamePlayerItem(
+              id: 'guest_db_$effectivePid',
+              name: p.name,
+              gender: p.gender,
+              level: p.level,
+              isGuest: true,
+              avatarUrl: p.avatarUrl,
+              userId: p.userId,
+              playerId: effectivePid,
+            );
+          } catch (_) {}
+        }
+        if (effectivePid != null && effectivePid > 0) {
+          validPlayerIds.add(effectivePid);
+        }
+      }
+
+      // 2. Simpan sesi ke Supabase (tb_session, tb_session_court, tb_session_player)
+      if (_config.sessionId == null) {
+        final newSessionId = await _sessionService.createHostGameSession(
+          sportId: sportId,
+          venueId: _config.venueId!,
+          namaSession: _config.activityName.trim().isNotEmpty
+              ? _config.activityName.trim()
+              : '${_config.sport} ${_config.gameType}',
+          scoringSystem: _config.scoringSystem,
+          jenisPermainan: _config.gameType,
+          playMode: _config.playMode,
+          jumlahPemain: _config.players.length,
+          statusSession: 'In Progress',
+          hostUserId: user?.userId,
+          hostPlayerId: user?.playerId,
+          playerIds: validPlayerIds,
+        );
+        _config.sessionId = newSessionId;
+      }
+
+      if (!mounted) return;
+      setState(() => _isSavingHostGame = false);
+
+      final rounds = MatchaDrawingEngine.generateDrawing(
+        players: _config.players,
+        courtCount: _config.courtCount,
+        gameType: _config.gameType,
+        playMode: _config.playMode,
+        roundCount: _config.totalRounds,
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DrawingResultPage(
+            config: _config,
+            initialRounds: rounds,
+            authController: widget.authController,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSavingHostGame = false);
+
+      final rounds = MatchaDrawingEngine.generateDrawing(
+        players: _config.players,
+        courtCount: _config.courtCount,
+        gameType: _config.gameType,
+        playMode: _config.playMode,
+        roundCount: _config.totalRounds,
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DrawingResultPage(
+            config: _config,
+            initialRounds: rounds,
+            authController: widget.authController,
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -1269,6 +1468,9 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                     ? () {
                         setState(() {
                           _config.gameType = title;
+                          if (title.toLowerCase().contains('team')) {
+                            _config.playMode = 'Double';
+                          }
                           _currentStep = 3;
                         });
                       }
@@ -1689,7 +1891,29 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
               const SizedBox(height: 20),
 
               // Jenis Permainan
-              _buildSectionLabel('Jenis Permainan'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildSectionLabel('Jenis Permainan'),
+                  if (_config.gameType.toLowerCase().contains('team'))
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                      ),
+                      child: const Text(
+                        'Double Only (Team Format)',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1D4ED8),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               const SizedBox(height: 6),
               Row(
                 children: [
@@ -1699,6 +1923,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                       subtitle: '2vs2',
                       icon: Icons.people_alt_outlined,
                       isSelected: _config.playMode == 'Double',
+                      isEnabled: true,
                       onTap: () => setState(() => _config.playMode = 'Double'),
                     ),
                   ),
@@ -1706,14 +1931,40 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                   Expanded(
                     child: _buildPlayModeCard(
                       title: 'Single',
-                      subtitle: '1vs1',
+                      subtitle: _config.gameType.toLowerCase().contains('team') ? 'Tidak Tersedia' : '1vs1',
                       icon: Icons.person_outline_rounded,
                       isSelected: _config.playMode == 'Single',
-                      onTap: () => setState(() => _config.playMode = 'Single'),
+                      isEnabled: !_config.gameType.toLowerCase().contains('team'),
+                      onTap: _config.gameType.toLowerCase().contains('team')
+                          ? null
+                          : () => setState(() => _config.playMode = 'Single'),
                     ),
                   ),
                 ],
               ),
+              if (_config.gameType.toLowerCase().contains('team')) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFDBEAFE)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF2563EB)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Team Americano adalah format tim berpasangan tetap, sehingga otomatis terkunci pada mode Double (2 vs 2).',
+                          style: TextStyle(fontSize: 10.5, color: Color(0xFF1E40AF), fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1824,40 +2075,44 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
     required String subtitle,
     required IconData icon,
     required bool isSelected,
-    required VoidCallback onTap,
+    bool isEnabled = true,
+    VoidCallback? onTap,
   }) {
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
-            width: isSelected ? 1.5 : 1,
+      onTap: isEnabled ? onTap : null,
+      child: Opacity(
+        opacity: isEnabled ? 1.0 : 0.45,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+              width: isSelected ? 1.5 : 1,
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 22, color: isSelected ? AppColors.matchaDark : const Color(0xFF64748B)),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+          child: Column(
+            children: [
+              Icon(icon, size: 22, color: isSelected ? AppColors.matchaDark : const Color(0xFF64748B)),
+              const SizedBox(height: 6),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                ),
               ),
-            ),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 11,
-                color: isSelected ? AppColors.matchaDark.withValues(alpha: 0.8) : const Color(0xFF64748B),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isSelected ? AppColors.matchaDark.withValues(alpha: 0.8) : const Color(0xFF64748B),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1865,8 +2120,65 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
 
   // --- STEP 4: PLAYER ROSTER ---
   Widget _buildStep4PlayerRoster() {
-    final minRequired = _config.playMode == 'Single' ? 2 : 4;
-    final canGenerate = _config.players.length >= minRequired;
+    final isFirstTo = _config.scoringSystem.toLowerCase().startsWith('first to');
+    final isTeamAmericano = _config.gameType.toLowerCase().contains('team');
+    final isSingle = _config.playMode == 'Single';
+    final numCourts = _config.courtCount;
+    final exactRequired = isSingle ? (numCourts * 2) : (numCourts * 4);
+    final minRequired = isSingle ? 2 : 4;
+    final modeLabel = isSingle ? 'Single (1 vs 1)' : 'Double (2 vs 2)';
+
+    bool canGenerate = false;
+    String ctaButtonText = 'Generate Drawing & Start Game';
+    Color ctaButtonBg = AppColors.matchaDark;
+    Color ctaButtonFg = Colors.white;
+    String quotaSubtitle = '*Minimal $minRequired pemain untuk generate drawing';
+    String? warningBanner;
+
+    if (isFirstTo) {
+      quotaSubtitle = '*Wajib tepat $exactRequired pemain ($modeLabel, $numCourts Court)';
+      if (_config.players.length < exactRequired) {
+        canGenerate = false;
+        final remaining = exactRequired - _config.players.length;
+        ctaButtonText = '${_config.scoringSystem}: Butuh $remaining Pemain Lagi (${_config.players.length}/$exactRequired)';
+      } else if (_config.players.length > exactRequired) {
+        canGenerate = false;
+        final excess = _config.players.length - exactRequired;
+        ctaButtonText = '${_config.scoringSystem}: Kelebihan $excess Pemain (Wajib $exactRequired)';
+        ctaButtonBg = const Color(0xFFFEE2E2);
+        ctaButtonFg = const Color(0xFF991B1B);
+        warningBanner = 'Kelebihan $excess pemain untuk format ${_config.scoringSystem} ($modeLabel). Hapus pemain yang berlebih agar pas tepat $exactRequired orang.';
+      } else {
+        canGenerate = true;
+        ctaButtonText = 'Generate Drawing & Start Game (${_config.scoringSystem} • ${isSingle ? "1v1" : "2v2"})';
+      }
+    } else if (isTeamAmericano) {
+      quotaSubtitle = '*Minimal 4 pemain & harus genap (Pasangan Tetap)';
+      if (_config.players.length < 4) {
+        canGenerate = false;
+        ctaButtonText = 'Team Americano: Minimal 4 Pemain (${_config.players.length}/4)';
+      } else if (_config.players.length % 2 != 0) {
+        canGenerate = false;
+        ctaButtonText = 'Team Americano Butuh Pemain Genap (${_config.players.length} Pemain)';
+        ctaButtonBg = const Color(0xFFFEF3C7);
+        ctaButtonFg = const Color(0xFF92400E);
+        warningBanner = 'Jumlah pemain Team Americano harus genap (4, 6, 8, dst) karena setiap tim beranggotakan 2 orang tetap.';
+      } else {
+        canGenerate = true;
+        ctaButtonText = 'Generate Drawing & Start Game (Team Americano • Fixed Pairs)';
+      }
+    } else {
+      quotaSubtitle = isSingle
+          ? '*Minimal 2 pemain untuk Americano Single (1 vs 1)'
+          : '*Minimal 4 pemain untuk rotasi Americano Double (2 vs 2)';
+      if (_config.players.length < minRequired) {
+        canGenerate = false;
+        ctaButtonText = 'Tambahkan Minimal $minRequired Pemain (${isSingle ? "Single 1v1" : "Double 2v2"})';
+      } else {
+        canGenerate = true;
+        ctaButtonText = 'Generate Drawing & Start Game (${isSingle ? "Single 1v1" : "Double 2v2"})';
+      }
+    }
 
     return Column(
       key: const ValueKey(4),
@@ -1905,9 +2217,9 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                             color: AppColors.matchaSoftLime,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text(
-                            'Fixed Mode',
-                            style: TextStyle(
+                          child: Text(
+                            isFirstTo ? 'Direct Match' : (isTeamAmericano ? 'Fixed Pairs' : 'Rotasi Tim'),
+                            style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
                               color: AppColors.matchaDark,
@@ -1918,7 +2230,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${_config.gameType} • ${_config.playMode} (${_config.playMode == "Double" ? "2v2" : "1v1"}) • ${_config.courtCount} Court • ${_config.venueName ?? "Venue"}',
+                      '${_config.gameType} • ${_config.playMode} (${_config.playMode == "Double" ? "2v2" : "1v1"}) • ${_config.courtCount} Court • ${_config.venueName ?? "Venue"} • ${_config.scoringSystem}',
                       style: AppTextStyles.caption.copyWith(
                         fontSize: 11,
                         color: const Color(0xFF64748B),
@@ -1929,12 +2241,45 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
               ),
               const SizedBox(height: 18),
 
+              // Warning Banner (If any)
+              if (warningBanner != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFECACA)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          warningBanner,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFB91C1C),
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               // Player List Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Player List ( ${_config.players.length} )',
+                    isFirstTo
+                        ? 'Player List ( ${_config.players.length} / $exactRequired )'
+                        : 'Player List ( ${_config.players.length} )',
                     style: AppTextStyles.h2.copyWith(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
@@ -1942,10 +2287,15 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                     ),
                   ),
                   Text(
-                    '*Minimal $minRequired pemain untuk generate drawing',
+                    quotaSubtitle,
                     style: AppTextStyles.caption.copyWith(
                       fontSize: 10,
-                      color: const Color(0xFF94A3B8),
+                      color: isFirstTo && _config.players.length > exactRequired
+                          ? const Color(0xFFDC2626)
+                          : const Color(0xFF94A3B8),
+                      fontWeight: isFirstTo && _config.players.length > exactRequired
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                 ],
@@ -2009,7 +2359,9 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Tambahkan minimal $minRequired pemain untuk memulai/mengaktifkan drawing live.',
+                        isFirstTo
+                            ? 'Tambahkan tepat $exactRequired pemain untuk memulai pertandingan First to Point.'
+                            : 'Tambahkan minimal $minRequired pemain untuk memulai/mengaktifkan drawing live.',
                         textAlign: TextAlign.center,
                         style: AppTextStyles.caption.copyWith(
                           fontSize: 11,
@@ -2022,13 +2374,18 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
               else
                 ...List.generate(_config.players.length, (index) {
                   final player = _config.players[index];
+                  final isExcess = isFirstTo && (index >= exactRequired);
+
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isExcess ? const Color(0xFFFFF1F2) : Colors.white,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(
+                        color: isExcess ? const Color(0xFFFECDD3) : const Color(0xFFE2E8F0),
+                        width: isExcess ? 1.5 : 1.0,
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -2037,12 +2394,16 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                           height: 24,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
+                            color: isExcess ? const Color(0xFFFFE4E6) : const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             '${index + 1}',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isExcess ? const Color(0xFFE11D48) : const Color(0xFF64748B),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -2050,19 +2411,44 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                player.name,
-                                style: AppTextStyles.h2.copyWith(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF0F172A),
-                                ),
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      player.name,
+                                      style: AppTextStyles.h2.copyWith(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: isExcess ? const Color(0xFF9F1239) : const Color(0xFF0F172A),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isExcess) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFE4E6),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'Kelebihan',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFFE11D48),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               Text(
                                 '${player.gender} • ${player.isGuest ? "Guest" : "Member"}',
                                 style: AppTextStyles.caption.copyWith(
                                   fontSize: 10,
-                                  color: const Color(0xFF94A3B8),
+                                  color: isExcess ? const Color(0xFFFB7185) : const Color(0xFF94A3B8),
                                 ),
                               ),
                             ],
@@ -2071,15 +2457,15 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppColors.matchaSoftLime,
+                            color: isExcess ? const Color(0xFFFFE4E6) : AppColors.matchaSoftLime,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             player.level,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.matchaDark,
+                              color: isExcess ? const Color(0xFFBE123C) : AppColors.matchaDark,
                             ),
                           ),
                         ),
@@ -2111,26 +2497,51 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: canGenerate ? _onGenerateDrawing : null,
+              onPressed: (canGenerate && !_isSavingHostGame) ? _onGenerateDrawing : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.matchaDark,
-                disabledBackgroundColor: const Color(0xFFCBD5E1),
-                foregroundColor: Colors.white,
-                disabledForegroundColor: const Color(0xFF94A3B8),
+                backgroundColor: canGenerate ? ctaButtonBg : const Color(0xFFCBD5E1),
+                disabledBackgroundColor: (warningBanner != null) ? ctaButtonBg : const Color(0xFFCBD5E1),
+                foregroundColor: canGenerate ? ctaButtonFg : const Color(0xFF94A3B8),
+                disabledForegroundColor: (warningBanner != null) ? ctaButtonFg : const Color(0xFF94A3B8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.shuffle_rounded, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Generate Drawing & Start Game (${_config.playMode} ${_config.playMode == "Double" ? "2v2" : "1v1"})',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                ],
-              ),
+              child: _isSavingHostGame
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Menyimpan Sesi & Menyiapkan Jadwal...',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          canGenerate ? Icons.shuffle_rounded : Icons.lock_outline_rounded,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            ctaButtonText,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ),
         ),
@@ -2143,12 +2554,20 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
 class _AddPlayerBottomSheet extends StatefulWidget {
   final List<GamePlayerItem> currentPlayers;
   final int? sessionId;
+  final int? maxAllowed;
+  final String? scoringSystem;
+  final String? modeLabel;
+  final int? courtCount;
   final ValueChanged<GamePlayerItem> onAddPlayer;
 
   const _AddPlayerBottomSheet({
     required this.onAddPlayer,
     this.currentPlayers = const [],
     this.sessionId,
+    this.maxAllowed,
+    this.scoringSystem,
+    this.modeLabel,
+    this.courtCount,
   });
 
   @override
@@ -2259,6 +2678,19 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
   }
 
   Future<void> _onSelectDatabasePlayer(Map<String, dynamic> u) async {
+    if (widget.maxAllowed != null && widget.currentPlayers.length >= widget.maxAllowed!) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Kapasitas pemain untuk format ${widget.scoringSystem ?? "ini"} (${widget.modeLabel ?? ""}) dengan ${widget.courtCount ?? 1} court sudah penuh (maksimal ${widget.maxAllowed} pemain).',
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final name = (u['nama'] ?? 'Player').toString();
     final rawGender = (u['gender'] ?? '').toString();
     final gender = (rawGender.toLowerCase() == 'female' || rawGender.toLowerCase() == 'perempuan')
@@ -2318,6 +2750,19 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
   }
 
   Future<void> _onSubmitManualPlayer() async {
+    if (widget.maxAllowed != null && widget.currentPlayers.length >= widget.maxAllowed!) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Kapasitas pemain untuk format ${widget.scoringSystem ?? "ini"} (${widget.modeLabel ?? ""}) dengan ${widget.courtCount ?? 1} court sudah penuh (maksimal ${widget.maxAllowed} pemain).',
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final name = _manualNameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

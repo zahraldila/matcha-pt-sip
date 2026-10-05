@@ -241,5 +241,70 @@ void main() {
         }
       }
     });
+
+    // -------------------------------------------------------------------------
+    // TEST 7: First to 8 Poin (Tuntas) Single 1v1 (2 Players, 1 Court, 1 Round)
+    // -------------------------------------------------------------------------
+    test('7. First to 8 Poin (Tuntas) Single 1v1: Exactly 1 Match / 1 Round', () {
+      final config = GameWizardConfig(
+        sport: 'Padel',
+        gameType: 'Americano',
+        playMode: 'Single',
+        scoringSystem: 'First to 8 Poin (Tuntas)',
+        courtCount: 1,
+        players: [
+          const GamePlayerItem(id: 'p1', name: 'Ibnu Hilmi A'),
+          const GamePlayerItem(id: 'p2', name: 'Guy Herrera'),
+        ],
+      );
+
+      expect(config.totalRounds, 1, reason: 'First to X must generate exactly 1 round');
+      expect(config.maxTargetPoints, 8);
+
+      final rounds = MatchaDrawingEngine.generateDrawing(
+        players: config.players,
+        courtCount: config.courtCount,
+        gameType: config.gameType,
+        playMode: config.playMode,
+        roundCount: config.totalRounds,
+      );
+
+      expect(rounds.length, 1, reason: 'First to X has 1 round only');
+      expect(rounds.first.matches.length, 1);
+      expect(rounds.first.matches.first.teamA.first.name, 'Ibnu Hilmi A');
+      expect(rounds.first.matches.first.teamB.first.name, 'Guy Herrera');
+    });
+
+    // -------------------------------------------------------------------------
+    // TEST 8: Total of 5 Poin (4 Players, 1 Court, 5 Rounds)
+    // -------------------------------------------------------------------------
+    test('8. Total of 5 Poin: Generates exactly 5 Rounds', () {
+      final config = GameWizardConfig(
+        sport: 'Padel',
+        gameType: 'Americano',
+        playMode: 'Double',
+        scoringSystem: 'Total of 5 Poin',
+        courtCount: 1,
+        players: [
+          const GamePlayerItem(id: 'p1', name: 'Player 1'),
+          const GamePlayerItem(id: 'p2', name: 'Player 2'),
+          const GamePlayerItem(id: 'p3', name: 'Player 3'),
+          const GamePlayerItem(id: 'p4', name: 'Player 4'),
+        ],
+      );
+
+      expect(config.totalRounds, 5, reason: 'Total of 5 must produce 5 rounds');
+      expect(config.maxTargetPoints, 5);
+
+      final rounds = MatchaDrawingEngine.generateDrawing(
+        players: config.players,
+        courtCount: config.courtCount,
+        gameType: config.gameType,
+        playMode: config.playMode,
+        roundCount: config.totalRounds,
+      );
+
+      expect(rounds.length, 5, reason: 'Must have 5 rounds generated');
+    });
   });
 }
