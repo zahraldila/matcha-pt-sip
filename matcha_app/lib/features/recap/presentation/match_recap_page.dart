@@ -135,36 +135,21 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
-            onPressed: _loadData,
-            tooltip: 'Perbarui Data',
-          ),
-          if (isHost && _activeTab == 'host')
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.matchaDark),
-              tooltip: 'Buat Sesi Mabar Baru',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CreateSessionPage(authController: widget.authController),
-                  ),
-                ).then((_) => _loadData());
-              },
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.share_outlined, color: Color(0xFF64748B)),
-              tooltip: 'Bagikan Rekap',
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Kartu rekap siap dibagikan! 🚀'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
+          if (_activeTab == 'career')
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: IconButton(
+                icon: const Icon(Icons.share_outlined, color: Color(0xFF64748B)),
+                tooltip: 'Bagikan Rekap',
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Kartu rekap siap dibagikan! 🚀'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
             ),
         ],
       ),
@@ -204,6 +189,10 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Page-level action header (like web: title + button inline)
+                        _buildPageHeader(isHost),
+                        const SizedBox(height: 16),
+
                         // Dual-Mode Tab Switcher (Host only)
                         if (isHost) ...[
                           _buildTabSwitcher(user?.nama ?? 'Pemain'),
@@ -219,6 +208,78 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                     ),
                   ),
                 ),
+    );
+  }
+
+  Widget _buildPageHeader(bool isHost) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Match Recap & Statistik',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                isHost && _activeTab == 'host'
+                    ? 'Riwayat penyelenggaraan sesi mabar yang kamu pimpin'
+                    : 'Ringkasan performa karier bertanding dan statistik kemenangan',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+              ),
+            ],
+          ),
+        ),
+        if (isHost && _activeTab == 'host') ...[  
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CreateSessionPage(authController: widget.authController),
+                ),
+              ).then((_) => _loadData());
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF063B00),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF063B00).withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_rounded, size: 13, color: Color(0xFFA8E63A)),
+                  SizedBox(width: 5),
+                  Text(
+                    'Buat Sesi Mabar Baru',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -724,86 +785,109 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
           const SizedBox(height: 14),
 
           // Action Buttons (Rekap Juara, Drawing, Scoring Live)
-          Row(
-            children: [
-              // Rekap Juara
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SessionDetailPage(
-                          sessionId: session.sessionId,
-                          authController: widget.authController,
+          Builder(builder: (context) {
+            final isFinished = statusLower.contains('complete') || statusLower.contains('finish');
+            return Row(
+              children: [
+                // Rekap Juara
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SessionDetailPage(
+                            sessionId: session.sessionId,
+                            authController: widget.authController,
+                          ),
                         ),
+                      );
+                    },
+                    icon: const Icon(Icons.military_tech_rounded, size: 14, color: Color(0xFFD97706)),
+                    label: const Text(
+                      'Rekap Juara',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFEF3C7).withValues(alpha: 0.5),
+                      side: const BorderSide(color: Color(0xFFFDE68A)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+
+                // Drawing (disabled if finished)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: isFinished
+                        ? null
+                        : () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const DrawingResultPage()),
+                            );
+                          },
+                    icon: Icon(
+                      Icons.shuffle_rounded,
+                      size: 14,
+                      color: isFinished ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                    ),
+                    label: Text(
+                      'Drawing',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isFinished ? const Color(0xFFCBD5E1) : const Color(0xFF1E293B),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.military_tech_rounded, size: 14, color: Color(0xFFD97706)),
-                  label: const Text(
-                    'Rekap Juara',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFEF3C7).withValues(alpha: 0.5),
-                    side: const BorderSide(color: Color(0xFFFDE68A)),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: isFinished ? const Color(0xFFF8FAFC) : Colors.white,
+                      side: BorderSide(color: isFinished ? const Color(0xFFE2E8F0) : const Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      disabledForegroundColor: const Color(0xFFCBD5E1),
+                      disabledBackgroundColor: const Color(0xFFF8FAFC),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
+                const SizedBox(width: 6),
 
-              // Drawing
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DrawingResultPage()),
-                    );
-                  },
-                  icon: const Icon(Icons.shuffle_rounded, size: 14, color: Color(0xFF475569)),
-                  label: const Text(
-                    'Drawing',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-
-              // Scoring Live
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const MatchScoringPage()),
-                    );
-                  },
-                  icon: const Icon(Icons.play_circle_fill_rounded, size: 14, color: Color(0xFFA8E63A)),
-                  label: const Text(
-                    'Scoring Live',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF063B00),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                // Scoring Live (disabled if finished)
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: isFinished
+                        ? null
+                        : () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const MatchScoringPage()),
+                            );
+                          },
+                    icon: Icon(
+                      Icons.play_circle_fill_rounded,
+                      size: 14,
+                      color: isFinished ? const Color(0xFFCBD5E1) : const Color(0xFFA8E63A),
+                    ),
+                    label: const Text(
+                      'Scoring Live',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isFinished ? const Color(0xFFF1F5F9) : const Color(0xFF063B00),
+                      foregroundColor: isFinished ? const Color(0xFFCBD5E1) : Colors.white,
+                      disabledBackgroundColor: const Color(0xFFF1F5F9),
+                      disabledForegroundColor: const Color(0xFFCBD5E1),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            );
+          }),
         ],
       ),
     );
