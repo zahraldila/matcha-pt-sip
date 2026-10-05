@@ -5,6 +5,7 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../drawing/domain/matcha_drawing_engine.dart';
 import '../../games/domain/game_wizard_model.dart';
 import '../../games/presentation/game_final_recap_page.dart';
+import '../../recap/presentation/session_match_recap_page.dart';
 import '../../session/data/session_service.dart';
 
 class MatchScoringPage extends StatefulWidget {
@@ -103,10 +104,37 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
     return _rounds.every((r) => r.matches.every((m) => m.status == 'Completed'));
   }
 
-  void _finishSessionAndShowRecap() {
-    if (_config.sessionId != null && _config.sessionId! > 0) {
-      SessionService().updateSessionStatus(_config.sessionId!, 'Finished');
+  bool _isFinishing = false;
+
+  Future<void> _finishSessionAndShowRecap() async {
+    if (_isFinishing) return;
+    setState(() => _isFinishing = true);
+
+    final sessionId = _config.sessionId;
+    if (sessionId != null && sessionId > 0) {
+      try {
+        await SessionService().saveFinishedGameResults(
+          sessionId: sessionId,
+          rounds: _rounds,
+          allPlayers: _config.players,
+        );
+      } catch (_) {}
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SessionMatchRecapPage(
+            sessionId: sessionId,
+            authController: widget.authController,
+          ),
+        ),
+      );
+      return;
     }
+
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -357,12 +385,23 @@ class _MatchScoringPageState extends State<MatchScoringPage> {
                     width: double.infinity,
                     height: 44,
                     child: ElevatedButton.icon(
-                      onPressed: _finishSessionAndShowRecap,
-                      icon: const Icon(Icons.emoji_events_rounded, size: 18),
-                      label: const Text('Selesaikan Sesi & Lihat Juara', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      onPressed: _isFinishing ? null : _finishSessionAndShowRecap,
+                      icon: _isFinishing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : const Icon(Icons.emoji_events_rounded, size: 18),
+                      label: Text(
+                        _isFinishing ? 'Menyimpan Hasil ke Database...' : 'Selesaikan Sesi & Lihat Juara',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.matchaDark,
                         foregroundColor: Colors.white,
+                        disabledBackgroundColor: AppColors.matchaDark.withValues(alpha: 0.7),
+                        disabledForegroundColor: Colors.white70,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),

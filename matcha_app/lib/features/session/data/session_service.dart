@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/session_model.dart';
+import '../../drawing/domain/matcha_drawing_engine.dart';
+import '../../games/domain/game_wizard_model.dart';
 
 class SessionService {
   final SupabaseClient _supabase;
@@ -774,6 +776,171 @@ class SessionService {
       throw Exception('Gagal menghapus sesi dari database: ${e.message}');
     } catch (e) {
       throw Exception('Terjadi kesalahan saat menghapus sesi: $e');
+    }
+  }
+
+  /// Menyimpan hasil drawing, match, participant, dan skor ke Supabase saat game selesai
+  Future<void> saveFinishedGameResults({
+    required int sessionId,
+    required List<DrawingRound> rounds,
+    required List<GamePlayerItem> allPlayers,
+  }) async {
+    try {
+      // 1. Update session status menjadi Finished
+      await _supabase
+          .from('tb_session')
+          .update({'status_session': 'Finished'})
+          .eq('session_id', sessionId);
+
+      // 2. Ambil court_id dari tb_session_court
+      final sessionCourts = await _supabase
+          .from('tb_session_court')
+          .select('court_id')
+          .eq('session_id', sessionId)
+          .order('court_id', ascending: true);
+
+      final List<int> courtIds = (sessionCourts as List)
+          .map((c) => c['court_id'])
+          .where((id) => id != null)
+          .map((id) => id is int ? id : (int.tryParse(id.toString()) ?? 0))
+          .where((id) => id > 0)
+          .toList();
+
+      // 3. Pastikan ada record tb_drawing
+      final existingDrawings = await _supabase
+          .from('tb_drawing')
+          .select('drawing_id')
+          .eq('session_id', sessionId)
+          .limit(1);
+
+      int drawingId;
+      if ((existingDrawings as List).isNotEmpty) {
+        final d = existingDrawings.first;
+        drawingId = d['drawing_id'] is int ? d['drawing_id'] : int.parse(d['drawing_id'].toString());
+      } else {
+        final now = DateTime.now();
+        final nowTime = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+        final drawingInsert = await _supabase
+            .from('tb_drawing')
+            .insert({
+              'session_id': sessionId,
+              'match_format_id': 1,
+              'tanggal_drawing': now.toIso8601String().split('T')[0],
+              'jam_drawing': nowTime,
+            })
+            .select('drawing_id')
+            .single();
+        drawingId = drawingInsert['drawing_id'] is int ? drawingInsert['drawing_id'] : int.parse(drawingInsert['drawing_id'].toString());
+      }
+
+      // 4. Hapus match lama jika pernah tersimpan sebelumnya agar tidak duplikat
+      final existingMatches = await _supabase
+          .from('tb_match')
+          .select('match_id')
+          .eq('drawing_id', drawingId);
+
+      final oldMatchIds = (existingMatches as List)
+          .map((m) => m['match_id'])
+          .where((id) => id != null)
+          .toList();
+
+      if (oldMatchIds.isNotEmpty) {
+        try {
+          await _supabase.from('tb_match_participant').delete().inFilter('match_id', oldMatchIds);
+        } catch (_) {}
+        try {
+          await _supabase.from('tb_score').delete().inFilter('match_id', oldMatchIds);
+        } catch (_) {}
+        try {
+          await _supabase.from('tb_match').delete().inFilter('match_id', oldMatchIds);
+        } catch (_) {}
+      }
+
+      // 5. Loop seluruh ronde dan match untuk insert ke tb_match, tb_match_participant, dan tb_score
+      int matchCounter = 0;
+      for (final round in rounds) {
+        for (final match in round.matches) {
+          matchCounter++;
+          int? courtId;
+          if (courtIds.isNotEmpty) {
+            final cIdx = (match.courtNumber - 1).clamp(0, courtIds.length - 1);
+            courtId = courtIds[cIdx];
+          }
+
+          final winnerTeam = match.scoreA > match.scoreB
+              ? 'team_a'
+              : (match.scoreB > match.scoreA ? 'team_b' : 'draw');
+
+          final matchSummary = 'Game Score ${match.scoreA} - ${match.scoreB}';
+
+          final matchInsert = await _supabase
+              .from('tb_match')
+              .insert({
+                'drawing_id': drawingId,
+                'session_id': sessionId,
+                if (courtId != null) 'court_id': courtId,
+                'round_number': round.roundNumber,
+                'nomor_match': matchCounter,
+                'status_match': 'Completed',
+                'winner_team': winnerTeam,
+                'hasil_pertandingan': matchSummary,
+                'waktu_selesai': DateTime.now().toIso8601String(),
+              })
+              .select('match_id')
+              .single();
+
+          final matchId = matchInsert['match_id'] is int ? matchInsert['match_id'] : int.parse(matchInsert['match_id'].toString());
+
+          int? resolvePlayerId(GamePlayerItem p) {
+            if (p.playerId != null && p.playerId! > 0) return p.playerId;
+            final matchItem = allPlayers.where((ap) => ap.id == p.id || ap.name.trim().toLowerCase() == p.name.trim().toLowerCase()).firstOrNull;
+            if (matchItem != null && matchItem.playerId != null && matchItem.playerId! > 0) {
+              return matchItem.playerId;
+            }
+            return null;
+          }
+
+          // Insert team_a participants
+          for (final p in match.teamA) {
+            final pId = resolvePlayerId(p);
+            if (pId != null && pId > 0) {
+              await _supabase.from('tb_match_participant').insert({
+                'match_id': matchId,
+                'player_id': pId,
+                'side': 'team_a',
+              });
+            }
+          }
+
+          // Insert team_b participants
+          for (final p in match.teamB) {
+            final pId = resolvePlayerId(p);
+            if (pId != null && pId > 0) {
+              await _supabase.from('tb_match_participant').insert({
+                'match_id': matchId,
+                'player_id': pId,
+                'side': 'team_b',
+              });
+            }
+          }
+
+          // Insert score ke tb_score
+          await _supabase.from('tb_score').insert({
+            'match_id': matchId,
+            'set_number': 1,
+            'game_number': 1,
+            'point_score_a': match.scoreA.toString(),
+            'point_score_b': match.scoreB.toString(),
+            'game_score_a': match.scoreA,
+            'game_score_b': match.scoreB,
+            'score_side_a': match.scoreA,
+            'score_side_b': match.scoreB,
+            'status_score': 'Final',
+          });
+        }
+      }
+    } catch (_) {
+      // Fallback
     }
   }
 }
