@@ -612,23 +612,8 @@ class SessionService {
         } catch (_) {}
       }
 
-      // 3. Daftarkan semua player ke tb_session_player
+      // 3. Daftarkan semua player yang terdaftar di game ke tb_session_player
       final Set<int> allPlayerIds = {};
-      if (hostPlayerId != null && hostPlayerId > 0) {
-        allPlayerIds.add(hostPlayerId);
-      } else if (hostUserId != null) {
-        try {
-          final pRes = await _supabase
-              .from('tb_player')
-              .select('player_id')
-              .eq('user_id', hostUserId)
-              .maybeSingle();
-          if (pRes != null && pRes['player_id'] != null) {
-            allPlayerIds.add(pRes['player_id'] as int);
-          }
-        } catch (_) {}
-      }
-
       if (playerIds != null) {
         for (final pId in playerIds) {
           if (pId > 0) allPlayerIds.add(pId);

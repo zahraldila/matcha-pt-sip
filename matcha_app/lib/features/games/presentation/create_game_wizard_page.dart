@@ -130,26 +130,6 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
     super.initState();
     _activityNameController.addListener(_onActivityNameChanged);
     _loadVenues();
-
-    final user = widget.authController?.currentUser;
-    if (user != null) {
-      final genderStr = user.gender?.toLowerCase() ?? '';
-      final hostPlayer = GamePlayerItem(
-        id: 'user_${user.userId}',
-        playerId: user.playerId,
-        userId: user.userId,
-        name: user.nama.isNotEmpty ? user.nama : 'Host Player',
-        gender: (genderStr == 'female' || genderStr == 'perempuan')
-            ? 'Perempuan'
-            : 'Laki-laki',
-        level: (user.level != null && user.level!.isNotEmpty) ? user.level! : 'Beginner',
-        isGuest: false,
-        avatarUrl: user.foto,
-      );
-      if (_config.players.isEmpty) {
-        _config.players.add(hostPlayer);
-      }
-    }
   }
 
   void _onActivityNameChanged() {
@@ -922,16 +902,20 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
     }
 
     setState(() {
+      final genderStr = user.gender?.toLowerCase() ?? '';
       _config.players.insert(
         0,
         GamePlayerItem(
           id: 'user_${user.userId}',
-          name: user.nama,
-          gender: user.gender ?? 'Laki-laki',
-          level: user.level ?? 'Beginner',
+          playerId: user.playerId,
+          userId: user.userId,
+          name: user.nama.isNotEmpty ? user.nama : 'Host Player',
+          gender: (genderStr == 'female' || genderStr == 'perempuan')
+              ? 'Perempuan'
+              : 'Laki-laki',
+          level: (user.level != null && user.level!.isNotEmpty) ? user.level! : 'Beginner',
           isGuest: false,
           avatarUrl: user.foto,
-          userId: user.userId,
         ),
       );
     });
