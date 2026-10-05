@@ -1409,7 +1409,8 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
           ],
         ),
 
-        const SizedBox(height: 12),
+        // Main content centered between header and footer
+        const Spacer(),
 
         // 2. Player Row
         Row(
@@ -1785,8 +1786,8 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
             ),
           ],
         ),
-
-        const SizedBox(height: 14),
+        // Center main content between header and footer
+        const Spacer(),
 
         // 2. Centered Big Avatar
         Container(
@@ -1983,6 +1984,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
           ),
         ),
 
+        // spacer before footer
         const Spacer(),
 
         // 5. Footer
@@ -2067,8 +2069,8 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
             ),
           ],
         ),
-
-        const SizedBox(height: 12),
+        // Center main content between header and footer
+        const Spacer(),
 
         // 2. Recent Matches List
         if (matches.isEmpty)
@@ -2170,6 +2172,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
             );
           }),
 
+        // spacer before footer
         const Spacer(),
 
         // 3. Footer
