@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -1135,7 +1136,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                           ),
                           const SizedBox(height: 8),
 
-                          // Export: Save to Storage
+                          // Export: Save to Storage / Galeri
                           GestureDetector(
                             onTap: isProcessing
                                 ? null
@@ -1151,36 +1152,48 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                         }
                                         return;
                                       }
-                                      Directory? targetDir;
-                                      if (Platform.isAndroid) {
-                                        final picturesDir = Directory('/storage/emulated/0/Pictures/Matcha');
-                                        try {
-                                          if (!await picturesDir.exists()) {
-                                            await picturesDir.create(recursive: true);
-                                          }
-                                          targetDir = picturesDir;
-                                        } catch (_) {
-                                          try {
-                                            final extDir = await getExternalStorageDirectory();
-                                            if (extDir != null) {
-                                              final extPictures = Directory('${extDir.path}/Pictures');
-                                              if (!await extPictures.exists()) {
-                                                await extPictures.create(recursive: true);
-                                              }
-                                              targetDir = extPictures;
+
+                                      // 1. Simpan ke Galeri HP via Gal (MediaStore Android / Photos iOS)
+                                      bool savedToGallery = false;
+                                      try {
+                                        final hasAccess = await Gal.hasAccess();
+                                        if (!hasAccess) {
+                                          final granted = await Gal.requestAccess();
+                                          if (!granted) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text('Izin akses galeri diperlukan untuk menyimpan foto ke HP.'),
+                                                  backgroundColor: Color(0xFFE11D48),
+                                                ),
+                                              );
                                             }
-                                          } catch (_) {}
+                                            return;
+                                          }
                                         }
+
+                                        await Gal.putImageBytes(
+                                          pngBytes,
+                                          name: 'matcha_career_story_${DateTime.now().millisecondsSinceEpoch}',
+                                        );
+                                        savedToGallery = true;
+                                      } catch (galError) {
+                                        debugPrint('Gal save error: $galError');
                                       }
-                                      targetDir ??= await getApplicationDocumentsDirectory();
+
+                                      // 2. Simpan juga salinan file lokal untuk aksi Buka/Share
+                                      final tempDir = await getTemporaryDirectory();
                                       final fileName = 'matcha_career_story_${DateTime.now().millisecondsSinceEpoch}.png';
-                                      final savedFile = File('${targetDir.path}/$fileName');
+                                      final savedFile = File('${tempDir.path}/$fileName');
                                       await savedFile.writeAsBytes(pngBytes);
+
                                       if (context.mounted) {
                                         Navigator.pop(ctx);
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('Gambar story berhasil disimpan ke galeri/storage! 📁✨ (${savedFile.path.split('/').last})'),
+                                            content: Text(savedToGallery
+                                                ? 'Gambar story berhasil tersimpan di Galeri foto HP! 🖼️✨'
+                                                : 'Gambar story berhasil tersimpan di perangkat! 📁✨'),
                                             backgroundColor: const Color(0xFF063B00),
                                             behavior: SnackBarBehavior.floating,
                                             duration: const Duration(seconds: 5),
