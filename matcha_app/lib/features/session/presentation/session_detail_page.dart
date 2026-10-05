@@ -1371,9 +1371,13 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: Text(
-                        session.isFull ? 'Slot Kuota Penuh' : 'Gabung Slot Sesi Mabar 🎾',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          session.isFull ? 'Slot Kuota Penuh' : 'Gabung Slot Sesi Mabar 🎾',
+                          maxLines: 1,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
                       ),
                     ),
         ),

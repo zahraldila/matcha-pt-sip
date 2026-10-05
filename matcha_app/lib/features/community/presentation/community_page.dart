@@ -658,7 +658,7 @@ class _CommunityPageState extends State<CommunityPage> {
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  height: 38,
+                  height: 42,
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.push(
@@ -672,14 +672,19 @@ class _CommunityPageState extends State<CommunityPage> {
                       ).then((_) => _loadCommunities());
                     },
                     style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       backgroundColor: const Color(0xFF063B00),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text(
-                      'Detail Komunitas',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Detail Komunitas',
+                        maxLines: 1,
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ),
