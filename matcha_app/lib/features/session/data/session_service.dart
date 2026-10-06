@@ -876,6 +876,7 @@ class SessionService {
 
       // 5. Loop seluruh ronde dan match untuk insert ke tb_match, tb_match_participant, dan tb_score
       int matchCounter = 0;
+      final effectiveCourtCount = courtIds.isNotEmpty ? courtIds.length : 1;
       for (final round in rounds) {
         for (final match in round.matches) {
           matchCounter++;
@@ -891,14 +892,15 @@ class SessionService {
 
           final matchSummary = 'Game Score ${match.scoreA} - ${match.scoreB}';
 
+          final cIdx = (match.courtNumber - 1).clamp(0, effectiveCourtCount - 1);
+          final int nomorMatch = (round.roundNumber - 1) * effectiveCourtCount + (match.courtNumber > 0 ? match.courtNumber : (cIdx + 1));
+
           final matchInsert = await _supabase
               .from('tb_match')
               .insert({
                 'drawing_id': drawingId,
-                'session_id': sessionId,
                 if (courtId != null) 'court_id': courtId,
-                'round_number': round.roundNumber,
-                'nomor_match': matchCounter,
+                'nomor_match': nomorMatch,
                 'status_match': 'Completed',
                 'winner_team': winnerTeam,
                 'hasil_pertandingan': matchSummary,

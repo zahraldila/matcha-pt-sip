@@ -6,6 +6,7 @@ import '../../../core/utils/app_error_handler.dart';
 import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../drawing/presentation/drawing_result_page.dart';
+import '../../games/domain/game_wizard_model.dart';
 import '../../match/presentation/match_scoring_page.dart';
 import '../../recap/presentation/session_match_recap_page.dart';
 import '../data/session_service.dart';
@@ -123,6 +124,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     final shareUrl = 'https://matcha.siproduktif.com/games/share/$shareToken';
     final shareText = 'Mabar yuk di MATCHA!\n\n${session.namaSession}\n\n$shareUrl';
 
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -903,7 +905,36 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const DrawingResultPage()),
+                    MaterialPageRoute(
+                      builder: (_) => DrawingResultPage(
+                        sessionId: session.sessionId,
+                        hostUserId: session.hostUserId,
+                        config: GameWizardConfig(
+                          sessionId: session.sessionId,
+                          hostUserId: session.hostUserId,
+                          activityName: session.namaSession,
+                          venueName: session.venueName,
+                          venueId: session.venueId,
+                          sport: session.sportName,
+                          scoringSystem: session.scoringSystem,
+                          playMode: session.jenisPermainan,
+                          courtCount: 1,
+                          players: session.registeredPlayers
+                              .map(
+                                (p) => GamePlayerItem(
+                                  id: p.playerId.toString(),
+                                  name: p.nama,
+                                  level: p.level ?? 'Beginner',
+                                  userId: p.userId,
+                                  playerId: p.playerId,
+                                  avatarUrl: p.foto,
+                                ),
+                              )
+                              .toList(),
+                        ),
+                        authController: widget.authController,
+                      ),
+                    ),
                   );
                 },
                 icon: const Icon(Icons.shuffle_rounded, size: 16),
@@ -923,10 +954,19 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
               height: 40,
               child: OutlinedButton.icon(
                 onPressed: () {
+                  final isHostUser = widget.authController?.currentUser?.isAdmin == true ||
+                      (widget.authController?.currentUser != null &&
+                          widget.authController?.currentUser?.userId == session.hostUserId);
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const MatchScoringPage(),
+                      builder: (_) => MatchScoringPage(
+                        sessionId: widget.sessionId,
+                        authController: widget.authController,
+                        isHost: isHostUser,
+                        hostUserId: session.hostUserId,
+                      ),
                     ),
                   );
                 },

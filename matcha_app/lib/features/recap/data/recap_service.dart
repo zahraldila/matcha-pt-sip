@@ -28,6 +28,25 @@ class RecapService {
     return null;
   }
 
+  /// Helper untuk memparsing identitas side/tim ('Team A', 'Team B', 'A', 'B', dsb)
+  /// secara akurat tanpa terpengaruh huruf 'a' pada kata 'team'.
+  static String? parseTeamSide(String? raw) {
+    if (raw == null) return null;
+    final clean = raw.trim().toUpperCase();
+    if (clean.isEmpty) return null;
+    if (clean == 'B' || clean == 'TEAM B' || clean == 'TEAM_B' || clean == 'SIDE B' || clean == 'SIDE_B') {
+      return 'B';
+    }
+    if (clean == 'A' || clean == 'TEAM A' || clean == 'TEAM_A' || clean == 'SIDE A' || clean == 'SIDE_A') {
+      return 'A';
+    }
+    final matchB = RegExp(r'(^|[^A-Z])B($|[^A-Z])').hasMatch(clean);
+    final matchA = RegExp(r'(^|[^A-Z])A($|[^A-Z])').hasMatch(clean);
+    if (matchB && !matchA) return 'B';
+    if (matchA && !matchB) return 'A';
+    return null;
+  }
+
   /// Mengambil data rekap sesi mabar yang diselenggarakan oleh Host
   Future<HostRecapData> getHostRecap(int hostUserId) async {
     try {
@@ -340,17 +359,17 @@ class RecapService {
         final statusMatch = (match['status_match']?.toString())?.toLowerCase() ?? '';
         if (!statusMatch.contains('complete') && !statusMatch.contains('finish')) continue;
 
-        final mySide = mySidePerMatch[matchId] ?? 'Team A';
-        final isSideA = mySide.toLowerCase().contains('a');
+        final mySideStr = mySidePerMatch[matchId];
+        final mySide = parseTeamSide(mySideStr) ?? 'A';
+        final isSideA = mySide == 'A';
 
         // Evaluasi pemenang persis seperti PlayerController di web
-        final winnerTeam = (match['winner_team']?.toString()) ?? '';
+        final winnerSide = parseTeamSide(match['winner_team']?.toString());
         bool isWinner = false;
         bool isDraw = false;
 
-        if (winnerTeam.isNotEmpty) {
-          final winnerSideA = winnerTeam.toLowerCase().contains('a');
-          isWinner = (isSideA && winnerSideA) || (!isSideA && !winnerSideA);
+        if (winnerSide != null) {
+          isWinner = (isSideA && winnerSide == 'A') || (!isSideA && winnerSide == 'B');
         } else {
           final scoresList = match['tb_score'] as List<dynamic>? ?? [];
           int scoreA = 0;
@@ -385,8 +404,8 @@ class RecapService {
           final oPlayerId = _toNullableInt(oMap['player_id']);
           if (oPlayerId != null && allPlayerIds.contains(oPlayerId)) continue; // Diri sendiri
 
-          final oSide = (oMap['side']?.toString()) ?? '';
-          final oSideA = oSide.toLowerCase().contains('a');
+          final oSide = parseTeamSide(oMap['side']?.toString()) ?? 'B';
+          final oSideA = oSide == 'A';
 
           final oPlayerObj = oMap['tb_player'] as Map<String, dynamic>?;
           final oName = (oPlayerObj?['nama']?.toString()) ?? 'Pemain';
@@ -541,6 +560,7 @@ class RecapService {
           .from('tb_session')
           .select('''
             session_id,
+            host_user_id,
             nama_session,
             sport_id,
             venue_id,
@@ -602,20 +622,33 @@ class RecapService {
         }
       } catch (_) {}
 
-      // Ambil data Drawing dari tb_drawing
+      // Ambil data Drawing aktif dari tb_drawing yang memiliki match
       final drawingsRes = await _supabase
           .from('tb_drawing')
           .select('drawing_id')
-          .eq('session_id', sessionId);
+          .eq('session_id', sessionId)
+          .order('drawing_id', ascending: false);
 
-      final drawingIds = (drawingsRes as List<dynamic>)
-          .map((d) => _toNullableInt(d['drawing_id']))
-          .where((id) => id != null)
-          .cast<int>()
-          .toList();
+      int? activeDrawingId;
+      if (drawingsRes.isNotEmpty) {
+        for (final d in drawingsRes) {
+          final dId = _toNullableInt(d['drawing_id']);
+          if (dId == null) continue;
+          final mCheck = await _supabase
+              .from('tb_match')
+              .select('match_id')
+              .eq('drawing_id', dId)
+              .limit(1);
+          if ((mCheck as List).isNotEmpty) {
+            activeDrawingId = dId;
+            break;
+          }
+        }
+        activeDrawingId ??= _toNullableInt(drawingsRes.first['drawing_id']);
+      }
 
       List<dynamic> rawMatches = [];
-      if (drawingIds.isNotEmpty) {
+      if (activeDrawingId != null) {
         final mRes = await _supabase
             .from('tb_match')
             .select('''
@@ -628,28 +661,11 @@ class RecapService {
                 tb_player (player_id, user_id, nama, level, foto, gender)
               )
             ''')
-            .inFilter('drawing_id', drawingIds)
-            .order('match_id', ascending: true);
+            .eq('drawing_id', activeDrawingId)
+            .order('nomor_match', ascending: true);
         rawMatches = mRes as List<dynamic>;
       } else {
-        // Coba query langsung jika tb_match memiliki session_id
-        try {
-          final mRes = await _supabase
-              .from('tb_match')
-              .select('''
-                *,
-                tb_court (nama_court),
-                tb_score (*),
-                tb_match_participant (
-                  player_id,
-                  side,
-                  tb_player (player_id, user_id, nama, level, foto, gender)
-                )
-              ''')
-              .eq('session_id', sessionId)
-              .order('match_id', ascending: true);
-          rawMatches = mRes as List<dynamic>;
-        } catch (_) {}
+        rawMatches = [];
       }
 
       // Deteksi format sistem scoring (Sets vs Games / Points)
@@ -663,7 +679,7 @@ class RecapService {
       // Inisialisasi statistik pemain terdaftar
       for (final p in registeredPlayers) {
         final pId = _toInt(p['player_id']);
-        final pName = (p['nama']?.toString()) ?? 'Pemain';
+        final pName = (p['nama'] ?? p['nama_player'])?.toString() ?? 'Pemain';
         playerStatsMap[pId] = {
           'playerId': pId,
           'nama': pName,
@@ -705,8 +721,9 @@ class RecapService {
           final partMap = part as Map<String, dynamic>;
           final pId = _toNullableInt(partMap['player_id']);
           final pObj = partMap['tb_player'] as Map<String, dynamic>?;
-          final pName = (pObj?['nama']?.toString()) ?? 'Pemain';
-          final side = (partMap['side']?.toString() ?? '').toLowerCase();
+          final pName = (pObj?['nama'] ?? pObj?['nama_player'])?.toString() ?? 'Pemain';
+          final sideParsed = parseTeamSide(partMap['side']?.toString());
+          final isB = sideParsed == 'B';
 
           if (pId != null && !playerStatsMap.containsKey(pId)) {
             playerStatsMap[pId] = {
@@ -729,7 +746,7 @@ class RecapService {
             };
           }
 
-          if (side.contains('b')) {
+          if (isB) {
             sideBNames.add(pName);
             if (pId != null) sideBPlayerIds.add(pId);
           } else {
@@ -740,6 +757,16 @@ class RecapService {
 
         // Skor pertandingan
         final scores = mMap['tb_score'] as List<dynamic>? ?? [];
+        final mStatus = (mMap['status_match']?.toString() ?? '').toLowerCase();
+        final bool isMatchCompleted = mStatus == 'completed' ||
+            mStatus == 'finished' ||
+            mStatus == 'final' ||
+            (scores.isNotEmpty &&
+                scores.any((s) {
+                  final st = (s['status_score'] ?? '').toString().toLowerCase();
+                  return st == 'completed' || st == 'final';
+                }));
+
         int mSetsA = 0;
         int mSetsB = 0;
         int mGamesA = 0;
@@ -764,8 +791,6 @@ class RecapService {
 
             mSetsA = math.max(mSetsA, setScoreA);
             mSetsB = math.max(mSetsB, setScoreB);
-            mGamesA += gameA;
-            mGamesB += gameB;
 
             final ga = gameA > 0 ? gameA : scoreSideA;
             final gb = gameB > 0 ? gameB : scoreSideB;
@@ -784,10 +809,8 @@ class RecapService {
             mSetsA = shSetsA;
             mSetsB = shSetsB;
           }
-          if (mGamesA == 0 && mGamesB == 0) {
-            mGamesA = shGamesA;
-            mGamesB = shGamesB;
-          }
+          mGamesA = shGamesA;
+          mGamesB = shGamesB;
         } else if (mMap['hasil_pertandingan'] != null && mMap['hasil_pertandingan'].toString().isNotEmpty) {
           setPills.add(mMap['hasil_pertandingan'].toString());
         }
@@ -805,31 +828,36 @@ class RecapService {
         }
 
         // Tentukan pemenang & poin akumulasi sesuai ScoringService web
-        String? winnerSide;
+        String? winnerSide = parseTeamSide(mMap['winner_team']?.toString());
+
         int ptsForA = 0;
         int ptsForB = 0;
 
         if (isSets) {
           if (mSetsA == 0 && mSetsB == 0 && (mGamesA > 0 || mGamesB > 0)) {
-            mSetsA = mGamesA >= mGamesB ? 1 : 0;
+            mSetsA = mGamesA > mGamesB ? 1 : 0;
             mSetsB = mGamesB > mGamesA ? 1 : 0;
           }
-          if (mSetsA > mSetsB) {
-            winnerSide = 'A';
-          } else if (mSetsB > mSetsA) {
-            winnerSide = 'B';
-          } else if (mGamesA > mGamesB) {
-            winnerSide = 'A';
-          } else if (mGamesB > mGamesA) {
-            winnerSide = 'B';
+          if (winnerSide == null) {
+            if (mSetsA > mSetsB) {
+              winnerSide = 'A';
+            } else if (mSetsB > mSetsA) {
+              winnerSide = 'B';
+            } else if (mGamesA > mGamesB) {
+              winnerSide = 'A';
+            } else if (mGamesB > mGamesA) {
+              winnerSide = 'B';
+            }
           }
           ptsForA = mGamesA > 0 ? mGamesA : mSetsA;
           ptsForB = mGamesB > 0 ? mGamesB : mSetsB;
         } else {
-          if (mGamesA > mGamesB) {
-            winnerSide = 'A';
-          } else if (mGamesB > mGamesA) {
-            winnerSide = 'B';
+          if (winnerSide == null) {
+            if (mGamesA > mGamesB) {
+              winnerSide = 'A';
+            } else if (mGamesB > mGamesA) {
+              winnerSide = 'B';
+            }
           }
           ptsForA = mGamesA;
           ptsForB = mGamesB;
@@ -839,42 +867,43 @@ class RecapService {
         final isSideBWinner = winnerSide == 'B';
         final isDraw = winnerSide == null;
 
-        // Akumulasi statistik pemain Tim A
-        for (final pId in sideAPlayerIds) {
-          if (playerStatsMap.containsKey(pId)) {
-            final st = playerStatsMap[pId]!;
-            st['matchesPlayed'] = _toInt(st['matchesPlayed']) + 1;
-            st['setsWon'] = _toInt(st['setsWon']) + mSetsA;
-            st['setsLost'] = _toInt(st['setsLost']) + mSetsB;
-            st['gamesWon'] = _toInt(st['gamesWon']) + mGamesA;
-            st['gamesLost'] = _toInt(st['gamesLost']) + mGamesB;
-            st['pointsFor'] = _toInt(st['pointsFor']) + ptsForA;
-            st['pointsAgainst'] = _toInt(st['pointsAgainst']) + ptsForB;
-            st['durationMinutes'] = _toInt(st['durationMinutes']) + matchDuration;
-            if (isSideAWinner) {
-              st['matchesWon'] = _toInt(st['matchesWon']) + 1;
-            } else if (isSideBWinner) {
-              st['matchesLost'] = _toInt(st['matchesLost']) + 1;
+        // Akumulasi statistik pemain Tim A & B (Hanya untuk match yang sudah selesai / memiliki skor final)
+        if (isMatchCompleted) {
+          for (final pId in sideAPlayerIds) {
+            if (playerStatsMap.containsKey(pId)) {
+              final st = playerStatsMap[pId]!;
+              st['matchesPlayed'] = _toInt(st['matchesPlayed']) + 1;
+              st['setsWon'] = _toInt(st['setsWon']) + mSetsA;
+              st['setsLost'] = _toInt(st['setsLost']) + mSetsB;
+              st['gamesWon'] = _toInt(st['gamesWon']) + mGamesA;
+              st['gamesLost'] = _toInt(st['gamesLost']) + mGamesB;
+              st['pointsFor'] = _toInt(st['pointsFor']) + ptsForA;
+              st['pointsAgainst'] = _toInt(st['pointsAgainst']) + ptsForB;
+              st['durationMinutes'] = _toInt(st['durationMinutes']) + matchDuration;
+              if (isSideAWinner) {
+                st['matchesWon'] = _toInt(st['matchesWon']) + 1;
+              } else if (isSideBWinner) {
+                st['matchesLost'] = _toInt(st['matchesLost']) + 1;
+              }
             }
           }
-        }
 
-        // Akumulasi statistik pemain Tim B
-        for (final pId in sideBPlayerIds) {
-          if (playerStatsMap.containsKey(pId)) {
-            final st = playerStatsMap[pId]!;
-            st['matchesPlayed'] = _toInt(st['matchesPlayed']) + 1;
-            st['setsWon'] = _toInt(st['setsWon']) + mSetsB;
-            st['setsLost'] = _toInt(st['setsLost']) + mSetsA;
-            st['gamesWon'] = _toInt(st['gamesWon']) + mGamesB;
-            st['gamesLost'] = _toInt(st['gamesLost']) + mGamesA;
-            st['pointsFor'] = _toInt(st['pointsFor']) + ptsForB;
-            st['pointsAgainst'] = _toInt(st['pointsAgainst']) + ptsForA;
-            st['durationMinutes'] = _toInt(st['durationMinutes']) + matchDuration;
-            if (isSideBWinner) {
-              st['matchesWon'] = _toInt(st['matchesWon']) + 1;
-            } else if (isSideAWinner) {
-              st['matchesLost'] = _toInt(st['matchesLost']) + 1;
+          for (final pId in sideBPlayerIds) {
+            if (playerStatsMap.containsKey(pId)) {
+              final st = playerStatsMap[pId]!;
+              st['matchesPlayed'] = _toInt(st['matchesPlayed']) + 1;
+              st['setsWon'] = _toInt(st['setsWon']) + mSetsB;
+              st['setsLost'] = _toInt(st['setsLost']) + mSetsA;
+              st['gamesWon'] = _toInt(st['gamesWon']) + mGamesB;
+              st['gamesLost'] = _toInt(st['gamesLost']) + mGamesA;
+              st['pointsFor'] = _toInt(st['pointsFor']) + ptsForB;
+              st['pointsAgainst'] = _toInt(st['pointsAgainst']) + ptsForA;
+              st['durationMinutes'] = _toInt(st['durationMinutes']) + matchDuration;
+              if (isSideBWinner) {
+                st['matchesWon'] = _toInt(st['matchesWon']) + 1;
+              } else if (isSideAWinner) {
+                st['matchesLost'] = _toInt(st['matchesLost']) + 1;
+              }
             }
           }
         }

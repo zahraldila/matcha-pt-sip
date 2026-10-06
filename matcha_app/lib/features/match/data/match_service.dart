@@ -1,10 +1,22 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../drawing/domain/matcha_drawing_engine.dart';
+import '../../games/domain/game_wizard_model.dart';
+import 'datasource/match_remote_data_source.dart';
 
 class MatchService {
-  final SupabaseClient _supabase;
+  final SupabaseClient? _client;
+  SupabaseClient get _supabase => _client ?? Supabase.instance.client;
 
-  MatchService({SupabaseClient? supabaseClient})
-    : _supabase = supabaseClient ?? Supabase.instance.client;
+  final MatchRemoteDataSource? _remoteDataSource;
+  MatchRemoteDataSource get _dataSource =>
+      _remoteDataSource ?? MatchRemoteDataSource(supabaseClient: _supabase);
+
+  MatchService({
+    SupabaseClient? supabaseClient,
+    MatchRemoteDataSource? remoteDataSource,
+  })  : _client = supabaseClient,
+        _remoteDataSource = remoteDataSource;
 
   /// Mengambil sesi live yang sedang aktif dari tb_session.
   /// Jika sessionId diberikan, ambil sesi tersebut.
@@ -18,7 +30,7 @@ class MatchService {
             .select()
             .eq('session_id', parsedId)
             .maybeSingle();
-        if (res != null) return res;
+        return res;
       }
 
       // Cari sesi yang berstatus 'Live'
@@ -50,6 +62,50 @@ class MatchService {
     }
   }
 
+  /// Mengambil drawing_id aktif/terbaru untuk suatu session_id
+  Future<int?> getLatestDrawingId(dynamic sessionId) async {
+    try {
+      if (sessionId == null) return null;
+      final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+      final res = await _supabase
+          .from('tb_drawing')
+          .select('drawing_id')
+          .eq('session_id', parsedId)
+          .order('drawing_id', ascending: false)
+          .limit(1);
+      if ((res as List).isEmpty) return null;
+      final dId = res.first['drawing_id'];
+      return dId is int ? dId : int.tryParse(dId.toString());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Mengambil atau membuat record tb_drawing untuk suatu session_id
+  Future<int> getOrCreateDrawingId(dynamic sessionId) async {
+    final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+    final existingId = await getLatestDrawingId(parsedId);
+    if (existingId != null && existingId > 0) {
+      return existingId;
+    }
+
+    final now = DateTime.now();
+    final nowTime =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+    final drawingInsert = await _supabase
+        .from('tb_drawing')
+        .insert({
+          'session_id': parsedId,
+          'match_format_id': 1,
+          'tanggal_drawing': now.toIso8601String().split('T')[0],
+          'jam_drawing': nowTime,
+        })
+        .select('drawing_id')
+        .single();
+    final dId = drawingInsert['drawing_id'];
+    return dId is int ? dId : int.parse(dId.toString());
+  }
+
   /// Mengambil daftar match untuk suatu session_id beserta detail court, pemain, dan skor
   Future<List<Map<String, dynamic>>> getMatchesForSession(
     dynamic sessionId,
@@ -58,14 +114,82 @@ class MatchService {
       if (sessionId == null) return [];
       final parsedSessionId = int.tryParse(sessionId.toString()) ?? sessionId;
 
+      final drawingId = await getLatestDrawingId(parsedSessionId);
+      if (drawingId == null) {
+        return [];
+      }
+
       final matches = await _supabase
           .from('tb_match')
           .select()
-          .eq('session_id', parsedSessionId)
+          .eq('drawing_id', drawingId)
           .order('nomor_match', ascending: true);
 
       if (matches.isEmpty) {
         return [];
+      }
+
+      int sessionCourtCount = 1;
+      try {
+        final sCourts = await _supabase
+            .from('tb_session_court')
+            .select('court_id')
+            .eq('session_id', parsedSessionId);
+        if ((sCourts as List).isNotEmpty) {
+          sessionCourtCount = sCourts.length;
+        }
+      } catch (_) {}
+      final effectiveCourtCount = sessionCourtCount > 0 ? sessionCourtCount : 1;
+
+      // Batch ambil partisipan untuk seluruh match dalam drawing
+      final matchIds = matches
+          .map((m) => m['match_id'])
+          .where((id) => id != null)
+          .map((id) => id is int ? id : int.tryParse(id.toString()))
+          .whereType<int>()
+          .toList();
+
+      List<Map<String, dynamic>> allParticipants = [];
+      if (matchIds.isNotEmpty) {
+        try {
+          final pRes = await _supabase
+              .from('tb_match_participant')
+              .select('match_id, player_id, side')
+              .inFilter('match_id', matchIds);
+          allParticipants = List<Map<String, dynamic>>.from(pRes as List);
+        } catch (e) {
+          debugPrint('[MATCHA_ERROR] Gagal memuat tb_match_participant: $e');
+          rethrow;
+        }
+      }
+
+      // Batch ambil profil pemain dari tb_player menggunakan kolom 'nama'
+      final participantPlayerIds = allParticipants
+          .map((p) => p['player_id'])
+          .where((id) => id != null)
+          .map((id) => id is int ? id : int.tryParse(id.toString()))
+          .whereType<int>()
+          .toSet()
+          .toList();
+
+      final Map<int, Map<String, dynamic>> playerMap = {};
+      if (participantPlayerIds.isNotEmpty) {
+        try {
+          final pList = await _supabase
+              .from('tb_player')
+              .select('player_id, user_id, nama, foto, level')
+              .inFilter('player_id', participantPlayerIds);
+          for (final pData in pList) {
+            final pid = pData['player_id'];
+            final parsedPid = pid is int ? pid : int.tryParse(pid?.toString() ?? '');
+            if (parsedPid != null) {
+              playerMap[parsedPid] = Map<String, dynamic>.from(pData);
+            }
+          }
+        } catch (e) {
+          debugPrint('[MATCHA_ERROR] Gagal memuat tb_player: $e');
+          rethrow;
+        }
       }
 
       final List<Map<String, dynamic>> detailedMatches = [];
@@ -73,7 +197,11 @@ class MatchService {
       for (final match in matches) {
         final matchId = match['match_id'] as int;
         final courtId = match['court_id'];
-        final nomorMatch = match['nomor_match'] ?? 1;
+        final int nomorMatch = match['nomor_match'] is int
+            ? match['nomor_match'] as int
+            : (int.tryParse(match['nomor_match']?.toString() ?? '') ?? 1);
+        final int roundNum = ((nomorMatch - 1) ~/ effectiveCourtCount) + 1;
+        final int courtNum = ((nomorMatch - 1) % effectiveCourtCount) + 1;
 
         // 1. Ambil Nama Court
         String courtName = 'Court $nomorMatch';
@@ -93,73 +221,103 @@ class MatchService {
         // 2. Ambil Pemain dari tb_match_participant -> tb_player
         List<String> sideAPlayers = [];
         List<String> sideBPlayers = [];
+        List<Map<String, dynamic>> sideAPlayerObjects = [];
+        List<Map<String, dynamic>> sideBPlayerObjects = [];
 
-        try {
-          final participants = await _supabase
-              .from('tb_match_participant')
-              .select('player_id, side')
-              .eq('match_id', matchId);
+        final matchParticipants = allParticipants.where((p) {
+          final mId = p['match_id'];
+          final parsedMId = mId is int ? mId : int.tryParse(mId?.toString() ?? '');
+          return parsedMId == matchId;
+        });
 
-          for (final p in participants) {
-            final playerId = p['player_id'];
-            if (playerId == null) continue;
+        for (final p in matchParticipants) {
+          final playerId = p['player_id'];
+          if (playerId == null) continue;
+          final int? parsedPId = playerId is int ? playerId : int.tryParse(playerId.toString());
+          if (parsedPId == null) continue;
 
-            final playerRes = await _supabase
-                .from('tb_player')
-                .select('nama_player')
-                .eq('player_id', playerId)
-                .maybeSingle();
+          final pData = playerMap[parsedPId];
+          final pName = (pData?['nama'] ?? pData?['nama_player'])?.toString().trim();
+          if (pName == null || pName.isEmpty) continue;
 
-            final playerName = playerRes != null
-                ? playerRes['nama_player'] as String?
-                : null;
-            if (playerName == null || playerName.isEmpty) continue;
+          final playerItem = {
+            'id': parsedPId.toString(),
+            'playerId': parsedPId,
+            'userId': pData?['user_id'] is int
+                ? pData!['user_id'] as int
+                : int.tryParse(pData?['user_id']?.toString() ?? ''),
+            'name': pName,
+            'avatarUrl': pData?['foto']?.toString(),
+            'level': pData?['level']?.toString() ?? 'Beginner',
+          };
 
-            final sideVal = (p['side'] ?? '').toString().toLowerCase();
+          final sideVal = (p['side'] ?? '').toString().trim().toUpperCase();
+          final isB = sideVal == 'B' || sideVal == 'TEAM_B' || sideVal == 'SIDE_B' || sideVal.contains('B');
 
-            if (sideVal.contains('b')) {
-              sideBPlayers.add(playerName);
-            } else {
-              sideAPlayers.add(playerName);
-            }
+          if (isB) {
+            sideBPlayers.add(pName);
+            sideBPlayerObjects.add(playerItem);
+          } else {
+            sideAPlayers.add(pName);
+            sideAPlayerObjects.add(playerItem);
           }
-        } catch (_) {}
+        }
 
-        final sideA = sideAPlayers.isNotEmpty
-            ? sideAPlayers.join(' · ')
-            : 'Side A';
-        final sideB = sideBPlayers.isNotEmpty
-            ? sideBPlayers.join(' · ')
-            : 'Side B';
+        final sideA = sideAPlayers.join(' · ');
+        final sideB = sideBPlayers.join(' · ');
 
         // 3. Ambil Skor Terkini dari tb_score
         int scoreA = 0;
         int scoreB = 0;
+        String pointScoreA = '0';
+        String pointScoreB = '0';
+        int? setScoreA;
+        int? setScoreB;
+        int version = 0;
+        String? lastEventId;
+        String? statusScore;
 
         try {
           final scores = await _supabase
               .from('tb_score')
               .select(
-                'score_id, score_value, score_side_a, score_side_b, status_score, waktu_pencatatan',
+                'score_id, score_side_a, score_side_b, game_score_a, game_score_b, point_score_a, point_score_b, set_score_a, set_score_b, status_score, version, last_event_id, updated_at, created_at',
               )
               .eq('match_id', matchId)
               .order('score_id', ascending: true);
 
           for (final s in scores) {
-            if (s['score_side_a'] != null) {
+            if (s['game_score_a'] != null) {
+              scoreA = s['game_score_a'] as int? ?? scoreA;
+            } else if (s['score_side_a'] != null) {
               scoreA = s['score_side_a'] as int? ?? scoreA;
             }
-            if (s['score_side_b'] != null) {
+            if (s['game_score_b'] != null) {
+              scoreB = s['game_score_b'] as int? ?? scoreB;
+            } else if (s['score_side_b'] != null) {
               scoreB = s['score_side_b'] as int? ?? scoreB;
             }
-            final statusScore = (s['status_score'] ?? '')
-                .toString()
-                .toLowerCase();
-            final val = s['score_value'] as int? ?? 0;
-            if (statusScore.contains('side a') && !statusScore.contains('side b')) {
-              scoreA = val;
-            } else if (statusScore.contains('side b') && !statusScore.contains('side a')) {
-              scoreB = val;
+            if (s['point_score_a'] != null) {
+              pointScoreA = s['point_score_a'].toString();
+            }
+            if (s['point_score_b'] != null) {
+              pointScoreB = s['point_score_b'].toString();
+            }
+            if (s['set_score_a'] != null) {
+              setScoreA = s['set_score_a'] as int?;
+            }
+            if (s['set_score_b'] != null) {
+              setScoreB = s['set_score_b'] as int?;
+            }
+            if (s['version'] != null) {
+              final v = s['version'];
+              version = v is int ? v : (int.tryParse(v.toString()) ?? 0);
+            }
+            if (s['last_event_id'] != null) {
+              lastEventId = s['last_event_id'].toString();
+            }
+            if (s['status_score'] != null) {
+              statusScore = s['status_score'].toString();
             }
           }
         } catch (_) {}
@@ -168,19 +326,36 @@ class MatchService {
           'matchId': matchId,
           'courtId': courtId,
           'nomorMatch': nomorMatch,
+          'roundNumber': roundNum,
+          'courtNumber': courtNum,
           'courtName': courtName,
           'sideA': sideA,
           'sideB': sideB,
+          'teamAPlayers': sideAPlayerObjects,
+          'teamBPlayers': sideBPlayerObjects,
           'scoreA': scoreA,
           'scoreB': scoreB,
+          'pointScoreA': pointScoreA,
+          'pointScoreB': pointScoreB,
+          'setScoreA': setScoreA,
+          'setScoreB': setScoreB,
+          'winnerTeam': match['winner_team'],
+          'version': version,
+          'lastEventId': lastEventId,
           'status': _normalizeMatchStatus(match['status_match']),
-          'rawMatch': match,
+          'statusScore': statusScore,
+          'rawMatch': {
+            ...match,
+            'round_number': roundNum,
+            if (match['court_id'] == null) 'court_id': courtNum,
+          },
         });
       }
 
       return detailedMatches;
-    } catch (_) {
-      return [];
+    } catch (e) {
+      debugPrint('[MATCHA_ERROR] getMatchesForSession failed: $e');
+      rethrow;
     }
   }
 
@@ -237,12 +412,15 @@ class MatchService {
           if (playerId != null) {
             final playerRes = await _supabase
                 .from('tb_player')
-                .select('nama_player')
+                .select('nama')
                 .eq('player_id', playerId)
                 .maybeSingle();
 
-            if (playerRes != null && playerRes['nama_player'] != null) {
-              waitingNames.add(playerRes['nama_player'] as String);
+            if (playerRes != null) {
+              final name = (playerRes['nama'] ?? playerRes['nama_player'])?.toString();
+              if (name != null && name.isNotEmpty) {
+                waitingNames.add(name);
+              }
             }
           }
         }
@@ -254,46 +432,69 @@ class MatchService {
     }
   }
 
-  /// Menyimpan atau mengupdate skor ke tb_score.
+  /// Menyimpan atau mengupdate skor ke tb_score dengan dukungan format terstruktur Web.
   Future<void> saveMatchScore({
     required int matchId,
     required int scoreA,
     required int scoreB,
     dynamic sessionId,
+    int setNumber = 1,
+    int? gameNumber = 1,
+    String? pointScoreA,
+    String? pointScoreB,
+    int? gameScoreA,
+    int? gameScoreB,
+    int? setScoreA,
+    int? setScoreB,
+    String? scoringSystem,
+    String? statusScore,
+    String? winnerTeam,
+    int? version,
+    String? lastEventId,
+    String? matchKey,
   }) async {
-    final now = DateTime.now().toIso8601String();
+    final now = DateTime.now();
+    final nowIso = now.toIso8601String();
+    final nowTime =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
 
-    // 1. Ambil data skor yang sudah tercatat untuk match_id ini
-    final existingRows = await _supabase
-        .from('tb_score')
-        .select('score_id, status_score')
-        .eq('match_id', matchId);
+    // 1. Delegasikan ke MatchRemoteDataSource untuk operasi tulis, deduplikasi, dan anti-downgrade
+    final savedScore = await _dataSource.saveOrUpdateScore(
+      matchId: matchId,
+      setNumber: setNumber,
+      gameNumber: gameNumber,
+      pointScoreA: pointScoreA,
+      pointScoreB: pointScoreB,
+      gameScoreA: gameScoreA ?? scoreA,
+      gameScoreB: gameScoreB ?? scoreB,
+      scoreSideA: scoreA,
+      scoreSideB: scoreB,
+      setScoreA: setScoreA,
+      setScoreB: setScoreB,
+      scoringSystem: scoringSystem,
+      statusScore: statusScore,
+      version: version,
+      lastEventId: lastEventId,
+    );
 
-    if (existingRows.isNotEmpty) {
-      final firstRow = existingRows.first;
-      await _supabase.from('tb_score').update({
-        'score_side_a': scoreA,
-        'score_side_b': scoreB,
-        'score_value': scoreA + scoreB,
-        'status_score': 'Side A: $scoreA, Side B: $scoreB',
-        'waktu_pencatatan': now,
-        'updated_at': now,
-      }).eq('score_id', firstRow['score_id']);
-    } else {
-      await _supabase.from('tb_score').insert({
-        'match_id': matchId,
-        'set_number': 1,
-        'score_side_a': scoreA,
-        'score_side_b': scoreB,
-        'score_value': scoreA + scoreB,
-        'status_score': 'Side A: $scoreA, Side B: $scoreB',
-        'waktu_pencatatan': now,
-        'created_at': now,
-        'updated_at': now,
-      });
+    final finalVersion = savedScore.version ?? version ?? 1;
+
+    // Update tb_match jika match selesai atau ada pembaruan status
+    if (statusScore != null && (statusScore.toLowerCase().contains('final') || statusScore.toLowerCase().contains('completed'))) {
+      try {
+        await _supabase.from('tb_match').update({
+          'status_match': 'Completed',
+          'hasil_pertandingan': 'Game Score $scoreA - $scoreB',
+          'winner_team': ?winnerTeam,
+          'version': finalVersion,
+          'last_event_id': ?lastEventId,
+          'waktu_selesai': nowTime,
+          'updated_at': nowIso,
+        }).eq('match_id', matchId);
+      } catch (_) {}
     }
 
-    // 2. Database berhasil -> kirim broadcast ke Realtime Channel sebagai fallback
+    // 2. Database berhasil -> kirim broadcast ke Realtime Channel sesuai Web
     try {
       final channelName = sessionId != null
           ? 'session_$sessionId'
@@ -302,10 +503,24 @@ class MatchService {
       await channel.sendBroadcastMessage(
         event: 'score_update',
         payload: {
+          'session_id': sessionId,
           'match_id': matchId,
+          'match_key': matchKey ?? 'round_${setNumber}_court_1',
+          'score_a': gameScoreA ?? scoreA,
+          'score_b': gameScoreB ?? scoreB,
+          'games_a': gameScoreA ?? scoreA,
+          'games_b': gameScoreB ?? scoreB,
           'score_value_a': scoreA,
           'score_value_b': scoreB,
-          'session_id': sessionId,
+          'point_display_a': pointScoreA ?? '0',
+          'point_display_b': pointScoreB ?? '0',
+          'sets_a': setScoreA ?? 0,
+          'sets_b': setScoreB ?? 0,
+          'version': finalVersion,
+          'server_version': finalVersion,
+          'last_event_id': lastEventId ?? '',
+          'status': (statusScore ?? 'in_progress').toLowerCase(),
+          'winner_team': winnerTeam,
         },
       );
     } catch (_) {
@@ -314,15 +529,29 @@ class MatchService {
   }
 
   /// Memperbarui status match di tb_match menjadi Finished
-  Future<void> finishMatch({required int matchId, dynamic sessionId}) async {
-    final now = DateTime.now().toIso8601String();
+  Future<void> finishMatch({
+    required int matchId,
+    dynamic sessionId,
+    String? winnerTeam,
+    int? version,
+    String? lastEventId,
+    String? hasilPertandingan,
+  }) async {
+    final now = DateTime.now();
+    final nowIso = now.toIso8601String();
+    final nowTime =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
 
     await _supabase
         .from('tb_match')
         .update({
           'status_match': 'Finished',
-          'waktu_selesai': now,
-          'updated_at': now,
+          'waktu_selesai': nowTime,
+          'winner_team': ?winnerTeam,
+          'version': ?version,
+          'last_event_id': ?lastEventId,
+          'hasil_pertandingan': ?hasilPertandingan,
+          'updated_at': nowIso,
         })
         .eq('match_id', matchId);
 
@@ -338,6 +567,93 @@ class MatchService {
           'match_id': matchId,
           'status_match': 'Finished',
           'session_id': sessionId,
+          'winner_team': ?winnerTeam,
+        },
+      );
+    } catch (_) {}
+  }
+
+  /// Broadcast round advanced event ke channel realtime (sesuai Web broadcastRoundAdvancedRealtime)
+  Future<void> broadcastRoundAdvanced({
+    required dynamic sessionId,
+    required int currentRoundNum,
+    required int nextRoundNum,
+  }) async {
+    try {
+      final channelName = sessionId != null ? 'session_$sessionId' : 'match_arena_live';
+      final channel = _supabase.channel(channelName);
+      await channel.sendBroadcastMessage(
+        event: 'round_advanced',
+        payload: {
+          'session_id': sessionId,
+          'current_round': 'round_$currentRoundNum',
+          'current_round_num': currentRoundNum,
+          'next_round': 'round_$nextRoundNum',
+          'next_round_num': nextRoundNum,
+          'active_round': nextRoundNum,
+          'session_active_round': nextRoundNum,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
+    } catch (_) {}
+  }
+
+  /// Memperbarui status pertandingan ronde berikutnya menjadi In Progress pada tb_match
+  Future<void> advanceRoundMatches({
+    required dynamic sessionId,
+    required int roundNumber,
+    List<int>? matchIds,
+  }) async {
+    try {
+      if (sessionId == null) return;
+      if (matchIds != null && matchIds.isNotEmpty) {
+        await _supabase
+            .from('tb_match')
+            .update({'status_match': 'In Progress'})
+            .inFilter('match_id', matchIds);
+        return;
+      }
+      final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+      final drawingId = await getLatestDrawingId(parsedId);
+      if (drawingId == null) return;
+
+      final sCourts = await _supabase
+          .from('tb_session_court')
+          .select('court_id')
+          .eq('session_id', parsedId);
+      final courtCount = (sCourts as List).isNotEmpty ? sCourts.length : 1;
+
+      final startMatchNo = (roundNumber - 1) * courtCount + 1;
+      final endMatchNo = roundNumber * courtCount;
+
+      await _supabase
+          .from('tb_match')
+          .update({'status_match': 'In Progress'})
+          .eq('drawing_id', drawingId)
+          .gte('nomor_match', startMatchNo)
+          .lte('nomor_match', endMatchNo);
+    } catch (_) {}
+  }
+
+  /// Memperbarui status sesi menjadi Finished dan broadcast event session_finished
+  Future<void> finishSession(dynamic sessionId) async {
+    if (sessionId == null) return;
+    final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+
+    await _supabase
+        .from('tb_session')
+        .update({'status_session': 'Finished'})
+        .eq('session_id', parsedId);
+
+    try {
+      final channelName = 'session_$parsedId';
+      final channel = _supabase.channel(channelName);
+      await channel.sendBroadcastMessage(
+        event: 'session_finished',
+        payload: {
+          'session_id': parsedId,
+          'status_session': 'Finished',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
         },
       );
     } catch (_) {}
@@ -347,6 +663,8 @@ class MatchService {
   RealtimeChannel subscribeLiveSession({
     dynamic sessionId,
     required void Function() onDataChanged,
+    void Function(Map<String, dynamic> payload)? onRoundAdvanced,
+    void Function(Map<String, dynamic> payload)? onSessionFinished,
   }) {
     final channelName = sessionId != null
         ? 'session_$sessionId'
@@ -387,9 +705,623 @@ class MatchService {
             onDataChanged();
           },
         )
+        // 5. Broadcast round_advanced
+        .onBroadcast(
+          event: 'round_advanced',
+          callback: (payload) {
+            if (onRoundAdvanced != null) {
+              onRoundAdvanced(payload);
+            }
+            onDataChanged();
+          },
+        )
+        // 6. Broadcast session_finished
+        .onBroadcast(
+          event: 'session_finished',
+          callback: (payload) {
+            if (onSessionFinished != null) {
+              onSessionFinished(payload);
+            }
+            onDataChanged();
+          },
+        )
+        // 7. Broadcast drawing_updated
+        .onBroadcast(
+          event: 'drawing_updated',
+          callback: (payload) {
+            onDataChanged();
+          },
+        )
+        // 8. Broadcast drawing_locked
+        .onBroadcast(
+          event: 'drawing_locked',
+          callback: (payload) {
+            onDataChanged();
+          },
+        )
         .subscribe();
 
     return channel;
+  }
+
+  /// Berlangganan ke perubahan susunan drawing untuk suatu sesi
+  RealtimeChannel? subscribeDrawingSession({
+    required dynamic sessionId,
+    required void Function() onDrawingChanged,
+    void Function()? onDrawingLocked,
+  }) {
+    try {
+      final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+      final channelName = 'session_$parsedId';
+      final channel = _supabase.channel(channelName);
+
+      channel
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'tb_match',
+            callback: (_) => onDrawingChanged(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'tb_drawing',
+            callback: (_) => onDrawingChanged(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'tb_session',
+            callback: (payload) {
+              final newStatus = payload.newRecord['status_session']?.toString().toLowerCase();
+              if (newStatus == 'completed' || newStatus == 'finished') {
+                if (onDrawingLocked != null) {
+                  onDrawingLocked();
+                } else {
+                  onDrawingChanged();
+                }
+              } else {
+                onDrawingChanged();
+              }
+            },
+          )
+          .onBroadcast(
+            event: 'drawing_updated',
+            callback: (_) => onDrawingChanged(),
+          )
+          .onBroadcast(
+            event: 'drawing_locked',
+            callback: (_) {
+              if (onDrawingLocked != null) {
+                onDrawingLocked();
+              } else {
+                onDrawingChanged();
+              }
+            },
+          )
+          .subscribe();
+
+      return channel;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Memeriksa apakah drawing sesi sudah berjalan atau terkunci
+  Future<bool> isSessionDrawingLocked(dynamic sessionId) async {
+    try {
+      if (sessionId == null) return false;
+      final parsedSessionId = int.tryParse(sessionId.toString()) ?? sessionId;
+
+      // 1. Cek status session di tb_session (hanya jika sesi sudah selesai)
+      final sessionRes = await _supabase
+          .from('tb_session')
+          .select('status_session')
+          .eq('session_id', parsedSessionId)
+          .maybeSingle();
+
+      final statusSession = sessionRes?['status_session']?.toString().toLowerCase();
+      if (statusSession == 'completed' || statusSession == 'finished') {
+        return true;
+      }
+
+      // 2. Cek apakah ada match dengan status 'Completed' / 'In Progress' atau memiliki score di tb_score
+      final drawingId = await getLatestDrawingId(parsedSessionId);
+      if (drawingId == null) return false;
+
+      final matches = await _supabase
+          .from('tb_match')
+          .select('match_id, status_match')
+          .eq('drawing_id', drawingId);
+
+      if (matches.isEmpty) return false;
+
+      final matchIds = <int>[];
+      for (final m in matches) {
+        final mStatus = m['status_match']?.toString().toLowerCase();
+        if (mStatus == 'completed' ||
+            mStatus == 'finished' ||
+            mStatus == 'in progress' ||
+            mStatus == 'live') {
+          return true;
+        }
+        final mId = m['match_id'] is int ? m['match_id'] as int : int.tryParse(m['match_id'].toString());
+        if (mId != null) matchIds.add(mId);
+      }
+
+      if (matchIds.isNotEmpty) {
+        final scoreCount = await _supabase
+            .from('tb_score')
+            .select('score_id')
+            .inFilter('match_id', matchIds)
+            .limit(1);
+
+        if ((scoreCount as List).isNotEmpty) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Menyimpan susunan drawing & pertandingan ke tb_drawing, tb_match, dan tb_match_participant
+  Future<List<DrawingRound>> saveDrawingMatches({
+    required dynamic sessionId,
+    required List<DrawingRound> rounds,
+    String matchStatus = 'Scheduled',
+    List<GamePlayerItem>? allPlayers,
+    int? courtCount,
+  }) async {
+    if (sessionId == null || rounds.isEmpty) return rounds;
+    final parsedSessionId = int.tryParse(sessionId.toString()) ?? sessionId;
+
+    // 1. Ambil atau buat tb_drawing
+    final drawingId = await getOrCreateDrawingId(parsedSessionId);
+
+    // 2. Ambil court IDs dari tb_session_court
+    final sessionCourts = await _supabase
+        .from('tb_session_court')
+        .select('court_id')
+        .eq('session_id', parsedSessionId)
+        .order('court_id', ascending: true);
+
+    final List<int> courtIds = (sessionCourts as List)
+        .map((c) => c['court_id'])
+        .where((id) => id != null)
+        .map((id) => id is int ? id : (int.tryParse(id.toString()) ?? 0))
+        .where((id) => id > 0)
+        .toList();
+
+    // 3. Bersihkan match lama yang belum memiliki skor aktif untuk drawing ini
+    final existingMatches = await _supabase
+        .from('tb_match')
+        .select('match_id')
+        .eq('drawing_id', drawingId);
+
+    final oldMatchIds = (existingMatches as List)
+        .map((m) => m['match_id'])
+        .where((id) => id != null)
+        .map((id) => id is int ? id : (int.tryParse(id.toString()) ?? 0))
+        .where((id) => id > 0)
+        .toList();
+
+    if (oldMatchIds.isNotEmpty) {
+      // Pastikan match lama tidak memiliki skor aktif yang tertimpa
+      final existingScores = await _supabase
+          .from('tb_score')
+          .select('score_id')
+          .inFilter('match_id', oldMatchIds)
+          .limit(1);
+
+      if ((existingScores as List).isNotEmpty) {
+        throw Exception('Tidak dapat mengacak ulang: pertandingan sudah memiliki skor aktif.');
+      }
+
+      try {
+        await _supabase.from('tb_match_participant').delete().inFilter('match_id', oldMatchIds);
+      } catch (_) {}
+      try {
+        await _supabase.from('tb_match').delete().inFilter('match_id', oldMatchIds);
+      } catch (_) {}
+    }
+
+    // 4. Insert batch match baru & participant
+    final List<DrawingRound> savedRounds = [];
+    final int effectiveCourtCount = courtIds.isNotEmpty ? courtIds.length : (courtCount ?? 1);
+    int matchCounter = 0;
+
+    for (final round in rounds) {
+      final List<DrawingMatch> savedMatches = [];
+      for (final match in round.matches) {
+        matchCounter++;
+        int? courtId;
+        if (courtIds.isNotEmpty) {
+          final cIdx = (match.courtNumber - 1).clamp(0, courtIds.length - 1);
+          courtId = courtIds[cIdx];
+        }
+
+        // Web parity: nomor_match deterministik = (roundNumber - 1) * courtCount + courtNumber
+        final cIdx = (match.courtNumber - 1).clamp(0, effectiveCourtCount - 1);
+        final int nomorMatch = (round.roundNumber - 1) * effectiveCourtCount + (match.courtNumber > 0 ? match.courtNumber : (cIdx + 1));
+
+        final matchInsert = await _supabase
+            .from('tb_match')
+            .insert({
+              'drawing_id': drawingId,
+              if (courtId != null) 'court_id': courtId,
+              'nomor_match': nomorMatch,
+              'status_match': matchStatus,
+              'created_at': DateTime.now().toIso8601String(),
+            })
+            .select('match_id')
+            .single();
+
+        final matchId = matchInsert['match_id'] is int
+            ? matchInsert['match_id'] as int
+            : int.parse(matchInsert['match_id'].toString());
+
+        match.matchId = matchId;
+
+        int? resolvePlayerId(GamePlayerItem p) {
+          if (p.playerId != null && p.playerId! > 0) return p.playerId;
+          final parsed = int.tryParse(p.id);
+          if (parsed != null && parsed > 0) return parsed;
+          if (p.id.contains('_')) {
+            final lastPart = int.tryParse(p.id.split('_').last);
+            if (lastPart != null && lastPart > 0) return lastPart;
+          }
+          if (allPlayers != null) {
+            final found = allPlayers.where((ap) =>
+              ap.id == p.id ||
+              (ap.name.trim().isNotEmpty && ap.name.trim().toLowerCase() == p.name.trim().toLowerCase())
+            ).firstOrNull;
+            if (found?.playerId != null && found!.playerId! > 0) return found.playerId;
+            final foundParsed = int.tryParse(found?.id ?? '');
+            if (foundParsed != null && foundParsed > 0) return foundParsed;
+          }
+          return null;
+        }
+
+        for (final p in match.teamA) {
+          final pId = resolvePlayerId(p);
+          if (pId != null && pId > 0) {
+            await _supabase.from('tb_match_participant').insert({
+              'match_id': matchId,
+              'player_id': pId,
+              'side': 'A',
+            });
+          }
+        }
+
+        for (final p in match.teamB) {
+          final pId = resolvePlayerId(p);
+          if (pId != null && pId > 0) {
+            await _supabase.from('tb_match_participant').insert({
+              'match_id': matchId,
+              'player_id': pId,
+              'side': 'B',
+            });
+          }
+        }
+
+        savedMatches.add(match);
+      }
+      savedRounds.add(DrawingRound(
+        roundNumber: round.roundNumber,
+        matches: savedMatches,
+        restingPlayers: round.restingPlayers,
+      ));
+    }
+
+    return savedRounds;
+  }
+
+  /// Mengambil data hasil drawing yang tersimpan di tb_match & tb_match_participant
+  Future<List<DrawingRound>?> loadSavedDrawing({
+    required dynamic sessionId,
+    List<GamePlayerItem>? registeredPlayers,
+  }) async {
+    try {
+      if (sessionId == null) return null;
+      final parsedSessionId = int.tryParse(sessionId.toString()) ?? sessionId;
+
+      final drawingId = await getLatestDrawingId(parsedSessionId);
+      if (drawingId == null) return null;
+
+      final matches = await _supabase
+          .from('tb_match')
+          .select()
+          .eq('drawing_id', drawingId)
+          .order('nomor_match', ascending: true);
+
+      if (matches.isEmpty) return null;
+
+      // 1. Ambil seluruh session player terdaftar jika belum diberikan
+      List<GamePlayerItem> allPlayers = registeredPlayers != null ? List.from(registeredPlayers) : [];
+      if (allPlayers.isEmpty) {
+        try {
+          final sPlayers = await _supabase
+              .from('tb_session_player')
+              .select('player_id')
+              .eq('session_id', parsedSessionId);
+
+          final spIds = (sPlayers as List)
+              .map((sp) => sp['player_id'])
+              .where((id) => id != null)
+              .map((id) => id is int ? id : int.tryParse(id.toString()))
+              .whereType<int>()
+              .toList();
+
+          if (spIds.isNotEmpty) {
+            final pList = await _supabase
+                .from('tb_player')
+                .select('player_id, user_id, nama, foto, level')
+                .inFilter('player_id', spIds);
+
+            for (final pData in pList) {
+              final pId = pData['player_id'];
+              if (pId != null) {
+                allPlayers.add(GamePlayerItem(
+                  id: pId.toString(),
+                  playerId: pId is int ? pId : int.tryParse(pId.toString()),
+                  userId: pData['user_id'] as int?,
+                  name: (pData['nama'] ?? pData['nama_player'])?.toString() ?? 'Pemain',
+                  avatarUrl: pData['foto']?.toString(),
+                  level: pData['level']?.toString() ?? 'Beginner',
+                ));
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 2. Batch ambil data partisipan untuk seluruh match
+      final matchIds = matches
+          .map((m) => m['match_id'] is int ? m['match_id'] as int : int.parse(m['match_id'].toString()))
+          .toList();
+
+      List<Map<String, dynamic>> allParticipants = [];
+      try {
+        final pRes = await _supabase
+            .from('tb_match_participant')
+            .select('match_id, player_id, side')
+            .inFilter('match_id', matchIds);
+        allParticipants = List<Map<String, dynamic>>.from(pRes as List);
+      } catch (_) {}
+
+      // Batch ambil profil pemain di partisipan jika belum ada di allPlayers
+      final participantPlayerIds = allParticipants
+          .map((p) => p['player_id'])
+          .where((id) => id != null)
+          .map((id) => id is int ? id : int.tryParse(id.toString()))
+          .whereType<int>()
+          .toSet()
+          .toList();
+
+      final Map<int, Map<String, dynamic>> playerDetailsMap = {};
+      final missingPlayerIds = participantPlayerIds.where((id) => !allPlayers.any((ap) => ap.playerId == id)).toList();
+      if (missingPlayerIds.isNotEmpty) {
+        try {
+          final pList = await _supabase
+              .from('tb_player')
+              .select('player_id, user_id, nama, foto, level')
+              .inFilter('player_id', missingPlayerIds);
+          for (final pData in pList) {
+            final pid = pData['player_id'] as int?;
+            if (pid != null) {
+              playerDetailsMap[pid] = pData;
+              allPlayers.add(GamePlayerItem(
+                id: pid.toString(),
+                playerId: pid,
+                userId: pData['user_id'] as int?,
+                name: (pData['nama'] ?? pData['nama_player'])?.toString() ?? 'Pemain',
+                avatarUrl: pData['foto']?.toString(),
+                level: pData['level']?.toString() ?? 'Beginner',
+              ));
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Map match per ronde dengan rekonstruksi dari nomor_match (Web parity)
+      int sessionCourtCount = 1;
+      try {
+        final sCourts = await _supabase
+            .from('tb_session_court')
+            .select('court_id')
+            .eq('session_id', parsedSessionId);
+        if ((sCourts as List).isNotEmpty) {
+          sessionCourtCount = sCourts.length;
+        }
+      } catch (_) {}
+      final effectiveCourtCount = sessionCourtCount > 0 ? sessionCourtCount : 1;
+
+      final Map<int, List<DrawingMatch>> roundMap = {};
+
+      for (final match in matches) {
+        final matchId = match['match_id'] is int
+            ? match['match_id'] as int
+            : int.parse(match['match_id'].toString());
+        final nomorMatch = match['nomor_match'] is int
+            ? match['nomor_match'] as int
+            : (int.tryParse(match['nomor_match']?.toString() ?? '') ?? 1);
+        final roundNum = ((nomorMatch - 1) ~/ effectiveCourtCount) + 1;
+        final courtNum = ((nomorMatch - 1) % effectiveCourtCount) + 1;
+
+        final List<GamePlayerItem> teamA = [];
+        final List<GamePlayerItem> teamB = [];
+
+        final matchParticipants = allParticipants.where((p) => p['match_id'] == matchId);
+        for (final p in matchParticipants) {
+          final pId = p['player_id'];
+          if (pId == null) continue;
+          final int? parsedPId = pId is int ? pId : int.tryParse(pId.toString());
+
+          final existingPlayer = allPlayers.where((ap) => ap.playerId == parsedPId || ap.id == pId.toString()).firstOrNull;
+          final pData = parsedPId != null ? playerDetailsMap[parsedPId] : null;
+
+          final pName = existingPlayer?.name ?? (pData?['nama'] ?? pData?['nama_player'])?.toString() ?? 'Pemain';
+          final playerItem = GamePlayerItem(
+            id: pId.toString(),
+            playerId: parsedPId,
+            userId: existingPlayer?.userId ?? pData?['user_id'] as int?,
+            name: pName,
+            avatarUrl: existingPlayer?.avatarUrl ?? pData?['foto']?.toString(),
+            level: existingPlayer?.level ?? pData?['level']?.toString() ?? 'Beginner',
+          );
+
+          final sideVal = (p['side'] ?? '').toString().trim().toUpperCase();
+          final isB = sideVal == 'B' || sideVal == 'TEAM_B' || sideVal == 'SIDE_B' || sideVal.contains('B');
+          if (isB) {
+            teamB.add(playerItem);
+          } else {
+            teamA.add(playerItem);
+          }
+        }
+
+        final drawingMatch = DrawingMatch(
+          courtNumber: courtNum,
+          teamA: teamA,
+          teamB: teamB,
+          status: match['status_match']?.toString() ?? 'Scheduled',
+          winnerTeam: match['winner_team']?.toString(),
+          matchId: matchId,
+        );
+
+        roundMap.putIfAbsent(roundNum, () => []).add(drawingMatch);
+      }
+
+      if (roundMap.isEmpty) return null;
+
+      final List<DrawingRound> reconstructedRounds = [];
+      final sortedKeys = roundMap.keys.toList()..sort();
+
+      for (final rNum in sortedKeys) {
+        final rMatches = roundMap[rNum]!;
+        final activePlayerIds = <String>{};
+        for (final m in rMatches) {
+          for (final p in m.teamA) {
+            activePlayerIds.add(p.id);
+            if (p.playerId != null) activePlayerIds.add(p.playerId.toString());
+          }
+          for (final p in m.teamB) {
+            activePlayerIds.add(p.id);
+            if (p.playerId != null) activePlayerIds.add(p.playerId.toString());
+          }
+        }
+
+        final restingPlayers = allPlayers.where((p) {
+          return !activePlayerIds.contains(p.id) &&
+              (p.playerId == null || !activePlayerIds.contains(p.playerId.toString()));
+        }).toList();
+
+        reconstructedRounds.add(DrawingRound(
+          roundNumber: rNum,
+          matches: rMatches,
+          restingPlayers: restingPlayers,
+        ));
+      }
+
+      return reconstructedRounds;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Mengunci drawing sesi pertandingan dan menandai status menjadi 'In Progress'
+  Future<List<DrawingRound>> lockDrawingSession(
+    dynamic sessionId, {
+    required List<DrawingRound> rounds,
+    List<GamePlayerItem>? allPlayers,
+  }) async {
+    if (sessionId == null) return rounds;
+    final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+
+    List<DrawingRound> finalRounds = rounds;
+
+    // 1. Cek apakah match sudah tersimpan di database
+    final drawingId = await getLatestDrawingId(parsedId);
+    bool matchesExist = false;
+    if (drawingId != null) {
+      final existingMatches = await _supabase
+          .from('tb_match')
+          .select('match_id')
+          .eq('drawing_id', drawingId);
+
+      matchesExist = (existingMatches as List).isNotEmpty;
+    }
+
+    if (!matchesExist && rounds.isNotEmpty) {
+      finalRounds = await saveDrawingMatches(
+        sessionId: parsedId,
+        rounds: rounds,
+        matchStatus: 'In Progress',
+        allPlayers: allPlayers,
+      );
+    } else if (drawingId != null) {
+      await _supabase
+          .from('tb_match')
+          .update({'status_match': 'In Progress'})
+          .eq('drawing_id', drawingId);
+
+      final hasNullMatchId = rounds.any((r) => r.matches.any((m) => m.matchId == null || m.matchId! <= 0));
+      if (hasNullMatchId) {
+        final reloaded = await loadSavedDrawing(sessionId: parsedId, registeredPlayers: allPlayers);
+        if (reloaded != null && reloaded.isNotEmpty) {
+          finalRounds = reloaded;
+        }
+      }
+    }
+
+    // 2. Update status sesi di tb_session
+    await _supabase
+        .from('tb_session')
+        .update({'status_session': 'In Progress'})
+        .eq('session_id', parsedId);
+
+    // 3. Broadcast event drawing_locked
+    await broadcastDrawingLocked(parsedId);
+
+    return finalRounds;
+  }
+
+  /// Broadcast event drawing diacak ulang atau diperbarui ke channel session
+  Future<void> broadcastDrawingUpdate(dynamic sessionId) async {
+    try {
+      if (sessionId == null) return;
+      final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+      final channelName = 'session_$parsedId';
+      final channel = _supabase.channel(channelName);
+      await channel.sendBroadcastMessage(
+        event: 'drawing_updated',
+        payload: {
+          'session_id': parsedId,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
+    } catch (_) {}
+  }
+
+  /// Broadcast event drawing dikunci ke channel session
+  Future<void> broadcastDrawingLocked(dynamic sessionId) async {
+    try {
+      if (sessionId == null) return;
+      final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+      final channelName = 'session_$parsedId';
+      final channel = _supabase.channel(channelName);
+      await channel.sendBroadcastMessage(
+        event: 'drawing_locked',
+        payload: {
+          'session_id': parsedId,
+          'is_locked': true,
+          'status_session': 'In Progress',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
+    } catch (_) {}
   }
 
   /// Mengambil sesi yang akan datang (Upcoming Session)

@@ -1,21 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../games/domain/game_wizard_model.dart';
+import '../../match/data/match_service.dart';
 import '../../match/presentation/match_scoring_page.dart';
 import '../domain/matcha_drawing_engine.dart';
 
 class DrawingResultPage extends StatefulWidget {
+  final dynamic sessionId;
   final GameWizardConfig? config;
   final List<DrawingRound>? initialRounds;
   final AuthController? authController;
+  final bool? isHost;
+  final dynamic hostUserId;
+  final MatchService? matchService;
 
   const DrawingResultPage({
     super.key,
+    this.sessionId,
     this.config,
     this.initialRounds,
     this.authController,
+    this.isHost,
+    this.hostUserId,
+    this.matchService,
   });
 
   @override
@@ -23,15 +33,52 @@ class DrawingResultPage extends StatefulWidget {
 }
 
 class _DrawingResultPageState extends State<DrawingResultPage> {
+  late MatchService _matchService;
   late GameWizardConfig _config;
-  late List<DrawingRound> _rounds;
+  List<DrawingRound> _rounds = [];
   int _selectedRoundIndex = 0;
+
+  bool _isLoading = true;
+  String? _errorMessage;
+  bool _isLocked = false;
+  bool _isSavingDrawing = false;
+  bool _isStartingScoring = false;
+  bool _hasAutoNavigatedToScoring = false;
+
+  dynamic _sessionHostUserId;
+  Map<String, dynamic>? _sessionData;
+  RealtimeChannel? _realtimeChannel;
+
+  dynamic get _effectiveSessionId => widget.sessionId ?? _config.sessionId;
+
+  bool get _isHostUser {
+    if (widget.isHost != null) return widget.isHost!;
+
+    final currentUserId = widget.authController?.currentUser?.userId;
+    if (widget.authController?.currentUser?.isAdmin == true) return true;
+
+    final targetHostId = widget.hostUserId ?? _sessionHostUserId ?? _sessionData?['host_user_id'];
+    if (targetHostId != null && currentUserId != null) {
+      return targetHostId.toString() == currentUserId.toString();
+    }
+
+    if (widget.authController?.currentUser?.isHost == true) return true;
+
+    // Jika tidak ada data auth atau session host, default ke true jika dipanggil dari wizard langsung tanpa session ID
+    if (_effectiveSessionId == null && widget.initialRounds != null) return true;
+
+    return false;
+  }
 
   @override
   void initState() {
     super.initState();
+    _matchService = widget.matchService ?? MatchService();
+    _sessionHostUserId = widget.hostUserId;
+
     _config = widget.config ??
         GameWizardConfig(
+          sessionId: widget.sessionId,
           activityName: 'Match Padel Tournament',
           venueName: 'Barong Padel Arena & Club',
           players: [
@@ -42,44 +89,293 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           ],
         );
 
-    _rounds = widget.initialRounds ??
-        MatchaDrawingEngine.generateDrawing(
-          players: _config.players,
-          courtCount: _config.courtCount,
-          gameType: _config.gameType,
-          playMode: _config.playMode,
-          roundCount: _config.totalRounds,
-        );
+    if (widget.initialRounds != null && widget.initialRounds!.isNotEmpty) {
+      _rounds = List.from(widget.initialRounds!);
+    }
+
+    _initDataAndSubscription();
   }
 
-  void _shuffleDrawing() {
-    setState(() {
-      _rounds = MatchaDrawingEngine.generateDrawing(
-        players: _config.players,
-        courtCount: _config.courtCount,
-        gameType: _config.gameType,
-        playMode: _config.playMode,
-        roundCount: _config.totalRounds,
-        shufflePlayers: true,
-      );
-    });
+  @override
+  void dispose() {
+    _matchService.unsubscribe(_realtimeChannel);
+    super.dispose();
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Jadwal dan rotasi pemain berhasil diacak ulang! 🔀'),
-        behavior: SnackBarBehavior.floating,
-      ),
+  Future<void> _initDataAndSubscription() async {
+    final sessId = _effectiveSessionId;
+    if (sessId != null) {
+      _subscribeToRealtime(sessId);
+      await _loadSessionAndDrawing(initial: true);
+    } else {
+      if (_rounds.isEmpty) {
+        _generateInitialDrawing();
+      }
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _subscribeToRealtime(dynamic sessionId) {
+    _matchService.unsubscribe(_realtimeChannel);
+    _realtimeChannel = _matchService.subscribeDrawingSession(
+      sessionId: sessionId,
+      onDrawingChanged: () {
+        if (!mounted) return;
+        _loadSessionAndDrawing(silent: true);
+      },
+      onDrawingLocked: () {
+        if (!mounted) return;
+        setState(() => _isLocked = true);
+        _loadSessionAndDrawing(silent: true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Host telah mengunci drawing dan memulai pertandingan! 🎾'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      },
     );
   }
 
-  void _startLiveScoring() {
+  void _generateInitialDrawing() {
+    _rounds = MatchaDrawingEngine.generateDrawing(
+      players: _config.players,
+      courtCount: _config.courtCount,
+      gameType: _config.gameType,
+      playMode: _config.playMode,
+      roundCount: _config.totalRounds,
+    );
+  }
+
+  Future<void> _loadSessionAndDrawing({bool initial = false, bool silent = false}) async {
+    final sessId = _effectiveSessionId;
+    if (sessId == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    if (!silent && mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+
+    try {
+      final session = await _matchService.getSession(sessId);
+      final locked = await _matchService.isSessionDrawingLocked(sessId);
+      final savedRounds = await _matchService.loadSavedDrawing(
+        sessionId: sessId,
+        registeredPlayers: _config.players,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _sessionData = session;
+        if (session != null && session['host_user_id'] != null) {
+          _sessionHostUserId = session['host_user_id'];
+        }
+        _isLocked = locked;
+
+        if (savedRounds != null && savedRounds.isNotEmpty) {
+          _rounds = savedRounds;
+        } else if (_rounds.isNotEmpty && _isHostUser) {
+          // Keep existing host rounds
+        } else if (widget.initialRounds != null && widget.initialRounds!.isNotEmpty && _isHostUser) {
+          _rounds = List.from(widget.initialRounds!);
+        } else if (_isHostUser && _rounds.isEmpty) {
+          _generateInitialDrawing();
+        }
+
+        _isLoading = false;
+        _errorMessage = null;
+      });
+
+      // Jika Host dan DB belum memiliki drawing tersimpan, simpan preview awal ke database agar player bisa melihatnya secara realtime
+      if (_isHostUser && (savedRounds == null || savedRounds.isEmpty) && _rounds.isNotEmpty) {
+        try {
+          final saved = await _matchService.saveDrawingMatches(
+            sessionId: sessId,
+            rounds: _rounds,
+            allPlayers: _config.players,
+            courtCount: _config.courtCount,
+            matchStatus: 'Scheduled',
+          );
+          if (mounted && saved.isNotEmpty) {
+            setState(() => _rounds = saved);
+          }
+          await _matchService.broadcastDrawingUpdate(sessId);
+        } catch (_) {}
+      }
+
+    } catch (e) {
+      if (!mounted) return;
+      if (!silent) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Gagal memuat jadwal drawing: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _shuffleDrawing() async {
+    if (!_isHostUser) return;
+
+    final oldRounds = _rounds;
+    final newRounds = MatchaDrawingEngine.generateDrawing(
+      players: _config.players,
+      courtCount: _config.courtCount,
+      gameType: _config.gameType,
+      playMode: _config.playMode,
+      roundCount: _config.totalRounds,
+      shufflePlayers: true,
+    );
+
+    setState(() {
+      _rounds = newRounds;
+      _selectedRoundIndex = 0;
+      _isSavingDrawing = true;
+    });
+
+    final sessId = _effectiveSessionId;
+    if (sessId != null) {
+      try {
+        final saved = await _matchService.saveDrawingMatches(
+          sessionId: sessId,
+          rounds: newRounds,
+          allPlayers: _config.players,
+          courtCount: _config.courtCount,
+          matchStatus: 'Scheduled',
+        );
+        if (mounted && saved.isNotEmpty) {
+          setState(() => _rounds = saved);
+        }
+        await _matchService.broadcastDrawingUpdate(sessId);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Jadwal dan rotasi pemain berhasil diacak ulang! 🔀'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _rounds = oldRounds);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal menyimpan hasil acak ke server: $e'),
+              backgroundColor: Colors.red.shade700,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSavingDrawing = false);
+      }
+    } else {
+      if (mounted) {
+        setState(() => _isSavingDrawing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Jadwal dan rotasi pemain berhasil diacak ulang! 🔀'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _startLiveScoring() async {
+    if (!_isHostUser) {
+      _openLiveScoringReadOnly();
+      return;
+    }
+
+    final sessId = _effectiveSessionId;
+    if (sessId != null) {
+      setState(() => _isStartingScoring = true);
+      try {
+        // Simpan final drawing dan update status session & matches ke In Progress
+        final finalRounds = await _matchService.lockDrawingSession(
+          sessId,
+          rounds: _rounds,
+          allPlayers: _config.players,
+        );
+
+        if (!mounted) return;
+
+        setState(() {
+          _rounds = finalRounds;
+          _isLocked = true;
+          _isStartingScoring = false;
+        });
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MatchScoringPage(
+              sessionId: sessId,
+              config: _config,
+              rounds: _rounds,
+              authController: widget.authController,
+              matchService: _matchService,
+              isHost: true,
+              hostUserId: _sessionHostUserId is int
+                  ? _sessionHostUserId
+                  : int.tryParse(_sessionHostUserId?.toString() ?? ''),
+            ),
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isStartingScoring = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengunci drawing: $e. Pertandingan belum dimulai.'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } else {
+      // Local flow without DB session
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MatchScoringPage(
+            config: _config,
+            rounds: _rounds,
+            authController: widget.authController,
+            matchService: _matchService,
+            isHost: true,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _openLiveScoringReadOnly() {
+    final sessId = _effectiveSessionId;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => MatchScoringPage(
+          sessionId: sessId,
           config: _config,
           rounds: _rounds,
           authController: widget.authController,
+          matchService: _matchService,
+          isHost: false,
+          hostUserId: _sessionHostUserId is int
+              ? _sessionHostUserId
+              : int.tryParse(_sessionHostUserId?.toString() ?? ''),
         ),
       ),
     );
@@ -87,10 +383,154 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          title: const Text('Drawing & Jadwal Pertandingan'),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: AppColors.matchaDark),
+              SizedBox(height: 14),
+              Text(
+                'Memuat drawing pertandingan...',
+                style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          title: const Text('Drawing & Jadwal Pertandingan'),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
+                const SizedBox(height: 12),
+                Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => _loadSessionAndDrawing(),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Coba Lagi'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.matchaDark,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     if (_rounds.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Drawing & Jadwal Pertandingan')),
-        body: const Center(child: Text('Data drawing tidak tersedia.')),
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          title: const Text('Drawing & Jadwal Pertandingan'),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _isLocked ? Icons.sports_tennis_rounded : Icons.hourglass_empty_rounded,
+                  size: 52,
+                  color: _isLocked ? AppColors.matchaDark : const Color(0xFF94A3B8),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  _isLocked ? 'Pertandingan Sedang Berlangsung' : 'Drawing Belum Tersedia',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _isLocked
+                      ? 'Jadwal dan sesi pertandingan telah dimulai oleh Host.'
+                      : (_isHostUser
+                          ? 'Silakan acak susunan tim untuk memulai pertandingan.'
+                          : 'Host sedang mempersiapkan drawing pertandingan untuk sesi ini.'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 20),
+                if (_isLocked)
+                  ElevatedButton.icon(
+                    onPressed: _openLiveScoringReadOnly,
+                    icon: const Icon(Icons.scoreboard_outlined),
+                    label: const Text('Lihat Live Scoring'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.matchaDark,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  )
+                else if (_isHostUser)
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      _shuffleDrawing();
+                    },
+                    icon: const Icon(Icons.shuffle_rounded),
+                    label: const Text('Buat Drawing Sekarang'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.matchaDark,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  )
+                else
+                  OutlinedButton.icon(
+                    onPressed: () => _loadSessionAndDrawing(),
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Periksa Pembaruan Drawing'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.matchaDark,
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 
@@ -133,7 +573,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                // Header Card with Shuffle Button
+                // Header Card with Shuffle Button or Spectator Badge
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -175,17 +615,68 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                           ],
                         ),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: _shuffleDrawing,
-                        icon: const Icon(Icons.shuffle_rounded, size: 14),
-                        label: const Text('Acak Ulang', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.matchaDark,
-                          side: const BorderSide(color: Color(0xFFCBD5E1)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      if (_isHostUser)
+                        OutlinedButton.icon(
+                          onPressed: (_isSavingDrawing || _isLocked) ? null : _shuffleDrawing,
+                          icon: _isSavingDrawing
+                              ? const SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.shuffle_rounded, size: 14),
+                          label: Text(_isLocked ? 'Terkunci' : 'Acak Ulang', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _isLocked ? const Color(0xFF94A3B8) : AppColors.matchaDark,
+                            side: BorderSide(color: _isLocked ? const Color(0xFFE2E8F0) : const Color(0xFFCBD5E1)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          ),
+                        )
+                      else
+                        Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFCBD5E1)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _isLocked ? Icons.lock_outline_rounded : Icons.visibility_rounded,
+                                size: 13,
+                                color: const Color(0xFF475569),
+                              ),
+                              const SizedBox(width: 4),
+                              const Text(
+                                'Penonton',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF475569),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _isLocked ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  _isLocked ? 'Live' : 'Preview',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: _isLocked ? const Color(0xFF166534) : const Color(0xFF92400E),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -244,7 +735,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'LIVE PREVIEW LAPANGAN',
+                          'LIVE PREVIEW',
                           style: AppTextStyles.caption.copyWith(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
@@ -254,11 +745,15 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                         ),
                       ],
                     ),
-                    Text(
-                      'RONDE ${currentRound.roundNumber} • ${currentRound.matches.length} Lapangan Berjalan',
-                      style: AppTextStyles.caption.copyWith(
-                        fontSize: 11,
-                        color: const Color(0xFF64748B),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'RONDE ${currentRound.roundNumber} • ${currentRound.matches.length} Match',
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.caption.copyWith(
+                          fontSize: 11,
+                          color: const Color(0xFF64748B),
+                        ),
                       ),
                     ),
                   ],
@@ -425,23 +920,89 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             child: SizedBox(
               width: double.infinity,
               height: 48,
-              child: ElevatedButton(
-                onPressed: _startLiveScoring,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.matchaDark,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  elevation: 0,
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Kunci Tim & Mulai Scoring Live', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 18),
-                  ],
-                ),
-              ),
+              child: _isHostUser
+                  ? ElevatedButton(
+                      onPressed: _isStartingScoring ? null : _startLiveScoring,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.matchaDark,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                      child: _isStartingScoring
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                ),
+                                SizedBox(width: 10),
+                                Text('Mengunci Drawing & Memulai...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              ],
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _isLocked ? 'Buka Live Scoring' : 'Kunci Tim & Mulai Scoring Live',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.arrow_forward_rounded, size: 18),
+                              ],
+                            ),
+                    )
+                  : (_isLocked
+                      ? ElevatedButton(
+                          onPressed: _openLiveScoringReadOnly,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.matchaDark,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            elevation: 0,
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.sports_tennis_rounded, size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                'Lihat Live Scoring',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              SizedBox(width: 6),
+                              Icon(Icons.arrow_forward_rounded, size: 18),
+                            ],
+                          ),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFCBD5E1)),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.hourglass_empty_rounded, size: 16, color: Color(0xFF64748B)),
+                              SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'Menunggu Host Mengunci Drawing & Memulai Scoring',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12.5,
+                                    color: Color(0xFF475569),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
             ),
           ),
         ],

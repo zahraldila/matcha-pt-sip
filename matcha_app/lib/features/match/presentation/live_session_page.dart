@@ -62,7 +62,12 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const DrawingResultPage()),
+                MaterialPageRoute(
+                  builder: (_) => DrawingResultPage(
+                    sessionId: widget.sessionId,
+                    isHost: isHost,
+                  ),
+                ),
               );
             },
           ),
@@ -117,7 +122,12 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const MatchScoringPage()),
+                        MaterialPageRoute(
+                          builder: (_) => MatchScoringPage(
+                            sessionId: widget.sessionId,
+                            isHost: isHost,
+                          ),
+                        ),
                       );
                     },
                     style: ElevatedButton.styleFrom(

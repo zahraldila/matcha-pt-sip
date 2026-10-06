@@ -2851,9 +2851,21 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                     onPressed: isFinished
                         ? null
                         : () {
+                            final currentUserId = widget.authController?.currentUser?.userId;
+                            final isSessionHost = widget.authController?.currentUser != null &&
+                                (widget.authController?.currentUser?.isAdmin == true ||
+                                    _hostRecap?.sessions.any((s) => s.sessionId == session.sessionId) == true);
+
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const DrawingResultPage()),
+                              MaterialPageRoute(
+                                builder: (_) => DrawingResultPage(
+                                  sessionId: session.sessionId,
+                                  authController: widget.authController,
+                                  hostUserId: isSessionHost ? currentUserId : null,
+                                  isHost: isSessionHost ? true : null,
+                                ),
+                              ),
                             );
                           },
                     icon: Icon(
@@ -2887,9 +2899,21 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                     onPressed: isFinished
                         ? null
                         : () {
+                            final currentUserId = widget.authController?.currentUser?.userId;
+                            final isSessionHost = widget.authController?.currentUser != null &&
+                                (widget.authController?.currentUser?.isAdmin == true ||
+                                    _hostRecap?.sessions.any((s) => s.sessionId == session.sessionId) == true);
+
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const MatchScoringPage()),
+                              MaterialPageRoute(
+                                builder: (_) => MatchScoringPage(
+                                  sessionId: session.sessionId,
+                                  authController: widget.authController,
+                                  hostUserId: currentUserId,
+                                  isHost: isSessionHost ? true : null,
+                                ),
+                              ),
                             );
                           },
                     icon: Icon(

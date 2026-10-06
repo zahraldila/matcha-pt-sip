@@ -64,6 +64,7 @@ class GameWizardConfig {
   String playMode; // 'Double' or 'Single'
   List<GamePlayerItem> players;
   int? sessionId;
+  int? hostUserId;
 
   GameWizardConfig({
     this.sport = '',
@@ -77,6 +78,7 @@ class GameWizardConfig {
     this.playMode = 'Double',
     List<GamePlayerItem>? players,
     this.sessionId,
+    this.hostUserId,
   }) : players = players ?? [];
 
   int? customTotalRounds;

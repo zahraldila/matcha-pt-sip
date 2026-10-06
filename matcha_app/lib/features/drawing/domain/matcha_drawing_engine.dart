@@ -6,10 +6,22 @@ class DrawingMatch {
   final List<GamePlayerItem> teamA;
   final List<GamePlayerItem> teamB;
   String status; // 'Scheduled', 'In Progress', 'Completed'
-  int scoreA;
-  int scoreB;
+  int scoreA; // Games won / total score
+  int scoreB; // Games won / total score
   int gamesWonA;
   int gamesWonB;
+  int idxA;
+  int idxB;
+  String pointDisplayA;
+  String pointDisplayB;
+  bool isDeuce;
+  String? advantage;
+  int setsA;
+  int setsB;
+  String? winnerTeam;
+  int? matchId;
+  int version;
+  String? lastEventId;
 
   DrawingMatch({
     required this.courtNumber,
@@ -20,6 +32,18 @@ class DrawingMatch {
     this.scoreB = 0,
     this.gamesWonA = 0,
     this.gamesWonB = 0,
+    this.idxA = 0,
+    this.idxB = 0,
+    this.pointDisplayA = '0',
+    this.pointDisplayB = '0',
+    this.isDeuce = false,
+    this.advantage,
+    this.setsA = 0,
+    this.setsB = 0,
+    this.winnerTeam,
+    this.matchId,
+    this.version = 0,
+    this.lastEventId,
   });
 
   String get teamANames => teamA.map((p) => p.name).join(' & ');

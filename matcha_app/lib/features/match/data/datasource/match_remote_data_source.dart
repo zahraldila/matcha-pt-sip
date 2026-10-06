@@ -4,10 +4,11 @@ import '../../domain/models/playing_history_model.dart';
 import '../../domain/models/score_model.dart';
 
 class MatchRemoteDataSource {
-  final SupabaseClient _supabase;
+  final SupabaseClient? _client;
+  SupabaseClient get _supabase => _client ?? Supabase.instance.client;
 
   MatchRemoteDataSource({SupabaseClient? supabaseClient})
-      : _supabase = supabaseClient ?? Supabase.instance.client;
+      : _client = supabaseClient;
 
   /// Mengambil semua score dari tb_score berdasarkan match_id
   Future<List<ScoreModel>> getScoresByMatchId(int matchId) async {
@@ -39,8 +40,19 @@ class MatchRemoteDataSource {
   Future<ScoreModel> saveOrUpdateScore({
     required int matchId,
     required int setNumber,
+    int? gameNumber,
+    String? pointScoreA,
+    String? pointScoreB,
+    int? gameScoreA,
+    int? gameScoreB,
+    int? setScoreA,
+    int? setScoreB,
     required int scoreSideA,
     required int scoreSideB,
+    String? scoringSystem,
+    String? statusScore,
+    int? version,
+    String? lastEventId,
   }) async {
     if (scoreSideA < 0 || scoreSideB < 0) {
       throw Exception('Skor tidak boleh bernilai negatif.');
@@ -56,14 +68,59 @@ class MatchRemoteDataSource {
           .maybeSingle();
 
       if (existing != null) {
+        // Event Deduplication: if last_event_id is the same and non-empty, return existing
+        final existingEventId = existing['last_event_id']?.toString();
+        if (lastEventId != null &&
+            lastEventId.isNotEmpty &&
+            existingEventId == lastEventId) {
+          return ScoreModel.fromJson(existing);
+        }
+
+        // Stale completion downgrade check (matching web)
+        final existingStatus =
+            (existing['status_score'] ?? '').toString().toLowerCase();
+        final isCompleted =
+            existingStatus == 'final' || existingStatus == 'completed';
+        final existingGamesA =
+            (existing['game_score_a'] ?? existing['score_side_a'] ?? 0) as int;
+        final existingGamesB =
+            (existing['game_score_b'] ?? existing['score_side_b'] ?? 0) as int;
+        final incGamesA = gameScoreA ?? scoreSideA;
+        final incGamesB = gameScoreB ?? scoreSideB;
+
+        if (isCompleted) {
+          final isDowngrade =
+              (incGamesA + incGamesB < existingGamesA + existingGamesB) ||
+              (incGamesA < existingGamesA && incGamesB <= existingGamesB) ||
+              (incGamesB < existingGamesB && incGamesA <= existingGamesA);
+          if (isDowngrade) {
+            return ScoreModel.fromJson(existing);
+          }
+        }
+
+        final existingVersion = (existing['version'] ?? 0) as int;
+        final newVersion = version ?? (existingVersion + 1);
+
+        final updateData = <String, dynamic>{
+          'score_side_a': scoreSideA,
+          'score_side_b': scoreSideB,
+          'game_score_a': gameScoreA ?? scoreSideA,
+          'game_score_b': gameScoreB ?? scoreSideB,
+          'game_number': ?gameNumber,
+          'point_score_a': ?pointScoreA,
+          'point_score_b': ?pointScoreB,
+          'set_score_a': ?setScoreA,
+          'set_score_b': ?setScoreB,
+          'scoring_system': ?scoringSystem,
+          'status_score': statusScore ?? 'recorded',
+          'version': newVersion,
+          'last_event_id': ?lastEventId,
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+
         final updated = await _supabase
             .from('tb_score')
-            .update({
-              'score_side_a': scoreSideA,
-              'score_side_b': scoreSideB,
-              'status_score': 'recorded',
-              'updated_at': DateTime.now().toIso8601String(),
-            })
+            .update(updateData)
             .eq('match_id', matchId)
             .eq('set_number', setNumber)
             .select()
@@ -72,17 +129,29 @@ class MatchRemoteDataSource {
         return ScoreModel.fromJson(updated);
       } else {
         final now = DateTime.now().toIso8601String();
+        final insertData = <String, dynamic>{
+          'match_id': matchId,
+          'set_number': setNumber,
+          'game_number': gameNumber ?? 1,
+          'point_score_a': pointScoreA ?? '0',
+          'point_score_b': pointScoreB ?? '0',
+          'game_score_a': gameScoreA ?? scoreSideA,
+          'game_score_b': gameScoreB ?? scoreSideB,
+          'score_side_a': scoreSideA,
+          'score_side_b': scoreSideB,
+          'set_score_a': ?setScoreA,
+          'set_score_b': ?setScoreB,
+          'scoring_system': ?scoringSystem,
+          'status_score': statusScore ?? 'recorded',
+          'version': version ?? 1,
+          'last_event_id': ?lastEventId,
+          'created_at': now,
+          'updated_at': now,
+        };
+
         final inserted = await _supabase
             .from('tb_score')
-            .insert({
-              'match_id': matchId,
-              'set_number': setNumber,
-              'score_side_a': scoreSideA,
-              'score_side_b': scoreSideB,
-              'status_score': 'recorded',
-              'created_at': now,
-              'updated_at': now,
-            })
+            .insert(insertData)
             .select()
             .single();
 
@@ -137,6 +206,9 @@ class MatchRemoteDataSource {
   Future<void> finishMatch({
     required int matchId,
     required String hasilPertandingan,
+    String? winnerTeam,
+    int? version,
+    String? lastEventId,
   }) async {
     final now = DateTime.now().toIso8601String();
     try {
@@ -144,6 +216,9 @@ class MatchRemoteDataSource {
         'status_match': 'Finished',
         'waktu_selesai': now,
         'hasil_pertandingan': hasilPertandingan,
+        'winner_team': ?winnerTeam,
+        'version': ?version,
+        'last_event_id': ?lastEventId,
         'updated_at': now,
       }).eq('match_id', matchId);
     } catch (e) {
