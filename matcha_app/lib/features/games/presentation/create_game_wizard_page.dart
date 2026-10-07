@@ -1118,7 +1118,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
         roundCount: _config.totalRounds,
       );
 
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => DrawingResultPage(
@@ -1132,22 +1132,10 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
       if (!mounted) return;
       setState(() => _isSavingHostGame = false);
 
-      final rounds = MatchaDrawingEngine.generateDrawing(
-        players: _config.players,
-        courtCount: _config.courtCount,
-        gameType: _config.gameType,
-        playMode: _config.playMode,
-        roundCount: _config.totalRounds,
-      );
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DrawingResultPage(
-            config: _config,
-            initialRounds: rounds,
-            authController: widget.authController,
-          ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal membuat gamme. Silahkan coba lagi.',),
+          backgroundColor: Colors.red,
         ),
       );
     }
