@@ -88,7 +88,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       });
 
       if (_selectedSportId != null) {
-        _applySportSelection(_selectedSportId!, initialVenueId: widget.initialVenueId);
+        _applySportSelection(_selectedSportId!);
       }
     } catch (e) {
       if (!mounted) return;
@@ -112,10 +112,6 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     if (initialVenueId != null) {
       targetVenue = matchingVenues.where((v) => v.venueId == initialVenueId).firstOrNull;
     }
-    targetVenue ??= matchingVenues.firstOrNull;
-
-    _selectedVenue = targetVenue;
-
     if (_selectedVenue != null) {
       final matchingCourts = _selectedVenue!.courts.where((c) =>
           c.sportId == _selectedSportId &&
