@@ -45,6 +45,20 @@ class SessionPlayerModel {
       usiaVal = int.tryParse(rawUsia);
     }
 
+    final playerFoto = player['foto']?.toString().trim();
+
+    final userData = player['tb_user'];
+    final userFoto = userData is Map
+        ? userData['foto']?.toString().trim()
+        : null;
+
+    final String? fotoUrl =
+        playerFoto != null && playerFoto.isNotEmpty
+            ? playerFoto
+            : userFoto != null && userFoto.isNotEmpty
+                ? userFoto
+                : null;
+
     return SessionPlayerModel(
       playerId: pId,
       userId: uId,
@@ -52,7 +66,7 @@ class SessionPlayerModel {
       level: player['level']?.toString() ?? 'Beginner',
       gender: player['gender']?.toString() ?? 'Male',
       usia: usiaVal ?? 25,
-      foto: player['foto']?.toString(),
+      foto: fotoUrl,
     );
   }
 }
@@ -233,13 +247,6 @@ class SessionModel {
         hLevel = hostPlayer.level ?? 'Intermediate';
         hAvatar = hostPlayer.foto;
       }
-    }
-
-    // If host name still not found, fallback to first player if available
-    if (hName == 'Host Mabar' && players.isNotEmpty) {
-      hName = players.first.nama;
-      hLevel = players.first.level ?? 'Intermediate';
-      hAvatar = players.first.foto;
     }
 
     return SessionModel(
