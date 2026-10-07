@@ -84,6 +84,10 @@ class UserModel {
       parsedPlayerId = playerJson['player_id'] is int
           ? playerJson['player_id'] as int
           : int.tryParse(playerJson['player_id'].toString());
+    } else if (json['player_id'] != null) {
+      parsedPlayerId = json['player_id'] is int
+          ? json['player_id'] as int
+          : int.tryParse(json['player_id'].toString());
     }
 
     int? parsedUsia;
@@ -91,6 +95,10 @@ class UserModel {
       parsedUsia = playerJson['usia'] is int
           ? playerJson['usia'] as int
           : int.tryParse(playerJson['usia'].toString());
+    } else if (json['usia'] != null) {
+      parsedUsia = json['usia'] is int
+          ? json['usia'] as int
+          : int.tryParse(json['usia'].toString());
     }
 
     int? parsedCommunityId;
@@ -98,7 +106,14 @@ class UserModel {
       parsedCommunityId = playerJson['community_id'] is int
           ? playerJson['community_id'] as int
           : int.tryParse(playerJson['community_id'].toString());
+    } else if (json['community_id'] != null) {
+      parsedCommunityId = json['community_id'] is int
+          ? json['community_id'] as int
+          : int.tryParse(json['community_id'].toString());
     }
+
+    final levelVal = playerJson?['level'] as String? ?? (json['level'] as String? ?? 'Intermediate');
+    final genderVal = playerJson?['gender'] as String? ?? (json['gender'] as String?);
 
     return UserModel(
       userId: json['user_id'] is int
@@ -113,8 +128,8 @@ class UserModel {
       statusUser: json['status_user'] as String? ?? 'Active',
       foto: json['foto'] as String?,
       playerId: parsedPlayerId,
-      level: playerJson?['level'] as String? ?? 'Intermediate',
-      gender: playerJson?['gender'] as String?,
+      level: levelVal,
+      gender: genderVal,
       usia: parsedUsia,
       communityId: parsedCommunityId,
       createdAt: json['created_at'] != null
@@ -147,6 +162,11 @@ class UserModel {
       'is_host': isHost,
       'status_user': statusUser,
       if (foto != null) 'foto': foto,
+      if (playerId != null) 'player_id': playerId,
+      if (level != null) 'level': level,
+      if (gender != null) 'gender': gender,
+      if (usia != null) 'usia': usia,
+      if (communityId != null) 'community_id': communityId,
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
       if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
     };

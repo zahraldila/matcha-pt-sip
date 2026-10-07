@@ -58,12 +58,21 @@ class AuthRemoteDataSource {
 
       // Ambil data athlete profil dari tb_player (ambil 1 profil terbaru jika ada multiple)
       final userId = userData['user_id'];
-      final List<dynamic> players = await _supabase
+      List<dynamic> players = await _supabase
           .from('tb_player')
           .select()
           .eq('user_id', userId)
           .order('player_id', ascending: false)
           .limit(1);
+
+      if (players.isEmpty && userData['email'] != null) {
+        players = await _supabase
+            .from('tb_player')
+            .select()
+            .eq('email', userData['email'].toString().trim().toLowerCase())
+            .order('player_id', ascending: false)
+            .limit(1);
+      }
 
       final playerResponse = players.isNotEmpty ? players.first as Map<String, dynamic> : null;
 
@@ -181,12 +190,21 @@ class AuthRemoteDataSource {
 
       if (userResponse == null) return null;
 
-      final List<dynamic> players = await _supabase
+      List<dynamic> players = await _supabase
           .from('tb_player')
           .select()
           .eq('user_id', userId)
           .order('player_id', ascending: false)
           .limit(1);
+
+      if (players.isEmpty && userResponse['email'] != null) {
+        players = await _supabase
+            .from('tb_player')
+            .select()
+            .eq('email', userResponse['email'].toString().trim().toLowerCase())
+            .order('player_id', ascending: false)
+            .limit(1);
+      }
 
       final playerResponse = players.isNotEmpty ? players.first as Map<String, dynamic> : null;
 
@@ -277,14 +295,24 @@ class AuthRemoteDataSource {
           .single();
 
       // 2. Update or insert tb_player
-      final existingPlayers = await _supabase
+      List<dynamic> existingPlayers = await _supabase
           .from('tb_player')
           .select()
           .eq('user_id', userId)
           .order('player_id', ascending: false);
 
+      if (existingPlayers.isEmpty && updatedUserRaw['email'] != null) {
+        existingPlayers = await _supabase
+            .from('tb_player')
+            .select()
+            .eq('email', updatedUserRaw['email'].toString().trim().toLowerCase())
+            .order('player_id', ascending: false);
+      }
+
       Map<String, dynamic>? playerRaw;
       final Map<String, dynamic> playerFields = {
+        'user_id': userId,
+        'email': updatedUserRaw['email'],
         'nama': nama.trim(),
         'no_hp': cleanPhone,
         'gender': gender,
@@ -308,8 +336,6 @@ class AuthRemoteDataSource {
             .select()
             .single();
       } else {
-        playerFields['user_id'] = userId;
-        playerFields['email'] = updatedUserRaw['email'];
         playerFields['rating'] = 1.0;
         playerFields['created_at'] = DateTime.now().toIso8601String();
         playerRaw = await _supabase
