@@ -106,6 +106,9 @@ class GameWizardConfig {
     if (clean.contains('first to')) {
       return 1;
     }
+    if (customTotalRounds != null && customTotalRounds! > 0 ) {
+      return customTotalRounds!;
+    }
     if (clean.contains('total of 7')) return 7;
     if (clean.contains('total of 6')) return 6;
     if (clean.contains('total of 5')) return 5;
