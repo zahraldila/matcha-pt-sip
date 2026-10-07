@@ -39,6 +39,7 @@ class PlayerController extends Controller
                     'usia' => 25,
                     'level' => 'Intermediate',
                     'rating' => 1.00,
+                    'foto' => $user->foto ?? null,
                 ]);
             }
         }
@@ -328,7 +329,10 @@ class PlayerController extends Controller
                     'match.scores',
                     'match.participants.player',
                 ])
-                ->get();
+                ->get()
+                ->sortBy(function ($part) {
+                    return $part->match->updated_at ?? ($part->match->created_at ?? $part->created_at);
+                });
         } catch (\Throwable $e) {
             $participations = collect([]);
         }
@@ -356,7 +360,7 @@ class PlayerController extends Controller
 
             if (! empty($winnerTeam)) {
                 $winnerSideA = str_contains(strtolower($winnerTeam), 'a');
-                $isWinner = ($isSideA && winnerSideA) || (! $isSideA && ! winnerSideA);
+                $isWinner = ($isSideA && $winnerSideA) || (! $isSideA && ! $winnerSideA);
             } else {
                 // Evaluasi dari tb_score jika winner_team belum terisi eksplisit
                 $scoreA = $match->scores->sum('game_score_a') + $match->scores->sum('set_score_a');
