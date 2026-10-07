@@ -230,30 +230,45 @@ class AuthRemoteDataSource {
   /// Upload avatar image bytes ke Supabase Storage
   Future<String?> uploadAvatar(dynamic bytes, String fileExt) async {
     try {
-      final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
-      final storagePath = 'avatars/$fileName';
+      final cleanExt = fileExt.replaceAll('.', '').toLowerCase();
+      final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.$cleanExt';
+      final Uint8List uint8Bytes = bytes is Uint8List ? bytes : Uint8List.fromList(List<int>.from(bytes as Iterable));
 
-      // Coba upload ke bucket 'avatars', jika gagal fallback ke 'general'
+      // 1. Coba upload ke bucket 'avatars'
       try {
         await _supabase.storage.from('avatars').uploadBinary(
-          storagePath,
-          bytes,
+          fileName,
+          uint8Bytes,
           fileOptions: FileOptions(
-            contentType: 'image/$fileExt',
+            contentType: 'image/$cleanExt',
             upsert: true,
           ),
         );
-        return _supabase.storage.from('avatars').getPublicUrl(storagePath);
-      } catch (_) {
-        await _supabase.storage.from('general').uploadBinary(
-          storagePath,
-          bytes,
-          fileOptions: FileOptions(
-            contentType: 'image/$fileExt',
-            upsert: true,
-          ),
-        );
-        return _supabase.storage.from('general').getPublicUrl(storagePath);
+        return _supabase.storage.from('avatars').getPublicUrl(fileName);
+      } catch (storageErr) {
+        // 2. Fallback bucket 'general' jika bucket 'avatars' tidak tersedia
+        try {
+          await _supabase.storage.from('general').uploadBinary(
+            fileName,
+            uint8Bytes,
+            fileOptions: FileOptions(
+              contentType: 'image/$cleanExt',
+              upsert: true,
+            ),
+          );
+          return _supabase.storage.from('general').getPublicUrl(fileName);
+        } catch (_) {
+          // 3. Fallback bucket 'venues' dengan path 'avatars/$fileName'
+          await _supabase.storage.from('venues').uploadBinary(
+            'avatars/$fileName',
+            uint8Bytes,
+            fileOptions: FileOptions(
+              contentType: 'image/$cleanExt',
+              upsert: true,
+            ),
+          );
+          return _supabase.storage.from('venues').getPublicUrl('avatars/$fileName');
+        }
       }
     } catch (e) {
       return null;

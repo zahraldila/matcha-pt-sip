@@ -298,8 +298,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           _pickedImageBytes!,
           _pickedImageExt ?? 'jpg',
         );
-        if (uploadedUrl != null) {
+        if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
           finalFotoUrl = uploadedUrl;
+        } else {
+          throw Exception('Gagal mengunggah foto profil ke penyimpanan cloud. Silakan periksa koneksi internet Anda.');
         }
       }
 
