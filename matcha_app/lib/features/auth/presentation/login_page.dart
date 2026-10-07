@@ -533,12 +533,17 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                   ),
                                 );
-                                if (registeredEmail != null && registeredEmail.isNotEmpty && mounted) {
-                                  setState(() {
-                                    _loginIdController.text = registeredEmail;
-                                    _passwordController.clear();
-                                  });
-                                }
+                                if (!mounted) return;
+                                if (widget.authController.isAuthenticated) {
+                                  Navigator.of(context).pushReplacement(
+                                    MaterialPageRoute(
+                                      builder: (context) => MainShellPage(authController: widget.authController),
+                                    ),
+                                  );
+                                } else if (registeredEmail != null && registeredEmail.isNotEmpty) {setState(() {
+                                  _loginIdController.text = registeredEmail;
+                                  _passwordController.clear();
+                                });}
                               },
                               child: const Text(
                                 'Daftar Akun',

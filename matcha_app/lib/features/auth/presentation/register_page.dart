@@ -21,10 +21,10 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _usiaController = TextEditingController(text: '25');
+  final _usiaController = TextEditingController();
 
-  String _selectedGender = 'Male';
-  String _selectedLevel = 'Beginner';
+  String? _selectedGender;
+  String? _selectedLevel;
   bool _obscurePassword = true;
 
   @override
@@ -40,23 +40,23 @@ class _RegisterPageState extends State<RegisterPage> {
   Future<void> _handleRegister() async {
     widget.authController.clearError();
     if (_formKey.currentState?.validate() ?? false) {
-      final usia = int.tryParse(_usiaController.text.trim()) ?? 25;
+      final usia = int.tryParse(_usiaController.text.trim());
 
       final success = await widget.authController.register(
         nama: _namaController.text.trim(),
         email: _emailController.text.trim(),
         noHp: _phoneController.text.trim(),
         password: _passwordController.text,
-        gender: _selectedGender,
-        usia: usia,
-        level: _selectedLevel,
+        gender: _selectedGender!,
+        usia: usia!,
+        level: _selectedLevel!,
       );
 
       if (success && mounted) {
         final registeredEmail = _emailController.text.trim();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('🎉 Pendaftaran berhasil! Silakan masuk dengan akun barumu.'),
+            content: Text('🎉 Pendaftaran berhasil! Selamat datang di MATCHA.'),
             backgroundColor: AppColors.matchaDark,
             behavior: SnackBarBehavior.floating,
             duration: Duration(seconds: 3),
@@ -380,6 +380,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                                   // Gender & Usia
                                   Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       // Gender
                                       Expanded(
@@ -388,31 +389,78 @@ class _RegisterPageState extends State<RegisterPage> {
                                           children: [
                                             _buildFieldLabel('Jenis Kelamin'),
                                             const SizedBox(height: 6),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 14),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFF8FAFC),
-                                                borderRadius: BorderRadius.circular(16),
-                                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                                              ),
-                                              child: DropdownButtonHideUnderline(
-                                                child: DropdownButton<String>(
-                                                  value: _selectedGender,
-                                                  isExpanded: true,
-                                                  style: const TextStyle(
-                                                    color: Color(0xFF0F172A),
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                  items: const [
-                                                    DropdownMenuItem(value: 'Male', child: Text('Laki-laki')),
-                                                    DropdownMenuItem(value: 'Female', child: Text('Perempuan')),
-                                                  ],
-                                                  onChanged: (val) {
-                                                    if (val != null) setState(() => _selectedGender = val);
+                                            FormField<String>(
+                                              validator: (value) {
+                                                if (value == null || value.isEmpty) {
+                                                  return 'Gender wajib dipilih';
+                                                }
+                                                return null;
+                                              },
+                                              builder: (field) {
+                                                return LayoutBuilder(
+                                                  builder: (context, constraints) {
+                                                    return PopupMenuButton<String>(
+                                                      position: PopupMenuPosition.under,
+                                                      offset: const Offset(0, 4),
+                                                      tooltip: 'Pilih gender',
+                                                      color: Colors.white,
+                                                      constraints: BoxConstraints(
+                                                        minWidth: constraints.maxWidth,
+                                                        maxWidth: constraints.maxWidth,
+                                                      ),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(14),
+                                                      ),
+                                                      onSelected: (value) {
+                                                        field.didChange(value);
+                                                        setState(() => _selectedGender = value);
+                                                      },
+                                                      itemBuilder: (_) => const [
+                                                        PopupMenuItem(
+                                                          value: 'Male',
+                                                          child: Text('Laki-laki'),
+                                                        ),
+                                                        PopupMenuItem(
+                                                          value: 'Female',
+                                                          child: Text('Perempuan'),
+                                                        ),
+                                                      ],
+                                                      child: InputDecorator(
+                                                        decoration: _inputDecoration(
+                                                          hint: 'Pilih gender',
+                                                          icon: Icons.person_outline_rounded,
+                                                        ).copyWith(
+                                                          errorText: field.errorText,
+                                                        ),
+                                                        child: Row(
+                                                          children: [
+                                                            Expanded(
+                                                              child: Text(
+                                                                field.value == null
+                                                                    ? 'Pilih gender'
+                                                                    : field.value == 'Male'
+                                                                        ? 'Laki-laki'
+                                                                        : 'Perempuan',
+                                                                style: TextStyle(
+                                                                  color: field.value == null
+                                                                      ? const Color(0xFF94A3B8)
+                                                                      : const Color(0xFF0F172A),
+                                                                  fontSize: 12,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            const Icon(
+                                                              Icons.keyboard_arrow_down_rounded,
+                                                              size: 20,
+                                                              color: Color(0xFF64748B),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    );
                                                   },
-                                                ),
-                                              ),
+                                                );
+                                              },
                                             ),
                                           ],
                                         ),
@@ -434,7 +482,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                                 icon: Icons.cake_outlined,
                                               ),
                                               validator: (value) {
-                                                final num = int.tryParse(value ?? '');
+                                                final text = value?.trim() ?? '';
+                                                if (text.isEmpty) {
+                                                  return 'Usia wajib diisi';
+                                                }
+                                                final num = int.tryParse(text);
                                                 if (num == null || num < 10 || num > 90) {
                                                   return 'Usia 10-90';
                                                 }
@@ -446,39 +498,83 @@ class _RegisterPageState extends State<RegisterPage> {
                                       ),
                                     ],
                                   ),
-
                                   const SizedBox(height: 14),
 
                                   // Level / Tingkat Kemampuan
                                   _buildFieldLabel('Tingkat Kemampuan Olahraga'),
                                   const SizedBox(height: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF8FAFC),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        value: _selectedLevel,
-                                        isExpanded: true,
-                                        style: const TextStyle(
-                                          color: Color(0xFF0F172A),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        items: const [
-                                          DropdownMenuItem(value: 'Newbie', child: Text('🌱 Newbie (Baru Mulai)')),
-                                          DropdownMenuItem(value: 'Beginner', child: Text('🥉 Beginner (Pemula)')),
-                                          DropdownMenuItem(value: 'Intermediate', child: Text('🥈 Intermediate (Menengah)')),
-                                          DropdownMenuItem(value: 'Advanced', child: Text('🥇 Advanced (Mahir)')),
-                                        ],
-                                        onChanged: (val) {
-                                          if (val != null) setState(() => _selectedLevel = val);
+                                  FormField<String>(
+                                    initialValue: _selectedLevel,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Tingkat kemampuan wajib dipilih';
+                                      }
+                                      return null;
+                                    },
+                                    builder: (field) {
+                                      const labels = {
+                                        'Newbie': '🌱 Newbie (Baru Mulai)',
+                                        'Beginner': '🥉 Beginner (Pemula)',
+                                        'Intermediate': '🥈 Intermediate (Menengah)',
+                                        'Advanced': '🥇 Advanced (Mahir)',
+                                      };
+
+                                      return LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          return PopupMenuButton<String>(
+                                            position: PopupMenuPosition.under,
+                                            offset: const Offset(0, 4),
+                                            tooltip: 'Pilih tingkat kemampuan',
+                                            color: Colors.white,
+                                            constraints: BoxConstraints(
+                                              minWidth: constraints.maxWidth,
+                                              maxWidth: constraints.maxWidth,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(14),
+                                            ),
+                                            onSelected: (value) {
+                                              field.didChange(value);
+                                              setState(() => _selectedLevel = value);
+                                            },
+                                            itemBuilder: (_) => labels.entries.map((entry) {
+                                              return PopupMenuItem<String>(
+                                                value: entry.key,
+                                                child: Text(entry.value),
+                                              );
+                                            }).toList(),
+                                            child: InputDecorator(
+                                              decoration: _inputDecoration(
+                                                hint: 'Pilih tingkat kemampuan',
+                                                icon: Icons.sports_tennis_rounded,
+                                              ).copyWith(
+                                                errorText: field.errorText,
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      labels[field.value] ?? 'Pilih tingkat kemampuan',
+                                                      style: TextStyle(
+                                                        color: field.value == null
+                                                            ? const Color(0xFF94A3B8)
+                                                            : const Color(0xFF0F172A),
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const Icon(
+                                                    Icons.keyboard_arrow_down_rounded,
+                                                    size: 20,
+                                                    color: Color(0xFF64748B),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
                                         },
-                                      ),
-                                    ),
+                                      );
+                                    },
                                   ),
 
                                   const SizedBox(height: 24),

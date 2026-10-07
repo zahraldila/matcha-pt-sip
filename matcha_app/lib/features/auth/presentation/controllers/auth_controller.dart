@@ -94,7 +94,7 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _authDataSource.register(
+      final user = await _authDataSource.register(
         nama: nama,
         email: email,
         noHp: noHp,
@@ -104,6 +104,13 @@ class AuthController extends ChangeNotifier {
         level: level,
         communityId: communityId,
       );
+      _currentUser = user;
+      _syncToMockDataService(user);
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(_userSessionKey, user.userId);
+      } catch (_) {}
 
       _isLoading = false;
       notifyListeners();
