@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:bcrypt/bcrypt.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/models/user_model.dart';
