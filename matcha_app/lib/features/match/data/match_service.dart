@@ -691,6 +691,15 @@ class MatchService {
             onDataChanged();
           },
         )
+        // Dengarkan perubahan tb_session (misal status berubah jadi Finished)
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'tb_session',
+          callback: (payload) {
+            onDataChanged();
+          },
+        )
         // 3. Fallback broadcast score_update
         .onBroadcast(
           event: 'score_update',

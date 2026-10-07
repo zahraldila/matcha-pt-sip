@@ -675,6 +675,21 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
 
+          final rawStatus = (m['status'] ?? '').toString();
+          final isExplicitInProgress = rawStatus == 'In Progress' || rawStatus == 'Playing';
+          final hasStartedScoring = restored.gamesA > 0 ||
+              restored.gamesB > 0 ||
+              restored.idxA > 0 ||
+              restored.idxB > 0 ||
+              (restored.pointDisplayA != '0' && restored.pointDisplayA.isNotEmpty) ||
+              (restored.pointDisplayB != '0' && restored.pointDisplayB.isNotEmpty);
+
+          final effectiveStatus = restored.isCompleted
+              ? 'Completed'
+              : (isExplicitInProgress || hasStartedScoring
+                  ? 'In Progress'
+                  : (rawStatus.isNotEmpty ? rawStatus : 'Scheduled'));
+
           final drawingMatch = DrawingMatch(
 
             courtNumber: courtNum,
@@ -683,7 +698,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
             teamB: teamBPlayers,
 
-            status: restored.isCompleted ? 'Completed' : 'In Progress',
+            status: effectiveStatus,
 
             scoreA: restored.gamesA,
 
@@ -837,6 +852,11 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                 _sessionActiveRoundIndex = nextIdx;
                 _viewedRoundIndex = nextIdx;
                 _selectedCourtIndex = 0;
+                for (final m in _rounds[nextIdx].matches) {
+                  if (m.status == 'Scheduled') {
+                    m.status = 'In Progress';
+                  }
+                }
               });
             }
           }
@@ -1010,7 +1030,20 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
                   localMatch.setsB = restored.setsB;
 
-                  localMatch.status = restored.isCompleted ? 'Completed' : 'In Progress';
+                  final rawStatus = (m['status'] ?? '').toString();
+                  final isExplicitInProgress = rawStatus == 'In Progress' || rawStatus == 'Playing';
+                  final hasStartedScoring = restored.gamesA > 0 ||
+                      restored.gamesB > 0 ||
+                      restored.idxA > 0 ||
+                      restored.idxB > 0 ||
+                      (restored.pointDisplayA != '0' && restored.pointDisplayA.isNotEmpty) ||
+                      (restored.pointDisplayB != '0' && restored.pointDisplayB.isNotEmpty);
+
+                  localMatch.status = restored.isCompleted
+                      ? 'Completed'
+                      : (isExplicitInProgress || hasStartedScoring
+                          ? 'In Progress'
+                          : (rawStatus.isNotEmpty ? rawStatus : localMatch.status));
 
                   localMatch.winnerTeam = restored.winnerTeam;
 
@@ -1083,14 +1116,14 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
 
-        // Periksa apakah ronde berikutnya sudah memiliki pertandingan yang sedang/telah berjalan
-        for (int r = _rounds.length - 1; r > _sessionActiveRoundIndex; r--) {
-          final hasStartedMatch = _rounds[r].matches.any(
-            (m) => m.status == 'Completed' || m.scoreA > 0 || m.scoreB > 0,
-          );
-          if (hasStartedMatch) {
-            _sessionActiveRoundIndex = r;
-            break;
+        // Resolusi ronde aktif secara konsisten menggunakan state ronde
+        final resolvedActiveRound = _resolveActiveRoundIndex(_rounds);
+        if (resolvedActiveRound > _sessionActiveRoundIndex) {
+          final wasViewingActive = _viewedRoundIndex == _sessionActiveRoundIndex;
+          _sessionActiveRoundIndex = resolvedActiveRound;
+          if (wasViewingActive || _viewedRoundIndex < _sessionActiveRoundIndex) {
+            _viewedRoundIndex = _sessionActiveRoundIndex;
+            _selectedCourtIndex = 0;
           }
         }
       });
@@ -1735,6 +1768,15 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
 
+  void _selectRound(int idx) {
+    if (idx < 0 || idx >= _rounds.length) return;
+    if (idx > _sessionActiveRoundIndex) return;
+    setState(() {
+      _viewedRoundIndex = idx;
+      _selectedCourtIndex = 0;
+    });
+  }
+
   void _advanceToNextRound() {
 
     if (!isHost) return;
@@ -1771,6 +1813,18 @@ class MatchScoringPageState extends State<MatchScoringPage> {
         currentRoundNum: curr,
         nextRoundNum: next,
       );
+      try {
+        _realtimeChannel?.sendBroadcastMessage(
+          event: 'round_advanced',
+          payload: {
+            'session_id': widget.sessionId,
+            'current_round_num': curr,
+            'next_round_num': next,
+            'session_active_round': next,
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+          },
+        );
+      } catch (_) {}
     }
   }
 
@@ -2009,6 +2063,10 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
 
+    if (_viewedRoundIndex > _sessionActiveRoundIndex) {
+      _viewedRoundIndex = _sessionActiveRoundIndex;
+    }
+
     final currentRound =
 
         _rounds[_viewedRoundIndex.clamp(0, _rounds.length - 1)];
@@ -2098,11 +2156,6 @@ class MatchScoringPageState extends State<MatchScoringPage> {
         centerTitle: true,
 
         actions: [
-          IconButton(
-            icon: const Icon(Icons.leaderboard_rounded, color: Color(0xFF0F172A), size: 22),
-            tooltip: 'Klasemen & Rekap',
-            onPressed: _openRecapPage,
-          ),
           Container(
 
             margin: const EdgeInsets.only(right: 14),
@@ -2392,149 +2445,90 @@ class MatchScoringPageState extends State<MatchScoringPage> {
             scrollDirection: Axis.horizontal,
 
             child: Row(
-
               children: List.generate(_rounds.length, (idx) {
-
                 final isSelected = _viewedRoundIndex == idx;
-
                 final isActiveRound = _sessionActiveRoundIndex == idx;
-
+                final isLocked = idx > _sessionActiveRoundIndex;
                 final r = _rounds[idx];
-
                 final isFinished = r.matches.every(
-
                   (m) => m.status == 'Completed',
-
                 );
-
-
 
                 return Container(
-
                   margin: const EdgeInsets.only(right: 8),
-
                   child: ChoiceChip(
-
+                    key: ValueKey('round_tab_$idx'),
                     label: Row(
-
                       mainAxisSize: MainAxisSize.min,
-
                       children: [
-
                         Text('Ronde ${r.roundNumber}'),
-
-                        if (isActiveRound) ...[
-
+                        if (isLocked) ...[
                           const SizedBox(width: 5),
-
-                          Container(
-
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-
-                            decoration: BoxDecoration(
-
-                              color: isSelected ? Colors.white : AppColors.matchaDark,
-
-                              borderRadius: BorderRadius.circular(4),
-
-                            ),
-
-                            child: Text(
-
-                              'AKTIF',
-
-                              style: TextStyle(
-
-                                fontSize: 8,
-
-                                fontWeight: FontWeight.w900,
-
-                                color: isSelected ? AppColors.matchaDark : Colors.white,
-
-                              ),
-
-                            ),
-
-                          ),
-
-                        ] else if (isFinished) ...[
-
-                          const SizedBox(width: 4),
-
                           const Icon(
-
-                            Icons.check,
-
-                            size: 12,
-
-                            color: Colors.white,
-
+                            Icons.lock_rounded,
+                            size: 13,
+                            color: Color(0xFF94A3B8),
                           ),
-
+                        ] else if (isActiveRound) ...[
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: isSelected ? Colors.white : AppColors.matchaDark,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'AKTIF',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w900,
+                                color: isSelected ? AppColors.matchaDark : Colors.white,
+                              ),
+                            ),
+                          ),
+                        ] else if (isFinished) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.check,
+                            size: 12,
+                            color: isSelected ? Colors.white : const Color(0xFF10B981),
+                          ),
                         ],
-
                       ],
-
                     ),
-
-                    selected: isSelected,
-
+                    selected: isSelected && !isLocked,
                     selectedColor: AppColors.matchaDark,
-
-                    backgroundColor: Colors.white,
-
+                    disabledColor: const Color(0xFFF1F5F9),
+                    backgroundColor: isLocked ? const Color(0xFFF8FAFC) : Colors.white,
                     labelStyle: TextStyle(
-
                       fontSize: 12,
-
                       fontWeight: FontWeight.bold,
-
-                      color: isSelected
-
-                          ? Colors.white
-
-                          : const Color(0xFF475569),
-
+                      color: isLocked
+                          ? const Color(0xFF94A3B8)
+                          : (isSelected
+                              ? Colors.white
+                              : const Color(0xFF475569)),
                     ),
-
                     shape: RoundedRectangleBorder(
-
                       borderRadius: BorderRadius.circular(10),
-
                       side: BorderSide(
-
-                        color: isSelected
-
-                            ? AppColors.matchaDark
-
-                            : const Color(0xFFE2E8F0),
-
+                        color: isLocked
+                            ? const Color(0xFFCBD5E1)
+                            : (isSelected
+                                ? AppColors.matchaDark
+                                : const Color(0xFFE2E8F0)),
                       ),
-
                     ),
-
-                    onSelected: (val) {
-
-                      if (val) {
-
-                        setState(() {
-
-                          _viewedRoundIndex = idx;
-
-                          _selectedCourtIndex = 0;
-
-                        });
-
-                      }
-
-                    },
-
+                    onSelected: isLocked
+                        ? null
+                        : (val) {
+                            if (val) {
+                              _selectRound(idx);
+                            }
+                          },
                   ),
-
                 );
-
               }),
-
             ),
 
           ),

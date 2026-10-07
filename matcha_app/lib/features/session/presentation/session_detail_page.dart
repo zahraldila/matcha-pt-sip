@@ -7,6 +7,8 @@ import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../drawing/presentation/drawing_result_page.dart';
 import '../../games/domain/game_wizard_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../match/data/match_service.dart';
 import '../../match/presentation/match_scoring_page.dart';
 import '../../recap/presentation/session_match_recap_page.dart';
 import '../data/session_service.dart';
@@ -17,12 +19,16 @@ class SessionDetailPage extends StatefulWidget {
   final int sessionId;
   final SessionModel? initialSession;
   final AuthController? authController;
+  final SessionService? sessionService;
+  final MatchService? matchService;
 
   const SessionDetailPage({
     super.key,
     required this.sessionId,
     this.initialSession,
     this.authController,
+    this.sessionService,
+    this.matchService,
   });
 
   @override
@@ -30,22 +36,33 @@ class SessionDetailPage extends StatefulWidget {
 }
 
 class _SessionDetailPageState extends State<SessionDetailPage> {
-  final SessionService _sessionService = SessionService();
+  SessionService? _sessionService;
+  MatchService? _matchService;
+  RealtimeChannel? _realtimeChannel;
 
   late SessionModel? _session;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isAllMatchesCompleted = false;
 
   @override
   void initState() {
     super.initState();
+    try {
+      _sessionService = widget.sessionService ?? SessionService();
+    } catch (_) {}
+    try {
+      _matchService = widget.matchService ?? MatchService();
+    } catch (_) {}
     _session = widget.initialSession;
     _loadSessionDetail();
+    _subscribeRealtime();
     widget.authController?.addListener(_onAuthChanged);
   }
 
   @override
   void dispose() {
+    _realtimeChannel?.unsubscribe();
     widget.authController?.removeListener(_onAuthChanged);
     super.dispose();
   }
@@ -54,7 +71,39 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     if (mounted) setState(() {});
   }
 
+  void _subscribeRealtime() {
+    try {
+      _realtimeChannel = _matchService?.subscribeLiveSession(
+        sessionId: widget.sessionId,
+        onDataChanged: () {
+          if (mounted) _loadSessionDetail();
+        },
+        onSessionFinished: (_) {
+          if (mounted) {
+            setState(() {
+              _isAllMatchesCompleted = true;
+            });
+            _loadSessionDetail();
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('[SessionDetailPage] Error subscribing realtime: $e');
+    }
+  }
+
+  bool _computeIsFinished(SessionModel session) {
+    final statusLower = session.statusSession.trim().toLowerCase();
+    return statusLower == 'finished' ||
+        statusLower == 'completed' ||
+        statusLower == 'selesai' ||
+        _isAllMatchesCompleted;
+  }
+
   Future<void> _loadSessionDetail() async {
+    final sService = _sessionService;
+    if (sService == null) return;
+
     if (_session == null) {
       setState(() {
         _isLoading = true;
@@ -63,10 +112,30 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     }
 
     try {
-      final freshSession = await _sessionService.getSessionDetail(widget.sessionId);
+      final freshSession = await sService.getSessionDetail(widget.sessionId);
+
+      bool matchesCompleted = false;
+      try {
+        final mService = _matchService;
+        if (mService != null) {
+          final matches = await mService.getMatchesForSession(widget.sessionId);
+          if (matches.isNotEmpty &&
+              matches.every((m) => m['status']?.toString().toLowerCase() == 'completed')) {
+            matchesCompleted = true;
+            final statusLower = freshSession.statusSession.trim().toLowerCase();
+            if (statusLower != 'finished' && statusLower != 'completed' && statusLower != 'selesai') {
+              mService.finishSession(widget.sessionId);
+            }
+          }
+        }
+      } catch (_) {}
+
       if (!mounted) return;
       setState(() {
         _session = freshSession;
+        if (matchesCompleted) {
+          _isAllMatchesCompleted = true;
+        }
         _isLoading = false;
         _errorMessage = null;
       });
@@ -103,7 +172,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     // Jika sesi belum memiliki share_token di database, buat otomatis on-the-fly
     if (shareToken == null || shareToken.isEmpty) {
       try {
-        shareToken = await _sessionService.ensureShareToken(session.sessionId);
+        shareToken = await _sessionService?.ensureShareToken(session.sessionId);
         if (mounted) {
           setState(() {
             _session = session.copyWith(shareToken: shareToken);
@@ -311,7 +380,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
 
     try {
       setState(() => _isLoading = true);
-      await _sessionService.deleteSession(widget.sessionId);
+      await _sessionService?.deleteSession(widget.sessionId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -412,9 +481,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   /// Header matching `show.blade.php` (Title, Sport Badge, Status Badge, Share Action)
   Widget _buildWebMatchingHeader(SessionModel session) {
     final statusLower = session.statusSession.trim().toLowerCase();
-    final isFinished = statusLower == 'finished' ||
-        statusLower == 'completed' ||
-        statusLower == 'selesai';
+    final isFinished = _computeIsFinished(session);
     final isLive = !isFinished &&
         (statusLower == 'in progress' ||
             statusLower == 'in_progress' ||
@@ -756,9 +823,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   /// Card Drawing & Pertandingan (matching web)
   Widget _buildDrawingScoringCard(SessionModel session) {
     final statusLower = session.statusSession.trim().toLowerCase();
-    final isFinished = statusLower == 'finished' ||
-        statusLower == 'completed' ||
-        statusLower == 'selesai';
+    final isFinished = _computeIsFinished(session);
     final isLive = !isFinished &&
         (statusLower == 'in progress' ||
             statusLower == 'in_progress' ||
@@ -842,7 +907,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           ),
           const SizedBox(height: 14),
 
-          // 1. Jika sesi Selesai (Finished) -> Tampilan Persis Seperti di Web
+          // 1. Jika sesi Selesai (Finished) -> Tampilan Tunggal Rekapan Mabar
           if (isFinished) ...[
             SizedBox(
               width: double.infinity,
@@ -862,7 +927,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                 },
                 icon: const Icon(Icons.emoji_events_rounded, size: 16),
                 label: const Text(
-                  'Buka Hasil Akhir & Podium',
+                  'Rekapan Mabar',
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -902,8 +967,8 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
               width: double.infinity,
               height: 40,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => DrawingResultPage(
@@ -936,6 +1001,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                       ),
                     ),
                   );
+                  if (mounted) _loadSessionDetail();
                 },
                 icon: const Icon(Icons.shuffle_rounded, size: 16),
                 label: const Text('Buka Drawing Tim', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
@@ -953,12 +1019,12 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
               width: double.infinity,
               height: 40,
               child: OutlinedButton.icon(
-                onPressed: () {
+                onPressed: () async {
                   final isHostUser = widget.authController?.currentUser?.isAdmin == true ||
                       (widget.authController?.currentUser != null &&
                           widget.authController?.currentUser?.userId == session.hostUserId);
 
-                  Navigator.push(
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => MatchScoringPage(
@@ -969,6 +1035,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                       ),
                     ),
                   );
+                  if (mounted) _loadSessionDetail();
                 },
                 icon: const Icon(Icons.timer_outlined, size: 16),
                 label: const Text('Live Match Scoring', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
@@ -1007,7 +1074,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           ],
 
           // Tombol Hapus Jadwal Mabar (Shown if admin/host and not finished)
-          if (canManage) ...[
+          if (canManage && !isFinished) ...[
             SizedBox(
               width: double.infinity,
               height: 40,
@@ -1028,32 +1095,34 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
             ),
           ],
 
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 8),
+          if (!isFinished) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: Color(0xFFF1F5F9)),
+            const SizedBox(height: 8),
 
-          // Feature Checkmarks
-          Row(
-            children: [
-              const Icon(Icons.check_rounded, size: 14, color: AppColors.matchaDark),
-              const SizedBox(width: 6),
-              Text(
-                'Drawing otomatis seimbang',
-                style: AppTextStyles.caption.copyWith(color: const Color(0xFF64748B), fontSize: 11),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.check_rounded, size: 14, color: AppColors.matchaDark),
-              const SizedBox(width: 6),
-              Text(
-                'Visualisasi lapangan tennis/padel',
-                style: AppTextStyles.caption.copyWith(color: const Color(0xFF64748B), fontSize: 11),
-              ),
-            ],
-          ),
+            // Feature Checkmarks
+            Row(
+              children: [
+                const Icon(Icons.check_rounded, size: 14, color: AppColors.matchaDark),
+                const SizedBox(width: 6),
+                Text(
+                  'Drawing otomatis seimbang',
+                  style: AppTextStyles.caption.copyWith(color: const Color(0xFF64748B), fontSize: 11),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.check_rounded, size: 14, color: AppColors.matchaDark),
+                const SizedBox(width: 6),
+                Text(
+                  'Visualisasi lapangan tennis/padel',
+                  style: AppTextStyles.caption.copyWith(color: const Color(0xFF64748B), fontSize: 11),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1331,10 +1400,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
       return const SizedBox.shrink();
     }
 
-    final statusLower = session.statusSession.trim().toLowerCase();
-    final isFinished = statusLower == 'finished' ||
-        statusLower == 'completed' ||
-        statusLower == 'selesai';
+    final isFinished = _computeIsFinished(session);
 
     return Container(
       padding: const EdgeInsets.all(16),
