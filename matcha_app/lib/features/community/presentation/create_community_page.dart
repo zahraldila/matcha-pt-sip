@@ -43,13 +43,9 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
   // Selections
   String _selectedSport = 'padel'; // 'padel', 'tennis', 'all_racquet'
   String _selectedTargetLevel = 'All Levels';
-  String _selectedStatusKeanggotaan = 'Open';
 
-  // Benefits
-  final Set<String> _selectedBenefits = {
-    'weekly_mabar',
-    'whatsapp_group',
-  };
+  // Benefits - kosong by default, user memilih sendiri
+  final Set<String> _selectedBenefits = {};
 
   bool _isSubmitting = false;
 
@@ -110,9 +106,7 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
       _pickedImageBytes = null;
       _selectedSport = 'padel';
       _selectedTargetLevel = 'All Levels';
-      _selectedStatusKeanggotaan = 'Open';
       _selectedBenefits.clear();
-      _selectedBenefits.addAll(['weekly_mabar', 'whatsapp_group']);
     });
   }
 
@@ -243,7 +237,7 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
         tagline: _taglineController.text.trim().isEmpty ? null : _taglineController.text.trim(),
         kotaHomebase: _kotaController.text.trim(),
         targetLevel: _selectedTargetLevel,
-        statusKeanggotaan: _selectedStatusKeanggotaan,
+        statusKeanggotaan: 'Open',
         jadwalRutin: _jadwalRutinController.text.trim().isEmpty ? null : _jadwalRutinController.text.trim(),
         homebaseVenue: (_selectedHomebaseVenue != null && _selectedHomebaseVenue!.isNotEmpty)
             ? _selectedHomebaseVenue
@@ -412,22 +406,6 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
                       ],
                       onChanged: (v) {
                         if (v != null) setState(() => _selectedTargetLevel = v);
-                      },
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    _buildFieldLabel('Status Keanggotaan'),
-                    const SizedBox(height: 6),
-                    _buildDropdown(
-                      value: _selectedStatusKeanggotaan,
-                      items: const [
-                        DropdownMenuItem(value: 'Open', child: Text('Terbuka untuk Umum (Free Join)')),
-                        DropdownMenuItem(value: 'Approval', child: Text('Memerlukan Persetujuan Admin')),
-                        DropdownMenuItem(value: 'Private', child: Text('Undangan Khusus (Private)')),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setState(() => _selectedStatusKeanggotaan = v);
                       },
                     ),
 
