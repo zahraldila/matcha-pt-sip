@@ -862,6 +862,12 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                     // CARD 1: TENTANG KOMUNITAS
                     _buildAboutCard(),
 
+                    // CARD 1B: BENEFIT & KEGIATAN (hanya tampil jika ada data)
+                    if (_community.benefits.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      _buildBenefitsCard(),
+                    ],
+
                     const SizedBox(height: 16),
 
                     // CARD 2: DAFTAR ANGGOTA KOMUNITAS
@@ -1184,6 +1190,94 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- CARD 1B: BENEFIT & KEGIATAN KOMUNITAS ---
+  Widget _buildBenefitsCard() {
+    // Mapping key ke label (type-safe)
+    const benefitLabels = <String, String>{
+      'weekly_mabar': 'Sesi Mabar Mingguan',
+      'internal_tournament': 'Internal Tournament',
+      'coaching_clinic': 'Coaching Clinic',
+      'whatsapp_group': 'WhatsApp Group Aktif',
+      'court_discount': 'Diskon Sewa Court',
+      'official_jersey': 'Jersey Official Club',
+      'rating_tracking': 'Tracking Rating Pemain',
+      'networking': 'Networking Profesional',
+    };
+    // Mapping key ke icon (type-safe)
+    const benefitIcons = <String, IconData>{
+      'weekly_mabar': Icons.calendar_today_rounded,
+      'internal_tournament': Icons.emoji_events_rounded,
+      'coaching_clinic': Icons.school_rounded,
+      'whatsapp_group': Icons.chat_bubble_rounded,
+      'court_discount': Icons.local_offer_rounded,
+      'official_jersey': Icons.checkroom_rounded,
+      'rating_tracking': Icons.trending_up_rounded,
+      'networking': Icons.handshake_rounded,
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF063B00).withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Benefit & Kegiatan',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _community.benefits.map((key) {
+              final label = benefitLabels[key] ?? key;
+              final icon = benefitIcons[key] ?? Icons.check_circle_rounded;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFFEF4),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.35)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 13, color: const Color(0xFF16A34A)),
+                    const SizedBox(width: 5),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF15803D),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
