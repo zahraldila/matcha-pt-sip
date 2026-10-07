@@ -5,6 +5,8 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../data/community_remote_data_source.dart';
 import '../domain/community_model.dart';
+import '../../court/data/venue_service.dart';
+import '../../court/domain/venue_model.dart';
 
 class CommunityDetailPage extends StatefulWidget {
   final CommunityModel community;
@@ -22,9 +24,11 @@ class CommunityDetailPage extends StatefulWidget {
 
 class _CommunityDetailPageState extends State<CommunityDetailPage> {
   final CommunityRemoteDataSource _dataSource = CommunityRemoteDataSource();
+  final VenueService _venueService = VenueService();
 
   late CommunityModel _community;
   List<Map<String, dynamic>> _members = [];
+  List<VenueModel> _venues = [];
   bool _isLoading = false;
   bool _isActionLoading = false;
 
@@ -33,6 +37,17 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     super.initState();
     _community = widget.community;
     _loadDetail();
+    _loadVenues();
+  }
+
+  Future<void> _loadVenues() async {
+    try {
+      final venues = await _venueService.getVenues();
+      if (!mounted) return;
+      setState(() {
+        _venues = venues;
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadDetail() async {
@@ -229,6 +244,281 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     }
   }
 
+  Future<String?> _showVenueSearchPickerModal(BuildContext context, String? currentSelected) async {
+    return showModalBottomSheet<String?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        String searchQuery = '';
+        final searchCtrl = TextEditingController();
+        return StatefulBuilder(
+          builder: (context, setPickerState) {
+            final query = searchQuery.toLowerCase().trim();
+            final tokens = query.isEmpty ? <String>[] : query.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+
+            final filteredVenues = _venues.where((v) {
+              if (tokens.isEmpty) return true;
+              final searchableText = [
+                v.namaVenue,
+                v.alamat ?? '',
+                v.kota ?? '',
+                v.fasilitas ?? '',
+                v.catatan ?? '',
+                v.namaPic ?? '',
+                v.sportName,
+                ...v.courts.map((c) => '${c.namaCourt} ${c.tipeCourt ?? ''}'),
+              ].join(' ').toLowerCase();
+
+              return tokens.every((token) => searchableText.contains(token));
+            }).toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.78,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Pilih Homebase Venue',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${_venues.length} venue aktif tersedia',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 22),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextField(
+                        controller: searchCtrl,
+                        autofocus: false,
+                        onChanged: (val) {
+                          setPickerState(() {
+                            searchQuery = val;
+                          });
+                        },
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                        decoration: InputDecoration(
+                          hintText: 'Cari nama venue, kota, atau alamat...',
+                          hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 20),
+                          suffixIcon: searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear_rounded, color: Color(0xFF94A3B8), size: 18),
+                                  onPressed: () {
+                                    searchCtrl.clear();
+                                    setPickerState(() {
+                                      searchQuery = '';
+                                    });
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  Expanded(
+                    child: filteredVenues.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search_off_rounded, size: 48, color: Colors.grey.shade400),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'Venue tidak ditemukan',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Tidak ada venue yang sesuai dengan kata kunci "$searchQuery"',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            itemCount: filteredVenues.length + 1,
+                            separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                            itemBuilder: (context, index) {
+                              if (index == 0) {
+                                final isSelected = currentSelected == null || currentSelected.isEmpty;
+                                return InkWell(
+                                  onTap: () => Navigator.pop(context, ''),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? AppColors.matchaSoftLime.withValues(alpha: 0.5) : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: isSelected ? AppColors.matchaDark : const Color(0xFFF1F5F9),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Icon(
+                                            Icons.clear_rounded,
+                                            color: isSelected ? const Color(0xFFA8E63A) : const Color(0xFF64748B),
+                                            size: 18,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        const Expanded(
+                                          child: Text(
+                                            'Tidak Ada / Belum Ditentukan',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontStyle: FontStyle.italic,
+                                              color: Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ),
+                                        if (isSelected)
+                                          const Icon(
+                                            Icons.check_circle_rounded,
+                                            color: AppColors.matchaDark,
+                                            size: 20,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              final venue = filteredVenues[index - 1];
+                              final isSelected = currentSelected == venue.namaVenue;
+
+                              return InkWell(
+                                onTap: () => Navigator.pop(context, venue.namaVenue),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? AppColors.matchaSoftLime.withValues(alpha: 0.5) : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? AppColors.matchaDark : const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          Icons.sports_tennis_rounded,
+                                          color: isSelected ? const Color(0xFFA8E63A) : const Color(0xFF64748B),
+                                          size: 18,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              venue.namaVenue,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                                color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              '${venue.kota ?? venue.alamat ?? 'Semua Lokasi'} • ${venue.courtCount} Court Tersedia',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: isSelected ? AppColors.matchaDark.withValues(alpha: 0.8) : const Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        const Icon(
+                                          Icons.check_circle_rounded,
+                                          color: AppColors.matchaDark,
+                                          size: 20,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _openEditCommunityModal() {
     final nameCtrl = TextEditingController(text: _community.namaCommunity);
     final taglineCtrl = TextEditingController(text: _community.tagline ?? '');
@@ -236,6 +526,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     final cityCtrl = TextEditingController(text: _community.kotaHomebase ?? 'Bandung');
     final scheduleCtrl = TextEditingController(text: _community.jadwalRutin ?? '');
     final venueCtrl = TextEditingController(text: _community.homebaseVenue ?? '');
+    String? selectedVenue = _community.homebaseVenue?.trim().isNotEmpty == true ? _community.homebaseVenue!.trim() : null;
     String selectedLevel = _community.targetLevel ?? 'All Levels';
     String selectedStatus = _community.statusKeanggotaan;
 
@@ -349,16 +640,98 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-
-                // Homebase Venue
+                const SizedBox(height: 12),                // Homebase Venue
                 const Text('Homebase Venue / Lapangan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
                 const SizedBox(height: 6),
-                TextField(
-                  controller: venueCtrl,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                InkWell(
+                  onTap: () async {
+                    final picked = await _showVenueSearchPickerModal(context, selectedVenue);
+                    if (picked != null) {
+                      setModalState(() {
+                        selectedVenue = picked.isEmpty ? null : picked;
+                        venueCtrl.text = selectedVenue ?? '';
+                        if (selectedVenue != null) {
+                          final matched = _venues.where((v) => v.namaVenue == selectedVenue).firstOrNull;
+                          if (matched != null && matched.kota != null && matched.kota!.isNotEmpty && cityCtrl.text.trim().isEmpty) {
+                            cityCtrl.text = matched.kota!;
+                          }
+                        }
+                      });
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: selectedVenue != null ? AppColors.matchaDark.withValues(alpha: 0.4) : const Color(0xFFCBD5E1),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.matchaSoftLime,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.location_on_rounded, color: AppColors.matchaDark, size: 18),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                selectedVenue ?? 'Pilih Homebase Venue Utama...',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: selectedVenue != null ? FontWeight.w700 : FontWeight.normal,
+                                  color: selectedVenue != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (selectedVenue != null) ...[
+                                const SizedBox(height: 2),
+                                Builder(
+                                  builder: (_) {
+                                    final matched = _venues.where((v) => v.namaVenue == selectedVenue).firstOrNull;
+                                    final sub = matched != null
+                                        ? '${matched.kota ?? matched.alamat ?? 'Lokasi Terdaftar'} • ${matched.courtCount} Court Tersedia'
+                                        : 'Lokasi Terdaftar';
+                                    return Text(
+                                      sub,
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    );
+                                  },
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -396,7 +769,9 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                           sport: _community.sport,
                           kotaHomebase: cityCtrl.text.trim(),
                           jadwalRutin: scheduleCtrl.text.trim(),
-                          homebaseVenue: venueCtrl.text.trim(),
+                          homebaseVenue: (selectedVenue != null && selectedVenue!.isNotEmpty)
+                              ? selectedVenue
+                              : (venueCtrl.text.trim().isEmpty ? null : venueCtrl.text.trim()),
                           targetLevel: selectedLevel,
                           statusKeanggotaan: selectedStatus,
                         );
