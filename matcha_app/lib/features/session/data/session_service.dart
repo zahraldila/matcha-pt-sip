@@ -140,6 +140,11 @@ class SessionService {
             jumlah_pemain,
             jenis_permainan,
             share_token,
+            tb_user!tb_session_host_user_id_fkey (
+              user_id,
+              nama,
+              foto
+            ),
             tb_sport (
               sport_id,
               nama_sport
