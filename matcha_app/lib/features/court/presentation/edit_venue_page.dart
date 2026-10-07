@@ -30,6 +30,17 @@ class _EditVenuePageState extends State<EditVenuePage> {
   late TextEditingController _picPhoneController;
   late TextEditingController _notesController;
 
+  // FocusNodes & GlobalKeys for Auto-Focus & Auto-Scroll
+  final _nameFocusNode = FocusNode();
+  final _addressFocusNode = FocusNode();
+  final _picFocusNode = FocusNode();
+  final _phoneFocusNode = FocusNode();
+
+  final _nameKey = GlobalKey();
+  final _addressKey = GlobalKey();
+  final _picKey = GlobalKey();
+  final _phoneKey = GlobalKey();
+
   String _selectedCity = 'Bandung';
   String _selectedCategory = 'Padel Court'; // 'Padel Court', 'Tennis Court', 'Multi-Racquet'
   String _selectedArenaType = 'Semi-Indoor (Beratap Kanopi)';
@@ -208,7 +219,25 @@ class _EditVenuePageState extends State<EditVenuePage> {
     _picNameController.dispose();
     _picPhoneController.dispose();
     _notesController.dispose();
+
+    _nameFocusNode.dispose();
+    _addressFocusNode.dispose();
+    _picFocusNode.dispose();
+    _phoneFocusNode.dispose();
+
     super.dispose();
+  }
+
+  void _scrollToAndFocus(GlobalKey key, FocusNode focusNode) {
+    focusNode.requestFocus();
+    if (key.currentContext != null) {
+      Scrollable.ensureVisible(
+        key.currentContext!,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+        alignment: 0.15,
+      );
+    }
   }
 
   Future<void> _handleSave() async {
@@ -225,11 +254,27 @@ class _EditVenuePageState extends State<EditVenuePage> {
       return;
     }
 
+    final isNameValid = _nameController.text.trim().isNotEmpty;
+    final isAddressValid = _addressController.text.trim().isNotEmpty;
+    final isPicValid = _picNameController.text.trim().isNotEmpty;
+    final isPhoneValid = _picPhoneController.text.trim().isNotEmpty;
+
     if (!_formKey.currentState!.validate()) {
+      if (!isNameValid) {
+        _scrollToAndFocus(_nameKey, _nameFocusNode);
+      } else if (!isAddressValid) {
+        _scrollToAndFocus(_addressKey, _addressFocusNode);
+      } else if (!isPicValid) {
+        _scrollToAndFocus(_picKey, _picFocusNode);
+      } else if (!isPhoneValid) {
+        _scrollToAndFocus(_phoneKey, _phoneFocusNode);
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Harap lengkapi semua data wajib bertanda bintang (*)'),
+          content: Text('Harap lengkapi field wajib bertanda bintang (*) yang belum terisi.'),
           backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -334,25 +379,33 @@ class _EditVenuePageState extends State<EditVenuePage> {
                 children: [
                   _buildInputLabel('Nama Tempat / Venue', isRequired: true),
                   const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _nameController,
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Nama venue wajib diisi' : null,
-                    decoration: _inputDecoration(
-                      hint: 'Contoh: Bandung Arena',
-                      prefixIcon: Icons.apartment_rounded,
+                  Container(
+                    key: _nameKey,
+                    child: TextFormField(
+                      controller: _nameController,
+                      focusNode: _nameFocusNode,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Nama venue wajib diisi' : null,
+                      decoration: _inputDecoration(
+                        hint: 'Contoh: Bandung Arena',
+                        prefixIcon: Icons.apartment_rounded,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
 
                   _buildInputLabel('Alamat Lengkap Venue', isRequired: true),
                   const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _addressController,
-                    maxLines: 2,
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Alamat venue wajib diisi' : null,
-                    decoration: _inputDecoration(
-                      hint: 'Alamat lengkap lokasi venue...',
-                      prefixIcon: Icons.location_on_outlined,
+                  Container(
+                    key: _addressKey,
+                    child: TextFormField(
+                      controller: _addressController,
+                      focusNode: _addressFocusNode,
+                      maxLines: 2,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Alamat venue wajib diisi' : null,
+                      decoration: _inputDecoration(
+                        hint: 'Alamat lengkap lokasi venue...',
+                        prefixIcon: Icons.location_on_outlined,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -574,25 +627,33 @@ class _EditVenuePageState extends State<EditVenuePage> {
 
                   _buildInputLabel('Nama PIC / Pengelola Lapangan', isRequired: true),
                   const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _picNameController,
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Nama PIC wajib diisi' : null,
-                    decoration: _inputDecoration(
-                      hint: 'Contoh: Bpk. Bambang Pamungkas',
-                      prefixIcon: Icons.person_outline_rounded,
+                  Container(
+                    key: _picKey,
+                    child: TextFormField(
+                      controller: _picNameController,
+                      focusNode: _picFocusNode,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Nama PIC wajib diisi' : null,
+                      decoration: _inputDecoration(
+                        hint: 'Contoh: Bpk. Bambang Pamungkas',
+                        prefixIcon: Icons.person_outline_rounded,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
 
                   _buildInputLabel('Nomor WhatsApp / Hotline PIC', isRequired: true),
                   const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _picPhoneController,
-                    keyboardType: TextInputType.phone,
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Nomor WhatsApp PIC wajib diisi' : null,
-                    decoration: _inputDecoration(
-                      hint: 'Contoh: 081234567890',
-                      prefixIcon: Icons.phone_outlined,
+                  Container(
+                    key: _phoneKey,
+                    child: TextFormField(
+                      controller: _picPhoneController,
+                      focusNode: _phoneFocusNode,
+                      keyboardType: TextInputType.phone,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Nomor WhatsApp PIC wajib diisi' : null,
+                      decoration: _inputDecoration(
+                        hint: 'Contoh: 081234567890',
+                        prefixIcon: Icons.phone_outlined,
+                      ),
                     ),
                   ),
                 ],
