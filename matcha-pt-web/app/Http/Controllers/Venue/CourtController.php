@@ -177,14 +177,16 @@ class CourtController extends Controller
 
     private function ownedVenue($id, bool $withCourts = false): Venue
     {
-        $query = Venue::query()
-            ->where('venue_id', $id)
-            ->where('owner_user_id', Auth::id());
+        $venue = Venue::findOrFail($id);
 
-        if ($withCourts) {
-            $query->with('courts');
+        if ($venue->owner_user_id !== Auth::id() && Auth::user()->role !== 'admin') {
+            abort(403, 'Akses ditolak: Anda bukan pemilik venue ini.');
         }
 
-        return $query->firstOrFail();
+        if ($withCourts) {
+            $venue->load('courts');
+        }
+
+        return $venue;
     }
 }

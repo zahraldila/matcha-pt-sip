@@ -209,9 +209,10 @@ class VenueController extends Controller
     {
         @set_time_limit(120);
 
-        $venue = Venue::where('venue_id', $id)
-            ->where('owner_user_id', Auth::id())
-            ->firstOrFail();
+        $venue = Venue::findOrFail($id);
+        if ($venue->owner_user_id !== Auth::id() && Auth::user()->role !== 'admin') {
+            abort(403, 'Akses ditolak: Anda bukan pemilik venue ini.');
+        }
 
         $request->validate([
             'existing_photos' => 'nullable|array',

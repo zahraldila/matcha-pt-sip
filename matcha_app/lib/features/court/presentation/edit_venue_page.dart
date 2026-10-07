@@ -212,6 +212,19 @@ class _EditVenuePageState extends State<EditVenuePage> {
   }
 
   Future<void> _handleSave() async {
+    final user = widget.authController?.currentUser;
+    final isOwner = user != null && widget.venue.ownerUserId != null && widget.venue.ownerUserId == user.userId;
+    final isAdmin = user?.isAdmin == true;
+    if (!isOwner && !isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Akses ditolak: Anda bukan pemilik venue ini.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
