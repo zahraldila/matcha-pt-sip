@@ -481,6 +481,16 @@ class _HomePageState extends State<HomePage> {
         );
         return;
       }
+      if (user.isVenueOwner) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Venue Owner tidak dapat bergabung sebagai peserta slot mabar.'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
       JoinSessionModal.show(
         context: context,
         session: session,
@@ -741,19 +751,19 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 14),
 
-                // Action Buttons
-                if (isAdmin)
+                // Action Buttons matching Web (Khusus Venue Owner & Admin: tombol bersih "Lihat Detail")
+                if (isAdmin || (user?.isVenueOwner ?? false))
                   SizedBox(
                     width: double.infinity,
-                    height: 40,
+                    height: 42,
                     child: OutlinedButton(
                       onPressed: openDetail,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF334155),
+                        foregroundColor: const Color(0xFF0F172A),
                         side: const BorderSide(color: Color(0xFFCBD5E1)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: const Text('Detail', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      child: const Text('Lihat Detail', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                     ),
                   )
                 else

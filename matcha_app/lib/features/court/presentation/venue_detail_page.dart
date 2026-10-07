@@ -87,7 +87,35 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
     final user = widget.authController?.currentUser;
     if (user == null) {
       _showLoginRequiredModal();
-    } else if (user.isHost) {
+      return;
+    }
+
+    // Khusus Venue Owner: hanya boleh buat mabar jika ini venuenya sendiri!
+    if (user.isVenueOwner) {
+      final isMyVenue = _venue != null && _venue!.ownerUserId == user.userId;
+      if (!isMyVenue) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sebagai Venue Owner, Anda hanya dapat membuat sesi mabar di venue milik sendiri.'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CreateSessionPage(
+            authController: widget.authController,
+            initialVenueId: _venue?.venueId,
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (user.isHost) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -831,8 +859,10 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
           ],
         ),
 
-        // Host Action Button (Buat Mabar di Sini)
-        if (!canManage && (user?.isHost == true || user == null)) ...[
+        // Action Button: Buat Mabar di Sini
+        // Khusus Venue Owner: HANYA muncul jika ini venuenya sendiri (canManage)
+        // Non-Venue Owner: muncul jika user.isHost == true atau belum login
+        if (((user?.isVenueOwner ?? false) ? canManage : (user?.isHost == true || user == null))) ...[
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,

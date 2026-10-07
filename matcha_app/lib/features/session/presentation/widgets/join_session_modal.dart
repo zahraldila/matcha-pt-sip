@@ -24,6 +24,18 @@ class JoinSessionModal extends StatefulWidget {
     required VoidCallback onJoinedSuccess,
   }) {
     final user = authController?.currentUser;
+
+    if (user != null && user.isVenueOwner) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Venue Owner tidak dapat bergabung sebagai peserta slot mabar.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return Future.value();
+    }
+
     final isAlreadyJoined = (user != null && user.playerId != null && user.playerId! > 0)
         ? session.registeredPlayers.any((p) => p.playerId == user.playerId || (p.userId != null && p.userId == user.userId))
         : false;
@@ -104,6 +116,10 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
 
     try {
       final user = widget.authController?.currentUser;
+      if (user != null && user.isVenueOwner) {
+        throw Exception('Venue Owner tidak dapat bergabung sebagai peserta slot mabar.');
+      }
+
       final isAlreadyJoined = (user != null && user.playerId != null && user.playerId! > 0)
           ? widget.session.registeredPlayers.any((p) => p.playerId == user.playerId || (p.userId != null && p.userId == user.userId))
           : false;

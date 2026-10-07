@@ -154,6 +154,18 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     final s = _session;
     if (s == null) return;
 
+    final currentUser = widget.authController?.currentUser;
+    if (currentUser != null && currentUser.isVenueOwner) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Venue Owner tidak dapat bergabung sebagai peserta slot mabar.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     JoinSessionModal.show(
       context: context,
       session: s,
@@ -1467,25 +1479,49 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                         ],
                       ),
                     )
-                  : ElevatedButton(
-                      onPressed: session.isFull ? null : _openJoinModal,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: session.isFull ? const Color(0xFFE2E8F0) : AppColors.matchaDark,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: const Color(0xFFE2E8F0),
-                        disabledForegroundColor: const Color(0xFF94A3B8),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          session.isFull ? 'Slot Kuota Penuh' : 'Gabung Slot Sesi Mabar 🎾',
-                          maxLines: 1,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  : (widget.authController?.currentUser?.isVenueOwner == true)
+                      ? Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.storefront_rounded, color: Color(0xFF64748B), size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'Pemilik Venue (Hanya Peninjau Sesi)',
+                                style: TextStyle(
+                                  color: Color(0xFF475569),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ElevatedButton(
+                          onPressed: session.isFull ? null : _openJoinModal,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: session.isFull ? const Color(0xFFE2E8F0) : AppColors.matchaDark,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: const Color(0xFFE2E8F0),
+                            disabledForegroundColor: const Color(0xFF94A3B8),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              session.isFull ? 'Slot Kuota Penuh' : 'Gabung Slot Sesi Mabar 🎾',
+                              maxLines: 1,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
         ),
       ),
     );

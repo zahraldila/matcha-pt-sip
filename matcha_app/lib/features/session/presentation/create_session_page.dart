@@ -82,13 +82,21 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       final venues = await _venueService.getVenues();
       if (!mounted) return;
 
+      final user = widget.authController?.currentUser;
+      final isVO = user?.isVenueOwner ?? false;
+
       setState(() {
-        _allVenues = venues;
+        if (isVO) {
+          // Khusus Venue Owner: HANYA menampilkan venue milik dirinya sendiri
+          _allVenues = venues.where((v) => v.ownerUserId != null && v.ownerUserId == user?.userId).toList();
+        } else {
+          _allVenues = venues;
+        }
         _isLoading = false;
       });
 
       if (_selectedSportId != null) {
-        _applySportSelection(_selectedSportId!);
+        _applySportSelection(_selectedSportId!, initialVenueId: widget.initialVenueId);
       }
     } catch (e) {
       if (!mounted) return;
@@ -108,9 +116,11 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               c.statusKetersediaan!.toLowerCase() == 'available'));
     }).toList();
 
-    VenueModel? targetVenue;
     if (initialVenueId != null) {
-      targetVenue = matchingVenues.where((v) => v.venueId == initialVenueId).firstOrNull;
+      final targetVenue = matchingVenues.where((v) => v.venueId == initialVenueId).firstOrNull;
+      if (targetVenue != null) {
+        _selectedVenue = targetVenue;
+      }
     }
     if (_selectedVenue != null) {
       final matchingCourts = _selectedVenue!.courts.where((c) =>
@@ -804,6 +814,20 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       return;
     }
 
+    final user = widget.authController?.currentUser;
+    if (user != null && user.isVenueOwner) {
+      if (_selectedVenue!.ownerUserId != user.userId) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sebagai Venue Owner, Anda hanya dapat membuat sesi mabar di venue milik sendiri.'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
     // Constraint Validation for First to X
     if (_isFirstToSystem) {
       final requiredCount = _selectedGameType == 'Double' ? 4 : 2;
@@ -1128,9 +1152,11 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: const Color(0xFFFECACA)),
                           ),
-                          child: const Text(
-                            'Tidak ada venue dengan lapangan tersedia untuk cabang olahraga ini.',
-                            style: TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
+                          child: Text(
+                            (widget.authController?.currentUser?.isVenueOwner == true)
+                                ? 'Anda belum memiliki venue dengan lapangan aktif untuk cabang olahraga ini. Sebagai Venue Owner, Anda hanya dapat membuat sesi mabar di venue milik sendiri.'
+                                : 'Tidak ada venue dengan lapangan tersedia untuk cabang olahraga ini.',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
                           ),
                         )
                       else

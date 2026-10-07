@@ -327,7 +327,7 @@ class SessionService {
         throw Exception('Kamu sudah terdaftar di sesi mabar ini!');
       }
 
-      // 3. Cek juga jika player tersebut terhubung ke user_id yang sama
+      // 3. Cek role dan apakah player tersebut terhubung ke user_id yang sama
       final playerInfo = await _supabase
           .from('tb_player')
           .select('user_id')
@@ -336,6 +336,23 @@ class SessionService {
 
       if (playerInfo != null && playerInfo['user_id'] != null) {
         final userId = playerInfo['user_id'];
+
+        // Proteksi: Venue Owner tidak boleh bergabung sebagai peserta
+        try {
+          final userRow = await _supabase
+              .from('tb_user')
+              .select('role')
+              .eq('user_id', userId)
+              .maybeSingle();
+
+          final role = (userRow?['role'] ?? '').toString().toLowerCase().trim();
+          if (role == 'venue_owner' || role == 'owner' || role.contains('venue')) {
+            throw Exception('Venue Owner tidak diperbolehkan bergabung ke sesi mabar sebagai peserta.');
+          }
+        } on PostgrestException catch (_) {
+          // Abaikan jika query role gagal, lanjutkan ke pemeriksaan duplikasi
+        }
+
         final allSessionPlayers = await _supabase
             .from('tb_session_player')
             .select('player_id, tb_player(user_id)')

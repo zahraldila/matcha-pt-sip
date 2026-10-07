@@ -290,17 +290,19 @@ class _SessionListPageState extends State<SessionListPage> {
                               badgeText: const Color(0xFF475569),
                             ),
                           ],
-                          const SizedBox(width: 8),
-                          _buildPrimaryTab(
-                            tabKey: 'joined',
-                            label: 'Mabar Saya / Diikuti',
-                            icon: Icons.check_circle_rounded,
-                            count: countJoined,
-                            iconColor: const Color(0xFF10B981),
-                            badgeBg: const Color(0xFFECFDF5),
-                            badgeText: const Color(0xFF047857),
-                            badgeBorder: const Color(0xFFA7F3D0),
-                          ),
+                          if (!isVenueOwner) ...[
+                            const SizedBox(width: 8),
+                            _buildPrimaryTab(
+                              tabKey: 'joined',
+                              label: 'Mabar Saya / Diikuti',
+                              icon: Icons.check_circle_rounded,
+                              count: countJoined,
+                              iconColor: const Color(0xFF10B981),
+                              badgeBg: const Color(0xFFECFDF5),
+                              badgeText: const Color(0xFF047857),
+                              badgeBorder: const Color(0xFFA7F3D0),
+                            ),
+                          ],
                           if (user != null) ...[
                             const SizedBox(width: 8),
                             _buildPrimaryTab(
@@ -434,7 +436,7 @@ class _SessionListPageState extends State<SessionListPage> {
           ],
         ),
       ),
-      floatingActionButton: isHost
+      floatingActionButton: ((isHost && !isVenueOwner) || (isVenueOwner && countVenue > 0))
           ? FloatingActionButton.extended(
               onPressed: () {
                 Navigator.push<bool>(
@@ -703,6 +705,16 @@ class _SessionListPageState extends State<SessionListPage> {
         );
         return;
       }
+      if (user.isVenueOwner) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Venue Owner tidak dapat bergabung sebagai peserta slot mabar.'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
       JoinSessionModal.show(
         context: context,
         session: session,
@@ -963,19 +975,19 @@ class _SessionListPageState extends State<SessionListPage> {
                 ),
                 const SizedBox(height: 14),
 
-                // Action Buttons
-                if (isAdmin)
+                // Action Buttons matching Web (Khusus Venue Owner & Admin: tombol bersih "Lihat Detail")
+                if (isAdmin || (user?.isVenueOwner ?? false))
                   SizedBox(
                     width: double.infinity,
-                    height: 40,
+                    height: 42,
                     child: OutlinedButton(
                       onPressed: openDetail,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF334155),
+                        foregroundColor: const Color(0xFF0F172A),
                         side: const BorderSide(color: Color(0xFFCBD5E1)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: const Text('Detail', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      child: const Text('Lihat Detail', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                     ),
                   )
                 else

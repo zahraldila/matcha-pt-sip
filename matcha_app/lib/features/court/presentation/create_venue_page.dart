@@ -86,20 +86,6 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
   final _mapsController = TextEditingController();
   final _otherSurfaceController = TextEditingController();
 
-  // FocusNodes & GlobalKeys for Auto-Focus & Auto-Scroll
-  final _nameFocusNode = FocusNode();
-  final _addressFocusNode = FocusNode();
-  final _otherSurfaceFocusNode = FocusNode();
-  final _picFocusNode = FocusNode();
-  final _phoneFocusNode = FocusNode();
-
-  final _nameKey = GlobalKey();
-  final _addressKey = GlobalKey();
-  final _cityKey = GlobalKey();
-  final _otherSurfaceKey = GlobalKey();
-  final _picKey = GlobalKey();
-  final _phoneKey = GlobalKey();
-
   final Set<String> _selectedFacilities = {};
   final List<_VenuePhoto> _photos = [];
 
@@ -148,37 +134,7 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
     _notesController.dispose();
     _mapsController.dispose();
     _otherSurfaceController.dispose();
-
-    _nameFocusNode.dispose();
-    _addressFocusNode.dispose();
-    _otherSurfaceFocusNode.dispose();
-    _picFocusNode.dispose();
-    _phoneFocusNode.dispose();
-
     super.dispose();
-  }
-
-  void _scrollToAndFocus(GlobalKey key, FocusNode focusNode) {
-    focusNode.requestFocus();
-    if (key.currentContext != null) {
-      Scrollable.ensureVisible(
-        key.currentContext!,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeInOut,
-        alignment: 0.15,
-      );
-    }
-  }
-
-  void _scrollToKey(GlobalKey key) {
-    if (key.currentContext != null) {
-      Scrollable.ensureVisible(
-        key.currentContext!,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeInOut,
-        alignment: 0.15,
-      );
-    }
   }
 
   String _formatTime(TimeOfDay time) =>
@@ -272,46 +228,14 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
   }
 
   Future<void> _registerVenue() async {
-    final isNameValid = _nameController.text.trim().isNotEmpty;
-    final isAddressValid = _addressController.text.trim().isNotEmpty;
-    final isCityValid = _selectedCity != null && _selectedCity!.trim().isNotEmpty;
-    final isOtherSurfaceValid = _surfaceType != 'Other' || _otherSurfaceController.text.trim().isNotEmpty;
-    final isPicValid = _picController.text.trim().isNotEmpty;
-    final isPhoneValid = _phoneController.text.trim().isNotEmpty;
-
     final isFormValid = _formKey.currentState!.validate();
+    final isCityValid = _selectedCity != null && _selectedCity!.trim().isNotEmpty;
 
     if (!isCityValid) {
       setState(() => _cityHasError = true);
     }
 
-    if (!isFormValid || !isCityValid) {
-      // Auto-focus & auto-scroll ke field error pertama (dari atas ke bawah)
-      if (!isNameValid) {
-        _scrollToAndFocus(_nameKey, _nameFocusNode);
-      } else if (!isAddressValid) {
-        _scrollToAndFocus(_addressKey, _addressFocusNode);
-      } else if (!isCityValid) {
-        _scrollToKey(_cityKey);
-      } else if (!isOtherSurfaceValid) {
-        _scrollToAndFocus(_otherSurfaceKey, _otherSurfaceFocusNode);
-      } else if (!isPicValid) {
-        _scrollToAndFocus(_picKey, _picFocusNode);
-      } else if (!isPhoneValid) {
-        _scrollToAndFocus(_phoneKey, _phoneFocusNode);
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Harap lengkapi field wajib bertanda bintang (*) yang belum terisi.',
-          ),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
+    if (!isFormValid || !isCityValid) return;
 
     final user = widget.authController?.currentUser;
     if (user == null || user.role.toLowerCase() != 'venue_owner') {
@@ -875,51 +799,40 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
 
             // Nama Tempat / Venue
             _buildFieldLabel('Nama Tempat / Venue', isRequired: true),
-            Container(
-              key: _nameKey,
-              child: TextFormField(
-                controller: _nameController,
-                focusNode: _nameFocusNode,
-                textCapitalization: TextCapitalization.words,
-                maxLength: 100,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                decoration: _fieldDecoration(
-                  icon: Icons.storefront_outlined,
-                  hint: 'Contoh: Gelora Racquet & Padel Club',
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Nama venue wajib diisi.'
-                    : null,
+            TextFormField(
+              controller: _nameController,
+              textCapitalization: TextCapitalization.words,
+              maxLength: 100,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              decoration: _fieldDecoration(
+                icon: Icons.storefront_outlined,
+                hint: 'Contoh: Gelora Racquet & Padel Club',
               ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Nama venue wajib diisi.'
+                  : null,
             ),
             const SizedBox(height: 12),
 
             // Alamat Lengkap Venue
             _buildFieldLabel('Alamat Lengkap Venue', isRequired: true),
-            Container(
-              key: _addressKey,
-              child: TextFormField(
-                controller: _addressController,
-                focusNode: _addressFocusNode,
-                textCapitalization: TextCapitalization.sentences,
-                maxLines: 2,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                decoration: _fieldDecoration(
-                  icon: Icons.location_on_outlined,
-                  hint: 'Jl. Raya Utama No. 88, Kebayoran Baru, Jakarta Selatan...',
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Alamat venue wajib diisi.'
-                    : null,
+            TextFormField(
+              controller: _addressController,
+              textCapitalization: TextCapitalization.sentences,
+              maxLines: 2,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              decoration: _fieldDecoration(
+                icon: Icons.location_on_outlined,
+                hint: 'Jl. Raya Utama No. 88, Kebayoran Baru, Jakarta Selatan...',
               ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Alamat venue wajib diisi.'
+                  : null,
             ),
             const SizedBox(height: 12),
 
             // Kota / Kabupaten (Searchable Dropdown)
-            Container(
-              key: _cityKey,
-              child: _buildCitySelector(),
-            ),
+            _buildCitySelector(),
             const SizedBox(height: 12),
 
             // Link Google Maps
@@ -1018,23 +931,19 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
             if (_surfaceType == 'Other') ...[
               const SizedBox(height: 10),
               _buildFieldLabel('Sebutkan Jenis Permukaan', isRequired: true),
-              Container(
-                key: _otherSurfaceKey,
-                child: TextFormField(
-                  controller: _otherSurfaceController,
-                  focusNode: _otherSurfaceFocusNode,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                  decoration: _fieldDecoration(
-                    icon: Icons.texture_rounded,
-                    hint: 'Contoh: Rubber Court',
-                  ),
-                  validator: (value) {
-                    if (_surfaceType == 'Other' && (value == null || value.trim().isEmpty)) {
-                      return 'Silakan sebutkan jenis permukaan.';
-                    }
-                    return null;
-                  },
+              TextFormField(
+                controller: _otherSurfaceController,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                decoration: _fieldDecoration(
+                  icon: Icons.texture_rounded,
+                  hint: 'Contoh: Rubber Court',
                 ),
+                validator: (value) {
+                  if (_surfaceType == 'Other' && (value == null || value.trim().isEmpty)) {
+                    return 'Silakan sebutkan jenis permukaan.';
+                  }
+                  return null;
+                },
               ),
             ],
 
@@ -1093,41 +1002,33 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
             ),
             const SizedBox(height: 12),
             _buildFieldLabel('Nama PIC Venue / Pengelola', isRequired: true),
-            Container(
-              key: _picKey,
-              child: TextFormField(
-                controller: _picController,
-                focusNode: _picFocusNode,
-                textCapitalization: TextCapitalization.words,
-                maxLength: 150,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                decoration: _fieldDecoration(
-                  icon: Icons.person_outline_rounded,
-                  hint: 'Contoh: Budi Santoso',
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Nama PIC wajib diisi.'
-                    : null,
+            TextFormField(
+              controller: _picController,
+              textCapitalization: TextCapitalization.words,
+              maxLength: 150,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              decoration: _fieldDecoration(
+                icon: Icons.person_outline_rounded,
+                hint: 'Contoh: Budi Santoso',
               ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Nama PIC wajib diisi.'
+                  : null,
             ),
             const SizedBox(height: 12),
             _buildFieldLabel('Nomor WhatsApp PIC Venue', isRequired: true),
-            Container(
-              key: _phoneKey,
-              child: TextFormField(
-                controller: _phoneController,
-                focusNode: _phoneFocusNode,
-                keyboardType: TextInputType.phone,
-                maxLength: 50,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                decoration: _fieldDecoration(
-                  icon: Icons.phone_outlined,
-                  hint: 'Contoh: 081234567890',
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Nomor WhatsApp wajib diisi.'
-                    : null,
+            TextFormField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              maxLength: 50,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              decoration: _fieldDecoration(
+                icon: Icons.phone_outlined,
+                hint: 'Contoh: 081234567890',
               ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Nomor WhatsApp wajib diisi.'
+                  : null,
             ),
             const SizedBox(height: 12),
             _buildFieldLabel('Catatan Jam Operasional Khusus & Ketentuan Lapangan', badge: 'Opsional'),
