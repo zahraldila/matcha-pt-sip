@@ -1420,6 +1420,8 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                 final level = (m['level'] as String? ?? 'Advanced');
                 final gender = m['gender'] as String? ?? 'Male';
                 final age = m['usia'] != null ? '${m['usia']} th' : '22 th';
+                final foto = (m['foto'] as String?)?.trim();
+                final hasFoto = foto != null && foto.isNotEmpty;
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
@@ -1439,21 +1441,18 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                         flex: 3,
                         child: Row(
                           children: [
-                            Container(
-                              width: 28,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [AppColors.matchaDark, Color(0xFF064E3B)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                initial,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.white),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: hasFoto
+                                    ? Image.network(
+                                        foto,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, error, stackTrace) => _buildMemberFallbackAvatar(initial),
+                                      )
+                                    : _buildMemberFallbackAvatar(initial),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1527,6 +1526,26 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildMemberFallbackAvatar(String initial) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.matchaDark, Color(0xFF064E3B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.white),
       ),
     );
   }
