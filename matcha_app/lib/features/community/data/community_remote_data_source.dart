@@ -86,7 +86,11 @@ class CommunityRemoteDataSource {
               gender,
               rating,
               no_hp,
-              email
+              email,
+              foto,
+              tb_user (
+                foto
+              )
             )
           ''')
           .eq('community_id', communityId)
@@ -98,7 +102,15 @@ class CommunityRemoteDataSource {
       );
 
       final members = (response['tb_player'] as List? ?? [])
-          .map((p) => Map<String, dynamic>.from(p))
+          .map((p) {
+            final copy = Map<String, dynamic>.from(p);
+            String? fotoUrl = copy['foto'] as String?;
+            if ((fotoUrl == null || fotoUrl.trim().isEmpty) && copy['tb_user'] is Map) {
+              fotoUrl = copy['tb_user']['foto'] as String?;
+            }
+            copy['foto'] = (fotoUrl != null && fotoUrl.trim().isNotEmpty) ? fotoUrl.trim() : null;
+            return copy;
+          })
           .toList();
 
       return {
