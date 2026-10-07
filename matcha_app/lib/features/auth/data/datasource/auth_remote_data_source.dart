@@ -118,10 +118,13 @@ class AuthRemoteDataSource {
           .from('tb_user')
           .select('user_id')
           .eq('no_hp', cleanPhone)
-          .maybeSingle();
+          .limit(1);
 
-      if (existingPhone != null) {
-        throw Exception('Nomor WhatsApp $cleanPhone sudah terdaftar.');
+      if (existingPhone.isNotEmpty) {
+        throw Exception(
+          'Nomor WhatsApp sudah terdaftar. '
+          'Silakan login atau gunakan nomor lain.',
+        );
       }
 
       // 3. Hash password dengan Bcrypt

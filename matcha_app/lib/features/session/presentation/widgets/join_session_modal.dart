@@ -72,8 +72,8 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
 
   late final TextEditingController _nameController;
   late final TextEditingController _ageController;
-  String _selectedGender = 'Laki-laki';
-  String _selectedLevel = 'Intermediate';
+  String? _selectedGender;
+  String? _selectedLevel;
 
   bool _isSubmitting = false;
 
@@ -120,12 +120,12 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
       } else {
         // Guest user - register player instantly
         final genderDb = _selectedGender == 'Laki-laki' ? 'Male' : 'Female';
-        final parsedAge = int.tryParse(_ageController.text.trim());
+        final parsedAge = int.parse(_ageController.text.trim());
 
         playerIdToJoin = await _sessionService.registerGuestPlayer(
           nama: _nameController.text.trim(),
           gender: genderDb,
-          level: _selectedLevel,
+          level: _selectedLevel!,
           usia: parsedAge,
         );
       }
@@ -159,6 +159,110 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
         ),
       );
     }
+  }
+  Widget _buildGuestDropdown({
+    required String hint,
+    required String? value,
+    required Map<String, String> options,
+    required ValueChanged<String> onChanged,
+    required String errorMessage,
+  }) {
+    return FormField<String>(
+      initialValue: value,
+      validator: (selected) {
+        final playerId =
+            widget.authController?.currentUser?.playerId;
+
+        if (playerId != null && playerId > 0) return null;
+
+        if (selected == null || selected.isEmpty) {
+          return errorMessage;
+        }
+        return null;
+      },
+      builder: (field) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return PopupMenuButton<String>(
+              enabled: !_isSubmitting,
+              position: PopupMenuPosition.under,
+              offset: const Offset(0, 4),
+              tooltip: hint,
+              color: Colors.white,
+              constraints: BoxConstraints(
+                minWidth: constraints.maxWidth,
+                maxWidth: constraints.maxWidth,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              onSelected: (selected) {
+                field.didChange(selected);
+                onChanged(selected);
+              },
+              itemBuilder: (_) => options.entries.map((entry) {
+                return PopupMenuItem<String>(
+                  value: entry.key,
+                  child: Text(
+                    entry.value,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                );
+              }).toList(),
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  errorText: field.errorText,
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Colors.redAccent,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        options[field.value] ?? hint,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: field.value == null
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: Color(0xFF64748B),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -284,28 +388,17 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
-                          initialValue: _selectedGender,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                            ),
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: 'Laki-laki', child: Text('Laki-laki')),
-                            DropdownMenuItem(value: 'Perempuan', child: Text('Perempuan')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedGender = val);
+                        _buildGuestDropdown(
+                          hint: 'Pilih gender',
+                          value: _selectedGender,
+                          options: const {
+                            'Laki-laki': 'Laki-laki',
+                            'Perempuan': 'Perempuan',
                           },
+                          onChanged: (value) {
+                            setState(() => _selectedGender = value);
+                          },
+                          errorMessage: 'Gender wajib dipilih',
                         ),
                       ],
                     ),
@@ -328,13 +421,18 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
                         TextFormField(
                           controller: _ageController,
                           keyboardType: TextInputType.number,
-                          validator: (val) {
-                            if (val != null && val.trim().isNotEmpty) {
-                              final age = int.tryParse(val.trim());
-                              if (age == null || age < 10 || age > 90) {
-                                return 'Usia 10-90 th';
-                              }
+                          validator: (value) {
+                            final text = value?.trim() ?? '';
+
+                            if (text.isEmpty) {
+                              return 'Usia wajib diisi';
                             }
+
+                            final usia = int.tryParse(text);
+                            if (usia == null || usia < 10 || usia > 90) {
+                              return 'Usia harus 10–90 tahun';
+                            }
+
                             return null;
                           },
                           decoration: InputDecoration(
@@ -379,34 +477,19 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
                 ),
               ),
               const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedLevel,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5),
-                  ),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'Newbie', child: Text('Newbie')),
-                  DropdownMenuItem(value: 'Beginner', child: Text('Beginner')),
-                  DropdownMenuItem(value: 'Intermediate', child: Text('Intermediate')),
-                  DropdownMenuItem(value: 'Advanced', child: Text('Advanced')),
-                ],
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedLevel = val);
+              _buildGuestDropdown(
+                hint: 'Pilih level',
+                value: _selectedLevel,
+                options: const {
+                  'Newbie': 'Newbie',
+                  'Beginner': 'Beginner',
+                  'Intermediate': 'Intermediate',
+                  'Advanced': 'Advanced',
                 },
+                onChanged: (value) {
+                  setState(() => _selectedLevel = value);
+                },
+                errorMessage: 'Level wajib dipilih',
               ),
               const SizedBox(height: 24),
 
