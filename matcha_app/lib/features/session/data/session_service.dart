@@ -43,6 +43,11 @@ class SessionService {
         jumlah_pemain,
         jenis_permainan,
         share_token,
+        tb_user!tb_session_host_user_id_fkey (
+          user_id,
+          nama,
+          foto
+        ),
         tb_sport (
           sport_id,
           nama_sport
@@ -540,26 +545,6 @@ class SessionService {
         'session_id': sessionId,
         'court_id': courtId,
       });
-
-      // 3. Daftarkan host sebagai pemain di tb_session_player jika ada
-      int? effectivePlayerId = hostPlayerId;
-      if (effectivePlayerId == null && hostUserId != null) {
-        final pRes = await _supabase
-            .from('tb_player')
-            .select('player_id')
-            .eq('user_id', hostUserId)
-            .maybeSingle();
-        if (pRes != null && pRes['player_id'] != null) {
-          effectivePlayerId = pRes['player_id'] as int;
-        }
-      }
-
-      if (effectivePlayerId != null && effectivePlayerId > 0) {
-        await _supabase.from('tb_session_player').insert({
-          'session_id': sessionId,
-          'player_id': effectivePlayerId,
-        });
-      }
 
       return sessionId;
     } on PostgrestException catch (e) {
