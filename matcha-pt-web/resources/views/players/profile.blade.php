@@ -247,7 +247,7 @@
                         </label>
                         <div class="relative">
                             <select name="community_id" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none appearance-none transition-all shadow-2xs">
-                                <option value="none" {{ empty($player->community_id) ? 'selected' : '' }}>Personal (Non-Community / Belum Ada)</option>
+                                <option value="none" {{ (old('community_id', $player->community_id ?? 'none') == 'none' || old('community_id', $player->community_id ?? '') == '') ? 'selected' : '' }}>Personal (Non-Community / Belum Ada)</option>
                                 @if(isset($communities))
                                     @foreach($communities as $comm)
                                         @php
@@ -309,6 +309,7 @@
                     btnHapus.classList.add('inline-flex');
                 }
                 if (badgeAlert) {
+                    badgeAlert.textContent = 'Foto baru terpilih \u2022 Klik Simpan';
                     badgeAlert.classList.remove('hidden');
                 }
                 if (hapusInput) {

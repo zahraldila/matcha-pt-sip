@@ -94,6 +94,18 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   void _onAuthChanged() {
     if (mounted && !_isSaving) {
+      final user = widget.authController?.currentUser;
+      if (user != null) {
+        _namaController.text = user.nama;
+        _emailController.text = user.email;
+        _noHpController.text = user.noHp ?? '';
+        _usiaController.text = user.usia != null ? user.usia.toString() : '25';
+        final rawGender = (user.gender ?? 'Male').toLowerCase();
+        _selectedGender = rawGender.contains('fem') || rawGender.contains('peremp') ? 'Female' : 'Male';
+        final rawLevel = user.level ?? 'Intermediate';
+        _selectedLevel = ['Newbie', 'Beginner', 'Intermediate', 'Advanced'].contains(rawLevel) ? rawLevel : 'Intermediate';
+        _currentFotoUrl = user.foto;
+      }
       setState(() {});
     }
   }
@@ -286,8 +298,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           _pickedImageBytes!,
           _pickedImageExt ?? 'jpg',
         );
-        if (uploadedUrl != null) {
+        if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
           finalFotoUrl = uploadedUrl;
+        } else {
+          throw Exception('Gagal mengunggah foto profil ke penyimpanan cloud. Silakan periksa koneksi internet Anda.');
         }
       }
 
@@ -867,7 +881,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       runSpacing: 4,
                       children: [
                         Text(
-                          _namaController.text.isNotEmpty ? _namaController.text : user.nama,
+                          user.nama,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
@@ -947,8 +961,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             spacing: 6,
             runSpacing: 6,
             children: [
-              _buildInfoPill('⭐ Skill: $_selectedLevel', const Color(0xFFFEF3C7), const Color(0xFFB45309)),
-              _buildInfoPill('🎂 Usia: ${_usiaController.text.trim()} thn', const Color(0xFFF8FAFC), const Color(0xFF475569)),
+              _buildInfoPill('⭐ Skill: ${user.level ?? "Intermediate"}', const Color(0xFFFEF3C7), const Color(0xFFB45309)),
+              _buildInfoPill('🎂 Usia: ${user.usia ?? 25} thn', const Color(0xFFF8FAFC), const Color(0xFF475569)),
             ],
           ),
 
@@ -961,7 +975,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           const SizedBox(height: 6),
           TextFormField(
             controller: _namaController,
-            onChanged: (_) => setState(() {}),
             style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
             decoration: _inputDecoration(hint: 'Masukkan nama lengkap'),
             validator: (val) => (val == null || val.trim().isEmpty) ? 'Nama lengkap wajib diisi' : null,
