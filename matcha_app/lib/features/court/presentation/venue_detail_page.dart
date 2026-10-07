@@ -691,6 +691,19 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
   }
 
   Future<void> _openEditVenuePage(VenueModel venue) async {
+    final user = widget.authController?.currentUser;
+    final isOwner = user != null && venue.ownerUserId != null && venue.ownerUserId == user.userId;
+    final isAdmin = user?.isAdmin == true;
+    if (!isOwner && !isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Akses ditolak: Anda bukan pemilik venue ini.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     final updated = await Navigator.push<VenueModel>(
       context,
       MaterialPageRoute(
@@ -708,13 +721,26 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
   }
 
   Future<void> _handleDeleteVenue(VenueModel venue) async {
+    final user = widget.authController?.currentUser;
+    final isOwner = user != null && venue.ownerUserId != null && venue.ownerUserId == user.userId;
+    final isAdmin = user?.isAdmin == true;
+    if (!isOwner && !isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Akses ditolak: Anda bukan pemilik venue ini.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Hapus / Nonaktifkan Venue?', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Text(
-          'Venue "${venue.namaVenue}" akan dihapus dari sistem. Tindakan ini hanya dapat dilakukan oleh Administrator / Pemilik Venue.',
+          'Venue "${venue.namaVenue}" akan dihapus dari sistem. Tindakan ini hanya dapat dilakukan oleh Pemilik Venue.',
           style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
         ),
         actions: [
@@ -763,7 +789,7 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
   Widget _buildVenueHeader(VenueModel venue) {
     final user = widget.authController?.currentUser;
     final isOwner = user != null && venue.ownerUserId != null && venue.ownerUserId == user.userId;
-    final isAdmin = user?.isAdmin == true || user?.isVenueOwner == true;
+    final isAdmin = user?.isAdmin == true;
     final canManage = isOwner || isAdmin;
 
     final locationText = [
