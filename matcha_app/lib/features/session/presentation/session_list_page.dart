@@ -52,7 +52,17 @@ class _SessionListPageState extends State<SessionListPage> {
   }
 
   void _onAuthChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+
+    setState(() {
+      final user = widget.authController?.currentUser;
+
+      if (user == null && _selectedTab == 'hosted') {
+        _selectedTab = 'all';
+      }
+
+      _applyFilters();
+    });
   }
 
   Future<void> _loadSessions() async {
@@ -291,17 +301,19 @@ class _SessionListPageState extends State<SessionListPage> {
                             badgeText: const Color(0xFF047857),
                             badgeBorder: const Color(0xFFA7F3D0),
                           ),
-                          const SizedBox(width: 8),
-                          _buildPrimaryTab(
-                            tabKey: 'hosted',
-                            label: 'Dikelola Saya (Host)',
-                            icon: Icons.workspace_premium_rounded,
-                            count: countHosted,
-                            iconColor: const Color(0xFFF59E0B),
-                            badgeBg: const Color(0xFFFFFBEB),
-                            badgeText: const Color(0xFFB45309),
-                            badgeBorder: const Color(0xFFFDE68A),
-                          ),
+                          if (user != null) ...[
+                            const SizedBox(width: 8),
+                            _buildPrimaryTab(
+                              tabKey: 'hosted',
+                              label: 'Dikelola Saya (Host)',
+                              icon: Icons.workspace_premium_rounded,
+                              count: countHosted,
+                              iconColor: const Color(0xFFF59E0B),
+                              badgeBg: const Color(0xFFFFFBEB),
+                              badgeText: const Color(0xFFB45309),
+                              badgeBorder: const Color(0xFFFDE68A),
+                            ),
+                          ],
                         ],
                       ),
                     ),
