@@ -6,6 +6,7 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../games/domain/game_wizard_model.dart';
 import '../../match/data/match_service.dart';
 import '../../match/presentation/match_scoring_page.dart';
+import '../../session/data/session_service.dart';
 import '../domain/matcha_drawing_engine.dart';
 
 class DrawingResultPage extends StatefulWidget {
@@ -392,7 +393,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              SessionService.notifySessionsChanged();
+              Navigator.pop(context);
+            },
           ),
         ),
         body: const Center(
@@ -420,7 +424,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              SessionService.notifySessionsChanged();
+              Navigator.pop(context);
+            },
           ),
         ),
         body: Center(
@@ -462,7 +469,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              SessionService.notifySessionsChanged();
+              Navigator.pop(context);
+            },
           ),
         ),
         body: Center(
@@ -536,16 +546,25 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
 
     final currentRound = _rounds[_selectedRoundIndex.clamp(0, _rounds.length - 1)];
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          SessionService.notifySessionsChanged();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+            onPressed: () {
+              SessionService.notifySessionsChanged();
+              Navigator.pop(context);
+            },
+          ),
+          title: Column(
           children: [
             Text(
               'Drawing & Jadwal Pertandingan',
@@ -1007,6 +1026,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           ),
         ],
       ),
+    ),
     );
   }
 

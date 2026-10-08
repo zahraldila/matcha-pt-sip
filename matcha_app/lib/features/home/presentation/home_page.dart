@@ -44,12 +44,20 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _loadData();
     widget.authController?.addListener(_onAuthChanged);
+    SessionService.sessionsVersion.addListener(_onSessionsChanged);
   }
 
   @override
   void dispose() {
     widget.authController?.removeListener(_onAuthChanged);
+    SessionService.sessionsVersion.removeListener(_onSessionsChanged);
     super.dispose();
+  }
+
+  void _onSessionsChanged() {
+    if (mounted) {
+      _loadData();
+    }
   }
 
   void _onAuthChanged() {

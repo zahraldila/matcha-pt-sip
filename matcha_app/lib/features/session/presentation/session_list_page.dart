@@ -46,13 +46,21 @@ class _SessionListPageState extends State<SessionListPage> {
     super.initState();
     _loadSessions();
     widget.authController?.addListener(_onAuthChanged);
+    SessionService.sessionsVersion.addListener(_onSessionsChanged);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     widget.authController?.removeListener(_onAuthChanged);
+    SessionService.sessionsVersion.removeListener(_onSessionsChanged);
     super.dispose();
+  }
+
+  void _onSessionsChanged() {
+    if (mounted) {
+      _loadSessions();
+    }
   }
 
   void _onAuthChanged() {
@@ -818,8 +826,8 @@ class _SessionListPageState extends State<SessionListPage> {
                       authController: widget.authController,
                     ),
                   ),
-                ).then((val) {
-                  if (val == true) _loadSessions();
+                ).then((_) {
+                  _loadSessions();
                 });
               },
               backgroundColor: AppColors.matchaDark,

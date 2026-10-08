@@ -11,6 +11,7 @@ import '../../games/presentation/create_game_wizard_page.dart';
 import '../../home/presentation/home_page.dart';
 import '../../profile/presentation/profile_page.dart';
 import '../../recap/presentation/match_recap_page.dart';
+import '../../session/data/session_service.dart';
 import '../../session/presentation/session_detail_page.dart';
 import '../../session/presentation/session_list_page.dart';
 
@@ -62,6 +63,10 @@ class _MainShellPageState extends State<MainShellPage> {
     setState(() {
       _currentIndex = index;
     });
+    // Auto-refresh data sesi saat berpindah ke tab Beranda (0) atau Mabar (1)
+    if (index == 0 || index == 1) {
+      SessionService.notifySessionsChanged();
+    }
   }
 
   void _handleHostAction() {
@@ -81,6 +86,8 @@ class _MainShellPageState extends State<MainShellPage> {
           ),
         ),
       ).then((_) {
+        // Refresh reaktif data sesi di seluruh layar saat kembali dari wizard/drawing
+        SessionService.notifySessionsChanged();
         if (mounted) setState(() {});
       });
     } else {
