@@ -211,9 +211,11 @@ class _CommunityPageState extends State<CommunityPage> {
         content: Text(
           successCount == count
               ? 'Berhasil menghapus $count komunitas.'
-              : 'Berhasil menghapus $successCount dari $count komunitas.',
+              : (successCount > 0
+                  ? 'Berhasil menghapus $successCount dari $count komunitas.'
+                  : 'Gagal menghapus komunitas terpilih.'),
         ),
-        backgroundColor: AppColors.matchaDark,
+        backgroundColor: successCount > 0 ? AppColors.matchaDark : const Color(0xFFE11D48),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

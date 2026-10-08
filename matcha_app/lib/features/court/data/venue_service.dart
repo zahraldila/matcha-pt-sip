@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../session/data/session_service.dart';
 import '../domain/venue_model.dart';
 
 class VenueService {
@@ -331,13 +332,74 @@ class VenueService {
     }
   }
 
-  /// Menghapus venue
+  /// Menghapus venue dan membersihkan relasi terkait
   Future<void> deleteVenue(int venueId) async {
     try {
+      // 1. Ambil semua court_id untuk venue ini
+      final courts = await _supabase
+          .from('tb_court')
+          .select('court_id')
+          .eq('venue_id', venueId);
+      final courtIds = (courts as List)
+          .map((c) => c['court_id'])
+          .where((id) => id != null)
+          .toList();
+
+      // 2. Bersihkan sesi mabar yang diadakan di venue ini
+      final sessions = await _supabase
+          .from('tb_session')
+          .select('session_id')
+          .eq('venue_id', venueId);
+      final sessionIds = (sessions as List)
+          .map((s) => s['session_id'])
+          .where((id) => id != null)
+          .toList();
+
+      final sessionService = SessionService(supabaseClient: _supabase);
+      for (final sId in sessionIds) {
+        try {
+          await sessionService.deleteSession(sId as int);
+        } catch (_) {}
+      }
+
+      // 3. Bersihkan tb_session_court dan relasi match court
+      if (courtIds.isNotEmpty) {
+        try {
+          await _supabase
+              .from('tb_session_court')
+              .delete()
+              .inFilter('court_id', courtIds);
+        } catch (_) {}
+
+        try {
+          await _supabase
+              .from('tb_match')
+              .update({'court_id': null})
+              .inFilter('court_id', courtIds);
+        } catch (_) {}
+      }
+
+      // 4. Bersihkan ketersediaan venue di tb_venue_avail
       try {
-        await _supabase.from('tb_court').delete().eq('venue_id', venueId);
+        await _supabase
+            .from('tb_venue_avail')
+            .delete()
+            .eq('venue_id', venueId);
       } catch (_) {}
-      await _supabase.from('tb_venue').delete().eq('venue_id', venueId);
+
+      // 5. Hapus semua court di tb_court
+      try {
+        await _supabase
+            .from('tb_court')
+            .delete()
+            .eq('venue_id', venueId);
+      } catch (_) {}
+
+      // 6. Hapus row venue di tb_venue
+      await _supabase
+          .from('tb_venue')
+          .delete()
+          .eq('venue_id', venueId);
     } on PostgrestException catch (e) {
       throw Exception('Gagal menghapus venue: ${e.message}');
     } catch (e) {
