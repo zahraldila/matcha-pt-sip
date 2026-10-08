@@ -45,6 +45,8 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>FlutterDeepLinkingEnabled</key>
+	<true/>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Matcha requires access to save story recap photos to your gallery.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
