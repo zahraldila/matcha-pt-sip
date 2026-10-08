@@ -812,10 +812,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isCurrentUser ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
-          width: isCurrentUser ? 1.5 : 1.0,
-        ),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF063B00).withValues(alpha: 0.03),
