@@ -951,27 +951,6 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
               ),
               const SizedBox(height: 12),
             ],
-            const Row(
-              children: [
-                Icon(Icons.check_rounded, size: 14, color: Color(0xFF16A34A)),
-                SizedBox(width: 6),
-                Text(
-                  'Drawing otomatis seimbang',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF475569)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            const Row(
-              children: [
-                Icon(Icons.check_rounded, size: 14, color: Color(0xFF16A34A)),
-                SizedBox(width: 6),
-                Text(
-                  'Visualisasi lapangan tennis/padel',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF475569)),
-                ),
-              ],
-            ),
             if (canManage) const SizedBox(height: 10),
           ]
           // 3. Jika sesi Belum Lengkap
