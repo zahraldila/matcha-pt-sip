@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:gal/gal.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -1201,25 +1202,45 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                         return;
                                       }
 
-                                      // 1. Cek dan minta izin akses galeri/penyimpanan
+                                      // 1. Cek dan minta izin akses galeri/penyimpanan via permission_handler & Gal
                                       bool hasAccess = false;
                                       try {
-                                        hasAccess = await Gal.hasAccess();
-                                        if (!hasAccess) {
-                                          hasAccess = await Gal.requestAccess();
+                                        if (Platform.isAndroid) {
+                                          final photosStatus = await Permission.photos.status;
+                                          final storageStatus = await Permission.storage.status;
+                                          if (photosStatus.isGranted || storageStatus.isGranted) {
+                                            hasAccess = true;
+                                          } else {
+                                            final statuses = await [
+                                              Permission.photos,
+                                              Permission.storage,
+                                            ].request();
+                                            hasAccess = statuses[Permission.photos]?.isGranted == true ||
+                                                statuses[Permission.storage]?.isGranted == true;
+                                          }
+                                        } else {
+                                          hasAccess = await Gal.hasAccess();
+                                          if (!hasAccess) {
+                                            hasAccess = await Gal.requestAccess();
+                                          }
                                         }
                                       } catch (permError) {
-                                        debugPrint('Gal permission error: $permError');
+                                        debugPrint('Permission error: $permError');
                                         hasAccess = false;
                                       }
 
                                       if (!hasAccess) {
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Izin akses galeri/foto diperlukan untuk menyimpan foto ke HP.'),
-                                              backgroundColor: Color(0xFFE11D48),
+                                            SnackBar(
+                                              content: const Text('Izin akses galeri/foto diperlukan untuk menyimpan foto ke HP.'),
+                                              backgroundColor: const Color(0xFFE11D48),
                                               behavior: SnackBarBehavior.floating,
+                                              action: SnackBarAction(
+                                                label: 'Pengaturan',
+                                                textColor: Colors.white,
+                                                onPressed: () => openAppSettings(),
+                                              ),
                                             ),
                                           );
                                         }
