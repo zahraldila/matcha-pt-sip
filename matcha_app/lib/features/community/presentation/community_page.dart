@@ -25,6 +25,10 @@ class _CommunityPageState extends State<CommunityPage> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  bool _isSelectionMode = false;
+  final Set<int> _selectedCommunityIds = {};
+  bool _isBulkDeleting = false;
+
   // Filters
   String _activeTab = 'all'; // 'all' or 'joined'
   String _selectedSport = 'all'; // 'all', 'Tennis', 'Padel'
@@ -45,6 +49,277 @@ class _CommunityPageState extends State<CommunityPage> {
 
   void _onAuthChanged() {
     if (mounted) _loadCommunities();
+  }
+
+  bool _canDeleteCommunity(CommunityModel c) {
+    final user = widget.authController?.currentUser;
+    if (user == null) return false;
+    if (user.role.toLowerCase().contains('admin') || user.isAdmin) return true;
+    if (c.createdBy != null && c.createdBy == user.userId) return true;
+    if (c.adminName.trim().toLowerCase() == user.nama.trim().toLowerCase()) return true;
+    return false;
+  }
+
+  bool get _canEnterSelectionMode {
+    final user = widget.authController?.currentUser;
+    if (user == null) return false;
+    if (user.role.toLowerCase().contains('admin') || user.isAdmin) return true;
+    return _filteredCommunities.any(_canDeleteCommunity);
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      _selectedCommunityIds.clear();
+    });
+  }
+
+  void _toggleSelectCommunity(int id) {
+    setState(() {
+      if (_selectedCommunityIds.contains(id)) {
+        _selectedCommunityIds.remove(id);
+      } else {
+        _selectedCommunityIds.add(id);
+      }
+    });
+  }
+
+  void _toggleSelectAll() {
+    final deletableIds = _filteredCommunities.where(_canDeleteCommunity).map((c) => c.communityId).toSet();
+    setState(() {
+      if (_selectedCommunityIds.length == deletableIds.length) {
+        _selectedCommunityIds.clear();
+      } else {
+        _selectedCommunityIds.addAll(deletableIds);
+      }
+    });
+  }
+
+  Future<void> _handleBulkDelete() async {
+    if (_selectedCommunityIds.isEmpty) return;
+
+    final count = _selectedCommunityIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE4E6),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFDA4AF)),
+                ),
+                child: const Icon(
+                  Icons.delete_sweep_rounded,
+                  color: Color(0xFFE11D48),
+                  size: 26,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Hapus $count Komunitas?',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Sebanyak $count komunitas yang dipilih akan dihapus secara permanen dari database. Tindakan ini tidak dapat dibatalkan.',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: Color(0xFF64748B),
+                  height: 1.45,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF475569),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      icon: const Icon(Icons.delete_forever_rounded, size: 16),
+                      label: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE11D48),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isBulkDeleting = true);
+    final messenger = ScaffoldMessenger.of(context);
+
+    int successCount = 0;
+    final idsToDelete = _selectedCommunityIds.toList();
+
+    for (final id in idsToDelete) {
+      try {
+        await _dataSource.deleteCommunity(id);
+        successCount++;
+      } catch (e) {
+        debugPrint('Error deleting community $id: $e');
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isBulkDeleting = false;
+      _isSelectionMode = false;
+      _selectedCommunityIds.clear();
+    });
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          successCount == count
+              ? 'Berhasil menghapus $count komunitas.'
+              : 'Berhasil menghapus $successCount dari $count komunitas.',
+        ),
+        backgroundColor: AppColors.matchaDark,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+
+    await _loadCommunities();
+  }
+
+  Widget _buildBulkActionBar(int deletableCount) {
+    final selectedCount = _selectedCommunityIds.length;
+    final isAllSelected = deletableCount > 0 && selectedCount == deletableCount;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+        border: const Border(
+          top: BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            InkWell(
+              onTap: _toggleSelectAll,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isAllSelected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                      size: 18,
+                      color: isAllSelected ? const Color(0xFF063B00) : const Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isAllSelected ? 'Batal Semua' : 'Pilih Semua',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEBF8D8),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF86EFAC)),
+              ),
+              child: Text(
+                '$selectedCount dipilih',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF063B00),
+                ),
+              ),
+            ),
+            const Spacer(),
+            ElevatedButton.icon(
+              onPressed: (selectedCount == 0 || _isBulkDeleting) ? null : _handleBulkDelete,
+              icon: _isBulkDeleting
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.delete_sweep_rounded, size: 16),
+              label: Text(
+                'Hapus ($selectedCount)',
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE11D48),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFFDA4AF).withValues(alpha: 0.5),
+                disabledForegroundColor: Colors.white70,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _loadCommunities() async {
@@ -125,9 +400,11 @@ class _CommunityPageState extends State<CommunityPage> {
     final filtered = _filteredCommunities;
     final totalCount = _allCommunities.length;
     final myCount = _allCommunities.where((c) => c.isMember).length;
+    final deletableCount = filtered.where(_canDeleteCommunity).length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      bottomNavigationBar: _isSelectionMode ? _buildBulkActionBar(deletableCount) : null,
       body: RefreshIndicator(
         onRefresh: _loadCommunities,
         color: AppColors.matchaDark,
@@ -137,36 +414,76 @@ class _CommunityPageState extends State<CommunityPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Header Hero Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.matchaSoftLime,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.matchaDark.withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppColors.matchaDark,
-                        shape: BoxShape.circle,
+              // 1. Header Hero Badge & Selection Button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.matchaSoftLime,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.matchaDark.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: AppColors.matchaDark,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Klub & Ekosistem Olahraga',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.matchaDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_canEnterSelectionMode)
+                    InkWell(
+                      onTap: _toggleSelectionMode,
+                      borderRadius: BorderRadius.circular(12),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: _isSelectionMode ? const Color(0xFFE11D48) : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _isSelectionMode ? const Color(0xFFE11D48) : const Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _isSelectionMode ? Icons.close_rounded : Icons.checklist_rtl_rounded,
+                              size: 14,
+                              color: _isSelectionMode ? Colors.white : const Color(0xFF475569),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _isSelectionMode ? 'Batal' : 'Pilih',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                                color: _isSelectionMode ? Colors.white : const Color(0xFF475569),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Klub & Ekosistem Olahraga',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.matchaDark,
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
 
               const SizedBox(height: 8),
@@ -490,6 +807,40 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   Widget _buildCommunityCard(CommunityModel com) {
+    final canDelete = _canDeleteCommunity(com);
+    final isSelected = _selectedCommunityIds.contains(com.communityId);
+
+    void openDetail() {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CommunityDetailPage(
+            community: com,
+            authController: widget.authController,
+          ),
+        ),
+      ).then((_) => _loadCommunities());
+    }
+
+    void handleCardTap() {
+      if (_isSelectionMode) {
+        if (canDelete) {
+          _toggleSelectCommunity(com.communityId);
+        }
+      } else {
+        openDetail();
+      }
+    }
+
+    void handleCardLongPress() {
+      if (!_isSelectionMode && canDelete) {
+        setState(() {
+          _isSelectionMode = true;
+          _selectedCommunityIds.add(com.communityId);
+        });
+      }
+    }
+
     Color statusBg = const Color(0xFFF1F5F9);
     Color statusColor = const Color(0xFF475569);
     final s = com.statusKeanggotaan.toLowerCase();
@@ -503,9 +854,14 @@ class _CommunityPageState extends State<CommunityPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isSelected ? const Color(0xFFF0FDF4) : Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isSelected
+              ? const Color(0xFF063B00)
+              : (_isSelectionMode && canDelete ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0)),
+          width: isSelected ? 2.0 : 1.0,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -515,183 +871,221 @@ class _CommunityPageState extends State<CommunityPage> {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. Image Header with Sport Badge
-          Stack(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: handleCardTap,
+          onLongPress: handleCardLongPress,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                height: 176,
-                width: double.infinity,
-                child: Image.network(
-                  com.displayImage,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    color: const Color(0xFF063B00),
-                    child: const Center(
-                      child: Icon(Icons.sports_tennis_rounded, color: Color(0xFFA8E63A), size: 36),
-                    ),
-                  ),
-                ),
-              ),
-              // Sport badge (top left)
-              Positioned(
-                top: 10,
-                left: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.matchaSoftLime,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.matchaDark.withValues(alpha: 0.2)),
-                  ),
-                  child: Text(
-                    com.sport,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.matchaDark,
-                    ),
-                  ),
-                ),
-              ),
-              // Member badge (top right) — like web
-              if (com.isMember)
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF15803D).withValues(alpha: 0.95),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF4ADE80).withValues(alpha: 0.4)),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.check_circle_rounded, size: 10, color: Color(0xFFA8E63A)),
-                        SizedBox(width: 4),
-                        Text('Anggota', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-
-          // 2. Body Details
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  com.namaCommunity,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF0F172A),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.people_alt_rounded, size: 13, color: Color(0xFF64748B)),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${com.memberCount} Anggota',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
-                    ),
-                    const SizedBox(width: 10),
-                    const Icon(Icons.location_on_rounded, size: 13, color: Color(0xFF64748B)),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        com.kotaHomebase ?? 'Bandung',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                if (com.deskripsi != null && com.deskripsi!.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    com.deskripsi!,
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), height: 1.3),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                const SizedBox(height: 12),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Admin: ${com.adminName}',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: statusBg,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        com.statusKeanggotaan,
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: statusColor,
+              // 1. Image Header with Sport Badge & Checkbox
+              Stack(
+                children: [
+                  SizedBox(
+                    height: 176,
+                    width: double.infinity,
+                    child: Image.network(
+                      com.displayImage,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        color: const Color(0xFF063B00),
+                        child: const Center(
+                          child: Icon(Icons.sports_tennis_rounded, color: Color(0xFFA8E63A), size: 36),
                         ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 44,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => CommunityDetailPage(
-                            community: com,
-                            authController: widget.authController,
+                  ),
+                  // Checkbox when in selection mode
+                  if (_isSelectionMode)
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: InkWell(
+                        onTap: canDelete ? () => _toggleSelectCommunity(com.communityId) : null,
+                        borderRadius: BorderRadius.circular(8),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF063B00)
+                                : (canDelete
+                                    ? Colors.white.withValues(alpha: 0.95)
+                                    : const Color(0xFFF1F5F9).withValues(alpha: 0.95)),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF063B00)
+                                  : (canDelete ? const Color(0xFF94A3B8) : const Color(0xFFCBD5E1)),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: isSelected
+                              ? const Icon(Icons.check_rounded, size: 18, color: Color(0xFFA8E63A))
+                              : (!canDelete
+                                  ? const Icon(Icons.lock_outline_rounded, size: 14, color: Color(0xFF94A3B8))
+                                  : null),
+                        ),
+                      ),
+                    ),
+                  // Sport badge (top left)
+                  Positioned(
+                    top: 10,
+                    left: _isSelectionMode ? 44 : 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.matchaSoftLime,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.matchaDark.withValues(alpha: 0.2)),
+                      ),
+                      child: Text(
+                        com.sport,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.matchaDark,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Member badge (top right) — like web
+                  if (com.isMember)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF15803D).withValues(alpha: 0.95),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFF4ADE80).withValues(alpha: 0.4)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_rounded, size: 10, color: Color(0xFFA8E63A)),
+                            SizedBox(width: 4),
+                            Text('Anggota', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+
+              // 2. Body Details
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      com.namaCommunity,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF0F172A),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.people_alt_rounded, size: 13, color: Color(0xFF64748B)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${com.memberCount} Anggota',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                        ),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.location_on_rounded, size: 13, color: Color(0xFF64748B)),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            com.kotaHomebase ?? 'Bandung',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ).then((_) => _loadCommunities());
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      backgroundColor: const Color(0xFF063B00),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ],
                     ),
-                    child: const Text(
-                      'Detail Komunitas',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    if (com.deskripsi != null && com.deskripsi!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        com.deskripsi!,
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), height: 1.3),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Admin: ${com.adminName}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            com.statusKeanggotaan,
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton(
+                        onPressed: openDetail,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          backgroundColor: const Color(0xFF063B00),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: const Text(
+                          'Detail Komunitas',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

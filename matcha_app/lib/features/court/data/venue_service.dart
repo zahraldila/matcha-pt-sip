@@ -334,6 +334,9 @@ class VenueService {
   /// Menghapus venue
   Future<void> deleteVenue(int venueId) async {
     try {
+      try {
+        await _supabase.from('tb_court').delete().eq('venue_id', venueId);
+      } catch (_) {}
       await _supabase.from('tb_venue').delete().eq('venue_id', venueId);
     } on PostgrestException catch (e) {
       throw Exception('Gagal menghapus venue: ${e.message}');

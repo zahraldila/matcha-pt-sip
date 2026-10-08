@@ -33,6 +33,10 @@ class _SessionListPageState extends State<SessionListPage> {
   List<SessionModel> _allSessions = [];
   List<SessionModel> _filteredSessions = [];
 
+  bool _isSelectionMode = false;
+  final Set<int> _selectedSessionIds = {};
+  bool _isBulkDeleting = false;
+
   String _searchQuery = '';
   String _selectedSport = 'Semua Cabang'; // 'Semua Cabang', 'Padel', 'Tennis'
   String _selectedTab = 'all'; // 'all', 'venue', 'joined', 'hosted'
@@ -188,6 +192,277 @@ class _SessionListPageState extends State<SessionListPage> {
     return 'Coba ubah kata kunci atau cabang olahraga.';
   }
 
+  bool _canDeleteSession(SessionModel s) {
+    final user = widget.authController?.currentUser;
+    if (user == null) return false;
+    if (user.role.toLowerCase().contains('admin') || user.isAdmin) return true;
+    if (user.userId > 0 && s.hostUserId == user.userId) return true;
+    if (_isHostedByMe(s)) return true;
+    return false;
+  }
+
+  bool get _canEnterSelectionMode {
+    final user = widget.authController?.currentUser;
+    if (user == null) return false;
+    if (user.role.toLowerCase().contains('admin') || user.isAdmin) return true;
+    return _filteredSessions.any(_canDeleteSession);
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      _selectedSessionIds.clear();
+    });
+  }
+
+  void _toggleSelectSession(int id) {
+    setState(() {
+      if (_selectedSessionIds.contains(id)) {
+        _selectedSessionIds.remove(id);
+      } else {
+        _selectedSessionIds.add(id);
+      }
+    });
+  }
+
+  void _toggleSelectAll() {
+    final deletableIds = _filteredSessions.where(_canDeleteSession).map((s) => s.sessionId).toSet();
+    setState(() {
+      if (_selectedSessionIds.length == deletableIds.length) {
+        _selectedSessionIds.clear();
+      } else {
+        _selectedSessionIds.addAll(deletableIds);
+      }
+    });
+  }
+
+  Future<void> _handleBulkDelete() async {
+    if (_selectedSessionIds.isEmpty) return;
+
+    final count = _selectedSessionIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE4E6),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFDA4AF)),
+                ),
+                child: const Icon(
+                  Icons.delete_sweep_rounded,
+                  color: Color(0xFFE11D48),
+                  size: 26,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Hapus $count Sesi Mabar?',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Sebanyak $count sesi mabar yang dipilih akan dihapus secara permanen beserta seluruh data drawing, match, dan skor terkait. Tindakan ini tidak dapat dibatalkan.',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: Color(0xFF64748B),
+                  height: 1.45,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF475569),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      icon: const Icon(Icons.delete_forever_rounded, size: 16),
+                      label: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE11D48),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isBulkDeleting = true);
+    final messenger = ScaffoldMessenger.of(context);
+
+    int successCount = 0;
+    final idsToDelete = _selectedSessionIds.toList();
+
+    for (final id in idsToDelete) {
+      try {
+        await _sessionService.deleteSession(id);
+        successCount++;
+      } catch (e) {
+        debugPrint('Error deleting session $id: $e');
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isBulkDeleting = false;
+      _isSelectionMode = false;
+      _selectedSessionIds.clear();
+    });
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          successCount == count
+              ? 'Berhasil menghapus $count sesi mabar.'
+              : 'Berhasil menghapus $successCount dari $count sesi mabar.',
+        ),
+        backgroundColor: AppColors.matchaDark,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+
+    await _loadSessions();
+  }
+
+  Widget _buildBulkActionBar(int deletableCount) {
+    final selectedCount = _selectedSessionIds.length;
+    final isAllSelected = deletableCount > 0 && selectedCount == deletableCount;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+        border: const Border(
+          top: BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            InkWell(
+              onTap: _toggleSelectAll,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isAllSelected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                      size: 18,
+                      color: isAllSelected ? const Color(0xFF063B00) : const Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isAllSelected ? 'Batal Semua' : 'Pilih Semua',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEBF8D8),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF86EFAC)),
+              ),
+              child: Text(
+                '$selectedCount dipilih',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF063B00),
+                ),
+              ),
+            ),
+            const Spacer(),
+            ElevatedButton.icon(
+              onPressed: (selectedCount == 0 || _isBulkDeleting) ? null : _handleBulkDelete,
+              icon: _isBulkDeleting
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.delete_sweep_rounded, size: 16),
+              label: Text(
+                'Hapus ($selectedCount)',
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE11D48),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFFDA4AF).withValues(alpha: 0.5),
+                disabledForegroundColor: Colors.white70,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = widget.authController?.currentUser;
@@ -200,9 +475,11 @@ class _SessionListPageState extends State<SessionListPage> {
     final countVenue = baseForCounts.where(_isAtMyVenue).length;
     final countJoined = baseForCounts.where(_isJoinedByMe).length;
     final countHosted = baseForCounts.where(_isHostedByMe).length;
+    final deletableCount = _filteredSessions.where(_canDeleteSession).length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      bottomNavigationBar: _isSelectionMode ? _buildBulkActionBar(deletableCount) : null,
       body: RefreshIndicator(
         onRefresh: _loadSessions,
         color: AppColors.matchaDark,
@@ -216,32 +493,72 @@ class _SessionListPageState extends State<SessionListPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.matchaSoftLime,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppColors.matchaDark.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.sports_tennis_rounded, size: 12, color: AppColors.matchaDark),
-                          const SizedBox(width: 5),
-                          Text(
-                            'JADWAL & TURNAMEN',
-                            style: AppTextStyles.badge.copyWith(
-                              color: AppColors.matchaDark,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                    // Badge & Action Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.matchaSoftLime,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.matchaDark.withValues(alpha: 0.2),
                             ),
                           ),
-                        ],
-                      ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.sports_tennis_rounded, size: 12, color: AppColors.matchaDark),
+                              const SizedBox(width: 5),
+                              Text(
+                                'JADWAL & TURNAMEN',
+                                style: AppTextStyles.badge.copyWith(
+                                  color: AppColors.matchaDark,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_canEnterSelectionMode)
+                          InkWell(
+                            onTap: _toggleSelectionMode,
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: _isSelectionMode ? const Color(0xFFE11D48) : Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _isSelectionMode ? const Color(0xFFE11D48) : const Color(0xFFCBD5E1),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _isSelectionMode ? Icons.close_rounded : Icons.checklist_rtl_rounded,
+                                    size: 14,
+                                    color: _isSelectionMode ? Colors.white : const Color(0xFF475569),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _isSelectionMode ? 'Batal' : 'Pilih',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: _isSelectionMode ? Colors.white : const Color(0xFF475569),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -436,7 +753,8 @@ class _SessionListPageState extends State<SessionListPage> {
           ],
         ),
       ),
-      floatingActionButton: ((isHost && !isVenueOwner) || (isVenueOwner && countVenue > 0))
+      floatingActionButton: !_isSelectionMode &&
+              ((isHost && !isVenueOwner) || (isVenueOwner && countVenue > 0))
           ? FloatingActionButton.extended(
               onPressed: () {
                 Navigator.push<bool>(
@@ -680,6 +998,9 @@ class _SessionListPageState extends State<SessionListPage> {
         ? (session.currentPlayersCount / session.jumlahPemain).clamp(0.0, 1.0)
         : 0.0;
 
+    final canDelete = _canDeleteSession(session);
+    final isSelected = _selectedSessionIds.contains(session.sessionId);
+
     void openDetail() {
       if (widget.onSessionTap != null) {
         widget.onSessionTap!(session.sessionId);
@@ -694,6 +1015,25 @@ class _SessionListPageState extends State<SessionListPage> {
             ),
           ),
         ).then((_) => _loadSessions());
+      }
+    }
+
+    void handleCardTap() {
+      if (_isSelectionMode) {
+        if (canDelete) {
+          _toggleSelectSession(session.sessionId);
+        }
+      } else {
+        openDetail();
+      }
+    }
+
+    void handleCardLongPress() {
+      if (!_isSelectionMode && canDelete) {
+        setState(() {
+          _isSelectionMode = true;
+          _selectedSessionIds.add(session.sessionId);
+        });
       }
     }
 
@@ -754,11 +1094,13 @@ class _SessionListPageState extends State<SessionListPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isSelected ? const Color(0xFFF0FDF4) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFFE2E8F0),
-          width: 1,
+          color: isSelected
+              ? const Color(0xFF063B00)
+              : (_isSelectionMode && canDelete ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0)),
+          width: isSelected ? 2.0 : 1.0,
         ),
         boxShadow: [
           BoxShadow(
@@ -772,15 +1114,45 @@ class _SessionListPageState extends State<SessionListPage> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: openDetail,
+          onTap: handleCardTap,
+          onLongPress: handleCardLongPress,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Badges (Sport, Format, Status)
+                // Top Badges (Sport, Format, Status, Selection Checkbox)
                 Row(
                   children: [
+                    if (_isSelectionMode) ...[
+                      InkWell(
+                        onTap: canDelete ? () => _toggleSelectSession(session.sessionId) : null,
+                        borderRadius: BorderRadius.circular(6),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          margin: const EdgeInsets.only(right: 8),
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF063B00)
+                                : (canDelete ? Colors.white : const Color(0xFFF1F5F9)),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF063B00)
+                                  : (canDelete ? const Color(0xFF94A3B8) : const Color(0xFFCBD5E1)),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: isSelected
+                              ? const Icon(Icons.check_rounded, size: 16, color: Color(0xFFA8E63A))
+                              : (!canDelete
+                                  ? const Icon(Icons.lock_outline_rounded, size: 12, color: Color(0xFF94A3B8))
+                                  : null),
+                        ),
+                      ),
+                    ],
                     // Sport Pill
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
