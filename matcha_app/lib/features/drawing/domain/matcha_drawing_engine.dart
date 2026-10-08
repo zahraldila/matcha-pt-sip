@@ -262,44 +262,100 @@ class MatchaDrawingEngine {
     int courtCount,
     int? requestedRounds,
   ) {
-    if (players.length < 2) return [];
+    if (players.length < 2 || courtCount < 1) return [];
 
-    List<GamePlayerItem> pool = List.from(players);
-    if (pool.length % 2 != 0) {
-      pool.add(const GamePlayerItem(id: 'dummy', name: 'BYE', isGuest: true));
-    }
+    // Null menjadi BYE untuk jumlah pemain ganjil.
+    final pool = <GamePlayerItem?>[...players];
+    if (pool.length.isOdd) pool.add(null);
 
-    int n = pool.length;
-    int totalRounds = requestedRounds ?? (n - 1);
-    List<DrawingRound> rounds = [];
+    final n = pool.length;
+    final maxMatches = players.length ~/ 2;
+    final courts = min(courtCount, maxMatches);
 
-    for (int r = 1; r <= totalRounds; r++) {
-      List<DrawingMatch> matches = [];
-      List<GamePlayerItem> resting = [];
+    // Semua pasangan disimpan, termasuk yang belum mendapat court.
+    final cycle = <List<List<GamePlayerItem>>>[];
 
-      int court = 1;
-      for (int i = 0; i < n ~/ 2; i++) {
-        var p1 = pool[i];
-        var p2 = pool[n - 1 - i];
+    for (var rotation = 0; rotation < n - 1; rotation++) {
+      final pairs = <List<GamePlayerItem>>[];
 
-        if (p1.id == 'dummy') {
-          resting.add(p2);
-        } else if (p2.id == 'dummy') {
-          resting.add(p1);
-        } else {
-          if (court <= courtCount) {
-            matches.add(DrawingMatch(courtNumber: court++, teamA: [p1], teamB: [p2]));
-          } else {
-            resting.add(p1);
-            resting.add(p2);
-          }
+      for (var i = 0; i < n ~/ 2; i++) {
+        final p1 = pool[i];
+        final p2 = pool[n - 1 - i];
+
+        if (p1 != null && p2 != null) {
+          pairs.add([p1, p2]);
         }
       }
 
-      rounds.add(DrawingRound(roundNumber: r, matches: matches, restingPlayers: resting));
+      // Pasangan yang tidak muat dimainkan pada ronde berikutnya.
+      for (var start = 0; start < pairs.length; start += courts) {
+        cycle.add(
+          pairs.sublist(start, min(start + courts, pairs.length)),
+        );
+      }
 
-      var last = pool.removeLast();
+      final last = pool.removeLast();
       pool.insert(1, last);
+    }
+
+    if (cycle.isEmpty) return [];
+
+    final totalRounds = requestedRounds ?? cycle.length;
+    final rounds = <DrawingRound>[];
+
+    // Positif: lebih sering A. Negatif: lebih sering B.
+    final sideBalance = <String, int>{};
+
+    for (var r = 0; r < totalRounds; r++) {
+      final pairs = cycle[r % cycle.length];
+      final matches = <DrawingMatch>[];
+      final playingIds = <String>{};
+
+      for (var i = 0; i < pairs.length; i++) {
+        final p1 = pairs[i][0];
+        final p2 = pairs[i][1];
+
+        final balance1 = sideBalance[p1.id] ?? 0;
+        final balance2 = sideBalance[p2.id] ?? 0;
+
+        final normalCost =
+            (balance1 + 1).abs() + (balance2 - 1).abs();
+
+        final swappedCost =
+            (balance1 - 1).abs() + (balance2 + 1).abs();
+
+        final swap = swappedCost < normalCost ||
+            (swappedCost == normalCost && (r + i).isOdd);
+
+        final playerA = swap ? p2 : p1;
+        final playerB = swap ? p1 : p2;
+
+        matches.add(
+          DrawingMatch(
+            courtNumber: i + 1,
+            teamA: [playerA],
+            teamB: [playerB],
+          ),
+        );
+
+        playingIds.addAll([playerA.id, playerB.id]);
+
+        sideBalance[playerA.id] =
+            (sideBalance[playerA.id] ?? 0) + 1;
+
+        sideBalance[playerB.id] =
+            (sideBalance[playerB.id] ?? 0) - 1;
+      }
+
+      rounds.add(
+        DrawingRound(
+          roundNumber: r + 1,
+          matches: matches,
+          restingPlayers: players
+              .where((player) => !playingIds.contains(player.id))
+              .toList(),
+        ),
+      );
     }
 
     return rounds;
