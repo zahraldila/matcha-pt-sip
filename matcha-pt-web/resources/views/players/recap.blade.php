@@ -19,9 +19,15 @@
         </div>
 
         <div class="flex items-center gap-2.5">
-            <a href="{{ route('player.profile') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-200 shadow-2xs transition-all hover:border-[#063B00]">
-                <i class="fa-solid fa-id-card text-slate-400 text-[11px]"></i> <span>Profil Saya</span>
-            </a>
+            @if(Auth::check())
+                <a href="{{ route('player.profile') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-200 shadow-2xs transition-all hover:border-[#063B00]">
+                    <i class="fa-solid fa-id-card text-slate-400 text-[11px]"></i> <span>Profil Saya</span>
+                </a>
+            @else
+                <a href="{{ route('login') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-200 shadow-2xs transition-all hover:border-[#063B00]">
+                    <i class="fa-solid fa-right-to-bracket text-slate-400 text-[11px]"></i> <span>Masuk / Daftar</span>
+                </a>
+            @endif
             @if($isHost && $activeTab === 'host')
                 <a href="{{ route('games.create') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] cursor-pointer">
                     <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> Buat Sesi Mabar Baru
@@ -37,7 +43,7 @@
     {{-- Dual-Mode Tab Switcher (Hanya tampil jika user adalah Host) --}}
     @if($isHost)
     <div class="flex items-center gap-2 border-b border-slate-200/60 pb-3">
-        <a href="{{ route('player.recap', ['tab' => 'host']) }}" 
+        <a href="{{ route('player.recap', ['id' => $user->user_id ?? null, 'tab' => 'host']) }}" 
            class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 {{ $activeTab === 'host' ? 'bg-[#063B00] text-white shadow-xs' : 'glass-card text-slate-600 hover:text-slate-900' }}">
             <i class="fa-solid fa-crown text-[11px] {{ $activeTab === 'host' ? 'text-[#A8E63A]' : 'text-amber-500' }}"></i>
             <span>Riwayat Sesi Mabar (Host)</span>
@@ -46,10 +52,10 @@
             </span>
         </a>
 
-        <a href="{{ route('player.recap', ['tab' => 'career']) }}" 
+        <a href="{{ route('player.recap', ['id' => $user->user_id ?? null, 'tab' => 'career']) }}" 
            class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 {{ $activeTab === 'career' ? 'bg-[#063B00] text-white shadow-xs' : 'glass-card text-slate-600 hover:text-slate-900' }}">
             <i class="fa-solid fa-chart-line text-[11px] {{ $activeTab === 'career' ? 'text-[#A8E63A]' : 'text-emerald-600' }}"></i>
-            <span>Rekap Karir Pemain ({{ $user->nama ?? 'Pemain' }})</span>
+            <span>Rekap Karir Pemain ({{ $user->nama ?? ($player->nama ?? 'Pemain') }})</span>
         </a>
     </div>
     @endif
@@ -801,9 +807,12 @@
         openShareModal();
     }
 
+    const recapShareUrl = '{{ $shareUrl }}';
+
     function copyWebLink(btn) {
         const targetBtn = btn || document.getElementById('btnCopyWebLink');
-        navigator.clipboard.writeText(window.location.href);
+        const urlToCopy = recapShareUrl || window.location.href;
+        navigator.clipboard.writeText(urlToCopy);
         
         if (targetBtn) {
             const originalHtml = targetBtn.innerHTML;
@@ -830,7 +839,7 @@
         const losses = '{{ addslashes($recap["player"]["losses"] ?? 0) }}';
         const totalMatches = '{{ addslashes($recap["player"]["total_matches"] ?? 0) }}';
         const streak = '{{ addslashes($recap["player"]["streak"] ?? "") }}';
-        const url = window.location.href;
+        const url = recapShareUrl || window.location.href;
         
         const shareTitle = `Rekap Karir Pemain MATCHA — ${playerName}`;
         const shareText = `🎾 *REKAP KARIR PEMAIN MATCHA* 🏆\n` +

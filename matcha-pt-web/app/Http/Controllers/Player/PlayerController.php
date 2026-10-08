@@ -190,13 +190,46 @@ class PlayerController extends Controller
         }
     }
 
-    public function recap(Request $request)
+    public function recap(Request $request, $id = null)
     {
-        $user = Auth::user();
-        $isHost = $user && (bool) $user->is_host;
-        $activeTab = $request->query('tab', $isHost ? 'host' : 'career');
+        $targetUser = null;
+        $targetPlayer = null;
+        $isOwner = false;
 
-        // 1. Data Riwayat Hosting (Untuk Host Game)
+        if ($id !== null && $id !== '') {
+            $targetUser = User::find($id);
+            $targetPlayer = Player::with('community')
+                ->where('user_id', $id)
+                ->orWhere('player_id', $id)
+                ->first();
+
+            if (! $targetUser && $targetPlayer && $targetPlayer->user_id) {
+                $targetUser = User::find($targetPlayer->user_id);
+            }
+
+            if (! $targetUser && ! $targetPlayer) {
+                abort(404, 'Data pemain atau rekap karir tidak ditemukan.');
+            }
+
+            $isOwner = Auth::check() && ($targetUser && (int) Auth::id() === (int) $targetUser->user_id);
+        } else {
+            if (! Auth::check()) {
+                return redirect()->route('login');
+            }
+            $targetUser = Auth::user();
+            $targetPlayer = Player::with('community')
+                ->where('user_id', $targetUser->user_id)
+                ->orWhere('email', $targetUser->email)
+                ->first();
+            $isOwner = true;
+        }
+
+        // Host capabilities & active tab
+        // Jika viewer bukan pemilik profil, paksa tab career dan sembunyikan fitur manajemen host
+        $isHost = $isOwner && $targetUser && (bool) $targetUser->is_host;
+        $activeTab = $isHost ? $request->query('tab', 'host') : 'career';
+
+        // 1. Data Riwayat Hosting (Hanya jika isOwner & isHost)
         $hostSessions = collect([]);
         $hostStats = [
             'total_sessions' => 0,
@@ -205,8 +238,8 @@ class PlayerController extends Controller
             'favorite_venue' => '-',
         ];
 
-        if ($isHost) {
-            $dbSessions = SessionModel::where('host_user_id', $user->user_id)
+        if ($isHost && $targetUser) {
+            $dbSessions = SessionModel::where('host_user_id', $targetUser->user_id)
                 ->with(['sport', 'venue', 'courts', 'players'])
                 ->latest('created_at')
                 ->get();
@@ -276,18 +309,15 @@ class PlayerController extends Controller
             );
         }
 
-        // 2. Data Rekap Karir Pemain Nyata dari Database (BUG-MEM-003, 004, 005)
-        $player = null;
-        if ($user) {
-            $player = Player::with('community')
-                ->where('user_id', $user->user_id)
-                ->orWhere('email', $user->email)
-                ->first();
-        }
+        // 2. Data Rekap Karir Pemain Nyata dari Database
+        $recap = self::calculateRealPlayerRecap($targetUser, $targetPlayer);
 
-        $recap = self::calculateRealPlayerRecap($user, $player);
+        $shareUserId = $targetUser->user_id ?? ($targetPlayer->user_id ?? ($targetPlayer->player_id ?? null));
+        $shareUrl = $shareUserId ? route('player.recap', ['id' => $shareUserId]) : route('player.recap');
+        $user = $targetUser;
+        $player = $targetPlayer;
 
-        return view('players.recap', compact('user', 'isHost', 'activeTab', 'hostSessions', 'hostStats', 'recap'));
+        return view('players.recap', compact('user', 'player', 'isHost', 'isOwner', 'activeTab', 'hostSessions', 'hostStats', 'recap', 'shareUrl'));
     }
 
     /**

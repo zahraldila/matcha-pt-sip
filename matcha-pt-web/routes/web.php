@@ -80,13 +80,15 @@ Route::prefix('scoring')->name('scoring.')->group(function () {
     Route::post('/kudos/toggle', [ScoringController::class, 'toggleKudos'])->name('kudos.toggle'); // Simpan / Cabut Kudos permanen ke DB
 });
 
-// Protected: Player Profile & Strava-like Recap
-// Protected: Player Profile & Strava-like Recap
+// Player Recap (Public Share & Guest-Accessible)
+Route::get('/player/recap/{id?}', [PlayerController::class, 'recap'])->name('player.recap');
+Route::get('/recap/user/{id}', [PlayerController::class, 'recap'])->name('recap.user');
+
+// Protected: Player Profile & Host Management
 Route::prefix('player')->name('player.')->middleware('auth')->group(function () {
     Route::get('/profile', [PlayerController::class, 'profile'])->name('profile');
     Route::post('/profile', [PlayerController::class, 'updateProfile'])->name('profile.update');
-    Route::post('/profile/toggle-host', [PlayerController::class, 'toggleHost'])->name('profile.toggle-host'); // <--- Tambahkan route ini
-    Route::get('/recap', [PlayerController::class, 'recap'])->name('recap');
+    Route::post('/profile/toggle-host', [PlayerController::class, 'toggleHost'])->name('profile.toggle-host');
 });
 
 // Community
