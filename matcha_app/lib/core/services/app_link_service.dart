@@ -28,8 +28,9 @@ class AppLinkService {
 
   /// Pure parser: Validates scheme, domain, path, and extracts shareToken
   static String? extractShareToken(Uri uri) {
-    // 1. Validate scheme: only HTTPS
-    if (uri.scheme.toLowerCase() != 'https') {
+    // 1. Validate scheme: HTTPS or HTTP
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'https' && scheme != 'http') {
       return null;
     }
 
@@ -162,8 +163,8 @@ class AppLinkService {
       final nav = _navigatorKey?.currentState;
       if (nav != null) {
         if (isFinished) {
-          // Buka SessionDetailPage di base stack lalu tampilkan SessionMatchRecapPage
-          await nav.push(
+          // Buka SessionDetailPage di base stack lalu tampilkan SessionMatchRecapPage di depan layar
+          nav.push(
             MaterialPageRoute(
               builder: (_) => SessionDetailPage(
                 sessionId: session.sessionId,
@@ -172,7 +173,7 @@ class AppLinkService {
               ),
             ),
           );
-          await nav.push(
+          nav.push(
             MaterialPageRoute(
               builder: (_) => SessionMatchRecapPage(
                 sessionId: session.sessionId,

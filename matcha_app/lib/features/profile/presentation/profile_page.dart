@@ -9,7 +9,6 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../auth/presentation/register_page.dart';
 import '../../recap/presentation/match_recap_page.dart';
-import '../../admin/presentation/admin_user_management_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final AuthController? authController;
@@ -324,7 +323,13 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         _currentFotoUrl = authCtrl.currentUser?.foto;
         _removeFoto = false;
 
-        AppErrorHandler.showSuccessSnackBar(context, '🎉 Profil pemain berhasil diperbarui!');
+        final isAdm = authCtrl.currentUser?.isAdmin == true;
+        AppErrorHandler.showSuccessSnackBar(
+          context,
+          isAdm
+              ? '🎉 Profil administrator berhasil diperbarui!'
+              : '🎉 Profil pemain berhasil diperbarui!',
+        );
       } else if (mounted && authCtrl.errorMessage != null) {
         AppErrorHandler.showErrorSnackBar(context, authCtrl.errorMessage);
       }
@@ -390,8 +395,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   /// Tampilan Profil untuk Pengguna yang Sudah Login (1:1 Web Mirror)
   Widget _buildLoggedInProfileView(UserModel user) {
-    final isHost = user.isHost;
-    final isVenueOwner = user.role == 'venue_owner';
+    final isAdmin = user.isAdmin;
+    final isHost = user.isHost && !isAdmin;
+    final isVenueOwner = user.role == 'venue_owner' && !isAdmin;
     final usernameTag = '@${user.nama.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_')}';
 
     return Scaffold(
@@ -404,9 +410,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text(
-          'Profil Member Pemain',
-          style: TextStyle(
+        title: Text(
+          isAdmin ? 'Profil Akun Administrator' : 'Profil Member Pemain',
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w800,
             color: Color(0xFF0F172A),
@@ -426,20 +432,17 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Tag & Header Judul (Matching web)
-              _buildPageHeader(),
+              _buildPageHeader(isAdmin),
               const SizedBox(height: 16),
 
-              if (user.isAdmin) ...[
-                _buildAdminStatusCard(),
+              // 2. Status Akses Host Game Card (Hanya untuk non-admin)
+              if (!isAdmin) ...[
+                _buildHostStatusCard(isHost),
                 const SizedBox(height: 16),
               ],
 
-              // 2. Status Akses Host Game Card (Matching web)
-              _buildHostStatusCard(isHost),
-              const SizedBox(height: 16),
-
-              // 3. Profil & Form Data Pemain Card (Matching web)
-              _buildProfileFormCard(user, isHost, isVenueOwner, usernameTag),
+              // 3. Profil & Form Data Pemain / Admin Card (Matching web)
+              _buildProfileFormCard(user, isHost, isVenueOwner, usernameTag, isAdmin),
               const SizedBox(height: 20),
 
               // 4. Action Save Button
@@ -456,7 +459,60 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildPageHeader() {
+  Widget _buildPageHeader(bool isAdmin) {
+    if (isAdmin) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFDE68A)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.person_rounded, size: 12, color: Color(0xFF92400E)),
+                SizedBox(width: 5),
+                Text(
+                  'AKUN & PROFIL ADMINISTRATOR',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF92400E),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Profil Akun Administrator',
+            style: TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Kelola data identitas akun, kontak WhatsApp, dan foto profil Administrator Matcha',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: Color(0xFF64748B),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -550,92 +606,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         const SizedBox(height: 16),
         const Divider(height: 1, color: Color(0xFFE2E8F0)),
       ],
-    );
-  }
-
-  Widget _buildAdminStatusCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.admin_panel_settings_rounded, color: Color(0xFFA8E63A), size: 24),
-              ),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Administrator Global',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Akses pengelolaan global aktif untuk Komunitas, Venue, Sesi Mabar, dan User.',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                backgroundColor: const Color(0xFF1E293B),
-                foregroundColor: const Color(0xFFA8E63A),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AdminUserManagementPage(authController: widget.authController),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.people_alt_rounded, size: 16),
-              label: const FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  'Buka Manajemen Pengguna',
-                  maxLines: 1,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -782,6 +752,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     bool isHost,
     bool isVenueOwner,
     String usernameTag,
+    bool isAdmin,
   ) {
     ImageProvider? displayImage;
     if (_pickedImageBytes != null) {
@@ -891,21 +862,28 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: isHost
+                            color: isAdmin
                                 ? const Color(0xFFFEF3C7)
-                                : (isVenueOwner ? const Color(0xFFE0F2FE) : const Color(0xFFF1F5F9)),
+                                : (isHost
+                                    ? const Color(0xFFFEF3C7)
+                                    : (isVenueOwner ? const Color(0xFFE0F2FE) : const Color(0xFFF1F5F9))),
                             borderRadius: BorderRadius.circular(12),
+                            border: isAdmin ? Border.all(color: const Color(0xFFFDE68A)) : null,
                           ),
                           child: Text(
-                            isVenueOwner
-                                ? '🏢 Venue Owner'
-                                : (isHost ? '👑 Host Game & Player' : '👤 Member Pemain'),
+                            isAdmin
+                                ? 'Administrator Global'
+                                : (isVenueOwner
+                                    ? '🏢 Venue Owner'
+                                    : (isHost ? '👑 Host Game & Player' : '👤 Member Pemain')),
                             style: TextStyle(
                               fontSize: 9.5,
                               fontWeight: FontWeight.w800,
-                              color: isHost
-                                  ? const Color(0xFFB45309)
-                                  : (isVenueOwner ? const Color(0xFF0369A1) : const Color(0xFF475569)),
+                              color: isAdmin
+                                  ? const Color(0xFF92400E)
+                                  : (isHost
+                                      ? const Color(0xFFB45309)
+                                      : (isVenueOwner ? const Color(0xFF0369A1) : const Color(0xFF475569))),
                             ),
                           ),
                         ),
@@ -922,49 +900,78 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (displayImage != null) ...[
-                      const SizedBox(height: 8),
-                      InkWell(
-                        onTap: _handleRemoveFoto,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEF2F2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFFECACA)),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.delete_outline_rounded, size: 13, color: Color(0xFFDC2626)),
-                              SizedBox(width: 4),
-                              Text(
-                                'Hapus Foto',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
-                              ),
-                            ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        InkWell(
+                          onTap: _showImageSourceDialog,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0FDF4),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFBBF7D0)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.camera_alt_outlined, size: 13, color: Color(0xFF166534)),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Pilih Foto',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF166534)),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                        if (displayImage != null) ...[
+                          const SizedBox(width: 6),
+                          InkWell(
+                            onTap: _handleRemoveFoto,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFFECACA)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.delete_outline_rounded, size: 13, color: Color(0xFFDC2626)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Hapus Foto',
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 14),
-
-          // Info Chips (Skill, Usia)
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _buildInfoPill('⭐ Skill: ${user.level ?? "Intermediate"}', const Color(0xFFFEF3C7), const Color(0xFFB45309)),
-              _buildInfoPill('🎂 Usia: ${user.usia ?? 25} thn', const Color(0xFFF8FAFC), const Color(0xFF475569)),
-            ],
-          ),
+          if (!isAdmin) ...[
+            const SizedBox(height: 14),
+            // Info Chips (Skill, Usia)
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _buildInfoPill('⭐ Skill: ${user.level ?? "Intermediate"}', const Color(0xFFFEF3C7), const Color(0xFFB45309)),
+                _buildInfoPill('🎂 Usia: ${user.usia ?? 25} thn', const Color(0xFFF8FAFC), const Color(0xFF475569)),
+              ],
+            ),
+          ],
 
           const SizedBox(height: 18),
           const Divider(height: 1, color: Color(0xFFF1F5F9)),
@@ -979,7 +986,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             decoration: _inputDecoration(hint: 'Masukkan nama lengkap'),
             validator: (val) => (val == null || val.trim().isEmpty) ? 'Nama lengkap wajib diisi' : null,
           ),
-          _buildFieldCaption('Nama ini akan digunakan pada papan drawing pertandingan, bracket turnamen, dan leaderboard.'),
+          _buildFieldCaption(isAdmin
+              ? 'Nama akun yang digunakan pada identitas sistem.'
+              : 'Nama ini akan digunakan pada papan drawing pertandingan, bracket turnamen, dan leaderboard.'),
           const SizedBox(height: 14),
 
           // Form Field 2: Alamat Email (Akun Utama) - Read Only
@@ -995,7 +1004,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
               suffixIcon: const Icon(Icons.lock_outline_rounded, size: 16, color: Color(0xFF94A3B8)),
             ),
           ),
-          _buildFieldCaption('Email akun terhubung dan digunakan untuk masuk ke sistem.'),
+          _buildFieldCaption(isAdmin
+              ? 'Email akun terhubung yang digunakan untuk masuk ke sistem.'
+              : 'Email akun terhubung dan digunakan untuk masuk ke sistem.'),
           const SizedBox(height: 14),
 
           // Form Field 3: Nomor WhatsApp / HP *
@@ -1013,99 +1024,124 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
               return null;
             },
           ),
-          _buildFieldCaption('Nomor kontak untuk koordinasi grup mabar & notifikasi sesi.'),
+          _buildFieldCaption(isAdmin
+              ? 'Nomor kontak resmi untuk koordinasi & notifikasi sistem.'
+              : 'Nomor kontak untuk koordinasi grup mabar & notifikasi sesi.'),
           const SizedBox(height: 14),
 
-          // Form Field 4 & 5: Jenis Kelamin & Usia (Row)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Jenis Kelamin
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildFormFieldTitle('Jenis Kelamin', isRequired: true),
-                    const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
-                      value: safeGenderValue,
-                      isExpanded: true,
-                      decoration: _inputDecoration(),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Male',
-                          child: Text('Laki-laki 🚹', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Female',
-                          child: Text('Perempuan 🚺', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) setState(() => _selectedGender = val);
-                      },
-                    ),
-                  ],
+          if (isAdmin) ...[
+            _buildFormFieldTitle('Jenis Kelamin', isRequired: true),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: safeGenderValue,
+              isExpanded: true,
+              decoration: _inputDecoration(),
+              items: const [
+                DropdownMenuItem(
+                  value: 'Female',
+                  child: Text('Perempuan 🚺', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 ),
-              ),
-              const SizedBox(width: 12),
-
-              // Usia (Tahun)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildFormFieldTitle('Usia (Tahun)', isRequired: true),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _usiaController,
-                      keyboardType: TextInputType.number,
-                      onChanged: (_) => setState(() {}),
-                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-                      decoration: _inputDecoration(hint: '25'),
-                      validator: (val) {
-                        if (val == null || val.trim().isEmpty) return 'Wajib diisi';
-                        final numVal = int.tryParse(val.trim());
-                        if (numVal == null || numVal < 10 || numVal > 90) return '10 - 90 thn';
-                        return null;
-                      },
-                    ),
-                  ],
+                DropdownMenuItem(
+                  value: 'Male',
+                  child: Text('Laki-laki 🚹', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
+              ],
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedGender = val);
+              },
+            ),
+          ] else ...[
+            // Form Field 4 & 5: Jenis Kelamin & Usia (Row)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Jenis Kelamin
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildFormFieldTitle('Jenis Kelamin', isRequired: true),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        value: safeGenderValue,
+                        isExpanded: true,
+                        decoration: _inputDecoration(),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Male',
+                            child: Text('Laki-laki 🚹', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Female',
+                            child: Text('Perempuan 🚺', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedGender = val);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
 
-          // Form Field 6: Kategori Skill Level *
-          _buildFormFieldTitle('Kategori Skill Level', isRequired: true),
-          const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
-            value: safeLevelValue,
-            isExpanded: true,
-            decoration: _inputDecoration(),
-            items: const [
-              DropdownMenuItem(
-                value: 'Newbie',
-                child: Text('Newbie (Pemula Sekali)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              ),
-              DropdownMenuItem(
-                value: 'Beginner',
-                child: Text('Beginner (Bisa Reli Dasar)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              ),
-              DropdownMenuItem(
-                value: 'Intermediate',
-                child: Text('Intermediate (Paham Rotasi & Taktik)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              ),
-              DropdownMenuItem(
-                value: 'Advanced',
-                child: Text('Advanced (Turnamen & Kompetitif)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              ),
-            ],
-            onChanged: (val) {
-              if (val != null) setState(() => _selectedLevel = val);
-            },
-          ),
+                // Usia (Tahun)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildFormFieldTitle('Usia (Tahun)', isRequired: true),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _usiaController,
+                        keyboardType: TextInputType.number,
+                        onChanged: (_) => setState(() {}),
+                        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                        decoration: _inputDecoration(hint: '25'),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) return 'Wajib diisi';
+                          final numVal = int.tryParse(val.trim());
+                          if (numVal == null || numVal < 10 || numVal > 90) return '10 - 90 thn';
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Form Field 6: Kategori Skill Level *
+            _buildFormFieldTitle('Kategori Skill Level', isRequired: true),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: safeLevelValue,
+              isExpanded: true,
+              decoration: _inputDecoration(),
+              items: const [
+                DropdownMenuItem(
+                  value: 'Newbie',
+                  child: Text('Newbie (Pemula Sekali)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+                DropdownMenuItem(
+                  value: 'Beginner',
+                  child: Text('Beginner (Bisa Reli Dasar)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+                DropdownMenuItem(
+                  value: 'Intermediate',
+                  child: Text('Intermediate (Paham Rotasi & Taktik)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+                DropdownMenuItem(
+                  value: 'Advanced',
+                  child: Text('Advanced (Turnamen & Kompetitif)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+              ],
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedLevel = val);
+              },
+            ),
+          ],
         ],
       ),
     );

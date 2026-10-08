@@ -1202,55 +1202,25 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                         return;
                                       }
 
-                                      // 1. Cek & minta izin akses foto/galeri via permission_handler
+                                      // 1. Minta izin akses foto/galeri langsung ke sistem HP
                                       bool hasAccess = false;
                                       try {
                                         if (Platform.isAndroid) {
-                                          final photosStatus = await Permission.photos.status;
-                                          final storageStatus = await Permission.storage.status;
-                                          if (photosStatus.isGranted || storageStatus.isGranted || photosStatus.isLimited) {
-                                            hasAccess = true;
-                                          } else {
-                                            final reqPhotos = await Permission.photos.request();
-                                            final reqStorage = await Permission.storage.request();
-                                            hasAccess = reqPhotos.isGranted || reqStorage.isGranted || reqPhotos.isLimited;
-                                          }
+                                          final status = await Permission.photos.request();
+                                          final storage = await Permission.storage.request();
+                                          hasAccess = status.isGranted || storage.isGranted || status.isLimited;
                                         } else if (Platform.isIOS) {
-                                          final photosStatus = await Permission.photos.status;
-                                          if (photosStatus.isGranted || photosStatus.isLimited) {
-                                            hasAccess = true;
-                                          } else {
-                                            final reqPhotos = await Permission.photos.request();
-                                            hasAccess = reqPhotos.isGranted || reqPhotos.isLimited;
-                                          }
+                                          final status = await Permission.photos.request();
+                                          hasAccess = status.isGranted || status.isLimited;
                                         } else {
-                                          hasAccess = await Gal.hasAccess();
-                                          if (!hasAccess) {
-                                            hasAccess = await Gal.requestAccess();
-                                          }
+                                          hasAccess = await Gal.requestAccess();
                                         }
-                                      } catch (permError) {
-                                        debugPrint('Permission error: $permError');
+                                      } catch (_) {
                                         hasAccess = false;
                                       }
 
                                       if (!hasAccess) {
-                                        if (context.mounted) {
-                                          Navigator.pop(ctx);
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: const Text('Izin penyimpanan ditolak. Silakan aktifkan izin galeri/foto di Pengaturan HP.'),
-                                              backgroundColor: const Color(0xFFE11D48),
-                                              behavior: SnackBarBehavior.floating,
-                                              duration: const Duration(seconds: 4),
-                                              action: SnackBarAction(
-                                                label: 'Pengaturan',
-                                                textColor: Colors.white,
-                                                onPressed: () => openAppSettings(),
-                                              ),
-                                            ),
-                                          );
-                                        }
+                                        // Pengguna memilih 'Jangan izinkan' pada dialog bawaan OS HP
                                         return;
                                       }
 
@@ -3260,3 +3230,5 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     );
   }
 }
+
+
