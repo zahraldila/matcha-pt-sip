@@ -240,7 +240,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
     final isAllSelected = deletableCount > 0 && selectedCount == deletableCount;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -258,28 +258,60 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
         top: false,
         child: Row(
           children: [
+            // Cancel / Undo Selection Button
             InkWell(
-              onTap: _toggleSelectAll,
+              onTap: _toggleSelectionMode,
               borderRadius: BorderRadius.circular(10),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.close_rounded, size: 15, color: Color(0xFF475569)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Batal',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Select All Checkbox
+            InkWell(
+              onTap: _toggleSelectAll,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       isAllSelected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
-                      size: 18,
+                      size: 17,
                       color: isAllSelected ? const Color(0xFF063B00) : const Color(0xFF64748B),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Text(
                       isAllSelected ? 'Batal Semua' : 'Pilih Semua',
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF334155),
                       ),
@@ -288,24 +320,28 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
+
+            // Counter Badge
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 7),
               decoration: BoxDecoration(
                 color: const Color(0xFFEBF8D8),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFF86EFAC)),
               ),
               child: Text(
-                '$selectedCount dipilih',
+                '$selectedCount',
                 style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
                   color: Color(0xFF063B00),
                 ),
               ),
             ),
             const Spacer(),
+
+            // Delete Button
             ElevatedButton.icon(
               onPressed: (selectedCount == 0 || _isBulkDeleting) ? null : _handleBulkDelete,
               icon: _isBulkDeleting
@@ -314,10 +350,10 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
                       height: 14,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Icon(Icons.delete_sweep_rounded, size: 16),
+                  : const Icon(Icons.delete_sweep_rounded, size: 15),
               label: Text(
                 'Hapus ($selectedCount)',
-                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE11D48),
@@ -325,7 +361,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
                 disabledBackgroundColor: const Color(0xFFFDA4AF).withValues(alpha: 0.5),
                 disabledForegroundColor: Colors.white70,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
@@ -441,9 +477,16 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   Widget build(BuildContext context) {
     final deletableCount = _filteredVenues.where(_canDeleteVenue).length;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      bottomNavigationBar: _isSelectionMode ? _buildBulkActionBar(deletableCount) : null,
+    return PopScope(
+      canPop: !_isSelectionMode,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _isSelectionMode) {
+          _toggleSelectionMode();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        bottomNavigationBar: _isSelectionMode ? _buildBulkActionBar(deletableCount) : null,
       appBar: Navigator.canPop(context)
           ? AppBar(
               backgroundColor: Colors.white,
@@ -464,10 +507,17 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
               centerTitle: true,
             )
           : null,
-      body: RefreshIndicator(
-        onRefresh: _loadVenues,
-        color: AppColors.matchaDark,
-        child: CustomScrollView(
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (_isSelectionMode) {
+            _toggleSelectionMode();
+          }
+        },
+        child: RefreshIndicator(
+          onRefresh: _loadVenues,
+          color: AppColors.matchaDark,
+          child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
@@ -719,6 +769,8 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
           ],
         ),
       ),
+    ),
+    ),
     );
   }
 
