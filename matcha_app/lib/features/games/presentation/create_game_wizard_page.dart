@@ -1660,38 +1660,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
               const Divider(height: 1, color: Color(0xFFF1F5F9)),
               const SizedBox(height: 20),
 
-              // Numbers of Court
-              _buildSectionLabel('Numbers of Court *'),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _config.courtCount,
-                    isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8)),
-                    items: [1, 2, 3, 4].map((count) {
-                      return DropdownMenuItem<int>(
-                        value: count,
-                        child: Text('$count Court', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _config.courtCount = val);
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Divider(height: 1, color: Color(0xFFF1F5F9)),
-              const SizedBox(height: 20),
-
-              // Venue
+              // --- VENUE (dipindah ke atas Numbers of Court) ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1775,9 +1744,12 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                                   if (_config.venueId != null && _venues.any((v) => v.venueId == _config.venueId)) ...[
                                     const SizedBox(height: 2),
                                     Text(
-                                      _venues.firstWhere((v) => v.venueId == _config.venueId).kota ??
-                                          _venues.firstWhere((v) => v.venueId == _config.venueId).alamat ??
-                                          "Lokasi Terdaftar",
+                                      () {
+                                        final v = _venues.firstWhere((v) => v.venueId == _config.venueId);
+                                        final courtTotal = v.courts.isNotEmpty ? v.courts.length : 1;
+                                        final loc = v.kota ?? v.alamat ?? 'Lokasi Terdaftar';
+                                        return '$loc • $courtTotal Court';
+                                      }(),
                                       style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -1800,6 +1772,79 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                         ),
                 ),
               ),
+              const SizedBox(height: 20),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 20),
+
+              // --- NUMBERS OF COURT (dinamis berdasarkan venue) ---
+              _buildSectionLabel('Numbers of Court *'),
+              const SizedBox(height: 4),
+              Builder(builder: (context) {
+                // Cari jumlah court riil dari venue yang dipilih
+                final selectedVenueModel = _config.venueId != null && _venues.any((v) => v.venueId == _config.venueId)
+                    ? _venues.firstWhere((v) => v.venueId == _config.venueId)
+                    : null;
+                final maxCourt = selectedVenueModel != null && selectedVenueModel.courts.isNotEmpty
+                    ? selectedVenueModel.courts.length
+                    : 4; // default 4 jika belum pilih venue
+
+                // Auto-clamp courtCount jika melebihi max
+                if (_config.courtCount > maxCourt) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() => _config.courtCount = maxCourt);
+                  });
+                }
+                final safeValue = _config.courtCount.clamp(1, maxCourt);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (selectedVenueModel != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          'Venue ini memiliki ${selectedVenueModel.courts.isNotEmpty ? selectedVenueModel.courts.length : 1} court tersedia',
+                          style: const TextStyle(fontSize: 10.5, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<int>(
+                          value: safeValue,
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8)),
+                          items: List.generate(maxCourt, (i) => i + 1).map((count) {
+                            return DropdownMenuItem<int>(
+                              value: count,
+                              child: Text(
+                                '$count Court${count > 1 ? 's' : ''}',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) setState(() => _config.courtCount = val);
+                          },
+                        ),
+                      ),
+                    ),
+                    if (selectedVenueModel == null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '* Pilih venue terlebih dahulu agar jumlah court disesuaikan',
+                          style: TextStyle(fontSize: 10, color: Colors.orange.shade700),
+                        ),
+                      ),
+                  ],
+                );
+              }),
               const SizedBox(height: 20),
               const Divider(height: 1, color: Color(0xFFF1F5F9)),
               const SizedBox(height: 20),
