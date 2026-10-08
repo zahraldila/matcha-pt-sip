@@ -13,6 +13,8 @@ import '../../match/presentation/match_scoring_page.dart';
 import '../../recap/presentation/session_match_recap_page.dart';
 import '../data/session_service.dart';
 import '../domain/session_model.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'widgets/join_session_modal.dart';
 
 class SessionDetailPage extends StatefulWidget {
@@ -262,6 +264,54 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                 ],
               ),
               const SizedBox(height: 18),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.chat_bubble_rounded, color: Color(0xFF16A34A), size: 20),
+                ),
+                title: const Text('Kirim ke WhatsApp', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: const Text('Buka WhatsApp langsung dan kirim draft link sesi', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final waSchemeUrl = Uri.parse('whatsapp://send?text=${Uri.encodeComponent(shareText)}');
+                  final waWebUrl = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(shareText)}');
+                  try {
+                    if (await canLaunchUrl(waSchemeUrl)) {
+                      await launchUrl(waSchemeUrl, mode: LaunchMode.externalApplication);
+                    } else if (await canLaunchUrl(waWebUrl)) {
+                      await launchUrl(waWebUrl, mode: LaunchMode.externalApplication);
+                    } else {
+                      await Share.share(shareText);
+                    }
+                  } catch (e) {
+                    await Share.share(shareText);
+                  }
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0F2FE),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.share_rounded, color: Color(0xFF0284C7), size: 20),
+                ),
+                title: const Text('Bagikan via Aplikasi Lain...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: const Text('Buka menu share sistem HP untuk kirim ke aplikasi lain', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await Share.share(shareText);
+                },
+              ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Container(
