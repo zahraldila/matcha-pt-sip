@@ -411,6 +411,30 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   }
 
   Future<void> _handleDeleteUser(UserModel user) async {
+    final currentUserId = widget.authController?.currentUser?.userId;
+    if (currentUserId != null && user.userId == currentUserId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.shield_outlined, color: Colors.white, size: 18),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Aksi Ditolak: Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif login.',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFE11D48),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => Dialog(
@@ -518,7 +542,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     setState(() => _isLoading = true);
 
     try {
-      await _adminUserService.deleteUser(user.userId);
+      await _adminUserService.deleteUser(user.userId, currentUserId: currentUserId);
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
@@ -776,6 +800,8 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   }
 
   Widget _buildUserCard(UserModel user, int index) {
+    final currentUserId = widget.authController?.currentUser?.userId;
+    final isCurrentUser = currentUserId != null && user.userId == currentUserId;
     final genderStr = user.gender != null && user.gender!.toLowerCase().startsWith('f')
         ? 'Perempuan'
         : 'Laki-laki';
@@ -786,7 +812,10 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isCurrentUser ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
+          width: isCurrentUser ? 1.5 : 1.0,
+        ),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF063B00).withValues(alpha: 0.03),
@@ -860,16 +889,41 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        user.nama,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF0F172A),
-                          letterSpacing: -0.2,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              user.nama,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isCurrentUser) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDCFCE7),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFF86EFAC)),
+                              ),
+                              child: const Text(
+                                'Akun Anda',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF15803D),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 3),
                       Row(
@@ -1015,19 +1069,43 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                     Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        onTap: () => _handleDeleteUser(user),
+                        onTap: isCurrentUser
+                            ? () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Row(
+                                      children: [
+                                        Icon(Icons.shield_outlined, color: Colors.white, size: 18),
+                                        SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'Aksi Ditolak: Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif login.',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: const Color(0xFFE11D48),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                );
+                              }
+                            : () => _handleDeleteUser(user),
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
                           padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFF1F2),
+                            color: isCurrentUser ? const Color(0xFFF1F5F9) : const Color(0xFFFFF1F2),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFFECDD3)),
+                            border: Border.all(
+                              color: isCurrentUser ? const Color(0xFFE2E8F0) : const Color(0xFFFECDD3),
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.delete_outline_rounded,
+                          child: Icon(
+                            isCurrentUser ? Icons.lock_outline_rounded : Icons.delete_outline_rounded,
                             size: 15,
-                            color: Color(0xFFE11D48),
+                            color: isCurrentUser ? const Color(0xFF94A3B8) : const Color(0xFFE11D48),
                           ),
                         ),
                       ),

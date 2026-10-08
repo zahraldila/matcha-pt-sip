@@ -119,7 +119,10 @@ class AdminUserService {
   }
 
   /// Menghapus akun pengguna dari database secara permanen oleh Admin
-  Future<void> deleteUser(int userId) async {
+  Future<void> deleteUser(int userId, {int? currentUserId}) async {
+    if (currentUserId != null && userId == currentUserId) {
+      throw Exception('Aksi ditolak: Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif login.');
+    }
     try {
       // 1. Lepaskan atau hapus data relasi player
       try {
