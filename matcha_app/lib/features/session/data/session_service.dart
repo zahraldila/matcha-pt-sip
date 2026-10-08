@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/session_model.dart';
 import '../../drawing/domain/matcha_drawing_engine.dart';
@@ -6,6 +7,14 @@ import '../../games/domain/game_wizard_model.dart';
 
 class SessionService {
   final SupabaseClient _supabase;
+
+  /// Global reactive notifier untuk auto-refresh sesi di seluruh view yang sedang aktif
+  static final ValueNotifier<int> sessionsVersion = ValueNotifier<int>(0);
+
+  /// Memicu sinkronisasi data sesi reaktif
+  static void notifySessionsChanged() {
+    sessionsVersion.value++;
+  }
 
   SessionService({SupabaseClient? supabaseClient})
       : _supabase = supabaseClient ?? Supabase.instance.client;
@@ -383,6 +392,7 @@ class SessionService {
         'session_id': sessionId,
         'player_id': playerId,
       });
+      notifySessionsChanged();
     } on PostgrestException catch (e) {
       throw Exception('Gagal bergabung ke sesi: ${e.message}');
     }
@@ -509,6 +519,7 @@ class SessionService {
           .delete()
           .eq('session_id', sessionId)
           .eq('player_id', playerId);
+      notifySessionsChanged();
     } on PostgrestException catch (e) {
       throw Exception('Gagal membatalkan keikutsertaan: ${e.message}');
     }
@@ -577,6 +588,7 @@ class SessionService {
         });
       }
 
+      notifySessionsChanged();
       return sessionId;
     } on PostgrestException catch (e) {
       throw Exception('Gagal membuat sesi mabar: ${e.message}');
@@ -678,6 +690,7 @@ class SessionService {
         } catch (_) {}
       }
 
+      notifySessionsChanged();
       return sessionId;
     } on PostgrestException catch (e) {
       throw Exception('Gagal membuat sesi host game: ${e.message}');
@@ -696,12 +709,14 @@ class SessionService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('session_id', sessionId);
+      notifySessionsChanged();
     } catch (_) {
       try {
         await _supabase
             .from('tb_session')
             .update({'status_session': status})
             .eq('session_id', sessionId);
+        notifySessionsChanged();
       } catch (_) {}
     }
   }
@@ -713,6 +728,7 @@ class SessionService {
           .from('tb_session')
           .update({'status_session': 'Cancelled'})
           .eq('session_id', sessionId);
+      notifySessionsChanged();
     } on PostgrestException catch (e) {
       throw Exception('Gagal membatalkan sesi: ${e.message}');
     } catch (e) {
@@ -806,6 +822,7 @@ class SessionService {
           .from('tb_session')
           .delete()
           .eq('session_id', sessionId);
+      notifySessionsChanged();
     } on PostgrestException catch (e) {
       throw Exception('Gagal menghapus sesi dari database: ${e.message}');
     } catch (e) {
@@ -975,6 +992,7 @@ class SessionService {
           });
         }
       }
+      notifySessionsChanged();
     } catch (_) {
       // Fallback
     }

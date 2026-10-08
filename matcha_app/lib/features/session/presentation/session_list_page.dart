@@ -46,13 +46,21 @@ class _SessionListPageState extends State<SessionListPage> {
     super.initState();
     _loadSessions();
     widget.authController?.addListener(_onAuthChanged);
+    SessionService.sessionsVersion.addListener(_onSessionsChanged);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     widget.authController?.removeListener(_onAuthChanged);
+    SessionService.sessionsVersion.removeListener(_onSessionsChanged);
     super.dispose();
+  }
+
+  void _onSessionsChanged() {
+    if (mounted) {
+      _loadSessions();
+    }
   }
 
   void _onAuthChanged() {
@@ -818,8 +826,8 @@ class _SessionListPageState extends State<SessionListPage> {
                       authController: widget.authController,
                     ),
                   ),
-                ).then((val) {
-                  if (val == true) _loadSessions();
+                ).then((_) {
+                  _loadSessions();
                 });
               },
               backgroundColor: AppColors.matchaDark,
@@ -1227,27 +1235,23 @@ class _SessionListPageState extends State<SessionListPage> {
                     ),
                     const SizedBox(width: 6),
                     // Format Pill
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Text(
-                          '${session.scoringSystem} / ${session.jenisPermainan}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF475569),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Text(
+                        '${session.scoringSystem} / ${session.jenisPermainan}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF475569),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const Spacer(),
                     // Status Pill
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),

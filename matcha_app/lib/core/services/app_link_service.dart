@@ -28,8 +28,9 @@ class AppLinkService {
 
   /// Pure parser: Validates scheme, domain, path, and extracts shareToken
   static String? extractShareToken(Uri uri) {
-    // 1. Validate scheme: only HTTPS
-    if (uri.scheme.toLowerCase() != 'https') {
+    // 1. Validate scheme: HTTPS or HTTP
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'https' && scheme != 'http') {
       return null;
     }
 
@@ -49,6 +50,28 @@ class AppLinkService {
       if (token.isNotEmpty) {
         return token;
       }
+    }
+
+    return null;
+  }
+
+  /// Pure parser: Validates scheme, domain, path, and extracts sessionId from /scoring/recap/{id}
+  static int? extractRecapSessionId(Uri uri) {
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'https' && scheme != 'http') {
+      return null;
+    }
+
+    final host = uri.host.toLowerCase();
+    if (host != 'matcha.siproduktif.com') {
+      return null;
+    }
+
+    final segments = uri.pathSegments;
+    if (segments.length >= 3 &&
+        segments[0] == 'scoring' &&
+        segments[1] == 'recap') {
+      return int.tryParse(segments[2].trim());
     }
 
     return null;
@@ -102,7 +125,9 @@ class AppLinkService {
   /// Handle incoming URI safely
   Future<void> handleUri(Uri uri) async {
     final token = extractShareToken(uri);
-    if (token == null) {
+    final recapSessionId = extractRecapSessionId(uri);
+
+    if (token == null && recapSessionId == null) {
       // Invalid URL / foreign host / malformed path — ignore safely
       debugPrint('[AppLinkService] Ignored non-matching URL: $uri');
       return;
@@ -127,12 +152,14 @@ class AppLinkService {
       return;
     }
 
+    final resolveKey = token ?? 'recap_$recapSessionId';
+
     // Debounce duplicate events within 2 seconds
     final now = DateTime.now();
-    if (_lastResolvedToken == token &&
+    if (_lastResolvedToken == resolveKey &&
         _lastResolvedTime != null &&
         now.difference(_lastResolvedTime!).inSeconds < 2) {
-      debugPrint('[AppLinkService] Debounced duplicate token resolution: $token');
+      debugPrint('[AppLinkService] Debounced duplicate token resolution: $resolveKey');
       return;
     }
 
@@ -142,11 +169,13 @@ class AppLinkService {
     }
 
     _isResolving = true;
-    _lastResolvedToken = token;
+    _lastResolvedToken = resolveKey;
     _lastResolvedTime = now;
 
     try {
-      final SessionModel? session = await _sessionService.getSessionByShareToken(token);
+      final SessionModel? session = token != null
+          ? await _sessionService.getSessionByShareToken(token)
+          : await _sessionService.getSessionDetail(recapSessionId!);
 
       if (session == null) {
         _showFriendlyNotFoundDialog();
@@ -156,14 +185,15 @@ class AppLinkService {
       final statusLower = session.statusSession.trim().toLowerCase();
       final isFinished = statusLower == 'finished' ||
           statusLower == 'completed' ||
-          statusLower == 'selesai';
+          statusLower == 'selesai' ||
+          recapSessionId != null;
 
       // Navigate to SessionDetailPage or SessionMatchRecapPage
       final nav = _navigatorKey?.currentState;
       if (nav != null) {
         if (isFinished) {
-          // Buka SessionDetailPage di base stack lalu tampilkan SessionMatchRecapPage
-          await nav.push(
+          // Buka SessionDetailPage di base stack lalu tampilkan SessionMatchRecapPage di depan layar
+          nav.push(
             MaterialPageRoute(
               builder: (_) => SessionDetailPage(
                 sessionId: session.sessionId,
@@ -172,7 +202,7 @@ class AppLinkService {
               ),
             ),
           );
-          await nav.push(
+          nav.push(
             MaterialPageRoute(
               builder: (_) => SessionMatchRecapPage(
                 sessionId: session.sessionId,

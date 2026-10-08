@@ -6,9 +6,9 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../games/domain/game_wizard_model.dart';
 import '../../match/data/match_service.dart';
 import '../../match/presentation/match_scoring_page.dart';
+import '../../session/data/session_service.dart';
 import '../domain/matcha_drawing_engine.dart';
 import '../../session/presentation/session_detail_page.dart';
-
 class DrawingResultPage extends StatefulWidget {
   final dynamic sessionId;
   final GameWizardConfig? config;
@@ -17,7 +17,6 @@ class DrawingResultPage extends StatefulWidget {
   final bool? isHost;
   final dynamic hostUserId;
   final MatchService? matchService;
-
   const DrawingResultPage({
     super.key,
     this.sessionId,
@@ -28,67 +27,51 @@ class DrawingResultPage extends StatefulWidget {
     this.hostUserId,
     this.matchService,
   });
-
   @override
   State<DrawingResultPage> createState() => _DrawingResultPageState();
 }
-
 class _DrawingResultPageState extends State<DrawingResultPage> {
   late MatchService _matchService;
   late GameWizardConfig _config;
   List<DrawingRound> _rounds = [];
   int _selectedRoundIndex = 0;
-
   bool _isLoading = true;
   String? _errorMessage;
   bool _isLocked = false;
   bool _isSavingDrawing = false;
   bool _isStartingScoring = false;
   bool _hasAutoNavigatedToScoring = false;
-
   dynamic _sessionHostUserId;
   Map<String, dynamic>? _sessionData;
   RealtimeChannel? _realtimeChannel;
-
   dynamic get _effectiveSessionId => widget.sessionId ?? _config.sessionId;
-
   bool get _isHostUser {
     if (widget.isHost != null) return widget.isHost!;
-
     final currentUserId = widget.authController?.currentUser?.userId;
     if (widget.authController?.currentUser?.isAdmin == true) return true;
-
     final targetHostId = widget.hostUserId ?? _sessionHostUserId ?? _sessionData?['host_user_id'];
     if (targetHostId != null && currentUserId != null) {
       return targetHostId.toString() == currentUserId.toString();
     }
-
     if (widget.authController?.currentUser?.isHost == true) return true;
-
     // Jika tidak ada data auth atau session host, default ke true jika dipanggil dari wizard langsung tanpa session ID
     if (_effectiveSessionId == null && widget.initialRounds != null) return true;
-
     return false;
   }
-
   bool _isReturningToDetail = false;
-
   void _goToSessionDetail() {
     if (_isReturningToDetail ||
         _isSavingDrawing ||
         _isStartingScoring) {
       return;
     }
-
     final sessionId = int.tryParse(_effectiveSessionId.toString());
-
     if (sessionId == null) {
       Navigator.maybePop(context);
       return;
     }
-
     _isReturningToDetail = true;
-
+    SessionService.notifySessionsChanged();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) => SessionDetailPage(
@@ -99,13 +82,11 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       (route) => route.isFirst,
     );
   }
-
   @override
   void initState() {
     super.initState();
     _matchService = widget.matchService ?? MatchService();
     _sessionHostUserId = widget.hostUserId;
-
     _config = widget.config ??
         GameWizardConfig(
           sessionId: widget.sessionId,
@@ -118,20 +99,16 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             const GamePlayerItem(id: '4', name: 'Kita', level: 'Beginner', isGuest: true),
           ],
         );
-
     if (widget.initialRounds != null && widget.initialRounds!.isNotEmpty) {
       _rounds = List.from(widget.initialRounds!);
     }
-
     _initDataAndSubscription();
   }
-
   @override
   void dispose() {
     _matchService.unsubscribe(_realtimeChannel);
     super.dispose();
   }
-
   Future<void> _initDataAndSubscription() async {
     final sessId = _effectiveSessionId;
     if (sessId != null) {
@@ -146,7 +123,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       }
     }
   }
-
   void _subscribeToRealtime(dynamic sessionId) {
     _matchService.unsubscribe(_realtimeChannel);
     _realtimeChannel = _matchService.subscribeDrawingSession(
@@ -169,7 +145,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       },
     );
   }
-
   void _generateInitialDrawing() {
     _rounds = MatchaDrawingEngine.generateDrawing(
       players: _config.players,
@@ -179,21 +154,18 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       roundCount: _config.totalRounds,
     );
   }
-
   Future<void> _loadSessionAndDrawing({bool initial = false, bool silent = false}) async {
     final sessId = _effectiveSessionId;
     if (sessId == null) {
       if (mounted) setState(() => _isLoading = false);
       return;
     }
-
     if (!silent && mounted) {
       setState(() {
         _isLoading = true;
         _errorMessage = null;
       });
     }
-
     try {
       final session = await _matchService.getSession(sessId);
       final locked = await _matchService.isSessionDrawingLocked(sessId);
@@ -201,16 +173,13 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         sessionId: sessId,
         registeredPlayers: _config.players,
       );
-
       if (!mounted) return;
-
       setState(() {
         _sessionData = session;
         if (session != null && session['host_user_id'] != null) {
           _sessionHostUserId = session['host_user_id'];
         }
         _isLocked = locked;
-
         if (savedRounds != null && savedRounds.isNotEmpty) {
           _rounds = savedRounds;
           _config.courtCount = savedRounds
@@ -227,11 +196,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         } else if (_isHostUser && _rounds.isEmpty) {
           _generateInitialDrawing();
         }
-
         _isLoading = false;
         _errorMessage = null;
       });
-
       // Jika Host dan DB belum memiliki drawing tersimpan, simpan preview awal ke database agar player bisa melihatnya secara realtime
       if (_isHostUser && (savedRounds == null || savedRounds.isEmpty) && _rounds.isNotEmpty) {
         try {
@@ -248,7 +215,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           await _matchService.broadcastDrawingUpdate(sessId);
         } catch (_) {}
       }
-
     } catch (e) {
       if (!mounted) return;
       if (!silent) {
@@ -259,10 +225,8 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       }
     }
   }
-
   Future<void> _shuffleDrawing() async {
     if (!_isHostUser) return;
-
     final oldRounds = _rounds;
     final newRounds = MatchaDrawingEngine.generateDrawing(
       players: _config.players,
@@ -272,13 +236,11 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       roundCount: _config.totalRounds,
       shufflePlayers: true,
     );
-
     setState(() {
       _rounds = newRounds;
       _selectedRoundIndex = 0;
       _isSavingDrawing = true;
     });
-
     final sessId = _effectiveSessionId;
     if (sessId != null) {
       try {
@@ -293,7 +255,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           setState(() => _rounds = saved);
         }
         await _matchService.broadcastDrawingUpdate(sessId);
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -328,13 +289,11 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       }
     }
   }
-
   Future<void> _startLiveScoring() async {
     if (!_isHostUser) {
       _openLiveScoringReadOnly();
       return;
     }
-
     final sessId = _effectiveSessionId;
     if (sessId != null) {
       setState(() => _isStartingScoring = true);
@@ -345,15 +304,12 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           rounds: _rounds,
           allPlayers: _config.players,
         );
-
         if (!mounted) return;
-
         setState(() {
           _rounds = finalRounds;
           _isLocked = true;
           _isStartingScoring = false;
         });
-
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -397,7 +353,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       );
     }
   }
-
   void _openLiveScoringReadOnly() {
     final sessId = _effectiveSessionId;
     Navigator.push(
@@ -417,7 +372,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       ),
     );
   }
-
   Widget _buildDrawingContent(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
@@ -446,7 +400,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         ),
       );
     }
-
     if (_errorMessage != null) {
       return Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
@@ -488,7 +441,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         ),
       );
     }
-
     if (_rounds.isEmpty) {
       return Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
@@ -569,9 +521,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         ),
       );
     }
-
     final currentRound = _rounds[_selectedRoundIndex.clamp(0, _rounds.length - 1)];
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -717,7 +667,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
                 // Round Selector Pills
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -754,7 +703,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
                 // Live Preview Lapangan Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -795,10 +743,8 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   ],
                 ),
                 const SizedBox(height: 10),
-
                 // Visual Court Cards
                 ...currentRound.matches.map((match) => _buildVisualCourtCard(match)),
-
                 // Bangku Cadangan / Istirahat (Bench)
                 if (currentRound.restingPlayers.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -861,9 +807,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     ),
                   ),
                 ],
-
                 const SizedBox(height: 16),
-
                 // Rincian Roster Pertandingan Card
                 Container(
                   padding: const EdgeInsets.all(14),
@@ -945,7 +889,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               ],
             ),
           ),
-
           // Bottom Action Button
           Container(
             padding: const EdgeInsets.all(20),
@@ -1045,7 +988,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -1053,12 +995,15 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           !_isSavingDrawing &&
           !_isStartingScoring,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) _goToSessionDetail();
+        if (didPop) {
+          SessionService.notifySessionsChanged();
+        } else {
+          _goToSessionDetail();
+        }
       },
       child: _buildDrawingContent(context),
     );
   }
-
   Widget _buildVisualCourtCard(DrawingMatch match) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -1106,7 +1051,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               ],
             ),
           ),
-
           // Green Court Canvas Graphic
           Container(
             margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
@@ -1138,7 +1082,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     ),
                   ),
                 ),
-
                 // Team A (Top Half)
                 Positioned(
                   top: 8,
@@ -1158,7 +1101,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     ],
                   ),
                 ),
-
                 // Team B (Bottom Half)
                 Positioned(
                   bottom: 8,
@@ -1185,12 +1127,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       ),
     );
   }
-
   Widget _buildPlayerBadge(GamePlayerItem player) {
     final initials = player.name.trim().isNotEmpty
         ? player.name.trim().split(' ').map((s) => s.isNotEmpty ? s[0] : '').take(2).join().toUpperCase()
         : 'P';
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

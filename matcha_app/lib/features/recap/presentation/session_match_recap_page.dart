@@ -14,6 +14,7 @@ import '../../../core/utils/app_error_handler.dart';
 import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../main/presentation/main_shell_page.dart';
+import '../../session/data/session_service.dart';
 import '../../session/domain/session_model.dart';
 import '../data/recap_service.dart';
 import '../domain/recap_models.dart';
@@ -448,17 +449,27 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         // Salin Link Button
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
-                              final url = 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
+                            onTap: () async {
+                              String? shareToken = widget.session?.shareToken?.trim();
+                              if (shareToken == null || shareToken.isEmpty) {
+                                try {
+                                  shareToken = await SessionService().ensureShareToken(data.sessionId);
+                                } catch (_) {}
+                              }
+                              final url = (shareToken != null && shareToken.isNotEmpty)
+                                  ? 'https://matcha.siproduktif.com/games/share/$shareToken'
+                                  : 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
                               Clipboard.setData(ClipboardData(text: url));
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Tautan rekap web berhasil disalin! 🔗'),
-                                  backgroundColor: Color(0xFF063B00),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Tautan rekap berhasil disalin! 🔗'),
+                                    backgroundColor: Color(0xFF063B00),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
                             },
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 9),
@@ -497,18 +508,19 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         // Bagikan Link Direct Button
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
-                              final url = 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
+                            onTap: () async {
+                              String? shareToken = widget.session?.shareToken?.trim();
+                              if (shareToken == null || shareToken.isEmpty) {
+                                try {
+                                  shareToken = await SessionService().ensureShareToken(data.sessionId);
+                                } catch (_) {}
+                              }
+                              final url = (shareToken != null && shareToken.isNotEmpty)
+                                  ? 'https://matcha.siproduktif.com/games/share/$shareToken'
+                                  : 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
                               final shareText = '🎾 Hasil Mabar: ${data.sessionName}\n🏆 Pemenang: ${data.standings.isNotEmpty ? data.standings.first.nama : '-'}\nLihat rekap selengkapnya di: $url';
-                              Clipboard.setData(ClipboardData(text: shareText));
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Teks & tautan siap dibagikan ke WhatsApp/Telegram! 🚀'),
-                                  backgroundColor: Color(0xFF063B00),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              await Share.share(shareText);
                             },
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 9),
@@ -1202,55 +1214,25 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                         return;
                                       }
 
-                                      // 1. Cek & minta izin akses foto/galeri via permission_handler
+                                      // 1. Minta izin akses foto/galeri langsung ke sistem HP
                                       bool hasAccess = false;
                                       try {
                                         if (Platform.isAndroid) {
-                                          final photosStatus = await Permission.photos.status;
-                                          final storageStatus = await Permission.storage.status;
-                                          if (photosStatus.isGranted || storageStatus.isGranted || photosStatus.isLimited) {
-                                            hasAccess = true;
-                                          } else {
-                                            final reqPhotos = await Permission.photos.request();
-                                            final reqStorage = await Permission.storage.request();
-                                            hasAccess = reqPhotos.isGranted || reqStorage.isGranted || reqPhotos.isLimited;
-                                          }
+                                          final status = await Permission.photos.request();
+                                          final storage = await Permission.storage.request();
+                                          hasAccess = status.isGranted || storage.isGranted || status.isLimited;
                                         } else if (Platform.isIOS) {
-                                          final photosStatus = await Permission.photos.status;
-                                          if (photosStatus.isGranted || photosStatus.isLimited) {
-                                            hasAccess = true;
-                                          } else {
-                                            final reqPhotos = await Permission.photos.request();
-                                            hasAccess = reqPhotos.isGranted || reqPhotos.isLimited;
-                                          }
+                                          final status = await Permission.photos.request();
+                                          hasAccess = status.isGranted || status.isLimited;
                                         } else {
-                                          hasAccess = await Gal.hasAccess();
-                                          if (!hasAccess) {
-                                            hasAccess = await Gal.requestAccess();
-                                          }
+                                          hasAccess = await Gal.requestAccess();
                                         }
-                                      } catch (permError) {
-                                        debugPrint('Permission error: $permError');
+                                      } catch (_) {
                                         hasAccess = false;
                                       }
 
                                       if (!hasAccess) {
-                                        if (context.mounted) {
-                                          Navigator.pop(ctx);
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: const Text('Izin penyimpanan ditolak. Silakan aktifkan izin galeri/foto di Pengaturan HP.'),
-                                              backgroundColor: const Color(0xFFE11D48),
-                                              behavior: SnackBarBehavior.floating,
-                                              duration: const Duration(seconds: 4),
-                                              action: SnackBarAction(
-                                                label: 'Pengaturan',
-                                                textColor: Colors.white,
-                                                onPressed: () => openAppSettings(),
-                                              ),
-                                            ),
-                                          );
-                                        }
+                                        // Pengguna memilih 'Jangan izinkan' pada dialog bawaan OS HP
                                         return;
                                       }
 
@@ -2063,7 +2045,6 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     final winRate = totalMatches > 0 && p != null ? ((p.matchesWon / totalMatches) * 100).round() : (data.myStats?.winRatePercent ?? 0);
     final wins = p?.matchesWon ?? data.myStats?.wins ?? 0;
     final losses = p?.matchesLost ?? data.myStats?.losses ?? 0;
-    final duration = data.myStats?.durationPlayed ?? '45m';
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2158,36 +2139,17 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 ],
               ),
               const SizedBox(height: 6),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
-                      child: Column(
-                        children: [
-                          const Text('MATCH RECORD', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5)),
-                          const SizedBox(height: 2),
-                          Text('${wins}W - ${losses}L', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
-                      child: Column(
-                        children: [
-                          const Text('DURASI MAIN', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5)),
-                          const SizedBox(height: 2),
-                          Text(duration, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
+                child: Column(
+                  children: [
+                    const Text('MATCH RECORD', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5)),
+                    const SizedBox(height: 2),
+                    Text('${wins}W - ${losses}L', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white)),
+                  ],
+                ),
               ),
             ],
           ),
@@ -3232,27 +3194,6 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text('Durasi', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                      const SizedBox(height: 2),
-                      Text(
-                        stat.durationPlayed,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
         ],
@@ -3260,3 +3201,5 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     );
   }
 }
+
+

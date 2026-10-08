@@ -325,13 +325,19 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                             itemBuilder: (context, index) {
                               final venue = filteredVenues[index];
                               final isSelected = _config.venueId == venue.venueId;
-                              final courtCount = venue.courts.isNotEmpty ? venue.courts.length : 1;
+                              final sportId = _config.sport.toLowerCase() == 'tennis' ? 2 : 1;
+                              final validCourts = venue.courts.where((c) => c.sportId == sportId || c.sportId == null).toList();
+                              final courtCount = validCourts.isNotEmpty ? validCourts.length : (venue.courts.isNotEmpty ? venue.courts.length : 1);
 
                               return InkWell(
                                 onTap: () {
                                   setState(() {
                                     _config.venueId = venue.venueId;
                                     _config.venueName = venue.namaVenue;
+                                    // Auto-adjust court count jika melebihi ketersediaan court cabang olahraga di venue ini
+                                    if (_config.courtCount > courtCount) {
+                                      _config.courtCount = courtCount;
+                                    }
                                   });
                                   Navigator.pop(context);
                                 },
@@ -371,7 +377,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                                             ),
                                             const SizedBox(height: 3),
                                             Text(
-                                              '${venue.kota ?? venue.alamat ?? 'Semua Lokasi'} • $courtCount Court',
+                                              '${venue.kota ?? venue.alamat ?? 'Semua Lokasi'} • $courtCount Court ${_config.sport}',
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 color: isSelected ? AppColors.matchaDark.withValues(alpha: 0.8) : const Color(0xFF64748B),
@@ -1143,8 +1149,15 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+    return PopScope(
+      canPop: _currentStep == 1,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _currentStep > 1) {
+          setState(() => _currentStep--);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -1208,6 +1221,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
           child: _buildCurrentStepView(),
         ),
       ),
+    ),
     );
   }
 
@@ -1227,6 +1241,45 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
   }
 
   // --- STEP 1: SPORT SELECTION ---
+  void _onSportSelected(String newSport) {
+    setState(() {
+      final oldSport = _config.sport;
+      _config.sport = newSport;
+
+      // Conditional reset/watcher jika pengguna mengubah olahraga induk
+      if (oldSport.isNotEmpty && oldSport.toLowerCase() != newSport.toLowerCase()) {
+        final newSportId = newSport.toLowerCase() == 'tennis' ? 2 : 1;
+
+        if (_config.venueId != null) {
+          final venue = _venues.cast<VenueModel?>().firstWhere(
+            (v) => v?.venueId == _config.venueId,
+            orElse: () => null,
+          );
+
+          if (venue != null && venue.courts.isNotEmpty) {
+            final validCourts = venue.courts
+                .where((c) => c.sportId == newSportId || c.sportId == null)
+                .toList();
+
+            if (validCourts.isEmpty) {
+              // Venue sebelumnya tidak memiliki court untuk olahraga baru -> reset venue dependensi
+              _config.venueId = null;
+              _config.venueName = '';
+              _config.courtCount = 1;
+            } else {
+              // Venue masih relevan -> sesuaikan (clamp) courtCount
+              if (_config.courtCount > validCourts.length) {
+                _config.courtCount = validCourts.length;
+              }
+            }
+          }
+        }
+      }
+
+      _currentStep = 2;
+    });
+  }
+
   Widget _buildStep1SportSelection() {
     return ListView(
       key: const ValueKey(1),
@@ -1246,12 +1299,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
           subtitle: 'Match Padel Tournament & Americano format',
           icon: Icons.sports_kabaddi,
           isSelected: _config.sport == 'Padel',
-          onTap: () {
-            setState(() {
-              _config.sport = 'Padel';
-              _currentStep = 2;
-            });
-          },
+          onTap: () => _onSportSelected('Padel'),
         ),
         const SizedBox(height: 12),
         _buildSportCard(
@@ -1259,12 +1307,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
           subtitle: 'Tennis single, double, sets & game scoring',
           icon: Icons.sports_tennis,
           isSelected: _config.sport == 'Tennis',
-          onTap: () {
-            setState(() {
-              _config.sport = 'Tennis';
-              _currentStep = 2;
-            });
-          },
+          onTap: () => _onSportSelected('Tennis'),
         ),
       ],
     );
@@ -1660,38 +1703,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
               const Divider(height: 1, color: Color(0xFFF1F5F9)),
               const SizedBox(height: 20),
 
-              // Numbers of Court
-              _buildSectionLabel('Numbers of Court *'),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _config.courtCount,
-                    isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8)),
-                    items: [1, 2, 3, 4].map((count) {
-                      return DropdownMenuItem<int>(
-                        value: count,
-                        child: Text('$count Court', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _config.courtCount = val);
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Divider(height: 1, color: Color(0xFFF1F5F9)),
-              const SizedBox(height: 20),
-
-              // Venue
+              // --- VENUE (dipindah ke atas Numbers of Court) ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1775,9 +1787,14 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                                   if (_config.venueId != null && _venues.any((v) => v.venueId == _config.venueId)) ...[
                                     const SizedBox(height: 2),
                                     Text(
-                                      _venues.firstWhere((v) => v.venueId == _config.venueId).kota ??
-                                          _venues.firstWhere((v) => v.venueId == _config.venueId).alamat ??
-                                          "Lokasi Terdaftar",
+                                      () {
+                                        final v = _venues.firstWhere((v) => v.venueId == _config.venueId);
+                                        final sportId = _config.sport.toLowerCase() == 'tennis' ? 2 : 1;
+                                        final sportCourts = v.courts.where((c) => c.sportId == sportId || c.sportId == null).toList();
+                                        final courtTotal = sportCourts.isNotEmpty ? sportCourts.length : (v.courts.isNotEmpty ? v.courts.length : 1);
+                                        final loc = v.kota ?? v.alamat ?? 'Lokasi Terdaftar';
+                                        return '$loc - $courtTotal Court ${_config.sport}';
+                                      }(),
                                       style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -1800,6 +1817,81 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                         ),
                 ),
               ),
+              const SizedBox(height: 20),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 20),
+
+              // --- NUMBERS OF COURT (dinamis berdasarkan venue) ---
+              _buildSectionLabel('Numbers of Court *'),
+              const SizedBox(height: 4),
+              Builder(builder: (context) {
+                // Cari jumlah court riil dari venue yang dipilih
+                final selectedVenueModel = _config.venueId != null && _venues.any((v) => v.venueId == _config.venueId)
+                    ? _venues.firstWhere((v) => v.venueId == _config.venueId)
+                    : null;
+                final sportId = _config.sport.toLowerCase() == 'tennis' ? 2 : 1;
+                final sportCourts = selectedVenueModel?.courts.where((c) => c.sportId == sportId || c.sportId == null).toList() ?? [];
+                final maxCourt = sportCourts.isNotEmpty
+                    ? sportCourts.length
+                    : (selectedVenueModel != null && selectedVenueModel.courts.isNotEmpty ? selectedVenueModel.courts.length : 4);
+
+                // Auto-clamp courtCount jika melebihi max
+                if (_config.courtCount > maxCourt) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() => _config.courtCount = maxCourt);
+                  });
+                }
+                final safeValue = _config.courtCount.clamp(1, maxCourt);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (selectedVenueModel != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          'Venue ini memiliki $maxCourt court ${_config.sport} tersedia',
+                          style: const TextStyle(fontSize: 10.5, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<int>(
+                          value: safeValue,
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8)),
+                          items: List.generate(maxCourt, (i) => i + 1).map((count) {
+                            return DropdownMenuItem<int>(
+                              value: count,
+                              child: Text(
+                                '$count Court${count > 1 ? 's' : ''}',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) setState(() => _config.courtCount = val);
+                          },
+                        ),
+                      ),
+                    ),
+                    if (selectedVenueModel == null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '* Pilih venue terlebih dahulu agar jumlah court disesuaikan',
+                          style: TextStyle(fontSize: 10, color: Colors.orange.shade700),
+                        ),
+                      ),
+                  ],
+                );
+              }),
               const SizedBox(height: 20),
               const Divider(height: 1, color: Color(0xFFF1F5F9)),
               const SizedBox(height: 20),
