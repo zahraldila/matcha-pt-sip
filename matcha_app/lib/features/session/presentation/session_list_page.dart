@@ -1247,7 +1247,7 @@ class _SessionListPageState extends State<SessionListPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const Spacer(),
                     // Status Pill
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
