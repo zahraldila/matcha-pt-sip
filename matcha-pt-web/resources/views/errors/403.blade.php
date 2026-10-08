@@ -6,10 +6,10 @@
 <div class="min-h-[75vh] flex items-center justify-center px-4 py-12">
     <div class="w-full max-w-xl text-center space-y-8 animate-in fade-in zoom-in-95 duration-200">
         
-        <div class="relative mx-auto w-32 h-32 flex items-center justify-center">
-            <div class="absolute inset-0 bg-amber-400/20 rounded-full blur-2xl animate-pulse"></div>
-            <div class="relative w-28 h-28 rounded-3xl bg-white border border-amber-200/50 shadow-xl flex items-center justify-center">
-                <div class="w-20 h-20 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
+        <div class="relative mx-auto flex items-center justify-center" style="width: 112px; height: 112px; min-width: 112px; min-height: 112px;">
+            <div class="absolute inset-0 bg-amber-400/20 rounded-full blur-2xl animate-pulse" style="width: 100%; height: 100%;"></div>
+            <div class="relative rounded-3xl bg-white border border-amber-200/50 shadow-xl flex items-center justify-center shrink-0" style="width: 100px; height: 100px; min-width: 100px; min-height: 100px;">
+                <div class="rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0" style="width: 76px; height: 76px; min-width: 76px; min-height: 76px;">
                     <i class="fa-solid fa-lock text-3xl"></i>
                 </div>
             </div>
@@ -17,7 +17,7 @@
 
         <div class="space-y-3">
             <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-black tracking-wider uppercase">
-                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0" style="width: 8px; height: 8px;"></span>
                 403 • Akses Terbatas
             </div>
 

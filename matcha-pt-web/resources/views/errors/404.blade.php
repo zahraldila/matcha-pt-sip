@@ -6,24 +6,30 @@
 <div class="min-h-[75vh] flex items-center justify-center px-4 py-12">
     <div class="w-full max-w-xl text-center space-y-8 animate-in fade-in zoom-in-95 duration-200">
         
-        <!-- Glowing Mascot / Icon Area -->
-        <div class="relative mx-auto w-32 h-32 flex items-center justify-center">
-            <div class="absolute inset-0 bg-[#A8E63A]/25 rounded-full blur-2xl animate-pulse"></div>
-            <div class="relative w-28 h-28 rounded-3xl bg-white border border-[#063B00]/10 shadow-xl flex items-center justify-center transform -rotate-3 hover:rotate-0 transition-transform duration-300">
-                <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#EBF8D8] to-[#d4f2a7] flex items-center justify-center text-[#063B00]">
-                    <i class="fa-solid fa-table-tennis-paddle-ball text-4xl transform -rotate-12"></i>
+        <!-- Glowing Mascot / Icon Area (Rock-solid dimensions) -->
+        <div class="relative mx-auto flex items-center justify-center" style="width: 112px; height: 112px; min-width: 112px; min-height: 112px;">
+            <!-- Ambient Glow -->
+            <div class="absolute inset-0 bg-[#A8E63A]/25 rounded-full blur-2xl animate-pulse" style="width: 100%; height: 100%;"></div>
+            
+            <!-- Outer Icon Box -->
+            <div class="relative rounded-3xl bg-white border border-[#063B00]/10 shadow-xl flex items-center justify-center transform -rotate-3 hover:rotate-0 transition-transform duration-300 shrink-0" style="width: 100px; height: 100px; min-width: 100px; min-height: 100px;">
+                <!-- Inner Icon Gradient -->
+                <div class="rounded-2xl bg-gradient-to-br from-[#EBF8D8] to-[#d4f2a7] flex items-center justify-center text-[#063B00] shadow-inner shrink-0" style="width: 76px; height: 76px; min-width: 76px; min-height: 76px;">
+                    <i class="fa-solid fa-table-tennis-paddle-ball text-3xl transform -rotate-12"></i>
                 </div>
             </div>
-            <span class="absolute -top-1 -right-1 flex h-6 w-6">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-6 w-6 bg-rose-500 text-white text-[11px] font-black items-center justify-center">!</span>
-            </span>
+
+            <!-- Exclamation Badge -->
+            <div class="absolute flex items-center justify-center" style="top: 0px; right: 0px; width: 26px; height: 26px; z-index: 10;">
+                <span class="animate-ping absolute inline-flex rounded-full bg-rose-400 opacity-75" style="width: 100%; height: 100%;"></span>
+                <span class="relative inline-flex rounded-full bg-rose-500 text-white font-black items-center justify-center shadow-md" style="width: 24px; height: 24px; font-size: 12px; line-height: 1;">!</span>
+            </div>
         </div>
 
         <!-- Text Content -->
         <div class="space-y-3">
             <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#EBF8D8] border border-[#063B00]/15 text-[#063B00] text-xs font-black tracking-wider uppercase">
-                <span class="w-2 h-2 rounded-full bg-[#063B00]"></span>
+                <span class="w-2 h-2 rounded-full bg-[#063B00] shrink-0" style="width: 8px; height: 8px;"></span>
                 404 • Not Found
             </div>
 
