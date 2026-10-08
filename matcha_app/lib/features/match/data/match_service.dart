@@ -364,16 +364,16 @@ class MatchService {
   /// - 'Finished' untuk pertandingan selesai
   String _normalizeMatchStatus(dynamic rawStatus) {
     final status = (rawStatus ?? '').toString().trim();
-    if (status.isEmpty) return 'In Progress';
+    if (status.isEmpty) return 'Scheduled';
     final lower = status.toLowerCase();
     if (lower == 'in progress' || lower == 'playing') {
       return 'In Progress';
     }
-    if (lower == 'finished') {
+    if (lower == 'finished' || lower == 'completed') {
       return 'Finished';
     }
-    if (lower == 'waiting') {
-      return 'Waiting';
+    if (lower == 'waiting' || lower == 'scheduled' || lower == 'pending') {
+      return 'Scheduled';
     }
     return status;
   }
