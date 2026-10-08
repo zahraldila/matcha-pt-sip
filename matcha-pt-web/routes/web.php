@@ -18,6 +18,22 @@ Route::get('/register', [AuthController::class, 'showRegister'])->name('register
 Route::post('/register', [AuthController::class, 'register'])->name('register.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// Well-Known endpoints for Deep Links (Android App Links & iOS Universal Links)
+Route::get('/.well-known/assetlinks.json', function () {
+    $path = public_path('.well-known/assetlinks.json');
+    if (file_exists($path)) {
+        return response()->file($path, ['Content-Type' => 'application/json']);
+    }
+    return response()->json([], 404);
+});
+Route::get('/.well-known/apple-app-site-association', function () {
+    $path = public_path('.well-known/apple-app-site-association');
+    if (file_exists($path)) {
+        return response()->file($path, ['Content-Type' => 'application/json']);
+    }
+    return response()->json([], 404);
+});
+
 // Dashboard & Home (Public)
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
