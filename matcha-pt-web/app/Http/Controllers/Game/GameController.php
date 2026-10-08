@@ -692,6 +692,29 @@ class GameController extends Controller
     }
 
     /**
+     * Handle link share sesi mabar (/games/share/{token}).
+     * Jika token valid, arahkan ke detail sesi. Jika token tidak valid / expired, tampilkan halaman khusus yang ramah.
+     */
+    public function share($token)
+    {
+        $cleanToken = trim((string) $token);
+        if ($cleanToken === '') {
+            return response()->view('games.share_invalid', [], 404);
+        }
+
+        try {
+            $session = SessionModel::where('share_token', $cleanToken)->first();
+            if (! $session) {
+                return response()->view('games.share_invalid', [], 404);
+            }
+
+            return redirect()->route('games.show', $session->session_id);
+        } catch (\Throwable $e) {
+            return response()->view('games.share_invalid', [], 404);
+        }
+    }
+
+    /**
      * Gabung ke sesi mabar dan hubungkan pemain ke tb_session_player di database Supabase.
      */
     public function joinSession($id, Request $request)

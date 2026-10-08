@@ -1158,30 +1158,52 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                         return;
                                       }
 
-                                      // 1. Simpan ke Galeri HP via Gal (MediaStore Android / Photos iOS)
+                                      // 1. Cek dan minta izin akses galeri/penyimpanan
+                                      bool hasAccess = false;
+                                      try {
+                                        hasAccess = await Gal.hasAccess();
+                                        if (!hasAccess) {
+                                          hasAccess = await Gal.requestAccess();
+                                        }
+                                      } catch (permError) {
+                                        debugPrint('Gal permission error: $permError');
+                                        hasAccess = false;
+                                      }
+
+                                      if (!hasAccess) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Izin akses galeri/foto diperlukan untuk menyimpan foto ke HP.'),
+                                              backgroundColor: Color(0xFFE11D48),
+                                              behavior: SnackBarBehavior.floating,
+                                            ),
+                                          );
+                                        }
+                                        return;
+                                      }
+
                                       bool savedToGallery = false;
                                       try {
-                                        final hasAccess = await Gal.hasAccess();
-                                        if (!hasAccess) {
-                                          final granted = await Gal.requestAccess();
-                                          if (!granted) {
-                                            if (context.mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text('Izin akses galeri diperlukan untuk menyimpan foto ke HP.'),
-                                                  backgroundColor: Color(0xFFE11D48),
-                                                ),
-                                              );
-                                            }
-                                            return;
-                                          }
-                                        }
-
                                         await Gal.putImageBytes(
                                           pngBytes,
                                           name: 'matcha_career_story_${DateTime.now().millisecondsSinceEpoch}',
                                         );
                                         savedToGallery = true;
+                                      } on GalException catch (galEx) {
+                                        debugPrint('Gal save exception: ${galEx.type}');
+                                        if (galEx.type == GalExceptionType.accessDenied) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Izin penyimpanan ditolak. Silakan aktifkan izin galeri/foto di Pengaturan HP.'),
+                                                backgroundColor: Color(0xFFE11D48),
+                                                behavior: SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          }
+                                          return;
+                                        }
                                       } catch (galError) {
                                         debugPrint('Gal save error: $galError');
                                       }

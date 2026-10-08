@@ -148,7 +148,7 @@ class AppLinkService {
       final SessionModel? session = await _sessionService.getSessionByShareToken(token);
 
       if (session == null) {
-        _showNotification('Sesi mabar tidak ditemukan atau link sudah tidak berlaku.');
+        _showFriendlyNotFoundDialog();
         return;
       }
 
@@ -170,6 +170,49 @@ class AppLinkService {
       _showNotification('Gagal memuat sesi mabar dari link.');
     } finally {
       _isResolving = false;
+    }
+  }
+
+  void _showFriendlyNotFoundDialog() {
+    final ctx = _navigatorKey?.currentContext;
+    if (ctx != null) {
+      showDialog(
+        context: ctx,
+        builder: (dialogCtx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: Colors.white,
+          title: const Row(
+            children: [
+              Icon(Icons.info_outline_rounded, color: Color(0xFFD97706), size: 24),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Sesi Tidak Ditemukan',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Sesi tidak ditemukan atau tautan sudah kedaluwarsa. Silakan periksa kembali tautan yang dibagikan atau temukan jadwal sesi mabar lainnya di Beranda.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF063B00),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Mengerti', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    } else {
+      _showNotification('Sesi tidak ditemukan atau tautan sudah kedaluwarsa.');
     }
   }
 
