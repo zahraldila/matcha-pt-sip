@@ -224,9 +224,11 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
         content: Text(
           successCount == count
               ? 'Berhasil menghapus $count venue.'
-              : 'Berhasil menghapus $successCount dari $count venue.',
+              : (successCount > 0
+                  ? 'Berhasil menghapus $successCount dari $count venue.'
+                  : 'Gagal menghapus venue terpilih.'),
         ),
-        backgroundColor: AppColors.matchaDark,
+        backgroundColor: successCount > 0 ? AppColors.matchaDark : const Color(0xFFE11D48),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

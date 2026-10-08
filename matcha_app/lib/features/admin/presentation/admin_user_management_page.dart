@@ -109,7 +109,10 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
       selectedRole = 'member';
     }
 
+    final isExistingAdmin = rawRole.contains('admin');
     bool obscurePassword = true;
+    String? nameError;
+    String? emailError;
 
     showDialog(
       context: context,
@@ -203,11 +206,28 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                   TextField(
                     controller: nameCtrl,
                     style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    onChanged: (val) {
+                      if (nameError != null) {
+                        setModalState(() => nameError = null);
+                      }
+                    },
                     decoration: InputDecoration(
+                      hintText: 'Masukkan nama lengkap',
+                      hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      errorText: nameError,
+                      errorStyle: const TextStyle(fontSize: 11, color: Color(0xFFEF4444), fontWeight: FontWeight.w500),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: nameError != null ? const Color(0xFFEF4444) : const Color(0xFFCBD5E1)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: nameError != null ? const Color(0xFFEF4444) : AppColors.matchaDark, width: 1.5),
+                      ),
+                      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+                      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -227,11 +247,28 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                     controller: emailCtrl,
                     keyboardType: TextInputType.emailAddress,
                     style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    onChanged: (val) {
+                      if (emailError != null) {
+                        setModalState(() => emailError = null);
+                      }
+                    },
                     decoration: InputDecoration(
+                      hintText: 'nama@email.com',
+                      hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      errorText: emailError,
+                      errorStyle: const TextStyle(fontSize: 11, color: Color(0xFFEF4444), fontWeight: FontWeight.w500),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: emailError != null ? const Color(0xFFEF4444) : const Color(0xFFCBD5E1)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: emailError != null ? const Color(0xFFEF4444) : AppColors.matchaDark, width: 1.5),
+                      ),
+                      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+                      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -270,12 +307,21 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                   const SizedBox(height: 5),
                   DropdownButtonFormField<String>(
                     initialValue: selectedRole,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isExistingAdmin ? const Color(0xFF64748B) : const Color(0xFF0F172A),
+                    ),
                     decoration: InputDecoration(
+                      filled: isExistingAdmin,
+                      fillColor: isExistingAdmin ? const Color(0xFFF8FAFC) : Colors.white,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                      prefixIcon: isExistingAdmin
+                          ? const Icon(Icons.lock_outline_rounded, size: 16, color: Color(0xFF94A3B8))
+                          : null,
                     ),
                     items: const [
                       DropdownMenuItem(value: 'member', child: Text('Member')),
@@ -283,14 +329,31 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                       DropdownMenuItem(value: 'venue_owner', child: Text('Venue Owner')),
                       DropdownMenuItem(value: 'admin', child: Text('Administrator')),
                     ],
-                    onChanged: (val) {
-                      if (val != null) {
-                        setModalState(() {
-                          selectedRole = val;
-                        });
-                      }
-                    },
+                    onChanged: isExistingAdmin
+                        ? null
+                        : (val) {
+                            if (val != null) {
+                              setModalState(() {
+                                selectedRole = val;
+                              });
+                            }
+                          },
                   ),
+                  if (isExistingAdmin) ...[
+                    const SizedBox(height: 5),
+                    const Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded, size: 13, color: Color(0xFF64748B)),
+                        SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            'Role Administrator bersifat permanen dan tidak dapat diubah ke role lain.',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 12),
 
                   // 5. Password Baru (opsional)
@@ -347,7 +410,30 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () async {
-                          if (nameCtrl.text.trim().isEmpty || emailCtrl.text.trim().isEmpty) return;
+                          final trimmedName = nameCtrl.text.trim();
+                          final trimmedEmail = emailCtrl.text.trim();
+
+                          String? newNameError;
+                          String? newEmailError;
+
+                          if (trimmedName.isEmpty) {
+                            newNameError = 'Nama lengkap wajib diisi.';
+                          }
+
+                          if (trimmedEmail.isEmpty) {
+                            newEmailError = 'Alamat email wajib diisi.';
+                          } else if (!RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(trimmedEmail)) {
+                            newEmailError = 'Format email tidak valid (contoh: user@mail.com).';
+                          }
+
+                          if (newNameError != null || newEmailError != null) {
+                            setModalState(() {
+                              nameError = newNameError;
+                              emailError = newEmailError;
+                            });
+                            return;
+                          }
+
                           final messenger = ScaffoldMessenger.of(context);
                           Navigator.pop(context);
                           setState(() => _isLoading = true);
@@ -355,8 +441,8 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                           try {
                             await _adminUserService.updateUser(
                               userId: user.userId,
-                              nama: nameCtrl.text.trim(),
-                              email: emailCtrl.text.trim(),
+                              nama: trimmedName,
+                              email: trimmedEmail,
                               noHp: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
                               role: selectedRole,
                               isHost: selectedRole == 'host',
@@ -368,7 +454,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                             if (!mounted) return;
                             messenger.showSnackBar(
                               SnackBar(
-                                content: Text('Data akun "${nameCtrl.text.trim()}" berhasil diperbarui.'),
+                                content: Text('Data akun "$trimmedName" berhasil diperbarui.'),
                                 backgroundColor: AppColors.matchaDark,
                               ),
                             );

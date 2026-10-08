@@ -211,9 +211,11 @@ class _CommunityPageState extends State<CommunityPage> {
         content: Text(
           successCount == count
               ? 'Berhasil menghapus $count komunitas.'
-              : 'Berhasil menghapus $successCount dari $count komunitas.',
+              : (successCount > 0
+                  ? 'Berhasil menghapus $successCount dari $count komunitas.'
+                  : 'Gagal menghapus komunitas terpilih.'),
         ),
-        backgroundColor: AppColors.matchaDark,
+        backgroundColor: successCount > 0 ? AppColors.matchaDark : const Color(0xFFE11D48),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -418,6 +420,18 @@ class _CommunityPageState extends State<CommunityPage> {
       if (loggedIn != true || !mounted) return;
     }
 
+    final currentUser = widget.authController?.currentUser;
+    if (currentUser != null && currentUser.isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Akses dibatasi: Akun Administrator tidak dapat membuat komunitas.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final created = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -559,27 +573,30 @@ class _CommunityPageState extends State<CommunityPage> {
 
               const SizedBox(height: 14),
 
-              // 2. Button Buat Komunitas Baru
-              SizedBox(
-                width: double.infinity,
-                height: 44,
-                child: ElevatedButton.icon(
-                  onPressed: _navigateToCreateCommunity,
-                  icon: const Icon(Icons.add_rounded, size: 18, color: Color(0xFFA8E63A)),
-                  label: const Text(
-                    'Buat Komunitas Baru',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF063B00),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              // 2. Button Buat Komunitas Baru (Khusus Member / Host / Guest)
+              if (widget.authController?.currentUser?.isAdmin != true) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton.icon(
+                    onPressed: _navigateToCreateCommunity,
+                    icon: const Icon(Icons.add_rounded, size: 18, color: Color(0xFFA8E63A)),
+                    label: const Text(
+                      'Buat Komunitas Baru',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF063B00),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
                   ),
                 ),
-              ),
-
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
+              ] else ...[
+                const SizedBox(height: 6),
+              ],
 
               // 3. Tab Filter (Semua Komunitas vs Komunitas Saya)
               Row(

@@ -85,33 +85,37 @@ class AdminUserService {
 
       await _supabase.from('tb_user').update(userUpdate).eq('user_id', userId);
 
-      // 2. Update tb_player jika ada data gender/usia/level
-      final existingPlayer = await _supabase
-          .from('tb_player')
-          .select('player_id')
-          .eq('user_id', userId)
-          .maybeSingle();
-
-      if (existingPlayer != null) {
-        final playerUpdate = <String, dynamic>{
-          'nama': nama.trim(),
-          'gender': ?gender,
-          'usia': ?usia,
-          'level': ?level,
-        };
-        await _supabase
+      // 2. Update tb_player secara aman
+      try {
+        final existingPlayers = await _supabase
             .from('tb_player')
-            .update(playerUpdate)
-            .eq('user_id', userId);
-      } else {
-        await _supabase.from('tb_player').insert({
-          'user_id': userId,
-          'nama': nama.trim(),
-          'gender': gender ?? 'Male',
-          'usia': usia ?? 22,
-          'level': level ?? 'Intermediate',
-          'rating': 1.00,
-        });
+            .select('player_id')
+            .eq('user_id', userId)
+            .limit(1);
+
+        if ((existingPlayers as List).isNotEmpty) {
+          final playerUpdate = <String, dynamic>{
+            'nama': nama.trim(),
+            'gender': ?gender,
+            'usia': ?usia,
+            'level': ?level,
+          };
+          await _supabase
+              .from('tb_player')
+              .update(playerUpdate)
+              .eq('user_id', userId);
+        } else if (role.trim().toLowerCase() != 'admin') {
+          await _supabase.from('tb_player').insert({
+            'user_id': userId,
+            'nama': nama.trim(),
+            'gender': gender ?? 'Male',
+            'usia': usia ?? 22,
+            'level': level ?? 'Intermediate',
+            'rating': 1.00,
+          });
+        }
+      } catch (_) {
+        // Player profile sync fallback
       }
     } on PostgrestException catch (e) {
       throw Exception('Gagal memperbarui data pengguna: ${e.message}');

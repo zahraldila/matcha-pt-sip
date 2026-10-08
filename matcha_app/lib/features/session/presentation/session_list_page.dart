@@ -352,9 +352,11 @@ class _SessionListPageState extends State<SessionListPage> {
         content: Text(
           successCount == count
               ? 'Berhasil menghapus $count sesi mabar.'
-              : 'Berhasil menghapus $successCount dari $count sesi mabar.',
+              : (successCount > 0
+                  ? 'Berhasil menghapus $successCount dari $count sesi mabar.'
+                  : 'Gagal menghapus sesi mabar terpilih.'),
         ),
-        backgroundColor: AppColors.matchaDark,
+        backgroundColor: successCount > 0 ? AppColors.matchaDark : const Color(0xFFE11D48),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

@@ -1159,27 +1159,12 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                         return;
                                       }
 
-                                      // 1. Cek dan minta izin akses galeri/penyimpanan via permission_handler & Gal
+                                      // 1. Cek & minta izin langsung dari prompt sistem bawaan HP
                                       bool hasAccess = false;
                                       try {
-                                        if (Platform.isAndroid) {
-                                          final photosStatus = await Permission.photos.status;
-                                          final storageStatus = await Permission.storage.status;
-                                          if (photosStatus.isGranted || storageStatus.isGranted) {
-                                            hasAccess = true;
-                                          } else {
-                                            final statuses = await [
-                                              Permission.photos,
-                                              Permission.storage,
-                                            ].request();
-                                            hasAccess = statuses[Permission.photos]?.isGranted == true ||
-                                                statuses[Permission.storage]?.isGranted == true;
-                                          }
-                                        } else {
-                                          hasAccess = await Gal.hasAccess();
-                                          if (!hasAccess) {
-                                            hasAccess = await Gal.requestAccess();
-                                          }
+                                        hasAccess = await Gal.hasAccess();
+                                        if (!hasAccess) {
+                                          hasAccess = await Gal.requestAccess();
                                         }
                                       } catch (permError) {
                                         debugPrint('Permission error: $permError');
@@ -1187,78 +1172,32 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                       }
 
                                       if (!hasAccess) {
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: const Text('Izin akses galeri/foto diperlukan untuk menyimpan foto ke HP.'),
-                                              backgroundColor: const Color(0xFFE11D48),
-                                              behavior: SnackBarBehavior.floating,
-                                              action: SnackBarAction(
-                                                label: 'Pengaturan',
-                                                textColor: Colors.white,
-                                                onPressed: () => openAppSettings(),
-                                              ),
-                                            ),
-                                          );
-                                        }
+                                        // Pengguna memilih 'Don't allow' pada dialog bawaan OS HP
                                         return;
                                       }
 
-                                      bool savedToGallery = false;
+                                      // 2. Simpan gambar ke Galeri HP
                                       try {
                                         await Gal.putImageBytes(
                                           pngBytes,
                                           name: 'matcha_career_story_${DateTime.now().millisecondsSinceEpoch}',
                                         );
-                                        savedToGallery = true;
-                                      } on GalException catch (galEx) {
-                                        debugPrint('Gal save exception: ${galEx.type}');
-                                        if (galEx.type == GalExceptionType.accessDenied) {
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Izin penyimpanan ditolak. Silakan aktifkan izin galeri/foto di Pengaturan HP.'),
-                                                backgroundColor: Color(0xFFE11D48),
-                                                behavior: SnackBarBehavior.floating,
-                                              ),
-                                            );
-                                          }
-                                          return;
+                                        if (context.mounted) {
+                                          Navigator.pop(ctx);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Gambar story berhasil tersimpan di Galeri foto HP! 🖼️✨'),
+                                              backgroundColor: Color(0xFF063B00),
+                                              behavior: SnackBarBehavior.floating,
+                                              duration: Duration(seconds: 4),
+                                            ),
+                                          );
                                         }
                                       } catch (galError) {
                                         debugPrint('Gal save error: $galError');
                                       }
-
-                                      // 2. Simpan juga salinan file lokal untuk aksi Buka/Share
-                                      final tempDir = await getTemporaryDirectory();
-                                      final fileName = 'matcha_career_story_${DateTime.now().millisecondsSinceEpoch}.png';
-                                      final savedFile = File('${tempDir.path}/$fileName');
-                                      await savedFile.writeAsBytes(pngBytes);
-
-                                      if (context.mounted) {
-                                        Navigator.pop(ctx);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text(savedToGallery
-                                                ? 'Gambar story berhasil tersimpan di Galeri foto HP! 🖼️✨'
-                                                : 'Gambar story berhasil tersimpan di perangkat! 📁✨'),
-                                            backgroundColor: const Color(0xFF063B00),
-                                            behavior: SnackBarBehavior.floating,
-                                            duration: const Duration(seconds: 5),
-                                            action: SnackBarAction(
-                                              label: 'Buka/Share',
-                                              textColor: const Color(0xFFA8E63A),
-                                              onPressed: () => Share.shareXFiles([XFile(savedFile.path)]),
-                                            ),
-                                          ),
-                                        );
-                                      }
                                     } catch (e) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Gagal menyimpan gambar: $e')),
-                                        );
-                                      }
+                                      debugPrint('Render error: $e');
                                     } finally {
                                       setModalState(() => isProcessing = false);
                                     }

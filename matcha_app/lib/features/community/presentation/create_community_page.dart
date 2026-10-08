@@ -209,6 +209,18 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
       if (loggedIn != true || !mounted) return;
     }
 
+    final currentUser = widget.authController?.currentUser;
+    if (currentUser != null && currentUser.isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Akses ditolak: Akun Administrator tidak dapat membuat komunitas.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
