@@ -1775,50 +1775,59 @@
         if (isTeamAmericano) {
             if (isFirstTo) {
                 options = [
-                    { val: '4', text: '4 Pemain (Tepat 2 Pasang Tim - First to X)' }
+                    { val: '4', text: '4 Pemain' }
                 ];
                 noticeMessage = `🎯 <strong>Team Americano (${scoringSystem})</strong>: Pertandingan langsung tuntas 1 court, kuota terkunci <strong>tepat 4 pemain (2 tim)</strong>.`;
             } else {
                 options = [
-                    { val: '4', text: '4 Pemain (2 Pasangan Tim)' },
-                    { val: '6', text: '6 Pemain (3 Pasangan Tim)' },
-                    { val: '8', text: '8 Pemain (4 Pasangan Tim)' },
-                    { val: '10', text: '10 Pemain (5 Pasangan Tim)' },
-                    { val: '12', text: '12 Pemain (6 Pasangan Tim)' }
+                    { val: '4', text: '4 Pemain' },
+                    { val: '6', text: '6 Pemain' },
+                    { val: '8', text: '8 Pemain' },
+                    { val: '10', text: '10 Pemain' },
+                    { val: '12', text: '12 Pemain' },
+                    { val: '14', text: '14 Pemain' },
+                    { val: '16', text: '16 Pemain' }
                 ];
                 noticeMessage = `👥 <strong>Team Americano</strong>: Setiap tim terdiri dari 2 orang tetap. Kuota pemain <strong>wajib genap</strong> (4, 6, 8, dst).`;
             }
         } else if (isSingle) {
             if (isFirstTo) {
                 options = [
-                    { val: '2', text: '2 Pemain (Tepat 1 vs 1 - First to X)' }
+                    { val: '2', text: '2 Pemain' }
                 ];
                 noticeMessage = `🎯 <strong>Americano Single (${scoringSystem})</strong>: Pertandingan 1v1 langsung tuntas, kuota terkunci <strong>tepat 2 pemain</strong>.`;
             } else {
                 options = [
-                    { val: '2', text: '2 Pemain (1 Court Non-Stop 1v1)' },
-                    { val: '3', text: '3 Pemain (1 Court Rotasi 1 Istirahat)' },
-                    { val: '4', text: '4 Pemain (1 Court Rotasi / 2 Court Single)' },
-                    { val: '5', text: '5 Pemain (Single Rotasi Adil)' },
-                    { val: '6', text: '6 Pemain (Single Multi-Player)' }
+                    { val: '2', text: '2 Pemain' },
+                    { val: '3', text: '3 Pemain' },
+                    { val: '4', text: '4 Pemain' },
+                    { val: '5', text: '5 Pemain' },
+                    { val: '6', text: '6 Pemain' },
+                    { val: '8', text: '8 Pemain' }
                 ];
                 noticeMessage = `🎾 <strong>Americano Single (1v1)</strong>: Setiap pemain saling berhadapan secara round-robin individu.`;
             }
         } else {
             if (isFirstTo) {
                 options = [
-                    { val: '4', text: '4 Pemain (Tepat 2 vs 2 - First to X)' }
+                    { val: '4', text: '4 Pemain' }
                 ];
                 noticeMessage = `🎯 <strong>Americano Double (${scoringSystem})</strong>: Pertandingan 2v2 langsung tuntas, kuota terkunci <strong>tepat 4 pemain</strong>.`;
             } else {
                 options = [
-                    { val: '4', text: '4 Pemain (1 Court Non-Stop 2v2)' },
-                    { val: '5', text: '5 Pemain (1 Court Rotasi Bench 1 Istirahat)' },
-                    { val: '6', text: '6 Pemain (1 Court Rotasi Bench 2 Istirahat)' },
-                    { val: '7', text: '7 Pemain (Rotasi 3 Istirahat)' },
-                    { val: '8', text: '8 Pemain (1 Court Rotasi / 2 Court Double)' },
-                    { val: '10', text: '10 Pemain (Kompetisi Komunitas)' },
-                    { val: '12', text: '12 Pemain (Multi-Court Tournament)' }
+                    { val: '4', text: '4 Pemain' },
+                    { val: '5', text: '5 Pemain' },
+                    { val: '6', text: '6 Pemain' },
+                    { val: '7', text: '7 Pemain' },
+                    { val: '8', text: '8 Pemain' },
+                    { val: '9', text: '9 Pemain' },
+                    { val: '10', text: '10 Pemain' },
+                    { val: '11', text: '11 Pemain' },
+                    { val: '12', text: '12 Pemain' },
+                    { val: '13', text: '13 Pemain' },
+                    { val: '14', text: '14 Pemain' },
+                    { val: '15', text: '15 Pemain' },
+                    { val: '16', text: '16 Pemain' }
                 ];
                 noticeMessage = `🔄 <strong>Americano Double</strong>: Pasangan partner berganti tiap ronde secara dinamis dan adil.`;
             }
