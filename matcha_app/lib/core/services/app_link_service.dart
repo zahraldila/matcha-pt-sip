@@ -162,8 +162,8 @@ class AppLinkService {
       final nav = _navigatorKey?.currentState;
       if (nav != null) {
         if (isFinished) {
-          // Buka SessionDetailPage di base stack lalu tampilkan SessionMatchRecapPage
-          await nav.push(
+          // Buka SessionDetailPage di base stack lalu tampilkan SessionMatchRecapPage di depan layar
+          nav.push(
             MaterialPageRoute(
               builder: (_) => SessionDetailPage(
                 sessionId: session.sessionId,
@@ -172,7 +172,7 @@ class AppLinkService {
               ),
             ),
           );
-          await nav.push(
+          nav.push(
             MaterialPageRoute(
               builder: (_) => SessionMatchRecapPage(
                 sessionId: session.sessionId,
