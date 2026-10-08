@@ -23,6 +23,7 @@ class SessionModel extends Model
         'status_session',
         'jumlah_pemain',
         'jenis_permainan',
+        'share_token',
     ];
 
     public function getJenisPermainanAttribute($value): string
