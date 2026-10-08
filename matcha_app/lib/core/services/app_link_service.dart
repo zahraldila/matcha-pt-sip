@@ -5,6 +5,7 @@ import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../features/session/data/session_service.dart';
 import '../../features/session/domain/session_model.dart';
 import '../../features/session/presentation/session_detail_page.dart';
+import '../../features/recap/presentation/session_match_recap_page.dart';
 
 class AppLinkService {
   static final AppLinkService _instance = AppLinkService._internal();
@@ -152,18 +153,45 @@ class AppLinkService {
         return;
       }
 
-      // Navigate to SessionDetailPage
+      final statusLower = session.statusSession.trim().toLowerCase();
+      final isFinished = statusLower == 'finished' ||
+          statusLower == 'completed' ||
+          statusLower == 'selesai';
+
+      // Navigate to SessionDetailPage or SessionMatchRecapPage
       final nav = _navigatorKey?.currentState;
       if (nav != null) {
-        await nav.push(
-          MaterialPageRoute(
-            builder: (_) => SessionDetailPage(
-              sessionId: session.sessionId,
-              initialSession: session,
-              authController: _authController,
+        if (isFinished) {
+          // Buka SessionDetailPage di base stack lalu tampilkan SessionMatchRecapPage
+          await nav.push(
+            MaterialPageRoute(
+              builder: (_) => SessionDetailPage(
+                sessionId: session.sessionId,
+                initialSession: session,
+                authController: _authController,
+              ),
             ),
-          ),
-        );
+          );
+          await nav.push(
+            MaterialPageRoute(
+              builder: (_) => SessionMatchRecapPage(
+                sessionId: session.sessionId,
+                session: session,
+                authController: _authController,
+              ),
+            ),
+          );
+        } else {
+          await nav.push(
+            MaterialPageRoute(
+              builder: (_) => SessionDetailPage(
+                sessionId: session.sessionId,
+                initialSession: session,
+                authController: _authController,
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('[AppLinkService] Error resolving session by share token: $e');
