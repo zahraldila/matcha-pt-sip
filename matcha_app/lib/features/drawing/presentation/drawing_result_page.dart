@@ -7,6 +7,7 @@ import '../../games/domain/game_wizard_model.dart';
 import '../../match/data/match_service.dart';
 import '../../match/presentation/match_scoring_page.dart';
 import '../domain/matcha_drawing_engine.dart';
+import '../../session/presentation/session_detail_page.dart';
 
 class DrawingResultPage extends StatefulWidget {
   final dynamic sessionId;
@@ -68,6 +69,35 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     if (_effectiveSessionId == null && widget.initialRounds != null) return true;
 
     return false;
+  }
+
+  bool _isReturningToDetail = false;
+
+  void _goToSessionDetail() {
+    if (_isReturningToDetail ||
+        _isSavingDrawing ||
+        _isStartingScoring) {
+      return;
+    }
+
+    final sessionId = int.tryParse(_effectiveSessionId.toString());
+
+    if (sessionId == null) {
+      Navigator.maybePop(context);
+      return;
+    }
+
+    _isReturningToDetail = true;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => SessionDetailPage(
+          sessionId: sessionId,
+          authController: widget.authController,
+        ),
+      ),
+      (route) => route.isFirst,
+    );
   }
 
   @override
@@ -183,6 +213,13 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
 
         if (savedRounds != null && savedRounds.isNotEmpty) {
           _rounds = savedRounds;
+          _config.courtCount = savedRounds
+              .expand((round) => round.matches)
+              .fold<int>(
+                1,
+                (highest, match) =>
+                    match.courtNumber > highest ? match.courtNumber : highest,
+              );
         } else if (_rounds.isNotEmpty && _isHostUser) {
           // Keep existing host rounds
         } else if (widget.initialRounds != null && widget.initialRounds!.isNotEmpty && _isHostUser) {
@@ -381,8 +418,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildDrawingContent(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
@@ -392,7 +428,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-            onPressed: () => Navigator.pop(context),
+            onPressed: _goToSessionDetail,
           ),
         ),
         body: const Center(
@@ -420,7 +456,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-            onPressed: () => Navigator.pop(context),
+            onPressed: _goToSessionDetail,
           ),
         ),
         body: Center(
@@ -462,7 +498,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-            onPressed: () => Navigator.pop(context),
+            onPressed: _goToSessionDetail,
           ),
         ),
         body: Center(
@@ -543,7 +579,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _goToSessionDetail,
         ),
         title: Column(
           children: [
@@ -1007,6 +1043,19 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           ),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: _effectiveSessionId == null &&
+          !_isSavingDrawing &&
+          !_isStartingScoring,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _goToSessionDetail();
+      },
+      child: _buildDrawingContent(context),
     );
   }
 
