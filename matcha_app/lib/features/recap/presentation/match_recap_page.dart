@@ -14,7 +14,9 @@ import '../../../core/utils/app_error_handler.dart';
 import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../drawing/presentation/drawing_result_page.dart';
+import '../../main/presentation/main_shell_page.dart';
 import '../../match/presentation/match_scoring_page.dart';
+import '../../profile/presentation/profile_page.dart';
 import '../../session/presentation/create_session_page.dart';
 import '../../session/presentation/session_detail_page.dart';
 import '../data/recap_service.dart';
@@ -3163,33 +3165,143 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
         if (!career.hasMatches)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(28),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               children: [
                 Container(
-                  width: 50,
-                  height: 50,
+                  width: 64,
+                  height: 64,
                   decoration: BoxDecoration(
                     color: const Color(0xFFEBF8D8),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: const Color(0xFF063B00).withValues(alpha: 0.2),
+                    ),
                   ),
-                  child: const Icon(Icons.sports_tennis_rounded, color: Color(0xFF063B00), size: 28),
+                  child: const Center(
+                    child: Icon(
+                      Icons.sports_tennis_rounded,
+                      color: Color(0xFF063B00),
+                      size: 30,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 const Text(
                   'Belum Ada Riwayat Pertandingan',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Ikuti dan selesaikan sesi mabar padel atau tenis untuk mulai mencatat performa karier dan win rate Anda di sini!',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                    color: Color(0xFF0F172A),
+                  ),
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 6),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    'Anda belum memiliki riwayat pertandingan yang selesai. Ikuti dan selesaikan sesi mabar padel atau tenis untuk mulai mencatat performa karier, win rate, dan statistik bermain Anda di sini!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF64748B),
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MainShellPage(
+                              authController: widget.authController,
+                              initialIndex: 1, // Tab Mabar
+                            ),
+                          ),
+                          (route) => false,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.calendar_month_rounded,
+                        size: 15,
+                        color: Color(0xFFA8E63A),
+                      ),
+                      label: const Text(
+                        'Cari Jadwal Mabar',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF063B00),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ProfilePage(
+                              authController: widget.authController,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.badge_outlined,
+                        size: 15,
+                        color: Color(0xFF64748B),
+                      ),
+                      label: const Text(
+                        'Lengkapi Profil',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
