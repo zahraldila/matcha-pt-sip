@@ -812,10 +812,10 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
+                        shape: BoxShape.circle,
                         color: (user.foto != null && user.foto!.isNotEmpty)
                             ? Colors.transparent
                             : const Color(0xFF063B00),
-                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: const Color(0xFFE2E8F0),
                           width: 1.5,
@@ -1048,6 +1048,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
       height: 44,
       decoration: const BoxDecoration(
         color: Color(0xFF063B00),
+        shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
       child: Text(
