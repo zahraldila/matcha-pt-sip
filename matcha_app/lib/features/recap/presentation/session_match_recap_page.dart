@@ -1208,15 +1208,20 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                         if (Platform.isAndroid) {
                                           final photosStatus = await Permission.photos.status;
                                           final storageStatus = await Permission.storage.status;
-                                          if (photosStatus.isGranted || storageStatus.isGranted) {
+                                          if (photosStatus.isGranted || storageStatus.isGranted || photosStatus.isLimited) {
                                             hasAccess = true;
                                           } else {
-                                            final statuses = await [
-                                              Permission.photos,
-                                              Permission.storage,
-                                            ].request();
-                                            hasAccess = statuses[Permission.photos]?.isGranted == true ||
-                                                statuses[Permission.storage]?.isGranted == true;
+                                            final reqPhotos = await Permission.photos.request();
+                                            final reqStorage = await Permission.storage.request();
+                                            hasAccess = reqPhotos.isGranted || reqStorage.isGranted || reqPhotos.isLimited;
+                                          }
+                                        } else if (Platform.isIOS) {
+                                          final photosStatus = await Permission.photos.status;
+                                          if (photosStatus.isGranted || photosStatus.isLimited) {
+                                            hasAccess = true;
+                                          } else {
+                                            final reqPhotos = await Permission.photos.request();
+                                            hasAccess = reqPhotos.isGranted || reqPhotos.isLimited;
                                           }
                                         } else {
                                           hasAccess = await Gal.hasAccess();
@@ -1231,9 +1236,50 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
                                       if (!hasAccess) {
                                         if (context.mounted) {
+                                          Navigator.pop(ctx);
+                                          showDialog(
+                                            context: context,
+                                            builder: (dialogCtx) => AlertDialog(
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                              title: const Row(
+                                                children: [
+                                                  Icon(Icons.error_outline_rounded, color: Color(0xFFE11D48)),
+                                                  SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Izin Penyimpanan Ditolak',
+                                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              content: const Text(
+                                                'Izin penyimpanan ditolak. Silakan aktifkan izin galeri/foto di Pengaturan HP untuk menyimpan gambar story.',
+                                                style: TextStyle(fontSize: 13, color: Colors.black87),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(dialogCtx),
+                                                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                                                ),
+                                                ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: const Color(0xFF063B00),
+                                                    foregroundColor: const Color(0xFFA8E63A),
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                  ),
+                                                  onPressed: () {
+                                                    Navigator.pop(dialogCtx);
+                                                    openAppSettings();
+                                                  },
+                                                  child: const Text('Buka Pengaturan'),
+                                                ),
+                                              ],
+                                            ),
+                                          );
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
-                                              content: const Text('Izin akses galeri/foto diperlukan untuk menyimpan foto ke HP.'),
+                                              content: const Text('Izin penyimpanan ditolak. Silakan aktifkan izin galeri/foto di Pengaturan HP'),
                                               backgroundColor: const Color(0xFFE11D48),
                                               behavior: SnackBarBehavior.floating,
                                               action: SnackBarAction(
@@ -1247,59 +1293,56 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                         return;
                                       }
 
-                                      bool savedToGallery = false;
                                       try {
                                         await Gal.putImageBytes(
                                           pngBytes,
                                           name: 'matcha_story_${data.sessionId}_${DateTime.now().millisecondsSinceEpoch}',
                                         );
-                                        savedToGallery = true;
+                                        if (context.mounted) {
+                                          Navigator.pop(ctx);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Gambar story berhasil tersimpan di Galeri foto HP! 🖼️✨'),
+                                              backgroundColor: Color(0xFF063B00),
+                                              behavior: SnackBarBehavior.floating,
+                                              duration: Duration(seconds: 4),
+                                            ),
+                                          );
+                                        }
                                       } on GalException catch (galEx) {
                                         debugPrint('Gal save exception: ${galEx.type}');
-                                        if (galEx.type == GalExceptionType.accessDenied) {
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Izin penyimpanan ditolak. Silakan aktifkan izin galeri/foto di Pengaturan HP.'),
-                                                backgroundColor: Color(0xFFE11D48),
-                                                behavior: SnackBarBehavior.floating,
+                                        if (context.mounted) {
+                                          Navigator.pop(ctx);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(galEx.type == GalExceptionType.accessDenied
+                                                  ? 'Izin penyimpanan ditolak. Silakan aktifkan izin galeri/foto di Pengaturan HP.'
+                                                  : 'Gagal menyimpan ke galeri: ${galEx.type.name}'),
+                                              backgroundColor: const Color(0xFFE11D48),
+                                              behavior: SnackBarBehavior.floating,
+                                              action: SnackBarAction(
+                                                label: 'Pengaturan',
+                                                textColor: Colors.white,
+                                                onPressed: () => openAppSettings(),
                                               ),
-                                            );
-                                          }
-                                          return;
+                                            ),
+                                          );
                                         }
                                       } catch (galError) {
                                         debugPrint('Gal save error: $galError');
-                                      }
-
-                                      // 2. Simpan juga salinan file lokal untuk aksi Buka/Share
-                                      final tempDir = await getTemporaryDirectory();
-                                      final fileName = 'matcha_story_${data.sessionId}_${DateTime.now().millisecondsSinceEpoch}.png';
-                                      final savedFile = File('${tempDir.path}/$fileName');
-                                      await savedFile.writeAsBytes(pngBytes);
-
-                                      if (context.mounted) {
-                                        Navigator.pop(ctx);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text(savedToGallery
-                                                ? 'Gambar story berhasil tersimpan di Galeri foto HP! 🖼️✨'
-                                                : 'Gambar story berhasil tersimpan di perangkat! 📁✨'),
-                                            backgroundColor: const Color(0xFF063B00),
-                                            behavior: SnackBarBehavior.floating,
-                                            duration: const Duration(seconds: 5),
-                                            action: SnackBarAction(
-                                              label: 'Buka/Share',
-                                              textColor: const Color(0xFFA8E63A),
-                                              onPressed: () {
-                                                Share.shareXFiles([XFile(savedFile.path)]);
-                                              },
+                                        if (context.mounted) {
+                                          Navigator.pop(ctx);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Gagal menyimpan gambar ke galeri: $galError'),
+                                              backgroundColor: const Color(0xFFE11D48),
                                             ),
-                                          ),
-                                        );
+                                          );
+                                        }
                                       }
                                     } catch (e) {
                                       if (context.mounted) {
+                                        Navigator.pop(ctx);
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(content: Text('Gagal menyimpan gambar: $e')),
                                         );
