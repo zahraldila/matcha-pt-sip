@@ -28,8 +28,9 @@ class AppLinkService {
 
   /// Pure parser: Validates scheme, domain, path, and extracts shareToken
   static String? extractShareToken(Uri uri) {
-    // 1. Validate scheme: only HTTPS
-    if (uri.scheme.toLowerCase() != 'https') {
+    // 1. Validate scheme: HTTPS or HTTP
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'https' && scheme != 'http') {
       return null;
     }
 
