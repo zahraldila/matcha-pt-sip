@@ -373,8 +373,13 @@
                     </div>
 
                     <div class="space-y-1.5 min-w-0 relative" id="wrapper_court">
-                        <label class="block font-bold text-slate-800 truncate">Pilih Court / Lapangan <span class="text-rose-500">*</span></label>
-                        <input type="hidden" name="court_id" id="courtIdInput" value="{{ old('court_id') }}" required>
+                        <div class="flex items-center justify-between">
+                            <label class="block font-bold text-slate-800 truncate">Pilih Court / Lapangan <span class="text-rose-500">*</span></label>
+                            <span id="courtSelectionBadge" class="text-[10px] font-bold text-[#063B00] bg-[#EBF8D8] px-2 py-0.5 rounded-full border border-[#063B00]/15 hidden">1 Lapangan</span>
+                        </div>
+                        <div id="courtHiddenInputsContainer">
+                            <input type="hidden" name="court_ids[]" id="courtIdInput" value="{{ old('court_id') }}" required>
+                        </div>
                         <div class="relative min-w-0">
                             <button
                                 type="button"
@@ -388,12 +393,13 @@
 
                             <div
                                 id="courtMenu"
-                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto"
+                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-2 space-y-1.5 animate-in fade-in zoom-in-95 duration-150 max-h-64 overflow-y-auto"
                                 onclick="event.stopPropagation()"
                             >
                                 <!-- Populated dynamically via updateCourtsDropdown() -->
                             </div>
                         </div>
+                        <p id="courtHintText" class="text-[11px] text-emerald-800 font-medium hidden flex items-center gap-1.5 pt-0.5"></p>
                     </div>
                 </div>
 
@@ -1658,12 +1664,15 @@
         }
     }
 
+    let selectedCourtIds = [];
+
     function updateCourtsDropdown() {
         const venueInput = document.getElementById('venueIdInput');
         const courtMenu = document.getElementById('courtMenu');
         const courtDisplay = document.getElementById('courtDisplay');
-        const courtInput = document.getElementById('courtIdInput');
-        if (!courtMenu || !courtInput) return;
+        const badge = document.getElementById('courtSelectionBadge');
+        const hintText = document.getElementById('courtHintText');
+        if (!courtMenu) return;
         courtMenu.innerHTML = '';
 
         const venueId = venueInput ? parseInt(venueInput.value) : NaN;
@@ -1673,12 +1682,15 @@
         updateVenueOperatingHours(selectedVenue);
 
         if (!selectedVenue) {
-            courtInput.value = '';
+            selectedCourtIds = [];
+            renderSelectedCourtsUI([]);
             if (courtDisplay) {
                 courtDisplay.textContent = 'Pilih venue terlebih dahulu';
                 courtDisplay.classList.add('text-slate-400');
                 courtDisplay.classList.remove('text-slate-900');
             }
+            if (badge) badge.classList.add('hidden');
+            if (hintText) hintText.classList.add('hidden');
             courtMenu.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 font-medium">Pilih venue terlebih dahulu</div>';
             return;
         }
@@ -1688,50 +1700,199 @@
         );
 
         if (filteredCourts.length === 0) {
-            courtInput.value = '';
+            selectedCourtIds = [];
+            renderSelectedCourtsUI([]);
             if (courtDisplay) {
                 courtDisplay.textContent = 'Tidak ada court yang tersedia';
                 courtDisplay.classList.add('text-slate-400');
                 courtDisplay.classList.remove('text-slate-900');
             }
+            if (badge) badge.classList.add('hidden');
+            if (hintText) hintText.classList.add('hidden');
             courtMenu.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 font-medium">Tidak ada court yang tersedia untuk olahraga ini</div>';
             return;
         }
 
-        let selectedCourtObj = null;
-        if (courtInput.value) {
-            selectedCourtObj = filteredCourts.find(c => parseInt(c.court_id) === parseInt(courtInput.value));
-        }
-        if (!selectedCourtObj) {
-            selectedCourtObj = filteredCourts[0];
+        // Validate and retain existing selection if valid
+        const validCourtIds = filteredCourts.map(c => parseInt(c.court_id));
+        selectedCourtIds = selectedCourtIds.filter(id => validCourtIds.includes(id));
+
+        if (selectedCourtIds.length === 0) {
+            // Default select first court
+            selectedCourtIds = [validCourtIds[0]];
         }
 
+        renderCourtMenuItems(filteredCourts);
+        renderSelectedCourtsUI(filteredCourts);
+    }
+
+    function renderCourtMenuItems(filteredCourts) {
+        const courtMenu = document.getElementById('courtMenu');
+        if (!courtMenu) return;
+        courtMenu.innerHTML = '';
+
+        if (filteredCourts.length > 1) {
+            const isAllSelected = selectedCourtIds.length === filteredCourts.length;
+            const header = document.createElement('div');
+            header.className = 'flex items-center justify-between pb-1.5 px-1 border-b border-slate-100 text-[11px] text-slate-500 font-medium';
+            header.innerHTML = `
+                <span>Pilih Lapangan:</span>
+                <button type="button" onclick="toggleSelectAllCourts(event)" class="text-[#063B00] hover:underline font-bold text-[11px] cursor-pointer">
+                    ${isAllSelected ? 'Pilih 1 Saja' : 'Pilih Semua Lapangan'}
+                </button>
+            `;
+            courtMenu.appendChild(header);
+        }
+
+        const listWrap = document.createElement('div');
+        listWrap.className = 'space-y-1';
+
         filteredCourts.forEach(court => {
-            const maxCourtLen = 35;
-            const truncatedCourt = court.nama_court && court.nama_court.length > maxCourtLen ? court.nama_court.substring(0, maxCourtLen) + '...' : court.nama_court;
-            const isSelected = selectedCourtObj && parseInt(selectedCourtObj.court_id) === parseInt(court.court_id);
+            const cId = parseInt(court.court_id);
+            const isSelected = selectedCourtIds.includes(cId);
 
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = `court-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer ${isSelected ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}`;
-            btn.setAttribute('data-val', court.court_id);
+            btn.className = `court-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer ${isSelected ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-transparent'}`;
+            btn.setAttribute('data-val', cId);
             btn.title = court.nama_court;
-            btn.innerHTML = `<span class="truncate pr-2">${truncatedCourt}</span><i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 ${isSelected ? '' : 'hidden'}"></i>`;
-            btn.onclick = () => {
-                selectScheduleOption('court', court.court_id, truncatedCourt);
+            
+            const detailInfo = [court.tipe_court, court.harga_per_jam ? `Rp ${parseInt(court.harga_per_jam).toLocaleString('id-ID')}/jam` : null].filter(Boolean).join(' • ');
+
+            btn.innerHTML = `
+                <div class="flex flex-col min-w-0 pr-2">
+                    <span class="truncate font-bold">${court.nama_court}</span>
+                    ${detailInfo ? `<span class="text-[10px] text-slate-400 font-normal truncate">${detailInfo}</span>` : ''}
+                </div>
+                <div class="shrink-0 flex items-center pl-2">
+                    <i class="${isSelected ? 'fa-solid fa-square-check text-[#063B00] text-base' : 'fa-regular fa-square text-slate-300 text-base'}"></i>
+                </div>
+            `;
+
+            btn.onclick = (e) => {
+                toggleCourtSelection(cId, e);
             };
-            courtMenu.appendChild(btn);
+
+            listWrap.appendChild(btn);
         });
 
-        if (selectedCourtObj) {
-            const maxCourtLen = 35;
-            const truncatedCourt = selectedCourtObj.nama_court && selectedCourtObj.nama_court.length > maxCourtLen ? selectedCourtObj.nama_court.substring(0, maxCourtLen) + '...' : selectedCourtObj.nama_court;
-            courtInput.value = selectedCourtObj.court_id;
-            if (courtDisplay) {
-                courtDisplay.textContent = truncatedCourt;
-                courtDisplay.classList.remove('text-slate-400');
-                courtDisplay.classList.add('text-slate-900');
+        courtMenu.appendChild(listWrap);
+
+        if (filteredCourts.length > 1) {
+            const footer = document.createElement('div');
+            footer.className = 'pt-1.5 border-t border-slate-100 flex items-center justify-between px-1';
+            footer.innerHTML = `
+                <span class="text-[11px] text-slate-500 font-semibold">${selectedCourtIds.length} dari ${filteredCourts.length} lapangan dipilih</span>
+                <button type="button" onclick="closeScheduleDropdowns()" class="px-3 py-1 bg-[#063B00] text-white text-[11px] font-bold rounded-xl hover:bg-[#063B00]/90 transition-colors cursor-pointer">
+                    Selesai
+                </button>
+            `;
+            courtMenu.appendChild(footer);
+        }
+    }
+
+    function toggleCourtSelection(courtId, e) {
+        if (e) e.stopPropagation();
+        const venueInput = document.getElementById('venueIdInput');
+        const venueId = venueInput ? parseInt(venueInput.value) : NaN;
+        const selectedVenue = isNaN(venueId) ? null : venuesData.find(v => v.venue_id === venueId);
+        const filteredCourts = selectedVenue ? (selectedVenue.courts || []).filter(c => parseInt(c.sport_id) === currentSportId && isCourtAvailable(c)) : [];
+
+        const index = selectedCourtIds.indexOf(courtId);
+        if (index > -1) {
+            // Uncheck only if not the last selected one
+            if (selectedCourtIds.length > 1) {
+                selectedCourtIds.splice(index, 1);
             }
+        } else {
+            // Check
+            selectedCourtIds.push(courtId);
+        }
+
+        renderCourtMenuItems(filteredCourts);
+        renderSelectedCourtsUI(filteredCourts);
+    }
+
+    function toggleSelectAllCourts(e) {
+        if (e) e.stopPropagation();
+        const venueInput = document.getElementById('venueIdInput');
+        const venueId = venueInput ? parseInt(venueInput.value) : NaN;
+        const selectedVenue = isNaN(venueId) ? null : venuesData.find(v => v.venue_id === venueId);
+        const filteredCourts = selectedVenue ? (selectedVenue.courts || []).filter(c => parseInt(c.sport_id) === currentSportId && isCourtAvailable(c)) : [];
+
+        if (selectedCourtIds.length === filteredCourts.length) {
+            // Reset to first court only
+            selectedCourtIds = [parseInt(filteredCourts[0].court_id)];
+        } else {
+            // Select all
+            selectedCourtIds = filteredCourts.map(c => parseInt(c.court_id));
+        }
+
+        renderCourtMenuItems(filteredCourts);
+        renderSelectedCourtsUI(filteredCourts);
+    }
+
+    function renderSelectedCourtsUI(filteredCourts) {
+        const hiddenContainer = document.getElementById('courtHiddenInputsContainer');
+        const courtDisplay = document.getElementById('courtDisplay');
+        const badge = document.getElementById('courtSelectionBadge');
+        const hintText = document.getElementById('courtHintText');
+        const trigger = document.getElementById('courtTrigger');
+
+        if (!filteredCourts || filteredCourts.length === 0) {
+            if (hiddenContainer) hiddenContainer.innerHTML = '';
+            return;
+        }
+
+        if (hiddenContainer) {
+            hiddenContainer.innerHTML = '';
+            selectedCourtIds.forEach(id => {
+                const inp = document.createElement('input');
+                inp.type = 'hidden';
+                inp.name = 'court_ids[]';
+                inp.value = id;
+                hiddenContainer.appendChild(inp);
+            });
+            // Single court_id for backward compatibility
+            const singleInp = document.createElement('input');
+            singleInp.type = 'hidden';
+            singleInp.name = 'court_id';
+            singleInp.id = 'courtIdInput';
+            singleInp.value = selectedCourtIds[0] || '';
+            hiddenContainer.appendChild(singleInp);
+        }
+
+        const selectedObjs = filteredCourts.filter(c => selectedCourtIds.includes(parseInt(c.court_id)));
+        const courtNames = selectedObjs.map(c => c.nama_court);
+
+        if (courtDisplay) {
+            courtDisplay.classList.remove('text-slate-400');
+            courtDisplay.classList.add('text-slate-900');
+            if (courtNames.length === 1) {
+                courtDisplay.textContent = `${courtNames[0]} (1 Lapangan)`;
+            } else if (courtNames.length === filteredCourts.length && filteredCourts.length > 1) {
+                courtDisplay.textContent = `Semua Lapangan (${courtNames.join(', ')})`;
+            } else {
+                courtDisplay.textContent = `${courtNames.join(', ')} (${courtNames.length} Lapangan)`;
+            }
+        }
+
+        if (trigger) {
+            trigger.classList.remove('border-rose-400', 'bg-rose-50/50');
+        }
+
+        if (badge) {
+            badge.textContent = `${courtNames.length} Lapangan`;
+            badge.classList.remove('hidden');
+        }
+
+        if (hintText) {
+            if (courtNames.length === 1) {
+                hintText.innerHTML = `<i class="fa-solid fa-circle-check text-xs text-emerald-600"></i> <span>1 Lapangan aktif: Pertandingan bergantian di <strong>${courtNames[0]}</strong>.</span>`;
+            } else {
+                hintText.innerHTML = `<i class="fa-solid fa-circle-check text-xs text-emerald-600"></i> <span><strong>${courtNames.length} Lapangan aktif</strong>: Pertandingan berjalan serentak (${courtNames.join(' & ')}).</span>`;
+            }
+            hintText.classList.remove('hidden');
         }
     }
 

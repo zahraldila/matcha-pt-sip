@@ -598,7 +598,9 @@ class GameController extends Controller
             'format' => 'nullable|in:Americano,Team Americano',
             'scoring_system' => 'nullable|string|max:50',
             'venue_id' => 'required|integer|exists:tb_venue,venue_id',
-            'court_id' => 'required|integer|exists:tb_court,court_id',
+            'court_id' => 'nullable|integer|exists:tb_court,court_id',
+            'court_ids' => 'nullable|array|min:1',
+            'court_ids.*' => 'integer|exists:tb_court,court_id',
             'tanggal' => 'required|date|after_or_equal:today',
             'jam' => 'required|string',
             'durasi' => 'required|string',
@@ -703,8 +705,21 @@ class GameController extends Controller
                 'jenis_permainan' => $jenisPermainan,
             ]);
 
-            // 2. Attach court
-            $session->courts()->attach($request->court_id);
+            // 2. Attach courts (mendukung multi-court atau single-court)
+            $courtIds = [];
+            if ($request->has('court_ids') && is_array($request->court_ids) && count($request->court_ids) > 0) {
+                $courtIds = array_values(array_filter(array_map('intval', $request->court_ids)));
+            } elseif ($request->filled('court_id')) {
+                $courtIds = [(int) $request->court_id];
+            }
+
+            if (empty($courtIds)) {
+                return back()->withInput()->withErrors([
+                    'court_id' => 'Pilih minimal satu court / lapangan untuk sesi mabar ini.',
+                ]);
+            }
+
+            $session->courts()->sync($courtIds);
 
             // 3. Attach host ke session players jika opsi (+ Add Yourself) dicentang
             if ($request->boolean('include_host_as_player')) {
