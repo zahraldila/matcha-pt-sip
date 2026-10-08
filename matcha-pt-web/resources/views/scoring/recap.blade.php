@@ -1152,7 +1152,8 @@
 
     function copyWebLink(btn) {
         const targetBtn = btn || document.getElementById('btnCopyWebLink');
-        navigator.clipboard.writeText(window.location.href);
+        const shareUrl = "{{ !empty($game['share_url']) ? $game['share_url'] : url()->current() }}";
+        navigator.clipboard.writeText(shareUrl);
         
         if (targetBtn) {
             const originalHtml = targetBtn.innerHTML;
@@ -1176,7 +1177,7 @@
         const shareTitle = 'Hasil Match MATCHA — {{ addslashes($game["title"] ?? "Mabar Session") }}';
         const topPlayerName = '{{ addslashes($rankedPlayers[0]["name"] ?? "") }}';
         const sportName = '{{ addslashes($game["sport"] ?? "Tennis / Padel") }}';
-        const url = window.location.href;
+        const url = "{{ !empty($game['share_url']) ? $game['share_url'] : url()->current() }}";
         
         let shareText = `🎾 *HASIL MATCH MATCHA* 🏆\n` +
                         `📌 *Sesi:* {{ addslashes($game["title"] ?? "Matcha Session") }}\n` +

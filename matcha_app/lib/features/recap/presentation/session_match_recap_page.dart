@@ -14,6 +14,7 @@ import '../../../core/utils/app_error_handler.dart';
 import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../main/presentation/main_shell_page.dart';
+import '../../session/data/session_service.dart';
 import '../../session/domain/session_model.dart';
 import '../data/recap_service.dart';
 import '../domain/recap_models.dart';
@@ -448,17 +449,27 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         // Salin Link Button
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
-                              final url = 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
+                            onTap: () async {
+                              String? shareToken = widget.session?.shareToken?.trim();
+                              if (shareToken == null || shareToken.isEmpty) {
+                                try {
+                                  shareToken = await SessionService().ensureShareToken(data.sessionId);
+                                } catch (_) {}
+                              }
+                              final url = (shareToken != null && shareToken.isNotEmpty)
+                                  ? 'https://matcha.siproduktif.com/games/share/$shareToken'
+                                  : 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
                               Clipboard.setData(ClipboardData(text: url));
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Tautan rekap web berhasil disalin! 🔗'),
-                                  backgroundColor: Color(0xFF063B00),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Tautan rekap berhasil disalin! 🔗'),
+                                    backgroundColor: Color(0xFF063B00),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
                             },
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 9),
@@ -497,18 +508,19 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         // Bagikan Link Direct Button
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
-                              final url = 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
+                            onTap: () async {
+                              String? shareToken = widget.session?.shareToken?.trim();
+                              if (shareToken == null || shareToken.isEmpty) {
+                                try {
+                                  shareToken = await SessionService().ensureShareToken(data.sessionId);
+                                } catch (_) {}
+                              }
+                              final url = (shareToken != null && shareToken.isNotEmpty)
+                                  ? 'https://matcha.siproduktif.com/games/share/$shareToken'
+                                  : 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
                               final shareText = '🎾 Hasil Mabar: ${data.sessionName}\n🏆 Pemenang: ${data.standings.isNotEmpty ? data.standings.first.nama : '-'}\nLihat rekap selengkapnya di: $url';
-                              Clipboard.setData(ClipboardData(text: shareText));
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Teks & tautan siap dibagikan ke WhatsApp/Telegram! 🚀'),
-                                  backgroundColor: Color(0xFF063B00),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              await Share.share(shareText);
                             },
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 9),
