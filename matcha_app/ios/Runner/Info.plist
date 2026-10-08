@@ -51,5 +51,10 @@
 	<string>Matcha requires access to save story recap photos to your gallery.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Matcha requires access to your photo gallery to select and save recap photos.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+		<string>https</string>
+	</array>
 </dict>
 </plist>

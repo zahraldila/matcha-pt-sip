@@ -708,6 +708,11 @@ class GameController extends Controller
                 return response()->view('games.share_invalid', [], 404);
             }
 
+            $statusLower = strtolower(trim((string) ($session->status_session ?? '')));
+            if (in_array($statusLower, ['finished', 'completed', 'selesai'], true)) {
+                return redirect()->route('scoring.recap', $session->session_id);
+            }
+
             return redirect()->route('games.show', $session->session_id);
         } catch (\Throwable $e) {
             return response()->view('games.share_invalid', [], 404);

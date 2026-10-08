@@ -92,12 +92,39 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
         } else {
           _allVenues = venues;
         }
+
+        // Pre-select venue dari initialVenueId segera setelah data siap
+        if (widget.initialVenueId != null) {
+          _selectedVenue = _allVenues
+              .where((v) => v.venueId == widget.initialVenueId)
+              .firstOrNull;
+        }
+
+        // Auto-set sport: dari initialSportId atau derive dari lapangan venue yang terpilih
+        if (widget.initialSportId != null) {
+          _selectedSportId = widget.initialSportId!;
+        } else if (_selectedVenue != null && _selectedSportId == null) {
+          // Pilih sport pertama yang tersedia di venue ini
+          final firstCourt = _selectedVenue!.courts.where((c) =>
+              c.sportId != null &&
+              (c.statusKetersediaan == null ||
+                  c.statusKetersediaan!.toLowerCase() == 'available')).firstOrNull;
+          if (firstCourt != null) {
+            _selectedSportId = firstCourt.sportId;
+          }
+        }
+
+        // Setelah sport & venue terpilih, set court yang sesuai
+        if (_selectedVenue != null && _selectedSportId != null) {
+          final matchingCourts = _selectedVenue!.courts.where((c) =>
+              c.sportId == _selectedSportId &&
+              (c.statusKetersediaan == null ||
+                  c.statusKetersediaan!.toLowerCase() == 'available')).toList();
+          _selectedCourt = matchingCourts.firstOrNull;
+        }
+
         _isLoading = false;
       });
-
-      if (_selectedSportId != null) {
-        _applySportSelection(_selectedSportId!, initialVenueId: widget.initialVenueId);
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -105,23 +132,21 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     }
   }
 
-  void _applySportSelection(int sportId, {int? initialVenueId}) {
+  void _applySportSelection(int sportId) {
     _selectedSportId = sportId;
 
-    // Filter venues that have available courts for this sport
-    final matchingVenues = _allVenues.where((v) {
-      return v.courts.any((c) =>
+    // Jika venue yang sudah terpilih tidak punya lapangan untuk sport ini, reset
+    if (_selectedVenue != null) {
+      final hasMatchingCourt = _selectedVenue!.courts.any((c) =>
           c.sportId == _selectedSportId &&
           (c.statusKetersediaan == null ||
               c.statusKetersediaan!.toLowerCase() == 'available'));
-    }).toList();
-
-    if (initialVenueId != null) {
-      final targetVenue = matchingVenues.where((v) => v.venueId == initialVenueId).firstOrNull;
-      if (targetVenue != null) {
-        _selectedVenue = targetVenue;
+      if (!hasMatchingCourt) {
+        _selectedVenue = null;
+        _selectedCourt = null;
       }
     }
+
     if (_selectedVenue != null) {
       final matchingCourts = _selectedVenue!.courts.where((c) =>
           c.sportId == _selectedSportId &&
@@ -726,10 +751,11 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                                   if (!mounted) return;
                                   setState(() {
                                     _allVenues = updatedVenues;
+                                    // Pre-select venue baru
+                                    _selectedVenue = newVenue;
                                     if (_selectedSportId != null) {
-                                      _applySportSelection(_selectedSportId!, initialVenueId: newVenue.venueId);
+                                      _applySportSelection(_selectedSportId!);
                                     } else {
-                                      _selectedVenue = newVenue;
                                       _selectedCourt = newVenue.courts.firstOrNull;
                                     }
                                   });
