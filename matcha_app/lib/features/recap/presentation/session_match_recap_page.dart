@@ -2033,7 +2033,6 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     final winRate = totalMatches > 0 && p != null ? ((p.matchesWon / totalMatches) * 100).round() : (data.myStats?.winRatePercent ?? 0);
     final wins = p?.matchesWon ?? data.myStats?.wins ?? 0;
     final losses = p?.matchesLost ?? data.myStats?.losses ?? 0;
-    final duration = data.myStats?.durationPlayed ?? '45m';
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2128,36 +2127,17 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 ],
               ),
               const SizedBox(height: 6),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
-                      child: Column(
-                        children: [
-                          const Text('MATCH RECORD', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5)),
-                          const SizedBox(height: 2),
-                          Text('${wins}W - ${losses}L', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
-                      child: Column(
-                        children: [
-                          const Text('DURASI MAIN', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5)),
-                          const SizedBox(height: 2),
-                          Text(duration, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
+                child: Column(
+                  children: [
+                    const Text('MATCH RECORD', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5)),
+                    const SizedBox(height: 2),
+                    Text('${wins}W - ${losses}L', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white)),
+                  ],
+                ),
               ),
             ],
           ),
@@ -3197,27 +3177,6 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       Text(
                         '${stat.winRatePercent}%',
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF16A34A)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text('Durasi', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                      const SizedBox(height: 2),
-                      Text(
-                        stat.durationPlayed,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
                       ),
                     ],
                   ),
