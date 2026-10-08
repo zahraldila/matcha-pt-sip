@@ -11,8 +11,13 @@ import 'venue_detail_page.dart';
 
 class VenueDirectoryPage extends StatefulWidget {
   final AuthController? authController;
+  final String? initialOwnerFilter;
 
-  const VenueDirectoryPage({super.key, this.authController});
+  const VenueDirectoryPage({
+    super.key,
+    this.authController,
+    this.initialOwnerFilter,
+  });
 
   @override
   State<VenueDirectoryPage> createState() => _VenueDirectoryPageState();
@@ -34,6 +39,9 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialOwnerFilter != null) {
+      _selectedOwnerFilter = widget.initialOwnerFilter!;
+    }
     _loadVenues();
     widget.authController?.addListener(_onAuthChanged);
   }
@@ -159,6 +167,26 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: Navigator.canPop(context)
+          ? AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: Text(
+                _selectedOwnerFilter == 'mine' ? 'Kelola Venue Saya' : 'Direktori Venue',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              centerTitle: true,
+            )
+          : null,
       body: RefreshIndicator(
         onRefresh: _loadVenues,
         color: AppColors.matchaDark,

@@ -638,7 +638,7 @@ class _MainShellPageState extends State<MainShellPage> {
     final size = renderBox?.size ?? const Size(40, 40);
 
     final isHost = user.isHost;
-    final isVenueOwner = user.role == 'venue_owner';
+    final isVenueOwner = user.isVenueOwner;
 
     showGeneralDialog(
       context: context,
@@ -789,6 +789,28 @@ class _MainShellPageState extends State<MainShellPage> {
                       const Divider(height: 1, color: Color(0xFFF1F5F9)),
 
                       // Menu Items
+                      if (isVenueOwner) ...[
+                        _buildDropdownMenuItem(
+                          icon: Icons.workspace_premium_rounded,
+                          iconColor: const Color(0xFFD97706),
+                          label: 'Kelola Venue Saya',
+                          textColor: const Color(0xFF063B00),
+                          isBold: true,
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => VenueDirectoryPage(
+                                  authController: widget.authController,
+                                  initialOwnerFilter: 'mine',
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      ],
                       _buildDropdownMenuItem(
                         icon: Icons.show_chart_rounded,
                         iconColor: const Color(0xFF64748B),
@@ -848,6 +870,8 @@ class _MainShellPageState extends State<MainShellPage> {
     required String label,
     required VoidCallback onTap,
     bool isDestructive = false,
+    Color? textColor,
+    bool isBold = false,
   }) {
     return InkWell(
       onTap: onTap,
@@ -857,12 +881,16 @@ class _MainShellPageState extends State<MainShellPage> {
           children: [
             Icon(icon, size: 16, color: iconColor),
             const SizedBox(width: 10),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isDestructive ? FontWeight.w800 : FontWeight.w600,
-                color: isDestructive ? const Color(0xFFE11D48) : const Color(0xFF334155),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isBold || isDestructive ? FontWeight.w800 : FontWeight.w600,
+                  color: isDestructive
+                      ? const Color(0xFFE11D48)
+                      : (textColor ?? const Color(0xFF334155)),
+                ),
               ),
             ),
           ],
