@@ -38,6 +38,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     setState(() => _isLoading = true);
     try {
       final users = await _adminUserService.getAllUsers();
+      users.sort((a, b) => a.nama.toLowerCase().compareTo(b.nama.toLowerCase()));
       if (!mounted) return;
       setState(() {
         _allUsers = users;
@@ -56,7 +57,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   }
 
   List<UserModel> get _filteredUsers {
-    return _allUsers.where((u) {
+    final list = _allUsers.where((u) {
       // Role Filter
       if (_selectedRoleFilter != 'all') {
         if (_selectedRoleFilter == 'host') {
@@ -77,6 +78,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
 
       return true;
     }).toList();
+
+    list.sort((a, b) => a.nama.toLowerCase().compareTo(b.nama.toLowerCase()));
+    return list;
   }
 
   int _countByRole(String roleKey) {

@@ -32,7 +32,7 @@ class AdminUserService {
               community_id
             )
           ''')
-          .order('user_id', ascending: true);
+          .order('nama', ascending: true);
 
       final list = (response as List).map((json) {
         final userData = Map<String, dynamic>.from(json);
@@ -42,6 +42,8 @@ class AdminUserService {
             : null;
         return UserModel.fromJson(userData, playerJson: playerJson);
       }).toList();
+
+      list.sort((a, b) => a.nama.toLowerCase().compareTo(b.nama.toLowerCase()));
 
       return list;
     } on PostgrestException catch (e) {
@@ -93,9 +95,9 @@ class AdminUserService {
       if (existingPlayer != null) {
         final playerUpdate = <String, dynamic>{
           'nama': nama.trim(),
-          if (gender != null) 'gender': gender,
-          if (usia != null) 'usia': usia,
-          if (level != null) 'level': level,
+          'gender': ?gender,
+          'usia': ?usia,
+          'level': ?level,
         };
         await _supabase
             .from('tb_player')
