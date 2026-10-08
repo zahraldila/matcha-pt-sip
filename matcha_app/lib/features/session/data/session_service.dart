@@ -530,6 +530,7 @@ class SessionService {
     String? deskripsi,
     int? hostUserId,
     int? hostPlayerId,
+    bool addYourselfAsPlayer = false,
   }) async {
     try {
       final waktuSession = '$jam WIB ($durasi)';
@@ -567,6 +568,14 @@ class SessionService {
         'session_id': sessionId,
         'court_id': courtId,
       });
+
+      // 3. Jika host memilih "Add Yourself", daftarkan host sebagai peserta
+      if (addYourselfAsPlayer && hostPlayerId != null) {
+        await _supabase.from('tb_session_player').insert({
+          'session_id': sessionId,
+          'player_id': hostPlayerId,
+        });
+      }
 
       return sessionId;
     } on PostgrestException catch (e) {

@@ -56,6 +56,8 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
   int _selectedQuota = 6;
   String _selectedLevel = 'All Level';
 
+  bool _addYourselfAsPlayer = false; // Add Yourself (host ikut bermain, default tidak ikut)
+
   bool get _isFirstToSystem =>
       _selectedScoringSystem.toLowerCase().startsWith('first to');
 
@@ -1010,6 +1012,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
         deskripsi: _descController.text.trim(),
         hostUserId: user?.userId,
         hostPlayerId: user?.playerId,
+        addYourselfAsPlayer: _addYourselfAsPlayer,
       );
 
       if (!mounted) return;
@@ -1775,6 +1778,86 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                         style: const TextStyle(fontSize: 12),
                         decoration: _buildInputDecoration(
                           hint: 'Contoh: Harap hadir 15 menit sebelum mabar dimulai. Bola sudah disediakan oleh host, sewa raket tersedia di tempat.',
+                        ),
+                      ),
+                      // Add Yourself Toggle — host ikut bermain sebagai peserta
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: () => setState(() => _addYourselfAsPlayer = !_addYourselfAsPlayer),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _addYourselfAsPlayer
+                                ? const Color(0xFFF0FDF4)
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _addYourselfAsPlayer
+                                  ? const Color(0xFF86EFAC)
+                                  : const Color(0xFFE2E8F0),
+                              width: _addYourselfAsPlayer ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: _addYourselfAsPlayer
+                                      ? AppColors.matchaDark
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: _addYourselfAsPlayer
+                                        ? AppColors.matchaDark
+                                        : const Color(0xFFCBD5E1),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: _addYourselfAsPlayer
+                                    ? const Icon(Icons.check_rounded,
+                                        size: 13, color: Color(0xFFA8E63A))
+                                    : null,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '+ Add Yourself (Ikut Bermain)',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: _addYourselfAsPlayer
+                                            ? const Color(0xFF15803D)
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                    Text(
+                                      _addYourselfAsPlayer
+                                          ? 'Kamu akan terdaftar sebagai salah satu peserta'
+                                          : 'Kamu tidak ikut bermain, hanya sebagai host',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: _addYourselfAsPlayer
+                                            ? const Color(0xFF16A34A)
+                                            : const Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.person_add_alt_1_rounded,
+                                size: 18,
+                                color: _addYourselfAsPlayer
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFFCBD5E1),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
