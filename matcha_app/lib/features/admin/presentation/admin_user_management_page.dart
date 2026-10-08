@@ -38,6 +38,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     setState(() => _isLoading = true);
     try {
       final users = await _adminUserService.getAllUsers();
+      users.sort((a, b) => a.nama.toLowerCase().compareTo(b.nama.toLowerCase()));
       if (!mounted) return;
       setState(() {
         _allUsers = users;
@@ -56,7 +57,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   }
 
   List<UserModel> get _filteredUsers {
-    return _allUsers.where((u) {
+    final list = _allUsers.where((u) {
       // Role Filter
       if (_selectedRoleFilter != 'all') {
         if (_selectedRoleFilter == 'host') {
@@ -77,6 +78,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
 
       return true;
     }).toList();
+
+    list.sort((a, b) => a.nama.toLowerCase().compareTo(b.nama.toLowerCase()));
+    return list;
   }
 
   int _countByRole(String roleKey) {
@@ -411,6 +415,30 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   }
 
   Future<void> _handleDeleteUser(UserModel user) async {
+    final currentUserId = widget.authController?.currentUser?.userId;
+    if (currentUserId != null && user.userId == currentUserId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.shield_outlined, color: Colors.white, size: 18),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Aksi Ditolak: Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif login.',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFE11D48),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => Dialog(
@@ -518,7 +546,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     setState(() => _isLoading = true);
 
     try {
-      await _adminUserService.deleteUser(user.userId);
+      await _adminUserService.deleteUser(user.userId, currentUserId: currentUserId);
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
@@ -776,133 +804,317 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   }
 
   Widget _buildUserCard(UserModel user, int index) {
-    final genderStr = user.gender != null && user.gender!.toLowerCase().startsWith('f') ? 'P' : 'L';
-    final ageStr = user.usia != null ? '${user.usia} thn' : '22 thn';
+    final currentUserId = widget.authController?.currentUser?.userId;
+    final isCurrentUser = currentUserId != null && user.userId == currentUserId;
+    final genderStr = user.gender != null && user.gender!.toLowerCase().startsWith('f')
+        ? 'Perempuan'
+        : 'Laki-laki';
+    final ageStr = user.usia != null ? '${user.usia} thn' : null;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: const Color(0xFF063B00).withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Index number
-          Container(
-            width: 22,
-            padding: const EdgeInsets.only(top: 2),
-            child: Text(
-              '$index',
-              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)),
+          // Top Row: Avatar, User Details, Role Badge
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Avatar with rounded-14 container & index chip
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: (user.foto != null && user.foto!.isNotEmpty)
+                            ? Colors.transparent
+                            : const Color(0xFF063B00),
+                        border: Border.all(
+                          color: const Color(0xFFE2E8F0),
+                          width: 1.5,
+                        ),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: (user.foto != null && user.foto!.isNotEmpty)
+                          ? Image.network(
+                              user.foto!,
+                              width: 44,
+                              height: 44,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => _buildAvatarFallback(user),
+                            )
+                          : _buildAvatarFallback(user),
+                    ),
+                    Positioned(
+                      top: -4,
+                      left: -4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '#$index',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+
+                // Name & Email
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              user.nama,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isCurrentUser) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDCFCE7),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFF86EFAC)),
+                              ),
+                              child: const Text(
+                                'Akun Anda',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF15803D),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          const Icon(Icons.mail_outline_rounded, size: 12, color: Color(0xFF94A3B8)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              user.email,
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: Color(0xFF64748B),
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Role Badge
+                _buildRoleBadge(user),
+              ],
             ),
           ),
 
-          // Avatar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: user.foto != null && user.foto!.isNotEmpty
-                ? Image.network(
-                    user.foto!,
-                    width: 38,
-                    height: 38,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _buildAvatarFallback(user),
-                  )
-                : _buildAvatarFallback(user),
-          ),
-          const SizedBox(width: 12),
+          // Divider
+          const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
 
-          // Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // Bottom Row: Meta Chips & Action Buttons
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        user.nama,
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
+                // Info Chips
+                Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      // Phone Chip
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.phone_outlined, size: 11, color: Color(0xFF64748B)),
+                            const SizedBox(width: 4),
+                            Text(
+                              (user.noHp != null && user.noHp!.isNotEmpty) ? user.noHp! : 'No Phone',
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Gender & Age Chip
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Text(
+                          ageStr != null ? '$genderStr • $ageStr' : genderStr,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+
+                      // Skill Level Chip (Matcha Soft Lime style)
+                      if (user.level != null && user.level!.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEBF8D8),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0xFF063B00).withValues(alpha: 0.15),
+                            ),
+                          ),
+                          child: Text(
+                            'Level: ${user.level!}',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF063B00),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                // Action Buttons: Edit & Delete
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Edit button
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _showEditUserModal(user),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                          ),
+                          child: const Icon(
+                            Icons.edit_outlined,
+                            size: 15,
+                            color: Color(0xFF15803D),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 6),
-                    _buildRoleBadge(user),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  user.email,
-                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 2,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      user.noHp != null && user.noHp!.isNotEmpty ? user.noHp! : 'Tanpa No. HP',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                    ),
-                    const Text('•', style: TextStyle(fontSize: 10, color: Color(0xFFCBD5E1))),
-                    Text(
-                      '$genderStr / $ageStr',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
-                    ),
-                    if (user.level != null && user.level!.isNotEmpty) ...[
-                      const Text('•', style: TextStyle(fontSize: 10, color: Color(0xFFCBD5E1))),
-                      Text(
-                        user.level!,
-                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF063B00)),
+                    // Delete button
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: isCurrentUser
+                            ? () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Row(
+                                      children: [
+                                        Icon(Icons.shield_outlined, color: Colors.white, size: 18),
+                                        SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'Aksi Ditolak: Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif login.',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: const Color(0xFFE11D48),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                );
+                              }
+                            : () => _handleDeleteUser(user),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: isCurrentUser ? const Color(0xFFF1F5F9) : const Color(0xFFFFF1F2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isCurrentUser ? const Color(0xFFE2E8F0) : const Color(0xFFFECDD3),
+                            ),
+                          ),
+                          child: Icon(
+                            isCurrentUser ? Icons.lock_outline_rounded : Icons.delete_outline_rounded,
+                            size: 15,
+                            color: isCurrentUser ? const Color(0xFF94A3B8) : const Color(0xFFE11D48),
+                          ),
+                        ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 6),
-
-          // Action buttons (Edit & Delete)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF063B00)),
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => _showEditUserModal(user),
-                tooltip: 'Edit Data Pengguna',
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFE11D48)),
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => _handleDeleteUser(user),
-                tooltip: 'Hapus Pengguna',
-              ),
-            ],
           ),
         ],
       ),
@@ -911,20 +1123,19 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
 
   Widget _buildAvatarFallback(UserModel user) {
     return Container(
-      width: 38,
-      height: 38,
-      decoration: BoxDecoration(
-        color: AppColors.matchaDark,
-        borderRadius: BorderRadius.circular(19),
+      width: 44,
+      height: 44,
+      decoration: const BoxDecoration(
+        color: Color(0xFF063B00),
+        shape: BoxShape.circle,
       ),
-      child: Center(
-        child: Text(
-          user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFFA8E63A),
-          ),
+      alignment: Alignment.center,
+      child: Text(
+        user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
         ),
       ),
     );
@@ -934,54 +1145,97 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     final role = user.role.toLowerCase();
     if (role == 'admin' || role == 'administrator' || role == 'superadmin') {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFCBD5E1)),
+          color: const Color(0xFF0F172A),
+          borderRadius: BorderRadius.circular(8),
         ),
-        child: const Text(
-          'Administrator',
-          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF334155)),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.shield_rounded, size: 10, color: Color(0xFFA8E63A)),
+            SizedBox(width: 3.5),
+            Text(
+              'Administrator',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+          ],
         ),
       );
     } else if (user.isHost || role == 'host') {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: const Color(0xFFFEF3C7),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: const Color(0xFFFDE68A)),
         ),
-        child: const Text(
-          'Host',
-          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFFB45309)),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.bolt_rounded, size: 11, color: Color(0xFFD97706)),
+            SizedBox(width: 3),
+            Text(
+              'Host Game',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF92400E),
+              ),
+            ),
+          ],
         ),
       );
     } else if (role == 'venue_owner') {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: const Color(0xFFE0F2FE),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: const Color(0xFFBAE6FD)),
         ),
-        child: const Text(
-          'Venue Owner',
-          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF0284C7)),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.storefront_rounded, size: 11, color: Color(0xFF0284C7)),
+            SizedBox(width: 3),
+            Text(
+              'Venue Owner',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0369A1),
+              ),
+            ),
+          ],
         ),
       );
     } else {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: const Color(0xFFEBF8D8),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.18)),
         ),
-        child: const Text(
-          'Member',
-          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF166534)),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.sports_tennis_rounded, size: 11, color: Color(0xFF063B00)),
+            SizedBox(width: 3),
+            Text(
+              'Member Pemain',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF063B00),
+              ),
+            ),
+          ],
         ),
       );
     }
