@@ -1202,31 +1202,26 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                         return;
                                       }
 
-                                      // 1. Cek status izin akses galeri/foto
-                                      bool isGranted = false;
+                                      // 1. Minta izin akses foto/galeri langsung ke sistem HP
+                                      bool hasAccess = false;
                                       try {
                                         if (Platform.isAndroid) {
-                                          final photosStatus = await Permission.photos.status;
-                                          final storageStatus = await Permission.storage.status;
-                                          isGranted = photosStatus.isGranted || storageStatus.isGranted || photosStatus.isLimited;
+                                          final status = await Permission.photos.request();
+                                          final storage = await Permission.storage.request();
+                                          hasAccess = status.isGranted || storage.isGranted || status.isLimited;
                                         } else if (Platform.isIOS) {
-                                          final photosStatus = await Permission.photos.status;
-                                          isGranted = photosStatus.isGranted || photosStatus.isLimited;
+                                          final status = await Permission.photos.request();
+                                          hasAccess = status.isGranted || status.isLimited;
+                                        } else {
+                                          hasAccess = await Gal.requestAccess();
                                         }
                                       } catch (_) {
-                                        isGranted = false;
+                                        hasAccess = false;
                                       }
 
-                                      if (!isGranted) {
-                                        if (context.mounted) {
-                                          final userChoice = await _showNativeStylePermissionDialog(context);
-                                          if (userChoice != true) {
-                                            // Pengguna memilih 'Jangan izinkan'
-                                            return;
-                                          }
-                                        } else {
-                                          return;
-                                        }
+                                      if (!hasAccess) {
+                                        // Pengguna memilih 'Jangan izinkan' pada dialog bawaan OS HP
+                                        return;
                                       }
 
                                       // 2. Simpan gambar ke Galeri HP
@@ -3236,101 +3231,4 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
   }
 }
 
-Future<bool?> _showNativeStylePermissionDialog(BuildContext context) {
-  return showDialog<bool>(
-    context: context,
-    builder: (dialogCtx) => Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      backgroundColor: Colors.white,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 40),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: const BoxDecoration(
-                color: Color(0xFFEFF6FF),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.photo_library_outlined,
-                color: Color(0xFF2563EB),
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Izinkan Matcha mengakses foto dan video di perangkat ini?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF0F172A),
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: 24),
-            _PermissionOptionButton(
-              title: 'Saat aplikasi digunakan',
-              onTap: () => Navigator.pop(dialogCtx, true),
-            ),
-            const SizedBox(height: 8),
-            _PermissionOptionButton(
-              title: 'Hanya kali ini',
-              onTap: () => Navigator.pop(dialogCtx, true),
-            ),
-            const SizedBox(height: 8),
-            _PermissionOptionButton(
-              title: 'Jangan izinkan',
-              isDestructive: true,
-              onTap: () => Navigator.pop(dialogCtx, false),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _PermissionOptionButton extends StatelessWidget {
-  final String title;
-  final VoidCallback onTap;
-  final bool isDestructive;
-
-  const _PermissionOptionButton({
-    required this.title,
-    required this.onTap,
-    this.isDestructive = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: isDestructive ? const Color(0xFF64748B) : const Color(0xFF0F172A),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
