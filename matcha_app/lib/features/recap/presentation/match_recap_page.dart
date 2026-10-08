@@ -9,7 +9,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/app_error_handler.dart';
 import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
@@ -475,8 +474,11 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                         Expanded(
                           child: GestureDetector(
                             onTap: () {
-                              const url = 'https://matcha.siproduktif.com/player/recap';
-                              Clipboard.setData(const ClipboardData(text: url));
+                              final user = widget.authController?.currentUser;
+                              final targetId = user?.userId ?? user?.playerId;
+                              final targetParam = (targetId != null && targetId > 0) ? '/$targetId' : '';
+                              final url = 'https://matcha.siproduktif.com/player/recap$targetParam';
+                              Clipboard.setData(ClipboardData(text: url));
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -523,12 +525,16 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                         Expanded(
                           child: GestureDetector(
                             onTap: () {
+                              final user = widget.authController?.currentUser;
+                              final targetId = user?.userId ?? user?.playerId;
+                              final targetParam = (targetId != null && targetId > 0) ? '/$targetId' : '';
+                              final url = 'https://matcha.siproduktif.com/player/recap$targetParam';
                               final shareText =
                                   '🎾 *Rekap Karir Pemain: ${career.playerName}*\n'
                                   '📊 ${career.totalMatches} Match | ${career.wins}W ${career.losses}L\n'
                                   '📈 Win Rate: ${career.winRate} | Streak: ${career.streak}\n'
                                   '⏱️ Jam Bermain: ${career.totalHours}\n'
-                                  'Lihat rekap selengkapnya: https://matcha.siproduktif.com/player/recap\n'
+                                  'Lihat rekap selengkapnya: $url\n'
                                   '#MatchaApp #PadelTennis #PlayerStats';
                               Clipboard.setData(ClipboardData(text: shareText));
                               Navigator.pop(ctx);
