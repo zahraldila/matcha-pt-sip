@@ -1463,6 +1463,15 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     }
 
     final isFinished = _computeIsFinished(session);
+    final currentUser = widget.authController?.currentUser;
+    final isHost = currentUser != null && currentUser.userId == session.hostUserId;
+
+    // Host yang belum join sebagai peserta → tampilkan tombol "Ikut Serta Bermain"
+    final isHostNotJoined = isHost &&
+        !isUserJoined &&
+        !isFinished &&
+        !session.isFull &&
+        currentUser?.playerId != null;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1505,6 +1514,50 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                     ],
                   ),
                 )
+              : isHostNotJoined
+                  ? ElevatedButton.icon(
+                      onPressed: () async {
+                        final playerId = widget.authController?.currentUser?.playerId;
+                        if (playerId == null) return;
+                        try {
+                          await _sessionService?.joinSession(
+                            sessionId: session.sessionId,
+                            playerId: playerId,
+                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Berhasil ikut serta bermain di sesi ini!'),
+                                backgroundColor: Color(0xFF16A34A),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            _loadSessionDetail();
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(e.toString().replaceAll('Exception: ', '')),
+                                backgroundColor: Colors.redAccent,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.person_add_alt_1_rounded, size: 18, color: Color(0xFFA8E63A)),
+                      label: const Text(
+                        'Ikut Serta Bermain (Add Yourself)',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.matchaDark,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    )
               : isUserJoined
                   ? Container(
                       width: double.infinity,

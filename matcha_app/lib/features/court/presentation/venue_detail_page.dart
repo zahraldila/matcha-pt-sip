@@ -861,8 +861,9 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
 
         // Action Button: Buat Mabar di Sini
         // Khusus Venue Owner: HANYA muncul jika ini venuenya sendiri (canManage)
-        // Non-Venue Owner: muncul jika user.isHost == true atau belum login
-        if (((user?.isVenueOwner ?? false) ? canManage : (user?.isHost == true || user == null))) ...[
+        // Non-Venue Owner: muncul jika user.isHost == true atau belum login (kecuali Admin)
+        if (!(user?.isAdmin ?? false) &&
+            (((user?.isVenueOwner ?? false) ? canManage : (user?.isHost == true || user == null)))) ...[
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,

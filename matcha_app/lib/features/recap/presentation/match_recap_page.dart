@@ -1159,7 +1159,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                         return;
                                       }
 
-                                      // 1. Cek dan minta izin akses galeri/penyimpanan via permission_handler & Gal
+                                      // 1. Cek & minta izin akses foto/galeri via permission_handler
                                       bool hasAccess = false;
                                       try {
                                         if (Platform.isAndroid) {
@@ -1194,51 +1194,12 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                       if (!hasAccess) {
                                         if (context.mounted) {
                                           Navigator.pop(ctx);
-                                          showDialog(
-                                            context: context,
-                                            builder: (dialogCtx) => AlertDialog(
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                              title: const Row(
-                                                children: [
-                                                  Icon(Icons.error_outline_rounded, color: Color(0xFFE11D48)),
-                                                  SizedBox(width: 8),
-                                                  Expanded(
-                                                    child: Text(
-                                                      'Izin Penyimpanan Ditolak',
-                                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              content: const Text(
-                                                'Izin penyimpanan ditolak. Silakan aktifkan izin galeri/foto di Pengaturan HP untuk menyimpan gambar story.',
-                                                style: TextStyle(fontSize: 13, color: Colors.black87),
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.pop(dialogCtx),
-                                                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-                                                ),
-                                                ElevatedButton(
-                                                  style: ElevatedButton.styleFrom(
-                                                    backgroundColor: const Color(0xFF063B00),
-                                                    foregroundColor: const Color(0xFFA8E63A),
-                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                                  ),
-                                                  onPressed: () {
-                                                    Navigator.pop(dialogCtx);
-                                                    openAppSettings();
-                                                  },
-                                                  child: const Text('Buka Pengaturan'),
-                                                ),
-                                              ],
-                                            ),
-                                          );
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
-                                              content: const Text('Izin penyimpanan ditolak. Silakan aktifkan izin galeri/foto di Pengaturan HP'),
+                                              content: const Text('Izin penyimpanan ditolak. Silakan aktifkan izin galeri/foto di Pengaturan HP.'),
                                               backgroundColor: const Color(0xFFE11D48),
                                               behavior: SnackBarBehavior.floating,
+                                              duration: const Duration(seconds: 4),
                                               action: SnackBarAction(
                                                 label: 'Pengaturan',
                                                 textColor: Colors.white,
@@ -1250,6 +1211,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                         return;
                                       }
 
+                                      // 2. Simpan gambar ke Galeri HP
                                       try {
                                         await Gal.putImageBytes(
                                           pngBytes,
@@ -1266,44 +1228,11 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                             ),
                                           );
                                         }
-                                      } on GalException catch (galEx) {
-                                        debugPrint('Gal save exception: ${galEx.type}');
-                                        if (context.mounted) {
-                                          Navigator.pop(ctx);
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(galEx.type == GalExceptionType.accessDenied
-                                                  ? 'Izin penyimpanan ditolak. Silakan aktifkan izin galeri/foto di Pengaturan HP.'
-                                                  : 'Gagal menyimpan ke galeri: ${galEx.type.name}'),
-                                              backgroundColor: const Color(0xFFE11D48),
-                                              behavior: SnackBarBehavior.floating,
-                                              action: SnackBarAction(
-                                                label: 'Pengaturan',
-                                                textColor: Colors.white,
-                                                onPressed: () => openAppSettings(),
-                                              ),
-                                            ),
-                                          );
-                                        }
                                       } catch (galError) {
                                         debugPrint('Gal save error: $galError');
-                                        if (context.mounted) {
-                                          Navigator.pop(ctx);
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text('Gagal menyimpan gambar ke galeri: $galError'),
-                                              backgroundColor: const Color(0xFFE11D48),
-                                            ),
-                                          );
-                                        }
                                       }
                                     } catch (e) {
-                                      if (context.mounted) {
-                                        Navigator.pop(ctx);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Gagal menyimpan gambar: $e')),
-                                        );
-                                      }
+                                      debugPrint('Render error: $e');
                                     } finally {
                                       setModalState(() => isProcessing = false);
                                     }

@@ -504,9 +504,10 @@ class _SessionListPageState extends State<SessionListPage> {
   @override
   Widget build(BuildContext context) {
     final user = widget.authController?.currentUser;
-    final isHost = user?.isHost == true;
-    final isVenueOwner = user != null &&
-        (user.role.toLowerCase() == 'venue_owner' || user.role.toLowerCase().contains('venue'));
+    final isAdmin = user?.isAdmin == true;
+    final isHost = (user?.isHost == true) && !isAdmin;
+    final isVenueOwner = (user != null &&
+        (user.role.toLowerCase() == 'venue_owner' || user.role.toLowerCase().contains('venue'))) && !isAdmin;
 
     final baseForCounts = _getSportAndSearchFilteredSessions();
     final countAll = baseForCounts.length;
@@ -672,7 +673,7 @@ class _SessionListPageState extends State<SessionListPage> {
                               badgeBorder: const Color(0xFFA7F3D0),
                             ),
                           ],
-                          if (user != null) ...[
+                          if (user != null && !isAdmin) ...[
                             const SizedBox(width: 8),
                             _buildPrimaryTab(
                               tabKey: 'hosted',

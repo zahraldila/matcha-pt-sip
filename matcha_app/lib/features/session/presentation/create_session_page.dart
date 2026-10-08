@@ -56,6 +56,8 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
   int _selectedQuota = 6;
   String _selectedLevel = 'All Level';
 
+  bool _addYourselfAsPlayer = false; // Add Yourself (host ikut bermain, default tidak ikut)
+
   bool get _isFirstToSystem =>
       _selectedScoringSystem.toLowerCase().startsWith('first to');
 
@@ -487,13 +489,51 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     );
   }
 
+  // --- Venue Availability Helpers ---
+
+  /// Returns true if [day] (weekday 1=Mon…7=Sun) is allowed by [hariBuka].
+  bool _isVenueDayAvailable(DateTime day, String? hariBuka) {
+    if (hariBuka == null || hariBuka.trim().isEmpty) return true;
+    final h = hariBuka.toLowerCase();
+    if (h.contains('setiap hari') || h.contains('senin - minggu') || h.contains('senin–minggu')) {
+      return true;
+    }
+    if (h.contains('senin - jumat') || h.contains('hari kerja') || h.contains('weekday')) {
+      return day.weekday >= DateTime.monday && day.weekday <= DateTime.friday;
+    }
+    if (h.contains('senin - sabtu') || h.contains('6 hari')) {
+      return day.weekday >= DateTime.monday && day.weekday <= DateTime.saturday;
+    }
+    if (h.contains('sabtu') && h.contains('minggu') && !h.contains('senin')) {
+      return day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
+    }
+    // fallback: all days
+    return true;
+  }
+
+  /// Parses "HH:mm - HH:mm WIB" → (openMinutes, closeMinutes) from midnight.
+  /// Returns null if unable to parse.
+  (int, int)? _parseJamOperasional(String? jamOperasional) {
+    if (jamOperasional == null || jamOperasional.trim().isEmpty) return null;
+    final regex = RegExp(r'(\d{1,2})[:\.](\d{2})\s*[-–]\s*(\d{1,2})[:\.](\d{2})');
+    final m = regex.firstMatch(jamOperasional);
+    if (m == null) return null;
+    final openMin  = int.parse(m.group(1)!) * 60 + int.parse(m.group(2)!);
+    final closeMin = int.parse(m.group(3)!) * 60 + int.parse(m.group(4)!);
+    return (openMin, closeMin);
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final hariBuka = _selectedVenue?.hariBuka;
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate.isBefore(now) ? now : _selectedDate,
       firstDate: now,
       lastDate: now.add(const Duration(days: 90)),
+      selectableDayPredicate: hariBuka != null
+          ? (day) => _isVenueDayAvailable(day, hariBuka)
+          : null,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -513,6 +553,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
   }
 
   Future<void> _pickTime() async {
+    final parsed = _parseJamOperasional(_selectedVenue?.jamOperasional);
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
@@ -530,6 +571,31 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       },
     );
     if (picked != null) {
+      // Validasi terhadap jam operasional venue (jika ada)
+      if (parsed != null) {
+        final (openMin, closeMin) = parsed;
+        final pickedMin = picked.hour * 60 + picked.minute;
+        if (pickedMin < openMin || pickedMin >= closeMin) {
+          if (mounted) {
+            final openH  = (openMin  ~/ 60).toString().padLeft(2, '0');
+            final openM  = (openMin  %  60).toString().padLeft(2, '0');
+            final closeH = (closeMin ~/ 60).toString().padLeft(2, '0');
+            final closeM = (closeMin %  60).toString().padLeft(2, '0');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Jam ${ picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')} '
+                  'di luar jam operasional venue ($openH:$openM – $closeH:$closeM WIB). '
+                  'Silakan pilih jam yang sesuai.',
+                ),
+                backgroundColor: Colors.orange.shade700,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return; // jangan simpan jam yang tidak valid
+        }
+      }
       setState(() => _selectedTime = picked);
     }
   }
@@ -884,6 +950,45 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       );
       return;
     }
+    // Validasi hari buka venue
+    if (_selectedVenue != null &&
+        !_isVenueDayAvailable(_selectedDate, _selectedVenue!.hariBuka)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Venue "${_selectedVenue!.namaVenue}" tidak buka pada hari yang dipilih '
+            '(${_selectedVenue!.hariBuka ?? '-'}). Silakan pilih tanggal lain.',
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Validasi jam operasional venue
+    final jamParsed = _parseJamOperasional(_selectedVenue?.jamOperasional);
+    if (jamParsed != null) {
+      final pickedMin = _selectedTime.hour * 60 + _selectedTime.minute;
+      if (pickedMin < jamParsed.$1 || pickedMin >= jamParsed.$2) {
+        final openH  = (jamParsed.$1 ~/ 60).toString().padLeft(2, '0');
+        final openM  = (jamParsed.$1  %  60).toString().padLeft(2, '0');
+        final closeH = (jamParsed.$2 ~/ 60).toString().padLeft(2, '0');
+        final closeM = (jamParsed.$2 %  60).toString().padLeft(2, '0');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Jam yang dipilih di luar jam operasional venue '
+              '($openH:$openM – $closeH:$closeM WIB). Silakan ubah jam mulai.',
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
 
     setState(() => _isSubmitting = true);
 
@@ -907,6 +1012,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
         deskripsi: _descController.text.trim(),
         hostUserId: user?.userId,
         hostPlayerId: user?.playerId,
+        addYourselfAsPlayer: _addYourselfAsPlayer,
       );
 
       if (!mounted) return;
@@ -1302,114 +1408,220 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                       _buildSectionHeader('5', 'JADWAL & KUOTA PEMAIN'),
                       const SizedBox(height: 12),
 
+                      // Info jam operasional & hari buka venue (jika sudah dipilih)
+                      if (_selectedVenue != null &&
+                          (_selectedVenue!.hariBuka != null || _selectedVenue!.jamOperasional != null)) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.access_time_rounded, size: 13, color: Color(0xFF16A34A)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  [
+                                    if (_selectedVenue!.hariBuka != null) _selectedVenue!.hariBuka!,
+                                    if (_selectedVenue!.jamOperasional != null) _selectedVenue!.jamOperasional!,
+                                  ].join('  •  '),
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF15803D),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+
                       // Tanggal, Jam, Durasi Row
-                      Row(
-                        children: [
-                          // Tanggal
-                          Expanded(
-                            flex: 4,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildFieldLabel('Tanggal Mabar'),
-                                const SizedBox(height: 6),
-                                InkWell(
-                                  onTap: _pickDate,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF8FAFC),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF64748B)),
-                                        const SizedBox(width: 6),
-                                        Expanded(
-                                          child: Text(
-                                            dateFormatted,
-                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
+                      Builder(builder: (context) {
+                        // Compute validity against venue availability
+                        final isDateInvalid = _selectedVenue != null &&
+                            !_isVenueDayAvailable(_selectedDate, _selectedVenue!.hariBuka);
+                        final jamParsed = _parseJamOperasional(_selectedVenue?.jamOperasional);
+                        final pickedMin = _selectedTime.hour * 60 + _selectedTime.minute;
+                        final isTimeInvalid = jamParsed != null &&
+                            (pickedMin < jamParsed.$1 || pickedMin >= jamParsed.$2);
 
-                          // Jam
-                          Expanded(
-                            flex: 3,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildFieldLabel('Jam Mulai'),
-                                const SizedBox(height: 6),
-                                InkWell(
-                                  onTap: _pickTime,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF8FAFC),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF64748B)),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Text(
-                                            timeFormatted,
-                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
+                        return Row(
+                          children: [
+                            // Tanggal
+                            Expanded(
+                              flex: 4,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildFieldLabel('Tanggal Mabar'),
+                                  const SizedBox(height: 6),
+                                  InkWell(
+                                    onTap: _pickDate,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+                                      decoration: BoxDecoration(
+                                        color: isDateInvalid
+                                            ? const Color(0xFFFFF1F2)
+                                            : const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: isDateInvalid
+                                              ? const Color(0xFFFCA5A5)
+                                              : const Color(0xFFE2E8F0),
+                                          width: isDateInvalid ? 1.5 : 1.0,
                                         ),
-                                      ],
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            isDateInvalid
+                                                ? Icons.event_busy_rounded
+                                                : Icons.calendar_today_rounded,
+                                            size: 14,
+                                            color: isDateInvalid
+                                                ? const Color(0xFFEF4444)
+                                                : const Color(0xFF64748B),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              dateFormatted,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: isDateInvalid
+                                                    ? const Color(0xFFEF4444)
+                                                    : const Color(0xFF0F172A),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (isDateInvalid)
+                                            const Icon(Icons.warning_amber_rounded,
+                                                size: 12, color: Color(0xFFEF4444)),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-
-                          // Durasi
-                          Expanded(
-                            flex: 3,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildFieldLabel('Durasi'),
-                                const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
-                                  initialValue: _selectedDuration,
-                                  isExpanded: true,
-                                  decoration: _buildInputDecoration(hint: 'Durasi').copyWith(
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                  ),
-                                  items: const [
-                                    DropdownMenuItem(value: '1 Jam', child: Text('1 Jam', style: TextStyle(fontSize: 11))),
-                                    DropdownMenuItem(value: '2 Jam', child: Text('2 Jam', style: TextStyle(fontSize: 11))),
-                                    DropdownMenuItem(value: '3 Jam', child: Text('3 Jam', style: TextStyle(fontSize: 11))),
-                                    DropdownMenuItem(value: '4 Jam', child: Text('4 Jam', style: TextStyle(fontSize: 11))),
+                                  if (isDateInvalid) ...[
+                                    const SizedBox(height: 3),
+                                    const Text(
+                                      'Venue tutup hari ini',
+                                      style: TextStyle(fontSize: 9.5, color: Color(0xFFEF4444), fontWeight: FontWeight.w600),
+                                    ),
                                   ],
-                                  onChanged: (val) {
-                                    if (val != null) setState(() => _selectedDuration = val);
-                                  },
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: 8),
+
+                            // Jam
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildFieldLabel('Jam Mulai'),
+                                  const SizedBox(height: 6),
+                                  InkWell(
+                                    onTap: _pickTime,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+                                      decoration: BoxDecoration(
+                                        color: isTimeInvalid
+                                            ? const Color(0xFFFFF1F2)
+                                            : const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: isTimeInvalid
+                                              ? const Color(0xFFFCA5A5)
+                                              : const Color(0xFFE2E8F0),
+                                          width: isTimeInvalid ? 1.5 : 1.0,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            isTimeInvalid
+                                                ? Icons.timer_off_rounded
+                                                : Icons.access_time_rounded,
+                                            size: 14,
+                                            color: isTimeInvalid
+                                                ? const Color(0xFFEF4444)
+                                                : const Color(0xFF64748B),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              timeFormatted,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: isTimeInvalid
+                                                    ? const Color(0xFFEF4444)
+                                                    : const Color(0xFF0F172A),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (isTimeInvalid)
+                                            const Icon(Icons.warning_amber_rounded,
+                                                size: 12, color: Color(0xFFEF4444)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  if (isTimeInvalid) ...[
+                                    const SizedBox(height: 3),
+                                    const Text(
+                                      'Di luar jam buka',
+                                      style: TextStyle(fontSize: 9.5, color: Color(0xFFEF4444), fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Durasi
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildFieldLabel('Durasi'),
+                                  const SizedBox(height: 6),
+                                  DropdownButtonFormField<String>(
+                                    initialValue: _selectedDuration,
+                                    isExpanded: true,
+                                    decoration: _buildInputDecoration(hint: 'Durasi').copyWith(
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(value: '1 Jam', child: Text('1 Jam', style: TextStyle(fontSize: 11))),
+                                      DropdownMenuItem(value: '2 Jam', child: Text('2 Jam', style: TextStyle(fontSize: 11))),
+                                      DropdownMenuItem(value: '3 Jam', child: Text('3 Jam', style: TextStyle(fontSize: 11))),
+                                      DropdownMenuItem(value: '4 Jam', child: Text('4 Jam', style: TextStyle(fontSize: 11))),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) setState(() => _selectedDuration = val);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
                       const SizedBox(height: 14),
 
                       // Jenis Permainan Toggle (Double / Single)
@@ -1566,6 +1778,86 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                         style: const TextStyle(fontSize: 12),
                         decoration: _buildInputDecoration(
                           hint: 'Contoh: Harap hadir 15 menit sebelum mabar dimulai. Bola sudah disediakan oleh host, sewa raket tersedia di tempat.',
+                        ),
+                      ),
+                      // Add Yourself Toggle — host ikut bermain sebagai peserta
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: () => setState(() => _addYourselfAsPlayer = !_addYourselfAsPlayer),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _addYourselfAsPlayer
+                                ? const Color(0xFFF0FDF4)
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _addYourselfAsPlayer
+                                  ? const Color(0xFF86EFAC)
+                                  : const Color(0xFFE2E8F0),
+                              width: _addYourselfAsPlayer ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: _addYourselfAsPlayer
+                                      ? AppColors.matchaDark
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: _addYourselfAsPlayer
+                                        ? AppColors.matchaDark
+                                        : const Color(0xFFCBD5E1),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: _addYourselfAsPlayer
+                                    ? const Icon(Icons.check_rounded,
+                                        size: 13, color: Color(0xFFA8E63A))
+                                    : null,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '+ Add Yourself (Ikut Bermain)',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: _addYourselfAsPlayer
+                                            ? const Color(0xFF15803D)
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                    Text(
+                                      _addYourselfAsPlayer
+                                          ? 'Kamu akan terdaftar sebagai salah satu peserta'
+                                          : 'Kamu tidak ikut bermain, hanya sebagai host',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: _addYourselfAsPlayer
+                                            ? const Color(0xFF16A34A)
+                                            : const Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.person_add_alt_1_rounded,
+                                size: 18,
+                                color: _addYourselfAsPlayer
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFFCBD5E1),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),

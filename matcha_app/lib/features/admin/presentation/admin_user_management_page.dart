@@ -109,6 +109,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
       selectedRole = 'member';
     }
 
+    final isExistingAdmin = rawRole.contains('admin');
     bool obscurePassword = true;
     String? nameError;
     String? emailError;
@@ -306,12 +307,21 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                   const SizedBox(height: 5),
                   DropdownButtonFormField<String>(
                     initialValue: selectedRole,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isExistingAdmin ? const Color(0xFF64748B) : const Color(0xFF0F172A),
+                    ),
                     decoration: InputDecoration(
+                      filled: isExistingAdmin,
+                      fillColor: isExistingAdmin ? const Color(0xFFF8FAFC) : Colors.white,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                      prefixIcon: isExistingAdmin
+                          ? const Icon(Icons.lock_outline_rounded, size: 16, color: Color(0xFF94A3B8))
+                          : null,
                     ),
                     items: const [
                       DropdownMenuItem(value: 'member', child: Text('Member')),
@@ -319,14 +329,31 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                       DropdownMenuItem(value: 'venue_owner', child: Text('Venue Owner')),
                       DropdownMenuItem(value: 'admin', child: Text('Administrator')),
                     ],
-                    onChanged: (val) {
-                      if (val != null) {
-                        setModalState(() {
-                          selectedRole = val;
-                        });
-                      }
-                    },
+                    onChanged: isExistingAdmin
+                        ? null
+                        : (val) {
+                            if (val != null) {
+                              setModalState(() {
+                                selectedRole = val;
+                              });
+                            }
+                          },
                   ),
+                  if (isExistingAdmin) ...[
+                    const SizedBox(height: 5),
+                    const Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded, size: 13, color: Color(0xFF64748B)),
+                        SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            'Role Administrator bersifat permanen dan tidak dapat diubah ke role lain.',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 12),
 
                   // 5. Password Baru (opsional)
