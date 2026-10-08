@@ -22,14 +22,14 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/.well-known/assetlinks.json', function () {
     $path = public_path('.well-known/assetlinks.json');
     if (file_exists($path)) {
-        return response()->file($path, ['Content-Type' => 'application/json']);
+        return response(file_get_contents($path), 200, ['Content-Type' => 'application/json']);
     }
     return response()->json([], 404);
 });
 Route::get('/.well-known/apple-app-site-association', function () {
     $path = public_path('.well-known/apple-app-site-association');
     if (file_exists($path)) {
-        return response()->file($path, ['Content-Type' => 'application/json']);
+        return response(file_get_contents($path), 200, ['Content-Type' => 'application/json']);
     }
     return response()->json([], 404);
 });

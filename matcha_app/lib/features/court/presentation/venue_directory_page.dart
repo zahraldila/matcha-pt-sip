@@ -32,6 +32,10 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   List<VenueModel> _venues = [];
   List<VenueModel> _filteredVenues = [];
 
+  bool _isSelectionMode = false;
+  final Set<int> _selectedVenueIds = {};
+  bool _isBulkDeleting = false;
+
   String _searchQuery = '';
   String _selectedSport = 'Semua Cabang';
   String _selectedOwnerFilter = 'all';
@@ -59,6 +63,312 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
       if (!_canFilterByOwner) _selectedOwnerFilter = 'all';
       _applyFilter();
     });
+  }
+
+  bool _canDeleteVenue(VenueModel v) {
+    final user = widget.authController?.currentUser;
+    if (user == null) return false;
+    if (user.role.toLowerCase().contains('admin') || user.isAdmin) return true;
+    if (v.ownerUserId != null && v.ownerUserId == user.userId) return true;
+    return false;
+  }
+
+  bool get _canEnterSelectionMode {
+    final user = widget.authController?.currentUser;
+    if (user == null) return false;
+    if (user.role.toLowerCase().contains('admin') || user.isAdmin) return true;
+    return _filteredVenues.any(_canDeleteVenue);
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      _selectedVenueIds.clear();
+    });
+  }
+
+  void _toggleSelectVenue(int id) {
+    setState(() {
+      if (_selectedVenueIds.contains(id)) {
+        _selectedVenueIds.remove(id);
+      } else {
+        _selectedVenueIds.add(id);
+      }
+    });
+  }
+
+  void _toggleSelectAll() {
+    final deletableIds = _filteredVenues.where(_canDeleteVenue).map((v) => v.venueId).toSet();
+    setState(() {
+      if (_selectedVenueIds.length == deletableIds.length) {
+        _selectedVenueIds.clear();
+      } else {
+        _selectedVenueIds.addAll(deletableIds);
+      }
+    });
+  }
+
+  Future<void> _handleBulkDelete() async {
+    if (_selectedVenueIds.isEmpty) return;
+
+    final count = _selectedVenueIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE4E6),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFDA4AF)),
+                ),
+                child: const Icon(
+                  Icons.delete_sweep_rounded,
+                  color: Color(0xFFE11D48),
+                  size: 26,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Hapus $count Venue & Lapangan?',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Sebanyak $count venue yang dipilih beserta seluruh data court/lapangan di dalamnya akan dihapus secara permanen dari database. Tindakan ini tidak dapat dibatalkan.',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: Color(0xFF64748B),
+                  height: 1.45,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF475569),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      icon: const Icon(Icons.delete_forever_rounded, size: 16),
+                      label: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE11D48),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isBulkDeleting = true);
+    final messenger = ScaffoldMessenger.of(context);
+
+    int successCount = 0;
+    final idsToDelete = _selectedVenueIds.toList();
+
+    for (final id in idsToDelete) {
+      try {
+        await _venueService.deleteVenue(id);
+        successCount++;
+      } catch (e) {
+        debugPrint('Error deleting venue $id: $e');
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isBulkDeleting = false;
+      _isSelectionMode = false;
+      _selectedVenueIds.clear();
+    });
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          successCount == count
+              ? 'Berhasil menghapus $count venue.'
+              : 'Berhasil menghapus $successCount dari $count venue.',
+        ),
+        backgroundColor: AppColors.matchaDark,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+
+    await _loadVenues();
+  }
+
+  Widget _buildBulkActionBar(int deletableCount) {
+    final selectedCount = _selectedVenueIds.length;
+    final isAllSelected = deletableCount > 0 && selectedCount == deletableCount;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+        border: const Border(
+          top: BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            // Cancel / Undo Selection Button
+            InkWell(
+              onTap: _toggleSelectionMode,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.close_rounded, size: 15, color: Color(0xFF475569)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Batal',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Select All Checkbox
+            InkWell(
+              onTap: _toggleSelectAll,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isAllSelected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                      size: 17,
+                      color: isAllSelected ? const Color(0xFF063B00) : const Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      isAllSelected ? 'Batal Semua' : 'Pilih Semua',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Counter Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEBF8D8),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF86EFAC)),
+              ),
+              child: Text(
+                '$selectedCount',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF063B00),
+                ),
+              ),
+            ),
+            const Spacer(),
+
+            // Delete Button
+            ElevatedButton.icon(
+              onPressed: (selectedCount == 0 || _isBulkDeleting) ? null : _handleBulkDelete,
+              icon: _isBulkDeleting
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.delete_sweep_rounded, size: 15),
+              label: Text(
+                'Hapus ($selectedCount)',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE11D48),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFFDA4AF).withValues(alpha: 0.5),
+                disabledForegroundColor: Colors.white70,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   bool get _canFilterByOwner {
@@ -165,8 +475,18 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+    final deletableCount = _filteredVenues.where(_canDeleteVenue).length;
+
+    return PopScope(
+      canPop: !_isSelectionMode,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _isSelectionMode) {
+          _toggleSelectionMode();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        bottomNavigationBar: _isSelectionMode ? _buildBulkActionBar(deletableCount) : null,
       appBar: Navigator.canPop(context)
           ? AppBar(
               backgroundColor: Colors.white,
@@ -187,10 +507,17 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
               centerTitle: true,
             )
           : null,
-      body: RefreshIndicator(
-        onRefresh: _loadVenues,
-        color: AppColors.matchaDark,
-        child: CustomScrollView(
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (_isSelectionMode) {
+            _toggleSelectionMode();
+          }
+        },
+        child: RefreshIndicator(
+          onRefresh: _loadVenues,
+          color: AppColors.matchaDark,
+          child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
@@ -199,32 +526,72 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Badge Direktori Mitra Lapangan
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.matchaSoftLime,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppColors.matchaDark.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.stadium_rounded, size: 12, color: AppColors.matchaDark),
-                          const SizedBox(width: 5),
-                          Text(
-                            'DIREKTORI MITRA LAPANGAN',
-                            style: AppTextStyles.badge.copyWith(
-                              color: AppColors.matchaDark,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                    // Badge Direktori Mitra Lapangan & Selection Button
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.matchaSoftLime,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.matchaDark.withValues(alpha: 0.2),
                             ),
                           ),
-                        ],
-                      ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.stadium_rounded, size: 12, color: AppColors.matchaDark),
+                              const SizedBox(width: 5),
+                              Text(
+                                'DIREKTORI MITRA LAPANGAN',
+                                style: AppTextStyles.badge.copyWith(
+                                  color: AppColors.matchaDark,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_canEnterSelectionMode)
+                          InkWell(
+                            onTap: _toggleSelectionMode,
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: _isSelectionMode ? const Color(0xFFE11D48) : Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _isSelectionMode ? const Color(0xFFE11D48) : const Color(0xFFCBD5E1),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _isSelectionMode ? Icons.close_rounded : Icons.checklist_rtl_rounded,
+                                    size: 14,
+                                    color: _isSelectionMode ? Colors.white : const Color(0xFF475569),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _isSelectionMode ? 'Batal' : 'Pilih',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: _isSelectionMode ? Colors.white : const Color(0xFF475569),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -402,6 +769,8 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
           ],
         ),
       ),
+    ),
+    ),
     );
   }
 
@@ -500,6 +869,8 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
     final facilitiesList = venue.facilitiesList.take(3).toList();
     final user = widget.authController?.currentUser;
     final isOwner = user != null && venue.ownerUserId != null && venue.ownerUserId == user.userId;
+    final canDelete = _canDeleteVenue(venue);
+    final isSelected = _selectedVenueIds.contains(venue.venueId);
 
     void openDetail() {
       Navigator.push(
@@ -514,12 +885,36 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
       ).then((_) => _loadVenues());
     }
 
+    void handleCardTap() {
+      if (_isSelectionMode) {
+        if (canDelete) {
+          _toggleSelectVenue(venue.venueId);
+        }
+      } else {
+        openDetail();
+      }
+    }
+
+    void handleCardLongPress() {
+      if (!_isSelectionMode && canDelete) {
+        setState(() {
+          _isSelectionMode = true;
+          _selectedVenueIds.add(venue.venueId);
+        });
+      }
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isSelected ? const Color(0xFFF0FDF4) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isSelected
+              ? const Color(0xFF063B00)
+              : (_isSelectionMode && canDelete ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0)),
+          width: isSelected ? 2.0 : 1.0,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -529,49 +924,94 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: openDetail,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image / Cover Header with Real Photos & Badges
-            Stack(
-              children: [
-                Image.network(
-                  venue.mainPhoto,
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _buildPlaceholderCover(),
-                ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: handleCardTap,
+          onLongPress: handleCardLongPress,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image / Cover Header with Real Photos & Badges
+              Stack(
+                children: [
+                  Image.network(
+                    venue.mainPhoto,
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => _buildPlaceholderCover(),
+                  ),
 
-                // Badge Sport on Top Left
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.matchaSoftLime,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.matchaDark.withValues(alpha: 0.2)),
+                  // Checkbox when in selection mode
+                  if (_isSelectionMode)
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: InkWell(
+                        onTap: canDelete ? () => _toggleSelectVenue(venue.venueId) : null,
+                        borderRadius: BorderRadius.circular(8),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF063B00)
+                                : (canDelete
+                                    ? Colors.white.withValues(alpha: 0.95)
+                                    : const Color(0xFFF1F5F9).withValues(alpha: 0.95)),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF063B00)
+                                  : (canDelete ? const Color(0xFF94A3B8) : const Color(0xFFCBD5E1)),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: isSelected
+                              ? const Icon(Icons.check_rounded, size: 18, color: Color(0xFFA8E63A))
+                              : (!canDelete
+                                  ? const Icon(Icons.lock_outline_rounded, size: 14, color: Color(0xFF94A3B8))
+                                  : null),
+                        ),
+                      ),
                     ),
-                    child: Text(
-                      venue.sportName,
-                      style: const TextStyle(
-                        color: AppColors.matchaDark,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+
+                  // Badge Sport on Top Left
+                  Positioned(
+                    top: 12,
+                    left: _isSelectionMode ? 46 : 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.matchaSoftLime,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.matchaDark.withValues(alpha: 0.2)),
+                      ),
+                      child: Text(
+                        venue.sportName,
+                        style: const TextStyle(
+                          color: AppColors.matchaDark,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
 
-                // Badge "👑 Venue Anda" on Top Right
-                if (isOwner)
-                  Positioned(
-                    top: 12,
-                    right: 12,
+                  // Badge "👑 Venue Anda" on Top Right
+                  if (isOwner)
+                    Positioned(
+                      top: 12,
+                      right: 12,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
@@ -900,8 +1340,9 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPlaceholderCover() {
     return Container(
