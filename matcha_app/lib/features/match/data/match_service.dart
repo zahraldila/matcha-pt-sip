@@ -885,76 +885,88 @@ class MatchService {
     int? courtCount,
   }) async {
     if (sessionId == null || rounds.isEmpty) return rounds;
-    final parsedSessionId = int.tryParse(sessionId.toString()) ?? sessionId;
 
-    // 1. Ambil atau buat tb_drawing
+    final parsedSessionId =
+        int.tryParse(sessionId.toString()) ?? sessionId;
+
+    final maxCourtNumber = rounds
+        .expand((round) => round.matches)
+        .fold<int>(
+          0,
+          (highest, match) =>
+              match.courtNumber > highest ? match.courtNumber : highest,
+        );
+
+    final requiredCourtCount = courtCount ?? maxCourtNumber;
+
+    if (requiredCourtCount < 1 || maxCourtNumber > requiredCourtCount) {
+      throw Exception('Nomor court drawing tidak sesuai konfigurasi.');
+    }
+
     final drawingId = await getOrCreateDrawingId(parsedSessionId);
 
-    // 2. Ambil court IDs dari tb_session_court
-    final sessionCourts = await _supabase
-        .from('tb_session_court')
-        .select('court_id')
-        .eq('session_id', parsedSessionId)
-        .order('court_id', ascending: true);
-
-    final List<int> courtIds = (sessionCourts as List)
-        .map((c) => c['court_id'])
-        .where((id) => id != null)
-        .map((id) => id is int ? id : (int.tryParse(id.toString()) ?? 0))
-        .where((id) => id > 0)
-        .toList();
-
-    // 3. Bersihkan match lama yang belum memiliki skor aktif untuk drawing ini
     final existingMatches = await _supabase
         .from('tb_match')
         .select('match_id')
         .eq('drawing_id', drawingId);
 
-    final oldMatchIds = (existingMatches as List)
-        .map((m) => m['match_id'])
-        .where((id) => id != null)
-        .map((id) => id is int ? id : (int.tryParse(id.toString()) ?? 0))
+    final oldMatchIds = existingMatches
+        .map((row) => int.tryParse(row['match_id'].toString()))
+        .whereType<int>()
         .where((id) => id > 0)
         .toList();
 
+    // Periksa skor sebelum mengubah relasi court atau drawing.
     if (oldMatchIds.isNotEmpty) {
-      // Pastikan match lama tidak memiliki skor aktif yang tertimpa
       final existingScores = await _supabase
           .from('tb_score')
           .select('score_id')
           .inFilter('match_id', oldMatchIds)
           .limit(1);
 
-      if ((existingScores as List).isNotEmpty) {
-        throw Exception('Tidak dapat mengacak ulang: pertandingan sudah memiliki skor aktif.');
+      if (existingScores.isNotEmpty) {
+        throw Exception(
+          'Tidak dapat mengacak ulang: pertandingan sudah memiliki skor aktif.',
+        );
       }
-
-      try {
-        await _supabase.from('tb_match_participant').delete().inFilter('match_id', oldMatchIds);
-      } catch (_) {}
-      try {
-        await _supabase.from('tb_match').delete().inFilter('match_id', oldMatchIds);
-      } catch (_) {}
     }
 
-    // 4. Insert batch match baru & participant
+    final courtIds = await _ensureDrawingCourts(
+      sessionId: parsedSessionId,
+      requiredCount: requiredCourtCount,
+    );
+
+    // Jangan hapus drawing lama jika validasi court gagal.
+    if (oldMatchIds.isNotEmpty) {
+      await _supabase
+          .from('tb_match_participant')
+          .delete()
+          .inFilter('match_id', oldMatchIds);
+
+      await _supabase
+          .from('tb_match')
+          .delete()
+          .inFilter('match_id', oldMatchIds);
+    }
+
     final List<DrawingRound> savedRounds = [];
-    final int effectiveCourtCount = courtIds.isNotEmpty ? courtIds.length : (courtCount ?? 1);
+    final int effectiveCourtCount = courtIds.length;
     int matchCounter = 0;
 
     for (final round in rounds) {
       final List<DrawingMatch> savedMatches = [];
       for (final match in round.matches) {
         matchCounter++;
-        int? courtId;
-        if (courtIds.isNotEmpty) {
-          final cIdx = (match.courtNumber - 1).clamp(0, courtIds.length - 1);
-          courtId = courtIds[cIdx];
+        if (match.courtNumber < 1 ||
+            match.courtNumber > effectiveCourtCount) {
+          throw Exception('Nomor court pertandingan tidak valid.');
         }
 
-        // Web parity: nomor_match deterministik = (roundNumber - 1) * courtCount + courtNumber
-        final cIdx = (match.courtNumber - 1).clamp(0, effectiveCourtCount - 1);
-        final int nomorMatch = (round.roundNumber - 1) * effectiveCourtCount + (match.courtNumber > 0 ? match.courtNumber : (cIdx + 1));
+        final courtId = courtIds[match.courtNumber - 1];
+
+        final nomorMatch =
+            (round.roundNumber - 1) * effectiveCourtCount +
+            match.courtNumber;
 
         final matchInsert = await _supabase
             .from('tb_match')
@@ -1439,5 +1451,102 @@ class MatchService {
     if (channel != null) {
       await _supabase.removeChannel(channel);
     }
+  }
+
+  Future<List<int>> _ensureDrawingCourts({
+    required dynamic sessionId,
+    required int requiredCount,
+  }) async {
+    if (requiredCount < 1) {
+      throw Exception('Jumlah court drawing tidak valid.');
+    }
+
+    final session = await _supabase
+        .from('tb_session')
+        .select('venue_id, sport_id')
+        .eq('session_id', sessionId)
+        .single();
+
+    final venueId = session['venue_id'];
+    final sportId = session['sport_id'];
+
+    if (venueId == null || sportId == null) {
+      throw Exception('Venue atau olahraga sesi belum lengkap.');
+    }
+
+    final courtRows = await _supabase
+        .from('tb_court')
+        .select('court_id, status_ketersediaan')
+        .eq('venue_id', venueId)
+        .eq('sport_id', sportId)
+        .order('court_id', ascending: true);
+
+    final venueCourtIds = <int>{};
+    final availableCourtIds = <int>[];
+
+    for (final row in courtRows) {
+      final id = int.tryParse(row['court_id'].toString());
+      if (id == null || id <= 0) continue;
+
+      venueCourtIds.add(id);
+
+      final status = row['status_ketersediaan']
+          ?.toString()
+          .trim()
+          .toLowerCase();
+
+      if (status == null || status.isEmpty || status == 'available') {
+        availableCourtIds.add(id);
+      }
+    }
+
+    final relations = await _supabase
+        .from('tb_session_court')
+        .select('court_id')
+        .eq('session_id', sessionId)
+        .order('court_id', ascending: true);
+
+    final ids = <int>{};
+
+    for (final row in relations) {
+      final id = int.tryParse(row['court_id'].toString());
+      if (id == null || !venueCourtIds.contains(id)) {
+        throw Exception('Court sesi tidak sesuai venue atau olahraga.');
+      }
+      ids.add(id);
+    }
+
+    if (ids.length > requiredCount) {
+      throw Exception(
+        'Jumlah court sesi berbeda dari konfigurasi drawing. '
+        'Periksa konfigurasi sebelum melanjutkan.',
+      );
+    }
+
+    final missing = <int>[];
+
+    for (final id in availableCourtIds) {
+      if (ids.length + missing.length >= requiredCount) break;
+      if (!ids.contains(id)) missing.add(id);
+    }
+
+    if (ids.length + missing.length < requiredCount) {
+      throw Exception(
+        'Venue tidak memiliki $requiredCount court yang tersedia '
+        'untuk olahraga ini.',
+      );
+    }
+
+    if (missing.isNotEmpty) {
+      await _supabase.from('tb_session_court').insert(
+        missing.map((id) => {
+          'session_id': sessionId,
+          'court_id': id,
+        }).toList(),
+      );
+    }
+
+    final result = <int>[...ids, ...missing]..sort();
+    return result;
   }
 }

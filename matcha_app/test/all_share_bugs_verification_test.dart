@@ -105,5 +105,22 @@ void main() {
       expect(isFinishedSession(completedSession), isTrue);
       expect(isFinishedSession(openSession), isFalse);
     });
+
+    // -------------------------------------------------------------
+    // RCP-016: Recap Deep Link & SessionId Extraction
+    // -------------------------------------------------------------
+    test('RCP-016: Scoring recap URL correctly extracts sessionId and validates host', () {
+      final recapUri = Uri.parse('https://matcha.siproduktif.com/scoring/recap/42');
+      expect(AppLinkService.extractRecapSessionId(recapUri), equals(42));
+
+      final httpRecapUri = Uri.parse('http://matcha.siproduktif.com/scoring/recap/108');
+      expect(AppLinkService.extractRecapSessionId(httpRecapUri), equals(108));
+
+      final invalidHostUri = Uri.parse('https://example.com/scoring/recap/42');
+      expect(AppLinkService.extractRecapSessionId(invalidHostUri), isNull);
+
+      final nonNumberUri = Uri.parse('https://matcha.siproduktif.com/scoring/recap/abc');
+      expect(AppLinkService.extractRecapSessionId(nonNumberUri), isNull);
+    });
   });
 }
