@@ -639,6 +639,7 @@ class _MainShellPageState extends State<MainShellPage> {
 
     final isHost = user.isHost;
     final isVenueOwner = user.isVenueOwner;
+    final isAdmin = user.isAdmin;
 
     showGeneralDialog(
       context: context,
@@ -695,7 +696,7 @@ class _MainShellPageState extends State<MainShellPage> {
                                 shape: BoxShape.circle,
                                 color: (user.foto != null && user.foto!.isNotEmpty) ? Colors.transparent : const Color(0xFF063B00),
                                 border: Border.all(
-                                  color: const Color(0xFFE2E8F0),
+                                  color: isAdmin ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0),
                                   width: 1.5,
                                 ),
                               ),
@@ -762,21 +763,35 @@ class _MainShellPageState extends State<MainShellPage> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: isHost
-                                          ? const Color(0xFFECFDF5)
-                                          : (isVenueOwner ? const Color(0xFFF0F9FF) : const Color(0xFFF1F5F9)),
+                                      color: isAdmin
+                                          ? const Color(0xFFFEF3C7)
+                                          : (isHost
+                                              ? const Color(0xFFECFDF5)
+                                              : (isVenueOwner ? const Color(0xFFF0F9FF) : const Color(0xFFF1F5F9))),
                                       borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isAdmin
+                                            ? const Color(0xFFFDE68A)
+                                            : (isHost
+                                                ? const Color(0xFFA7F3D0)
+                                                : (isVenueOwner ? const Color(0xFFBAE6FD) : const Color(0xFFE2E8F0))),
+                                        width: 0.8,
+                                      ),
                                     ),
                                     child: Text(
-                                      isVenueOwner
-                                          ? 'Venue Owner'
-                                          : (isHost ? 'Host Game & Player' : 'Member Pemain'),
+                                      isAdmin
+                                          ? 'Administrator Global'
+                                          : (isVenueOwner
+                                              ? 'Venue Owner'
+                                              : (isHost ? 'Host Game & Player' : 'Member Pemain')),
                                       style: TextStyle(
                                         fontSize: 9,
                                         fontWeight: FontWeight.w800,
-                                        color: isHost
-                                            ? const Color(0xFF065F46)
-                                            : (isVenueOwner ? const Color(0xFF0369A1) : const Color(0xFF475569)),
+                                        color: isAdmin
+                                            ? const Color(0xFF92400E)
+                                            : (isHost
+                                                ? const Color(0xFF065F46)
+                                                : (isVenueOwner ? const Color(0xFF0369A1) : const Color(0xFF475569))),
                                       ),
                                     ),
                                   ),
@@ -788,70 +803,112 @@ class _MainShellPageState extends State<MainShellPage> {
                       ),
                       const Divider(height: 1, color: Color(0xFFF1F5F9)),
 
-                      // Menu Items
-                      if (isVenueOwner) ...[
+                      // Menu Items for Admin
+                      if (isAdmin) ...[
                         _buildDropdownMenuItem(
-                          icon: Icons.workspace_premium_rounded,
+                          icon: Icons.people_alt_rounded,
                           iconColor: const Color(0xFFD97706),
-                          label: 'Kelola Venue Saya',
-                          textColor: const Color(0xFF063B00),
+                          label: 'Manajemen Pengguna',
+                          textColor: const Color(0xFF92400E),
                           isBold: true,
+                          backgroundColor: const Color(0xFFFFFBEB),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            setState(() => _currentIndex = 4);
+                          },
+                        ),
+                        _buildDropdownMenuItem(
+                          icon: Icons.person_pin_rounded,
+                          iconColor: const Color(0xFFD97706),
+                          label: 'Profil Administrator',
+                          textColor: const Color(0xFF334155),
                           onTap: () {
                             Navigator.pop(ctx);
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => VenueDirectoryPage(
-                                  authController: widget.authController,
-                                  initialOwnerFilter: 'mine',
-                                ),
+                                builder: (_) => ProfilePage(authController: widget.authController),
                               ),
                             );
                           },
                         ),
                         const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                      ],
-                      _buildDropdownMenuItem(
-                        icon: Icons.show_chart_rounded,
-                        iconColor: const Color(0xFF64748B),
-                        label: 'Match Recap & Statistik',
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => MatchRecapPage(
-                                authController: widget.authController,
+                        _buildDropdownMenuItem(
+                          icon: Icons.logout_rounded,
+                          iconColor: const Color(0xFFE11D48),
+                          label: 'Keluar (Logout)',
+                          isDestructive: true,
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _handleLogoutFromDropdown();
+                          },
+                        ),
+                      ] else ...[
+                        // Menu Items for Member / Host / Venue Owner
+                        if (isVenueOwner) ...[
+                          _buildDropdownMenuItem(
+                            icon: Icons.workspace_premium_rounded,
+                            iconColor: const Color(0xFFD97706),
+                            label: 'Kelola Venue Saya',
+                            textColor: const Color(0xFF063B00),
+                            isBold: true,
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => VenueDirectoryPage(
+                                    authController: widget.authController,
+                                    initialOwnerFilter: 'mine',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                        ],
+                        _buildDropdownMenuItem(
+                          icon: Icons.show_chart_rounded,
+                          iconColor: const Color(0xFF64748B),
+                          label: 'Match Recap & Statistik',
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MatchRecapPage(
+                                  authController: widget.authController,
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildDropdownMenuItem(
-                        icon: Icons.badge_outlined,
-                        iconColor: const Color(0xFF64748B),
-                        label: 'Profil & Status Host',
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ProfilePage(authController: widget.authController),
-                            ),
-                          );
-                        },
-                      ),
-                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                      _buildDropdownMenuItem(
-                        icon: Icons.logout_rounded,
-                        iconColor: const Color(0xFFE11D48),
-                        label: 'Keluar (Logout)',
-                        isDestructive: true,
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          _handleLogoutFromDropdown();
-                        },
-                      ),
+                            );
+                          },
+                        ),
+                        _buildDropdownMenuItem(
+                          icon: Icons.badge_outlined,
+                          iconColor: const Color(0xFF64748B),
+                          label: 'Profil & Status Host',
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ProfilePage(authController: widget.authController),
+                              ),
+                            );
+                          },
+                        ),
+                        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                        _buildDropdownMenuItem(
+                          icon: Icons.logout_rounded,
+                          iconColor: const Color(0xFFE11D48),
+                          label: 'Keluar (Logout)',
+                          isDestructive: true,
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _handleLogoutFromDropdown();
+                          },
+                        ),
+                      ],
                       const SizedBox(height: 4),
                     ],
                   ),
@@ -872,28 +929,32 @@ class _MainShellPageState extends State<MainShellPage> {
     bool isDestructive = false,
     Color? textColor,
     bool isBold = false,
+    Color? backgroundColor,
   }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: iconColor),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isBold || isDestructive ? FontWeight.w800 : FontWeight.w600,
-                  color: isDestructive
-                      ? const Color(0xFFE11D48)
-                      : (textColor ?? const Color(0xFF334155)),
+    return Container(
+      color: backgroundColor ?? Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              Icon(icon, size: 16, color: iconColor),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isBold || isDestructive ? FontWeight.w800 : FontWeight.w600,
+                    color: isDestructive
+                        ? const Color(0xFFE11D48)
+                        : (textColor ?? const Color(0xFF334155)),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
