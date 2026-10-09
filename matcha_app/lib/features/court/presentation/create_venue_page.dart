@@ -1,8 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -40,8 +39,9 @@ const _kRose = Color(0xFFEF4444);
 
 class CreateVenuePage extends StatefulWidget {
   final AuthController? authController;
+  final VenueService? venueService;
 
-  const CreateVenuePage({super.key, this.authController});
+  const CreateVenuePage({super.key, this.authController, this.venueService});
 
   @override
   State<CreateVenuePage> createState() => _CreateVenuePageState();
@@ -74,9 +74,339 @@ class _RegencyItem {
   }
 }
 
+/// Model for anchored dropdown options
+class DropdownOption<T> {
+  final T value;
+  final String label;
+
+  const DropdownOption({
+    required this.value,
+    required this.label,
+  });
+}
+
+/// Custom anchored dropdown field that matches MATCHA design system
+/// Opens menu anchored directly below/above the trigger field with identical width.
+class MatchaAnchoredDropdown<T> extends StatefulWidget {
+  final String label;
+  final T value;
+  final List<DropdownOption<T>> options;
+  final ValueChanged<T> onChanged;
+  final IconData? icon;
+  final bool isRequired;
+  final String? Function(T?)? validator;
+
+  const MatchaAnchoredDropdown({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+    this.icon,
+    this.isRequired = false,
+    this.validator,
+  });
+
+  @override
+  State<MatchaAnchoredDropdown<T>> createState() => _MatchaAnchoredDropdownState<T>();
+}
+
+class _MatchaAnchoredDropdownState<T> extends State<MatchaAnchoredDropdown<T>> {
+  static VoidCallback? _activeOverlayCloser;
+
+  final LayerLink _layerLink = LayerLink();
+  final GlobalKey _fieldKey = GlobalKey();
+  OverlayEntry? _overlayEntry;
+  bool _isOpen = false;
+  String? _errorText;
+
+  @override
+  void didUpdateWidget(covariant MatchaAnchoredDropdown<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value && _isOpen) {
+      _closeMenu();
+    }
+  }
+
+  @override
+  void dispose() {
+    _closeMenu(notify: false);
+    super.dispose();
+  }
+
+  void _closeMenu({bool notify = true}) {
+    if (_activeOverlayCloser == _closeMenu) {
+      _activeOverlayCloser = null;
+    }
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    if (_isOpen) {
+      if (notify && mounted) {
+        setState(() {
+          _isOpen = false;
+        });
+      } else {
+        _isOpen = false;
+      }
+    }
+  }
+
+  void _openMenu() {
+    // Dismiss any previously opened anchored dropdown
+    if (_activeOverlayCloser != null && _activeOverlayCloser != _closeMenu) {
+      _activeOverlayCloser?.call();
+    }
+
+    FocusScope.of(context).unfocus();
+
+    final renderBox = _fieldKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) return;
+
+    final overlayState = Overlay.maybeOf(context);
+    if (overlayState == null) return;
+    final overlayBox = overlayState.context.findRenderObject() as RenderBox?;
+    final overlaySize = overlayBox?.size ?? MediaQuery.of(context).size;
+
+    final fieldOffset = overlayBox != null
+        ? renderBox.localToGlobal(Offset.zero, ancestor: overlayBox)
+        : renderBox.localToGlobal(Offset.zero);
+    final fieldSize = renderBox.size;
+    final availableHeight = overlaySize.height;
+
+    // Available vertical space below and above the trigger field
+    final spaceBelow = availableHeight - (fieldOffset.dy + fieldSize.height) - 12;
+    final spaceAbove = fieldOffset.dy - 12;
+
+    final estimatedMenuHeight = (widget.options.length * 48.0 + 8.0).clamp(60.0, 240.0);
+    // Favor opening below with a 6px gap; flip above if bottom space is restricted
+    final openBelow = spaceBelow >= (estimatedMenuHeight + 8) || spaceBelow >= spaceAbove;
+    final maxMenuHeight = (openBelow ? spaceBelow : spaceAbove).clamp(100.0, 240.0);
+
+    _activeOverlayCloser = _closeMenu;
+    setState(() {
+      _isOpen = true;
+    });
+
+    _overlayEntry = OverlayEntry(
+      builder: (ctx) {
+        return Stack(
+          children: [
+            // Barrier: tapping anywhere outside closes the menu
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _closeMenu,
+              ),
+            ),
+            // Popup menu positioned directly below or above the trigger field
+            Positioned(
+              left: fieldOffset.dx,
+              width: fieldSize.width,
+              top: openBelow ? (fieldOffset.dy + fieldSize.height + 6.0) : null,
+              bottom: openBelow ? null : (availableHeight - fieldOffset.dy + 6.0),
+              child: Focus(
+                autofocus: true,
+                onKeyEvent: (node, event) {
+                  if (event.logicalKey == LogicalKeyboardKey.escape) {
+                    _closeMenu();
+                    return KeyEventResult.handled;
+                  }
+                  return KeyEventResult.ignored;
+                },
+                child: Container(
+                  key: const ValueKey('matcha_dropdown_menu'),
+                  width: fieldSize.width,
+                  constraints: BoxConstraints(
+                    maxHeight: maxMenuHeight,
+                  ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: _kSlate200, width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _kSlate900.withValues(alpha: 0.08),
+                          blurRadius: 16,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 6),
+                        ),
+                        BoxShadow(
+                          color: _kSlate900.withValues(alpha: 0.04),
+                          blurRadius: 4,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: widget.options.map((opt) {
+                            final isSelected = opt.value == widget.value;
+
+                            return InkWell(
+                              onTap: () {
+                                _closeMenu();
+                                widget.onChanged(opt.value);
+                              },
+                              splashColor: _kLime.withValues(alpha: 0.15),
+                              highlightColor: _kSoftLime.withValues(alpha: 0.3),
+                              child: Container(
+                                constraints: const BoxConstraints(minHeight: 48),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                color: isSelected ? _kSoftLime : Colors.transparent,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        opt.label,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                          color: isSelected ? _kDark : _kSlate900,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isSelected) ...[
+                                      const SizedBox(width: 8),
+                                      const Icon(
+                                        Icons.check_rounded,
+                                        size: 18,
+                                        color: _kDark,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+
+    overlayState.insert(_overlayEntry!);
+  }
+
+  void _toggleMenu() {
+    if (_isOpen) {
+      _closeMenu();
+    } else {
+      _openMenu();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedOption = widget.options.cast<DropdownOption<T>?>().firstWhere(
+      (opt) => opt?.value == widget.value,
+      orElse: () => null,
+    );
+
+    final displayText = selectedOption?.label ?? widget.value.toString();
+
+    return PopScope(
+      canPop: !_isOpen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _isOpen) {
+          _closeMenu();
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CreateVenuePageState._buildFieldLabel(widget.label, isRequired: widget.isRequired),
+          CompositedTransformTarget(
+            link: _layerLink,
+            child: GestureDetector(
+              key: _fieldKey,
+              onTap: _toggleMenu,
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _errorText != null
+                        ? _kRose
+                        : _isOpen
+                            ? _kDark
+                            : _kSlate200,
+                    width: (_isOpen || _errorText != null) ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    if (widget.icon != null) ...[
+                      Icon(
+                        widget.icon,
+                        size: 16,
+                        color: _isOpen ? _kDark : _kSlate400,
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(
+                      child: Text(
+                        displayText,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _kSlate900,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      _isOpen
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: _isOpen ? _kDark : _kSlate400,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (_errorText != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              _errorText!,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: _kRose,
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _CreateVenuePageState extends State<CreateVenuePage> {
   final _formKey = GlobalKey<FormState>();
-  final _venueService = VenueService();
+  late final VenueService _venueService = widget.venueService ?? VenueService();
   final _imagePicker = ImagePicker();
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
@@ -319,33 +649,36 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
   // =========================================================================
 
   /// Field label widget placed above the input field (matching web style)
-  Widget _buildFieldLabel(String label, {bool isRequired = false, String? badge}) {
+  static Widget _buildFieldLabel(String label, {bool isRequired = false, String? badge}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          RichText(
-            text: TextSpan(
-              text: label,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: _kSlate700,
-              ),
-              children: [
-                if (isRequired)
-                  const TextSpan(
-                    text: ' *',
-                    style: TextStyle(
-                      color: _kRose,
-                      fontWeight: FontWeight.bold,
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                text: label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: _kSlate700,
+                ),
+                children: [
+                  if (isRequired)
+                    const TextSpan(
+                      text: ' *',
+                      style: TextStyle(
+                        color: _kRose,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
-          if (badge != null)
+          if (badge != null) ...[
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
@@ -361,6 +694,7 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
                 ),
               ),
             ),
+          ],
         ],
       ),
     );
@@ -435,13 +769,15 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(
-                title.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  color: _kSlate900,
-                  letterSpacing: 0.5,
+              Expanded(
+                child: Text(
+                  title.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: _kSlate900,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
@@ -461,34 +797,57 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
     required ValueChanged<T?> onChanged,
     IconData? icon,
     bool isRequired = false,
+    String? Function(T?)? validator,
+    List<Widget> Function(BuildContext)? selectedItemBuilder,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildFieldLabel(label, isRequired: isRequired),
         DropdownButtonFormField<T>(
+          key: ValueKey(value),
           initialValue: value,
           isExpanded: true,
-          menuMaxHeight: 220,
+          alignment: AlignmentDirectional.centerStart,
+          menuMaxHeight: 240,
           dropdownColor: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          elevation: 4,
+          elevation: 3,
+          onTap: () => FocusScope.of(context).unfocus(),
           icon: const Icon(
             Icons.keyboard_arrow_down_rounded,
             size: 18,
             color: _kSlate400,
           ),
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w700,
             color: _kSlate900,
           ),
+          selectedItemBuilder: selectedItemBuilder ??
+              (context) {
+                return items.map((item) {
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: DefaultTextStyle(
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _kSlate900,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      child: item.child,
+                    ),
+                  );
+                }).toList();
+              },
           decoration: InputDecoration(
             prefixIcon: icon != null ? Icon(icon, size: 16, color: _kSlate400) : null,
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
             isDense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: _kSlate200),
@@ -501,8 +860,23 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
               borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: _kDark, width: 1.5),
             ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: _kRose),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: _kRose, width: 1.5),
+            ),
+            errorStyle: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: _kRose,
+            ),
+            errorMaxLines: 2,
           ),
           items: items,
+          validator: validator,
           onChanged: onChanged,
         ),
       ],
@@ -855,49 +1229,70 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
             _sectionHeader('2', 'Cabang Olahraga & Karakteristik Lapangan'),
             _buildSportTypeCards(),
             const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: _compactDropdown<int>(
-                    label: 'Jumlah Court',
-                    value: _courtCount,
-                    icon: Icons.stadium_outlined,
-                    items: const [1, 2, 3, 4, 6]
-                        .map((c) => DropdownMenuItem(
-                              value: c,
-                              child: Text(
-                                c == 6 ? '6+ Courts (Arena Besar)' : '$c Court${c > 1 ? 's' : ''}',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kSlate900),
-                              ),
-                            ))
-                        .toList(),
-                    onChanged: (v) { if (v != null) setState(() => _courtCount = v); },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _compactDropdown<String>(
-                    label: 'Tipe Arena',
-                    value: _arenaType,
-                    icon: Icons.roofing_outlined,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'Semi-Indoor',
-                        child: Text('Semi-Indoor (Atap Pelindung)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kSlate900)),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Indoor',
-                        child: Text('Indoor (Full AC / Tertutup)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kSlate900)),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Outdoor',
-                        child: Text('Outdoor (Terbuka)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kSlate900)),
-                      ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final textScale = MediaQuery.textScalerOf(context).scale(1);
+                final isNarrow = constraints.maxWidth < 380 || textScale > 1.15;
+
+                final courtDropdown = MatchaAnchoredDropdown<int>(
+                  label: 'Jumlah Court',
+                  value: _courtCount,
+                  icon: Icons.stadium_outlined,
+                  options: const [
+                    DropdownOption<int>(value: 1, label: '1 Court'),
+                    DropdownOption<int>(value: 2, label: '2 Courts'),
+                    DropdownOption<int>(value: 3, label: '3 Courts'),
+                    DropdownOption<int>(value: 4, label: '4 Courts'),
+                    DropdownOption<int>(value: 6, label: '6+ Courts (Arena Besar)'),
+                  ],
+                  onChanged: (v) {
+                    setState(() => _courtCount = v);
+                  },
+                );
+
+                final arenaDropdown = MatchaAnchoredDropdown<String>(
+                  label: 'Tipe Arena',
+                  value: _arenaType,
+                  icon: Icons.roofing_outlined,
+                  options: const [
+                    DropdownOption<String>(
+                      value: 'Semi-Indoor',
+                      label: 'Semi-Indoor (Atap Pelindung)',
+                    ),
+                    DropdownOption<String>(
+                      value: 'Indoor',
+                      label: 'Indoor (Full AC / Tertutup)',
+                    ),
+                    DropdownOption<String>(
+                      value: 'Outdoor',
+                      label: 'Outdoor (Terbuka)',
+                    ),
+                  ],
+                  onChanged: (v) {
+                    setState(() => _arenaType = v);
+                  },
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      courtDropdown,
+                      const SizedBox(height: 12),
+                      arenaDropdown,
                     ],
-                    onChanged: (v) { if (v != null) setState(() => _arenaType = v); },
-                  ),
-                ),
-              ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: courtDropdown),
+                    const SizedBox(width: 12),
+                    Expanded(child: arenaDropdown),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 12),
             _compactDropdown<String>(
@@ -907,23 +1302,48 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
               items: const [
                 DropdownMenuItem(
                   value: 'Artificial Turf',
-                  child: Text('Artificial Turf (Rumput Sintetis Padel)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kSlate900)),
+                  child: Text(
+                    'Artificial Turf (Rumput Sintetis Padel)',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kSlate900),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
                 DropdownMenuItem(
                   value: 'Hard Court',
-                  child: Text('Hard Court (Plexipave / Acrylic)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kSlate900)),
+                  child: Text(
+                    'Hard Court (Plexipave / Acrylic)',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kSlate900),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
                 DropdownMenuItem(
                   value: 'Clay',
-                  child: Text('Clay Court (Tanah Liat)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kSlate900)),
+                  child: Text(
+                    'Clay Court (Tanah Liat)',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kSlate900),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
                 DropdownMenuItem(
                   value: 'Grass',
-                  child: Text('Grass Court (Rumput Alami)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kSlate900)),
+                  child: Text(
+                    'Grass Court (Rumput Alami)',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kSlate900),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
                 DropdownMenuItem(
                   value: 'Other',
-                  child: Text('Lainnya', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kSlate900)),
+                  child: Text(
+                    'Lainnya',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kSlate900),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
               ],
               onChanged: (v) { if (v != null) setState(() => _surfaceType = v); },
@@ -993,8 +1413,9 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
                         value: d,
                         child: Text(
                           d,
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kSlate900),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kSlate900),
                           overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ))
                   .toList(),
