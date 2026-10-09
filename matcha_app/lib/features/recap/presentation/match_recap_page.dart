@@ -538,7 +538,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                         // Bagikan Link + Teks
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
+                            onTap: () async {
                               final user = widget.authController?.currentUser;
                               final targetId = user?.userId ?? user?.playerId;
                               final targetParam = (targetId != null && targetId > 0) ? '/$targetId' : '';
@@ -547,17 +547,13 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                   '🎾 *Rekap Karir Pemain: ${career.playerName}*\n'
                                   '📊 ${career.totalMatches} Match | ${career.wins}W ${career.losses}L\n'
                                   '📈 Win Rate: ${career.winRate} | Streak: ${career.streak}\n'
-                                  '⏱️ Jam Bermain: ${career.totalHours}\n'
-                                  'Lihat rekap selengkapnya: $url\n'
+                                  '⏱️ Jam Bermain: ${career.totalHours}\n\n'
+                                  'Lihat rekap selengkapnya:\n$url\n\n'
                                   '#MatchaApp #PadelTennis #PlayerStats';
-                              Clipboard.setData(ClipboardData(text: shareText));
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Teks & tautan siap dibagikan ke WhatsApp/Telegram! 🚀'),
-                                  backgroundColor: Color(0xFF063B00),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              await Share.share(
+                                shareText,
+                                subject: 'Rekap Karir Pemain - ${career.playerName}',
                               );
                             },
                             child: Container(
