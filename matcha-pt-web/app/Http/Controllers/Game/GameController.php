@@ -140,6 +140,39 @@ class GameController extends Controller
         return $remainingMinutes.' Menit';
     }
 
+    public static function resolveSessionCourtDisplay($courts): string
+    {
+        if (empty($courts)) {
+            return 'Court 1';
+        }
+
+        $names = [];
+        if (is_iterable($courts)) {
+            foreach ($courts as $court) {
+                $name = is_string($court)
+                    ? $court
+                    : ($court->nama_court ?? ($court['nama_court'] ?? ($court->court_name ?? ($court['court_name'] ?? null))));
+                if (! empty($name) && ! in_array(trim($name), $names, true)) {
+                    $names[] = trim($name);
+                }
+            }
+        }
+
+        if (empty($names)) {
+            return 'Court 1';
+        }
+
+        if (count($names) === 1) {
+            return $names[0];
+        }
+
+        if (count($names) === 2) {
+            return $names[0].' & '.$names[1];
+        }
+
+        return implode(', ', array_slice($names, 0, -1)).' & '.end($names);
+    }
+
     public function index(Request $request)
     {
         $selectedSport = $request->query('sport', 'all');
@@ -231,7 +264,7 @@ class GameController extends Controller
                 'sport' => $s->sport->nama_sport ?? 'Padel',
                 'venue_id' => $s->venue_id,
                 'venue_name' => $s->venue->nama_venue ?? 'Arena Olahraga',
-                'court_name' => $s->courts->first()->nama_court ?? 'Court 1',
+                'court_name' => self::resolveSessionCourtDisplay($s->courts),
                 'date' => $s->datetime ? $s->datetime->format('Y-m-d') : date('Y-m-d'),
                 'time' => self::resolveSessionDisplayTime($s),
                 'duration' => self::resolveSessionDuration($s),
@@ -924,7 +957,7 @@ class GameController extends Controller
             'sport' => $dbSession->sport->nama_sport ?? 'Padel',
             'venue_id' => $dbSession->venue_id,
             'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
-            'court_name' => $dbSession->courts->first()->nama_court ?? 'Court 1',
+            'court_name' => self::resolveSessionCourtDisplay($dbSession->courts),
             'date' => $dbSession->datetime ? $dbSession->datetime->format('Y-m-d') : date('Y-m-d'),
             'time' => self::resolveSessionDisplayTime($dbSession),
             'duration' => self::resolveSessionDuration($dbSession),
@@ -1205,7 +1238,7 @@ class GameController extends Controller
                 'sport' => $dbSession->sport->nama_sport ?? 'Padel',
                 'venue_id' => $dbSession->venue_id,
                 'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
-                'court_name' => $dbSession->courts->first()->nama_court ?? 'Court 1',
+                'court_name' => self::resolveSessionCourtDisplay($dbSession->courts),
                 'date' => $dbSession->datetime ? $dbSession->datetime->format('Y-m-d') : date('Y-m-d'),
                 'time' => self::resolveSessionDisplayTime($dbSession),
                 'duration' => self::resolveSessionDuration($dbSession),

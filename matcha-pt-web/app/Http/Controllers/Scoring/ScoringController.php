@@ -1854,7 +1854,7 @@ class ScoringController extends Controller
                 'sport' => $dbSession->sport->nama_sport ?? 'Padel',
                 'venue_id' => $dbSession->venue_id,
                 'venue_name' => $dbSession->venue->nama_venue ?? 'Arena Olahraga',
-                'court_name' => $dbSession->courts->first()->nama_court ?? 'Court 1',
+                'court_name' => GameController::resolveSessionCourtDisplay($dbSession->courts),
                 'date' => $dbSession->datetime ? $dbSession->datetime->format('Y-m-d') : date('Y-m-d'),
                 'time' => GameController::resolveSessionDisplayTime($dbSession),
                 'duration' => GameController::resolveSessionDuration($dbSession),

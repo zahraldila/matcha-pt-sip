@@ -78,7 +78,7 @@ class DashboardController extends Controller
                 'sport' => $s->sport->nama_sport ?? 'Padel',
                 'venue_id' => $s->venue_id,
                 'venue_name' => $s->venue->nama_venue ?? 'Arena Olahraga',
-                'court_name' => $s->courts->first()->nama_court ?? 'Court 1',
+                'court_name' => GameController::resolveSessionCourtDisplay($s->courts),
                 'date' => $s->datetime ? $s->datetime->format('Y-m-d') : date('Y-m-d'),
                 'time' => GameController::resolveSessionDisplayTime($s),
                 'duration' => GameController::resolveSessionDuration($s),
