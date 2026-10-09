@@ -212,11 +212,11 @@ class _SessionListPageState extends State<SessionListPage> {
   bool get _canEnterSelectionMode {
     final user = widget.authController?.currentUser;
     if (user == null) return false;
-    if (user.role.toLowerCase().contains('admin') || user.isAdmin) return true;
-    return _filteredSessions.any(_canDeleteSession);
+    return user.role.toLowerCase().contains('admin') || user.isAdmin;
   }
 
   void _toggleSelectionMode() {
+    if (!_isSelectionMode && !_canEnterSelectionMode) return;
     setState(() {
       _isSelectionMode = !_isSelectionMode;
       _selectedSessionIds.clear();
@@ -1092,7 +1092,7 @@ class _SessionListPageState extends State<SessionListPage> {
     }
 
     void handleCardLongPress() {
-      if (!_isSelectionMode && canDelete) {
+      if (_canEnterSelectionMode && !_isSelectionMode && canDelete) {
         setState(() {
           _isSelectionMode = true;
           _selectedSessionIds.add(session.sessionId);

@@ -63,11 +63,11 @@ class _CommunityPageState extends State<CommunityPage> {
   bool get _canEnterSelectionMode {
     final user = widget.authController?.currentUser;
     if (user == null) return false;
-    if (user.role.toLowerCase().contains('admin') || user.isAdmin) return true;
-    return _filteredCommunities.any(_canDeleteCommunity);
+    return user.role.toLowerCase().contains('admin') || user.isAdmin;
   }
 
   void _toggleSelectionMode() {
+    if (!_isSelectionMode && !_canEnterSelectionMode) return;
     setState(() {
       _isSelectionMode = !_isSelectionMode;
       _selectedCommunityIds.clear();
@@ -902,7 +902,7 @@ class _CommunityPageState extends State<CommunityPage> {
     }
 
     void handleCardLongPress() {
-      if (!_isSelectionMode && canDelete) {
+      if (_canEnterSelectionMode && !_isSelectionMode && canDelete) {
         setState(() {
           _isSelectionMode = true;
           _selectedCommunityIds.add(com.communityId);
