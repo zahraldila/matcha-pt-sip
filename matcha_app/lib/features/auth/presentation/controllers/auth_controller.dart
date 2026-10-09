@@ -87,6 +87,7 @@ class AuthController extends ChangeNotifier {
     required String gender,
     required int usia,
     required String level,
+    String role = 'member',
     int? communityId,
   }) async {
     _isLoading = true;
@@ -102,6 +103,7 @@ class AuthController extends ChangeNotifier {
         gender: gender,
         usia: usia,
         level: level,
+        role: role,
         communityId: communityId,
       );
       _currentUser = user;
