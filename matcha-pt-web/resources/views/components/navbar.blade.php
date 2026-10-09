@@ -69,7 +69,7 @@
                         </a>
                     @endif
                     <a href="{{ route('player.profile') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]" title="Aktifkan Mode Host di Profil">
-                        <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span>Host Game</span>
+                        <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span>Game</span>
                     </a>
                 @endguest
 
@@ -80,7 +80,7 @@
                     @elseif(Auth::user()->is_host)
                         <!-- Mode Host Aktif -> Langsung Buka Form Buat Game -->
                         <a href="{{ route('games.create') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">
-                            <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span>Host Game</span>
+                            <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> <span>Game</span>
                         </a>
                     @elseif(Auth::user()->role === 'venue_owner')
                         <a href="{{ route('venues.create') }}" class="hidden md:inline-flex items-center gap-1.5 bg-[#063B00] hover:bg-[#042a00] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-xs hover:shadow-sm hover:scale-[1.02]">

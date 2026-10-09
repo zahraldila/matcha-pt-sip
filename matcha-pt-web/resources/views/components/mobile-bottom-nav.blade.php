@@ -108,14 +108,11 @@
                 @php
                     $createRoute = route('games.create');
                     $btnIcon = 'fa-plus';
-                    $btnLabel = 'Host';
+                    $btnLabel = 'Game';
                     
                     if (Auth::check() && Auth::user()->role === 'venue_owner') {
                         $createRoute = route('venues.create');
                         $btnLabel = 'Venue';
-                    } elseif (Auth::check() && Auth::user()->role === 'member') {
-                        $createRoute = route('communities.create');
-                        $btnLabel = 'Komunitas';
                     }
                 @endphp
                 <a href="{{ $createRoute }}" class="w-13 h-13 rounded-full bg-gradient-to-tr from-[#063B00] to-[#0a5202] text-[#A8E63A] border-4 border-white shadow-lg flex items-center justify-center text-lg active:scale-95 transition-all hover:scale-105 group relative">
