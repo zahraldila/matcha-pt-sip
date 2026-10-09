@@ -28,7 +28,7 @@
         @endauth
     </div>
 
-    <!-- 1. Primary Filter Tabs & Search / Filter Bar (Rata Kanan) -->
+    <!-- 1. Primary Filter Tabs & Search / Filter Bar (Presisi Rata Kanan & Rata Card) -->
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <!-- Left Side: Scope Tabs -->
         <div class="flex items-center gap-2 overflow-x-auto scrollbar-none text-xs font-semibold py-1 min-w-0 flex-1">
@@ -81,15 +81,15 @@
             @endauth
         </div>
 
-        <!-- Right Side: Search Bar & Filter Button (Rata Kanan) -->
-        <div class="flex items-center gap-2 w-full lg:w-auto shrink-0 justify-end">
-            <form method="GET" action="{{ route('games.index') }}" class="relative w-full sm:w-64 lg:w-72">
+        <!-- Right Side: Search Bar & Filter Button (Rata Kanan Presisi) -->
+        <div class="flex items-center gap-2 w-full lg:w-auto shrink-0 justify-end max-w-full">
+            <form method="GET" action="{{ route('games.index') }}" class="relative flex-1 sm:flex-initial sm:w-64 lg:w-72 min-w-0">
                 <input type="hidden" name="tab" value="{{ $activeTab ?? 'all' }}">
                 <input type="hidden" name="sport" value="{{ $selectedSport ?? 'all' }}">
                 <input type="hidden" name="status" value="{{ $selectedStatus ?? 'all' }}">
                 <input type="hidden" name="slots" value="{{ $selectedSlots ?? 'all' }}">
                 <input type="hidden" name="time" value="{{ $selectedTime ?? 'all' }}">
-                <div class="relative">
+                <div class="relative w-full">
                     <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                     <input type="text" name="q" value="{{ $search ?? '' }}" placeholder="Cari sesi, venue, host..." 
                            class="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-white border border-slate-200/90 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00] shadow-2xs transition-all">
