@@ -625,7 +625,7 @@ class _MainShellPageState extends State<MainShellPage> {
             ),
             const SizedBox(height: 2),
             const Text(
-              'Host',
+              'Game',
               style: TextStyle(
                 color: Color(0xFF063B00),
                 fontSize: 10,
