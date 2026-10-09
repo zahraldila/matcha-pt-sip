@@ -1504,6 +1504,102 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     }
   }
 
+  /// Reusable avatar builder for Story Templates (supporting photo URL with fallback initials)
+  Widget _buildStoryAvatar({
+    required String? foto,
+    required String nama,
+    required double radius,
+    required Color fallbackBg,
+    required Color textColor,
+    double fontSize = 9,
+    String? badgeText,
+    Color? badgeBg,
+    Color? badgeTextColor,
+    String? badgeEmoji,
+  }) {
+    final hasFoto = foto != null && foto.trim().isNotEmpty;
+    final initial = nama.isNotEmpty ? nama[0].toUpperCase() : 'P';
+
+    Widget avatarImage = Container(
+      width: radius * 2,
+      height: radius * 2,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: fallbackBg,
+      ),
+      child: ClipOval(
+        child: hasFoto
+            ? Image.network(
+                foto.trim(),
+                width: radius * 2,
+                height: radius * 2,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Center(
+                  child: Text(
+                    initial,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              )
+            : Center(
+                child: Text(
+                  initial,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+      ),
+    );
+
+    if (badgeEmoji != null && badgeEmoji.isNotEmpty) {
+      return Stack(
+        alignment: Alignment.topRight,
+        clipBehavior: Clip.none,
+        children: [
+          avatarImage,
+          Positioned(
+            top: -4,
+            right: -4,
+            child: Text(badgeEmoji, style: TextStyle(fontSize: radius > 15 ? 12 : 9)),
+          ),
+        ],
+      );
+    }
+
+    if (badgeText != null && badgeText.isNotEmpty) {
+      return Stack(
+        alignment: Alignment.topRight,
+        children: [
+          avatarImage,
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: badgeBg ?? Colors.white,
+            ),
+            child: Text(
+              badgeText,
+              style: TextStyle(
+                fontSize: 6,
+                fontWeight: FontWeight.w900,
+                color: badgeTextColor ?? Colors.black,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return avatarImage;
+  }
+
   /// Template 1: Minimalist Podium (Bottom 3-avatar overlay)
   Widget _buildStoryTemplatePodium(SessionMatchRecapData data) {
     final p1 = data.standings.isNotEmpty ? data.standings[0] : null;
@@ -1584,20 +1680,16 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         : Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Stack(
-                                alignment: Alignment.topRight,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: const Color(0xFF475569),
-                                    child: Text(p2.nama.isNotEmpty ? p2.nama[0] : '2', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFCBD5E1)),
-                                    child: const Text('2', style: TextStyle(fontSize: 6, fontWeight: FontWeight.w900, color: Colors.black)),
-                                  ),
-                                ],
+                              _buildStoryAvatar(
+                                foto: p2.foto,
+                                nama: p2.nama,
+                                radius: 14,
+                                fallbackBg: const Color(0xFF475569),
+                                textColor: Colors.white,
+                                fontSize: 9,
+                                badgeText: '2',
+                                badgeBg: const Color(0xFFCBD5E1),
+                                badgeTextColor: Colors.black,
                               ),
                               const SizedBox(height: 2),
                               Text(p2.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -1619,16 +1711,14 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         : Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Stack(
-                                alignment: Alignment.topRight,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 18,
-                                    backgroundColor: const Color(0xFFD97706),
-                                    child: Text(p1.nama.isNotEmpty ? p1.nama[0] : '1', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                                  ),
-                                  const Text('🥇', style: TextStyle(fontSize: 10)),
-                                ],
+                              _buildStoryAvatar(
+                                foto: p1.foto,
+                                nama: p1.nama,
+                                radius: 18,
+                                fallbackBg: const Color(0xFFD97706),
+                                textColor: Colors.white,
+                                fontSize: 11,
+                                badgeEmoji: '🥇',
                               ),
                               const SizedBox(height: 2),
                               Text(p1.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFFFDE047))),
@@ -1650,20 +1740,16 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         : Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Stack(
-                                alignment: Alignment.topRight,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: const Color(0xFF7C2D12),
-                                    child: Text(p3.nama.isNotEmpty ? p3.nama[0] : '3', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFFB923C)),
-                                    child: const Text('3', style: TextStyle(fontSize: 6, fontWeight: FontWeight.w900, color: Colors.black)),
-                                  ),
-                                ],
+                              _buildStoryAvatar(
+                                foto: p3.foto,
+                                nama: p3.nama,
+                                radius: 14,
+                                fallbackBg: const Color(0xFF7C2D12),
+                                textColor: Colors.white,
+                                fontSize: 9,
+                                badgeText: '3',
+                                badgeBg: const Color(0xFFFB923C),
+                                badgeTextColor: Colors.black,
                               ),
                               const SizedBox(height: 2),
                               Text(p3.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -1758,12 +1844,22 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   child: Row(
                     children: [
                       SizedBox(
-                        width: 16,
+                        width: 14,
                         child: Text(
                           idx == 0 ? '🥇' : idx == 1 ? '🥈' : idx == 2 ? '🥉' : '#${idx + 1}',
-                          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold),
                         ),
                       ),
+                      const SizedBox(width: 2),
+                      _buildStoryAvatar(
+                        foto: rp.foto,
+                        nama: rp.nama,
+                        radius: 6,
+                        fallbackBg: isFirst ? const Color(0xFFD97706) : const Color(0xFF475569),
+                        textColor: Colors.white,
+                        fontSize: 5.5,
+                      ),
+                      const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           rp.nama,
@@ -1980,6 +2076,15 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       children: [
                         const Text('🥇', style: TextStyle(fontSize: 9)),
                         const SizedBox(width: 4),
+                        _buildStoryAvatar(
+                          foto: data.standings.first.foto,
+                          nama: data.standings.first.nama,
+                          radius: 7,
+                          fallbackBg: const Color(0xFFD97706),
+                          textColor: Colors.white,
+                          fontSize: 6,
+                        ),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             data.standings.first.nama,
@@ -2006,6 +2111,15 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       child: Row(
                         children: [
                           const Text('🥈', style: TextStyle(fontSize: 9)),
+                          const SizedBox(width: 4),
+                          _buildStoryAvatar(
+                            foto: data.standings[1].foto,
+                            nama: data.standings[1].nama,
+                            radius: 7,
+                            fallbackBg: const Color(0xFF475569),
+                            textColor: Colors.white,
+                            fontSize: 6,
+                          ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -2073,10 +2187,13 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             const SizedBox(height: 6),
             Row(
               children: [
-                CircleAvatar(
+                _buildStoryAvatar(
+                  foto: p?.foto,
+                  nama: playerName,
                   radius: 12,
-                  backgroundColor: const Color(0xFF059669),
-                  child: Text(playerName.isNotEmpty ? playerName[0] : 'P', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                  fallbackBg: const Color(0xFF059669),
+                  textColor: Colors.white,
+                  fontSize: 9,
                 ),
                 const SizedBox(width: 6),
                 Expanded(
