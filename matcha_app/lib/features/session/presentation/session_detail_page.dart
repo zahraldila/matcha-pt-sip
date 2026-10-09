@@ -891,7 +891,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                             venueName: session.venueName,
                             venueId: session.venueId,
                             sport: session.sportName,
-                            gameType: _matchFormatName ?? '',
+                            gameType: _matchFormatName?.trim().isNotEmpty == true ? _matchFormatName!.trim() : 'Americano',
                             scoringSystem: session.scoringSystem,
                             playMode: session.jenisPermainan,
                             courtCount: session.courtNames.length > 1 ? session.courtNames.length : 1,

@@ -84,8 +84,11 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
   }
   int? _tryResolveMatchFormatId([String? type]) {
     final raw = (type ?? _config.gameType).trim();
-    if (raw.isEmpty) return null;
-    return MatchService.formatNameToId(raw);
+    if (raw.isEmpty) {
+      _config.gameType = 'Americano';
+      return MatchService.formatNameToId('Americano');
+    }
+    return MatchService.formatNameToId(raw) ?? MatchService.formatNameToId('Americano');
   }
 
   int _resolveMatchFormatId() {
@@ -236,6 +239,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                 _config.gameType = mapped;
               }
             }
+          }
+          if (_config.gameType.trim().isEmpty) {
+            _config.gameType = 'Americano';
           }
         }
 
