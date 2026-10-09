@@ -143,6 +143,9 @@ class GameController extends Controller
     public function index(Request $request)
     {
         $selectedSport = $request->query('sport', 'all');
+        $selectedStatus = $request->query('status', 'all'); // 'all', 'upcoming', 'live', 'finished'
+        $selectedSlots = $request->query('slots', 'all'); // 'all', 'available'
+        $selectedTime = $request->query('time', 'all'); // 'all', 'today', 'tomorrow', 'this_week'
         $activeTab = $request->query('tab', 'all'); // 'all', 'joined', 'hosted', 'venue'
         $search = trim($request->query('q', $request->query('search', '')));
 
@@ -176,7 +179,11 @@ class GameController extends Controller
             $joinedCount = $s->players->count();
             $quota = (int) ($s->jumlah_pemain ?? 6);
             $slotLeft = max(0, $quota - $joinedCount);
-            $isFinished = in_array(strtolower(trim((string) $s->status_session)), ['finished', 'completed'], true);
+            $statusLower = strtolower(trim((string) ($s->status_session ?? '')));
+            $isFinished = in_array($statusLower, ['finished', 'completed', 'selesai'], true);
+            $isLive = ! $isFinished && in_array($statusLower, ['in_progress', 'in progress', 'live'], true);
+            $isUpcoming = ! $isFinished && ! $isLive;
+            $isAvailable = ! $isFinished && $slotLeft > 0;
             $status = self::resolveSessionStatus($s, $slotLeft);
 
             // Check if hosted by logged-in user
@@ -232,6 +239,9 @@ class GameController extends Controller
                 'joined_count' => $joinedCount,
                 'status' => $status,
                 'is_finished' => $isFinished,
+                'is_live' => $isLive,
+                'is_upcoming' => $isUpcoming,
+                'is_available' => $isAvailable,
                 'can_delete' => ! $isFinished && ! in_array(strtolower($s->status_session ?? ''), ['in progress', 'in_progress', 'live', 'playing', 'finished', 'completed', 'selesai']),
                 'level_recommendation' => 'All Level Welcome',
                 'match_format' => $formatString,
@@ -275,7 +285,54 @@ class GameController extends Controller
             });
         }
 
-        // Tab counts (reflecting search results if search is active)
+        // Filter Status
+        if ($selectedStatus !== 'all') {
+            $allMappedGames = $allMappedGames->filter(function ($g) use ($selectedStatus) {
+                if ($selectedStatus === 'upcoming') {
+                    return $g['is_upcoming'] ?? false;
+                }
+                if ($selectedStatus === 'live') {
+                    return $g['is_live'] ?? false;
+                }
+                if ($selectedStatus === 'finished') {
+                    return $g['is_finished'] ?? false;
+                }
+                return true;
+            });
+        }
+
+        // Filter Available Slots
+        if ($selectedSlots === 'available') {
+            $allMappedGames = $allMappedGames->filter(function ($g) {
+                return $g['is_available'] ?? false;
+            });
+        }
+
+        // Filter Time / Date
+        if ($selectedTime !== 'all') {
+            $today = Carbon::today()->format('Y-m-d');
+            $tomorrow = Carbon::tomorrow()->format('Y-m-d');
+            $next7Days = Carbon::today()->addDays(7)->format('Y-m-d');
+
+            $allMappedGames = $allMappedGames->filter(function ($g) use ($selectedTime, $today, $tomorrow, $next7Days) {
+                $gameDate = $g['date'] ?? null;
+                if (! $gameDate) {
+                    return false;
+                }
+                if ($selectedTime === 'today') {
+                    return $gameDate === $today;
+                }
+                if ($selectedTime === 'tomorrow') {
+                    return $gameDate === $tomorrow;
+                }
+                if ($selectedTime === 'this_week') {
+                    return $gameDate >= $today && $gameDate <= $next7Days;
+                }
+                return true;
+            });
+        }
+
+        // Tab counts (reflecting search & filter results)
         $countAll = $allMappedGames->count();
         $countJoined = $allMappedGames->where('is_joined_by_me', true)->count();
         $countHosted = $allMappedGames->where('is_hosted_by_me', true)->count();
@@ -307,10 +364,16 @@ class GameController extends Controller
         );
         $games->withQueryString();
 
+        $hasActiveFilter = ($selectedStatus !== 'all') || ($selectedSlots === 'available') || ($selectedTime !== 'all');
+
         return view('games.index', compact(
             'games',
             'search',
             'selectedSport',
+            'selectedStatus',
+            'selectedSlots',
+            'selectedTime',
+            'hasActiveFilter',
             'activeTab',
             'countAll',
             'countJoined',

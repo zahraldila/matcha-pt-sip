@@ -15,11 +15,11 @@
         </div>
 
         @auth
-            @if(Auth::user()->is_host && !Auth::user()->isAdmin())
+            @if(Auth::user()->is_host)
                 <a href="{{ route('games.schedule') }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01] shrink-0">
                     <i class="fa-solid fa-plus text-[#A8E63A] text-xs"></i> <span>Buat Sesi Mabar Baru</span>
                 </a>
-            @elseif(Auth::user()->role !== 'venue_owner' && !Auth::user()->isAdmin())
+            @elseif(Auth::user()->role !== 'venue_owner')
                 <a href="{{ route('player.profile', ['notice' => 'host_required']) }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-bold text-xs shadow-2xs transition-all hover:scale-[1.01] shrink-0" title="Aktifkan Mode Host untuk Membuat Sesi Mabar">
                     <i class="fa-solid fa-bolt text-[11px]"></i> <span>Jadi Host untuk Buat Mabar</span>
                 </a>
@@ -31,7 +31,7 @@
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div class="flex items-center gap-2 overflow-x-auto scrollbar-none text-xs font-semibold py-1">
             <!-- Tab 1: Semua Sesi (Eksplorasi) -->
-            <a href="{{ route('games.index', ['tab' => 'all', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}" 
+            <a href="{{ route('games.index', array_merge(request()->except(['page']), ['tab' => 'all'])) }}" 
                class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? 'all') === 'all' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
                 <i class="fa-solid fa-earth-americas text-xs {{ ($activeTab ?? 'all') === 'all' ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i>
                 <span>Semua Sesi</span>
@@ -43,7 +43,7 @@
             @auth
                 <!-- Tab Khusus Venue Owner: Sesi di Venue Saya -->
                 @if(Auth::user()->role === 'venue_owner' || count($ownedVenueIds ?? []) > 0 || ($countVenue ?? 0) > 0)
-                    <a href="{{ route('games.index', ['tab' => 'venue', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}" 
+                    <a href="{{ route('games.index', array_merge(request()->except(['page']), ['tab' => 'venue'])) }}" 
                        class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'venue' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
                         <i class="fa-solid fa-location-dot text-xs {{ ($activeTab ?? '') === 'venue' ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i>
                         <span>Sesi di Venue Saya</span>
@@ -55,7 +55,7 @@
 
                 <!-- Tab 2: Mabar yang Saya Ikuti (Player Scope) -->
                 @if(Auth::user()->role !== 'venue_owner')
-                    <a href="{{ route('games.index', ['tab' => 'joined', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}" 
+                    <a href="{{ route('games.index', array_merge(request()->except(['page']), ['tab' => 'joined'])) }}" 
                        class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'joined' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
                         <i class="fa-solid fa-circle-check text-xs {{ ($activeTab ?? '') === 'joined' ? 'text-[#A8E63A]' : 'text-emerald-500' }}"></i>
                         <span>Mabar Saya / Diikuti</span>
@@ -67,7 +67,7 @@
 
                 <!-- Tab 3: Dikelola Saya (Host Scope) -->
                 @if(Auth::user()->is_host || ($countHosted ?? 0) > 0)
-                    <a href="{{ route('games.index', ['tab' => 'hosted', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}" 
+                    <a href="{{ route('games.index', array_merge(request()->except(['page']), ['tab' => 'hosted'])) }}" 
                        class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'hosted' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
                         <i class="fa-solid fa-crown text-xs {{ ($activeTab ?? '') === 'hosted' ? 'text-[#A8E63A]' : 'text-amber-500' }}"></i>
                         <span>Dikelola Saya (Host)</span>
@@ -79,39 +79,55 @@
             @endauth
         </div>
 
-        <!-- Search Bar -->
-        <form method="GET" action="{{ route('games.index') }}" class="relative w-full md:w-72 shrink-0">
-            <input type="hidden" name="tab" value="{{ $activeTab ?? 'all' }}">
-            <input type="hidden" name="sport" value="{{ $selectedSport ?? 'all' }}">
-            <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
-                <input type="text" name="q" value="{{ $search ?? '' }}" placeholder="Cari sesi, venue, host..." 
-                       class="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-white border border-slate-200/90 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00] shadow-2xs transition-all">
-                @if(!empty($search))
-                    <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => $selectedSport ?? 'all']) }}" 
-                       class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                       title="Hapus pencarian">
-                        <i class="fa-solid fa-circle-xmark text-xs"></i>
-                    </a>
+        <!-- Search Bar & Filter Trigger Row -->
+        <div class="flex items-center gap-2 w-full md:w-auto">
+            <form method="GET" action="{{ route('games.index') }}" class="relative w-full md:w-72 shrink-0">
+                <input type="hidden" name="tab" value="{{ $activeTab ?? 'all' }}">
+                <input type="hidden" name="sport" value="{{ $selectedSport ?? 'all' }}">
+                <input type="hidden" name="status" value="{{ $selectedStatus ?? 'all' }}">
+                <input type="hidden" name="slots" value="{{ $selectedSlots ?? 'all' }}">
+                <input type="hidden" name="time" value="{{ $selectedTime ?? 'all' }}">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                    <input type="text" name="q" value="{{ $search ?? '' }}" placeholder="Cari sesi, venue, host..." 
+                           class="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-white border border-slate-200/90 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00] shadow-2xs transition-all">
+                    @if(!empty($search))
+                        <a href="{{ route('games.index', array_merge(request()->except(['page', 'q', 'search']), [])) }}" 
+                           class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                           title="Hapus pencarian">
+                            <i class="fa-solid fa-circle-xmark text-xs"></i>
+                        </a>
+                    @endif
+                </div>
+            </form>
+
+            <!-- Filter Modal Trigger Button -->
+            <button type="button" onclick="openFilterModal()" 
+                    class="relative px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-all shrink-0 {{ ($hasActiveFilter ?? false) ? 'bg-[#063B00] text-white border-[#063B00] shadow-xs' : 'glass-card text-slate-700 border-slate-200/90 hover:bg-white hover:text-[#050608]' }}"
+                    title="Buka Filter Sesi Mabar">
+                <i class="fa-solid fa-sliders text-xs {{ ($hasActiveFilter ?? false) ? 'text-[#A8E63A]' : 'text-slate-500' }}"></i>
+                <span class="hidden sm:inline">Filter</span>
+                @if($hasActiveFilter ?? false)
+                    <span class="w-2 h-2 rounded-full bg-[#A8E63A] animate-pulse"></span>
                 @endif
-            </div>
-        </form>
+            </button>
+        </div>
     </div>
 
     <!-- 2. Secondary Sub-Filters Bar (Sport Category & Counter) -->
     <div class="glass-card p-3 sm:p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 border border-white/90 shadow-2xs">
         <div class="flex items-center gap-2 overflow-x-auto scrollbar-none py-0.5">
-            <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => 'all', 'q' => $search ?? '']) }}" 
+            <a href="{{ route('games.index', array_merge(request()->except(['page']), ['sport' => 'all'])) }}" 
                class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? 'all') === 'all' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
                 Semua Cabang
             </a>
-            <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => 'tennis', 'q' => $search ?? '']) }}" 
+            <a href="{{ route('games.index', array_merge(request()->except(['page']), ['sport' => 'tennis'])) }}" 
                class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? '') === 'tennis' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
-                🎾 Tennis
+                <i class="fa-solid fa-table-tennis-paddle-ball text-[11px] mr-1"></i> Tennis
             </a>
-            <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => 'padel', 'q' => $search ?? '']) }}" 
+            <a href="{{ route('games.index', array_merge(request()->except(['page']), ['sport' => 'padel'])) }}" 
                class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? '') === 'padel' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
-                🏓 Padel
+                <i class="fa-solid fa-baseball text-[11px] mr-1"></i> Padel
             </a>
         </div>
 
@@ -121,7 +137,7 @@
                     <i class="fa-solid fa-magnifying-glass text-[9px]"></i> "{{ $search }}"
                 </span>
             @endif
-            <span id="games-result-count">
+            <span>
                 Menampilkan <strong class="text-[#050608]">{{ $games->total() }}</strong> sesi
                 @if(($activeTab ?? 'all') === 'joined')
                     <span>yang kamu ikuti</span>
@@ -131,45 +147,42 @@
                     <span>di venue milikmu</span>
                 @endif
             </span>
-            @if(Auth::check() && Auth::user()->role === 'admin' && $games->count() > 0)
-                {{-- Normal: "Pilih" button --}}
-                <button type="button" id="btn-enter-select-mode"
-                    class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-xs cursor-pointer select-none">
-                    Pilih
-                </button>
-
-                {{-- Selection mode: compact inline toolbar (hidden by default) --}}
-                <div id="bulk-selection-container" class="hidden items-center gap-2">
-                    <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap">
-                        <input type="checkbox" id="bulk-select-all"
-                            class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
-                        <span id="bulk-select-label" class="text-xs font-semibold text-slate-700">
-                            Pilih semua
-                        </span>
-                    </label>
-                    <button type="button" id="btn-cancel-select"
-                        class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs transition-all cursor-pointer whitespace-nowrap">
-                        Batal
-                    </button>
-                    <button type="button" id="btn-submit-bulk" disabled
-                        class="px-3 py-1.5 text-xs font-semibold rounded-lg shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                        style="background-color:#dc2626;color:white;border:1px solid #b91c1c;">
-                        Hapus <span id="bulk-count-display">0</span> sesi
-                    </button>
-                    <form id="bulk-delete-form" action="{{ route('games.bulkDestroy') }}" method="POST" class="hidden">
-                        @csrf
-                        @method('DELETE')
-                        <div id="bulk-delete-inputs"></div>
-                    </form>
-                </div>
-            @endif
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2.5">
-            <i class="fa-solid fa-circle-check text-emerald-600"></i>
-            <span>{{ session('success') }}</span>
+    <!-- Active Filter Tags Bar (if any custom filters applied) -->
+    @if($hasActiveFilter ?? false)
+        <div class="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 text-xs">
+            <span class="text-slate-400 font-semibold text-[11px] uppercase tracking-wider shrink-0 mr-1">Filter Aktif:</span>
+            
+            @if(($selectedStatus ?? 'all') !== 'all')
+                <a href="{{ route('games.index', array_merge(request()->except(['page', 'status']), ['status' => 'all'])) }}" 
+                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#86EFAC] text-[#063B00] font-bold text-xs hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 transition-all group shrink-0">
+                    <span>Status: {{ $selectedStatus === 'upcoming' ? 'Belum Mulai' : ($selectedStatus === 'live' ? 'Sedang Main (LIVE)' : 'Selesai') }}</span>
+                    <i class="fa-solid fa-xmark text-[10px] group-hover:scale-125 transition-transform"></i>
+                </a>
+            @endif
+
+            @if(($selectedSlots ?? 'all') === 'available')
+                <a href="{{ route('games.index', array_merge(request()->except(['page', 'slots']), ['slots' => 'all'])) }}" 
+                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#86EFAC] text-[#063B00] font-bold text-xs hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 transition-all group shrink-0">
+                    <span>Hanya Slot Tersedia</span>
+                    <i class="fa-solid fa-xmark text-[10px] group-hover:scale-125 transition-transform"></i>
+                </a>
+            @endif
+
+            @if(($selectedTime ?? 'all') !== 'all')
+                <a href="{{ route('games.index', array_merge(request()->except(['page', 'time']), ['time' => 'all'])) }}" 
+                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#86EFAC] text-[#063B00] font-bold text-xs hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 transition-all group shrink-0">
+                    <span>Waktu: {{ $selectedTime === 'today' ? 'Hari Ini' : ($selectedTime === 'tomorrow' ? 'Besok' : '7 Hari Ke Depan') }}</span>
+                    <i class="fa-solid fa-xmark text-[10px] group-hover:scale-125 transition-transform"></i>
+                </a>
+            @endif
+
+            <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}" 
+               class="text-rose-600 hover:text-rose-800 font-bold text-xs ml-2 hover:underline shrink-0">
+                Hapus Semua
+            </a>
         </div>
     @endif
 
@@ -177,25 +190,7 @@
     @if($games->count() > 0)
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($games as $game)
-                @php
-                    $canDelete = !empty($game['can_delete']);
-                @endphp
-                <div class="bulk-item-wrapper relative h-full">
-                    @if(Auth::check() && Auth::user()->role === 'admin')
-                        @if($canDelete)
-                            <label class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg p-1.5 cursor-pointer hover:bg-slate-50 transition-colors" style="display:none" title="Pilih sesi untuk dihapus">
-                                <input type="checkbox" value="{{ $game['id'] }}" class="bulk-item-checkbox w-4.5 h-4.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shadow-xs">
-                            </label>
-                        @else
-                            <div class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-slate-100/90 backdrop-blur-sm border border-slate-200/80 shadow-xs rounded-lg px-2 py-1 select-none cursor-not-allowed opacity-75" style="display:none" title="Sesi mabar yang sedang berlangsung atau sudah selesai tidak dapat dihapus">
-                                <i class="fa-solid fa-lock text-[10px] text-slate-400"></i>
-                            </div>
-                        @endif
-                    @endif
-                    <div class="bulk-item-card flex-1 h-full transition-all duration-200 rounded-2xl">
-                        <x-game-card :game="$game" />
-                    </div>
-                </div>
+                <x-game-card :game="$game" />
             @endforeach
         </div>
 
@@ -207,6 +202,8 @@
             <div class="w-16 h-16 rounded-3xl bg-[#EBF8D8] border border-[#063B00]/20 flex items-center justify-center text-[#063B00] text-2xl mx-auto shadow-xs">
                 @if(!empty($search))
                     <i class="fa-solid fa-magnifying-glass text-slate-600"></i>
+                @elseif($hasActiveFilter ?? false)
+                    <i class="fa-solid fa-filter-circle-xmark text-slate-600"></i>
                 @elseif(($activeTab ?? 'all') === 'joined')
                     <i class="fa-solid fa-calendar-xmark"></i>
                 @elseif(($activeTab ?? 'all') === 'hosted')
@@ -222,6 +219,8 @@
                 <h3 class="text-base sm:text-lg font-bold text-slate-900">
                     @if(!empty($search))
                         Tidak Ditemukan Hasil Pencarian
+                    @elseif($hasActiveFilter ?? false)
+                        Tidak Ada Sesi yang Sesuai Filter
                     @elseif(($activeTab ?? 'all') === 'joined')
                         Belum Ada Sesi yang Kamu Ikuti
                     @elseif(($activeTab ?? 'all') === 'hosted')
@@ -235,6 +234,8 @@
                 <p class="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
                     @if(!empty($search))
                         Tidak ada sesi mabar yang cocok dengan kata kunci "<strong>{{ $search }}</strong>". Coba gunakan kata kunci lain atau reset pencarian.
+                    @elseif($hasActiveFilter ?? false)
+                        Coba sesuaikan atau atur ulang kombinasi filter status, slot, atau tanggal yang kamu pilih.
                     @elseif(($activeTab ?? 'all') === 'joined')
                         Kamu belum terdaftar di jadwal mabar manapun. Jelajahi sesi terbuka dan gabung slot sekarang!
                     @elseif(($activeTab ?? 'all') === 'hosted')
@@ -248,9 +249,9 @@
             </div>
 
             <div class="pt-2">
-                @if(!empty($search))
+                @if(!empty($search) || ($hasActiveFilter ?? false))
                     <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => $selectedSport ?? 'all']) }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all">
-                        <i class="fa-solid fa-rotate-left text-[#A8E63A]"></i> <span>Reset Pencarian</span>
+                        <i class="fa-solid fa-rotate-left text-[#A8E63A]"></i> <span>Atur Ulang Semua Filter</span>
                     </a>
                 @elseif(($activeTab ?? 'all') === 'joined')
                     <a href="{{ route('games.index', ['tab' => 'all']) }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01]">
@@ -274,147 +275,199 @@
     @endif
 </div>
 
-<x-join-modal />
-@endsection
+<!-- Filter Modal / Drawer -->
+<div id="filter-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <!-- Backdrop -->
+    <div id="filter-backdrop" onclick="closeFilterModal()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300 opacity-0"></div>
 
-@push('styles')
-<style>
-.bulk-item-checkbox-container { display: none !important; }
-.bulk-item-wrapper.selection-mode-active .bulk-item-checkbox-container { display: flex !important; }
-#bulk-selection-container.show-toolbar { display: flex !important; }
-</style>
-@endpush
+    <div class="fixed inset-0 z-10 overflow-y-auto p-4 sm:p-6 md:p-20 flex items-center justify-center">
+        <div id="filter-dialog" class="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all duration-300 opacity-0 scale-95 w-full max-w-lg border border-slate-100">
+            <form method="GET" action="{{ route('games.index') }}" id="filter-form">
+                <input type="hidden" name="tab" value="{{ $activeTab ?? 'all' }}">
+                <input type="hidden" name="sport" value="{{ $selectedSport ?? 'all' }}">
+                <input type="hidden" name="q" value="{{ $search ?? '' }}">
+
+                <!-- Header -->
+                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-[#EBF8D8] text-[#063B00] flex items-center justify-center font-bold text-sm">
+                            <i class="fa-solid fa-sliders"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900" id="modal-title">Filter Sesi Mabar</h3>
+                            <p class="text-[11px] text-slate-500">Saring jadwal pertandingan sesuai kebutuhanmu</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="resetFilterForm()" class="text-xs font-bold text-rose-600 hover:text-rose-800 transition-colors">
+                        Atur Ulang
+                    </button>
+                </div>
+
+                <!-- Body Options -->
+                <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                    <!-- 1. Status Pertandingan -->
+                    <div class="space-y-2.5">
+                        <label class="block text-xs font-bold text-slate-900 uppercase tracking-wider">Status Pertandingan</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="status" value="all" class="peer sr-only" {{ ($selectedStatus ?? 'all') === 'all' ? 'checked' : '' }}>
+                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-[#063B00] peer-checked:text-white peer-checked:border-[#063B00] peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-border-all text-[11px]"></i>
+                                    <span>Semua Status</span>
+                                </div>
+                            </label>
+
+                            <label class="cursor-pointer">
+                                <input type="radio" name="status" value="upcoming" class="peer sr-only" {{ ($selectedStatus ?? '') === 'upcoming' ? 'checked' : '' }}>
+                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600 peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-clock text-[11px]"></i>
+                                    <span>Belum Mulai</span>
+                                </div>
+                            </label>
+
+                            <label class="cursor-pointer">
+                                <input type="radio" name="status" value="live" class="peer sr-only" {{ ($selectedStatus ?? '') === 'live' ? 'checked' : '' }}>
+                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-rose-600 peer-checked:text-white peer-checked:border-rose-600 peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-circle-dot text-[11px] animate-pulse"></i>
+                                    <span>Sedang Main (LIVE)</span>
+                                </div>
+                            </label>
+
+                            <label class="cursor-pointer">
+                                <input type="radio" name="status" value="finished" class="peer sr-only" {{ ($selectedStatus ?? '') === 'finished' ? 'checked' : '' }}>
+                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-slate-700 peer-checked:text-white peer-checked:border-slate-700 peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-flag-checkered text-[11px]"></i>
+                                    <span>Selesai</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 2. Ketersediaan Kuota Slot -->
+                    <div class="space-y-2.5">
+                        <label class="block text-xs font-bold text-slate-900 uppercase tracking-wider">Ketersediaan Kuota Slot</label>
+                        <label class="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 cursor-pointer transition-all">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-emerald-600">
+                                    <i class="fa-solid fa-user-plus text-xs"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-bold text-slate-900">Hanya yang ada slot kosong</div>
+                                    <div class="text-[11px] text-slate-500">Sembunyikan sesi mabar yang sudah penuh</div>
+                                </div>
+                            </div>
+                            <input type="checkbox" name="slots" value="available" id="filter-slots-checkbox" class="w-4 h-4 rounded text-[#063B00] focus:ring-[#063B00] border-slate-300" {{ ($selectedSlots ?? '') === 'available' ? 'checked' : '' }}>
+                        </label>
+                    </div>
+
+                    <!-- 3. Waktu Pertandingan -->
+                    <div class="space-y-2.5">
+                        <label class="block text-xs font-bold text-slate-900 uppercase tracking-wider">Waktu Pertandingan</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="time" value="all" class="peer sr-only" {{ ($selectedTime ?? 'all') === 'all' ? 'checked' : '' }}>
+                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-[#063B00] peer-checked:text-white peer-checked:border-[#063B00] peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-calendar text-[11px]"></i>
+                                    <span>Semua Tanggal</span>
+                                </div>
+                            </label>
+
+                            <label class="cursor-pointer">
+                                <input type="radio" name="time" value="today" class="peer sr-only" {{ ($selectedTime ?? '') === 'today' ? 'checked' : '' }}>
+                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-[#063B00] peer-checked:text-white peer-checked:border-[#063B00] peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-calendar-day text-[11px]"></i>
+                                    <span>Hari Ini</span>
+                                </div>
+                            </label>
+
+                            <label class="cursor-pointer">
+                                <input type="radio" name="time" value="tomorrow" class="peer sr-only" {{ ($selectedTime ?? '') === 'tomorrow' ? 'checked' : '' }}>
+                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-[#063B00] peer-checked:text-white peer-checked:border-[#063B00] peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-calendar-week text-[11px]"></i>
+                                    <span>Besok</span>
+                                </div>
+                            </label>
+
+                            <label class="cursor-pointer">
+                                <input type="radio" name="time" value="this_week" class="peer sr-only" {{ ($selectedTime ?? '') === 'this_week' ? 'checked' : '' }}>
+                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-[#063B00] peer-checked:text-white peer-checked:border-[#063B00] peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-calendar-days text-[11px]"></i>
+                                    <span>7 Hari Ke Depan</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Action Buttons -->
+                <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5 rounded-b-3xl">
+                    <button type="button" onclick="closeFilterModal()" class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-100 transition-all">
+                        Tutup
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#063B00] hover:bg-[#042a00] shadow-md transition-all hover:scale-[1.01]">
+                        Terapkan Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<x-join-modal />
 
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const btnEnterSelect  = document.getElementById('btn-enter-select-mode');
-    const btnCancelSelect = document.getElementById('btn-cancel-select');
-    const btnSubmitBulk   = document.getElementById('btn-submit-bulk');
-    const bulkContainer   = document.getElementById('bulk-selection-container');
-    const bulkSelectAll   = document.getElementById('bulk-select-all');
-    const bulkSelectLabel = document.getElementById('bulk-select-label');
-    const bulkForm        = document.getElementById('bulk-delete-form');
-    const bulkInputsCont  = document.getElementById('bulk-delete-inputs');
-    const resultCount     = document.getElementById('games-result-count');
+    function openFilterModal() {
+        const modal = document.getElementById('filter-modal');
+        const backdrop = document.getElementById('filter-backdrop');
+        const dialog = document.getElementById('filter-dialog');
+        if (!modal) return;
 
-    if (!btnEnterSelect || !bulkContainer) return;
-
-    let selectMode = false;
-
-    function getCheckboxes() { return document.querySelectorAll('.bulk-item-checkbox'); }
-    function getChecked()    { return document.querySelectorAll('.bulk-item-checkbox:checked'); }
-
-    function updateUI() {
-        const checkboxes   = getCheckboxes();
-        const checkedBoxes = getChecked();
-        const count        = checkedBoxes.length;
-        const pageDeletableTotal = checkboxes.length;
-
-        // Show/hide checkbox overlays via direct inline style
-        document.querySelectorAll('.bulk-item-checkbox-container').forEach(el => {
-            el.style.display = selectMode ? 'flex' : 'none';
-        });
-
-        // Card highlight based on checked state
-        checkboxes.forEach(cb => {
-            const wrapper = cb.closest('.bulk-item-wrapper');
-            const card    = wrapper ? wrapper.querySelector('.bulk-item-card') : null;
-            if (!selectMode) { cb.checked = false; }
-            if (card) {
-                if (selectMode && cb.checked) {
-                    card.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50/20');
-                } else {
-                    card.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50/20');
-                }
-            }
-        });
-
-        // Hide result count when toolbar is active
-        if (resultCount) resultCount.style.display = selectMode ? 'none' : '';
-
-        if (selectMode) {
-            btnEnterSelect.style.display = 'none';
-            bulkContainer.style.display  = 'flex';
-        } else {
-            btnEnterSelect.style.display = '';
-            bulkContainer.style.display  = 'none';
-            if (bulkSelectAll)   { bulkSelectAll.checked = false; bulkSelectAll.indeterminate = false; bulkSelectAll.disabled = false; }
-            if (bulkSelectLabel) bulkSelectLabel.textContent = 'Pilih semua';
-            if (btnSubmitBulk)   { btnSubmitBulk.disabled = true; btnSubmitBulk.innerHTML = 'Hapus 0 sesi'; }
-            return;
-        }
-
-        if (!bulkSelectAll || !bulkSelectLabel || !btnSubmitBulk) return;
-
-        if (pageDeletableTotal === 0) {
-            bulkSelectAll.checked = false;
-            bulkSelectAll.disabled = true;
-            bulkSelectLabel.innerHTML = '<span class="text-slate-400 text-[11px] italic">Semua sesi di halaman ini telah selesai / berlangsung</span>';
-            btnSubmitBulk.disabled = true;
-            btnSubmitBulk.innerHTML = 'Hapus 0 sesi';
-        } else if (count === 0) {
-            bulkSelectAll.checked = false;
-            bulkSelectAll.disabled = false;
-            bulkSelectAll.indeterminate = false;
-            bulkSelectLabel.textContent = `Pilih semua (${pageDeletableTotal} dapat dihapus)`;
-            btnSubmitBulk.disabled = true;
-            btnSubmitBulk.innerHTML = 'Hapus 0 sesi';
-        } else if (count === pageDeletableTotal && pageDeletableTotal > 0) {
-            bulkSelectAll.checked = true;
-            bulkSelectAll.disabled = false;
-            bulkSelectAll.indeterminate = false;
-            bulkSelectLabel.innerHTML = `Semua <strong>${count}</strong> sesi terpilih`;
-            btnSubmitBulk.disabled = false;
-            btnSubmitBulk.innerHTML = `Hapus ${count} sesi`;
-        } else {
-            bulkSelectAll.checked = false;
-            bulkSelectAll.disabled = false;
-            bulkSelectAll.indeterminate = true;
-            bulkSelectLabel.innerHTML = `<strong>${count}</strong> sesi dipilih`;
-            btnSubmitBulk.disabled = false;
-            btnSubmitBulk.innerHTML = `Hapus ${count} sesi`;
-        }
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            backdrop.classList.remove('opacity-0');
+            backdrop.classList.add('opacity-100');
+            dialog.classList.remove('opacity-0', 'scale-95');
+            dialog.classList.add('opacity-100', 'scale-100');
+        }, 10);
     }
 
-    btnEnterSelect.addEventListener('click',  () => { selectMode = true;  updateUI(); });
-    btnCancelSelect.addEventListener('click', () => { selectMode = false; updateUI(); });
+    function closeFilterModal() {
+        const modal = document.getElementById('filter-modal');
+        const backdrop = document.getElementById('filter-backdrop');
+        const dialog = document.getElementById('filter-dialog');
+        if (!modal) return;
 
-    if (bulkSelectAll) {
-        bulkSelectAll.addEventListener('change', (e) => {
-            getCheckboxes().forEach(cb => { cb.checked = e.target.checked; });
-            updateUI();
-        });
+        backdrop.classList.remove('opacity-100');
+        backdrop.classList.add('opacity-0');
+        dialog.classList.remove('opacity-100', 'scale-100');
+        dialog.classList.add('opacity-0', 'scale-95');
+
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 250);
     }
 
-    document.addEventListener('change', (e) => {
-        if (e.target.classList.contains('bulk-item-checkbox')) updateUI();
+    function resetFilterForm() {
+        // Select 'all' status
+        const statusAll = document.querySelector('input[name="status"][value="all"]');
+        if (statusAll) statusAll.checked = true;
+
+        // Uncheck slots
+        const slotsCheckbox = document.getElementById('filter-slots-checkbox');
+        if (slotsCheckbox) slotsCheckbox.checked = false;
+
+        // Select 'all' time
+        const timeAll = document.querySelector('input[name="time"][value="all"]');
+        if (timeAll) timeAll.checked = true;
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeFilterModal();
+        }
     });
-
-    if (btnSubmitBulk && bulkForm && bulkInputsCont) {
-        btnSubmitBulk.addEventListener('click', () => {
-            const checkedBoxes = getChecked();
-            const count = checkedBoxes.length;
-            if (count === 0) return;
-
-            window.showConfirmDeleteModal({
-                title: `Hapus ${count} Sesi Mabar?`,
-                message: `Data ${count} sesi mabar yang dipilih akan dihapus secara permanen dari sistem. Tindakan ini tidak dapat dibatalkan.`,
-                confirmText: `Ya, Hapus ${count} Sesi`,
-                onConfirm: () => {
-                    bulkInputsCont.innerHTML = '';
-                    checkedBoxes.forEach(cb => {
-                        const input = document.createElement('input');
-                        input.type = 'hidden';
-                        input.name = 'selected_ids[]';
-                        input.value = cb.value;
-                        bulkInputsCont.appendChild(input);
-                    });
-                    bulkForm.submit();
-                }
-            });
-        });
-    }
-});
 </script>
 @endpush
+@endsection
