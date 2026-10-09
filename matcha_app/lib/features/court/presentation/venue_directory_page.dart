@@ -394,6 +394,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
 
     try {
       final venues = await _venueService.getVenues();
+      venues.sort((a, b) => a.namaVenue.toLowerCase().compareTo(b.namaVenue.toLowerCase()));
       if (!mounted) return;
 
       setState(() {
@@ -415,7 +416,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
     final query = _searchQuery.trim().toLowerCase();
     final tokens = query.isEmpty ? <String>[] : query.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
 
-    _filteredVenues = _venues.where((v) {
+    final filtered = _venues.where((v) {
       final matchesSearch = tokens.isEmpty || () {
         final searchableText = [
           v.namaVenue,
@@ -442,6 +443,9 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
 
         return matchesSearch && matchesSport && matchesOwner;
     }).toList();
+
+    filtered.sort((a, b) => a.namaVenue.toLowerCase().compareTo(b.namaVenue.toLowerCase()));
+    _filteredVenues = filtered;
   }
 
   void _onSearch(String val) {
@@ -489,27 +493,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         bottomNavigationBar: _isSelectionMode ? _buildBulkActionBar(deletableCount) : null,
-      appBar: Navigator.canPop(context)
-          ? AppBar(
-              backgroundColor: Colors.white,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: Text(
-                _selectedOwnerFilter == 'mine' ? 'Kelola Venue Saya' : 'Direktori Venue',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              centerTitle: true,
-            )
-          : null,
-      body: GestureDetector(
+        body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
           if (_isSelectionMode) {
