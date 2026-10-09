@@ -1235,23 +1235,30 @@ class _SessionListPageState extends State<SessionListPage> {
                     ),
                     const SizedBox(width: 6),
                     // Format Pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Text(
-                        '${session.scoringSystem} / ${session.jenisPermainan}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF475569),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Text(
+                            '${session.scoringSystem} / ${session.jenisPermainan}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF475569),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 6),
                     // Status Pill
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
@@ -1262,6 +1269,7 @@ class _SessionListPageState extends State<SessionListPage> {
                       ),
                       child: Text(
                         statusBadgeLabel,
+                        maxLines: 1,
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.bold,
