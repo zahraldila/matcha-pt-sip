@@ -2,6 +2,7 @@
 
 @section('content')
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 pb-4">
         <div>
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#A8E63A]/20 border border-[#063B00]/25 text-[#050608] text-xs font-semibold shadow-xs mb-2">
@@ -27,12 +28,13 @@
         @endauth
     </div>
 
-    <!-- 1. Primary Filter Tabs (Semua Sesi / Sesi di Venue Saya / Mabar Saya / Dikelola Saya) -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div class="flex items-center gap-2 overflow-x-auto scrollbar-none text-xs font-semibold py-1">
+    <!-- 1. Primary Filter Tabs & Search / Filter Bar (Rata Kanan) -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <!-- Left Side: Scope Tabs -->
+        <div class="flex items-center gap-2 overflow-x-auto scrollbar-none text-xs font-semibold py-1 min-w-0 flex-1">
             <!-- Tab 1: Semua Sesi (Eksplorasi) -->
             <a href="{{ route('games.index', array_merge(request()->except(['page']), ['tab' => 'all'])) }}" 
-               class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? 'all') === 'all' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
+               class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap shrink-0 {{ ($activeTab ?? 'all') === 'all' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
                 <i class="fa-solid fa-earth-americas text-xs {{ ($activeTab ?? 'all') === 'all' ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i>
                 <span>Semua Sesi</span>
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? 'all') === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
@@ -44,7 +46,7 @@
                 <!-- Tab Khusus Venue Owner: Sesi di Venue Saya -->
                 @if(Auth::user()->role === 'venue_owner' || count($ownedVenueIds ?? []) > 0 || ($countVenue ?? 0) > 0)
                     <a href="{{ route('games.index', array_merge(request()->except(['page']), ['tab' => 'venue'])) }}" 
-                       class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'venue' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
+                       class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap shrink-0 {{ ($activeTab ?? '') === 'venue' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
                         <i class="fa-solid fa-location-dot text-xs {{ ($activeTab ?? '') === 'venue' ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i>
                         <span>Sesi di Venue Saya</span>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'venue' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
@@ -56,7 +58,7 @@
                 <!-- Tab 2: Mabar yang Saya Ikuti (Player Scope) -->
                 @if(Auth::user()->role !== 'venue_owner')
                     <a href="{{ route('games.index', array_merge(request()->except(['page']), ['tab' => 'joined'])) }}" 
-                       class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'joined' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
+                       class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap shrink-0 {{ ($activeTab ?? '') === 'joined' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
                         <i class="fa-solid fa-circle-check text-xs {{ ($activeTab ?? '') === 'joined' ? 'text-[#A8E63A]' : 'text-emerald-500' }}"></i>
                         <span>Mabar Saya / Diikuti</span>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'joined' ? 'bg-[#A8E63A] text-[#063B00]' : 'bg-emerald-50 text-emerald-800 border border-emerald-200' }}">
@@ -68,7 +70,7 @@
                 <!-- Tab 3: Dikelola Saya (Host Scope) -->
                 @if(Auth::user()->is_host || ($countHosted ?? 0) > 0)
                     <a href="{{ route('games.index', array_merge(request()->except(['page']), ['tab' => 'hosted'])) }}" 
-                       class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? '') === 'hosted' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
+                       class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap shrink-0 {{ ($activeTab ?? '') === 'hosted' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
                         <i class="fa-solid fa-crown text-xs {{ ($activeTab ?? '') === 'hosted' ? 'text-[#A8E63A]' : 'text-amber-500' }}"></i>
                         <span>Dikelola Saya (Host)</span>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? '') === 'hosted' ? 'bg-amber-400 text-amber-950' : 'bg-amber-50 text-amber-800 border border-amber-200' }}">
@@ -79,9 +81,9 @@
             @endauth
         </div>
 
-        <!-- Search Bar & Filter Trigger Row -->
-        <div class="flex items-center gap-2 w-full md:w-auto">
-            <form method="GET" action="{{ route('games.index') }}" class="relative w-full md:w-72 shrink-0">
+        <!-- Right Side: Search Bar & Filter Button (Rata Kanan) -->
+        <div class="flex items-center gap-2 w-full lg:w-auto shrink-0 justify-end">
+            <form method="GET" action="{{ route('games.index') }}" class="relative w-full sm:w-64 lg:w-72">
                 <input type="hidden" name="tab" value="{{ $activeTab ?? 'all' }}">
                 <input type="hidden" name="sport" value="{{ $selectedSport ?? 'all' }}">
                 <input type="hidden" name="status" value="{{ $selectedStatus ?? 'all' }}">
@@ -101,14 +103,14 @@
                 </div>
             </form>
 
-            <!-- Filter Modal Trigger Button -->
+            <!-- Filter Trigger Button -->
             <button type="button" onclick="openFilterModal()" 
-                    class="relative px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-all shrink-0 {{ ($hasActiveFilter ?? false) ? 'bg-[#063B00] text-white border-[#063B00] shadow-xs' : 'glass-card text-slate-700 border-slate-200/90 hover:bg-white hover:text-[#050608]' }}"
+                    class="relative px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-all shrink-0 cursor-pointer {{ ($hasActiveFilter ?? false) ? 'bg-[#063B00] text-white border-[#063B00] shadow-xs' : 'glass-card text-slate-700 border-slate-200/90 hover:bg-white hover:text-[#050608]' }}"
                     title="Buka Filter Sesi Mabar">
                 <i class="fa-solid fa-sliders text-xs {{ ($hasActiveFilter ?? false) ? 'text-[#A8E63A]' : 'text-slate-500' }}"></i>
-                <span class="hidden sm:inline">Filter</span>
+                <span>Filter</span>
                 @if($hasActiveFilter ?? false)
-                    <span class="w-2 h-2 rounded-full bg-[#A8E63A] animate-pulse"></span>
+                    <span class="w-2 h-2 rounded-full bg-[#A8E63A]"></span>
                 @endif
             </button>
         </div>
@@ -275,68 +277,74 @@
     @endif
 </div>
 
-<!-- Filter Modal / Drawer -->
+<!-- Compact & Responsive Filter Modal Dialog -->
 <div id="filter-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
     <!-- Backdrop -->
-    <div id="filter-backdrop" onclick="closeFilterModal()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300 opacity-0"></div>
+    <div id="filter-backdrop" onclick="closeFilterModal()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-200 opacity-0"></div>
 
-    <div class="fixed inset-0 z-10 overflow-y-auto p-4 sm:p-6 md:p-20 flex items-center justify-center">
-        <div id="filter-dialog" class="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all duration-300 opacity-0 scale-95 w-full max-w-lg border border-slate-100">
+    <div class="fixed inset-0 z-10 overflow-y-auto p-4 flex items-center justify-center min-h-screen">
+        <div id="filter-dialog" class="relative transform overflow-hidden rounded-2xl sm:rounded-3xl bg-white text-left shadow-2xl transition-all duration-200 opacity-0 scale-95 w-full max-w-md border border-slate-100 my-auto">
             <form method="GET" action="{{ route('games.index') }}" id="filter-form">
                 <input type="hidden" name="tab" value="{{ $activeTab ?? 'all' }}">
                 <input type="hidden" name="sport" value="{{ $selectedSport ?? 'all' }}">
                 <input type="hidden" name="q" value="{{ $search ?? '' }}">
 
-                <!-- Header -->
-                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <!-- Header (Compact) -->
+                <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <div class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-xl bg-[#EBF8D8] text-[#063B00] flex items-center justify-center font-bold text-sm">
+                        <div class="w-7 h-7 rounded-lg bg-[#EBF8D8] text-[#063B00] flex items-center justify-center font-bold text-xs">
                             <i class="fa-solid fa-sliders"></i>
                         </div>
                         <div>
-                            <h3 class="text-base font-bold text-slate-900" id="modal-title">Filter Sesi Mabar</h3>
-                            <p class="text-[11px] text-slate-500">Saring jadwal pertandingan sesuai kebutuhanmu</p>
+                            <h3 class="text-sm font-bold text-slate-900" id="modal-title">Filter Sesi Mabar</h3>
+                            <p class="text-[10.5px] text-slate-500">Sesuaikan pencarian pertandingan</p>
                         </div>
                     </div>
-                    <button type="button" onclick="resetFilterForm()" class="text-xs font-bold text-rose-600 hover:text-rose-800 transition-colors">
+                    <!-- Reset button: only visible if any non-default option is selected -->
+                    <button type="button" id="btn-reset-filter" onclick="resetFilterForm()" 
+                            class="text-xs font-bold text-rose-600 hover:text-rose-800 transition-colors hidden cursor-pointer">
                         Atur Ulang
                     </button>
                 </div>
 
-                <!-- Body Options -->
-                <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                <!-- Body Options (Compact Padding & Gaps) -->
+                <div class="p-4 sm:p-5 space-y-4 max-h-[75vh] overflow-y-auto">
                     <!-- 1. Status Pertandingan -->
-                    <div class="space-y-2.5">
-                        <label class="block text-xs font-bold text-slate-900 uppercase tracking-wider">Status Pertandingan</label>
+                    <div class="space-y-2">
+                        <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Status Pertandingan</label>
                         <div class="grid grid-cols-2 gap-2">
-                            <label class="cursor-pointer">
-                                <input type="radio" name="status" value="all" class="peer sr-only" {{ ($selectedStatus ?? 'all') === 'all' ? 'checked' : '' }}>
-                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-[#063B00] peer-checked:text-white peer-checked:border-[#063B00] peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-border-all text-[11px]"></i>
+                            <!-- Semua Status -->
+                            <label class="cursor-pointer select-none">
+                                <input type="radio" name="status" value="all" class="peer sr-only filter-radio" {{ ($selectedStatus ?? 'all') === 'all' ? 'checked' : '' }} onchange="checkFilterState()">
+                                <div class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-xs font-semibold text-slate-700 peer-checked:!bg-[#063B00] peer-checked:!text-white peer-checked:!border-[#063B00] peer-checked:shadow-xs hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 text-center">
+                                    <i class="fa-solid fa-border-all text-[10px]"></i>
                                     <span>Semua Status</span>
                                 </div>
                             </label>
 
-                            <label class="cursor-pointer">
-                                <input type="radio" name="status" value="upcoming" class="peer sr-only" {{ ($selectedStatus ?? '') === 'upcoming' ? 'checked' : '' }}>
-                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600 peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-clock text-[11px]"></i>
+                            <!-- Belum Mulai -->
+                            <label class="cursor-pointer select-none">
+                                <input type="radio" name="status" value="upcoming" class="peer sr-only filter-radio" {{ ($selectedStatus ?? '') === 'upcoming' ? 'checked' : '' }} onchange="checkFilterState()">
+                                <div class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-xs font-semibold text-slate-700 peer-checked:!bg-[#047857] peer-checked:!text-white peer-checked:!border-[#047857] peer-checked:shadow-xs hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 text-center">
+                                    <i class="fa-solid fa-clock text-[10px]"></i>
                                     <span>Belum Mulai</span>
                                 </div>
                             </label>
 
-                            <label class="cursor-pointer">
-                                <input type="radio" name="status" value="live" class="peer sr-only" {{ ($selectedStatus ?? '') === 'live' ? 'checked' : '' }}>
-                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-rose-600 peer-checked:text-white peer-checked:border-rose-600 peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-circle-dot text-[11px] animate-pulse"></i>
-                                    <span>Sedang Main (LIVE)</span>
+                            <!-- Sedang Main (LIVE) -->
+                            <label class="cursor-pointer select-none">
+                                <input type="radio" name="status" value="live" class="peer sr-only filter-radio" {{ ($selectedStatus ?? '') === 'live' ? 'checked' : '' }} onchange="checkFilterState()">
+                                <div class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-xs font-semibold text-slate-700 peer-checked:!bg-[#E11D48] peer-checked:!text-white peer-checked:!border-[#E11D48] peer-checked:shadow-xs hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 text-center">
+                                    <i class="fa-solid fa-circle-dot text-[10px] animate-pulse"></i>
+                                    <span>Sedang Main</span>
                                 </div>
                             </label>
 
-                            <label class="cursor-pointer">
-                                <input type="radio" name="status" value="finished" class="peer sr-only" {{ ($selectedStatus ?? '') === 'finished' ? 'checked' : '' }}>
-                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-slate-700 peer-checked:text-white peer-checked:border-slate-700 peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-flag-checkered text-[11px]"></i>
+                            <!-- Selesai -->
+                            <label class="cursor-pointer select-none">
+                                <input type="radio" name="status" value="finished" class="peer sr-only filter-radio" {{ ($selectedStatus ?? '') === 'finished' ? 'checked' : '' }} onchange="checkFilterState()">
+                                <div class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-xs font-semibold text-slate-700 peer-checked:!bg-[#475569] peer-checked:!text-white peer-checked:!border-[#475569] peer-checked:shadow-xs hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 text-center">
+                                    <i class="fa-solid fa-flag-checkered text-[10px]"></i>
                                     <span>Selesai</span>
                                 </div>
                             </label>
@@ -344,54 +352,61 @@
                     </div>
 
                     <!-- 2. Ketersediaan Kuota Slot -->
-                    <div class="space-y-2.5">
-                        <label class="block text-xs font-bold text-slate-900 uppercase tracking-wider">Ketersediaan Kuota Slot</label>
-                        <label class="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 cursor-pointer transition-all">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-emerald-600">
-                                    <i class="fa-solid fa-user-plus text-xs"></i>
+                    <div class="space-y-1.5">
+                        <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Ketersediaan Slot</label>
+                        <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-100/80 cursor-pointer transition-all select-none">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-700 text-xs">
+                                    <i class="fa-solid fa-user-plus"></i>
                                 </div>
                                 <div>
-                                    <div class="text-xs font-bold text-slate-900">Hanya yang ada slot kosong</div>
-                                    <div class="text-[11px] text-slate-500">Sembunyikan sesi mabar yang sudah penuh</div>
+                                    <div class="text-xs font-bold text-slate-800">Hanya ada slot kosong</div>
+                                    <div class="text-[10.5px] text-slate-500">Sembunyikan sesi yang kuotanya penuh</div>
                                 </div>
                             </div>
-                            <input type="checkbox" name="slots" value="available" id="filter-slots-checkbox" class="w-4 h-4 rounded text-[#063B00] focus:ring-[#063B00] border-slate-300" {{ ($selectedSlots ?? '') === 'available' ? 'checked' : '' }}>
+                            <input type="checkbox" name="slots" value="available" id="filter-slots-checkbox" 
+                                   class="w-4 h-4 rounded text-[#063B00] focus:ring-[#063B00] border-slate-300 accent-[#063B00] cursor-pointer" 
+                                   {{ ($selectedSlots ?? '') === 'available' ? 'checked' : '' }} 
+                                   onchange="checkFilterState()">
                         </label>
                     </div>
 
                     <!-- 3. Waktu Pertandingan -->
-                    <div class="space-y-2.5">
-                        <label class="block text-xs font-bold text-slate-900 uppercase tracking-wider">Waktu Pertandingan</label>
+                    <div class="space-y-2">
+                        <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Waktu Pertandingan</label>
                         <div class="grid grid-cols-2 gap-2">
-                            <label class="cursor-pointer">
-                                <input type="radio" name="time" value="all" class="peer sr-only" {{ ($selectedTime ?? 'all') === 'all' ? 'checked' : '' }}>
-                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-[#063B00] peer-checked:text-white peer-checked:border-[#063B00] peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-calendar text-[11px]"></i>
-                                    <span>Semua Tanggal</span>
+                            <!-- Semua Tanggal -->
+                            <label class="cursor-pointer select-none">
+                                <input type="radio" name="time" value="all" class="peer sr-only filter-radio" {{ ($selectedTime ?? 'all') === 'all' ? 'checked' : '' }} onchange="checkFilterState()">
+                                <div class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-xs font-semibold text-slate-700 peer-checked:!bg-[#063B00] peer-checked:!text-white peer-checked:!border-[#063B00] peer-checked:shadow-xs hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 text-center">
+                                    <i class="fa-solid fa-calendar text-[10px]"></i>
+                                    <span>Semua Hari</span>
                                 </div>
                             </label>
 
-                            <label class="cursor-pointer">
-                                <input type="radio" name="time" value="today" class="peer sr-only" {{ ($selectedTime ?? '') === 'today' ? 'checked' : '' }}>
-                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-[#063B00] peer-checked:text-white peer-checked:border-[#063B00] peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-calendar-day text-[11px]"></i>
+                            <!-- Hari Ini -->
+                            <label class="cursor-pointer select-none">
+                                <input type="radio" name="time" value="today" class="peer sr-only filter-radio" {{ ($selectedTime ?? '') === 'today' ? 'checked' : '' }} onchange="checkFilterState()">
+                                <div class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-xs font-semibold text-slate-700 peer-checked:!bg-[#063B00] peer-checked:!text-white peer-checked:!border-[#063B00] peer-checked:shadow-xs hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 text-center">
+                                    <i class="fa-solid fa-calendar-day text-[10px]"></i>
                                     <span>Hari Ini</span>
                                 </div>
                             </label>
 
-                            <label class="cursor-pointer">
-                                <input type="radio" name="time" value="tomorrow" class="peer sr-only" {{ ($selectedTime ?? '') === 'tomorrow' ? 'checked' : '' }}>
-                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-[#063B00] peer-checked:text-white peer-checked:border-[#063B00] peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-calendar-week text-[11px]"></i>
+                            <!-- Besok -->
+                            <label class="cursor-pointer select-none">
+                                <input type="radio" name="time" value="tomorrow" class="peer sr-only filter-radio" {{ ($selectedTime ?? '') === 'tomorrow' ? 'checked' : '' }} onchange="checkFilterState()">
+                                <div class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-xs font-semibold text-slate-700 peer-checked:!bg-[#063B00] peer-checked:!text-white peer-checked:!border-[#063B00] peer-checked:shadow-xs hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 text-center">
+                                    <i class="fa-solid fa-calendar-week text-[10px]"></i>
                                     <span>Besok</span>
                                 </div>
                             </label>
 
-                            <label class="cursor-pointer">
-                                <input type="radio" name="time" value="this_week" class="peer sr-only" {{ ($selectedTime ?? '') === 'this_week' ? 'checked' : '' }}>
-                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 peer-checked:bg-[#063B00] peer-checked:text-white peer-checked:border-[#063B00] peer-checked:shadow-xs transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-calendar-days text-[11px]"></i>
+                            <!-- 7 Hari Ke Depan -->
+                            <label class="cursor-pointer select-none">
+                                <input type="radio" name="time" value="this_week" class="peer sr-only filter-radio" {{ ($selectedTime ?? '') === 'this_week' ? 'checked' : '' }} onchange="checkFilterState()">
+                                <div class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-xs font-semibold text-slate-700 peer-checked:!bg-[#063B00] peer-checked:!text-white peer-checked:!border-[#063B00] peer-checked:shadow-xs hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 text-center">
+                                    <i class="fa-solid fa-calendar-days text-[10px]"></i>
                                     <span>7 Hari Ke Depan</span>
                                 </div>
                             </label>
@@ -399,12 +414,12 @@
                     </div>
                 </div>
 
-                <!-- Footer Action Buttons -->
-                <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5 rounded-b-3xl">
-                    <button type="button" onclick="closeFilterModal()" class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-100 transition-all">
+                <!-- Footer Action Buttons (Compact) -->
+                <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2 rounded-b-2xl sm:rounded-b-3xl">
+                    <button type="button" onclick="closeFilterModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-100 transition-all cursor-pointer">
                         Tutup
                     </button>
-                    <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#063B00] hover:bg-[#042a00] shadow-md transition-all hover:scale-[1.01]">
+                    <button type="submit" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#063B00] hover:bg-[#042a00] shadow-xs transition-all hover:scale-[1.01] cursor-pointer">
                         Terapkan Filter
                     </button>
                 </div>
@@ -423,6 +438,7 @@
         const dialog = document.getElementById('filter-dialog');
         if (!modal) return;
 
+        checkFilterState();
         modal.classList.remove('hidden');
         setTimeout(() => {
             backdrop.classList.remove('opacity-0');
@@ -445,7 +461,23 @@
 
         setTimeout(() => {
             modal.classList.add('hidden');
-        }, 250);
+        }, 200);
+    }
+
+    function checkFilterState() {
+        const resetBtn = document.getElementById('btn-reset-filter');
+        if (!resetBtn) return;
+
+        const statusVal = document.querySelector('input[name="status"]:checked')?.value || 'all';
+        const slotsChecked = document.getElementById('filter-slots-checkbox')?.checked || false;
+        const timeVal = document.querySelector('input[name="time"]:checked')?.value || 'all';
+
+        const isFiltered = (statusVal !== 'all') || slotsChecked || (timeVal !== 'all');
+        if (isFiltered) {
+            resetBtn.classList.remove('hidden');
+        } else {
+            resetBtn.classList.add('hidden');
+        }
     }
 
     function resetFilterForm() {
@@ -460,6 +492,8 @@
         // Select 'all' time
         const timeAll = document.querySelector('input[name="time"][value="all"]');
         if (timeAll) timeAll.checked = true;
+
+        checkFilterState();
     }
 
     // Close on Escape key
@@ -467,6 +501,10 @@
         if (e.key === 'Escape') {
             closeFilterModal();
         }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        checkFilterState();
     });
 </script>
 @endpush
