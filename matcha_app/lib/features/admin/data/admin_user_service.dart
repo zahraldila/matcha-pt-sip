@@ -70,6 +70,24 @@ class AdminUserService {
     }
   }
 
+  /// Memeriksa apakah nomor HP sudah terdaftar pada pengguna lain
+  Future<bool> isPhoneTaken(String phone, {required int excludeUserId}) async {
+    try {
+      final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+      if (cleanPhone.isEmpty) return false;
+      final existing = await _supabase
+          .from('tb_user')
+          .select('user_id')
+          .eq('no_hp', cleanPhone)
+          .neq('user_id', excludeUserId)
+          .maybeSingle();
+
+      return existing != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Memperbarui profil, peran, dan detail pengguna oleh Admin
   Future<void> updateUser({
     required int userId,

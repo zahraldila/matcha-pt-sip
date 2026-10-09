@@ -113,6 +113,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     bool obscurePassword = true;
     String? nameError;
     String? emailError;
+    String? phoneError;
     bool isChecking = false;
 
     showDialog(
@@ -284,13 +285,28 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                     controller: phoneCtrl,
                     keyboardType: TextInputType.phone,
                     style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    onChanged: (val) {
+                      if (phoneError != null) {
+                        setModalState(() => phoneError = null);
+                      }
+                    },
                     decoration: InputDecoration(
                       hintText: '08xxxxxxxxxx',
                       hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      errorText: phoneError,
+                      errorStyle: const TextStyle(fontSize: 11, color: Color(0xFFEF4444), fontWeight: FontWeight.w500),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: phoneError != null ? const Color(0xFFEF4444) : const Color(0xFFCBD5E1)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: phoneError != null ? const Color(0xFFEF4444) : AppColors.matchaDark, width: 1.5),
+                      ),
+                      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+                      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -469,6 +485,44 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                               // Lanjutkan jika query pengecekan bermasalah
                             }
                             setModalState(() => isChecking = false);
+                          }
+
+                          // Cek duplikasi nomor HP jika diisi dan diubah
+                          final trimmedPhone = phoneCtrl.text.trim();
+                          if (trimmedPhone.isNotEmpty) {
+                            final cleanPhone = trimmedPhone.replaceAll(RegExp(r'[^0-9]'), '');
+                            final currentPhone = (user.noHp ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                            if (cleanPhone != currentPhone) {
+                              // Cek di memori lokal untuk respons instan
+                              final isDuplicatePhoneLocal = _allUsers.any((u) =>
+                                  u.userId != user.userId &&
+                                  (u.noHp ?? '').replaceAll(RegExp(r'[^0-9]'), '') == cleanPhone);
+                              if (isDuplicatePhoneLocal) {
+                                setModalState(() {
+                                  phoneError = 'Nomor HP sudah terdaftar.';
+                                });
+                                return;
+                              }
+
+                              // Cek ke database Supabase
+                              setModalState(() => isChecking = true);
+                              try {
+                                final isPhoneTaken = await _adminUserService.isPhoneTaken(
+                                  cleanPhone,
+                                  excludeUserId: user.userId,
+                                );
+                                if (isPhoneTaken) {
+                                  setModalState(() {
+                                    isChecking = false;
+                                    phoneError = 'Nomor HP sudah terdaftar.';
+                                  });
+                                  return;
+                                }
+                              } catch (_) {
+                                // Lanjutkan jika query pengecekan bermasalah
+                              }
+                              setModalState(() => isChecking = false);
+                            }
                           }
 
                           if (!mounted) return;
