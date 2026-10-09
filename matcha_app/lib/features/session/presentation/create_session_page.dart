@@ -42,7 +42,18 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
 
   // 3. Lokasi Venue & Lapangan
   VenueModel? _selectedVenue;
-  CourtModel? _selectedCourt;
+  List<CourtModel> _selectedCourts = [];
+  bool _isCourtDropdownOpen = false;
+
+  String _formatHargaPerJam(double? harga) {
+    if (harga == null || harga <= 0) return 'Rp 20.000/jam';
+    final intVal = harga.toInt();
+    final formatted = intVal.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
+    return 'Rp $formatted/jam';
+  }
 
   // 4. Informasi & Judul
   final TextEditingController _titleController = TextEditingController();
@@ -122,7 +133,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               c.sportId == _selectedSportId &&
               (c.statusKetersediaan == null ||
                   c.statusKetersediaan!.toLowerCase() == 'available')).toList();
-          _selectedCourt = matchingCourts.firstOrNull;
+          _selectedCourts = matchingCourts.isNotEmpty ? [matchingCourts.first] : [];
         }
 
         _isLoading = false;
@@ -145,7 +156,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               c.statusKetersediaan!.toLowerCase() == 'available'));
       if (!hasMatchingCourt) {
         _selectedVenue = null;
-        _selectedCourt = null;
+        _selectedCourts = [];
       }
     }
 
@@ -154,11 +165,12 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
           c.sportId == _selectedSportId &&
           (c.statusKetersediaan == null ||
               c.statusKetersediaan!.toLowerCase() == 'available')).toList();
-      _selectedCourt = matchingCourts.firstOrNull;
+      _selectedCourts = matchingCourts.isNotEmpty ? [matchingCourts.first] : [];
     } else {
-      _selectedCourt = null;
+      _selectedCourts = [];
     }
 
+    _isCourtDropdownOpen = false;
     setState(() {});
   }
 
@@ -251,7 +263,8 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
           c.sportId == _selectedSportId &&
           (c.statusKetersediaan == null ||
               c.statusKetersediaan!.toLowerCase() == 'available')).toList();
-      _selectedCourt = matchingCourts.firstOrNull;
+      _selectedCourts = matchingCourts.isNotEmpty ? [matchingCourts.first] : [];
+      _isCourtDropdownOpen = false;
     });
   }
 
@@ -838,7 +851,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                                     if (_selectedSportId != null) {
                                       _applySportSelection(_selectedSportId!);
                                     } else {
-                                      _selectedCourt = newVenue.courts.firstOrNull;
+                                      _selectedCourts = newVenue.courts.isNotEmpty ? [newVenue.courts.first] : [];
                                     }
                                   });
 
@@ -911,10 +924,10 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       return;
     }
 
-    if (_selectedVenue == null || _selectedCourt == null) {
+    if (_selectedVenue == null || _selectedCourts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Pilih venue dan court yang tersedia terlebih dahulu.'),
+          content: Text('Pilih venue dan minimal satu court yang tersedia terlebih dahulu.'),
           backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
         ),
@@ -1016,7 +1029,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       await _sessionService.createScheduleSession(
         sportId: _selectedSportId!,
         venueId: _selectedVenue!.venueId,
-        courtId: _selectedCourt!.courtId,
+        courtIds: _selectedCourts.map((c) => c.courtId).toList(),
         namaSession: _titleController.text.trim(),
         tanggal: _selectedDate,
         jam: timeStr,
@@ -1380,7 +1393,29 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                         ),
                       const SizedBox(height: 14),
 
-                      _buildFieldLabel('Pilih Court / Lapangan *'),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildFieldLabel('Pilih Court / Lapangan *'),
+                          if (_selectedCourts.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0FDF4),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: const Color(0xFFBBF7D0)),
+                              ),
+                              child: Text(
+                                '${_selectedCourts.length} Lapangan',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF15803D),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                       const SizedBox(height: 6),
                       if (matchingCourts.isEmpty)
                         Container(
@@ -1395,25 +1430,214 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                             style: TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
                           ),
                         )
-                      else
-                        DropdownButtonFormField<CourtModel>(
-                          initialValue: _selectedCourt != null &&
-                                  matchingCourts.any((c) => c.courtId == _selectedCourt!.courtId)
-                              ? matchingCourts.firstWhere((c) => c.courtId == _selectedCourt!.courtId)
-                              : matchingCourts.firstOrNull,
-                          decoration: _buildInputDecoration(hint: 'Pilih court'),
-                          isExpanded: true,
-                          items: matchingCourts.map((c) {
-                            return DropdownMenuItem<CourtModel>(
-                              value: c,
-                              child: Text(
-                                '${c.namaCourt} (${c.tipeCourt ?? 'Outdoor'})',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      else ...[
+                        InkWell(
+                          onTap: () => setState(() => _isCourtDropdownOpen = !_isCourtDropdownOpen),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _isCourtDropdownOpen ? const Color(0xFF063B00) : const Color(0xFFE2E8F0),
+                                width: _isCourtDropdownOpen ? 1.5 : 1.0,
                               ),
-                            );
-                          }).toList(),
-                          onChanged: (val) => setState(() => _selectedCourt = val),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _selectedCourts.isEmpty
+                                        ? 'Pilih Lapangan'
+                                        : _selectedCourts.length == matchingCourts.length && matchingCourts.length > 1
+                                            ? 'Semua Lapangan (${_selectedCourts.length} Lapangan)'
+                                            : '${_selectedCourts.map((c) => c.namaCourt).join(', ')} (${_selectedCourts.length} Lapangan)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: _selectedCourts.isEmpty ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Icon(
+                                  _isCourtDropdownOpen ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                                  size: 20,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
+                        if (_isCourtDropdownOpen) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.06),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Pilih Lapangan:',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          if (_selectedCourts.length == matchingCourts.length) {
+                                            _selectedCourts = [];
+                                          } else {
+                                            _selectedCourts = List.from(matchingCourts);
+                                          }
+                                        });
+                                      },
+                                      child: Text(
+                                        _selectedCourts.length == matchingCourts.length
+                                            ? 'Batal Pilih Semua'
+                                            : 'Pilih Semua Lapangan',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF063B00),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                ...matchingCourts.map((court) {
+                                  final isSelected = _selectedCourts.any((c) => c.courtId == court.courtId);
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          if (isSelected) {
+                                            _selectedCourts.removeWhere((c) => c.courtId == court.courtId);
+                                          } else {
+                                            _selectedCourts.add(court);
+                                          }
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: isSelected ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
+                                            width: isSelected ? 1.5 : 1.0,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    court.namaCourt,
+                                                    style: const TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: Color(0xFF0F172A),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    '${court.tipeCourt ?? 'Outdoor'} • ${_formatHargaPerJam(court.hargaPerJam)}',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color: Color(0xFF64748B),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Container(
+                                              width: 22,
+                                              height: 22,
+                                              decoration: BoxDecoration(
+                                                color: isSelected ? const Color(0xFF063B00) : Colors.white,
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: isSelected ? const Color(0xFF063B00) : const Color(0xFFCBD5E1),
+                                                  width: 1.5,
+                                                ),
+                                              ),
+                                              alignment: Alignment.center,
+                                              child: isSelected
+                                                  ? const Icon(Icons.check_rounded, size: 14, color: Color(0xFFA8E63A))
+                                                  : null,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                                const SizedBox(height: 6),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '${_selectedCourts.length} dari ${matchingCourts.length} lapangan dipilih',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => setState(() => _isCourtDropdownOpen = false),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF063B00),
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Selesai',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                       const SizedBox(height: 22),
                       const Divider(height: 1, color: Color(0xFFF1F5F9)),
                       const SizedBox(height: 20),
