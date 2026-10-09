@@ -198,13 +198,20 @@ class PlayerController extends Controller
 
         if ($id !== null && $id !== '') {
             $targetUser = User::find($id);
-            $targetPlayer = Player::with('community')
-                ->where('user_id', $id)
-                ->orWhere('player_id', $id)
-                ->first();
+            if ($targetUser) {
+                $targetPlayer = Player::with('community')
+                    ->where('user_id', $targetUser->user_id)
+                    ->when(! empty($targetUser->email), fn ($q) => $q->orWhere('email', $targetUser->email))
+                    ->first();
+            } else {
+                $targetPlayer = Player::with('community')
+                    ->where('player_id', $id)
+                    ->orWhere('user_id', $id)
+                    ->first();
 
-            if (! $targetUser && $targetPlayer && $targetPlayer->user_id) {
-                $targetUser = User::find($targetPlayer->user_id);
+                if ($targetPlayer && $targetPlayer->user_id) {
+                    $targetUser = User::find($targetPlayer->user_id);
+                }
             }
 
             if (! $targetUser && ! $targetPlayer) {
@@ -219,7 +226,7 @@ class PlayerController extends Controller
             $targetUser = Auth::user();
             $targetPlayer = Player::with('community')
                 ->where('user_id', $targetUser->user_id)
-                ->orWhere('email', $targetUser->email)
+                ->when(! empty($targetUser->email), fn ($q) => $q->orWhere('email', $targetUser->email))
                 ->first();
             $isOwner = true;
         }
@@ -309,7 +316,7 @@ class PlayerController extends Controller
             );
         }
 
-        // 2. Data Rekap Karir Pemain Nyata dari Database
+        // 2. Data Rekap Karir Pemain Nyata dari Database (Opsi B: Sesi Finished)
         $recap = self::calculateRealPlayerRecap($targetUser, $targetPlayer);
 
         $shareUserId = $targetUser->user_id ?? ($targetPlayer->user_id ?? ($targetPlayer->player_id ?? null));
@@ -336,7 +343,24 @@ class PlayerController extends Controller
         $communityName = $player->community->nama_community ?? 'Personal (Non-Community)';
         $roleName = ($user && $user->role === 'venue_owner') ? 'Venue Owner' : (($user && $user->is_host) ? 'Host Game' : 'Member');
 
-        if (! $player) {
+        // Kumpulkan SEMUA player_id yang terikat ke akun user / player ini (agar tidak terpotong)
+        $allPlayerIds = collect([]);
+        if ($user && ! empty($user->user_id)) {
+            $userPlayerIds = Player::where('user_id', $user->user_id)
+                ->when(! empty($user->email), fn ($q) => $q->orWhere('email', $user->email))
+                ->pluck('player_id');
+            $allPlayerIds = $allPlayerIds->merge($userPlayerIds);
+        }
+        if ($player && ! empty($player->player_id)) {
+            $allPlayerIds->push($player->player_id);
+            if (! empty($player->email)) {
+                $emailPlayerIds = Player::where('email', $player->email)->pluck('player_id');
+                $allPlayerIds = $allPlayerIds->merge($emailPlayerIds);
+            }
+        }
+        $allPlayerIds = $allPlayerIds->unique()->filter()->values()->all();
+
+        if (empty($allPlayerIds)) {
             return [
                 'player' => [
                     'name' => $playerName,
@@ -361,7 +385,7 @@ class PlayerController extends Controller
         // Ambil semua partisipasi pertandingan yang match-nya sudah Completed
         $participations = collect([]);
         try {
-            $participations = MatchParticipant::where('player_id', $player->player_id)
+            $participations = MatchParticipant::whereIn('player_id', $allPlayerIds)
                 ->with([
                     'match.drawing.session.sport',
                     'match.drawing.session.venue',
@@ -383,6 +407,13 @@ class PlayerController extends Controller
         foreach ($participations as $part) {
             $match = $part->match;
             if (! $match || strtolower($match->status_match ?? '') !== 'completed') {
+                continue;
+            }
+
+            // OPSI B: Hanya hitung jika Sesi Mabar sudah berstatus Selesai (Finished/Completed)
+            $session = $match->drawing->session ?? null;
+            $sessionStatus = strtolower(trim($session->status_session ?? ''));
+            if (! in_array($sessionStatus, ['finished', 'completed', 'selesai'])) {
                 continue;
             }
 
@@ -425,7 +456,8 @@ class PlayerController extends Controller
             $partnerName = 'Solo';
             $opponents = [];
             foreach ($match->participants as $otherPart) {
-                if ($otherPart->player_id == $player->player_id) {
+                // Jangan anggap diri sendiri sebagai partner/lawan
+                if (in_array((int) $otherPart->player_id, array_map('intval', $allPlayerIds))) {
                     continue;
                 }
                 $otherSideA = str_contains(strtolower($otherPart->side ?? ''), 'a');
