@@ -630,6 +630,644 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     }
   }
 
+  void _showScoringSystemPickerModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Pilih Sistem Skor Pertandingan',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Tentukan aturan hitungan poin untuk setiap match',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  children: [
+                    // Group 1: Rotasi Poin
+                    _buildScoringModalGroup(
+                      ctx: ctx,
+                      groupTitle: 'Sistem Rotasi Poin (Total of X)',
+                      groupBadge: 'AMERICANO ROTASI',
+                      badgeBg: const Color(0xFFEBF8D8),
+                      badgeColor: const Color(0xFF063B00),
+                      icon: Icons.sync_rounded,
+                      description: 'Total poin dibagi antara kedua pasangan tiap ronde. Partner & lawan berganti dinamis.',
+                      items: const [
+                        'Total of 3 Poin',
+                        'Total of 4 Poin',
+                        'Total of 5 Poin',
+                        'Total of 6 Poin',
+                        'Total of 7 Poin',
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    // Group 2: Langsung Tuntas
+                    _buildScoringModalGroup(
+                      ctx: ctx,
+                      groupTitle: 'Sistem Langsung Tuntas (First to X)',
+                      groupBadge: '1 SET TUNTAS',
+                      badgeBg: const Color(0xFFFEF3C7),
+                      badgeColor: const Color(0xFFB45309),
+                      icon: Icons.bolt_rounded,
+                      description: 'Satu set langsung tuntas saat tim pertama mencapai target poin (tanpa rotasi cadangan).',
+                      items: const [
+                        'First to 8 Poin (Tuntas)',
+                        'First to 11 Poin (Tuntas)',
+                        'First to 15 Poin (Tuntas)',
+                        'First to 21 Poin (Tuntas)',
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildScoringModalGroup({
+    required BuildContext ctx,
+    required String groupTitle,
+    required String groupBadge,
+    required Color badgeBg,
+    required Color badgeColor,
+    required IconData icon,
+    required String description,
+    required List<String> items,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 16, color: badgeColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    groupTitle,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  groupBadge,
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.4,
+                    color: badgeColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            description,
+            style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), height: 1.3),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: items.map((item) {
+              final isSelected = _selectedScoringSystem == item;
+              return InkWell(
+                onTap: () {
+                  _onScoringSystemChanged(item);
+                  Navigator.pop(ctx);
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFFF0FDF4) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                      width: isSelected ? 1.5 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.matchaDark.withValues(alpha: 0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        item,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          color: isSelected ? AppColors.matchaDark : const Color(0xFF1E293B),
+                        ),
+                      ),
+                      if (isSelected) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.matchaDark),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDurationPickerModal() {
+    final durations = ['1 Jam', '1.5 Jam', '2 Jam', '2.5 Jam', '3 Jam', '4 Jam'];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Pilih Durasi Mabar',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: durations.map((dur) {
+                  final isSelected = _selectedDuration == dur;
+                  return InkWell(
+                    onTap: () {
+                      setState(() => _selectedDuration = dur);
+                      Navigator.pop(ctx);
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.timer_outlined,
+                            size: 15,
+                            color: isSelected ? AppColors.matchaDark : const Color(0xFF64748B),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            dur,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          if (dur == '2 Jam') ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEBF8D8),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'POPULER',
+                                style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Color(0xFF063B00)),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showQuotaPickerModal() {
+    if (_isFirstToSystem) return;
+
+    List<int> availableQuotas;
+    if (_isTeamAmericano) {
+      availableQuotas = [4, 6, 8, 10, 12, 14, 16];
+    } else if (_selectedGameType == 'Double') {
+      availableQuotas = List.generate(13, (i) => 4 + i); // 4 to 16
+    } else {
+      availableQuotas = [2, 3, 4, 5, 6, 8];
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Pilih Kuota Maksimal Pemain',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _isTeamAmericano
+                              ? 'Format Team Americano memerlukan kuota genap (pasangan tetap)'
+                              : 'Tentukan batas kapasitas peserta yang dapat bergabung',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  children: [
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: availableQuotas.map((quota) {
+                        final isSelected = _selectedQuota == quota;
+                        return InkWell(
+                          onTap: () {
+                            setState(() => _selectedQuota = quota);
+                            Navigator.pop(ctx);
+                          },
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            width: (MediaQuery.of(ctx).size.width - 60) / 3,
+                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  '$quota',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Pemain',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected ? AppColors.matchaDark : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showLevelPickerModal() {
+    final levels = [
+      (
+        key: 'All Level',
+        title: 'All Level Welcome',
+        subtitle: 'Bebas untuk semua tingkat kemahiran pemain',
+        badge: 'SEMUA LEVEL',
+        icon: Icons.all_inclusive_rounded,
+      ),
+      (
+        key: 'Newbie - Beginner',
+        title: 'Newbie & Beginner Only',
+        subtitle: 'Khusus pemain baru belajar dan santai',
+        badge: 'PEMULA',
+        icon: Icons.sentiment_satisfied_alt_rounded,
+      ),
+      (
+        key: 'Intermediate',
+        title: 'Intermediate Only',
+        subtitle: 'Pemain dengan pukulan dan rally konsisten',
+        badge: 'MENENGAH',
+        icon: Icons.sports_tennis_rounded,
+      ),
+      (
+        key: 'Advanced',
+        title: 'Advanced / Competitive Only',
+        subtitle: 'Pemain mahir dengan tempo cepat & kompetitif',
+        badge: 'KOMPETITIF',
+        icon: Icons.military_tech_rounded,
+      ),
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Pilih Rekomendasi Level',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ...levels.map((lvl) {
+                final isSelected = _selectedLevel == lvl.key;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() => _selectedLevel = lvl.key);
+                      Navigator.pop(ctx);
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.matchaDark : Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Icon(
+                              lvl.icon,
+                              size: 16,
+                              color: isSelected ? const Color(0xFFA8E63A) : const Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      lvl.title,
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                                        color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? const Color(0xFFEBF8D8) : const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        lvl.badge,
+                                        style: TextStyle(
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w800,
+                                          color: isSelected ? const Color(0xFF063B00) : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  lvl.subtitle,
+                                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.matchaDark),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _showQuickAddVenueModal() {
     final venueNameCtrl = TextEditingController();
     final cityCtrl = TextEditingController();
@@ -1212,28 +1850,86 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                       ),
                       const SizedBox(height: 14),
 
-                      // Dropdown Sistem Skor
+                      // Modern Selector Sistem Skor
                       _buildFieldLabel('Sistem Skor Pertandingan'),
                       const SizedBox(height: 6),
-                      DropdownButtonFormField<String>(
-                        key: ValueKey('scoring_system_dropdown_$_selectedScoringSystem'),
-                        initialValue: _selectedScoringSystem,
-                        decoration: _buildInputDecoration(hint: 'Pilih sistem poin yang digunakan'),
-                        isExpanded: true,
-                        items: _buildScoringDropdownItems(),
-                        selectedItemBuilder: (BuildContext context) {
-                          return _allScoringSystemItems.map((item) {
-                            return Text(
-                              item.value ?? '',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-                            );
-                          }).toList();
-                        },
-                        onChanged: (val) {
-                          if (val != null && !val.startsWith('__header')) {
-                            _onScoringSystemChanged(val);
-                          }
-                        },
+                      InkWell(
+                        onTap: _showScoringSystemPickerModal,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: _isFirstToSystem ? const Color(0xFFFEF3C7) : const Color(0xFFEBF8D8),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  _isFirstToSystem ? Icons.bolt_rounded : Icons.sync_rounded,
+                                  size: 16,
+                                  color: _isFirstToSystem ? const Color(0xFFB45309) : const Color(0xFF063B00),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _selectedScoringSystem,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 1),
+                                    Text(
+                                      _isFirstToSystem
+                                          ? 'Sistem Langsung Tuntas (1 Set Selesai)'
+                                          : 'Sistem Rotasi Poin Dinamis',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: _isFirstToSystem ? const Color(0xFFFFFBEB) : const Color(0xFFF0FDF4),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: _isFirstToSystem ? const Color(0xFFFDE68A) : const Color(0xFFBBF7D0),
+                                  ),
+                                ),
+                                child: Text(
+                                  _isFirstToSystem ? 'First to X' : 'Total of X',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: _isFirstToSystem ? const Color(0xFFB45309) : const Color(0xFF15803D),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 20,
+                                color: Color(0xFF64748B),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 22),
                       const Divider(height: 1, color: Color(0xFFF1F5F9)),
@@ -1841,21 +2537,35 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                                 children: [
                                   _buildFieldLabel('Durasi'),
                                   const SizedBox(height: 6),
-                                  DropdownButtonFormField<String>(
-                                    initialValue: _selectedDuration,
-                                    isExpanded: true,
-                                    decoration: _buildInputDecoration(hint: 'Durasi').copyWith(
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  InkWell(
+                                    onTap: _showDurationPickerModal,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.timer_outlined, size: 14, color: Color(0xFF64748B)),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              _selectedDuration,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF0F172A),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF64748B)),
+                                        ],
+                                      ),
                                     ),
-                                    items: const [
-                                      DropdownMenuItem(value: '1 Jam', child: Text('1 Jam', style: TextStyle(fontSize: 11))),
-                                      DropdownMenuItem(value: '2 Jam', child: Text('2 Jam', style: TextStyle(fontSize: 11))),
-                                      DropdownMenuItem(value: '3 Jam', child: Text('3 Jam', style: TextStyle(fontSize: 11))),
-                                      DropdownMenuItem(value: '4 Jam', child: Text('4 Jam', style: TextStyle(fontSize: 11))),
-                                    ],
-                                    onChanged: (val) {
-                                      if (val != null) setState(() => _selectedDuration = val);
-                                    },
                                   ),
                                 ],
                               ),
@@ -1971,19 +2681,39 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      DropdownButtonFormField<int>(
-                        key: ValueKey('quota_dropdown_${_selectedFormat}_${_selectedScoringSystem}_${_selectedGameType}_$_selectedQuota'),
-                        initialValue: _selectedQuota,
-                        decoration: _buildInputDecoration(hint: 'Pilih Kuota'),
-                        isExpanded: true,
-                        items: _buildQuotaDropdownItems(),
-                        onChanged: _isFirstToSystem
-                            ? null // Disabled if First to X
-                            : (val) {
-                                if (val != null) {
-                                  setState(() => _selectedQuota = val);
-                                }
-                              },
+                      InkWell(
+                        onTap: _isFirstToSystem ? null : _showQuotaPickerModal,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _isFirstToSystem ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.groups_rounded,
+                                size: 18,
+                                color: _isFirstToSystem ? const Color(0xFF94A3B8) : AppColors.matchaDark,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  '$_selectedQuota Pemain',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: _isFirstToSystem ? const Color(0xFF64748B) : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ),
+                              if (!_isFirstToSystem)
+                                const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: Color(0xFF64748B)),
+                            ],
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 10),
 
@@ -1994,19 +2724,41 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                       // Rekomendasi Level
                       _buildFieldLabel('Rekomendasi Level'),
                       const SizedBox(height: 6),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedLevel,
-                        decoration: _buildInputDecoration(hint: 'Rekomendasi Level'),
-                        isExpanded: true,
-                        items: const [
-                          DropdownMenuItem(value: 'All Level', child: Text('All Level Welcome (Bebas Semua Level)', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 'Newbie - Beginner', child: Text('Newbie & Beginner Only', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 'Intermediate', child: Text('Intermediate Only', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 'Advanced', child: Text('Advanced / Competitive Only', style: TextStyle(fontSize: 12))),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedLevel = val);
-                        },
+                      InkWell(
+                        onTap: _showLevelPickerModal,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.military_tech_rounded, size: 18, color: AppColors.matchaDark),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _selectedLevel == 'All Level'
+                                      ? 'All Level Welcome (Bebas Semua Level)'
+                                      : _selectedLevel == 'Newbie - Beginner'
+                                          ? 'Newbie & Beginner Only'
+                                          : _selectedLevel == 'Intermediate'
+                                              ? 'Intermediate Only'
+                                              : 'Advanced / Competitive Only',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: Color(0xFF64748B)),
+                            ],
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 14),
 
@@ -2150,146 +2902,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     );
   }
 
-  static const List<DropdownMenuItem<String>> _allScoringSystemItems = [
-    // Header 1: Sistem Rotasi Poin (Total of X)
-    DropdownMenuItem<String>(
-      enabled: false,
-      value: '__header_total_of__',
-      child: Text(
-        'Sistem Rotasi Poin (Total of X)',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: Color(0xFF64748B),
-          letterSpacing: 0.3,
-        ),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'Total of 3 Poin',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('Total of 3 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'Total of 4 Poin',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('Total of 4 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'Total of 5 Poin',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('Total of 5 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'Total of 6 Poin',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('Total of 6 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'Total of 7 Poin',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('Total of 7 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
 
-    // Header 2: Sistem Langsung Tuntas (First to X)
-    DropdownMenuItem<String>(
-      enabled: false,
-      value: '__header_first_to__',
-      child: Text(
-        'Sistem Langsung Tuntas (First to X)',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: Color(0xFF64748B),
-          letterSpacing: 0.3,
-        ),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'First to 8 Poin (Tuntas)',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('First to 8 Poin (Tuntas)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'First to 11 Poin (Tuntas)',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('First to 11 Poin (Tuntas)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'First to 15 Poin (Tuntas)',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('First to 15 Poin (Tuntas)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'First to 21 Poin (Tuntas)',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('First to 21 Poin (Tuntas)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-  ];
-
-  List<DropdownMenuItem<String>> _buildScoringDropdownItems() {
-    return _allScoringSystemItems;
-  }
-
-  List<DropdownMenuItem<int>> _buildQuotaDropdownItems() {
-    if (_isFirstToSystem) {
-      if (_selectedGameType == 'Double') {
-        return const [
-          DropdownMenuItem(value: 4, child: Text('4 Pemain', style: TextStyle(fontSize: 12))),
-        ];
-      } else {
-        return const [
-          DropdownMenuItem(value: 2, child: Text('2 Pemain', style: TextStyle(fontSize: 12))),
-        ];
-      }
-    }
-
-    if (_isTeamAmericano) {
-      const teamAmericanoQuotas = [4, 6, 8, 10, 12, 14, 16];
-      return teamAmericanoQuotas.map((count) {
-        return DropdownMenuItem(
-          value: count,
-          child: Text('$count Pemain', style: const TextStyle(fontSize: 12)),
-        );
-      }).toList();
-    }
-
-    if (_selectedGameType == 'Double') {
-      return List.generate(13, (index) {
-        final count = 4 + index; // 4 to 16
-        return DropdownMenuItem(
-          value: count,
-          child: Text('$count Pemain', style: const TextStyle(fontSize: 12)),
-        );
-      });
-    } else {
-      const singleQuotas = [2, 3, 4, 5, 6, 8];
-      return singleQuotas.map((count) {
-        return DropdownMenuItem(
-          value: count,
-          child: Text('$count Pemain', style: const TextStyle(fontSize: 12)),
-        );
-      }).toList();
-    }
-  }
 
   Widget _buildDynamicInfoBanner() {
     String message;
