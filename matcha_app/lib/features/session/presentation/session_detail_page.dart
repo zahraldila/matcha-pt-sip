@@ -894,7 +894,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                             gameType: _matchFormatName ?? '',
                             scoringSystem: session.scoringSystem,
                             playMode: session.jenisPermainan,
-                            courtCount: 1,
+                            courtCount: session.courtNames.length > 1 ? session.courtNames.length : 1,
                             players: session.registeredPlayers
                                 .map(
                                   (p) => GamePlayerItem(

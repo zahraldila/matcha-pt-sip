@@ -253,6 +253,12 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         } else if (widget.initialRounds != null && widget.initialRounds!.isNotEmpty && _isHostUser) {
           _rounds = List.from(widget.initialRounds!);
         } else if (_isHostUser && _rounds.isEmpty) {
+          if (session != null && session['tb_session_court'] is List) {
+            final courtList = session['tb_session_court'] as List;
+            if (courtList.isNotEmpty && _config.courtCount <= 1) {
+              _config.courtCount = courtList.length;
+            }
+          }
           _generateInitialDrawing();
         }
         _isLoading = false;
