@@ -7,6 +7,7 @@ import '../domain/session_model.dart';
 import 'create_session_page.dart';
 import 'session_detail_page.dart';
 import 'widgets/join_session_modal.dart';
+import 'widgets/session_filter_bottom_sheet.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 
@@ -40,6 +41,7 @@ class _SessionListPageState extends State<SessionListPage> {
   String _searchQuery = '';
   String _selectedSport = 'Semua Cabang'; // 'Semua Cabang', 'Padel', 'Tennis'
   String _selectedTab = 'all'; // 'all', 'venue', 'joined', 'hosted'
+  SessionFilterOptions _filterOptions = const SessionFilterOptions();
 
   @override
   void initState() {
@@ -134,8 +136,12 @@ class _SessionListPageState extends State<SessionListPage> {
   List<SessionModel> _getSportAndSearchFilteredSessions() {
     final query = _searchQuery.trim().toLowerCase();
     final tokens = query.isEmpty ? <String>[] : query.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
 
     return _allSessions.where((s) {
+      // 1. Text Search
       final matchesSearch = tokens.isEmpty || () {
         final searchableText = [
           s.namaSession,
@@ -151,10 +157,45 @@ class _SessionListPageState extends State<SessionListPage> {
         return tokens.every((token) => searchableText.contains(token));
       }();
 
+      // 2. Sport
       final matchesSport = _selectedSport == 'Semua Cabang' ||
           s.sportName.toLowerCase() == _selectedSport.toLowerCase();
 
-      return matchesSearch && matchesSport;
+      // 3. Status
+      bool matchesStatus = true;
+      if (_filterOptions.status == 'upcoming') {
+        matchesStatus = s.isUpcoming;
+      } else if (_filterOptions.status == 'live') {
+        matchesStatus = s.isLive;
+      } else if (_filterOptions.status == 'finished') {
+        matchesStatus = s.isFinished;
+      }
+
+      // 4. Available Slots
+      bool matchesSlots = true;
+      if (_filterOptions.onlyAvailableSlots) {
+        matchesSlots = !s.isFinished && !s.isFull && s.availableSlots > 0;
+      }
+
+      // 5. Time Filter
+      bool matchesTime = true;
+      if (_filterOptions.timeFilter != 'all') {
+        if (s.datetime == null) {
+          matchesTime = false;
+        } else {
+          final sDate = DateTime(s.datetime!.year, s.datetime!.month, s.datetime!.day);
+          if (_filterOptions.timeFilter == 'today') {
+            matchesTime = sDate.isAtSameMomentAs(today);
+          } else if (_filterOptions.timeFilter == 'tomorrow') {
+            matchesTime = sDate.isAtSameMomentAs(tomorrow);
+          } else if (_filterOptions.timeFilter == 'this_week') {
+            final next7Days = today.add(const Duration(days: 7));
+            matchesTime = !sDate.isBefore(today) && !sDate.isAfter(next7Days);
+          }
+        }
+      }
+
+      return matchesSearch && matchesSport && matchesStatus && matchesSlots && matchesTime;
     }).toList();
   }
 
@@ -197,7 +238,84 @@ class _SessionListPageState extends State<SessionListPage> {
     if (_selectedTab == 'joined') return 'Jelajahi tab "Semua Sesi" dan gabung ke mabar seru!';
     if (_selectedTab == 'hosted') return 'Buat jadwal mabar baru dengan menekan tombol di bawah.';
     if (_selectedTab == 'venue') return 'Belum ada sesi yang dijadwalkan di venue kamu.';
+    if (_filterOptions.hasActiveFilter) return 'Coba ubah atau atur ulang filter yang aktif.';
     return 'Coba ubah kata kunci atau cabang olahraga.';
+  }
+
+  void _openFilterBottomSheet() {
+    SessionFilterBottomSheet.show(
+      context: context,
+      currentOptions: _filterOptions,
+      onApply: (newOptions) {
+        setState(() {
+          _filterOptions = newOptions;
+          _applyFilters();
+        });
+      },
+    );
+  }
+
+  String _getStatusLabel(String status) {
+    switch (status) {
+      case 'upcoming':
+        return 'Status: Belum Mulai';
+      case 'live':
+        return 'Status: Sedang Main (LIVE)';
+      case 'finished':
+        return 'Status: Selesai';
+      default:
+        return 'Status: Semua';
+    }
+  }
+
+  String _getTimeLabel(String time) {
+    switch (time) {
+      case 'today':
+        return 'Waktu: Hari Ini';
+      case 'tomorrow':
+        return 'Waktu: Besok';
+      case 'this_week':
+        return 'Waktu: 7 Hari Ke Depan';
+      default:
+        return '';
+    }
+  }
+
+  Widget _buildActiveFilterTag({
+    required String label,
+    required VoidCallback onRemove,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEBF8D8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF86EFAC)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF063B00),
+            ),
+          ),
+          const SizedBox(width: 5),
+          InkWell(
+            onTap: onRemove,
+            borderRadius: BorderRadius.circular(10),
+            child: const Icon(
+              Icons.close_rounded,
+              size: 13,
+              color: Color(0xFF063B00),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   bool _canDeleteSession(SessionModel s) {
@@ -699,43 +817,102 @@ class _SessionListPageState extends State<SessionListPage> {
                     ),
                     const SizedBox(height: 14),
 
-                    // Search Bar
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+                    // Search Bar & Filter Button Row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: _onSearch,
+                              decoration: InputDecoration(
+                                hintText: 'Cari sesi mabar, venue, kota...',
+                                hintStyle: AppTextStyles.caption.copyWith(
+                                  color: const Color(0xFF94A3B8),
+                                  fontSize: 13,
+                                ),
+                                prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8), size: 20),
+                                suffixIcon: _searchQuery.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 18),
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          _onSearch('');
+                                        },
+                                      )
+                                    : null,
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                            ),
                           ),
-                        ],
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: _onSearch,
-                        decoration: InputDecoration(
-                          hintText: 'Cari sesi mabar, venue, kota...',
-                          hintStyle: AppTextStyles.caption.copyWith(
-                            color: const Color(0xFF94A3B8),
-                            fontSize: 13,
-                          ),
-                          prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8), size: 20),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 18),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    _onSearch('');
-                                  },
-                                  )
-                              : null,
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        // Filter Icon Button (Opens Filter Bottom Sheet)
+                        InkWell(
+                          onTap: _openFilterBottomSheet,
+                          borderRadius: BorderRadius.circular(14),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: _filterOptions.hasActiveFilter ? AppColors.matchaDark : Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: _filterOptions.hasActiveFilter
+                                    ? AppColors.matchaDark
+                                    : const Color(0xFFCBD5E1),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _filterOptions.hasActiveFilter
+                                      ? AppColors.matchaDark.withValues(alpha: 0.25)
+                                      : Colors.black.withValues(alpha: 0.03),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Icon(
+                                  Icons.tune_rounded,
+                                  size: 20,
+                                  color: _filterOptions.hasActiveFilter
+                                      ? const Color(0xFFA8E63A)
+                                      : const Color(0xFF475569),
+                                ),
+                                if (_filterOptions.hasActiveFilter)
+                                  Positioned(
+                                    top: -4,
+                                    right: -4,
+                                    child: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFA8E63A),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
 
@@ -752,6 +929,73 @@ class _SessionListPageState extends State<SessionListPage> {
                         ],
                       ),
                     ),
+
+                    // Active Filter Tags (if any)
+                    if (_filterOptions.hasActiveFilter) ...[
+                      const SizedBox(height: 10),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            if (_filterOptions.status != 'all') ...[
+                              _buildActiveFilterTag(
+                                label: _getStatusLabel(_filterOptions.status),
+                                onRemove: () {
+                                  setState(() {
+                                    _filterOptions = _filterOptions.copyWith(status: 'all');
+                                    _applyFilters();
+                                  });
+                                },
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            if (_filterOptions.onlyAvailableSlots) ...[
+                              _buildActiveFilterTag(
+                                label: 'Slot Tersedia',
+                                onRemove: () {
+                                  setState(() {
+                                    _filterOptions = _filterOptions.copyWith(onlyAvailableSlots: false);
+                                    _applyFilters();
+                                  });
+                                },
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            if (_filterOptions.timeFilter != 'all') ...[
+                              _buildActiveFilterTag(
+                                label: _getTimeLabel(_filterOptions.timeFilter),
+                                onRemove: () {
+                                  setState(() {
+                                    _filterOptions = _filterOptions.copyWith(timeFilter: 'all');
+                                    _applyFilters();
+                                  });
+                                },
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _filterOptions = const SessionFilterOptions();
+                                  _applyFilters();
+                                });
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                child: Text(
+                                  'Hapus Semua',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFE11D48),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                   ],
                 ),
