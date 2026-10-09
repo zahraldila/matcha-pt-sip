@@ -62,7 +62,64 @@ class MatchService {
     }
   }
 
-  /// Mengambil drawing_id aktif/terbaru untuk suatu session_id
+  /// Mapping ID ke nama format pertandingan resmi:
+  /// 1 Americano, 2 Mexicano, 3 Mix Americano, 4 Team Americano,
+  /// 5 Tennis Single / Double, 6 King of the Court
+  static String? formatIdToName(int? id) {
+    switch (id) {
+      case 1:
+        return 'Americano';
+      case 2:
+        return 'Mexicano';
+      case 3:
+        return 'Mix Americano';
+      case 4:
+        return 'Team Americano';
+      case 5:
+        return 'Tennis Single / Double';
+      case 6:
+        return 'King of the Court';
+      default:
+        return null;
+    }
+  }
+
+  /// Mapping nama format pertandingan ke ID format resmi (1-6)
+  static int? formatNameToId(String? name) {
+    if (name == null || name.trim().isEmpty) return null;
+    final normalized = name.trim().toLowerCase();
+    switch (normalized) {
+      case 'americano':
+        return 1;
+      case 'mexicano':
+        return 2;
+      case 'mix americano':
+      case 'mixamericano':
+        return 3;
+      case 'team americano':
+      case 'teamamericano':
+        return 4;
+      case 'tennis single / double':
+      case 'tennis single/double':
+      case 'tennis':
+        return 5;
+      case 'king of the court':
+      case 'king of court':
+      case 'kingofthecourt':
+        return 6;
+      default:
+        if (normalized.contains('team americano')) return 4;
+        if (normalized.contains('mix americano')) return 3;
+        if (normalized.contains('americano')) return 1;
+        if (normalized.contains('mexicano')) return 2;
+        if (normalized.contains('tennis')) return 5;
+        if (normalized.contains('king of the court')) return 6;
+        return null;
+    }
+  }
+
+  /// Mengambil drawing_id aktif untuk suatu session_id, memprioritaskan
+  /// drawing yang memiliki data match tersimpan sebagai sumber aktif pertandingan.
   Future<int?> getLatestDrawingId(dynamic sessionId) async {
     try {
       if (sessionId == null) return null;
@@ -71,39 +128,167 @@ class MatchService {
           .from('tb_drawing')
           .select('drawing_id')
           .eq('session_id', parsedId)
-          .order('drawing_id', ascending: false)
-          .limit(1);
+          .order('drawing_id', ascending: false);
       if ((res as List).isEmpty) return null;
-      final dId = res.first['drawing_id'];
-      return dId is int ? dId : int.tryParse(dId.toString());
+
+      for (final d in res) {
+        final dId = d['drawing_id'] is int
+            ? d['drawing_id'] as int
+            : int.tryParse(d['drawing_id']?.toString() ?? '');
+        if (dId == null) continue;
+        final mCheck = await _supabase
+            .from('tb_match')
+            .select('match_id')
+            .eq('drawing_id', dId)
+            .limit(1);
+        if ((mCheck as List).isNotEmpty) {
+          return dId;
+        }
+      }
+
+      final firstId = res.first['drawing_id'];
+      return firstId is int
+          ? firstId
+          : int.tryParse(firstId?.toString() ?? '');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Mengambil info drawing aktif dan format pertandingan untuk suatu session_id
+  /// dari drawing aktif yang sama dengan sumber match.
+  Future<Map<String, dynamic>?> getActiveDrawingFormat(dynamic sessionId) async {
+    try {
+      if (sessionId == null) return null;
+      final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+
+      final drawingsRes = await _supabase
+          .from('tb_drawing')
+          .select('drawing_id, match_format_id')
+          .eq('session_id', parsedId)
+          .order('drawing_id', ascending: false);
+
+      if ((drawingsRes as List).isEmpty) return null;
+
+      int? activeDrawingId;
+      int? activeMatchFormatId;
+
+      for (final d in drawingsRes) {
+        final dId = d['drawing_id'] is int
+            ? d['drawing_id'] as int
+            : int.tryParse(d['drawing_id']?.toString() ?? '');
+        if (dId == null) continue;
+        final mCheck = await _supabase
+            .from('tb_match')
+            .select('match_id')
+            .eq('drawing_id', dId)
+            .limit(1);
+        if ((mCheck as List).isNotEmpty) {
+          activeDrawingId = dId;
+          final mfId = d['match_format_id'];
+          activeMatchFormatId = mfId is int
+              ? mfId
+              : int.tryParse(mfId?.toString() ?? '');
+          break;
+        }
+      }
+
+      if (activeDrawingId == null) {
+        final first = drawingsRes.first;
+        final dId = first['drawing_id'];
+        activeDrawingId = dId is int
+            ? dId
+            : int.tryParse(dId?.toString() ?? '');
+        final mfId = first['match_format_id'];
+        activeMatchFormatId = mfId is int
+            ? mfId
+            : int.tryParse(mfId?.toString() ?? '');
+      }
+
+      String? formatName;
+      if (activeMatchFormatId != null) {
+        try {
+          final fRes = await _supabase
+              .from('tb_match_format')
+              .select('nama_format')
+              .eq('match_format_id', activeMatchFormatId)
+              .maybeSingle();
+          if (fRes != null && fRes['nama_format'] != null) {
+            formatName = fRes['nama_format'].toString().trim();
+          }
+        } catch (_) {}
+      }
+
+      if ((formatName == null || formatName.isEmpty) && activeMatchFormatId != null) {
+        formatName = formatIdToName(activeMatchFormatId);
+      }
+
+      return {
+        'drawing_id': activeDrawingId,
+        'match_format_id': activeMatchFormatId,
+        'nama_format': formatName,
+      };
     } catch (_) {
       return null;
     }
   }
 
   /// Mengambil atau membuat record tb_drawing untuk suatu session_id
-  Future<int> getOrCreateDrawingId(dynamic sessionId) async {
+  Future<int> getOrCreateDrawingId(
+    dynamic sessionId, {
+    int? matchFormatId,
+  }) async {
     final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+
+    // Verifikasi format sebelum mengubah drawing.
+    if (matchFormatId != null) {
+      final format = await _supabase
+          .from('tb_match_format')
+          .select('match_format_id')
+          .eq('match_format_id', matchFormatId)
+          .maybeSingle();
+
+      if (format == null) {
+        throw Exception('Format pertandingan tidak ditemukan.');
+      }
+    }
+
     final existingId = await getLatestDrawingId(parsedId);
+
     if (existingId != null && existingId > 0) {
+      if (matchFormatId != null) {
+        await _supabase
+            .from('tb_drawing')
+            .update({'match_format_id': matchFormatId})
+            .eq('drawing_id', existingId);
+      }
+
       return existingId;
+    }
+
+    // Drawing baru harus memiliki format yang jelas.
+    if (matchFormatId == null) {
+      throw Exception('Format pertandingan belum dipilih.');
     }
 
     final now = DateTime.now();
     final nowTime =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
-    final drawingInsert = await _supabase
+        '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')}:'
+        '${now.second.toString().padLeft(2, '0')}';
+
+    final drawing = await _supabase
         .from('tb_drawing')
         .insert({
           'session_id': parsedId,
-          'match_format_id': 1,
+          'match_format_id': matchFormatId,
           'tanggal_drawing': now.toIso8601String().split('T')[0],
           'jam_drawing': nowTime,
         })
         .select('drawing_id')
         .single();
-    final dId = drawingInsert['drawing_id'];
-    return dId is int ? dId : int.parse(dId.toString());
+
+    return int.parse(drawing['drawing_id'].toString());
   }
 
   /// Mengambil daftar match untuk suatu session_id beserta detail court, pemain, dan skor
@@ -883,6 +1068,7 @@ class MatchService {
     String matchStatus = 'Scheduled',
     List<GamePlayerItem>? allPlayers,
     int? courtCount,
+    int? matchFormatId,
   }) async {
     if (sessionId == null || rounds.isEmpty) return rounds;
 
@@ -903,7 +1089,10 @@ class MatchService {
       throw Exception('Nomor court drawing tidak sesuai konfigurasi.');
     }
 
-    final drawingId = await getOrCreateDrawingId(parsedSessionId);
+    final drawingId = await getOrCreateDrawingId(
+      parsedSessionId,
+      matchFormatId: matchFormatId,
+    );
 
     final existingMatches = await _supabase
         .from('tb_match')
@@ -1257,6 +1446,7 @@ class MatchService {
     dynamic sessionId, {
     required List<DrawingRound> rounds,
     List<GamePlayerItem>? allPlayers,
+    int? matchFormatId,
   }) async {
     if (sessionId == null) return rounds;
     final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
@@ -1264,9 +1454,12 @@ class MatchService {
     List<DrawingRound> finalRounds = rounds;
 
     // 1. Cek apakah match sudah tersimpan di database
-    final drawingId = await getLatestDrawingId(parsedId);
+    final drawingId = await getOrCreateDrawingId(
+      parsedId,
+      matchFormatId: matchFormatId,
+    );
     bool matchesExist = false;
-    if (drawingId != null) {
+    if (drawingId > 0) {
       final existingMatches = await _supabase
           .from('tb_match')
           .select('match_id')
@@ -1281,8 +1474,9 @@ class MatchService {
         rounds: rounds,
         matchStatus: 'In Progress',
         allPlayers: allPlayers,
+        matchFormatId: matchFormatId,
       );
-    } else if (drawingId != null) {
+    } else if (drawingId > 0) {
       await _supabase
           .from('tb_match')
           .update({'status_match': 'In Progress'})

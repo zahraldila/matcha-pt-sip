@@ -518,7 +518,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               final url = (shareToken != null && shareToken.isNotEmpty)
                                   ? 'https://matcha.siproduktif.com/games/share/$shareToken'
                                   : 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
-                              final shareText = '🎾 Hasil Mabar: ${data.sessionName}\n🏆 Pemenang: ${data.standings.isNotEmpty ? data.standings.first.nama : '-'}\nLihat rekap selengkapnya di: $url';
+                              final winnerName = (data.isTeamFormat && data.teamStandings.isNotEmpty)
+                                  ? data.teamStandings.first.teamName
+                                  : (data.standings.isNotEmpty ? data.standings.first.nama : '-');
+                              final shareText = '🎾 Hasil Mabar: ${data.sessionName}\n🏆 Pemenang: $winnerName\nLihat rekap selengkapnya di: $url';
                               if (ctx.mounted) Navigator.pop(ctx);
                               await Share.share(shareText);
                             },
@@ -1506,9 +1509,22 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
   /// Template 1: Minimalist Podium (Bottom 3-avatar overlay)
   Widget _buildStoryTemplatePodium(SessionMatchRecapData data) {
-    final p1 = data.standings.isNotEmpty ? data.standings[0] : null;
-    final p2 = data.standings.length > 1 ? data.standings[1] : null;
-    final p3 = data.standings.length > 2 ? data.standings[2] : null;
+    final isTeam = data.isTeamFormat && data.teamStandings.isNotEmpty;
+
+    final p1Name = isTeam ? (data.teamStandings.isNotEmpty ? data.teamStandings[0].teamName : null) : (data.standings.isNotEmpty ? data.standings[0].nama : null);
+    final p1Init = isTeam ? (p1Name != null && p1Name.isNotEmpty ? p1Name[0] : '1') : (data.standings.isNotEmpty && data.standings[0].nama.isNotEmpty ? data.standings[0].nama[0] : '1');
+    final p1Record = isTeam ? (data.teamStandings.isNotEmpty ? '${data.teamStandings[0].matchesWon}-${data.teamStandings[0].matchesLost}' : '') : (data.standings.isNotEmpty ? '${data.standings[0].matchesWon}-${data.standings[0].matchesLost}' : '');
+    final p1Pts = isTeam ? (data.teamStandings.isNotEmpty ? data.teamStandings[0].pointsFor : 0) : (data.standings.isNotEmpty ? data.standings[0].pointsFor : 0);
+
+    final p2Name = isTeam ? (data.teamStandings.length > 1 ? data.teamStandings[1].teamName : null) : (data.standings.length > 1 ? data.standings[1].nama : null);
+    final p2Init = isTeam ? (p2Name != null && p2Name.isNotEmpty ? p2Name[0] : '2') : (data.standings.length > 1 && data.standings[1].nama.isNotEmpty ? data.standings[1].nama[0] : '2');
+    final p2Record = isTeam ? (data.teamStandings.length > 1 ? '${data.teamStandings[1].matchesWon}-${data.teamStandings[1].matchesLost}' : '') : (data.standings.length > 1 ? '${data.standings[1].matchesWon}-${data.standings[1].matchesLost}' : '');
+    final p2Pts = isTeam ? (data.teamStandings.length > 1 ? data.teamStandings[1].pointsFor : 0) : (data.standings.length > 1 ? data.standings[1].pointsFor : 0);
+
+    final p3Name = isTeam ? (data.teamStandings.length > 2 ? data.teamStandings[2].teamName : null) : (data.standings.length > 2 ? data.standings[2].nama : null);
+    final p3Init = isTeam ? (p3Name != null && p3Name.isNotEmpty ? p3Name[0] : '3') : (data.standings.length > 2 && data.standings[2].nama.isNotEmpty ? data.standings[2].nama[0] : '3');
+    final p3Record = isTeam ? (data.teamStandings.length > 2 ? '${data.teamStandings[2].matchesWon}-${data.teamStandings[2].matchesLost}' : '') : (data.standings.length > 2 ? '${data.standings[2].matchesWon}-${data.standings[2].matchesLost}' : '');
+    final p3Pts = isTeam ? (data.teamStandings.length > 2 ? data.teamStandings[2].pointsFor : 0) : (data.standings.length > 2 ? data.standings[2].pointsFor : 0);
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1579,7 +1595,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 children: [
                   // 2nd Place
                   Expanded(
-                    child: p2 == null
+                    child: p2Name == null
                         ? const SizedBox()
                         : Column(
                             mainAxisSize: MainAxisSize.min,
@@ -1590,7 +1606,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                   CircleAvatar(
                                     radius: 14,
                                     backgroundColor: const Color(0xFF475569),
-                                    child: Text(p2.nama.isNotEmpty ? p2.nama[0] : '2', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                    child: Text(p2Init, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
                                   ),
                                   Container(
                                     padding: const EdgeInsets.all(2),
@@ -1600,13 +1616,13 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 ],
                               ),
                               const SizedBox(height: 2),
-                              Text(p2.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
-                              Text('${p2.matchesWon}-${p2.matchesLost}', style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+                              Text(p2Name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
+                              Text(p2Record, style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
                               Container(
                                 margin: const EdgeInsets.only(top: 2),
                                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                 decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(4)),
-                                child: Text('${p2.pointsFor} pts', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
+                                child: Text('$p2Pts pts', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
                               ),
                             ],
                           ),
@@ -1614,7 +1630,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
                   // 1st Place (Center / Taller)
                   Expanded(
-                    child: p1 == null
+                    child: p1Name == null
                         ? const SizedBox()
                         : Column(
                             mainAxisSize: MainAxisSize.min,
@@ -1625,19 +1641,19 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                   CircleAvatar(
                                     radius: 18,
                                     backgroundColor: const Color(0xFFD97706),
-                                    child: Text(p1.nama.isNotEmpty ? p1.nama[0] : '1', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                    child: Text(p1Init, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                                   ),
                                   const Text('🥇', style: TextStyle(fontSize: 10)),
                                 ],
                               ),
                               const SizedBox(height: 2),
-                              Text(p1.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFFFDE047))),
-                              Text('${p1.matchesWon}-${p1.matchesLost}', style: const TextStyle(fontSize: 7, color: Color(0xFFFEF08A))),
+                              Text(p1Name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFFFDE047))),
+                              Text(p1Record, style: const TextStyle(fontSize: 7, color: Color(0xFFFEF08A))),
                               Container(
                                 margin: const EdgeInsets.only(top: 2),
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                 decoration: BoxDecoration(color: const Color(0xFFFACC15), borderRadius: BorderRadius.circular(4)),
-                                child: Text('${p1.pointsFor} pts', style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Color(0xFF78350F))),
+                                child: Text('$p1Pts pts', style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Color(0xFF78350F))),
                               ),
                             ],
                           ),
@@ -1645,7 +1661,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
                   // 3rd Place
                   Expanded(
-                    child: p3 == null
+                    child: p3Name == null
                         ? const SizedBox()
                         : Column(
                             mainAxisSize: MainAxisSize.min,
@@ -1656,7 +1672,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                   CircleAvatar(
                                     radius: 14,
                                     backgroundColor: const Color(0xFF7C2D12),
-                                    child: Text(p3.nama.isNotEmpty ? p3.nama[0] : '3', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                    child: Text(p3Init, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
                                   ),
                                   Container(
                                     padding: const EdgeInsets.all(2),
@@ -1666,13 +1682,13 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 ],
                               ),
                               const SizedBox(height: 2),
-                              Text(p3.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
-                              Text('${p3.matchesWon}-${p3.matchesLost}', style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+                              Text(p3Name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
+                              Text(p3Record, style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
                               Container(
                                 margin: const EdgeInsets.only(top: 2),
                                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                 decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(4)),
-                                child: Text('${p3.pointsFor} pts', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
+                                child: Text('$p3Pts pts', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
                               ),
                             ],
                           ),
@@ -1688,7 +1704,22 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
   /// Template 2: Glass Leaderboard (Tabel ranking 1st - 4th)
   Widget _buildStoryTemplateLeaderboard(SessionMatchRecapData data) {
-    final topPlayers = data.standings.take(4).toList();
+    final isTeam = data.isTeamFormat && data.teamStandings.isNotEmpty;
+    final topEntries = isTeam
+        ? data.teamStandings.take(4).map((t) => (
+            name: t.teamName,
+            matchesWon: t.matchesWon,
+            matchesLost: t.matchesLost,
+            diff: t.gameDiff,
+            points: t.pointsFor,
+          )).toList()
+        : data.standings.take(4).map((p) => (
+            name: p.nama,
+            matchesWon: p.matchesWon,
+            matchesLost: p.matchesLost,
+            diff: p.gameDiff,
+            points: p.pointsFor,
+          )).toList();
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1727,22 +1758,22 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           child: Column(
             children: [
               // Table Header
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Row(
                   children: [
-                    SizedBox(width: 16, child: Text('POS', style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
-                    Expanded(child: Text('PLAYER', style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
-                    SizedBox(width: 24, child: Text('W-L', textAlign: TextAlign.center, style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
-                    SizedBox(width: 22, child: Text('DIFF', textAlign: TextAlign.center, style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
-                    SizedBox(width: 24, child: Text('PTS', textAlign: TextAlign.right, style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
+                    const SizedBox(width: 16, child: Text('POS', style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
+                    Expanded(child: Text(isTeam ? 'TEAM' : 'PLAYER', style: const TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
+                    const SizedBox(width: 24, child: Text('W-L', textAlign: TextAlign.center, style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
+                    const SizedBox(width: 22, child: Text('DIFF', textAlign: TextAlign.center, style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
+                    const SizedBox(width: 24, child: Text('PTS', textAlign: TextAlign.right, style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
                   ],
                 ),
               ),
               const Divider(color: Colors.white12, height: 6),
 
               // Rows
-              ...topPlayers.asMap().entries.map((entry) {
+              ...topEntries.asMap().entries.map((entry) {
                 final idx = entry.key;
                 final rp = entry.value;
                 final isFirst = idx == 0;
@@ -1766,7 +1797,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       ),
                       Expanded(
                         child: Text(
-                          rp.nama,
+                          rp.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -1787,19 +1818,19 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       SizedBox(
                         width: 22,
                         child: Text(
-                          '${rp.gameDiff >= 0 ? '+' : ''}${rp.gameDiff}',
+                          '${rp.diff >= 0 ? '+' : ''}${rp.diff}',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 7.5,
                             fontWeight: FontWeight.bold,
-                            color: rp.gameDiff >= 0 ? const Color(0xFFA8E63A) : const Color(0xFFFB7185),
+                            color: rp.diff >= 0 ? const Color(0xFFA8E63A) : const Color(0xFFFB7185),
                           ),
                         ),
                       ),
                       SizedBox(
                         width: 24,
                         child: Text(
-                          '${rp.pointsFor}',
+                          '${rp.points}',
                           textAlign: TextAlign.right,
                           style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: Colors.white),
                         ),
@@ -2169,8 +2200,13 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
   /// 1. Hero Winner Card (matching web gold gradient banner)
   Widget _buildHeroWinnerCard(SessionMatchRecapData data) {
-    final winner = data.standings.isNotEmpty ? data.standings.first : null;
-    final winnerName = winner?.nama ?? 'Juara';
+    final String winnerName;
+    if (data.isTeamFormat && data.teamStandings.isNotEmpty) {
+      winnerName = data.teamStandings.first.teamName;
+    } else {
+      final winner = data.standings.isNotEmpty ? data.standings.first : null;
+      winnerName = winner?.nama ?? 'Juara';
+    }
 
     return Container(
       width: double.infinity,
@@ -2522,6 +2558,95 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
   /// 3. Section: Podium & Klasemen Akhir
   Widget _buildPodiumAndStandingsSection(SessionMatchRecapData data) {
+    if (data.isTeamFormat && data.teamStandings.isNotEmpty) {
+      final teamStandings = data.teamStandings;
+
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.emoji_events_rounded, size: 18, color: Color(0xFFD97706)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Podium & Klasemen Akhir',
+                        style: AppTextStyles.h3.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Klasemen Tim Tetap: Match Menang -> Total Game -> Selisih Game',
+                        style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Visual Podium for Top 3 Teams
+            _buildTeamPodiumVisual(teamStandings),
+
+            const SizedBox(height: 20),
+
+            // Table Ranking & Statistik
+            const Text(
+              'RANKING TIM & STATISTIK',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF64748B),
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Ranking Rows
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: teamStandings.length,
+              separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              itemBuilder: (context, index) {
+                final team = teamStandings[index];
+                return _buildTeamStandingRow(team);
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
     final standings = data.standings;
 
     return Container(
@@ -2532,78 +2657,444 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(8),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.emoji_events_rounded, size: 18, color: Color(0xFFD97706)),
                 ),
-                child: const Icon(Icons.emoji_events_rounded, size: 18, color: Color(0xFFD97706)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Podium & Klasemen Akhir',
-                      style: AppTextStyles.h3.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF0F172A),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Podium & Klasemen Akhir',
+                        style: AppTextStyles.h3.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Distribusi skor: Match Menang -> Total Game -> Selisih Game',
-                      style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Distribusi skor: Match Menang -> Total Game -> Selisih Game',
+                        style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Visual Podium for Top 3
+            if (standings.isNotEmpty) _buildPodiumVisual(standings),
+
+            const SizedBox(height: 20),
+
+            // Table Ranking & Statistik
+            const Text(
+              'RANKING & STATISTIK',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF64748B),
+                letterSpacing: 0.5,
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
+            ),
+            const SizedBox(height: 10),
 
-          // Visual Podium for Top 3
-          if (standings.isNotEmpty) _buildPodiumVisual(standings),
+            // Ranking Rows
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: standings.length,
+              separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              itemBuilder: (context, index) {
+                final player = standings[index];
+                return _buildStandingRow(player);
+              },
+            ),
+          ],
+        ),
+      );
+  }
 
-          const SizedBox(height: 20),
+  Widget _buildTeamPodiumVisual(List<SessionTeamStanding> teamStandings) {
+    final first = teamStandings.isNotEmpty ? teamStandings[0] : null;
+    final second = teamStandings.length > 1 ? teamStandings[1] : null;
+    final third = teamStandings.length > 2 ? teamStandings[2] : null;
 
-          // Table Ranking & Statistik
-          const Text(
-            'RANKING & STATISTIK',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF64748B),
-              letterSpacing: 0.5,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // 2nd Place (Silver - Left)
+        if (second != null)
+          Expanded(
+            child: Column(
+              children: [
+                _buildTeamPodiumAvatar(second.memberPhotos, second.memberNames, '🥈'),
+                const SizedBox(height: 6),
+                Text(
+                  second.teamName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0F172A)),
+                ),
+                Text(
+                  '${second.matchesWon} Win • ${second.gamesWon} Games',
+                  style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  height: 75,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text('2nd', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF475569))),
+                ),
+              ],
+            ),
+          )
+        else
+          const Spacer(),
+
+        const SizedBox(width: 8),
+
+        // 1st Place (Gold - Center)
+        if (first != null)
+          Expanded(
+            child: Column(
+              children: [
+                _buildTeamPodiumAvatar(first.memberPhotos, first.memberNames, '👑', isGold: true),
+                const SizedBox(height: 6),
+                Text(
+                  first.teamName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFF0F172A)),
+                ),
+                Text(
+                  '${first.matchesWon} Win • ${first.gamesWon} Games',
+                  style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  height: 105,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
+                    ),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('🌱', style: TextStyle(fontSize: 18)),
+                      SizedBox(height: 2),
+                      Text('JUARA 1', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF713F12))),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
 
-          // Ranking Rows
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: standings.length,
-            separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-            itemBuilder: (context, index) {
-              final player = standings[index];
-              return _buildStandingRow(player);
-            },
+        const SizedBox(width: 8),
+
+        // 3rd Place (Bronze - Right)
+        if (third != null)
+          Expanded(
+            child: Column(
+              children: [
+                _buildTeamPodiumAvatar(third.memberPhotos, third.memberNames, '🥉'),
+                const SizedBox(height: 6),
+                Text(
+                  third.teamName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0F172A)),
+                ),
+                Text(
+                  '${third.matchesWon} Win • ${third.gamesWon} Games',
+                  style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  height: 60,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFED7AA),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text('3rd', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF9A3412))),
+                ),
+              ],
+            ),
+          )
+        else
+          const Spacer(),
+      ],
+    );
+  }
+
+  Widget _buildTeamPodiumAvatar(List<String?> photos, List<String> names, String badgeEmoji, {bool isGold = false}) {
+    final double avatarSize = isGold ? 48.0 : 40.0;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        SizedBox(
+          width: avatarSize + 18,
+          height: avatarSize,
+          child: Stack(
+            children: [
+              Positioned(
+                left: 0,
+                child: Container(
+                  width: avatarSize,
+                  height: avatarSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isGold ? const Color(0xFFEAB308) : const Color(0xFF94A3B8),
+                      width: isGold ? 2.5 : 1.5,
+                    ),
+                  ),
+                  child: ClipOval(
+                    child: (photos.isNotEmpty && photos[0] != null && photos[0]!.isNotEmpty)
+                        ? Image.network(
+                            photos[0]!,
+                            width: avatarSize,
+                            height: avatarSize,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => Container(
+                              color: AppColors.matchaSoftLime,
+                              alignment: Alignment.center,
+                              child: Text(
+                                names.isNotEmpty && names[0].isNotEmpty ? names[0][0].toUpperCase() : 'A',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            color: AppColors.matchaSoftLime,
+                            alignment: Alignment.center,
+                            child: Text(
+                              names.isNotEmpty && names[0].isNotEmpty ? names[0][0].toUpperCase() : 'A',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              if (names.length > 1)
+                Positioned(
+                  right: 0,
+                  child: Container(
+                    width: avatarSize,
+                    height: avatarSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isGold ? const Color(0xFFEAB308) : const Color(0xFF94A3B8),
+                        width: isGold ? 2.5 : 1.5,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: (photos.length > 1 && photos[1] != null && photos[1]!.isNotEmpty)
+                          ? Image.network(
+                              photos[1]!,
+                              width: avatarSize,
+                              height: avatarSize,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Container(
+                                color: const Color(0xFFD1FAE5),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  names[1].isNotEmpty ? names[1][0].toUpperCase() : 'B',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF065F46)),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              color: const Color(0xFFD1FAE5),
+                              alignment: Alignment.center,
+                              child: Text(
+                                names[1].isNotEmpty ? names[1][0].toUpperCase() : 'B',
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF065F46)),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Positioned(
+          top: -4,
+          right: -4,
+          child: Text(badgeEmoji, style: TextStyle(fontSize: isGold ? 16 : 13)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTeamStandingRow(SessionTeamStanding team) {
+    String rankMedal = '#${team.rank}';
+    if (team.rank == 1) rankMedal = '🥇 1';
+    if (team.rank == 2) rankMedal = '🥈 2';
+    if (team.rank == 3) rankMedal = '🥉 3';
+
+    final isSets = _data?.isSets ?? false;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          // Rank Badge
+          SizedBox(
+            width: 36,
+            child: Text(
+              rankMedal,
+              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0F172A)),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Double Avatar
+          SizedBox(
+            width: 44,
+            height: 30,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.matchaSoftLime,
+                    ),
+                    child: ClipOval(
+                      child: (team.memberPhotos.isNotEmpty && team.memberPhotos[0] != null && team.memberPhotos[0]!.isNotEmpty)
+                          ? Image.network(
+                              team.memberPhotos[0]!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Center(
+                                child: Text(
+                                  team.memberNames.isNotEmpty && team.memberNames[0].isNotEmpty ? team.memberNames[0][0].toUpperCase() : 'A',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                team.memberNames.isNotEmpty && team.memberNames[0].isNotEmpty ? team.memberNames[0][0].toUpperCase() : 'A',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+                if (team.memberNames.length > 1)
+                  Positioned(
+                    right: 0,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFFD1FAE5),
+                      ),
+                      child: ClipOval(
+                        child: (team.memberPhotos.length > 1 && team.memberPhotos[1] != null && team.memberPhotos[1]!.isNotEmpty)
+                            ? Image.network(
+                                team.memberPhotos[1]!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Center(
+                                  child: Text(
+                                    team.memberNames[1].isNotEmpty ? team.memberNames[1][0].toUpperCase() : 'B',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Color(0xFF065F46)),
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  team.memberNames[1].isNotEmpty ? team.memberNames[1][0].toUpperCase() : 'B',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Color(0xFF065F46)),
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Name & Subtitle
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  team.teamName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF0F172A)),
+                ),
+                Text(
+                  'Tim Tetap • ${team.matchesPlayed} match',
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+          ),
+
+          // Stats Columns (Win, Sets?, Games, Selisih)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildStatCol('${team.matchesWon}', 'Win'),
+              if (isSets) ...[
+                const SizedBox(width: 8),
+                _buildStatCol('${team.setsWon}', 'Sets'),
+              ],
+              const SizedBox(width: 8),
+              _buildStatCol('${team.gamesWon}', 'Games'),
+              const SizedBox(width: 8),
+              _buildStatCol(
+                team.gameDiff >= 0 ? '+${team.gameDiff}' : '${team.gameDiff}',
+                'Selisih',
+                isHighlight: true,
+                isPositive: team.gameDiff >= 0,
+              ),
+            ],
           ),
         ],
       ),
