@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -89,17 +90,66 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
 
   bool _isSubmitting = false;
 
+  String? _normalizeGender(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final clean = raw.trim().toLowerCase();
+    if (clean == 'male' || clean == 'laki-laki' || clean == 'l') {
+      return 'Laki-laki';
+    }
+    if (clean == 'female' || clean == 'perempuan' || clean == 'p') {
+      return 'Perempuan';
+    }
+    return raw;
+  }
+
   @override
   void initState() {
     super.initState();
     final user = widget.authController?.currentUser;
     _nameController = TextEditingController(text: user?.nama ?? '');
     _ageController = TextEditingController(
-      text: user?.usia != null ? user!.usia.toString() : '',
+      text: (user?.usia != null && user!.usia! > 0) ? user.usia.toString() : '',
     );
+    _selectedGender = _normalizeGender(user?.gender);
     if (user != null && user.level != null && user.level!.isNotEmpty) {
       _selectedLevel = user.level!;
     }
+    if (user != null) {
+      _loadUserProfile();
+    }
+  }
+
+  Future<void> _loadUserProfile() async {
+    final user = widget.authController?.currentUser;
+    if (user == null) return;
+
+    try {
+      final supabase = Supabase.instance.client;
+      final playerRows = await supabase
+          .from('tb_player')
+          .select()
+          .eq('user_id', user.userId)
+          .order('player_id', ascending: false)
+          .limit(1);
+
+      if (playerRows.isNotEmpty && mounted) {
+        final p = playerRows.first;
+        setState(() {
+          if (_nameController.text.trim().isEmpty && p['nama'] != null) {
+            _nameController.text = p['nama'].toString();
+          }
+          if (_ageController.text.trim().isEmpty && p['usia'] != null) {
+            _ageController.text = p['usia'].toString();
+          }
+          if (_selectedGender == null && p['gender'] != null) {
+            _selectedGender = _normalizeGender(p['gender'].toString());
+          }
+          if (_selectedLevel == null && p['level'] != null) {
+            _selectedLevel = p['level'].toString();
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -130,9 +180,59 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
 
       int playerIdToJoin;
 
-      if (user != null && user.playerId != null && user.playerId! > 0) {
-        // Logged in user
-        playerIdToJoin = user.playerId!;
+      if (user != null) {
+        // Logged in user - ensure we use the official user player_id
+        final supabase = Supabase.instance.client;
+        int? resolvedPlayerId = user.playerId;
+
+        if (resolvedPlayerId == null || resolvedPlayerId <= 0) {
+          final existingRows = await supabase
+              .from('tb_player')
+              .select('player_id')
+              .eq('user_id', user.userId)
+              .order('player_id', ascending: false)
+              .limit(1);
+
+          if (existingRows.isNotEmpty) {
+            resolvedPlayerId = existingRows.first['player_id'] as int;
+          }
+        }
+
+        final genderDb = _selectedGender == 'Perempuan' ? 'Female' : 'Male';
+        final parsedAge = int.tryParse(_ageController.text.trim()) ?? user.usia ?? 25;
+
+        if (resolvedPlayerId != null && resolvedPlayerId > 0) {
+          playerIdToJoin = resolvedPlayerId;
+          // Sync any updated fields to tb_player
+          try {
+            await supabase.from('tb_player').update({
+              if (_nameController.text.trim().isNotEmpty) 'nama': _nameController.text.trim(),
+              'gender': genderDb,
+              'usia': parsedAge,
+              if (_selectedLevel != null) 'level': _selectedLevel,
+              if (user.foto != null) 'foto': user.foto,
+              'updated_at': DateTime.now().toIso8601String(),
+            }).eq('player_id', resolvedPlayerId);
+          } catch (_) {}
+        } else {
+          // Create linked player for logged-in user
+          final playerRes = await supabase.from('tb_player').insert({
+            'user_id': user.userId,
+            'nama': _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : user.nama,
+            'email': user.email,
+            'gender': genderDb,
+            'usia': parsedAge,
+            'level': _selectedLevel ?? user.level ?? 'Intermediate',
+            'foto': user.foto,
+            'rating': 1200,
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          }).select('player_id').single();
+
+          playerIdToJoin = playerRes['player_id'] is int
+              ? playerRes['player_id'] as int
+              : int.parse(playerRes['player_id'].toString());
+        }
       } else {
         // Guest user - register player instantly
         final genderDb = _selectedGender == 'Laki-laki' ? 'Male' : 'Female';
@@ -141,7 +241,7 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
         playerIdToJoin = await _sessionService.registerGuestPlayer(
           nama: _nameController.text.trim(),
           gender: genderDb,
-          level: _selectedLevel!,
+          level: _selectedLevel ?? 'Beginner',
           usia: parsedAge,
         );
       }
@@ -344,7 +444,34 @@ class _JoinSessionModalState extends State<JoinSessionModal> {
                   fontSize: 12,
                 ),
               ),
-              const SizedBox(height: 18),
+              if (widget.authController?.currentUser != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFBBF7D0)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF16A34A)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Data terisi otomatis dari profil akunmu.',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF15803D),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
 
               // Field 1: Nama Pemain
               Text(
