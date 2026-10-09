@@ -474,6 +474,16 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
     final picked = await showTimePicker(
       context: context,
       initialTime: isOpening ? _openingTime : _closingTime,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            viewInsets: EdgeInsets.zero,
+          ),
+          child: SingleChildScrollView(
+            child: child!,
+          ),
+        );
+      },
     );
     if (picked == null || !mounted) return;
     setState(() {

@@ -603,7 +603,14 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               ),
             ),
           ),
-          child: child!,
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              viewInsets: EdgeInsets.zero,
+            ),
+            child: SingleChildScrollView(
+              child: child!,
+            ),
+          ),
         );
       },
     );

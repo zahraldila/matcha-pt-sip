@@ -497,6 +497,16 @@ class _EditVenuePageState extends State<EditVenuePage> {
                             final picked = await showTimePicker(
                               context: context,
                               initialTime: _openTime,
+                              builder: (context, child) {
+                                return MediaQuery(
+                                  data: MediaQuery.of(context).copyWith(
+                                    viewInsets: EdgeInsets.zero,
+                                  ),
+                                  child: SingleChildScrollView(
+                                    child: child!,
+                                  ),
+                                );
+                              },
                             );
                             if (picked != null) setState(() => _openTime = picked);
                           },
@@ -527,6 +537,16 @@ class _EditVenuePageState extends State<EditVenuePage> {
                             final picked = await showTimePicker(
                               context: context,
                               initialTime: _closeTime,
+                              builder: (context, child) {
+                                return MediaQuery(
+                                  data: MediaQuery.of(context).copyWith(
+                                    viewInsets: EdgeInsets.zero,
+                                  ),
+                                  child: SingleChildScrollView(
+                                    child: child!,
+                                  ),
+                                );
+                              },
                             );
                             if (picked != null) setState(() => _closeTime = picked);
                           },
