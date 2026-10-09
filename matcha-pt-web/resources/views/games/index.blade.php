@@ -28,10 +28,10 @@
         @endauth
     </div>
 
-    <!-- 1. Primary Filter Tabs & Search / Filter Bar (Presisi Rata Kanan & Rata Card) -->
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+    <!-- 1. Primary Filter Tabs (Kiri) & Search / Filter Bar (Kanan Presisi) -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <!-- Left Side: Scope Tabs -->
-        <div class="flex items-center gap-2 overflow-x-auto scrollbar-none text-xs font-semibold py-1 min-w-0 flex-1">
+        <div class="flex items-center gap-2 overflow-x-auto scrollbar-none text-xs font-semibold py-1">
             <!-- Tab 1: Semua Sesi (Eksplorasi) -->
             <a href="{{ route('games.index', array_merge(request()->except(['page']), ['tab' => 'all'])) }}" 
                class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap shrink-0 {{ ($activeTab ?? 'all') === 'all' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
@@ -81,9 +81,9 @@
             @endauth
         </div>
 
-        <!-- Right Side: Search Bar & Filter Button (Rata Kanan Presisi) -->
-        <div class="flex items-center gap-2 w-full lg:w-auto shrink-0 justify-end max-w-full">
-            <form method="GET" action="{{ route('games.index') }}" class="relative flex-1 sm:flex-initial sm:w-64 lg:w-72 min-w-0">
+        <!-- Right Side: Search Bar & Filter Button (Rata Kanan Presisi Sejajar dengan Card) -->
+        <div class="flex items-center gap-2 w-full md:w-80 shrink-0">
+            <form method="GET" action="{{ route('games.index') }}" class="relative flex-1 min-w-0">
                 <input type="hidden" name="tab" value="{{ $activeTab ?? 'all' }}">
                 <input type="hidden" name="sport" value="{{ $selectedSport ?? 'all' }}">
                 <input type="hidden" name="status" value="{{ $selectedStatus ?? 'all' }}">
@@ -95,7 +95,7 @@
                            class="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-white border border-slate-200/90 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00] shadow-2xs transition-all">
                     @if(!empty($search))
                         <a href="{{ route('games.index', array_merge(request()->except(['page', 'q', 'search']), [])) }}" 
-                           class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                           class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                            title="Hapus pencarian">
                             <i class="fa-solid fa-circle-xmark text-xs"></i>
                         </a>
