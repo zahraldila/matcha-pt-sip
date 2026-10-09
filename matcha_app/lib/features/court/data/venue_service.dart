@@ -39,7 +39,7 @@ class VenueService {
               harga_per_jam
             )
           ''')
-          .order('nama_venue');
+          .order('nama_venue', ascending: true);
 
       return (response as List)
           .map((item) => VenueModel.fromMap(Map<String, dynamic>.from(item)))

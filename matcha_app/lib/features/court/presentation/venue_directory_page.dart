@@ -394,6 +394,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
 
     try {
       final venues = await _venueService.getVenues();
+      venues.sort((a, b) => a.namaVenue.toLowerCase().compareTo(b.namaVenue.toLowerCase()));
       if (!mounted) return;
 
       setState(() {
@@ -415,7 +416,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
     final query = _searchQuery.trim().toLowerCase();
     final tokens = query.isEmpty ? <String>[] : query.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
 
-    _filteredVenues = _venues.where((v) {
+    final filtered = _venues.where((v) {
       final matchesSearch = tokens.isEmpty || () {
         final searchableText = [
           v.namaVenue,
@@ -442,6 +443,9 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
 
         return matchesSearch && matchesSport && matchesOwner;
     }).toList();
+
+    filtered.sort((a, b) => a.namaVenue.toLowerCase().compareTo(b.namaVenue.toLowerCase()));
+    _filteredVenues = filtered;
   }
 
   void _onSearch(String val) {

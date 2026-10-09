@@ -36,7 +36,7 @@ class CommunityRemoteDataSource {
           player_id,
           user_id
         )
-      ''').order('community_id', ascending: false);
+      ''').order('nama_community', ascending: true);
 
       return (response as List)
           .map((item) => CommunityModel.fromMap(

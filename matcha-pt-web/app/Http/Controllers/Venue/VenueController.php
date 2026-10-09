@@ -23,7 +23,7 @@ class VenueController extends Controller
         $selectedSport = $request->get('sport', 'all');
         $search = trim($request->get('q', $request->get('search', '')));
 
-        $dbVenues = Venue::with(['courts.sport', 'owner'])->latest()->get();
+        $dbVenues = Venue::with(['courts.sport', 'owner'])->orderBy('nama_venue', 'asc')->get();
         if ($dbVenues->isNotEmpty()) {
             $allVenues = $dbVenues->map(function ($v) use ($currentUserId) {
                 $rawPhotos = array_filter(array_map('trim', explode(',', $v->foto ?? '')));
@@ -97,6 +97,8 @@ class VenueController extends Controller
         } else {
             $filteredVenues = $allVenues->values();
         }
+
+        $filteredVenues = $filteredVenues->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
 
         // Pagination: 6 items per page
         $perPage = 6;
