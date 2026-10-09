@@ -327,6 +327,26 @@ class PlayerController extends Controller
         return view('players.recap', compact('user', 'player', 'isHost', 'isOwner', 'activeTab', 'hostSessions', 'hostStats', 'recap', 'shareUrl'));
     }
 
+    public static function parseTeamSide(?string $raw): ?string
+    {
+        if ($raw === null) return null;
+        $clean = strtoupper(trim($raw));
+        if ($clean === '') return null;
+        if ($clean === 'B' || $clean === 'TEAM B' || $clean === 'TEAM_B' || $clean === 'SIDE B' || $clean === 'SIDE_B') {
+            return 'B';
+        }
+        if ($clean === 'A' || $clean === 'TEAM A' || $clean === 'TEAM_A' || $clean === 'SIDE A' || $clean === 'SIDE_A') {
+            return 'A';
+        }
+        if (preg_match('/(^|[^A-Z])B($|[^A-Z])/', $clean)) {
+            return 'B';
+        }
+        if (preg_match('/(^|[^A-Z])A($|[^A-Z])/', $clean)) {
+            return 'A';
+        }
+        return null;
+    }
+
     /**
      * Hitung statistik performa real player dari database (tb_match_participant, tb_match, tb_score)
      */
@@ -397,16 +417,20 @@ class PlayerController extends Controller
             $participations = collect([]);
         }
 
-        $completedMatches = [];
+        $rawCompletedList = [];
         $totalWins = 0;
         $totalLosses = 0;
         $totalDraws = 0;
-        $currentStreak = 0;
         $headToHeadMap = [];
 
         foreach ($participations as $part) {
             $match = $part->match;
-            if (! $match || strtolower($match->status_match ?? '') !== 'completed') {
+            if (! $match) {
+                continue;
+            }
+
+            $statusMatch = strtolower(trim($match->status_match ?? ''));
+            if (! in_array($statusMatch, ['completed', 'finished', 'final', 'selesai'])) {
                 continue;
             }
 
@@ -417,21 +441,20 @@ class PlayerController extends Controller
                 continue;
             }
 
-            $mySide = $part->side; // 'Team A' atau 'Team B'
-            $isSideA = str_contains(strtolower($mySide ?? ''), 'a');
+            $mySide = self::parseTeamSide($part->side) ?? 'A';
+            $isSideA = $mySide === 'A';
 
-            // Tentukan hasil kemenangan match
-            $winnerTeam = $match->winner_team;
+            // Tentukan hasil kemenangan match secara akurat
+            $winnerSide = self::parseTeamSide($match->winner_team);
             $isWinner = false;
             $isDraw = false;
 
-            if (! empty($winnerTeam)) {
-                $winnerSideA = str_contains(strtolower($winnerTeam), 'a');
-                $isWinner = ($isSideA && $winnerSideA) || (! $isSideA && ! $winnerSideA);
+            if ($winnerSide !== null) {
+                $isWinner = ($isSideA && $winnerSide === 'A') || (! $isSideA && $winnerSide === 'B');
             } else {
                 // Evaluasi dari tb_score jika winner_team belum terisi eksplisit
-                $scoreA = $match->scores->sum('game_score_a') + $match->scores->sum('set_score_a');
-                $scoreB = $match->scores->sum('game_score_b') + $match->scores->sum('set_score_b');
+                $scoreA = (int) ($match->scores->sum('game_score_a') + $match->scores->sum('set_score_a'));
+                $scoreB = (int) ($match->scores->sum('game_score_b') + $match->scores->sum('set_score_b'));
                 if ($scoreA > $scoreB) {
                     $isWinner = $isSideA;
                 } elseif ($scoreB > $scoreA) {
@@ -443,13 +466,10 @@ class PlayerController extends Controller
 
             if ($isWinner) {
                 $totalWins++;
-                $currentStreak++;
             } elseif ($isDraw) {
                 $totalDraws++;
-                $currentStreak = 0;
             } else {
                 $totalLosses++;
-                $currentStreak = 0;
             }
 
             // Partner & Lawan
@@ -460,7 +480,8 @@ class PlayerController extends Controller
                 if (in_array((int) $otherPart->player_id, array_map('intval', $allPlayerIds))) {
                     continue;
                 }
-                $otherSideA = str_contains(strtolower($otherPart->side ?? ''), 'a');
+                $otherSide = self::parseTeamSide($otherPart->side) ?? 'B';
+                $otherSideA = $otherSide === 'A';
                 $pName = $otherPart->player->nama ?? 'Pemain';
 
                 if ($otherSideA === $isSideA) {
@@ -473,7 +494,7 @@ class PlayerController extends Controller
                     $headToHeadMap[$pName]['played']++;
                     if ($isWinner) {
                         $headToHeadMap[$pName]['win']++;
-                    } else {
+                    } elseif (! $isDraw) {
                         $headToHeadMap[$pName]['lose']++;
                     }
                 }
@@ -484,14 +505,17 @@ class PlayerController extends Controller
             $venueName = $session->venue->nama_venue ?? 'Arena Olahraga';
             $matchDate = $match->updated_at ? $match->updated_at->format('d M Y') : ($session && $session->datetime ? $session->datetime->format('d M Y') : date('d M Y'));
 
-            $scoreDisplay = $match->hasil_pertandingan ?: 'Set Selesai';
+            $scoreDisplay = $match->hasil_pertandingan ?: '';
             if ($match->scores->isNotEmpty()) {
-                $sumA = $match->scores->sum('game_score_a');
-                $sumB = $match->scores->sum('game_score_b');
+                $sumA = (int) $match->scores->sum('game_score_a');
+                $sumB = (int) $match->scores->sum('game_score_b');
                 $scoreDisplay = $isSideA ? "{$sumA} - {$sumB}" : "{$sumB} - {$sumA}";
             }
+            if (empty($scoreDisplay)) {
+                $scoreDisplay = 'Set Selesai';
+            }
 
-            $completedMatches[] = [
+            $rawCompletedList[] = [
                 'sport' => $sportName,
                 'venue' => $venueName,
                 'result' => $isWinner ? 'WIN' : ($isDraw ? 'DRAW' : 'LOSE'),
@@ -499,18 +523,31 @@ class PlayerController extends Controller
                 'partner' => $partnerName,
                 'opponents' => ! empty($opponents) ? $opponents : ['Lawan'],
                 'match_date' => $matchDate,
-                'timestamp' => $match->updated_at ? $match->updated_at->timestamp : 0,
+                'timestamp' => $match->updated_at ? $match->updated_at->timestamp : ($session && $session->datetime ? $session->datetime->timestamp : 0),
+                'is_winner' => $isWinner,
+                'is_draw' => $isDraw,
             ];
         }
 
-        $totalMatches = count($completedMatches);
+        // Hitung streak secara kronologis (dari pertandingan terlama ke terbaru)
+        usort($rawCompletedList, fn ($a, $b) => $a['timestamp'] <=> $b['timestamp']);
+        $currentStreak = 0;
+        foreach ($rawCompletedList as $item) {
+            if ($item['is_winner']) {
+                $currentStreak++;
+            } else {
+                $currentStreak = 0;
+            }
+        }
+
+        // Urutkan recent matches dari yang paling baru (descending)
+        usort($rawCompletedList, fn ($a, $b) => $b['timestamp'] <=> $a['timestamp']);
+        $recentMatches = array_slice($rawCompletedList, 0, 10);
+
+        $totalMatches = count($rawCompletedList);
         $winRatePercent = $totalMatches > 0 ? round(($totalWins / $totalMatches) * 100) : 0;
         $totalHours = $totalMatches > 0 ? round($totalMatches * 0.5, 1).' Jam' : '0 Jam';
         $streakDisplay = $currentStreak > 0 ? "🔥 {$currentStreak} Win Streak" : ($totalMatches > 0 ? '0 Win Streak' : '0 Match');
-
-        // Urutkan recent matches dari yang paling baru
-        usort($completedMatches, fn ($a, $b) => $b['timestamp'] <=> $a['timestamp']);
-        $recentMatches = array_slice($completedMatches, 0, 10);
 
         // Head to head
         $headToHead = array_values($headToHeadMap);
