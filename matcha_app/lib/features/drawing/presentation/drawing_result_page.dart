@@ -82,6 +82,21 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       (route) => route.isFirst,
     );
   }
+  int? _tryResolveMatchFormatId([String? type]) {
+    final raw = (type ?? _config.gameType).trim();
+    if (raw.isEmpty) return null;
+    return MatchService.formatNameToId(raw);
+  }
+
+  int _resolveMatchFormatId() {
+    final id = _tryResolveMatchFormatId();
+    if (id == null) {
+      throw Exception(
+        'Format pertandingan tidak dikenali: ${_config.gameType}',
+      );
+    }
+    return id;
+  }
   @override
   void initState() {
     super.initState();
@@ -104,6 +119,17 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     }
     _initDataAndSubscription();
   }
+  @override
+  void didUpdateWidget(covariant DrawingResultPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.config != null) {
+      if (widget.config!.gameType.trim().isNotEmpty) {
+        _config.gameType = widget.config!.gameType.trim();
+      }
+      _config = widget.config!;
+    }
+  }
+
   @override
   void dispose() {
     _matchService.unsubscribe(_realtimeChannel);
@@ -173,6 +199,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         sessionId: sessId,
         registeredPlayers: _config.players,
       );
+      final formatInfo = await _matchService.getActiveDrawingFormat(sessId);
+      final activeFormatName = formatInfo?['nama_format'] as String?;
+      final activeFormatId = formatInfo?['match_format_id'] as int?;
+
       if (!mounted) return;
       setState(() {
         _sessionData = session;
@@ -180,6 +210,35 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           _sessionHostUserId = session['host_user_id'];
         }
         _isLocked = locked;
+
+        // Pemulihan format pertandingan:
+        // - Drawing tersimpan memulihkan format dari drawing aktif yang sama dengan sumber match.
+        // - Jangan menimpa format yang benar dengan nilai config kosong.
+        // - Jangan memberikan fallback otomatis Americano atau Team Americano.
+        if (savedRounds != null && savedRounds.isNotEmpty) {
+          if (activeFormatName != null && activeFormatName.trim().isNotEmpty) {
+            _config.gameType = activeFormatName.trim();
+          } else if (activeFormatId != null) {
+            final mapped = MatchService.formatIdToName(activeFormatId);
+            if (mapped != null) {
+              _config.gameType = mapped;
+            }
+          }
+        } else {
+          // Drawing baru atau belum tersimpan:
+          // Gunakan format yang sudah dipilih di wizard jika ada; jika kosong, pulihkan dari drawing DB jika ada.
+          if (_config.gameType.trim().isEmpty) {
+            if (activeFormatName != null && activeFormatName.trim().isNotEmpty) {
+              _config.gameType = activeFormatName.trim();
+            } else if (activeFormatId != null) {
+              final mapped = MatchService.formatIdToName(activeFormatId);
+              if (mapped != null) {
+                _config.gameType = mapped;
+              }
+            }
+          }
+        }
+
         if (savedRounds != null && savedRounds.isNotEmpty) {
           _rounds = savedRounds;
           _config.courtCount = savedRounds
@@ -201,19 +260,23 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       });
       // Jika Host dan DB belum memiliki drawing tersimpan, simpan preview awal ke database agar player bisa melihatnya secara realtime
       if (_isHostUser && (savedRounds == null || savedRounds.isEmpty) && _rounds.isNotEmpty) {
-        try {
-          final saved = await _matchService.saveDrawingMatches(
-            sessionId: sessId,
-            rounds: _rounds,
-            allPlayers: _config.players,
-            courtCount: _config.courtCount,
-            matchStatus: 'Scheduled',
-          );
-          if (mounted && saved.isNotEmpty) {
-            setState(() => _rounds = saved);
-          }
-          await _matchService.broadcastDrawingUpdate(sessId);
-        } catch (_) {}
+        final formatId = _tryResolveMatchFormatId();
+        if (formatId != null) {
+          try {
+            final saved = await _matchService.saveDrawingMatches(
+              sessionId: sessId,
+              rounds: _rounds,
+              allPlayers: _config.players,
+              courtCount: _config.courtCount,
+              matchStatus: 'Scheduled',
+              matchFormatId: _resolveMatchFormatId(),
+            );
+            if (mounted && saved.isNotEmpty) {
+              setState(() => _rounds = saved);
+            }
+            await _matchService.broadcastDrawingUpdate(sessId);
+          } catch (_) {}
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -227,6 +290,35 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
   }
   Future<void> _shuffleDrawing() async {
     if (!_isHostUser) return;
+    if (_isLoading) return;
+    if (_isLocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Drawing sudah dikunci dan tidak dapat diacak ulang.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final formatId = _tryResolveMatchFormatId();
+    if (formatId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _config.gameType.trim().isEmpty
+                  ? 'Format pertandingan belum ditentukan. Tidak dapat mengacak ulang jadwal.'
+                  : 'Format pertandingan tidak dikenali: "${_config.gameType}". Tidak dapat mengacak ulang jadwal.',
+            ),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
     final oldRounds = _rounds;
     final newRounds = MatchaDrawingEngine.generateDrawing(
       players: _config.players,
@@ -250,6 +342,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           allPlayers: _config.players,
           courtCount: _config.courtCount,
           matchStatus: 'Scheduled',
+          matchFormatId: _resolveMatchFormatId(),
         );
         if (mounted && saved.isNotEmpty) {
           setState(() => _rounds = saved);
@@ -296,6 +389,21 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     }
     final sessId = _effectiveSessionId;
     if (sessId != null) {
+      final formatId = _tryResolveMatchFormatId();
+      if (formatId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _config.gameType.trim().isEmpty
+                  ? 'Format pertandingan belum ditentukan. Pertandingan tidak dapat dimulai.'
+                  : 'Format pertandingan tidak dikenali: "${_config.gameType}". Pertandingan tidak dapat dimulai.',
+            ),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
       setState(() => _isStartingScoring = true);
       try {
         // Simpan final drawing dan update status session & matches ke In Progress
@@ -303,6 +411,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           sessId,
           rounds: _rounds,
           allPlayers: _config.players,
+          matchFormatId: _resolveMatchFormatId(),
         );
         if (!mounted) return;
         setState(() {
@@ -493,11 +602,15 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   )
                 else if (_isHostUser)
                   ElevatedButton.icon(
-                    onPressed: () {
-                      _shuffleDrawing();
-                    },
-                    icon: const Icon(Icons.shuffle_rounded),
-                    label: const Text('Buat Drawing Sekarang'),
+                    onPressed: (_isSavingDrawing || _isLocked || _isLoading) ? null : _shuffleDrawing,
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.shuffle_rounded),
+                    label: Text(_isLoading ? 'Memuat Format...' : 'Buat Drawing Sekarang'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.matchaDark,
                       foregroundColor: Colors.white,
@@ -603,18 +716,29 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                       ),
                       if (_isHostUser)
                         OutlinedButton.icon(
-                          onPressed: (_isSavingDrawing || _isLocked) ? null : _shuffleDrawing,
+                          onPressed: (_isSavingDrawing || _isLocked || _isLoading) ? null : _shuffleDrawing,
                           icon: _isSavingDrawing
                               ? const SizedBox(
                                   width: 12,
                                   height: 12,
                                   child: CircularProgressIndicator(strokeWidth: 2),
                                 )
-                              : const Icon(Icons.shuffle_rounded, size: 14),
-                          label: Text(_isLocked ? 'Terkunci' : 'Acak Ulang', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                              : (_isLoading
+                                  ? const SizedBox(
+                                      width: 12,
+                                      height: 12,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.shuffle_rounded, size: 14)),
+                          label: Text(
+                            _isLocked
+                                ? 'Terkunci'
+                                : (_isLoading ? 'Memuat...' : 'Acak Ulang'),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: _isLocked ? const Color(0xFF94A3B8) : AppColors.matchaDark,
-                            side: BorderSide(color: _isLocked ? const Color(0xFFE2E8F0) : const Color(0xFFCBD5E1)),
+                            foregroundColor: (_isLocked || _isLoading) ? const Color(0xFF94A3B8) : AppColors.matchaDark,
+                            side: BorderSide(color: (_isLocked || _isLoading) ? const Color(0xFFE2E8F0) : const Color(0xFFCBD5E1)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           ),

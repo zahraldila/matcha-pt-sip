@@ -37,6 +37,10 @@ class _GameFinalRecapPageState extends State<GameFinalRecapPage> {
   ];
 
   late List<_PlayerScoreSummary> _ranking;
+  late List<_TeamScoreSummary> _teamRanking;
+
+  bool get _isTeamAmericano =>
+      widget.config.gameType.toLowerCase().contains('team americano');
 
   @override
   void initState() {
@@ -46,6 +50,7 @@ class _GameFinalRecapPageState extends State<GameFinalRecapPage> {
 
   void _calculateRanking() {
     final Map<String, _PlayerScoreSummary> map = {};
+    final Map<String, _TeamScoreSummary> teamMap = {};
 
     for (var p in widget.config.players) {
       map[p.id] = _PlayerScoreSummary(player: p);
@@ -53,33 +58,95 @@ class _GameFinalRecapPageState extends State<GameFinalRecapPage> {
 
     for (var round in widget.rounds) {
       for (var match in round.matches) {
-        final winA = match.scoreA > match.scoreB;
-        final winB = match.scoreB > match.scoreA;
+        final isCompleted = match.status.toLowerCase() == 'completed' ||
+            (match.winnerTeam != null && match.winnerTeam!.isNotEmpty) ||
+            (match.status != 'Scheduled' && match.status != 'In Progress' && (match.scoreA > 0 || match.scoreB > 0));
 
-        for (var p in match.teamA) {
-          final s = map[p.id];
-          if (s != null) {
-            s.matchesPlayed++;
-            s.totalPoints += match.scoreA;
-            s.totalGames += match.gamesWonA > 0 ? match.gamesWonA : match.scoreA;
-            s.diff += (match.scoreA - match.scoreB);
-            if (winA) {
-              s.wins++;
-              s.setsWon++;
+        final winA = match.winnerTeam != null && match.winnerTeam!.isNotEmpty
+            ? (match.winnerTeam!.trim().toUpperCase() == 'A' || match.winnerTeam!.trim().toUpperCase() == 'TEAM A')
+            : match.scoreA > match.scoreB;
+        final winB = match.winnerTeam != null && match.winnerTeam!.isNotEmpty
+            ? (match.winnerTeam!.trim().toUpperCase() == 'B' || match.winnerTeam!.trim().toUpperCase() == 'TEAM B')
+            : match.scoreB > match.scoreA;
+
+        // Individual player stats (selalu dihitung per pemain untuk Kudos & personal stats)
+        if (isCompleted) {
+          for (var p in match.teamA) {
+            final s = map[p.id];
+            if (s != null) {
+              s.matchesPlayed++;
+              s.totalPoints += match.scoreA;
+              s.totalGames += match.gamesWonA > 0 ? match.gamesWonA : match.scoreA;
+              s.diff += (match.scoreA - match.scoreB);
+              if (winA) {
+                s.wins++;
+                s.setsWon++;
+              }
+            }
+          }
+
+          for (var p in match.teamB) {
+            final s = map[p.id];
+            if (s != null) {
+              s.matchesPlayed++;
+              s.totalPoints += match.scoreB;
+              s.totalGames += match.gamesWonB > 0 ? match.gamesWonB : match.scoreB;
+              s.diff += (match.scoreB - match.scoreA);
+              if (winB) {
+                s.wins++;
+                s.setsWon++;
+              }
             }
           }
         }
 
-        for (var p in match.teamB) {
-          final s = map[p.id];
-          if (s != null) {
-            s.matchesPlayed++;
-            s.totalPoints += match.scoreB;
-            s.totalGames += match.gamesWonB > 0 ? match.gamesWonB : match.scoreB;
-            s.diff += (match.scoreB - match.scoreA);
+        // Team stats (KHUSUS TEAM AMERICANO)
+        if (_isTeamAmericano && match.teamA.isNotEmpty && match.teamB.isNotEmpty) {
+          final sortedA = List<GamePlayerItem>.from(match.teamA)..sort((a, b) => a.id.compareTo(b.id));
+          final teamAKey = sortedA.map((p) => p.id).join('-');
+          final teamAName = sortedA.map((p) => p.name).join(' & ');
+
+          final sortedB = List<GamePlayerItem>.from(match.teamB)..sort((a, b) => a.id.compareTo(b.id));
+          final teamBKey = sortedB.map((p) => p.id).join('-');
+          final teamBName = sortedB.map((p) => p.name).join(' & ');
+
+          teamMap.putIfAbsent(
+            teamAKey,
+            () => _TeamScoreSummary(
+              teamId: teamAKey,
+              teamName: teamAName,
+              members: sortedA,
+            ),
+          );
+
+          teamMap.putIfAbsent(
+            teamBKey,
+            () => _TeamScoreSummary(
+              teamId: teamBKey,
+              teamName: teamBName,
+              members: sortedB,
+            ),
+          );
+
+          if (isCompleted) {
+            final tA = teamMap[teamAKey]!;
+            tA.matchesPlayed++;
+            tA.totalPoints += match.scoreA;
+            tA.totalGames += match.gamesWonA > 0 ? match.gamesWonA : match.scoreA;
+            tA.diff += (match.scoreA - match.scoreB);
+            if (winA) {
+              tA.wins++;
+              tA.setsWon++;
+            }
+
+            final tB = teamMap[teamBKey]!;
+            tB.matchesPlayed++;
+            tB.totalPoints += match.scoreB;
+            tB.totalGames += match.gamesWonB > 0 ? match.gamesWonB : match.scoreB;
+            tB.diff += (match.scoreB - match.scoreA);
             if (winB) {
-              s.wins++;
-              s.setsWon++;
+              tB.wins++;
+              tB.setsWon++;
             }
           }
         }
@@ -91,11 +158,33 @@ class _GameFinalRecapPageState extends State<GameFinalRecapPage> {
         if (widget.config.leaderboardRankedBy == 'Win') {
           final wComp = b.wins.compareTo(a.wins);
           if (wComp != 0) return wComp;
-          return b.diff.compareTo(a.diff);
+          final dComp = b.diff.compareTo(a.diff);
+          if (dComp != 0) return dComp;
+          return b.totalPoints.compareTo(a.totalPoints);
         }
         final pComp = b.totalPoints.compareTo(a.totalPoints);
         if (pComp != 0) return pComp;
+        final dComp = b.diff.compareTo(a.diff);
+        if (dComp != 0) return dComp;
         return b.wins.compareTo(a.wins);
+      });
+
+    _teamRanking = teamMap.values.toList()
+      ..sort((a, b) {
+        if (widget.config.leaderboardRankedBy == 'Win') {
+          final wComp = b.wins.compareTo(a.wins);
+          if (wComp != 0) return wComp;
+          final dComp = b.diff.compareTo(a.diff);
+          if (dComp != 0) return dComp;
+          return b.totalPoints.compareTo(a.totalPoints);
+        }
+        final pComp = b.totalPoints.compareTo(a.totalPoints);
+        if (pComp != 0) return pComp;
+        final dComp = b.diff.compareTo(a.diff);
+        if (dComp != 0) return dComp;
+        final wComp = b.wins.compareTo(a.wins);
+        if (wComp != 0) return wComp;
+        return a.teamName.toLowerCase().compareTo(b.teamName.toLowerCase());
       });
   }
 
@@ -121,7 +210,9 @@ class _GameFinalRecapPageState extends State<GameFinalRecapPage> {
 
   @override
   Widget build(BuildContext context) {
-    final winner = _ranking.isNotEmpty ? _ranking.first.player.name : 'Pemain';
+    final winner = _isTeamAmericano && _teamRanking.isNotEmpty
+        ? _teamRanking.first.teamName
+        : (_ranking.isNotEmpty ? _ranking.first.player.name : 'Pemain');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -469,7 +560,226 @@ class _GameFinalRecapPageState extends State<GameFinalRecapPage> {
     );
   }
 
+  Widget _buildTeamPodiumAvatar(List<GamePlayerItem> members) {
+    return SizedBox(
+      width: 44,
+      height: 32,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            child: CircleAvatar(
+              radius: 14,
+              backgroundColor: AppColors.matchaSoftLime,
+              child: Text(
+                members.isNotEmpty && members[0].name.isNotEmpty ? members[0].name[0].toUpperCase() : 'A',
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.matchaDark),
+              ),
+            ),
+          ),
+          if (members.length > 1)
+            Positioned(
+              right: 0,
+              child: CircleAvatar(
+                radius: 14,
+                backgroundColor: const Color(0xFFD1FAE5),
+                child: Text(
+                  members[1].name.isNotEmpty ? members[1].name[0].toUpperCase() : 'B',
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF065F46)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTeamPodiumColumn({
+    required _TeamScoreSummary summary,
+    required int rank,
+    required Color podiumColor,
+    required Color textColor,
+    required double height,
+  }) {
+    return Column(
+      children: [
+        _buildTeamPodiumAvatar(summary.members),
+        const SizedBox(height: 4),
+        Text(
+          summary.teamName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+        ),
+        Text(
+          '${summary.wins} Win • ${summary.totalPoints} Poin',
+          style: const TextStyle(fontSize: 9, color: Color(0xFF64748B)),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          height: height,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: podiumColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  rank == 1 ? Icons.emoji_events_rounded : Icons.military_tech_rounded,
+                  size: 20,
+                  color: textColor,
+                ),
+                Text(
+                  rank == 1 ? 'JUARA 1' : '$rank${rank == 2 ? "nd" : "rd"}',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 10, color: textColor),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPodiumSection() {
+    if (_isTeamAmericano) {
+      final t1 = _teamRanking.isNotEmpty ? _teamRanking[0] : null;
+      final t2 = _teamRanking.length > 1 ? _teamRanking[1] : null;
+      final t3 = _teamRanking.length > 2 ? _teamRanking[2] : null;
+
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Podium & Klasemen Akhir',
+              style: AppTextStyles.h2.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+            Text(
+              'Diurutkan: Match Menang — Total Point / Game (Klasemen Tim Tetap)',
+              style: AppTextStyles.caption.copyWith(fontSize: 11, color: const Color(0xFF64748B)),
+            ),
+            const SizedBox(height: 16),
+
+            // 3D Podium Bars
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // 2nd Place (Silver)
+                if (t2 != null)
+                  Expanded(
+                    child: _buildTeamPodiumColumn(
+                      summary: t2,
+                      rank: 2,
+                      podiumColor: const Color(0xFFE2E8F0),
+                      textColor: const Color(0xFF475569),
+                      height: 80,
+                    ),
+                  ),
+                const SizedBox(width: 8),
+
+                // 1st Place (Gold)
+                if (t1 != null)
+                  Expanded(
+                    child: _buildTeamPodiumColumn(
+                      summary: t1,
+                      rank: 1,
+                      podiumColor: const Color(0xFFFBBF24),
+                      textColor: const Color(0xFF78350F),
+                      height: 110,
+                    ),
+                  ),
+                const SizedBox(width: 8),
+
+                // 3rd Place (Bronze)
+                if (t3 != null)
+                  Expanded(
+                    child: _buildTeamPodiumColumn(
+                      summary: t3,
+                      rank: 3,
+                      podiumColor: const Color(0xFFFED7AA),
+                      textColor: const Color(0xFF9A3412),
+                      height: 65,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Ranking Table
+            Text(
+              'RANKING TIM & STATISTIK',
+              style: AppTextStyles.caption.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+                color: const Color(0xFF94A3B8),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...List.generate(_teamRanking.length, (idx) {
+              final t = _teamRanking[idx];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      '#${idx + 1}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                    const SizedBox(width: 10),
+                    _buildTeamPodiumAvatar(t.members),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t.teamName,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0F172A)),
+                          ),
+                          Text(
+                            'Tim • ${t.matchesPlayed} match',
+                            style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _buildStatCell('Win', '${t.wins}'),
+                    const SizedBox(width: 12),
+                    _buildStatCell('Sets', '${t.setsWon}'),
+                    const SizedBox(width: 12),
+                    _buildStatCell('Poin', '${t.totalPoints}'),
+                    const SizedBox(width: 12),
+                    _buildStatCell('Diff', '${t.diff >= 0 ? "+${t.diff}" : t.diff}'),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      );
+    }
+
     final p1 = _ranking.isNotEmpty ? _ranking[0] : null;
     final p2 = _ranking.length > 1 ? _ranking[1] : null;
     final p3 = _ranking.length > 2 ? _ranking[2] : null;
@@ -800,7 +1110,9 @@ class _GameFinalRecapPageState extends State<GameFinalRecapPage> {
     final url = sessionId != null && sessionId > 0
         ? 'https://matcha.siproduktif.com/scoring/recap/$sessionId'
         : 'https://matcha.siproduktif.com';
-    final winnerName = _ranking.isNotEmpty ? _ranking.first.player.name : 'Pemain';
+    final winnerName = _isTeamAmericano && _teamRanking.isNotEmpty
+        ? _teamRanking.first.teamName
+        : (_ranking.isNotEmpty ? _ranking.first.player.name : 'Pemain');
     final activityName = widget.config.activityName.isEmpty ? '${widget.config.sport} Tournament' : widget.config.activityName;
 
     showModalBottomSheet(
@@ -1067,4 +1379,22 @@ class _PlayerScoreSummary {
   int diff = 0;
 
   _PlayerScoreSummary({required this.player});
+}
+
+class _TeamScoreSummary {
+  final String teamId;
+  final String teamName;
+  final List<GamePlayerItem> members;
+  int matchesPlayed = 0;
+  int wins = 0;
+  int setsWon = 0;
+  int totalPoints = 0;
+  int totalGames = 0;
+  int diff = 0;
+
+  _TeamScoreSummary({
+    required this.teamId,
+    required this.teamName,
+    required this.members,
+  });
 }

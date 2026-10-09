@@ -46,6 +46,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   bool _isLoading = false;
   String? _errorMessage;
   bool _isAllMatchesCompleted = false;
+  String? _matchFormatName;
 
   @override
   void initState() {
@@ -117,9 +118,12 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
       final freshSession = await sService.getSessionDetail(widget.sessionId);
 
       bool matchesCompleted = false;
+      String? formatName;
       try {
         final mService = _matchService;
         if (mService != null) {
+          final formatInfo = await mService.getActiveDrawingFormat(widget.sessionId);
+          formatName = formatInfo?['nama_format'] as String?;
           final matches = await mService.getMatchesForSession(widget.sessionId);
           if (matches.isNotEmpty &&
               matches.every((m) => m['status']?.toString().toLowerCase() == 'completed')) {
@@ -135,6 +139,9 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
       if (!mounted) return;
       setState(() {
         _session = freshSession;
+        if (formatName != null && formatName.isNotEmpty) {
+          _matchFormatName = formatName;
+        }
         if (matchesCompleted) {
           _isAllMatchesCompleted = true;
         }
@@ -579,7 +586,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                 Expanded(
                   child: _buildGridInfoTile(
                     label: 'Format',
-                    mainValue: 'Americano / ${session.jenisPermainan}',
+                    mainValue: '${_matchFormatName ?? 'Americano'} / ${session.jenisPermainan}',
                   ),
                 ),
               ],
@@ -884,6 +891,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                             venueName: session.venueName,
                             venueId: session.venueId,
                             sport: session.sportName,
+                            gameType: _matchFormatName ?? '',
                             scoringSystem: session.scoringSystem,
                             playMode: session.jenisPermainan,
                             courtCount: 1,

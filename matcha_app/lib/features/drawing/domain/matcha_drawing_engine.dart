@@ -222,8 +222,17 @@ class MatchaDrawingEngine {
       ]);
     }
 
+    String teamKey(List<GamePlayerItem> team) {
+      final ids = team.map((p) => p.id).toList()..sort();
+      return ids.join(':');
+    }
+
+    // Positif: lebih sering Team A. Negatif: lebih sering Team B.
+    final sideBalance = <String, int>{};
+
     int n = teamList.length;
     for (int r = 1; r <= totalRounds; r++) {
+      final roundIndex = r - 1;
       List<DrawingMatch> matches = [];
       List<GamePlayerItem> resting = [];
 
@@ -238,7 +247,28 @@ class MatchaDrawingEngine {
           resting.addAll(t1);
         } else {
           if (court <= courtCount) {
-            matches.add(DrawingMatch(courtNumber: court++, teamA: t1, teamB: t2));
+            final matchIndex = matches.length;
+            final key1 = teamKey(t1);
+            final key2 = teamKey(t2);
+            final b1 = sideBalance[key1] ?? 0;
+            final b2 = sideBalance[key2] ?? 0;
+
+            final normalCost = (b1 + 1).abs() + (b2 - 1).abs();
+            final swappedCost = (b1 - 1).abs() + (b2 + 1).abs();
+
+            final swap = swappedCost < normalCost ||
+                (swappedCost == normalCost &&
+                    (b1 > b2 || (b1 == b2 && (roundIndex + matchIndex).isOdd)));
+
+            final teamA = swap ? t2 : t1;
+            final teamB = swap ? t1 : t2;
+            final keyA = swap ? key2 : key1;
+            final keyB = swap ? key1 : key2;
+
+            matches.add(DrawingMatch(courtNumber: court++, teamA: teamA, teamB: teamB));
+
+            sideBalance[keyA] = (sideBalance[keyA] ?? 0) + 1;
+            sideBalance[keyB] = (sideBalance[keyB] ?? 0) - 1;
           } else {
             resting.addAll(t1);
             resting.addAll(t2);
