@@ -76,11 +76,11 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
   bool get _canEnterSelectionMode {
     final user = widget.authController?.currentUser;
     if (user == null) return false;
-    if (user.role.toLowerCase().contains('admin') || user.isAdmin) return true;
-    return _filteredVenues.any(_canDeleteVenue);
+    return user.role.toLowerCase().contains('admin') || user.isAdmin;
   }
 
   void _toggleSelectionMode() {
+    if (!_isSelectionMode && !_canEnterSelectionMode) return;
     setState(() {
       _isSelectionMode = !_isSelectionMode;
       _selectedVenueIds.clear();
@@ -898,7 +898,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
     }
 
     void handleCardLongPress() {
-      if (!_isSelectionMode && canDelete) {
+      if (_canEnterSelectionMode && !_isSelectionMode && canDelete) {
         setState(() {
           _isSelectionMode = true;
           _selectedVenueIds.add(venue.venueId);

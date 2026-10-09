@@ -1507,22 +1507,118 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     }
   }
 
+  /// Reusable avatar builder for Story Templates (supporting photo URL with fallback initials)
+  Widget _buildStoryAvatar({
+    required String? foto,
+    required String nama,
+    required double radius,
+    required Color fallbackBg,
+    required Color textColor,
+    double fontSize = 9,
+    String? badgeText,
+    Color? badgeBg,
+    Color? badgeTextColor,
+    String? badgeEmoji,
+  }) {
+    final hasFoto = foto != null && foto.trim().isNotEmpty;
+    final initial = nama.isNotEmpty ? nama[0].toUpperCase() : 'P';
+
+    Widget avatarImage = Container(
+      width: radius * 2,
+      height: radius * 2,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: fallbackBg,
+      ),
+      child: ClipOval(
+        child: hasFoto
+            ? Image.network(
+                foto.trim(),
+                width: radius * 2,
+                height: radius * 2,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Center(
+                  child: Text(
+                    initial,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              )
+            : Center(
+                child: Text(
+                  initial,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+      ),
+    );
+
+    if (badgeEmoji != null && badgeEmoji.isNotEmpty) {
+      return Stack(
+        alignment: Alignment.topRight,
+        clipBehavior: Clip.none,
+        children: [
+          avatarImage,
+          Positioned(
+            top: -4,
+            right: -4,
+            child: Text(badgeEmoji, style: TextStyle(fontSize: radius > 15 ? 12 : 9)),
+          ),
+        ],
+      );
+    }
+
+    if (badgeText != null && badgeText.isNotEmpty) {
+      return Stack(
+        alignment: Alignment.topRight,
+        children: [
+          avatarImage,
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: badgeBg ?? Colors.white,
+            ),
+            child: Text(
+              badgeText,
+              style: TextStyle(
+                fontSize: 6,
+                fontWeight: FontWeight.w900,
+                color: badgeTextColor ?? Colors.black,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return avatarImage;
+  }
+
   /// Template 1: Minimalist Podium (Bottom 3-avatar overlay)
   Widget _buildStoryTemplatePodium(SessionMatchRecapData data) {
     final isTeam = data.isTeamFormat && data.teamStandings.isNotEmpty;
 
+    final p1Foto = isTeam ? null : (data.standings.isNotEmpty ? data.standings[0].foto : null);
     final p1Name = isTeam ? (data.teamStandings.isNotEmpty ? data.teamStandings[0].teamName : null) : (data.standings.isNotEmpty ? data.standings[0].nama : null);
-    final p1Init = isTeam ? (p1Name != null && p1Name.isNotEmpty ? p1Name[0] : '1') : (data.standings.isNotEmpty && data.standings[0].nama.isNotEmpty ? data.standings[0].nama[0] : '1');
     final p1Record = isTeam ? (data.teamStandings.isNotEmpty ? '${data.teamStandings[0].matchesWon}-${data.teamStandings[0].matchesLost}' : '') : (data.standings.isNotEmpty ? '${data.standings[0].matchesWon}-${data.standings[0].matchesLost}' : '');
     final p1Pts = isTeam ? (data.teamStandings.isNotEmpty ? data.teamStandings[0].pointsFor : 0) : (data.standings.isNotEmpty ? data.standings[0].pointsFor : 0);
 
+    final p2Foto = isTeam ? null : (data.standings.length > 1 ? data.standings[1].foto : null);
     final p2Name = isTeam ? (data.teamStandings.length > 1 ? data.teamStandings[1].teamName : null) : (data.standings.length > 1 ? data.standings[1].nama : null);
-    final p2Init = isTeam ? (p2Name != null && p2Name.isNotEmpty ? p2Name[0] : '2') : (data.standings.length > 1 && data.standings[1].nama.isNotEmpty ? data.standings[1].nama[0] : '2');
     final p2Record = isTeam ? (data.teamStandings.length > 1 ? '${data.teamStandings[1].matchesWon}-${data.teamStandings[1].matchesLost}' : '') : (data.standings.length > 1 ? '${data.standings[1].matchesWon}-${data.standings[1].matchesLost}' : '');
     final p2Pts = isTeam ? (data.teamStandings.length > 1 ? data.teamStandings[1].pointsFor : 0) : (data.standings.length > 1 ? data.standings[1].pointsFor : 0);
 
+    final p3Foto = isTeam ? null : (data.standings.length > 2 ? data.standings[2].foto : null);
     final p3Name = isTeam ? (data.teamStandings.length > 2 ? data.teamStandings[2].teamName : null) : (data.standings.length > 2 ? data.standings[2].nama : null);
-    final p3Init = isTeam ? (p3Name != null && p3Name.isNotEmpty ? p3Name[0] : '3') : (data.standings.length > 2 && data.standings[2].nama.isNotEmpty ? data.standings[2].nama[0] : '3');
     final p3Record = isTeam ? (data.teamStandings.length > 2 ? '${data.teamStandings[2].matchesWon}-${data.teamStandings[2].matchesLost}' : '') : (data.standings.length > 2 ? '${data.standings[2].matchesWon}-${data.standings[2].matchesLost}' : '');
     final p3Pts = isTeam ? (data.teamStandings.length > 2 ? data.teamStandings[2].pointsFor : 0) : (data.standings.length > 2 ? data.standings[2].pointsFor : 0);
 
@@ -1600,20 +1696,16 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         : Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Stack(
-                                alignment: Alignment.topRight,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: const Color(0xFF475569),
-                                    child: Text(p2Init, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFCBD5E1)),
-                                    child: const Text('2', style: TextStyle(fontSize: 6, fontWeight: FontWeight.w900, color: Colors.black)),
-                                  ),
-                                ],
+                              _buildStoryAvatar(
+                                foto: p2Foto,
+                                nama: p2Name,
+                                radius: 14,
+                                fallbackBg: const Color(0xFF475569),
+                                textColor: Colors.white,
+                                fontSize: 9,
+                                badgeText: '2',
+                                badgeBg: const Color(0xFFCBD5E1),
+                                badgeTextColor: Colors.black,
                               ),
                               const SizedBox(height: 2),
                               Text(p2Name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -1635,16 +1727,14 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         : Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Stack(
-                                alignment: Alignment.topRight,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 18,
-                                    backgroundColor: const Color(0xFFD97706),
-                                    child: Text(p1Init, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                                  ),
-                                  const Text('🥇', style: TextStyle(fontSize: 10)),
-                                ],
+                              _buildStoryAvatar(
+                                foto: p1Foto,
+                                nama: p1Name,
+                                radius: 18,
+                                fallbackBg: const Color(0xFFD97706),
+                                textColor: Colors.white,
+                                fontSize: 11,
+                                badgeEmoji: '🥇',
                               ),
                               const SizedBox(height: 2),
                               Text(p1Name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFFFDE047))),
@@ -1666,20 +1756,16 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         : Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Stack(
-                                alignment: Alignment.topRight,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: const Color(0xFF7C2D12),
-                                    child: Text(p3Init, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFFB923C)),
-                                    child: const Text('3', style: TextStyle(fontSize: 6, fontWeight: FontWeight.w900, color: Colors.black)),
-                                  ),
-                                ],
+                              _buildStoryAvatar(
+                                foto: p3Foto,
+                                nama: p3Name,
+                                radius: 14,
+                                fallbackBg: const Color(0xFF7C2D12),
+                                textColor: Colors.white,
+                                fontSize: 9,
+                                badgeText: '3',
+                                badgeBg: const Color(0xFFFB923C),
+                                badgeTextColor: Colors.black,
                               ),
                               const SizedBox(height: 2),
                               Text(p3Name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -1708,6 +1794,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     final topEntries = isTeam
         ? data.teamStandings.take(4).map((t) => (
             name: t.teamName,
+            foto: null as String?,
             matchesWon: t.matchesWon,
             matchesLost: t.matchesLost,
             diff: t.gameDiff,
@@ -1715,6 +1802,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           )).toList()
         : data.standings.take(4).map((p) => (
             name: p.nama,
+            foto: p.foto,
             matchesWon: p.matchesWon,
             matchesLost: p.matchesLost,
             diff: p.gameDiff,
@@ -1789,12 +1877,22 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   child: Row(
                     children: [
                       SizedBox(
-                        width: 16,
+                        width: 14,
                         child: Text(
                           idx == 0 ? '🥇' : idx == 1 ? '🥈' : idx == 2 ? '🥉' : '#${idx + 1}',
-                          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold),
                         ),
                       ),
+                      const SizedBox(width: 2),
+                      _buildStoryAvatar(
+                        foto: rp.foto,
+                        nama: rp.name,
+                        radius: 6,
+                        fallbackBg: isFirst ? const Color(0xFFD97706) : const Color(0xFF475569),
+                        textColor: Colors.white,
+                        fontSize: 5.5,
+                      ),
+                      const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           rp.name,
@@ -2011,6 +2109,15 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       children: [
                         const Text('🥇', style: TextStyle(fontSize: 9)),
                         const SizedBox(width: 4),
+                        _buildStoryAvatar(
+                          foto: data.standings.first.foto,
+                          nama: data.standings.first.nama,
+                          radius: 7,
+                          fallbackBg: const Color(0xFFD97706),
+                          textColor: Colors.white,
+                          fontSize: 6,
+                        ),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             data.standings.first.nama,
@@ -2037,6 +2144,15 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       child: Row(
                         children: [
                           const Text('🥈', style: TextStyle(fontSize: 9)),
+                          const SizedBox(width: 4),
+                          _buildStoryAvatar(
+                            foto: data.standings[1].foto,
+                            nama: data.standings[1].nama,
+                            radius: 7,
+                            fallbackBg: const Color(0xFF475569),
+                            textColor: Colors.white,
+                            fontSize: 6,
+                          ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -2104,10 +2220,13 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             const SizedBox(height: 6),
             Row(
               children: [
-                CircleAvatar(
+                _buildStoryAvatar(
+                  foto: p?.foto,
+                  nama: playerName,
                   radius: 12,
-                  backgroundColor: const Color(0xFF059669),
-                  child: Text(playerName.isNotEmpty ? playerName[0] : 'P', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                  fallbackBg: const Color(0xFF059669),
+                  textColor: Colors.white,
+                  fontSize: 9,
                 ),
                 const SizedBox(width: 6),
                 Expanded(

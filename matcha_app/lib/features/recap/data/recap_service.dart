@@ -187,13 +187,79 @@ class RecapService {
       String playerName = userNama ?? 'Pemain Matcha';
       String currentLevel = userLevel ?? 'Intermediate';
       String? playerAvatar = (userFoto != null && userFoto.isNotEmpty) ? userFoto : null;
+      String? playerRole = userRole;
 
       // 1. Kumpulkan SEMUA player_id milik user ini (user_id, email, atau nama)
       // Hal ini krusial karena satu user sering memiliki beberapa player_id historis di database
       final Set<int> allPlayerIds = {};
       if (playerId != null) allPlayerIds.add(playerId);
 
-      // Cek via user_id
+      // Cek di tb_user untuk identitas dasar jika belum ada
+      try {
+        final uRes = await _supabase
+            .from('tb_user')
+            .select('user_id, nama, email, foto, role')
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (uRes != null) {
+          if ((playerName == 'Pemain Matcha' || playerName.isEmpty) && uRes['nama'] != null && uRes['nama'].toString().isNotEmpty) {
+            playerName = uRes['nama'].toString();
+          }
+          if ((userEmail == null || userEmail.isEmpty) && uRes['email'] != null) {
+            userEmail = uRes['email'].toString();
+          }
+          if (playerAvatar == null && uRes['foto'] != null && uRes['foto'].toString().isNotEmpty) {
+            playerAvatar = uRes['foto'].toString();
+          }
+          if (playerRole == null && uRes['role'] != null) {
+            playerRole = uRes['role'].toString() == 'venue_owner' ? 'Venue Owner' : 'Member';
+          }
+        }
+      } catch (_) {}
+
+      // Cek jika userId adalah player_id langsung di tb_player
+      try {
+        final pDirect = await _supabase
+            .from('tb_player')
+            .select('player_id, nama, level, foto, email, user_id, tb_user (nama, email, foto, role)')
+            .eq('player_id', userId)
+            .maybeSingle();
+        if (pDirect != null) {
+          final pid = _toNullableInt(pDirect['player_id']);
+          if (pid != null) allPlayerIds.add(pid);
+
+          final uObj = pDirect['tb_user'] as Map<String, dynamic>?;
+          if (playerName == 'Pemain Matcha') {
+            final pNama = (pDirect['nama'] ?? uObj?['nama'])?.toString();
+            if (pNama != null && pNama.isNotEmpty) playerName = pNama;
+          }
+          if (pDirect['level'] != null && pDirect['level'].toString().isNotEmpty) {
+            currentLevel = pDirect['level'].toString();
+          }
+          if (playerAvatar == null) {
+            final pFoto = (pDirect['foto'] ?? uObj?['foto'])?.toString();
+            if (pFoto != null && pFoto.isNotEmpty) playerAvatar = pFoto;
+          }
+          if (userEmail == null || userEmail.isEmpty) {
+            userEmail = (pDirect['email'] ?? uObj?['email'])?.toString();
+          }
+
+          final linkedUid = _toNullableInt(pDirect['user_id']);
+          if (linkedUid != null) {
+            // Tarik juga semua player_id lain yang terhubung ke user_id ini
+            final siblingPlayers = await _supabase
+                .from('tb_player')
+                .select('player_id, nama, level, foto, email')
+                .eq('user_id', linkedUid);
+            for (final sp in siblingPlayers as List<dynamic>) {
+              final spid = _toNullableInt(sp['player_id']);
+              if (spid != null) allPlayerIds.add(spid);
+            }
+          }
+        }
+      } catch (_) {}
+
+      // Cek via user_id di tb_player
       try {
         final pUserRes = await _supabase
             .from('tb_player')
@@ -266,7 +332,7 @@ class RecapService {
         return PlayerCareerRecapData(
           playerName: playerName,
           username: username,
-          role: userRole ?? 'Member',
+          role: playerRole ?? 'Member',
           level: currentLevel,
           avatar: avatar,
           totalMatches: 0,
@@ -292,7 +358,7 @@ class RecapService {
         return PlayerCareerRecapData(
           playerName: playerName,
           username: username,
-          role: userRole ?? 'Member',
+          role: playerRole ?? 'Member',
           level: currentLevel,
           avatar: avatar,
           totalMatches: 0,
@@ -338,6 +404,7 @@ class RecapService {
               tb_session (
                 session_id,
                 nama_session,
+                status_session,
                 datetime,
                 tb_sport (nama_sport),
                 tb_venue (nama_venue)
@@ -356,8 +423,22 @@ class RecapService {
         final match = Map<String, dynamic>.from(rawMatch as Map);
         final matchId = _toInt(match['match_id']);
 
+        // Filter: Hanya match yang selesai dan berada pada sesi mabar yang berstatus selesai (finished/completed/selesai)
+        final drawing = match['tb_drawing'] as Map<String, dynamic>?;
+        final session = drawing?['tb_session'] as Map<String, dynamic>?;
+
+        final sessionStatus = (session?['status_session']?.toString())?.toLowerCase() ?? '';
+        final isSessionFinished = sessionStatus.contains('finish') ||
+            sessionStatus.contains('complete') ||
+            sessionStatus.contains('selesai');
+        if (!isSessionFinished) continue;
+
         final statusMatch = (match['status_match']?.toString())?.toLowerCase() ?? '';
-        if (!statusMatch.contains('complete') && !statusMatch.contains('finish')) continue;
+        final isMatchFinished = statusMatch.contains('complete') ||
+            statusMatch.contains('finish') ||
+            statusMatch.contains('final') ||
+            statusMatch.contains('selesai');
+        if (!isMatchFinished) continue;
 
         final mySideStr = mySidePerMatch[matchId];
         final mySide = parseTeamSide(mySideStr) ?? 'A';
@@ -427,8 +508,6 @@ class RecapService {
         }
 
         // Info sesi & cabang olahraga
-        final drawing = match['tb_drawing'] as Map<String, dynamic>?;
-        final session = drawing?['tb_session'] as Map<String, dynamic>?;
         final sportMap = session?['tb_sport'] as Map<String, dynamic>?;
         final venueMap = session?['tb_venue'] as Map<String, dynamic>?;
 
@@ -572,7 +651,7 @@ class RecapService {
             tb_sport (nama_sport),
             tb_venue (nama_venue),
             tb_session_court (tb_court (nama_court)),
-            tb_session_player (tb_player (player_id, user_id, nama, gender, level, foto))
+            tb_session_player (tb_player (player_id, user_id, nama, gender, level, foto, tb_user (foto)))
           ''')
           .eq('session_id', sessionId)
           .maybeSingle();
@@ -606,7 +685,13 @@ class RecapService {
         final rpMap = rp as Map<String, dynamic>;
         final pObj = rpMap['tb_player'] as Map<String, dynamic>?;
         if (pObj != null) {
-          registeredPlayers.add(pObj);
+          final pCopy = Map<String, dynamic>.from(pObj);
+          String? f = pCopy['foto']?.toString().trim();
+          if ((f == null || f.isEmpty) && pCopy['tb_user'] is Map) {
+            f = pCopy['tb_user']?['foto']?.toString().trim();
+          }
+          pCopy['foto'] = (f != null && f.isNotEmpty) ? f : null;
+          registeredPlayers.add(pCopy);
         }
       }
 
@@ -680,7 +765,7 @@ class RecapService {
               tb_match_participant (
                 player_id,
                 side,
-                tb_player (player_id, user_id, nama, level, foto, gender)
+                tb_player (player_id, user_id, nama, level, foto, gender, tb_user (foto))
               )
             ''')
             .eq('drawing_id', activeDrawingId)
@@ -748,12 +833,17 @@ class RecapService {
           final sideParsed = parseTeamSide(partMap['side']?.toString());
           final isB = sideParsed == 'B';
 
+          String? pFoto = pObj?['foto']?.toString().trim();
+          if ((pFoto == null || pFoto.isEmpty) && pObj?['tb_user'] is Map) {
+            pFoto = pObj?['tb_user']?['foto']?.toString().trim();
+          }
+
           if (pId != null && !playerStatsMap.containsKey(pId)) {
             playerStatsMap[pId] = {
               'playerId': pId,
               'nama': pName,
               'level': (pObj?['level']?.toString()) ?? 'Intermediate',
-              'foto': pObj?['foto']?.toString(),
+              'foto': (pFoto != null && pFoto.isNotEmpty) ? pFoto : null,
               'gender': (pObj?['gender']?.toString()) ?? 'Male',
               'userId': _toNullableInt(pObj?['user_id']),
               'matchesPlayed': 0,

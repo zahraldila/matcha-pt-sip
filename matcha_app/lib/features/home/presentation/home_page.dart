@@ -16,12 +16,14 @@ class HomePage extends StatefulWidget {
   final AuthController? authController;
   final VoidCallback? onExploreSessions;
   final VoidCallback? onExploreCommunity;
+  final VoidCallback? onExploreVenue;
 
   const HomePage({
     super.key,
     this.authController,
     this.onExploreSessions,
     this.onExploreCommunity,
+    this.onExploreVenue,
   });
 
   @override
@@ -360,7 +362,7 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                     TextButton(
-                      onPressed: widget.onExploreCommunity,
+                      onPressed: widget.onExploreVenue ?? widget.onExploreCommunity,
                       child: Text(
                         'Lihat Direktori',
                         style: AppTextStyles.caption.copyWith(

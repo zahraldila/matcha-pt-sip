@@ -9,12 +9,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/app_error_handler.dart';
 import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../drawing/presentation/drawing_result_page.dart';
+import '../../main/presentation/main_shell_page.dart';
 import '../../match/presentation/match_scoring_page.dart';
+import '../../profile/presentation/profile_page.dart';
 import '../../session/presentation/create_session_page.dart';
 import '../../session/presentation/session_detail_page.dart';
 import '../data/recap_service.dart';
@@ -23,11 +24,13 @@ import '../domain/recap_models.dart';
 class MatchRecapPage extends StatefulWidget {
   final AuthController? authController;
   final String initialTab; // 'host' or 'career'
+  final int? targetUserId; // Target user ID for public deep link / specific player preview
 
   const MatchRecapPage({
     super.key,
     this.authController,
     this.initialTab = 'host',
+    this.targetUserId,
   });
 
   @override
@@ -48,7 +51,8 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
   void initState() {
     super.initState();
     final user = widget.authController?.currentUser;
-    final isHost = user?.isHost ?? false;
+    final isOwnProfile = widget.targetUserId == null || (user != null && user.userId == widget.targetUserId);
+    final isHost = isOwnProfile && (user?.isHost ?? false);
     _activeTab = isHost ? widget.initialTab : 'career';
 
     _loadData();
@@ -74,8 +78,10 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
       _errorMessage = null;
     });
 
-    final user = widget.authController?.currentUser;
-    if (user == null) {
+    final currentUser = widget.authController?.currentUser;
+    final targetId = widget.targetUserId ?? currentUser?.userId;
+
+    if (targetId == null) {
       setState(() {
         _isLoading = false;
         _errorMessage = 'Silakan masuk untuk melihat rekap pertandingan.';
@@ -83,18 +89,24 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
       return;
     }
 
+    final isOwnProfile = currentUser != null && currentUser.userId == targetId;
+
     try {
-      final hostFuture = user.isHost ? _recapService.getHostRecap(user.userId) : null;
+      final hostFuture = (isOwnProfile && currentUser.isHost)
+          ? _recapService.getHostRecap(currentUser.userId)
+          : null;
       final careerFuture = _recapService.getPlayerCareerRecap(
-        user.userId,
-        playerId: user.playerId,
-        userEmail: user.email,
-        userNama: user.nama,
-        userFoto: user.foto,
-        userRole: user.role == 'venue_owner'
-            ? 'Venue Owner'
-            : (user.isHost ? 'Host Game' : 'Member'),
-        userLevel: user.level,
+        targetId,
+        playerId: isOwnProfile ? currentUser.playerId : null,
+        userEmail: isOwnProfile ? currentUser.email : null,
+        userNama: isOwnProfile ? currentUser.nama : null,
+        userFoto: isOwnProfile ? currentUser.foto : null,
+        userRole: isOwnProfile
+            ? (currentUser.role == 'venue_owner'
+                ? 'Venue Owner'
+                : (currentUser.isHost ? 'Host Game' : 'Member'))
+            : null,
+        userLevel: isOwnProfile ? currentUser.level : null,
       );
 
       final hostRes = hostFuture != null ? await hostFuture : null;
@@ -118,7 +130,8 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
   @override
   Widget build(BuildContext context) {
     final user = widget.authController?.currentUser;
-    final isHost = user?.isHost ?? false;
+    final isOwnProfile = widget.targetUserId == null || (user != null && user.userId == widget.targetUserId);
+    final isHost = isOwnProfile && (user?.isHost ?? false);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -475,8 +488,11 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                         Expanded(
                           child: GestureDetector(
                             onTap: () {
-                              const url = 'https://matcha.siproduktif.com/player/recap';
-                              Clipboard.setData(const ClipboardData(text: url));
+                              final user = widget.authController?.currentUser;
+                              final targetId = user?.userId ?? user?.playerId;
+                              final targetParam = (targetId != null && targetId > 0) ? '/$targetId' : '';
+                              final url = 'https://matcha.siproduktif.com/player/recap$targetParam';
+                              Clipboard.setData(ClipboardData(text: url));
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -522,22 +538,22 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                         // Bagikan Link + Teks
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
+                            onTap: () async {
+                              final user = widget.authController?.currentUser;
+                              final targetId = user?.userId ?? user?.playerId;
+                              final targetParam = (targetId != null && targetId > 0) ? '/$targetId' : '';
+                              final url = 'https://matcha.siproduktif.com/player/recap$targetParam';
                               final shareText =
                                   '🎾 *Rekap Karir Pemain: ${career.playerName}*\n'
                                   '📊 ${career.totalMatches} Match | ${career.wins}W ${career.losses}L\n'
                                   '📈 Win Rate: ${career.winRate} | Streak: ${career.streak}\n'
-                                  '⏱️ Jam Bermain: ${career.totalHours}\n'
-                                  'Lihat rekap selengkapnya: https://matcha.siproduktif.com/player/recap\n'
+                                  '⏱️ Jam Bermain: ${career.totalHours}\n\n'
+                                  'Lihat rekap selengkapnya:\n$url\n\n'
                                   '#MatchaApp #PadelTennis #PlayerStats';
-                              Clipboard.setData(ClipboardData(text: shareText));
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Teks & tautan siap dibagikan ke WhatsApp/Telegram! 🚀'),
-                                  backgroundColor: Color(0xFF063B00),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              await Share.share(
+                                shareText,
+                                subject: 'Rekap Karir Pemain - ${career.playerName}',
                               );
                             },
                             child: Container(
@@ -3163,33 +3179,143 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
         if (!career.hasMatches)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(28),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               children: [
                 Container(
-                  width: 50,
-                  height: 50,
+                  width: 64,
+                  height: 64,
                   decoration: BoxDecoration(
                     color: const Color(0xFFEBF8D8),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: const Color(0xFF063B00).withValues(alpha: 0.2),
+                    ),
                   ),
-                  child: const Icon(Icons.sports_tennis_rounded, color: Color(0xFF063B00), size: 28),
+                  child: const Center(
+                    child: Icon(
+                      Icons.sports_tennis_rounded,
+                      color: Color(0xFF063B00),
+                      size: 30,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 const Text(
                   'Belum Ada Riwayat Pertandingan',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Ikuti dan selesaikan sesi mabar padel atau tenis untuk mulai mencatat performa karier dan win rate Anda di sini!',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                    color: Color(0xFF0F172A),
+                  ),
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 6),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    'Anda belum memiliki riwayat pertandingan yang selesai. Ikuti dan selesaikan sesi mabar padel atau tenis untuk mulai mencatat performa karier, win rate, dan statistik bermain Anda di sini!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF64748B),
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MainShellPage(
+                              authController: widget.authController,
+                              initialIndex: 1, // Tab Mabar
+                            ),
+                          ),
+                          (route) => false,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.calendar_month_rounded,
+                        size: 15,
+                        color: Color(0xFFA8E63A),
+                      ),
+                      label: const Text(
+                        'Cari Jadwal Mabar',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF063B00),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ProfilePage(
+                              authController: widget.authController,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.badge_outlined,
+                        size: 15,
+                        color: Color(0xFF64748B),
+                      ),
+                      label: const Text(
+                        'Lengkapi Profil',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
