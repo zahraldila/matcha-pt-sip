@@ -865,90 +865,93 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           ]
           // 2. Jika sesi Kuota Lengkap / Sedang Live
           else if (isDrawingReady) ...[
-            SizedBox(
-              width: double.infinity,
-              height: 40,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => DrawingResultPage(
-                        sessionId: session.sessionId,
-                        hostUserId: session.hostUserId,
-                        config: GameWizardConfig(
+            if (canManage || isLive) ...[
+              SizedBox(
+                width: double.infinity,
+                height: 40,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DrawingResultPage(
                           sessionId: session.sessionId,
                           hostUserId: session.hostUserId,
-                          activityName: session.namaSession,
-                          venueName: session.venueName,
-                          venueId: session.venueId,
-                          sport: session.sportName,
-                          scoringSystem: session.scoringSystem,
-                          playMode: session.jenisPermainan,
-                          courtCount: 1,
-                          players: session.registeredPlayers
-                              .map(
-                                (p) => GamePlayerItem(
-                                  id: p.playerId.toString(),
-                                  name: p.nama,
-                                  level: p.level ?? 'Beginner',
-                                  userId: p.userId,
-                                  playerId: p.playerId,
-                                  avatarUrl: p.foto,
-                                ),
-                              )
-                              .toList(),
+                          config: GameWizardConfig(
+                            sessionId: session.sessionId,
+                            hostUserId: session.hostUserId,
+                            activityName: session.namaSession,
+                            venueName: session.venueName,
+                            venueId: session.venueId,
+                            sport: session.sportName,
+                            scoringSystem: session.scoringSystem,
+                            playMode: session.jenisPermainan,
+                            courtCount: 1,
+                            players: session.registeredPlayers
+                                .map(
+                                  (p) => GamePlayerItem(
+                                    id: p.playerId.toString(),
+                                    name: p.nama,
+                                    level: p.level ?? 'Beginner',
+                                    userId: p.userId,
+                                    playerId: p.playerId,
+                                    avatarUrl: p.foto,
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                          authController: widget.authController,
                         ),
-                        authController: widget.authController,
                       ),
-                    ),
-                  );
-                  if (mounted) _loadSessionDetail();
-                },
-                icon: const Icon(Icons.shuffle_rounded, size: 16),
-                label: const Text('Buka Drawing Tim', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.matchaDark,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    );
+                    if (mounted) _loadSessionDetail();
+                  },
+                  icon: const Icon(Icons.shuffle_rounded, size: 16),
+                  label: Text(canManage ? 'Buka Drawing Tim' : 'Lihat Drawing Tim', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.matchaDark,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
 
-            SizedBox(
-              width: double.infinity,
-              height: 40,
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  final isHostUser = widget.authController?.currentUser?.isAdmin == true ||
-                      (widget.authController?.currentUser != null &&
-                          widget.authController?.currentUser?.userId == session.hostUserId);
+              SizedBox(
+                width: double.infinity,
+                height: 40,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final isHostUser = widget.authController?.currentUser?.isAdmin == true ||
+                        (widget.authController?.currentUser != null &&
+                            widget.authController?.currentUser?.userId == session.hostUserId);
 
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => MatchScoringPage(
-                        sessionId: widget.sessionId,
-                        authController: widget.authController,
-                        isHost: isHostUser,
-                        hostUserId: session.hostUserId,
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MatchScoringPage(
+                          sessionId: widget.sessionId,
+                          authController: widget.authController,
+                          isHost: isHostUser,
+                          hostUserId: session.hostUserId,
+                        ),
                       ),
-                    ),
-                  );
-                  if (mounted) _loadSessionDetail();
-                },
-                icon: const Icon(Icons.timer_outlined, size: 16),
-                label: const Text('Live Match Scoring', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.matchaDark,
-                  side: const BorderSide(color: AppColors.matchaDark, width: 1.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    );
+                    if (mounted) _loadSessionDetail();
+                  },
+                  icon: const Icon(Icons.timer_outlined, size: 16),
+                  label: const Text('Live Match Scoring', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.matchaDark,
+                    side: const BorderSide(color: AppColors.matchaDark, width: 1.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
               ),
-            ),
-            if (canManage) const SizedBox(height: 8),
+              const SizedBox(height: 12),
+            ],
+            if (canManage) const SizedBox(height: 10),
           ]
           // 3. Jika sesi Belum Lengkap
           else ...[
