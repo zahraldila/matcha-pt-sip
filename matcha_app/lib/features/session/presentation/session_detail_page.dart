@@ -1115,7 +1115,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
             ),
           ),
 
-          // Scrollable Table (Matching 5 Columns of Web: #, NAMA, STATUS, SKILL LEVEL, GENDER / USIA)
+          // Scrollable Table (Matching 5 Columns of Web Parity: #, NAMA, STATUS, SKILL LEVEL, GENDER / USIA)
           if (session.registeredPlayers.isEmpty)
             const Padding(
               padding: EdgeInsets.all(24),
@@ -1127,159 +1127,169 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
               ),
             )
           else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: SizedBox(
-                width: 470,
-                child: Column(
-                  children: [
-                    // Column Titles Header
-                    Container(
-                      width: 470,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF8FAFC),
-                        border: Border.symmetric(
-                          horizontal: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-                        ),
-                      ),
-                      child: const Row(
-                        children: [
-                          SizedBox(width: 28, child: Text('#', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                          SizedBox(width: 140, child: Text('NAMA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                          SizedBox(width: 75, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                          SizedBox(width: 115, child: Text('SKILL LEVEL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                          SizedBox(width: 95, child: Text('GENDER / USIA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                        ],
-                      ),
-                    ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const double minTableWidth = 490.0;
+                final double tableWidth = constraints.maxWidth > minTableWidth
+                    ? constraints.maxWidth
+                    : minTableWidth;
+                final double nameWidth = tableWidth - (28 + 75 + 115 + 95 + 32);
 
-                    // Table Rows
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: session.registeredPlayers.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                      itemBuilder: (context, index) {
-                        final player = session.registeredPlayers[index];
-                        final isMe = (currentUserId != null && currentUserId > 0 && player.playerId == currentUserId);
-
-                        return Container(
-                          width: 470,
-                          color: isMe ? const Color(0xFFF0FDF4) : Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: Column(
+                      children: [
+                        // Column Titles Header (Matching Web Table Header)
+                        Container(
+                          width: tableWidth,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF8FAFC),
+                            border: Border.symmetric(
+                              horizontal: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                            ),
+                          ),
                           child: Row(
                             children: [
-                              // 1. # Column
-                              SizedBox(
-                                width: 28,
-                                child: Text(
-                                  '${index + 1}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF64748B),
-                                  ),
-                                ),
-                              ),
+                              const SizedBox(width: 28, child: Text('#', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                              SizedBox(width: nameWidth, child: const Text('NAMA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                              const SizedBox(width: 75, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                              const SizedBox(width: 115, child: Text('SKILL LEVEL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                              const SizedBox(width: 95, child: Text('GENDER / USIA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                            ],
+                          ),
+                        ),
 
-                              // 2. NAMA Column (Dark green circle avatar with initial + player name)
-                              SizedBox(
-                                width: 140,
-                                child: Row(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 12,
-                                      backgroundImage: (player.foto != null && player.foto!.isNotEmpty)
-                                          ? NetworkImage(player.foto!)
-                                          : null,
-                                      backgroundColor: const Color(0xFF063B00),
-                                      child: (player.foto == null || player.foto!.isEmpty)
-                                          ? Text(
-                                              player.nama.isNotEmpty ? player.nama[0].toUpperCase() : 'P',
-                                              style: const TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w900,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : null,
+                        // Table Rows
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: session.registeredPlayers.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                          itemBuilder: (context, index) {
+                            final player = session.registeredPlayers[index];
+                            final isMe = (currentUserId != null && currentUserId > 0 && player.playerId == currentUserId);
+
+                            return Container(
+                              width: tableWidth,
+                              color: isMe ? const Color(0xFFF0FDF4) : Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              child: Row(
+                                children: [
+                                  // 1. # Column
+                                  SizedBox(
+                                    width: 28,
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF64748B),
+                                      ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        player.nama,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF1E293B),
+                                  ),
+
+                                  // 2. NAMA Column (Dark green circle avatar with initial + player name)
+                                  SizedBox(
+                                    width: nameWidth,
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 12,
+                                          backgroundImage: (player.foto != null && player.foto!.isNotEmpty)
+                                              ? NetworkImage(player.foto!)
+                                              : null,
+                                          backgroundColor: const Color(0xFF063B00),
+                                          child: (player.foto == null || player.foto!.isEmpty)
+                                              ? Text(
+                                                  player.nama.isNotEmpty ? player.nama[0].toUpperCase() : 'P',
+                                                  style: const TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Colors.white,
+                                                  ),
+                                                )
+                                              : null,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            player.nama,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF1E293B),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // 3. STATUS Column (Member vs Guest Badge)
+                                  SizedBox(
+                                    width: 75,
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                        decoration: BoxDecoration(
+                                          color: player.isMember ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: player.isMember ? const Color(0xFFA7F3D0) : const Color(0xFFE2E8F0),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          player.isMember ? 'Member' : 'Guest',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: player.isMember ? const Color(0xFF065F46) : const Color(0xFF475569),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ),
+                                  ),
 
-                              // 3. STATUS Column (Member vs Guest Badge)
-                              SizedBox(
-                                width: 75,
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                                    decoration: BoxDecoration(
-                                      color: player.isMember ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: player.isMember ? const Color(0xFFA7F3D0) : const Color(0xFFE2E8F0),
-                                      ),
+                                  // 4. SKILL LEVEL Column
+                                  SizedBox(
+                                    width: 115,
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: _buildSkillBadge(player.level ?? 'Beginner'),
                                     ),
+                                  ),
+
+                                  // 5. GENDER / USIA Column
+                                  SizedBox(
+                                    width: 95,
                                     child: Text(
-                                      player.isMember ? 'Member' : 'Guest',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: player.isMember ? const Color(0xFF065F46) : const Color(0xFF475569),
+                                      '${player.gender == "Male" ? "Male" : "Female"}, ${player.usia ?? 25} th',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w500,
                                       ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
-
-                              // 4. SKILL LEVEL Column
-                              SizedBox(
-                                width: 115,
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: _buildSkillBadge(player.level ?? 'Beginner'),
-                                ),
-                              ),
-
-                              // 5. GENDER / USIA Column
-                              SizedBox(
-                                width: 95,
-                                child: Text(
-                                  '${player.gender == "Male" ? "Male" : "Female"}, ${player.usia ?? 25} th',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF64748B),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
         ],
       ),
