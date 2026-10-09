@@ -380,44 +380,82 @@
                     <span class="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-full border border-indigo-200">{{ $game['match_format'] ?? 'Round-Robin' }}</span>
                 </div>
 
-                <!-- Team A Roster Card -->
-                <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2 shadow-2xs">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-extrabold text-[#063B00]" id="labelTeamAName">
-                            {{ $activeRound['primary_match']['team_a']['name'] ?? ($activeRound['team_a']['name'] ?? 'TIM A') }}
-                        </span>
-                        <span class="text-[10px] font-semibold text-slate-400">Court 1 (Sisi Kiri)</span>
-                    </div>
-                    <div class="space-y-1.5" id="rosterTeamA">
-                        @forelse($activeRound['teamA'] ?? [] as $idx => $pName)
-                            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                                <span class="font-semibold text-[#050608]">{{ $idx + 1 }}. {{ $pName }}</span>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player {{ $idx + 1 }}</span>
+                <!-- Courts Roster Container -->
+                <div id="courtsRosterContainer" class="space-y-3">
+                    @forelse($initMatches as $mIdx => $m)
+                        @php
+                            $courtLabel = $m['court_name'] ?? ('Court ' . ($m['court'] ?? ($m['court_number'] ?? ($mIdx + 1))));
+                            $statusLabel = $m['status'] ?? 'Scheduled';
+                            $teamAName = (!empty($m['team_a']) && is_array($m['team_a']) && !empty($m['team_a']['name']))
+                                ? $m['team_a']['name']
+                                : ($m['team_a_name'] ?? 'Tim A');
+                            $teamBName = (!empty($m['team_b']) && is_array($m['team_b']) && !empty($m['team_b']['name']))
+                                ? $m['team_b']['name']
+                                : ($m['team_b_name'] ?? 'Tim B');
+                            $teamAPlayers = !empty($m['team_a_names']) ? $m['team_a_names'] : (is_array($m['team_a']) ? array_column($m['team_a'], 'name') : []);
+                            if (empty($teamAPlayers) && is_array($m['team_a'])) {
+                                $teamAPlayers = array_map(fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (string)$p, $m['team_a']);
+                            }
+                            $teamBPlayers = !empty($m['team_b_names']) ? $m['team_b_names'] : (is_array($m['team_b']) ? array_column($m['team_b'], 'name') : []);
+                            if (empty($teamBPlayers) && is_array($m['team_b'])) {
+                                $teamBPlayers = array_map(fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (string)$p, $m['team_b']);
+                            }
+                        @endphp
+                        <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2.5 shadow-2xs">
+                            <div class="flex items-center justify-between border-b border-slate-200/50 pb-2">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                                    <span class="text-xs font-black uppercase tracking-wider text-[#063B00]">{{ $courtLabel }}</span>
+                                    @if(!empty($m['slot_number']))
+                                        <span class="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">Slot {{ $m['slot_number'] }}</span>
+                                    @endif
+                                </div>
+                                <span class="text-[10px] font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200/60 shadow-2xs">
+                                    {{ $statusLabel }}
+                                </span>
                             </div>
-                        @empty
-                            <p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>
-                        @endforelse
-                    </div>
-                </div>
 
-                <!-- Team B Roster Card -->
-                <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2 shadow-2xs">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-extrabold text-slate-800" id="labelTeamBName">
-                            {{ $activeRound['primary_match']['team_b']['name'] ?? ($activeRound['team_b']['name'] ?? 'TIM B') }}
-                        </span>
-                        <span class="text-[10px] font-semibold text-slate-400">Court 1 (Sisi Kanan)</span>
-                    </div>
-                    <div class="space-y-1.5" id="rosterTeamB">
-                        @forelse($activeRound['teamB'] ?? [] as $idx => $pName)
-                            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                                <span class="font-semibold text-[#050608]">{{ $idx + 1 }}. {{ $pName }}</span>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player {{ $idx + 1 }}</span>
+                            <!-- Team A -->
+                            <div class="space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-extrabold text-[#063B00]">{{ $teamAName }}</span>
+                                    <span class="text-[10px] font-semibold text-slate-400">Sisi Kiri</span>
+                                </div>
+                                <div class="space-y-1">
+                                    @forelse($teamAPlayers as $pIdx => $pName)
+                                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                                            <span class="font-semibold text-[#050608]">{{ $pIdx + 1 }}. {{ $pName }}</span>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player {{ $pIdx + 1 }}</span>
+                                        </div>
+                                    @empty
+                                        <p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>
+                                    @endforelse
+                                </div>
                             </div>
-                        @empty
-                            <p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>
-                        @endforelse
-                    </div>
+
+                            <!-- Team B -->
+                            <div class="space-y-1.5 pt-2 border-t border-slate-100">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-extrabold text-slate-800">{{ $teamBName }}</span>
+                                    <span class="text-[10px] font-semibold text-slate-400">Sisi Kanan</span>
+                                </div>
+                                <div class="space-y-1">
+                                    @forelse($teamBPlayers as $pIdx => $pName)
+                                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                                            <span class="font-semibold text-[#050608]">{{ $pIdx + 1 }}. {{ $pName }}</span>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player {{ $pIdx + 1 }}</span>
+                                        </div>
+                                    @empty
+                                        <p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="p-4 text-center text-xs text-slate-400">
+                            Belum ada alokasi court pada ronde ini.
+                        </div>
+                    @endforelse
                 </div>
 
                 <!-- Resting Bench Card in Sidebar -->
@@ -883,36 +921,90 @@
             }).join('');
         }
 
-        // 4. Update Roster Sidebar Kanan untuk Court 1
-        const primaryMatch = matches[0] || {};
-        const pA = extractMatchPlayers(primaryMatch.team_a, primaryMatch.team_a_names);
-        const pB = extractMatchPlayers(primaryMatch.team_b, primaryMatch.team_b_names);
-        const tAName = primaryMatch.team_a && primaryMatch.team_a.name ? primaryMatch.team_a.name : (pA.join(' & ') || 'Team A');
-        const tBName = primaryMatch.team_b && primaryMatch.team_b.name ? primaryMatch.team_b.name : (pB.join(' & ') || 'Team B');
+        // 4. Update Roster Sidebar Kanan per Court untuk Ronde ini
+        const rosterCourtsContainer = document.getElementById('courtsRosterContainer');
+        if (rosterCourtsContainer) {
+            if (matches.length === 0) {
+                rosterCourtsContainer.innerHTML = `
+                    <div class="p-4 text-center text-xs text-slate-400">
+                        Belum ada alokasi court pada ronde ini.
+                    </div>
+                `;
+            } else {
+                rosterCourtsContainer.innerHTML = matches.map((m, mIdx) => {
+                    const courtLabel = m.court_name || `Court ${m.court || (m.court_number || (mIdx + 1))}`;
+                    const slotBadge = m.slot_number ? `<span class="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">Slot ${m.slot_number}</span>` : '';
+                    const statusLabel = m.status || 'Scheduled';
 
-        const labelA = document.getElementById('labelTeamAName');
-        if (labelA) labelA.innerText = tAName;
-        const labelB = document.getElementById('labelTeamBName');
-        if (labelB) labelB.innerText = tBName;
+                    const pA = extractMatchPlayers(m.team_a, m.team_a_names);
+                    const pB = extractMatchPlayers(m.team_b, m.team_b_names);
 
-        const rosterA = document.getElementById('rosterTeamA');
-        if (rosterA) {
-            rosterA.innerHTML = pA.map((name, idx) => `
-                <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                    <span class="font-semibold text-slate-800">${idx + 1}. ${name}</span>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player ${idx + 1}</span>
-                </div>
-            `).join('');
-        }
+                    let tAName = 'Tim A';
+                    if (m.team_a && typeof m.team_a === 'object' && !Array.isArray(m.team_a) && m.team_a.name) {
+                        tAName = m.team_a.name;
+                    } else if (m.team_a_name) {
+                        tAName = m.team_a_name;
+                    }
 
-        const rosterB = document.getElementById('rosterTeamB');
-        if (rosterB) {
-            rosterB.innerHTML = pB.map((name, idx) => `
-                <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                    <span class="font-semibold text-slate-800">${idx + 1}. ${name}</span>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player ${idx + 1}</span>
-                </div>
-            `).join('');
+                    let tBName = 'Tim B';
+                    if (m.team_b && typeof m.team_b === 'object' && !Array.isArray(m.team_b) && m.team_b.name) {
+                        tBName = m.team_b.name;
+                    } else if (m.team_b_name) {
+                        tBName = m.team_b_name;
+                    }
+
+                    const pAHtml = pA.length > 0 ? pA.map((name, pIdx) => `
+                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                            <span class="font-semibold text-slate-800">${pIdx + 1}. ${name}</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player ${pIdx + 1}</span>
+                        </div>
+                    `).join('') : '<p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>';
+
+                    const pBHtml = pB.length > 0 ? pB.map((name, pIdx) => `
+                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                            <span class="font-semibold text-slate-800">${pIdx + 1}. ${name}</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player ${pIdx + 1}</span>
+                        </div>
+                    `).join('') : '<p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>';
+
+                    return `
+                        <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2.5 shadow-2xs">
+                            <div class="flex items-center justify-between border-b border-slate-200/50 pb-2">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                                    <span class="text-xs font-black uppercase tracking-wider text-[#063B00]">${courtLabel}</span>
+                                    ${slotBadge}
+                                </div>
+                                <span class="text-[10px] font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200/60 shadow-2xs">
+                                    ${statusLabel}
+                                </span>
+                            </div>
+
+                            <!-- Team A -->
+                            <div class="space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-extrabold text-[#063B00]">${tAName}</span>
+                                    <span class="text-[10px] font-semibold text-slate-400">Sisi Kiri</span>
+                                </div>
+                                <div class="space-y-1">
+                                    ${pAHtml}
+                                </div>
+                            </div>
+
+                            <!-- Team B -->
+                            <div class="space-y-1.5 pt-2 border-t border-slate-100">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-extrabold text-slate-800">${tBName}</span>
+                                    <span class="text-[10px] font-semibold text-slate-400">Sisi Kanan</span>
+                                </div>
+                                <div class="space-y-1">
+                                    ${pBHtml}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
         }
 
         if (notify && typeof showToast === 'function') {
