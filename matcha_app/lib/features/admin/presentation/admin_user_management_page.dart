@@ -113,6 +113,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     bool obscurePassword = true;
     String? nameError;
     String? emailError;
+    bool isChecking = false;
 
     showDialog(
       context: context,
@@ -409,7 +410,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
-                        onPressed: () async {
+                        onPressed: isChecking ? null : () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final nav = Navigator.of(context);
                           final trimmedName = nameCtrl.text.trim();
                           final trimmedEmail = emailCtrl.text.trim();
 
@@ -421,9 +424,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                           }
 
                           if (trimmedEmail.isEmpty) {
-                            newEmailError = 'Alamat email wajib diisi.';
+                            newEmailError = 'Email wajib diisi.';
                           } else if (!RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(trimmedEmail)) {
-                            newEmailError = 'Format email tidak valid (contoh: user@mail.com).';
+                            newEmailError = 'Format email tidak valid.';
                           }
 
                           if (newNameError != null || newEmailError != null) {
@@ -434,8 +437,42 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                             return;
                           }
 
-                          final messenger = ScaffoldMessenger.of(context);
-                          Navigator.pop(context);
+                          // Cek duplikasi email jika alamat email diubah (seperti pendaftaran)
+                          final cleanEmail = trimmedEmail.toLowerCase();
+                          if (cleanEmail != user.email.trim().toLowerCase()) {
+                            // Cek di memori lokal untuk respons instan
+                            final isDuplicateInLocal = _allUsers.any((u) =>
+                                u.userId != user.userId &&
+                                u.email.trim().toLowerCase() == cleanEmail);
+                            if (isDuplicateInLocal) {
+                              setModalState(() {
+                                emailError = 'Email sudah terdaftar.';
+                              });
+                              return;
+                            }
+
+                            // Cek ke database Supabase
+                            setModalState(() => isChecking = true);
+                            try {
+                              final isTaken = await _adminUserService.isEmailTaken(
+                                cleanEmail,
+                                excludeUserId: user.userId,
+                              );
+                              if (isTaken) {
+                                setModalState(() {
+                                  isChecking = false;
+                                  emailError = 'Email sudah terdaftar.';
+                                });
+                                return;
+                              }
+                            } catch (_) {
+                              // Lanjutkan jika query pengecekan bermasalah
+                            }
+                            setModalState(() => isChecking = false);
+                          }
+
+                          if (!mounted) return;
+                          nav.pop();
                           setState(() => _isLoading = true);
 
                           try {
@@ -462,9 +499,10 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                           } catch (e) {
                             if (!mounted) return;
                             setState(() => _isLoading = false);
+                            final errorMsg = e.toString().replaceFirst('Exception: ', '');
                             messenger.showSnackBar(
                               SnackBar(
-                                content: Text('Gagal memperbarui pengguna: $e'),
+                                content: Text('Gagal memperbarui pengguna: $errorMsg'),
                                 backgroundColor: Colors.redAccent,
                               ),
                             );
@@ -479,12 +517,22 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.check_rounded, size: 16, color: Color(0xFFA8E63A)),
-                            SizedBox(width: 6),
+                          children: [
+                            if (isChecking)
+                              const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            else
+                              const Icon(Icons.check_rounded, size: 16, color: Color(0xFFA8E63A)),
+                            const SizedBox(width: 6),
                             Text(
-                              'Simpan Perubahan',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              isChecking ? 'Memeriksa...' : 'Simpan Perubahan',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),

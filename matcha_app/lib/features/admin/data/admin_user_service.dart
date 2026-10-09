@@ -53,6 +53,23 @@ class AdminUserService {
     }
   }
 
+  /// Memeriksa apakah email sudah terdaftar pada pengguna lain
+  Future<bool> isEmailTaken(String email, {required int excludeUserId}) async {
+    try {
+      final cleanEmail = email.trim().toLowerCase();
+      final existing = await _supabase
+          .from('tb_user')
+          .select('user_id')
+          .ilike('email', cleanEmail)
+          .neq('user_id', excludeUserId)
+          .maybeSingle();
+
+      return existing != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Memperbarui profil, peran, dan detail pengguna oleh Admin
   Future<void> updateUser({
     required int userId,
@@ -67,12 +84,25 @@ class AdminUserService {
     String? level,
   }) async {
     try {
+      final cleanEmail = email.trim().toLowerCase();
       final cleanPhone = noHp?.replaceAll(RegExp(r'[^0-9]'), '');
 
-      // 1. Update tb_user
+      // 1. Cek duplikasi email pada akun pengguna lain (seperti saat registrasi)
+      final existingEmail = await _supabase
+          .from('tb_user')
+          .select('user_id')
+          .ilike('email', cleanEmail)
+          .neq('user_id', userId)
+          .maybeSingle();
+
+      if (existingEmail != null) {
+        throw Exception('Email sudah terdaftar.');
+      }
+
+      // 2. Update tb_user
       final userUpdate = <String, dynamic>{
         'nama': nama.trim(),
-        'email': email.trim().toLowerCase(),
+        'email': cleanEmail,
         'no_hp': cleanPhone != null && cleanPhone.isNotEmpty ? cleanPhone : null,
         'role': role.trim(),
         'is_host': isHost,
