@@ -214,6 +214,7 @@ class _MainShellPageState extends State<MainShellPage> {
         authController: widget.authController,
         onExploreSessions: () => setState(() => _currentIndex = 1),
         onExploreCommunity: () => setState(() => _currentIndex = 3),
+        onExploreVenue: () => setState(() => _currentIndex = 2),
       ),
       SessionListPage(
         authController: widget.authController,
@@ -240,6 +241,7 @@ class _MainShellPageState extends State<MainShellPage> {
         authController: widget.authController,
         onExploreSessions: () => setState(() => _currentIndex = 1),
         onExploreCommunity: () => setState(() => _currentIndex = 3),
+        onExploreVenue: () => setState(() => _currentIndex = 4),
       ),
       SessionListPage(
         authController: widget.authController,
