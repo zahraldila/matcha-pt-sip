@@ -34,15 +34,7 @@
     .filter-chip.active i {
         color: #A8E63A !important;
     }
-    .filter-chip.active-live {
-        background-color: #E11D48 !important;
-        color: #ffffff !important;
-        border-color: #E11D48 !important;
-        box-shadow: 0 2px 8px rgba(225, 29, 72, 0.2);
-    }
-    .filter-chip.active-live i {
-        color: #ffffff !important;
-    }
+
 
     /* iOS/Mobile Style Toggle Switch */
     .switch-track {
@@ -408,7 +400,7 @@
                             </div>
 
                             <!-- Sedang Main (LIVE) -->
-                            <div class="filter-chip {{ ($selectedStatus ?? '') === 'live' ? 'active-live' : '' }}" 
+                            <div class="filter-chip {{ ($selectedStatus ?? '') === 'live' ? 'active' : '' }}" 
                                  data-group="status" data-val="live" 
                                  onclick="setRadioFilter('status', 'live')">
                                 <i class="fa-solid fa-circle-dot text-[11px]"></i>
@@ -511,9 +503,9 @@
         // Update active class on chips
         document.querySelectorAll(`.filter-chip[data-group="${groupName}"]`).forEach(chip => {
             if (chip.getAttribute('data-val') === value) {
-                chip.classList.add(value === 'live' ? 'active-live' : 'active');
+                chip.classList.add('active');
             } else {
-                chip.classList.remove('active', 'active-live');
+                chip.classList.remove('active');
             }
         });
 
