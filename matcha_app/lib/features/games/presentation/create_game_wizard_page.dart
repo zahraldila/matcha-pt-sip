@@ -580,67 +580,123 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                     // Cabang Olahraga & Jumlah Court
                     Row(
                       children: [
+                        // Cabang Olahraga
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _buildSectionLabel('Cabang Olahraga *'),
                               const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF8FAFC),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value: selectedSportName,
-                                    isExpanded: true,
-                                    items: const [
-                                      DropdownMenuItem(value: 'Padel', child: Text('Padel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                      DropdownMenuItem(value: 'Tennis', child: Text('Tennis', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                    ],
-                                    onChanged: (val) {
-                                      if (val != null) setModalState(() => selectedSportName = val);
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  return PopupMenuButton<String>(
+                                    position: PopupMenuPosition.under,
+                                    offset: const Offset(0, 4),
+                                    color: Colors.white,
+                                    constraints: BoxConstraints(
+                                      minWidth: constraints.maxWidth,
+                                      maxWidth: constraints.maxWidth,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    onOpened: () {
+                                      FocusManager.instance.primaryFocus?.unfocus();
                                     },
-                                  ),
-                                ),
+                                    onSelected: (val) {
+                                      setModalState(() => selectedSportName = val);
+                                    },
+                                    itemBuilder: (_) => const [
+                                      PopupMenuItem(
+                                        value: 'Padel',
+                                        child: Text('Padel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'Tennis',
+                                        child: Text('Tennis', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                      ),
+                                    ],
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            selectedSportName,
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                          ),
+                                          const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(width: 12),
+                        // Jumlah Court
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _buildSectionLabel('Jumlah Court *'),
                               const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF8FAFC),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<int>(
-                                    value: numberOfCourts,
-                                    isExpanded: true,
-                                    items: const [
-                                      DropdownMenuItem(value: 1, child: Text('1 Court', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                      DropdownMenuItem(value: 2, child: Text('2 Courts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                      DropdownMenuItem(value: 3, child: Text('3 Courts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                      DropdownMenuItem(value: 4, child: Text('4 Courts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                      DropdownMenuItem(value: 5, child: Text('5 Courts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                      DropdownMenuItem(value: 6, child: Text('6 Courts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                                    ],
-                                    onChanged: (val) {
-                                      if (val != null) setModalState(() => numberOfCourts = val);
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  return PopupMenuButton<int>(
+                                    position: PopupMenuPosition.under,
+                                    offset: const Offset(0, 4),
+                                    color: Colors.white,
+                                    constraints: BoxConstraints(
+                                      minWidth: constraints.maxWidth,
+                                      maxWidth: constraints.maxWidth,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    onOpened: () {
+                                      FocusManager.instance.primaryFocus?.unfocus();
                                     },
-                                  ),
-                                ),
+                                    onSelected: (val) {
+                                      setModalState(() => numberOfCourts = val);
+                                    },
+                                    itemBuilder: (_) => [
+                                      for (int i = 1; i <= 6; i++)
+                                        PopupMenuItem(
+                                          value: i,
+                                          child: Text(
+                                            '$i Court${i > 1 ? "s" : ""}',
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                    ],
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            '${numberOfCourts ?? 1} Court${(numberOfCourts ?? 1) > 1 ? "s" : ""}',
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                          ),
+                                          const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),
