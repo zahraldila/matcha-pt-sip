@@ -129,6 +129,19 @@ class AppTheme {
         ),
         behavior: SnackBarBehavior.floating,
       ),
+
+      // TimePicker Theme (prevents constraint conflict when switching to input mode)
+      timePickerTheme: TimePickerThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          contentPadding: EdgeInsets.zero,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(8)),
+          ),
+        ),
+      ),
     );
   }
 }

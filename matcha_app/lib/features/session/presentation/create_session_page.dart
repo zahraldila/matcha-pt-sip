@@ -594,6 +594,14 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               onPrimary: Colors.white,
               onSurface: Color(0xFF0F172A),
             ),
+            timePickerTheme: const TimePickerThemeData(
+              inputDecorationTheme: InputDecorationTheme(
+                contentPadding: EdgeInsets.zero,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(8)),
+                ),
+              ),
+            ),
           ),
           child: child!,
         );
