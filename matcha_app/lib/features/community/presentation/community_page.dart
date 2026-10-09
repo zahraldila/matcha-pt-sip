@@ -364,6 +364,7 @@ class _CommunityPageState extends State<CommunityPage> {
     try {
       final user = widget.authController?.currentUser;
       final list = await _dataSource.getCommunities(currentUserId: user?.userId);
+      list.sort((a, b) => a.namaCommunity.toLowerCase().compareTo(b.namaCommunity.toLowerCase()));
       if (!mounted) return;
       setState(() {
         _allCommunities = list;
@@ -381,7 +382,7 @@ class _CommunityPageState extends State<CommunityPage> {
 
   List<CommunityModel> get _filteredCommunities {
     final query = _searchController.text.trim().toLowerCase();
-    return _allCommunities.where((c) {
+    final list = _allCommunities.where((c) {
       // Tab filter
       if (_activeTab == 'joined' && !c.isMember) return false;
 
@@ -406,6 +407,9 @@ class _CommunityPageState extends State<CommunityPage> {
 
       return true;
     }).toList();
+
+    list.sort((a, b) => a.namaCommunity.toLowerCase().compareTo(b.namaCommunity.toLowerCase()));
+    return list;
   }
 
   Future<void> _navigateToCreateCommunity() async {

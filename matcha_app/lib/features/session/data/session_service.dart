@@ -529,7 +529,8 @@ class SessionService {
   Future<int> createScheduleSession({
     required int sportId,
     required int venueId,
-    required int courtId,
+    int? courtId,
+    List<int>? courtIds,
     required String namaSession,
     required DateTime tanggal,
     required String jam,
@@ -574,11 +575,22 @@ class SessionService {
 
       final sessionId = sessionRes['session_id'] as int;
 
-      // 2. Hubungkan court ke session di tb_session_court
-      await _supabase.from('tb_session_court').insert({
-        'session_id': sessionId,
-        'court_id': courtId,
-      });
+      // 2. Hubungkan court ke session di tb_session_court (bisa multiple court)
+      final finalCourtIds = <int>{};
+      if (courtIds != null) {
+        finalCourtIds.addAll(courtIds);
+      }
+      if (courtId != null) {
+        finalCourtIds.add(courtId);
+      }
+
+      if (finalCourtIds.isNotEmpty) {
+        final courtInserts = finalCourtIds.map((cId) => {
+          'session_id': sessionId,
+          'court_id': cId,
+        }).toList();
+        await _supabase.from('tb_session_court').insert(courtInserts);
+      }
 
       // 3. Jika host memilih "Add Yourself", daftarkan host sebagai peserta
       if (addYourselfAsPlayer && hostPlayerId != null) {

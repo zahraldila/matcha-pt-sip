@@ -33,7 +33,7 @@ class CommunityController extends Controller
 
         $currentUserId = Auth::check() ? Auth::id() : null;
 
-        $dbCommunities = Community::with(['players.user', 'creator'])->latest()->get();
+        $dbCommunities = Community::with(['players.user', 'creator'])->orderBy('nama_community', 'asc')->get();
         if ($dbCommunities->isNotEmpty()) {
             $allCommunities = $dbCommunities->map(function ($c) use ($currentUserId) {
                 $isMember = $currentUserId !== null && Player::where('user_id', $currentUserId)
@@ -91,6 +91,8 @@ class CommunityController extends Controller
         } else {
             $filteredCommunities = $allCommunities->values();
         }
+
+        $filteredCommunities = $filteredCommunities->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
 
         // Pagination: 6 items per page
         $perPage = 6;
