@@ -497,14 +497,17 @@ class _EditVenuePageState extends State<EditVenuePage> {
                             final picked = await showTimePicker(
                               context: context,
                               initialTime: _openTime,
+                              initialEntryMode: TimePickerEntryMode.dialOnly,
                               builder: (context, child) {
-                                return MediaQuery(
-                                  data: MediaQuery.of(context).copyWith(
-                                    viewInsets: EdgeInsets.zero,
+                                return Theme(
+                                  data: Theme.of(context).copyWith(
+                                    colorScheme: const ColorScheme.light(
+                                      primary: AppColors.matchaDark,
+                                      onPrimary: Colors.white,
+                                      onSurface: Color(0xFF0F172A),
+                                    ),
                                   ),
-                                  child: SingleChildScrollView(
-                                    child: child!,
-                                  ),
+                                  child: child!,
                                 );
                               },
                             );
@@ -537,14 +540,17 @@ class _EditVenuePageState extends State<EditVenuePage> {
                             final picked = await showTimePicker(
                               context: context,
                               initialTime: _closeTime,
+                              initialEntryMode: TimePickerEntryMode.dialOnly,
                               builder: (context, child) {
-                                return MediaQuery(
-                                  data: MediaQuery.of(context).copyWith(
-                                    viewInsets: EdgeInsets.zero,
+                                return Theme(
+                                  data: Theme.of(context).copyWith(
+                                    colorScheme: const ColorScheme.light(
+                                      primary: AppColors.matchaDark,
+                                      onPrimary: Colors.white,
+                                      onSurface: Color(0xFF0F172A),
+                                    ),
                                   ),
-                                  child: SingleChildScrollView(
-                                    child: child!,
-                                  ),
+                                  child: child!,
                                 );
                               },
                             );
