@@ -71,7 +71,11 @@ class _SessionListPageState extends State<SessionListPage> {
     setState(() {
       final user = widget.authController?.currentUser;
 
-      if (user == null && _selectedTab == 'hosted') {
+      if (user == null && (_selectedTab == 'hosted' || _selectedTab == 'joined')) {
+        _selectedTab = 'all';
+      }
+
+      if (user != null && user.isAdmin == true && _selectedTab == 'joined') {
         _selectedTab = 'all';
       }
 
@@ -786,7 +790,7 @@ class _SessionListPageState extends State<SessionListPage> {
                               badgeText: const Color(0xFF475569),
                             ),
                           ],
-                          if (!isVenueOwner) ...[
+                          if (!isVenueOwner && !isAdmin && user != null) ...[
                             const SizedBox(width: 8),
                             _buildPrimaryTab(
                               tabKey: 'joined',
