@@ -689,7 +689,8 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     String overlayFilter = 'contrast'; // 'contrast', 'matcha', 'clean'
     SessionPlayerStanding? selectedPlayer = data.standings.isNotEmpty ? data.standings.first : null;
     final GlobalKey storyCardKey = GlobalKey();
-    bool isProcessing = false;
+    bool isSharing = false;
+    bool isDownloading = false;
 
     Future<Uint8List?> capturePng() async {
       try {
@@ -1126,10 +1127,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
                           // 6. Export Actions
                           GestureDetector(
-                            onTap: isProcessing
+                            onTap: (isSharing || isDownloading)
                                 ? null
                                 : () async {
-                                    setModalState(() => isProcessing = true);
+                                    setModalState(() => isSharing = true);
                                     try {
                                       final pngBytes = await capturePng();
                                       if (pngBytes == null) {
@@ -1159,7 +1160,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                         );
                                       }
                                     } finally {
-                                      setModalState(() => isProcessing = false);
+                                      setModalState(() => isSharing = false);
                                     }
                                   },
                             child: Container(
@@ -1179,7 +1180,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  if (isProcessing)
+                                  if (isSharing)
                                     const SizedBox(
                                       width: 16,
                                       height: 16,
@@ -1189,7 +1190,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                     const Icon(Icons.share_rounded, size: 16, color: Color(0xFFA8E63A)),
                                   const SizedBox(width: 8),
                                   Text(
-                                    isProcessing ? 'Memproses Story...' : 'Share Image / Story',
+                                    isSharing ? 'Membagikan Story...' : 'Share Image / Story',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w900,
                                       fontSize: 13,
@@ -1202,10 +1203,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                           ),
                           const SizedBox(height: 8),
                           GestureDetector(
-                            onTap: isProcessing
+                            onTap: (isSharing || isDownloading)
                                 ? null
                                 : () async {
-                                    setModalState(() => isProcessing = true);
+                                    setModalState(() => isDownloading = true);
                                     try {
                                       final pngBytes = await capturePng();
                                       if (pngBytes == null) {
@@ -1262,7 +1263,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                     } catch (e) {
                                       debugPrint('Render error: $e');
                                     } finally {
-                                      setModalState(() => isProcessing = false);
+                                      setModalState(() => isDownloading = false);
                                     }
                                   },
                             child: Container(
@@ -1273,14 +1274,21 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: const Color(0xFFCBD5E1)),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.download_rounded, size: 15, color: Color(0xFF063B00)),
-                                  SizedBox(width: 6),
+                                  if (isDownloading)
+                                    const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF063B00)),
+                                    )
+                                  else
+                                    const Icon(Icons.download_rounded, size: 15, color: Color(0xFF063B00)),
+                                  const SizedBox(width: 6),
                                   Text(
-                                    'Download PNG (1080x1920)',
-                                    style: TextStyle(
+                                    isDownloading ? 'Menyimpan ke Galeri...' : 'Download PNG (1080x1920)',
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 11.5,
                                       color: Color(0xFF334155),

@@ -717,7 +717,8 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
     File? pickedBgImage;
     String overlayFilter = 'contrast'; // 'contrast', 'matcha', 'clean'
     final GlobalKey storyCardKey = GlobalKey();
-    bool isProcessing = false;
+    bool isSharing = false;
+    bool isDownloading = false;
 
     Future<Uint8List?> capturePng() async {
       try {
@@ -1083,10 +1084,10 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
 
                           // Export: Share
                           GestureDetector(
-                            onTap: isProcessing
+                            onTap: (isSharing || isDownloading)
                                 ? null
                                 : () async {
-                                    setModalState(() => isProcessing = true);
+                                    setModalState(() => isSharing = true);
                                     try {
                                       final pngBytes = await capturePng();
                                       if (pngBytes == null) {
@@ -1115,7 +1116,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                         );
                                       }
                                     } finally {
-                                      setModalState(() => isProcessing = false);
+                                      setModalState(() => isSharing = false);
                                     }
                                   },
                             child: Container(
@@ -1135,7 +1136,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  if (isProcessing)
+                                  if (isSharing)
                                     const SizedBox(
                                       width: 16,
                                       height: 16,
@@ -1145,7 +1146,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                     const Icon(Icons.share_rounded, size: 16, color: Color(0xFFA8E63A)),
                                   const SizedBox(width: 8),
                                   Text(
-                                    isProcessing ? 'Memproses Story...' : 'Share Image / Story',
+                                    isSharing ? 'Membagikan Story...' : 'Share Image / Story',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w900,
                                       fontSize: 13,
@@ -1160,10 +1161,10 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
 
                           // Export: Save to Storage / Galeri
                           GestureDetector(
-                            onTap: isProcessing
+                            onTap: (isSharing || isDownloading)
                                 ? null
                                 : () async {
-                                    setModalState(() => isProcessing = true);
+                                    setModalState(() => isDownloading = true);
                                     try {
                                       final pngBytes = await capturePng();
                                       if (pngBytes == null) {
@@ -1220,7 +1221,7 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                     } catch (e) {
                                       debugPrint('Render error: $e');
                                     } finally {
-                                      setModalState(() => isProcessing = false);
+                                      setModalState(() => isDownloading = false);
                                     }
                                   },
                             child: Container(
@@ -1231,14 +1232,21 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: const Color(0xFFE2E8F0)),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.download_rounded, size: 16, color: Color(0xFF063B00)),
-                                  SizedBox(width: 8),
+                                  if (isDownloading)
+                                    const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF063B00)),
+                                    )
+                                  else
+                                    const Icon(Icons.download_rounded, size: 16, color: Color(0xFF063B00)),
+                                  const SizedBox(width: 8),
                                   Text(
-                                    'Simpan ke Galeri / Storage',
-                                    style: TextStyle(
+                                    isDownloading ? 'Menyimpan ke Galeri...' : 'Simpan ke Galeri / Storage',
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.w800,
                                       fontSize: 12,
                                       color: Color(0xFF0F172A),
