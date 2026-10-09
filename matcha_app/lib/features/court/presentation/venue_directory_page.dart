@@ -489,27 +489,7 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         bottomNavigationBar: _isSelectionMode ? _buildBulkActionBar(deletableCount) : null,
-      appBar: Navigator.canPop(context)
-          ? AppBar(
-              backgroundColor: Colors.white,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: Text(
-                _selectedOwnerFilter == 'mine' ? 'Kelola Venue Saya' : 'Direktori Venue',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              centerTitle: true,
-            )
-          : null,
-      body: GestureDetector(
+        body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
           if (_isSelectionMode) {
