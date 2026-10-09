@@ -392,13 +392,13 @@
                             $teamBName = (!empty($m['team_b']) && is_array($m['team_b']) && !empty($m['team_b']['name']))
                                 ? $m['team_b']['name']
                                 : ($m['team_b_name'] ?? 'Tim B');
-                            $teamAPlayers = !empty($m['team_a_names']) ? $m['team_a_names'] : (is_array($m['team_a']) ? array_column($m['team_a'], 'name') : []);
+                            $teamAPlayers = !empty($m['team_a_names']) ? array_values($m['team_a_names']) : (is_array($m['team_a']) ? array_values(array_column($m['team_a'], 'name')) : []);
                             if (empty($teamAPlayers) && is_array($m['team_a'])) {
-                                $teamAPlayers = array_map(fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (string)$p, $m['team_a']);
+                                $teamAPlayers = array_values(array_map(fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (string)$p, $m['team_a']));
                             }
-                            $teamBPlayers = !empty($m['team_b_names']) ? $m['team_b_names'] : (is_array($m['team_b']) ? array_column($m['team_b'], 'name') : []);
+                            $teamBPlayers = !empty($m['team_b_names']) ? array_values($m['team_b_names']) : (is_array($m['team_b']) ? array_values(array_column($m['team_b'], 'name')) : []);
                             if (empty($teamBPlayers) && is_array($m['team_b'])) {
-                                $teamBPlayers = array_map(fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (string)$p, $m['team_b']);
+                                $teamBPlayers = array_values(array_map(fn($p) => is_array($p) ? ($p['name'] ?? $p['nama'] ?? '') : (string)$p, $m['team_b']));
                             }
                         @endphp
                         <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2.5 shadow-2xs">
