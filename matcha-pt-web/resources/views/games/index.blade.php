@@ -36,6 +36,20 @@
     }
 
 
+        .slot-title {
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        color: #1e293b !important;
+        line-height: 1.2 !important;
+    }
+    .slot-subtitle {
+        font-size: 10.5px !important;
+        font-weight: 400 !important;
+        color: #94a3b8 !important;
+        line-height: 1.2 !important;
+        margin-top: 2px !important;
+    }
+
     /* iOS/Mobile Style Toggle Switch */
     .switch-track {
         width: 44px;
@@ -420,14 +434,14 @@
                     <!-- 2. Ketersediaan Kuota Slot (iOS/Mobile Toggle Switch) -->
                     <div class="space-y-1.5">
                         <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Ketersediaan Slot</label>
-                        <div onclick="toggleSlotsSwitch()" class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-100/80 cursor-pointer transition-all select-none">
-                            <div class="flex items-center gap-2.5">
+                        <div onclick="toggleSlotsSwitch()" class="flex items-center justify-between p-2.5 sm:p-3 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-100/80 cursor-pointer transition-all select-none">
+                            <div class="flex items-center gap-2.5 min-w-0 flex-1 mr-3">
                                 <div class="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-700 text-xs shrink-0">
                                     <i class="fa-solid fa-user-plus"></i>
                                 </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Hanya ada slot kosong</div>
-                                    <div class="text-[10.5px] text-slate-400 font-normal">Sembunyikan sesi yang kuotanya sudah penuh</div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="slot-title" style="font-size: 12px !important; font-weight: 700 !important; color: #1e293b !important; line-height: 1.2 !important;">Hanya ada slot kosong</div>
+                                    <div class="slot-subtitle" style="font-size: 10.5px !important; font-weight: 400 !important; color: #94a3b8 !important; line-height: 1.2 !important; margin-top: 2px !important;">Sembunyikan sesi yang kuotanya sudah penuh</div>
                                 </div>
                             </div>
                             <!-- Interactive Switch Track -->
