@@ -572,7 +572,7 @@ class RecapService {
             tb_sport (nama_sport),
             tb_venue (nama_venue),
             tb_session_court (tb_court (nama_court)),
-            tb_session_player (tb_player (player_id, user_id, nama, gender, level, foto))
+            tb_session_player (tb_player (player_id, user_id, nama, gender, level, foto, tb_user (foto)))
           ''')
           .eq('session_id', sessionId)
           .maybeSingle();
@@ -606,7 +606,13 @@ class RecapService {
         final rpMap = rp as Map<String, dynamic>;
         final pObj = rpMap['tb_player'] as Map<String, dynamic>?;
         if (pObj != null) {
-          registeredPlayers.add(pObj);
+          final pCopy = Map<String, dynamic>.from(pObj);
+          String? f = pCopy['foto']?.toString().trim();
+          if ((f == null || f.isEmpty) && pCopy['tb_user'] is Map) {
+            f = pCopy['tb_user']?['foto']?.toString().trim();
+          }
+          pCopy['foto'] = (f != null && f.isNotEmpty) ? f : null;
+          registeredPlayers.add(pCopy);
         }
       }
 
@@ -658,7 +664,7 @@ class RecapService {
               tb_match_participant (
                 player_id,
                 side,
-                tb_player (player_id, user_id, nama, level, foto, gender)
+                tb_player (player_id, user_id, nama, level, foto, gender, tb_user (foto))
               )
             ''')
             .eq('drawing_id', activeDrawingId)
@@ -725,12 +731,17 @@ class RecapService {
           final sideParsed = parseTeamSide(partMap['side']?.toString());
           final isB = sideParsed == 'B';
 
+          String? pFoto = pObj?['foto']?.toString().trim();
+          if ((pFoto == null || pFoto.isEmpty) && pObj?['tb_user'] is Map) {
+            pFoto = pObj?['tb_user']?['foto']?.toString().trim();
+          }
+
           if (pId != null && !playerStatsMap.containsKey(pId)) {
             playerStatsMap[pId] = {
               'playerId': pId,
               'nama': pName,
               'level': (pObj?['level']?.toString()) ?? 'Intermediate',
-              'foto': pObj?['foto']?.toString(),
+              'foto': (pFoto != null && pFoto.isNotEmpty) ? pFoto : null,
               'gender': (pObj?['gender']?.toString()) ?? 'Male',
               'userId': _toNullableInt(pObj?['user_id']),
               'matchesPlayed': 0,
