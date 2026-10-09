@@ -90,6 +90,7 @@ class SessionModel {
   final String? venueFoto;
   final int? venueOwnerUserId;
   final String? courtName;
+  final List<String> courtNames;
   final String hostName;
   final String hostLevel;
   final String? hostAvatar;
@@ -115,6 +116,7 @@ class SessionModel {
     this.venueFoto,
     this.venueOwnerUserId,
     this.courtName,
+    this.courtNames = const [],
     this.hostName = 'Host Mabar',
     this.hostLevel = 'Intermediate',
     this.hostAvatar,
@@ -145,6 +147,7 @@ class SessionModel {
     String? venueFoto,
     int? venueOwnerUserId,
     String? courtName,
+    List<String>? courtNames,
     String? hostName,
     String? hostLevel,
     String? hostAvatar,
@@ -170,6 +173,7 @@ class SessionModel {
       venueFoto: venueFoto ?? this.venueFoto,
       venueOwnerUserId: venueOwnerUserId ?? this.venueOwnerUserId,
       courtName: courtName ?? this.courtName,
+      courtNames: courtNames ?? this.courtNames,
       hostName: hostName ?? this.hostName,
       hostLevel: hostLevel ?? this.hostLevel,
       hostAvatar: hostAvatar ?? this.hostAvatar,
@@ -209,14 +213,19 @@ class SessionModel {
       }
     }
 
-    // Parse court
-    String? cName;
+    // Parse all courts
+    List<String> parsedCourtNames = [];
     if (map['tb_session_court'] is List && (map['tb_session_court'] as List).isNotEmpty) {
-      final firstCourtRel = (map['tb_session_court'] as List).first;
-      if (firstCourtRel is Map && firstCourtRel['tb_court'] is Map) {
-        cName = firstCourtRel['tb_court']['nama_court']?.toString();
+      for (final courtRel in (map['tb_session_court'] as List)) {
+        if (courtRel is Map && courtRel['tb_court'] is Map) {
+          final n = courtRel['tb_court']['nama_court']?.toString();
+          if (n != null && n.trim().isNotEmpty && !parsedCourtNames.contains(n.trim())) {
+            parsedCourtNames.add(n.trim());
+          }
+        }
       }
     }
+    final cName = parsedCourtNames.isNotEmpty ? parsedCourtNames.join(', ') : 'Court 1';
 
     // Parse host user
     String hName = 'Host Mabar';
@@ -269,7 +278,8 @@ class SessionModel {
       venueCity: vCity,
       venueFoto: vFoto,
       venueOwnerUserId: vOwnerId,
-      courtName: cName ?? 'Court 1',
+      courtName: cName,
+      courtNames: parsedCourtNames,
       hostName: hName,
       hostLevel: hLevel,
       hostAvatar: hAvatar,

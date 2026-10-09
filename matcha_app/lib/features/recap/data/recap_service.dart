@@ -102,15 +102,21 @@ class RecapService {
         final sportMap = map['tb_sport'] as Map<String, dynamic>?;
         final sportName = (sportMap?['nama_sport']?.toString()) ?? 'Padel';
 
-        String courtName = 'Court 1';
+        final courtNamesList = <String>[];
         final courtsList = map['tb_session_court'] as List<dynamic>?;
         if (courtsList != null && courtsList.isNotEmpty) {
-          final firstCourt = courtsList.first as Map<String, dynamic>?;
-          final cObj = firstCourt?['tb_court'] as Map<String, dynamic>?;
-          if (cObj != null && cObj['nama_court'] != null) {
-            courtName = cObj['nama_court'].toString();
+          for (final courtItem in courtsList) {
+            final cMap = courtItem as Map<String, dynamic>?;
+            final cObj = cMap?['tb_court'] as Map<String, dynamic>?;
+            if (cObj != null && cObj['nama_court'] != null) {
+              final n = cObj['nama_court'].toString().trim();
+              if (n.isNotEmpty && !courtNamesList.contains(n)) {
+                courtNamesList.add(n);
+              }
+            }
           }
         }
+        final String courtName = courtNamesList.isNotEmpty ? courtNamesList.join(', ') : 'Court 1';
 
         DateTime? dt;
         if (map['datetime'] != null) {
@@ -668,15 +674,21 @@ class RecapService {
       final venueName = (venueMap?['nama_venue']?.toString()) ?? 'Arena Lapangan';
       final scoringSystem = (sMap['scoring_system']?.toString()) ?? 'Total of 3';
 
-      String? courtName;
+      final courtNamesList = <String>[];
       final courtsList = sMap['tb_session_court'] as List<dynamic>?;
       if (courtsList != null && courtsList.isNotEmpty) {
-        final firstCourt = courtsList.first as Map<String, dynamic>?;
-        final cObj = firstCourt?['tb_court'] as Map<String, dynamic>?;
-        if (cObj != null && cObj['nama_court'] != null) {
-          courtName = cObj['nama_court'].toString();
+        for (final courtItem in courtsList) {
+          final cMap = courtItem as Map<String, dynamic>?;
+          final cObj = cMap?['tb_court'] as Map<String, dynamic>?;
+          if (cObj != null && cObj['nama_court'] != null) {
+            final n = cObj['nama_court'].toString().trim();
+            if (n.isNotEmpty && !courtNamesList.contains(n)) {
+              courtNamesList.add(n);
+            }
+          }
         }
       }
+      final String? courtName = courtNamesList.isNotEmpty ? courtNamesList.join(', ') : null;
 
       // 2. Ambil Pemain Terdaftar
       final registeredPlayers = <Map<String, dynamic>>[];
