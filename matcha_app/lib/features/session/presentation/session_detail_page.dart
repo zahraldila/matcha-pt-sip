@@ -875,7 +875,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
             if (canManage || isLive) ...[
               SizedBox(
                 width: double.infinity,
-                height: 40,
+                height: 44,
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     await Navigator.push(
@@ -915,12 +915,16 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                     if (mounted) _loadSessionDetail();
                   },
                   icon: const Icon(Icons.shuffle_rounded, size: 16),
-                  label: Text(canManage ? 'Buka Drawing Tim' : 'Lihat Drawing Tim', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  label: Text(
+                    canManage ? 'Buka Drawing Tim' : 'Lihat Drawing Tim',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.matchaDark,
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -928,7 +932,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
 
               SizedBox(
                 width: double.infinity,
-                height: 40,
+                height: 44,
                 child: OutlinedButton.icon(
                   onPressed: () async {
                     final isHostUser = widget.authController?.currentUser?.isAdmin == true ||
@@ -949,11 +953,15 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                     if (mounted) _loadSessionDetail();
                   },
                   icon: const Icon(Icons.timer_outlined, size: 16),
-                  label: const Text('Live Match Scoring', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  label: const Text(
+                    'Live Match Scoring',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.matchaDark,
                     side: const BorderSide(color: AppColors.matchaDark, width: 1.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
