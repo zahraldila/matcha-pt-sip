@@ -306,5 +306,216 @@ void main() {
 
       expect(rounds.length, 5, reason: 'Must have 5 rounds generated');
     });
+
+    // -------------------------------------------------------------------------
+    // TEST 9: Team Americano 8 Players, 2 Courts, 3 Rounds: A/B Side Balance
+    // -------------------------------------------------------------------------
+    test('9. Team Americano 8-player, 2 courts, 3 rounds: Balanced A/B Side Placement', () {
+      final players = List.generate(
+        8,
+        (i) => GamePlayerItem(id: 'p${i + 1}', name: 'Player ${i + 1}'),
+      );
+
+      final rounds = MatchaDrawingEngine.generateDrawing(
+        players: players,
+        courtCount: 2,
+        gameType: 'Team Americano',
+        playMode: 'Double',
+        roundCount: 3,
+      );
+
+      expect(rounds.length, 3, reason: 'Must generate exactly 3 rounds');
+
+      final expectedTeams = [
+        {'p1', 'p2'},
+        {'p3', 'p4'},
+        {'p5', 'p6'},
+        {'p7', 'p8'},
+      ];
+
+      String getTeamIdentifier(List<GamePlayerItem> team) {
+        final ids = team.map((p) => p.id).toSet();
+        for (int i = 0; i < expectedTeams.length; i++) {
+          if (expectedTeams[i].containsAll(ids) && ids.containsAll(expectedTeams[i])) {
+            return 'T${i + 1}';
+          }
+        }
+        return 'UNKNOWN';
+      }
+
+      final Map<String, int> countA = {'T1': 0, 'T2': 0, 'T3': 0, 'T4': 0};
+      final Map<String, int> countB = {'T1': 0, 'T2': 0, 'T3': 0, 'T4': 0};
+      final Set<String> matchups = {};
+
+      for (var r in rounds) {
+        expect(r.matches.length, 2, reason: 'Each round must have 2 matches');
+        expect(r.restingPlayers.length, 0, reason: 'No resting players with 8 players on 2 courts');
+
+        final playingInRound = <String>{};
+
+        for (var m in r.matches) {
+          final tA = getTeamIdentifier(m.teamA);
+          final tB = getTeamIdentifier(m.teamB);
+
+          expect(tA, isNot('UNKNOWN'), reason: 'Team A must preserve fixed pair');
+          expect(tB, isNot('UNKNOWN'), reason: 'Team B must preserve fixed pair');
+          expect(tA, isNot(tB), reason: 'A team cannot play against itself');
+
+          countA[tA] = countA[tA]! + 1;
+          countB[tB] = countB[tB]! + 1;
+
+          final matchPair = tA.compareTo(tB) < 0 ? '$tA vs $tB' : '$tB vs $tA';
+          matchups.add(matchPair);
+
+          for (var p in [...m.teamA, ...m.teamB]) {
+            expect(playingInRound.contains(p.id), isFalse,
+                reason: 'Player ${p.id} must not appear in multiple matches in round ${r.roundNumber}');
+            playingInRound.add(p.id);
+          }
+        }
+      }
+
+      // 4 teams = 6 unique pairings, all must meet once in 3 rounds
+      expect(matchups.length, 6, reason: 'All 6 team pairings must occur exactly once');
+
+      // Every team must play both side A and B, with max difference <= 1
+      for (final teamName in ['T1', 'T2', 'T3', 'T4']) {
+        final a = countA[teamName]!;
+        final b = countB[teamName]!;
+        expect(a, greaterThan(0), reason: '$teamName must be on side A at least once');
+        expect(b, greaterThan(0), reason: '$teamName must be on side B at least once');
+        expect((a - b).abs(), lessThanOrEqualTo(1),
+            reason: '$teamName side difference |$a - $b| must be at most 1');
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // TEST 10: Team Americano 4 Players, 1 Court, Multi-Round: Even A/B Alternation
+    // -------------------------------------------------------------------------
+    test('10. Team Americano 4-player, 1 court, 4 rounds: Balanced A/B Alternation', () {
+      final players = [
+        const GamePlayerItem(id: 'p1', name: 'P1'),
+        const GamePlayerItem(id: 'p2', name: 'P2'),
+        const GamePlayerItem(id: 'p3', name: 'P3'),
+        const GamePlayerItem(id: 'p4', name: 'P4'),
+      ];
+
+      final rounds = MatchaDrawingEngine.generateDrawing(
+        players: players,
+        courtCount: 1,
+        gameType: 'Team Americano',
+        playMode: 'Double',
+        roundCount: 4,
+      );
+
+      expect(rounds.length, 4);
+
+      int t1CountA = 0;
+      int t1CountB = 0;
+      int t2CountA = 0;
+      int t2CountB = 0;
+
+      for (var r in rounds) {
+        expect(r.matches.length, 1);
+        final m = r.matches.first;
+
+        final isT1OnA = m.teamA.any((p) => p.id == 'p1');
+        if (isT1OnA) {
+          t1CountA++;
+          t2CountB++;
+        } else {
+          t1CountB++;
+          t2CountA++;
+        }
+      }
+
+      expect(t1CountA, 2, reason: 'Team 1 should be on Team A exactly 2 times across 4 rounds');
+      expect(t1CountB, 2, reason: 'Team 1 should be on Team B exactly 2 times across 4 rounds');
+      expect(t2CountA, 2, reason: 'Team 2 should be on Team A exactly 2 times across 4 rounds');
+      expect(t2CountB, 2, reason: 'Team 2 should be on Team B exactly 2 times across 4 rounds');
+    });
+
+    // -------------------------------------------------------------------------
+    // TEST 11: Team Americano Odd Teams: BYE/Resting Not Counted in A/B
+    // -------------------------------------------------------------------------
+    test('11. Team Americano Odd Teams (3 Teams): BYE/Resting not counted as A/B side', () {
+      final players = [
+        const GamePlayerItem(id: 'p1', name: 'P1'),
+        const GamePlayerItem(id: 'p2', name: 'P2'), // T1
+        const GamePlayerItem(id: 'p3', name: 'P3'),
+        const GamePlayerItem(id: 'p4', name: 'P4'), // T2
+        const GamePlayerItem(id: 'p5', name: 'P5'),
+        const GamePlayerItem(id: 'p6', name: 'P6'), // T3
+      ];
+
+      final rounds = MatchaDrawingEngine.generateDrawing(
+        players: players,
+        courtCount: 1,
+        gameType: 'Team Americano',
+        playMode: 'Double',
+        roundCount: 3,
+      );
+
+      expect(rounds.length, 3);
+
+      final sideAOccurrences = <String, int>{'p1-p2': 0, 'p3-p4': 0, 'p5-p6': 0};
+      final sideBOccurrences = <String, int>{'p1-p2': 0, 'p3-p4': 0, 'p5-p6': 0};
+
+      for (var r in rounds) {
+        expect(r.matches.length, 1);
+        expect(r.restingPlayers.length, 2, reason: 'Exactly 1 team rests per round');
+
+        final m = r.matches.first;
+        final keyA = (m.teamA.map((p) => p.id).toList()..sort()).join('-');
+        final keyB = (m.teamB.map((p) => p.id).toList()..sort()).join('-');
+
+        sideAOccurrences[keyA] = (sideAOccurrences[keyA] ?? 0) + 1;
+        sideBOccurrences[keyB] = (sideBOccurrences[keyB] ?? 0) + 1;
+      }
+
+      // Each team played 2 matches: exactly 1 as Team A and 1 as Team B
+      for (final teamKey in ['p1-p2', 'p3-p4', 'p5-p6']) {
+        expect(sideAOccurrences[teamKey], 1, reason: '$teamKey should have exactly 1 match on side A');
+        expect(sideBOccurrences[teamKey], 1, reason: '$teamKey should have exactly 1 match on side B');
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // TEST 12: Team Americano Limited Courts: No Double-Booking & Stable Resting
+    // -------------------------------------------------------------------------
+    test('12. Team Americano Limited Courts (8 Players, 1 Court, 3 Rounds)', () {
+      final players = List.generate(
+        8,
+        (i) => GamePlayerItem(id: 'p${i + 1}', name: 'Player ${i + 1}'),
+      );
+
+      final rounds = MatchaDrawingEngine.generateDrawing(
+        players: players,
+        courtCount: 1,
+        gameType: 'Team Americano',
+        playMode: 'Double',
+        roundCount: 3,
+      );
+
+      expect(rounds.length, 3);
+
+      for (var r in rounds) {
+        expect(r.matches.length, 1, reason: 'Only 1 court available');
+        expect(r.restingPlayers.length, 4, reason: 'Remaining 4 players must rest');
+
+        final matchPlayers = {
+          ...r.matches.first.teamA.map((p) => p.id),
+          ...r.matches.first.teamB.map((p) => p.id),
+        };
+
+        final restingPlayers = r.restingPlayers.map((p) => p.id).toSet();
+
+        // No overlap between playing and resting
+        expect(matchPlayers.intersection(restingPlayers).isEmpty, isTrue,
+            reason: 'Players playing cannot also be resting');
+        expect(matchPlayers.length + restingPlayers.length, 8,
+            reason: 'Total players in round must equal 8');
+      }
+    });
   });
 }

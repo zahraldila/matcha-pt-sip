@@ -89,6 +89,7 @@ class MockMatchServiceForSync extends MatchService {
     List<GamePlayerItem>? allPlayers,
     int? courtCount,
     String? matchStatus,
+    int? matchFormatId,
   }) async {
     if (shouldFailSave) {
       throw Exception('PostgrestException: Simpan gagal');
@@ -112,6 +113,7 @@ class MockMatchServiceForSync extends MatchService {
     dynamic sessionId, {
     required List<DrawingRound> rounds,
     List<GamePlayerItem>? allPlayers,
+    int? matchFormatId,
   }) async {
     if (shouldFailLock) {
       throw Exception('Database connection failed');

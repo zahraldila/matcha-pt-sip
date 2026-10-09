@@ -203,11 +203,18 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       } else {
         // Total of X: Flexible
         if (_isTeamAmericano) {
-          _selectedQuota = 6;
+          if (_selectedQuota % 2 != 0 || _selectedQuota < 4 || _selectedQuota > 16) {
+            _selectedQuota = 6;
+          }
         } else if (_selectedGameType == 'Double') {
-          _selectedQuota = 6;
+          if (_selectedQuota < 4 || _selectedQuota > 16) {
+            _selectedQuota = 4;
+          }
         } else {
-          _selectedQuota = 2;
+          const singleQuotas = [2, 3, 4, 5, 6, 8];
+          if (!singleQuotas.contains(_selectedQuota)) {
+            _selectedQuota = 4;
+          }
         }
       }
     });
@@ -222,7 +229,16 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       if (_isFirstToSystem) {
         _selectedQuota = type == 'Double' ? 4 : 2;
       } else {
-        _selectedQuota = type == 'Double' ? 6 : 2;
+        if (type == 'Single') {
+          const singleQuotas = [2, 3, 4, 5, 6, 8];
+          if (!singleQuotas.contains(_selectedQuota)) {
+            _selectedQuota = 4;
+          }
+        } else {
+          if (_selectedQuota < 4 || _selectedQuota > 16) {
+            _selectedQuota = 4;
+          }
+        }
       }
     });
   }
@@ -2012,40 +2028,41 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     if (_isFirstToSystem) {
       if (_selectedGameType == 'Double') {
         return const [
-          DropdownMenuItem(value: 4, child: Text('4 Pemain (1 Court Non-Stop 2v2 - Langsung Tuntas)', style: TextStyle(fontSize: 12))),
+          DropdownMenuItem(value: 4, child: Text('4 Pemain', style: TextStyle(fontSize: 12))),
         ];
       } else {
         return const [
-          DropdownMenuItem(value: 2, child: Text('2 Pemain (1 Court Non-Stop 1v1 - Langsung Tuntas)', style: TextStyle(fontSize: 12))),
+          DropdownMenuItem(value: 2, child: Text('2 Pemain', style: TextStyle(fontSize: 12))),
         ];
       }
     }
 
     if (_isTeamAmericano) {
-      return const [
-        DropdownMenuItem(value: 4, child: Text('4 Pemain (2 Tim Tetap - 1 Court)', style: TextStyle(fontSize: 12))),
-        DropdownMenuItem(value: 6, child: Text('6 Pemain (3 Tim Tetap - 1 Court Rotasi)', style: TextStyle(fontSize: 12))),
-        DropdownMenuItem(value: 8, child: Text('8 Pemain (4 Tim Tetap - 1/2 Court)', style: TextStyle(fontSize: 12))),
-        DropdownMenuItem(value: 10, child: Text('10 Pemain (5 Tim Tetap)', style: TextStyle(fontSize: 12))),
-        DropdownMenuItem(value: 12, child: Text('12 Pemain (6 Tim Tetap)', style: TextStyle(fontSize: 12))),
-      ];
+      const teamAmericanoQuotas = [4, 6, 8, 10, 12, 14, 16];
+      return teamAmericanoQuotas.map((count) {
+        return DropdownMenuItem(
+          value: count,
+          child: Text('$count Pemain', style: const TextStyle(fontSize: 12)),
+        );
+      }).toList();
     }
 
     if (_selectedGameType == 'Double') {
-      return const [
-        DropdownMenuItem(value: 4, child: Text('4 Pemain (1 Court Non-Stop 2v2)', style: TextStyle(fontSize: 12))),
-        DropdownMenuItem(value: 6, child: Text('6 Pemain (1 Court Rotasi Bench 2 Istirahat)', style: TextStyle(fontSize: 12))),
-        DropdownMenuItem(value: 8, child: Text('8 Pemain (1 Court / 2 Court Double)', style: TextStyle(fontSize: 12))),
-        DropdownMenuItem(value: 12, child: Text('12 Pemain (Multi-Court Tournament)', style: TextStyle(fontSize: 12))),
-      ];
+      return List.generate(13, (index) {
+        final count = 4 + index; // 4 to 16
+        return DropdownMenuItem(
+          value: count,
+          child: Text('$count Pemain', style: const TextStyle(fontSize: 12)),
+        );
+      });
     } else {
-      return const [
-        DropdownMenuItem(value: 2, child: Text('2 Pemain (1 Court Non-Stop 1v1)', style: TextStyle(fontSize: 12))),
-        DropdownMenuItem(value: 3, child: Text('3 Pemain (1 Court Rotasi 1 Istirahat)', style: TextStyle(fontSize: 12))),
-        DropdownMenuItem(value: 4, child: Text('4 Pemain (1 Court / 2 Court Single)', style: TextStyle(fontSize: 12))),
-        DropdownMenuItem(value: 5, child: Text('5 Pemain (Single Rotasi)', style: TextStyle(fontSize: 12))),
-        DropdownMenuItem(value: 6, child: Text('6 Pemain (Single Multi-Court)', style: TextStyle(fontSize: 12))),
-      ];
+      const singleQuotas = [2, 3, 4, 5, 6, 8];
+      return singleQuotas.map((count) {
+        return DropdownMenuItem(
+          value: count,
+          child: Text('$count Pemain', style: const TextStyle(fontSize: 12)),
+        );
+      }).toList();
     }
   }
 

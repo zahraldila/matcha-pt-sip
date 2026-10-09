@@ -144,9 +144,12 @@ class SessionMatchRecapData {
   final int totalPlayers;
   final List<SessionRoundRecapItem> rounds;
   final List<SessionPlayerStanding> standings;
+  final List<SessionTeamStanding> teamStandings;
   final SessionPersonalStat? myStats;
   final Map<int, Map<String, int>> kudosMap;
   final Map<int, Set<String>> userGivenKudos;
+  final int? matchFormatId;
+  final String? matchFormatName;
 
   const SessionMatchRecapData({
     required this.sessionId,
@@ -160,10 +163,17 @@ class SessionMatchRecapData {
     required this.totalPlayers,
     required this.rounds,
     required this.standings,
+    this.teamStandings = const [],
     this.myStats,
     this.kudosMap = const {},
     this.userGivenKudos = const {},
+    this.matchFormatId,
+    this.matchFormatName,
   });
+
+  bool get isTeamFormat =>
+      matchFormatId == 4 ||
+      (matchFormatName?.toLowerCase().contains('team americano') ?? false);
 }
 
 class SessionRoundRecapItem {
@@ -233,6 +243,52 @@ class SessionPlayerStanding {
     required this.level,
     this.foto,
     this.gender = 'Male',
+    required this.matchesPlayed,
+    required this.matchesWon,
+    required this.matchesLost,
+    this.setsWon = 0,
+    this.setsLost = 0,
+    required this.gamesWon,
+    this.gamesLost = 0,
+    this.pointsFor = 0,
+    this.pointsAgainst = 0,
+    this.pointDiff = 0,
+    this.gameDiff = 0,
+    this.setDiff = 0,
+    required this.scoreWon,
+    required this.gamesDiff,
+  });
+}
+
+class SessionTeamStanding {
+  final int rank;
+  final String teamId;
+  final String teamName;
+  final List<int> memberIds;
+  final List<String> memberNames;
+  final List<String?> memberPhotos;
+  final int matchesPlayed;
+  final int matchesWon;
+  final int matchesLost;
+  final int setsWon;
+  final int setsLost;
+  final int gamesWon;
+  final int gamesLost;
+  final int pointsFor;
+  final int pointsAgainst;
+  final int pointDiff;
+  final int gameDiff;
+  final int setDiff;
+  final int scoreWon;
+  final int gamesDiff;
+
+  const SessionTeamStanding({
+    required this.rank,
+    required this.teamId,
+    required this.teamName,
+    this.memberIds = const [],
+    this.memberNames = const [],
+    this.memberPhotos = const [],
     required this.matchesPlayed,
     required this.matchesWon,
     required this.matchesLost,

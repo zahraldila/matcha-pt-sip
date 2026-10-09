@@ -81,6 +81,7 @@ class _MockMatchServiceForFiveSteps extends MatchService {
     List<GamePlayerItem>? allPlayers,
     int? courtCount,
     String? matchStatus,
+    int? matchFormatId,
   }) async {
     saveDrawingCalled = true;
     savedDrawing = rounds;
@@ -97,6 +98,7 @@ class _MockMatchServiceForFiveSteps extends MatchService {
     dynamic sessionId, {
     required List<DrawingRound> rounds,
     List<GamePlayerItem>? allPlayers,
+    int? matchFormatId,
   }) async {
     lockCalled = true;
     isDrawingLockedResult = true;
