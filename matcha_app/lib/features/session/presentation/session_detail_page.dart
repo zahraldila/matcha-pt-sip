@@ -1129,10 +1129,9 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
               children: [
                 SizedBox(width: 20, child: Text('#', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
                 SizedBox(width: 8),
-                Expanded(flex: 3, child: Text('NAMA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
-                Expanded(flex: 2, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
-                Expanded(flex: 2, child: Text('SKILL LEVEL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
-                Expanded(flex: 3, child: Text('GENDER / USIA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
+                Expanded(flex: 4, child: Text('PEMAIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
+                Expanded(flex: 2, child: Align(alignment: Alignment.center, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))))),
+                Expanded(flex: 3, child: Align(alignment: Alignment.centerRight, child: Text('SKILL LEVEL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))))),
               ],
             ),
           ),
@@ -1160,7 +1159,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
 
                 return Container(
                   color: isMe ? const Color(0xFFF0FDF4) : Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                   child: Row(
                     children: [
                       // # Column
@@ -1177,13 +1176,13 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                       ),
                       const SizedBox(width: 8),
 
-                      // NAMA Column (Avatar + Name)
+                      // PEMAIN Column (Avatar + Name + Gender/Age Subtitle)
                       Expanded(
-                        flex: 3,
+                        flex: 4,
                         child: Row(
                           children: [
                             CircleAvatar(
-                              radius: 12,
+                              radius: 14,
                               backgroundImage: (player.foto != null && player.foto!.isNotEmpty)
                                   ? NetworkImage(player.foto!)
                                   : null,
@@ -1191,21 +1190,38 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                               child: (player.foto == null || player.foto!.isEmpty)
                                   ? Text(
                                       player.nama.isNotEmpty ? player.nama[0].toUpperCase() : 'P',
-                                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.matchaDark),
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.matchaDark),
                                     )
                                   : null,
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                player.nama,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF0F172A),
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    player.nama,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    '${player.gender == "Male" ? "Male" : "Female"}, ${player.usia ?? 25} th',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF64748B),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -1216,9 +1232,9 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                       Expanded(
                         flex: 2,
                         child: Align(
-                          alignment: Alignment.centerLeft,
+                          alignment: Alignment.center,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: player.isMember ? const Color(0xFFF0FDF4) : const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(12),
@@ -1229,7 +1245,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                             child: Text(
                               player.isMember ? 'Member' : 'Guest',
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 9.5,
                                 fontWeight: FontWeight.bold,
                                 color: player.isMember ? const Color(0xFF166534) : const Color(0xFF475569),
                               ),
@@ -1240,24 +1256,10 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
 
                       // SKILL LEVEL Column
                       Expanded(
-                        flex: 2,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: _buildSkillBadge(player.level ?? 'Beginner'),
-                        ),
-                      ),
-
-                      // GENDER / USIA Column
-                      Expanded(
                         flex: 3,
-                        child: Text(
-                          '${player.gender == "Male" ? "Male" : "Female"}, ${player.usia ?? 25} th',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Color(0xFF64748B),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: _buildSkillBadge(player.level ?? 'Beginner'),
                         ),
                       ),
                     ],
