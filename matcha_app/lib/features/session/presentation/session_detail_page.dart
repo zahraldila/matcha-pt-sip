@@ -1068,7 +1068,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Table Header Bar
+          // Table Header Bar (matching Web)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             child: Row(
@@ -1085,26 +1085,26 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: session.isFull ? const Color(0xFFFEF2F2) : const Color(0xFFFEF3C7),
+                    color: session.isFull ? const Color(0xFFECFDF5) : const Color(0xFFFEF3C7),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: session.isFull ? const Color(0xFFFECACA) : const Color(0xFFFDE68A),
+                      color: session.isFull ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A),
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        session.isFull ? Icons.check_circle_outline_rounded : Icons.person_outline_rounded,
+                        session.isFull ? Icons.check_circle_rounded : Icons.person_outline_rounded,
                         size: 13,
-                        color: session.isFull ? Colors.redAccent : const Color(0xFFD97706),
+                        color: session.isFull ? const Color(0xFF059669) : const Color(0xFFD97706),
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        session.isFull ? 'Kuota Penuh' : 'Tersisa ${session.availableSlots} Slot',
+                        session.isFull ? 'Kuota Lengkap' : 'Tersisa ${session.availableSlots} Slot',
                         style: TextStyle(
-                          color: session.isFull ? Colors.redAccent : const Color(0xFFD97706),
-                          fontSize: 10,
+                          color: session.isFull ? const Color(0xFF065F46) : const Color(0xFFD97706),
+                          fontSize: 10.5,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1115,28 +1115,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
             ),
           ),
 
-          // Table Column Titles Header
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
-              border: Border.symmetric(
-                horizontal: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-              ),
-            ),
-            child: const Row(
-              children: [
-                SizedBox(width: 20, child: Text('#', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
-                SizedBox(width: 8),
-                Expanded(flex: 4, child: Text('PEMAIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
-                Expanded(flex: 2, child: Align(alignment: Alignment.center, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))))),
-                Expanded(flex: 3, child: Align(alignment: Alignment.centerRight, child: Text('SKILL LEVEL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))))),
-              ],
-            ),
-          ),
-
-          // Table Rows
+          // Scrollable Table (Matching 5 Columns of Web Parity: #, NAMA, STATUS, SKILL LEVEL, GENDER / USIA)
           if (session.registeredPlayers.isEmpty)
             const Padding(
               padding: EdgeInsets.all(24),
@@ -1148,121 +1127,166 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
               ),
             )
           else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: session.registeredPlayers.length,
-              separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-              itemBuilder: (context, index) {
-                final player = session.registeredPlayers[index];
-                final isMe = (currentUserId != null && currentUserId > 0 && player.playerId == currentUserId);
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const double minTableWidth = 490.0;
+                final double tableWidth = constraints.maxWidth > minTableWidth
+                    ? constraints.maxWidth
+                    : minTableWidth;
+                final double nameWidth = tableWidth - (28 + 75 + 115 + 95 + 32);
 
-                return Container(
-                  color: isMe ? const Color(0xFFF0FDF4) : Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                  child: Row(
-                    children: [
-                      // # Column
-                      SizedBox(
-                        width: 20,
-                        child: Text(
-                          '${index + 1}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF94A3B8),
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: Column(
+                      children: [
+                        // Column Titles Header (Matching Web Table Header)
+                        Container(
+                          width: tableWidth,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF8FAFC),
+                            border: Border.symmetric(
+                              horizontal: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 28, child: Text('#', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                              SizedBox(width: nameWidth, child: const Text('NAMA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                              const SizedBox(width: 75, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                              const SizedBox(width: 115, child: Text('SKILL LEVEL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                              const SizedBox(width: 95, child: Text('GENDER / USIA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
 
-                      // PEMAIN Column (Avatar + Name + Gender/Age Subtitle)
-                      Expanded(
-                        flex: 4,
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundImage: (player.foto != null && player.foto!.isNotEmpty)
-                                  ? NetworkImage(player.foto!)
-                                  : null,
-                              backgroundColor: AppColors.matchaSoftLime,
-                              child: (player.foto == null || player.foto!.isEmpty)
-                                  ? Text(
-                                      player.nama.isNotEmpty ? player.nama[0].toUpperCase() : 'P',
-                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.matchaDark),
-                                    )
-                                  : null,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
+                        // Table Rows
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: session.registeredPlayers.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                          itemBuilder: (context, index) {
+                            final player = session.registeredPlayers[index];
+                            final isMe = (currentUserId != null && currentUserId > 0 && player.playerId == currentUserId);
+
+                            return Container(
+                              width: tableWidth,
+                              color: isMe ? const Color(0xFFF0FDF4) : Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              child: Row(
                                 children: [
-                                  Text(
-                                    player.nama,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF0F172A),
+                                  // 1. # Column
+                                  SizedBox(
+                                    width: 28,
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF64748B),
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(height: 1),
-                                  Text(
-                                    '${player.gender == "Male" ? "Male" : "Female"}, ${player.usia ?? 25} th',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: Color(0xFF64748B),
-                                      fontWeight: FontWeight.w500,
+
+                                  // 2. NAMA Column (Dark green circle avatar with initial + player name)
+                                  SizedBox(
+                                    width: nameWidth,
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 12,
+                                          backgroundImage: (player.foto != null && player.foto!.isNotEmpty)
+                                              ? NetworkImage(player.foto!)
+                                              : null,
+                                          backgroundColor: const Color(0xFF063B00),
+                                          child: (player.foto == null || player.foto!.isEmpty)
+                                              ? Text(
+                                                  player.nama.isNotEmpty ? player.nama[0].toUpperCase() : 'P',
+                                                  style: const TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Colors.white,
+                                                  ),
+                                                )
+                                              : null,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            player.nama,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF1E293B),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  ),
+
+                                  // 3. STATUS Column (Member vs Guest Badge)
+                                  SizedBox(
+                                    width: 75,
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                        decoration: BoxDecoration(
+                                          color: player.isMember ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: player.isMember ? const Color(0xFFA7F3D0) : const Color(0xFFE2E8F0),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          player.isMember ? 'Member' : 'Guest',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: player.isMember ? const Color(0xFF065F46) : const Color(0xFF475569),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // 4. SKILL LEVEL Column
+                                  SizedBox(
+                                    width: 115,
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: _buildSkillBadge(player.level ?? 'Beginner'),
+                                    ),
+                                  ),
+
+                                  // 5. GENDER / USIA Column
+                                  SizedBox(
+                                    width: 95,
+                                    child: Text(
+                                      '${player.gender == "Male" ? "Male" : "Female"}, ${player.usia ?? 25} th',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
-                      ),
-
-                      // STATUS Column (Member vs Guest Badge)
-                      Expanded(
-                        flex: 2,
-                        child: Align(
-                          alignment: Alignment.center,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: player.isMember ? const Color(0xFFF0FDF4) : const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: player.isMember ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0),
-                              ),
-                            ),
-                            child: Text(
-                              player.isMember ? 'Member' : 'Guest',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.bold,
-                                color: player.isMember ? const Color(0xFF166534) : const Color(0xFF475569),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // SKILL LEVEL Column
-                      Expanded(
-                        flex: 3,
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: _buildSkillBadge(player.level ?? 'Beginner'),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },
@@ -1301,17 +1325,17 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: border),
       ),
       child: Text(
         level,
         style: TextStyle(
-          fontSize: 9,
-          fontWeight: FontWeight.bold,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
           color: fg,
         ),
       ),
