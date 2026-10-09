@@ -281,4 +281,17 @@ class SessionModel {
   int get currentPlayersCount => registeredPlayers.length;
   bool get isFull => currentPlayersCount >= jumlahPemain;
   int get availableSlots => (jumlahPemain - currentPlayersCount).clamp(0, jumlahPemain);
+
+  bool get isFinished {
+    final s = statusSession.trim().toLowerCase();
+    return s == 'finished' || s == 'completed' || s == 'selesai';
+  }
+
+  bool get isLive {
+    if (isFinished) return false;
+    final s = statusSession.trim().toLowerCase();
+    return s == 'in progress' || s == 'in_progress' || s == 'live';
+  }
+
+  bool get isUpcoming => !isFinished && !isLive;
 }
