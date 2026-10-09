@@ -2807,7 +2807,13 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
     final userId = u['user_id'] is int ? u['user_id'] as int : int.tryParse(u['user_id']?.toString() ?? '');
     final isGuest = userId == null;
     final rawFoto = (u['foto'] as String?)?.trim();
-    final avatarUrl = (rawFoto != null && rawFoto.isNotEmpty) ? rawFoto : null;
+    final userMap = u['tb_user'] is Map ? u['tb_user'] as Map<String, dynamic> : null;
+    final rawUserFoto = (userMap?['foto'] as String?)?.trim();
+    final avatarUrl = (rawFoto != null && rawFoto.isNotEmpty)
+        ? rawFoto
+        : (rawUserFoto != null && rawUserFoto.isNotEmpty)
+            ? rawUserFoto
+            : null;
 
     if (_isPlayerAlreadyAdded(u)) {
       ScaffoldMessenger.of(context).showSnackBar(

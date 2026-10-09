@@ -87,7 +87,10 @@ class SessionService {
             usia,
             foto,
             no_hp,
-            email
+            email,
+            tb_user (
+              foto
+            )
           )
         )
       ''');
@@ -186,7 +189,10 @@ class SessionService {
                 usia,
                 foto,
                 no_hp,
-                email
+                email,
+                tb_user (
+                  foto
+                )
               )
             )
           ''')
@@ -254,7 +260,10 @@ class SessionService {
                 usia,
                 foto,
                 no_hp,
-                email
+                email,
+                tb_user (
+                  foto
+                )
               )
             )
           ''')

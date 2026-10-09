@@ -354,6 +354,18 @@ class AuthRemoteDataSource {
             .eq('player_id', existingId)
             .select()
             .single();
+
+        // Sinkronkan juga foto, nama, gender, level ke semua tb_player yang terhubung dengan user_id ini
+        try {
+          await _supabase.from('tb_player').update({
+            'nama': nama.trim(),
+            'gender': gender,
+            'usia': usia,
+            'level': level,
+            'foto': removeFoto ? null : fotoUrl,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('user_id', userId);
+        } catch (_) {}
       } else {
         playerFields['rating'] = 1.0;
         playerFields['created_at'] = DateTime.now().toIso8601String();
