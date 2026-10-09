@@ -24,11 +24,13 @@ import '../domain/recap_models.dart';
 class MatchRecapPage extends StatefulWidget {
   final AuthController? authController;
   final String initialTab; // 'host' or 'career'
+  final int? targetUserId; // Target user ID for public deep link / specific player preview
 
   const MatchRecapPage({
     super.key,
     this.authController,
     this.initialTab = 'host',
+    this.targetUserId,
   });
 
   @override
@@ -49,7 +51,8 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
   void initState() {
     super.initState();
     final user = widget.authController?.currentUser;
-    final isHost = user?.isHost ?? false;
+    final isOwnProfile = widget.targetUserId == null || (user != null && user.userId == widget.targetUserId);
+    final isHost = isOwnProfile && (user?.isHost ?? false);
     _activeTab = isHost ? widget.initialTab : 'career';
 
     _loadData();
@@ -75,8 +78,10 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
       _errorMessage = null;
     });
 
-    final user = widget.authController?.currentUser;
-    if (user == null) {
+    final currentUser = widget.authController?.currentUser;
+    final targetId = widget.targetUserId ?? currentUser?.userId;
+
+    if (targetId == null) {
       setState(() {
         _isLoading = false;
         _errorMessage = 'Silakan masuk untuk melihat rekap pertandingan.';
@@ -84,18 +89,24 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
       return;
     }
 
+    final isOwnProfile = currentUser != null && currentUser.userId == targetId;
+
     try {
-      final hostFuture = user.isHost ? _recapService.getHostRecap(user.userId) : null;
+      final hostFuture = (isOwnProfile && currentUser.isHost)
+          ? _recapService.getHostRecap(currentUser.userId)
+          : null;
       final careerFuture = _recapService.getPlayerCareerRecap(
-        user.userId,
-        playerId: user.playerId,
-        userEmail: user.email,
-        userNama: user.nama,
-        userFoto: user.foto,
-        userRole: user.role == 'venue_owner'
-            ? 'Venue Owner'
-            : (user.isHost ? 'Host Game' : 'Member'),
-        userLevel: user.level,
+        targetId,
+        playerId: isOwnProfile ? currentUser.playerId : null,
+        userEmail: isOwnProfile ? currentUser.email : null,
+        userNama: isOwnProfile ? currentUser.nama : null,
+        userFoto: isOwnProfile ? currentUser.foto : null,
+        userRole: isOwnProfile
+            ? (currentUser.role == 'venue_owner'
+                ? 'Venue Owner'
+                : (currentUser.isHost ? 'Host Game' : 'Member'))
+            : null,
+        userLevel: isOwnProfile ? currentUser.level : null,
       );
 
       final hostRes = hostFuture != null ? await hostFuture : null;
@@ -119,7 +130,8 @@ class _MatchRecapPageState extends State<MatchRecapPage> {
   @override
   Widget build(BuildContext context) {
     final user = widget.authController?.currentUser;
-    final isHost = user?.isHost ?? false;
+    final isOwnProfile = widget.targetUserId == null || (user != null && user.userId == widget.targetUserId);
+    final isHost = isOwnProfile && (user?.isHost ?? false);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
