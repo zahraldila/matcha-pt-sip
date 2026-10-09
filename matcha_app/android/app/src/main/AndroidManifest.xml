@@ -42,6 +42,21 @@
                 <data android:host="matcha.siproduktif.com" />
                 <data android:pathPrefix="/games/share" />
                 <data android:pathPrefix="/scoring/recap" />
+                <data android:pathPrefix="/player/recap" />
+                <data android:pathPrefix="/players/recap" />
+                <data android:pathPrefix="/profile/recap" />
+                <data android:pathPrefix="/profiles/recap" />
+                <data android:pathPrefix="/user/recap" />
+                <data android:pathPrefix="/users/recap" />
+                <data android:pathPrefix="/recap/user" />
+                <data android:pathPrefix="/recap/player" />
+                <data android:pathPrefix="/recap" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="matcha" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

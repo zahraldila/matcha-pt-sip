@@ -6,6 +6,7 @@ import '../../features/session/data/session_service.dart';
 import '../../features/session/domain/session_model.dart';
 import '../../features/session/presentation/session_detail_page.dart';
 import '../../features/recap/presentation/session_match_recap_page.dart';
+import '../../features/recap/presentation/match_recap_page.dart';
 
 class AppLinkService {
   static final AppLinkService _instance = AppLinkService._internal();
@@ -28,27 +29,23 @@ class AppLinkService {
 
   /// Pure parser: Validates scheme, domain, path, and extracts shareToken
   static String? extractShareToken(Uri uri) {
-    // 1. Validate scheme: HTTPS or HTTP
     final scheme = uri.scheme.toLowerCase();
-    if (scheme != 'https' && scheme != 'http') {
-      return null;
-    }
-
-    // 2. Validate canonical host: matcha.siproduktif.com
     final host = uri.host.toLowerCase();
-    if (host != 'matcha.siproduktif.com') {
-      return null;
-    }
 
-    // 3. Validate path segments: /games/share/{token}
-    // Note: uri.pathSegments handles leading/trailing slashes
-    final segments = uri.pathSegments;
-    if (segments.length >= 3 &&
-        segments[0] == 'games' &&
-        segments[1] == 'share') {
-      final token = segments[2].trim();
-      if (token.isNotEmpty) {
-        return token;
+    if (scheme == 'https' || scheme == 'http') {
+      if (host != 'matcha.siproduktif.com') return null;
+      final segments = uri.pathSegments;
+      if (segments.length >= 3 && segments[0] == 'games' && segments[1] == 'share') {
+        final token = segments[2].trim();
+        if (token.isNotEmpty) return token;
+      }
+    } else if (scheme == 'matcha') {
+      final segments = uri.pathSegments;
+      if (segments.length >= 2 && segments[0] == 'share') {
+        return segments[1].trim();
+      }
+      if (host == 'games' && segments.length >= 2 && segments[0] == 'share') {
+        return segments[1].trim();
       }
     }
 
@@ -58,20 +55,70 @@ class AppLinkService {
   /// Pure parser: Validates scheme, domain, path, and extracts sessionId from /scoring/recap/{id}
   static int? extractRecapSessionId(Uri uri) {
     final scheme = uri.scheme.toLowerCase();
-    if (scheme != 'https' && scheme != 'http') {
-      return null;
-    }
-
     final host = uri.host.toLowerCase();
-    if (host != 'matcha.siproduktif.com') {
-      return null;
+
+    if (scheme == 'https' || scheme == 'http') {
+      if (host != 'matcha.siproduktif.com') return null;
+      final segments = uri.pathSegments;
+      if (segments.length >= 3 && segments[0] == 'scoring' && segments[1] == 'recap') {
+        return int.tryParse(segments[2].trim());
+      }
+    } else if (scheme == 'matcha') {
+      final segments = uri.pathSegments;
+      if (host == 'scoring' && segments.isNotEmpty && segments[0] == 'recap' && segments.length >= 2) {
+        return int.tryParse(segments[1].trim());
+      }
     }
 
-    final segments = uri.pathSegments;
-    if (segments.length >= 3 &&
-        segments[0] == 'scoring' &&
-        segments[1] == 'recap') {
-      return int.tryParse(segments[2].trim());
+    return null;
+  }
+
+  /// Pure parser: Validates scheme, domain, path, and extracts userId / playerId from /player/recap/{id} or /recap/user/{id}
+  static int? extractPlayerRecapUserId(Uri uri) {
+    final scheme = uri.scheme.toLowerCase();
+    final host = uri.host.toLowerCase();
+
+    if (scheme == 'https' || scheme == 'http') {
+      if (host != 'matcha.siproduktif.com') {
+        return null;
+      }
+
+      final segments = uri.pathSegments;
+      const validPrefixes = {'player', 'players', 'profile', 'profiles', 'user', 'users'};
+
+      // Format 1: /{player|players|profile|profiles|user|users}/recap/{id}
+      if (segments.length >= 3 &&
+          validPrefixes.contains(segments[0]) &&
+          segments[1] == 'recap') {
+        return int.tryParse(segments[2].trim());
+      }
+      // Format 2: /{player|players|profile|profiles|user|users}/recap (without id)
+      if (segments.length == 2 &&
+          validPrefixes.contains(segments[0]) &&
+          segments[1] == 'recap') {
+        return -1;
+      }
+      // Format 3: /recap/{user|player|profile}/{id}
+      if (segments.length >= 3 &&
+          segments[0] == 'recap' &&
+          (segments[1] == 'user' || segments[1] == 'player' || segments[1] == 'profile')) {
+        return int.tryParse(segments[2].trim());
+      }
+    } else if (scheme == 'matcha') {
+      final segments = uri.pathSegments;
+      const validPrefixes = {'player', 'players', 'profile', 'profiles', 'user', 'users'};
+
+      // matcha://{player|profile}/recap/{id}
+      if (validPrefixes.contains(host) && segments.isNotEmpty && segments[0] == 'recap') {
+        if (segments.length >= 2) {
+          return int.tryParse(segments[1].trim());
+        }
+        return -1;
+      }
+      // matcha://recap/{user|player}/{id}
+      if (host == 'recap' && segments.isNotEmpty && (segments[0] == 'user' || segments[0] == 'player' || segments[0] == 'profile') && segments.length >= 2) {
+        return int.tryParse(segments[1].trim());
+      }
     }
 
     return null;
@@ -126,8 +173,9 @@ class AppLinkService {
   Future<void> handleUri(Uri uri) async {
     final token = extractShareToken(uri);
     final recapSessionId = extractRecapSessionId(uri);
+    final playerRecapUserId = extractPlayerRecapUserId(uri);
 
-    if (token == null && recapSessionId == null) {
+    if (token == null && recapSessionId == null && playerRecapUserId == null) {
       // Invalid URL / foreign host / malformed path — ignore safely
       debugPrint('[AppLinkService] Ignored non-matching URL: $uri');
       return;
@@ -149,6 +197,24 @@ class AppLinkService {
           handleUri(uri);
         }
       });
+      return;
+    }
+
+    // Handle Player Career Recap Deep Link
+    if (playerRecapUserId != null) {
+      final nav = _navigatorKey?.currentState;
+      if (nav != null) {
+        final targetId = playerRecapUserId == -1 ? null : playerRecapUserId;
+        nav.push(
+          MaterialPageRoute(
+            builder: (_) => MatchRecapPage(
+              authController: _authController,
+              targetUserId: targetId,
+              initialTab: 'career',
+            ),
+          ),
+        );
+      }
       return;
     }
 
