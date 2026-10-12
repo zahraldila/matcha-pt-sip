@@ -1335,7 +1335,7 @@ class _VenueDetailPageState extends State<VenueDetailPage> {
     final user = widget.authController?.currentUser;
     final isOwner = user != null && venue.ownerUserId != null && venue.ownerUserId == user.userId;
     final isAdmin = user?.isAdmin == true;
-    final canManage = isOwner || isAdmin;
+    final canManage = isOwner && !isAdmin;
 
     return Container(
       width: double.infinity,
