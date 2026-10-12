@@ -31,6 +31,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   String _selectedGender = 'Male';
   String _selectedLevel = 'Intermediate';
+  bool _isGenderDropdownOpen = false;
+  bool _isLevelDropdownOpen = false;
 
   String? _currentFotoUrl;
   Uint8List? _pickedImageBytes;
@@ -995,23 +997,15 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           if (isAdmin) ...[
             _buildFormFieldTitle('Jenis Kelamin', isRequired: true),
             const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
+            _buildCustomDropdown<String>(
               value: safeGenderValue,
-              isExpanded: true,
-              decoration: _inputDecoration(),
-              items: const [
-                DropdownMenuItem(
-                  value: 'Female',
-                  child: Text('Perempuan 🚺', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
-                DropdownMenuItem(
-                  value: 'Male',
-                  child: Text('Laki-laki 🚹', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
+              options: const [
+                (value: 'Male', label: 'Laki-laki'),
+                (value: 'Female', label: 'Perempuan'),
               ],
-              onChanged: (val) {
-                if (val != null) setState(() => _selectedGender = val);
-              },
+              isOpen: _isGenderDropdownOpen,
+              onOpenChanged: (open) => setState(() => _isGenderDropdownOpen = open),
+              onChanged: (val) => setState(() => _selectedGender = val),
             ),
           ] else ...[
             // Form Field 4 & 5: Jenis Kelamin & Usia (Row)
@@ -1025,23 +1019,15 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     children: [
                       _buildFormFieldTitle('Jenis Kelamin', isRequired: true),
                       const SizedBox(height: 6),
-                      DropdownButtonFormField<String>(
+                      _buildCustomDropdown<String>(
                         value: safeGenderValue,
-                        isExpanded: true,
-                        decoration: _inputDecoration(),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'Male',
-                            child: Text('Laki-laki 🚹', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Female',
-                            child: Text('Perempuan 🚺', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                          ),
+                        options: const [
+                          (value: 'Male', label: 'Laki-laki'),
+                          (value: 'Female', label: 'Perempuan'),
                         ],
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedGender = val);
-                        },
+                        isOpen: _isGenderDropdownOpen,
+                        onOpenChanged: (open) => setState(() => _isGenderDropdownOpen = open),
+                        onChanged: (val) => setState(() => _selectedGender = val),
                       ),
                     ],
                   ),
@@ -1078,31 +1064,17 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             // Form Field 6: Kategori Skill Level *
             _buildFormFieldTitle('Kategori Skill Level', isRequired: true),
             const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
+            _buildCustomDropdown<String>(
               value: safeLevelValue,
-              isExpanded: true,
-              decoration: _inputDecoration(),
-              items: const [
-                DropdownMenuItem(
-                  value: 'Newbie',
-                  child: Text('Newbie (Pemula Sekali)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
-                DropdownMenuItem(
-                  value: 'Beginner',
-                  child: Text('Beginner (Bisa Reli Dasar)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
-                DropdownMenuItem(
-                  value: 'Intermediate',
-                  child: Text('Intermediate (Paham Rotasi & Taktik)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
-                DropdownMenuItem(
-                  value: 'Advanced',
-                  child: Text('Advanced (Turnamen & Kompetitif)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
+              options: const [
+                (value: 'Newbie', label: 'Newbie (Pemula Sekali)'),
+                (value: 'Beginner', label: 'Beginner (Bisa Reli Dasar)'),
+                (value: 'Intermediate', label: 'Intermediate (Paham Rotasi & Taktik)'),
+                (value: 'Advanced', label: 'Advanced (Turnamen & Kompetitif)'),
               ],
-              onChanged: (val) {
-                if (val != null) setState(() => _selectedLevel = val);
-              },
+              isOpen: _isLevelDropdownOpen,
+              onOpenChanged: (open) => setState(() => _isLevelDropdownOpen = open),
+              onChanged: (val) => setState(() => _selectedLevel = val),
             ),
           ],
         ],
@@ -1206,6 +1178,125 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFE11D48), width: 1.8),
       ),
+    );
+  }
+
+  Widget _buildCustomDropdown<T>({
+    required T value,
+    required List<({T value, String label})> options,
+    required ValueChanged<T> onChanged,
+    required bool isOpen,
+    required ValueChanged<bool> onOpenChanged,
+  }) {
+    final selectedOption = options.firstWhere(
+      (opt) => opt.value == value,
+      orElse: () => options.first,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return PopupMenuButton<T>(
+          position: PopupMenuPosition.under,
+          offset: const Offset(0, 6),
+          color: Colors.white,
+          elevation: 6,
+          shadowColor: Colors.black.withValues(alpha: 0.15),
+          constraints: BoxConstraints(
+            minWidth: constraints.maxWidth,
+            maxWidth: constraints.maxWidth,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          padding: EdgeInsets.zero,
+          onOpened: () {
+            FocusManager.instance.primaryFocus?.unfocus();
+            onOpenChanged(true);
+          },
+          onCanceled: () {
+            onOpenChanged(false);
+          },
+          onSelected: (val) {
+            onChanged(val);
+            onOpenChanged(false);
+          },
+          itemBuilder: (_) => options.map((opt) {
+            final isSelected = opt.value == value;
+            return PopupMenuItem<T>(
+              value: opt.value,
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFFEBF8D8) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        opt.label,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          color: isSelected ? const Color(0xFF063B00) : const Color(0xFF334155),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isSelected)
+                      const Icon(
+                        Icons.check_rounded,
+                        size: 16,
+                        color: Color(0xFF063B00),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isOpen ? const Color(0xFF063B00) : const Color(0xFFCBD5E1),
+                width: isOpen ? 1.8 : 1.2,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    selectedOption.label,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  isOpen
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: isOpen
+                      ? const Color(0xFF063B00)
+                      : const Color(0xFF94A3B8),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
