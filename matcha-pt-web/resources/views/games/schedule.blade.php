@@ -291,7 +291,6 @@
                                     data-val="{{ $sVal }}"
                                 >
                                     <span>{{ $sLabel }}</span>
-                                    <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currScoring === $sVal ? '' : 'hidden' }}"></i>
                                 </button>
                             @endforeach
 
@@ -306,7 +305,6 @@
                                     data-val="{{ $sVal }}"
                                 >
                                     <span>{{ $sLabel }}</span>
-                                    <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currScoring === $sVal ? '' : 'hidden' }}"></i>
                                 </button>
                             @endforeach
                         </div>
@@ -496,7 +494,6 @@
                                         data-val="{{ $dOpt }}"
                                     >
                                         <span>{{ $dOpt }}</span>
-                                        <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currDurasi === $dOpt ? '' : 'hidden' }}"></i>
                                     </button>
                                 @endforeach
                             </div>
@@ -599,7 +596,6 @@
                                         data-val="{{ $lVal }}"
                                     >
                                         <span class="truncate pr-2">{{ $lLabel }}</span>
-                                        <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currLevelRek === $lVal ? '' : 'hidden' }}"></i>
                                     </button>
                                 @endforeach
                             </div>
@@ -708,7 +704,6 @@
                                     data-val="{{ $sName }}"
                                 >
                                     <span>{{ $sName }}</span>
-                                    <i class="fa-solid fa-circle-check text-[#063B00] text-xs shrink-0 {{ $sName === 'Padel' ? '' : 'hidden' }}"></i>
                                 </button>
                             @endforeach
                         </div>
@@ -744,7 +739,6 @@
                                     data-val="{{ $cCount }}"
                                 >
                                     <span>{{ $cLabel }}</span>
-                                    <i class="fa-solid fa-circle-check text-[#063B00] text-xs shrink-0 {{ $cCount == 2 ? '' : 'hidden' }}"></i>
                                 </button>
                             @endforeach
                         </div>
@@ -1177,7 +1171,7 @@
             btn.setAttribute('data-val', v.venue_id);
             btn.setAttribute('data-search', `${v.nama_venue || ''} ${v.kota || ''} ${v.alamat || ''}`);
             btn.title = `${v.nama_venue} (${availableCount} Court Tersedia)`;
-            btn.innerHTML = `<span class="truncate pr-2">${label}</span><i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 ${isSelected ? '' : 'hidden'}"></i>`;
+            btn.innerHTML = `<span class="truncate pr-2">${label}</span>`;
             btn.onclick = () => {
                 selectScheduleOption('venue', v.venue_id, label, () => {
                     updateCourtsDropdown();
@@ -2287,7 +2281,7 @@
                 btn.type = 'button';
                 btn.className = `jumlahPemain-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer ${isSelected ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}`;
                 btn.setAttribute('data-val', o.val);
-                btn.innerHTML = `<span class="truncate pr-2">${o.text}</span><i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 ${isSelected ? '' : 'hidden'}"></i>`;
+                btn.innerHTML = `<span class="truncate pr-2">${o.text}</span>`;
                 btn.onclick = () => {
                     selectScheduleOption('jumlahPemain', o.val, o.text);
                 };
