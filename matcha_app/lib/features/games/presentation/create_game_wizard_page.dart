@@ -224,7 +224,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                             ),
                           )
                         : ListView.separated(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                             itemCount: filteredVenues.length,
                             separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                             itemBuilder: (context, index) {
@@ -303,71 +303,6 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                               );
                             },
                           ),
-                  ),
-
-                  // Bottom sticky banner: Input Venue Baru (Persis seperti web)
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border(top: BorderSide(color: Colors.grey.shade100)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          offset: const Offset(0, -3),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showQuickAddVenueModal();
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF4FBEA),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFD6F3B0)),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.add_circle_outline_rounded, size: 18, color: AppColors.matchaDark),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Input Venue Baru',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.matchaDark,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.matchaDark,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '+ Baru',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                   ),
                 ],
               ),
