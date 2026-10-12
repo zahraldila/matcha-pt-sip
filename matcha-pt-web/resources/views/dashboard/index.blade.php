@@ -167,7 +167,12 @@
 
                         <!-- 4. Tombol Cari -->
                         <div class="flex items-end">
-                            <button type="submit" id="filterSubmitBtn" class="w-full h-[42px] rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer">
+                            <button
+                                type="submit"
+                                id="filterSubmitBtn"
+                                style="min-height: 44px; padding: 11px 16px;"
+                                class="w-full rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs sm:text-sm shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer"
+                            >
                                 <i class="fa-solid fa-magnifying-glass"></i> <span id="filterBtnText">{{ ($activeTab ?? 'mabar') === 'community' ? 'Cari Komunitas' : (($activeTab ?? 'mabar') === 'venue' ? 'Cari Lapangan' : 'Cari Jadwal Mabar') }}</span>
                             </button>
                         </div>
