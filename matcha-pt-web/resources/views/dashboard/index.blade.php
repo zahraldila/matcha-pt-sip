@@ -73,13 +73,10 @@
                                         <button
                                             type="button"
                                             onclick="selectDashboardSport('{{ $sVal }}', '{{ $sLabel }}')"
-                                            class="sport-item-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer flex items-center justify-between {{ $currSportVal === $sVal ? 'bg-slate-50 text-[#063B00]' : 'text-slate-700 hover:bg-slate-50' }}"
+                                            class="sport-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer {{ $currSportVal === $sVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
                                             data-val="{{ $sVal }}"
                                         >
                                             <span>{{ $sLabel }}</span>
-                                            <span class="radio-indicator flex items-center justify-center w-4 h-4 rounded-full border {{ $currSportVal === $sVal ? 'border-[#063B00]' : 'border-slate-300' }}">
-                                                <span class="w-2 h-2 rounded-full {{ $currSportVal === $sVal ? 'bg-[#063B00]' : 'hidden' }}"></span>
-                                            </span>
                                         </button>
                                     @endforeach
                                 </div>
@@ -434,14 +431,10 @@
 
         document.querySelectorAll('#sportMenu .sport-item-btn').forEach(btn => {
             const isSelected = btn.getAttribute('data-val') === val;
-            btn.className = `sport-item-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer flex items-center justify-between ${isSelected ? 'bg-slate-50 text-[#063B00]' : 'text-slate-700 hover:bg-slate-50'}`;
-            const indicator = btn.querySelector('.radio-indicator');
-            if (indicator) {
-                indicator.className = `radio-indicator flex items-center justify-center w-4 h-4 rounded-full border ${isSelected ? 'border-[#063B00]' : 'border-slate-300'}`;
-                const dot = indicator.querySelector('span');
-                if (dot) {
-                    dot.className = `w-2 h-2 rounded-full ${isSelected ? 'bg-[#063B00]' : 'hidden'}`;
-                }
+            if (isSelected) {
+                btn.className = 'sport-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-bold transition-all cursor-pointer bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/15';
+            } else {
+                btn.className = 'sport-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer text-slate-700 hover:bg-slate-100 hover:text-slate-900';
             }
         });
 
@@ -456,14 +449,10 @@
 
         document.querySelectorAll('#cityMenu .city-item-btn').forEach(btn => {
             const isSelected = btn.getAttribute('data-val').toLowerCase() === val.toLowerCase();
-            btn.className = `city-item-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer flex items-center justify-between ${isSelected ? 'bg-slate-50 text-[#063B00]' : 'text-slate-700 hover:bg-slate-50'}`;
-            const indicator = btn.querySelector('.radio-indicator');
-            if (indicator) {
-                indicator.className = `radio-indicator flex items-center justify-center w-4 h-4 rounded-full border ${isSelected ? 'border-[#063B00]' : 'border-slate-300'} shrink-0 ml-2`;
-                const dot = indicator.querySelector('span');
-                if (dot) {
-                    dot.className = `w-2 h-2 rounded-full ${isSelected ? 'bg-[#063B00]' : 'hidden'}`;
-                }
+            if (isSelected) {
+                btn.className = 'city-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-bold transition-all cursor-pointer bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/15';
+            } else {
+                btn.className = 'city-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer text-slate-700 hover:bg-slate-100 hover:text-slate-900';
             }
         });
 
@@ -490,13 +479,10 @@
             <button
                 type="button"
                 onclick="selectDashboardCity('all', 'Semua Kota')"
-                class="city-item-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer flex items-center justify-between ${currentVal === 'all' ? 'bg-slate-50 text-[#063B00]' : 'text-slate-700 hover:bg-slate-50'}"
+                class="city-item-btn w-full px-3 py-2 rounded-xl text-left text-xs transition-all cursor-pointer ${currentVal === 'all' ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 font-semibold'}"
                 data-val="all"
             >
                 <span>Semua Kota</span>
-                <span class="radio-indicator flex items-center justify-center w-4 h-4 rounded-full border ${currentVal === 'all' ? 'border-[#063B00]' : 'border-slate-300'}">
-                    <span class="w-2 h-2 rounded-full ${currentVal === 'all' ? 'bg-[#063B00]' : 'hidden'}"></span>
-                </span>
             </button>
         `;
 
@@ -507,13 +493,10 @@
                 <button
                     type="button"
                     onclick="selectDashboardCity('${safeCity}', '${safeCity}')"
-                    class="city-item-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer flex items-center justify-between ${isSelected ? 'bg-slate-50 text-[#063B00]' : 'text-slate-700 hover:bg-slate-50'}"
+                    class="city-item-btn w-full px-3 py-2 rounded-xl text-left text-xs transition-all cursor-pointer ${isSelected ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 font-semibold'}"
                     data-val="${city}"
                 >
                     <span class="truncate">${city}</span>
-                    <span class="radio-indicator flex items-center justify-center w-4 h-4 rounded-full border ${isSelected ? 'border-[#063B00]' : 'border-slate-300'} shrink-0 ml-2">
-                        <span class="w-2 h-2 rounded-full ${isSelected ? 'bg-[#063B00]' : 'hidden'}"></span>
-                    </span>
                 </button>
             `;
         });
