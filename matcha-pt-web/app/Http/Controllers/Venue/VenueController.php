@@ -97,6 +97,9 @@ class VenueController extends Controller
             $allVenues = collect(MatchaDummyDataService::getVenues());
         }
 
+        // Cek apakah user saat ini memiliki minimal 1 venue (sebelum filter sport & search)
+        $userHasVenues = $currentUserId ? ($allVenues->where('is_mine', true)->count() > 0) : false;
+
         // Sport filter
         if ($selectedSport !== 'all') {
             $allVenues = $allVenues->filter(function ($v) use ($selectedSport) {
@@ -145,7 +148,7 @@ class VenueController extends Controller
         );
         $venues->withQueryString();
 
-        return view('venues.index', compact('venues', 'activeTab', 'selectedSport', 'search', 'myVenuesCount', 'totalVenuesCount'));
+        return view('venues.index', compact('venues', 'activeTab', 'selectedSport', 'search', 'myVenuesCount', 'totalVenuesCount', 'userHasVenues'));
     }
 
     public function show($id)

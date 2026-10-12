@@ -21,9 +21,9 @@
         @endif
     </div>
 
-    <!-- 1. Top Controls Bar: Owner Tabs (if owner) & Search Bar -->
+    <!-- 1. Top Controls Bar: Owner Tabs (if user has at least 1 venue) & Search Bar -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        @if(Auth::check() && Auth::user()->role === 'venue_owner')
+        @if(Auth::check() && (!empty($userHasVenues) || ($myVenuesCount ?? 0) > 0))
             <!-- Owner Filter Tabs -->
             <div class="flex items-center gap-2 overflow-x-auto scrollbar-none text-xs font-semibold py-1">
                 <a href="{{ route('venues.index', ['tab' => 'all', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}"
