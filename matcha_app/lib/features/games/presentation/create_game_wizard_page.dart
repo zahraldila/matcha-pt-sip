@@ -30,100 +30,6 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
   bool _isLoadingVenues = true;
   final TextEditingController _activityNameController = TextEditingController();
 
-  static const List<DropdownMenuItem<String>> _scoringSystemItems = [
-    // Header 1: Sistem Rotasi Poin (Total of X)
-    DropdownMenuItem<String>(
-      enabled: false,
-      value: '__header_total_of__',
-      child: Text(
-        'Sistem Rotasi Poin (Total of X)',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: Color(0xFF64748B),
-          letterSpacing: 0.3,
-        ),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'Total of 3 Poin',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('Total of 3 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'Total of 4 Poin',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('Total of 4 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'Total of 5 Poin',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('Total of 5 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'Total of 6 Poin',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('Total of 6 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'Total of 7 Poin',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('Total of 7 Poin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-
-    // Header 2: Sistem Langsung Tuntas (First to X)
-    DropdownMenuItem<String>(
-      enabled: false,
-      value: '__header_first_to__',
-      child: Text(
-        'Sistem Langsung Tuntas (First to X)',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: Color(0xFF64748B),
-          letterSpacing: 0.3,
-        ),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'First to 8 Poin (Tuntas)',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('First to 8 Poin (Tuntas)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'First to 11 Poin (Tuntas)',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('First to 11 Poin (Tuntas)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'First to 15 Poin (Tuntas)',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('First to 15 Poin (Tuntas)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-    DropdownMenuItem<String>(
-      value: 'First to 21 Poin (Tuntas)',
-      child: Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Text('First to 21 Poin (Tuntas)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      ),
-    ),
-  ];
 
   @override
   void initState() {
@@ -1955,28 +1861,65 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
               // Scoring System
               _buildSectionLabel('Scoring System'),
               const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _scoringSystemItems.any((item) => item.value == _config.scoringSystem)
-                        ? _config.scoringSystem
-                        : 'Total of 3 Poin',
-                    isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8)),
-                    items: _scoringSystemItems,
-                    onChanged: (val) {
-                      if (val != null && !val.startsWith('__header_')) {
-                        setState(() => _config.scoringSystem = val);
-                      }
-                    },
-                  ),
-                ),
+              Builder(
+                builder: (context) {
+                  final isFirstTo = _config.scoringSystem.toLowerCase().startsWith('first to');
+                  return InkWell(
+                    onTap: _showScoringSystemPickerModal,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: isFirstTo ? const Color(0xFFFEF3C7) : const Color(0xFFEBF8D8),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              isFirstTo ? Icons.bolt_rounded : Icons.sync_rounded,
+                              size: 16,
+                              color: isFirstTo ? const Color(0xFFB45309) : const Color(0xFF063B00),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _config.scoringSystem,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 1),
+                                Text(
+                                  isFirstTo
+                                      ? 'Sistem Langsung Tuntas (1 Set Selesai)'
+                                      : 'Sistem Rotasi Poin Dinamis',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8)),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 20),
               const Divider(height: 1, color: Color(0xFFF1F5F9)),
@@ -2234,6 +2177,236 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showScoringSystemPickerModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Pilih Sistem Skor Pertandingan',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Tentukan aturan hitungan poin untuk setiap match',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  children: [
+                    // Group 1: Rotasi Poin
+                    _buildScoringModalGroup(
+                      ctx: ctx,
+                      groupTitle: 'Sistem Rotasi Poin (Total of X)',
+                      groupBadge: 'AMERICANO ROTASI',
+                      badgeBg: const Color(0xFFEBF8D8),
+                      badgeColor: const Color(0xFF063B00),
+                      icon: Icons.sync_rounded,
+                      description: 'Total poin dibagi antara kedua pasangan tiap ronde. Partner & lawan berganti dinamis.',
+                      items: const [
+                        'Total of 3 Poin',
+                        'Total of 4 Poin',
+                        'Total of 5 Poin',
+                        'Total of 6 Poin',
+                        'Total of 7 Poin',
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    // Group 2: Langsung Tuntas
+                    _buildScoringModalGroup(
+                      ctx: ctx,
+                      groupTitle: 'Sistem Langsung Tuntas (First to X)',
+                      groupBadge: '1 SET TUNTAS',
+                      badgeBg: const Color(0xFFFEF3C7),
+                      badgeColor: const Color(0xFFB45309),
+                      icon: Icons.bolt_rounded,
+                      description: 'Satu set langsung tuntas saat tim pertama mencapai target poin (tanpa rotasi cadangan).',
+                      items: const [
+                        'First to 8 Poin (Tuntas)',
+                        'First to 11 Poin (Tuntas)',
+                        'First to 15 Poin (Tuntas)',
+                        'First to 21 Poin (Tuntas)',
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildScoringModalGroup({
+    required BuildContext ctx,
+    required String groupTitle,
+    required String groupBadge,
+    required Color badgeBg,
+    required Color badgeColor,
+    required IconData icon,
+    required String description,
+    required List<String> items,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 16, color: badgeColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    groupTitle,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  groupBadge,
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.4,
+                    color: badgeColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            description,
+            style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), height: 1.3),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: items.map((item) {
+              final isSelected = _config.scoringSystem == item;
+              return InkWell(
+                onTap: () {
+                  setState(() => _config.scoringSystem = item);
+                  Navigator.pop(ctx);
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFFF0FDF4) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                      width: isSelected ? 1.5 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.matchaDark.withValues(alpha: 0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        item,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          color: isSelected ? AppColors.matchaDark : const Color(0xFF1E293B),
+                        ),
+                      ),
+                      if (isSelected) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.matchaDark),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
