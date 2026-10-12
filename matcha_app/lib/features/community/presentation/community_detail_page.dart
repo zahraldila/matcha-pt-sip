@@ -86,6 +86,118 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     final currentUser = widget.authController?.currentUser;
     if (currentUser == null) return;
 
+    final isLeaving = _community.isMember;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: isLeaving ? const Color(0xFFFFF1F2) : const Color(0xFFEBF8D8),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isLeaving ? const Color(0xFFFECDD3) : const Color(0xFFBBF7D0),
+                ),
+              ),
+              child: Icon(
+                isLeaving ? Icons.logout_rounded : Icons.person_add_rounded,
+                color: isLeaving ? const Color(0xFFE11D48) : AppColors.matchaDark,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isLeaving ? 'Konfirmasi Keluar Komunitas' : 'Konfirmasi Bergabung',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF475569),
+                        height: 1.4,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: isLeaving
+                              ? 'Apakah Anda yakin ingin keluar dari komunitas '
+                              : 'Apakah Anda yakin ingin bergabung dengan komunitas ',
+                        ),
+                        TextSpan(
+                          text: _community.namaCommunity,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        TextSpan(
+                          text: isLeaving
+                              ? '? Anda tidak lagi terdaftar sebagai anggota komunitas ini.'
+                              : '?',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: Icon(
+              isLeaving ? Icons.logout_rounded : Icons.person_add_rounded,
+              size: 15,
+              color: isLeaving ? Colors.white : const Color(0xFFA8E63A),
+            ),
+            label: Text(
+              isLeaving ? 'Ya, Keluar Komunitas' : 'Ya, Bergabung',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isLeaving ? const Color(0xFFE11D48) : AppColors.matchaDark,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
     setState(() => _isActionLoading = true);
     final messenger = ScaffoldMessenger.of(context);
 
