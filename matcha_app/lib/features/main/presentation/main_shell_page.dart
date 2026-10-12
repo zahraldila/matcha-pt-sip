@@ -870,28 +870,6 @@ class _MainShellPageState extends State<MainShellPage> {
                         ),
                       ] else ...[
                         // Menu Items for Member / Host / Venue Owner
-                        if (isVenueOwner) ...[
-                          _buildDropdownMenuItem(
-                            icon: Icons.workspace_premium_rounded,
-                            iconColor: const Color(0xFFD97706),
-                            label: 'Kelola Venue Saya',
-                            textColor: const Color(0xFF063B00),
-                            isBold: true,
-                            onTap: () {
-                              Navigator.pop(ctx);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => VenueDirectoryPage(
-                                    authController: widget.authController,
-                                    initialOwnerFilter: 'mine',
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                        ],
                         _buildDropdownMenuItem(
                           icon: Icons.show_chart_rounded,
                           iconColor: const Color(0xFF64748B),

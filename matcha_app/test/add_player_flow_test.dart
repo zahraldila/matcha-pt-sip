@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:matcha_app/features/games/domain/game_wizard_model.dart';
+import 'package:matcha_app/features/session/data/session_service.dart';
 
 void main() {
   group('Add Player Flow Logic & Model Verification', () {
@@ -200,6 +201,134 @@ void main() {
       expect(isActivityNameValid(input), false);
       input = '   ';
       expect(isActivityNameValid(input), false);
+    });
+
+    test('deduplicateSearchResults prevents duplicates for accounts and manual guests', () {
+      final rawDbData = [
+        // 3 entries for Taeyong (same account user_id = 12)
+        {
+          'player_id': 105,
+          'user_id': 12,
+          'nama': 'Taeyong',
+          'gender': 'Male',
+          'level': 'Intermediate',
+          'foto': 'https://example.com/tae.jpg',
+        },
+        {
+          'player_id': 104,
+          'user_id': 12,
+          'nama': 'Taeyong',
+          'gender': 'Male',
+          'level': 'Intermediate',
+          'foto': null,
+        },
+        {
+          'player_id': 101,
+          'user_id': 12,
+          'nama': 'Taeyong',
+          'gender': 'Male',
+          'level': null,
+          'foto': null,
+        },
+        // Duplicate manual guest with same name as account
+        {
+          'player_id': 99,
+          'user_id': null,
+          'nama': 'Taeyong',
+          'gender': 'Male',
+          'level': 'Beginner',
+          'foto': null,
+        },
+        // 2 entries for Hilmy (same account user_id = 5)
+        {
+          'player_id': 85,
+          'user_id': 5,
+          'nama': 'Hilmy Ram Fahreza',
+          'gender': 'Male',
+          'level': 'Intermediate',
+          'foto': 'https://example.com/hilmy.jpg',
+        },
+        {
+          'player_id': 80,
+          'user_id': 5,
+          'nama': 'Hilmy Ram Fahreza',
+          'gender': 'Male',
+          'level': 'Intermediate',
+          'foto': 'https://example.com/hilmy.jpg',
+        },
+        // 2 entries for Ibnu (same account user_id = 8)
+        {
+          'player_id': 84,
+          'user_id': 8,
+          'nama': 'Ibnu Hilmi A',
+          'gender': 'Male',
+          'level': 'Newbie',
+          'foto': null,
+        },
+        {
+          'player_id': 79,
+          'user_id': 8,
+          'nama': 'Ibnu Hilmi A',
+          'gender': 'Male',
+          'level': 'Newbie',
+          'foto': null,
+        },
+        // 2 entries for manual guest "Pemain Tamu Baru" (user_id = null)
+        {
+          'player_id': 70,
+          'user_id': null,
+          'nama': 'Pemain Tamu Baru',
+          'gender': 'Female',
+          'level': 'Beginner',
+          'foto': null,
+        },
+        {
+          'player_id': 60,
+          'user_id': null,
+          'nama': 'Pemain Tamu Baru',
+          'gender': 'Female',
+          'level': 'Beginner',
+          'foto': null,
+        },
+        // 1 distinct manual guest
+        {
+          'player_id': 50,
+          'user_id': null,
+          'nama': 'Tamu Khusus',
+          'gender': 'Male',
+          'level': 'Advanced',
+          'foto': null,
+        },
+      ];
+
+      final deduplicated = SessionService.deduplicateSearchResults(rawDbData, limit: 30);
+
+      // Total expected unique players:
+      // 1. Taeyong (user_id = 12) -> exactly 1
+      // 2. Hilmy Ram Fahreza (user_id = 5) -> exactly 1
+      // 3. Ibnu Hilmi A (user_id = 8) -> exactly 1
+      // 4. Pemain Tamu Baru (guest) -> exactly 1
+      // 5. Tamu Khusus (guest) -> exactly 1
+      expect(deduplicated.length, 5);
+
+      final names = deduplicated.map((p) => p['nama']).toList();
+      expect(names, [
+        'Taeyong',
+        'Hilmy Ram Fahreza',
+        'Ibnu Hilmi A',
+        'Pemain Tamu Baru',
+        'Tamu Khusus',
+      ]);
+
+      // Taeyong keeps his photo
+      final taeyong = deduplicated.firstWhere((p) => p['nama'] == 'Taeyong');
+      expect(taeyong['user_id'], 12);
+      expect(taeyong['foto'], 'https://example.com/tae.jpg');
+
+      // Manual guest without account is present
+      final guest = deduplicated.firstWhere((p) => p['nama'] == 'Pemain Tamu Baru');
+      expect(guest['user_id'], isNull);
+      expect(guest['gender'], 'Female');
     });
   });
 }

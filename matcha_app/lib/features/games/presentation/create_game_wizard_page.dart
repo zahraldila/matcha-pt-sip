@@ -2971,7 +2971,7 @@ class _AddPlayerBottomSheetState extends State<_AddPlayerBottomSheet> with Singl
       final res = await _sessionService.searchPlayers(query: cleanQuery, limit: 30);
       if (mounted) {
         setState(() {
-          _searchResults = res;
+          _searchResults = SessionService.deduplicateSearchResults(res, limit: 30);
           _isSearching = false;
         });
       }

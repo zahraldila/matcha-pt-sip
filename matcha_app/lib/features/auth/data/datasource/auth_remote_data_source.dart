@@ -294,6 +294,21 @@ class AuthRemoteDataSource {
     try {
       final cleanPhone = noHp.replaceAll(RegExp(r'[^0-9]'), '');
 
+      // 0. Cek duplikasi no_hp dengan pengguna lain
+      final existingPhone = await _supabase
+          .from('tb_user')
+          .select('user_id')
+          .eq('no_hp', cleanPhone)
+          .neq('user_id', userId)
+          .limit(1);
+
+      if (existingPhone.isNotEmpty) {
+        throw Exception(
+          'Nomor WhatsApp sudah digunakan oleh akun lain. '
+          'Silakan gunakan nomor yang berbeda.',
+        );
+      }
+
       // 1. Update tb_user
       final Map<String, dynamic> userUpdates = {
         'nama': nama.trim(),
