@@ -213,10 +213,10 @@
                         @php
                             $currGender = old('gender', $player->gender ?? 'Male');
                             $genderMap = [
-                                'Male' => 'Laki-laki 🚹',
-                                'Female' => 'Perempuan 🚺',
+                                'Male' => 'Laki-laki',
+                                'Female' => 'Perempuan',
                             ];
-                            $currGenderLabel = $genderMap[$currGender] ?? 'Laki-laki 🚹';
+                            $currGenderLabel = $genderMap[$currGender] ?? 'Laki-laki';
                         @endphp
                         <input type="hidden" id="genderInput" name="gender" value="{{ $currGender }}">
                         <div class="relative">
@@ -239,11 +239,10 @@
                                     <button
                                         type="button"
                                         onclick="selectProfileCustomOption('gender', '{{ $gVal }}', '{{ $gLabel }}')"
-                                        class="gender-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $currGender === $gVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                        class="gender-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer {{ $currGender === $gVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
                                         data-val="{{ $gVal }}"
                                     >
                                         <span>{{ $gLabel }}</span>
-                                        <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currGender === $gVal ? '' : 'hidden' }}"></i>
                                     </button>
                                 @endforeach
                             </div>
@@ -295,11 +294,10 @@
                                         <button
                                             type="button"
                                             onclick="selectProfileCustomOption('level', '{{ $lVal }}', '{{ $lLabel }}')"
-                                            class="level-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ $currLevel === $lVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                            class="level-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer {{ $currLevel === $lVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
                                             data-val="{{ $lVal }}"
                                         >
                                             <span>{{ $lLabel }}</span>
-                                            <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ $currLevel === $lVal ? '' : 'hidden' }}"></i>
                                         </button>
                                     @endforeach
                                 </div>
@@ -433,13 +431,10 @@
 
         document.querySelectorAll('.' + fieldId + '-item-btn').forEach(btn => {
             const isMatch = btn.getAttribute('data-val') === value;
-            const icon = btn.querySelector('.fa-circle-check');
             if (isMatch) {
-                btn.className = fieldId + '-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/15';
-                if (icon) icon.classList.remove('hidden');
+                btn.className = fieldId + '-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-bold transition-all cursor-pointer bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/15';
             } else {
-                btn.className = fieldId + '-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer text-slate-700 hover:bg-slate-100 hover:text-slate-900';
-                if (icon) icon.classList.add('hidden');
+                btn.className = fieldId + '-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer text-slate-700 hover:bg-slate-100 hover:text-slate-900';
             }
         });
 
