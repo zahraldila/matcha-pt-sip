@@ -104,7 +104,7 @@ void main() {
       expect(find.text('Mode Host'), findsOneWidget);
       expect(find.text('+ Tambah Poin Team A'), findsOneWidget);
       expect(find.text('+ Tambah Poin Team B'), findsOneWidget);
-      expect(find.text('Deklarasi Walkover (WO)'), findsOneWidget);
+      expect(find.text('Deklarasi Walkover (WO)'), findsNothing);
     });
 
     testWidgets('2. Normal player opens the same session: locked to spectator mode without scoring buttons', (tester) async {
