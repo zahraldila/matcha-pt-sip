@@ -41,35 +41,104 @@
                     
                     <div class="grid grid-cols-1 {{ ($activeTab ?? 'mabar') === 'community' ? 'sm:grid-cols-3' : 'sm:grid-cols-4' }} gap-3 text-xs" id="filterFieldsGrid">
                         <!-- 1. Cabang Olahraga -->
-                        <div>
+                        <div class="space-y-1 relative" id="wrapper_dashboard_sport">
                             <label class="block font-medium text-slate-600 mb-1">Cabang Olahraga</label>
-                            <select name="sport" id="filterSport" class="w-full bg-white/90 border border-slate-200/70 rounded-xl px-3.5 py-2.5 text-slate-800 font-medium focus:border-[#063B00] focus:outline-none shadow-xs">
-                                <option value="all" {{ ($selectedSport ?? 'all') === 'all' ? 'selected' : '' }}>Semua Cabang (All)</option>
-                                <option value="tennis" {{ ($selectedSport ?? '') === 'tennis' ? 'selected' : '' }}>🎾 Tennis</option>
-                                <option value="padel" {{ ($selectedSport ?? '') === 'padel' ? 'selected' : '' }}>🏓 Padel</option>
-                            </select>
+                            @php
+                                $sportOptions = [
+                                    'all' => 'Semua Cabang (All)',
+                                    'tennis' => '🎾 Tennis',
+                                    'padel' => '🏓 Padel',
+                                ];
+                                $currSportVal = $selectedSport ?? 'all';
+                                $currSportLabel = $sportOptions[$currSportVal] ?? 'Semua Cabang (All)';
+                            @endphp
+                            <input type="hidden" name="sport" id="filterSportInput" value="{{ $currSportVal }}">
+                            <div class="relative">
+                                <button
+                                    type="button"
+                                    id="sportTrigger"
+                                    onclick="toggleDashboardDropdown('sport', event)"
+                                    class="w-full bg-white/95 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                                >
+                                    <span id="sportDisplay" class="truncate font-semibold">{{ $currSportLabel }}</span>
+                                    <i id="sportChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                                </button>
+
+                                <div
+                                    id="sportMenu"
+                                    class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                    onclick="event.stopPropagation()"
+                                >
+                                    @foreach($sportOptions as $sVal => $sLabel)
+                                        <button
+                                            type="button"
+                                            onclick="selectDashboardSport('{{ $sVal }}', '{{ $sLabel }}')"
+                                            class="sport-item-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer flex items-center justify-between {{ $currSportVal === $sVal ? 'bg-slate-50 text-[#063B00]' : 'text-slate-700 hover:bg-slate-50' }}"
+                                            data-val="{{ $sVal }}"
+                                        >
+                                            <span>{{ $sLabel }}</span>
+                                            <span class="radio-indicator flex items-center justify-center w-4 h-4 rounded-full border {{ $currSportVal === $sVal ? 'border-[#063B00]' : 'border-slate-300' }}">
+                                                <span class="w-2 h-2 rounded-full {{ $currSportVal === $sVal ? 'bg-[#063B00]' : 'hidden' }}"></span>
+                                            </span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
                         </div>
 
                         <!-- 2. Kota / Lokasi -->
-                        <div>
+                        <div class="space-y-1 relative" id="wrapper_dashboard_city">
                             <label class="block font-medium text-slate-600 mb-1">Kota / Lokasi</label>
-                            <select name="city" id="filterCity" class="w-full bg-white/90 border border-slate-200/70 rounded-xl px-3.5 py-2.5 text-slate-800 font-medium focus:border-[#063B00] focus:outline-none shadow-xs">
-                                <option value="all" {{ ($selectedCity ?? 'all') === 'all' ? 'selected' : '' }}>Semua Kota</option>
-                                @foreach($cities ?? [] as $city)
-                                    <option value="{{ $city }}" {{ strcasecmp($selectedCity ?? '', $city) === 0 ? 'selected' : '' }}>{{ $city }}</option>
-                                @endforeach
-                            </select>
+                            @php
+                                $currCityVal = $selectedCity ?? 'all';
+                                $currCityLabel = ($currCityVal === 'all' || empty($currCityVal)) ? 'Semua Kota' : $currCityVal;
+                            @endphp
+                            <input type="hidden" name="city" id="filterCityInput" value="{{ $currCityVal }}">
+                            <div class="relative">
+                                <button
+                                    type="button"
+                                    id="cityTrigger"
+                                    onclick="toggleDashboardDropdown('city', event)"
+                                    class="w-full bg-white/95 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                                >
+                                    <span id="cityDisplay" class="truncate font-semibold">{{ $currCityLabel }}</span>
+                                    <i id="cityChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                                </button>
+
+                                <div
+                                    id="cityMenu"
+                                    class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-150"
+                                    onclick="event.stopPropagation()"
+                                >
+                                    <!-- Populated by JavaScript rebuildCityOptions -->
+                                </div>
+                            </div>
                         </div>
 
                         <!-- 3. Pilih Tanggal (HANYA UNTUK MABAR & SEWA LAPANGAN, DIHIDDEN SAAT KOMUNITAS) -->
-                        <div id="filterDateContainer" class="{{ ($activeTab ?? 'mabar') === 'community' ? 'hidden' : '' }}">
+                        <div id="filterDateContainer" class="space-y-1 relative {{ ($activeTab ?? 'mabar') === 'community' ? 'hidden' : '' }}">
                             <label class="block font-medium text-slate-600 mb-1">Pilih Tanggal</label>
-                            <input type="date" name="date" id="filterDate" value="{{ $selectedDate ?? date('Y-m-d') }}" class="w-full bg-white/90 border border-slate-200/70 rounded-xl px-3.5 py-2.5 text-slate-800 font-medium focus:border-[#063B00] focus:outline-none shadow-xs">
+                            @php
+                                $initDate = $selectedDate ?? date('Y-m-d');
+                                $formattedDate = date('d/m/Y', strtotime($initDate));
+                            @endphp
+                            <input type="hidden" name="date" id="filterDateInput" value="{{ $initDate }}">
+                            <div class="relative">
+                                <button
+                                    type="button"
+                                    id="dateTrigger"
+                                    onclick="openDatePickerModal()"
+                                    class="w-full bg-white/95 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                                >
+                                    <span id="dateDisplay" class="truncate font-semibold">{{ $formattedDate }}</span>
+                                    <i class="fa-regular fa-calendar text-xs text-slate-400 pointer-events-none"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- 4. Tombol Cari -->
                         <div class="flex items-end">
-                            <button type="submit" id="filterSubmitBtn" class="w-full py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-2">
+                            <button type="submit" id="filterSubmitBtn" class="w-full h-[42px] rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer">
                                 <i class="fa-solid fa-magnifying-glass"></i> <span id="filterBtnText">{{ ($activeTab ?? 'mabar') === 'community' ? 'Cari Komunitas' : (($activeTab ?? 'mabar') === 'venue' ? 'Cari Lapangan' : 'Cari Jadwal Mabar') }}</span>
                             </button>
                         </div>
@@ -239,6 +308,76 @@
 
 <x-join-modal />
 
+<!-- Custom Date Picker Modal (Material / Flutter style matching mobile) -->
+<div id="datePickerModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <!-- Backdrop overlay -->
+    <div class="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity" onclick="closeDatePickerModal()"></div>
+
+    <!-- Dialog Card -->
+    <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-[340px] p-5 sm:p-6 z-10 animate-in fade-in zoom-in-95 duration-150 select-none">
+        <!-- Subtitle & Main Header -->
+        <div class="pb-3 border-b border-slate-100">
+            <span class="block text-xs font-medium text-slate-500">Select date</span>
+            <div class="flex items-center justify-between mt-1">
+                <span id="pickerHeaderDate" class="text-2xl sm:text-3xl font-medium text-slate-800">Tue, Oct 13</span>
+                <button type="button" class="text-slate-400 hover:text-slate-600 transition-colors p-1" title="Select date">
+                    <i class="fa-solid fa-pen text-xs"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Month Navigation -->
+        <div class="flex items-center justify-between pt-4 pb-2">
+            <div class="flex items-center gap-1.5 cursor-pointer">
+                <span id="pickerMonthYearLabel" class="text-xs sm:text-sm font-semibold text-slate-800">October 2026</span>
+                <i class="fa-solid fa-caret-down text-[10px] text-slate-500"></i>
+            </div>
+            <div class="flex items-center gap-1 text-slate-500">
+                <button type="button" onclick="prevPickerMonth()" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer" title="Bulan Sebelumnya">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                <button type="button" onclick="nextPickerMonth()" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer" title="Bulan Selanjutnya">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Days of Week Header -->
+        <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-500 py-1">
+            <span>S</span>
+            <span>M</span>
+            <span>T</span>
+            <span>W</span>
+            <span>T</span>
+            <span>F</span>
+            <span>S</span>
+        </div>
+
+        <!-- Calendar Days Grid -->
+        <div id="pickerCalendarGrid" class="grid grid-cols-7 gap-1 py-1 text-xs">
+            <!-- Dynamically populated by JavaScript -->
+        </div>
+
+        <!-- Action Footer -->
+        <div class="flex items-center justify-end gap-2 pt-4 mt-2 border-t border-slate-100">
+            <button
+                type="button"
+                onclick="closeDatePickerModal()"
+                class="px-4 py-2 text-xs font-bold text-[#063B00] hover:bg-[#063B00]/5 rounded-xl transition-colors cursor-pointer"
+            >
+                Cancel
+            </button>
+            <button
+                type="button"
+                onclick="confirmDatePicker()"
+                class="px-4 py-2 text-xs font-bold text-[#063B00] hover:bg-[#063B00]/10 rounded-xl transition-colors cursor-pointer"
+            >
+                OK
+            </button>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
     // Data kota per tab (dari server)
@@ -248,24 +387,143 @@
         community: @json($communityCities->values()),
     };
 
-    function rebuildCityOptions(tab) {
-        const select = document.getElementById('filterCity');
-        if (!select) return;
-        const currentVal = select.value;
-        const cities = citiesPerTab[tab] || [];
+    // ==========================================
+    // CUSTOM DROPDOWN LOGIC (Sport & City)
+    // ==========================================
+    function toggleDashboardDropdown(type, event) {
+        if (event) event.stopPropagation();
+        const sportMenu = document.getElementById('sportMenu');
+        const sportChevron = document.getElementById('sportChevron');
+        const cityMenu = document.getElementById('cityMenu');
+        const cityChevron = document.getElementById('cityChevron');
 
-        select.innerHTML = '<option value="all">Semua Kota</option>';
-        cities.forEach(city => {
-            const opt = document.createElement('option');
-            opt.value = city;
-            opt.textContent = city;
-            if (currentVal !== 'all' && city.toLowerCase() === currentVal.toLowerCase()) {
-                opt.selected = true;
+        if (type === 'sport') {
+            const isHidden = sportMenu.classList.contains('hidden');
+            closeDashboardDropdowns();
+            if (isHidden) {
+                sportMenu.classList.remove('hidden');
+                if (sportChevron) sportChevron.classList.add('rotate-180');
             }
-            select.appendChild(opt);
-        });
+        } else if (type === 'city') {
+            const isHidden = cityMenu.classList.contains('hidden');
+            closeDashboardDropdowns();
+            if (isHidden) {
+                cityMenu.classList.remove('hidden');
+                if (cityChevron) cityChevron.classList.add('rotate-180');
+            }
+        }
     }
 
+    function closeDashboardDropdowns() {
+        const sportMenu = document.getElementById('sportMenu');
+        const sportChevron = document.getElementById('sportChevron');
+        const cityMenu = document.getElementById('cityMenu');
+        const cityChevron = document.getElementById('cityChevron');
+
+        if (sportMenu) sportMenu.classList.add('hidden');
+        if (sportChevron) sportChevron.classList.remove('rotate-180');
+        if (cityMenu) cityMenu.classList.add('hidden');
+        if (cityChevron) cityChevron.classList.remove('rotate-180');
+    }
+
+    function selectDashboardSport(val, label) {
+        const input = document.getElementById('filterSportInput');
+        const display = document.getElementById('sportDisplay');
+        if (input) input.value = val;
+        if (display) display.textContent = label;
+
+        document.querySelectorAll('#sportMenu .sport-item-btn').forEach(btn => {
+            const isSelected = btn.getAttribute('data-val') === val;
+            btn.className = `sport-item-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer flex items-center justify-between ${isSelected ? 'bg-slate-50 text-[#063B00]' : 'text-slate-700 hover:bg-slate-50'}`;
+            const indicator = btn.querySelector('.radio-indicator');
+            if (indicator) {
+                indicator.className = `radio-indicator flex items-center justify-center w-4 h-4 rounded-full border ${isSelected ? 'border-[#063B00]' : 'border-slate-300'}`;
+                const dot = indicator.querySelector('span');
+                if (dot) {
+                    dot.className = `w-2 h-2 rounded-full ${isSelected ? 'bg-[#063B00]' : 'hidden'}`;
+                }
+            }
+        });
+
+        closeDashboardDropdowns();
+    }
+
+    function selectDashboardCity(val, label) {
+        const input = document.getElementById('filterCityInput');
+        const display = document.getElementById('cityDisplay');
+        if (input) input.value = val;
+        if (display) display.textContent = label;
+
+        document.querySelectorAll('#cityMenu .city-item-btn').forEach(btn => {
+            const isSelected = btn.getAttribute('data-val').toLowerCase() === val.toLowerCase();
+            btn.className = `city-item-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer flex items-center justify-between ${isSelected ? 'bg-slate-50 text-[#063B00]' : 'text-slate-700 hover:bg-slate-50'}`;
+            const indicator = btn.querySelector('.radio-indicator');
+            if (indicator) {
+                indicator.className = `radio-indicator flex items-center justify-center w-4 h-4 rounded-full border ${isSelected ? 'border-[#063B00]' : 'border-slate-300'} shrink-0 ml-2`;
+                const dot = indicator.querySelector('span');
+                if (dot) {
+                    dot.className = `w-2 h-2 rounded-full ${isSelected ? 'bg-[#063B00]' : 'hidden'}`;
+                }
+            }
+        });
+
+        closeDashboardDropdowns();
+    }
+
+    function rebuildCityOptions(tab) {
+        const input = document.getElementById('filterCityInput');
+        const display = document.getElementById('cityDisplay');
+        const menu = document.getElementById('cityMenu');
+        if (!input || !menu) return;
+
+        let currentVal = input.value || 'all';
+        const cities = citiesPerTab[tab] || [];
+
+        // Check if currentVal is still available in this tab's city list
+        if (currentVal !== 'all' && !cities.some(c => c.toLowerCase() === currentVal.toLowerCase())) {
+            currentVal = 'all';
+            input.value = 'all';
+            if (display) display.textContent = 'Semua Kota';
+        }
+
+        let html = `
+            <button
+                type="button"
+                onclick="selectDashboardCity('all', 'Semua Kota')"
+                class="city-item-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer flex items-center justify-between ${currentVal === 'all' ? 'bg-slate-50 text-[#063B00]' : 'text-slate-700 hover:bg-slate-50'}"
+                data-val="all"
+            >
+                <span>Semua Kota</span>
+                <span class="radio-indicator flex items-center justify-center w-4 h-4 rounded-full border ${currentVal === 'all' ? 'border-[#063B00]' : 'border-slate-300'}">
+                    <span class="w-2 h-2 rounded-full ${currentVal === 'all' ? 'bg-[#063B00]' : 'hidden'}"></span>
+                </span>
+            </button>
+        `;
+
+        cities.forEach(city => {
+            const isSelected = (currentVal.toLowerCase() === city.toLowerCase());
+            const safeCity = city.replace(/'/g, "\\'");
+            html += `
+                <button
+                    type="button"
+                    onclick="selectDashboardCity('${safeCity}', '${safeCity}')"
+                    class="city-item-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer flex items-center justify-between ${isSelected ? 'bg-slate-50 text-[#063B00]' : 'text-slate-700 hover:bg-slate-50'}"
+                    data-val="${city}"
+                >
+                    <span class="truncate">${city}</span>
+                    <span class="radio-indicator flex items-center justify-center w-4 h-4 rounded-full border ${isSelected ? 'border-[#063B00]' : 'border-slate-300'} shrink-0 ml-2">
+                        <span class="w-2 h-2 rounded-full ${isSelected ? 'bg-[#063B00]' : 'hidden'}"></span>
+                    </span>
+                </button>
+            `;
+        });
+
+        menu.innerHTML = html;
+    }
+
+    // ==========================================
+    // TAB SWITCHER LOGIC
+    // ==========================================
     function switchDashboardTab(tab) {
         // 1. Update tab styling
         const tabs = ['mabar', 'venue', 'community'];
@@ -326,6 +584,204 @@
         if (secVenue) secVenue.classList.toggle('hidden', tab !== 'venue');
         if (secComm) secComm.classList.toggle('hidden', tab !== 'community');
     }
+
+    // ==========================================
+    // DATE PICKER MODAL CONTROLLER
+    // ==========================================
+    const dayNamesShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthNamesShort = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+
+    let pickerSelectedDate = new Date();
+    let pickerTempDate = new Date();
+    let pickerViewingYear = pickerTempDate.getFullYear();
+    let pickerViewingMonth = pickerTempDate.getMonth();
+
+    function parseYmd(dateStr) {
+        if (!dateStr) return new Date();
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
+        return new Date();
+    }
+
+    function formatYmd(d) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function formatDisplayDate(d) {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${dd}/${mm}/${yyyy}`;
+    }
+
+    function openDatePickerModal() {
+        const input = document.getElementById('filterDateInput');
+        if (input && input.value) {
+            pickerSelectedDate = parseYmd(input.value);
+        } else {
+            pickerSelectedDate = new Date();
+        }
+        pickerTempDate = new Date(pickerSelectedDate);
+        pickerViewingYear = pickerTempDate.getFullYear();
+        pickerViewingMonth = pickerTempDate.getMonth();
+
+        renderCalendar();
+
+        const modal = document.getElementById('datePickerModal');
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeDatePickerModal() {
+        const modal = document.getElementById('datePickerModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function confirmDatePicker() {
+        pickerSelectedDate = new Date(pickerTempDate);
+        const ymd = formatYmd(pickerSelectedDate);
+        const displayFormatted = formatDisplayDate(pickerSelectedDate);
+
+        const input = document.getElementById('filterDateInput');
+        const display = document.getElementById('dateDisplay');
+        if (input) input.value = ymd;
+        if (display) display.textContent = displayFormatted;
+
+        closeDatePickerModal();
+    }
+
+    function prevPickerMonth() {
+        pickerViewingMonth--;
+        if (pickerViewingMonth < 0) {
+            pickerViewingMonth = 11;
+            pickerViewingYear--;
+        }
+        renderCalendar();
+    }
+
+    function nextPickerMonth() {
+        pickerViewingMonth++;
+        if (pickerViewingMonth > 11) {
+            pickerViewingMonth = 0;
+            pickerViewingYear++;
+        }
+        renderCalendar();
+    }
+
+    function selectPickerDate(day) {
+        pickerTempDate = new Date(pickerViewingYear, pickerViewingMonth, day);
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        // 1. Update Header (e.g. "Tue, Oct 13")
+        const headerEl = document.getElementById('pickerHeaderDate');
+        if (headerEl) {
+            const dayName = dayNamesShort[pickerTempDate.getDay()];
+            const monthName = monthNamesShort[pickerTempDate.getMonth()];
+            const dayNum = pickerTempDate.getDate();
+            headerEl.textContent = `${dayName}, ${monthName} ${dayNum}`;
+        }
+
+        // 2. Update Month & Year label (e.g. "October 2026")
+        const monthYearLabel = document.getElementById('pickerMonthYearLabel');
+        if (monthYearLabel) {
+            monthYearLabel.textContent = `${monthNames[pickerViewingMonth]} ${pickerViewingYear}`;
+        }
+
+        // 3. Render Calendar Days
+        const grid = document.getElementById('pickerCalendarGrid');
+        if (!grid) return;
+
+        const firstDayIndex = new Date(pickerViewingYear, pickerViewingMonth, 1).getDay();
+        const totalDays = new Date(pickerViewingYear, pickerViewingMonth + 1, 0).getDate();
+        const today = new Date();
+
+        let gridHtml = '';
+
+        // Empty padding cells before first day
+        for (let i = 0; i < firstDayIndex; i++) {
+            gridHtml += `<div class="w-8 h-8 mx-auto"></div>`;
+        }
+
+        // Day cells
+        for (let d = 1; d <= totalDays; d++) {
+            const isSelected = (
+                pickerTempDate.getFullYear() === pickerViewingYear &&
+                pickerTempDate.getMonth() === pickerViewingMonth &&
+                pickerTempDate.getDate() === d
+            );
+
+            const isToday = (
+                today.getFullYear() === pickerViewingYear &&
+                today.getMonth() === pickerViewingMonth &&
+                today.getDate() === d
+            );
+
+            if (isSelected) {
+                gridHtml += `
+                    <button
+                        type="button"
+                        onclick="selectPickerDate(${d})"
+                        class="w-8 h-8 rounded-full mx-auto flex items-center justify-center font-bold bg-[#063B00] text-white shadow-xs cursor-pointer transition-transform scale-105"
+                    >
+                        ${d}
+                    </button>
+                `;
+            } else if (isToday) {
+                gridHtml += `
+                    <button
+                        type="button"
+                        onclick="selectPickerDate(${d})"
+                        class="w-8 h-8 rounded-full mx-auto flex items-center justify-center font-bold border border-[#063B00] text-[#063B00] hover:bg-slate-100 cursor-pointer transition-colors"
+                    >
+                        ${d}
+                    </button>
+                `;
+            } else {
+                gridHtml += `
+                    <button
+                        type="button"
+                        onclick="selectPickerDate(${d})"
+                        class="w-8 h-8 rounded-full mx-auto flex items-center justify-center font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer transition-colors"
+                    >
+                        ${d}
+                    </button>
+                `;
+            }
+        }
+
+        grid.innerHTML = gridHtml;
+    }
+
+    // ==========================================
+    // GLOBAL EVENT LISTENERS
+    // ==========================================
+    document.addEventListener('click', function(e) {
+        const sportWrapper = document.getElementById('wrapper_dashboard_sport');
+        const cityWrapper = document.getElementById('wrapper_dashboard_city');
+        if ((!sportWrapper || !sportWrapper.contains(e.target)) && (!cityWrapper || !cityWrapper.contains(e.target))) {
+            closeDashboardDropdowns();
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeDashboardDropdowns();
+            closeDatePickerModal();
+        }
+    });
 
     // Initialize state on page load based on activeTab
     document.addEventListener('DOMContentLoaded', function() {
