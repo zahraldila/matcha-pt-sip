@@ -47,20 +47,21 @@
         </div>
 
         <!-- Search Bar -->
-        <form method="GET" action="{{ route('communities.index') }}" class="relative w-full md:w-80 shrink-0">
+        <form id="communitiesSearchForm" method="GET" action="{{ route('communities.index') }}" class="relative w-full md:w-80 shrink-0" onsubmit="event.preventDefault(); executeCommunitiesLiveSearch(document.getElementById('communitiesSearchInput').value);">
             <input type="hidden" name="tab" value="{{ $activeTab ?? 'all' }}">
             <input type="hidden" name="sport" value="{{ $selectedSport ?? 'all' }}">
             <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
-                <input type="text" name="q" value="{{ $search ?? '' }}" placeholder="Cari nama klub, kota, admin..." 
+                <i id="communitiesSearchIcon" class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none transition-opacity"></i>
+                <i id="communitiesSearchLoadingIcon" class="fa-solid fa-spinner fa-spin absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs hidden pointer-events-none"></i>
+                <input type="text" id="communitiesSearchInput" name="q" value="{{ $search ?? '' }}" placeholder="Cari nama klub, kota, admin..." 
+                       oninput="handleCommunitiesLiveSearch(this.value)"
+                       autocomplete="off"
                        class="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-white border border-slate-200/90 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00] shadow-2xs transition-all">
-                @if(!empty($search))
-                    <a href="{{ route('communities.index', ['tab' => $activeTab ?? 'all', 'sport' => $selectedSport ?? 'all']) }}" 
-                       class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                       title="Hapus pencarian">
-                        <i class="fa-solid fa-circle-xmark text-xs"></i>
-                    </a>
-                @endif
+                <button type="button" id="communitiesSearchClearBtn" onclick="clearCommunitiesLiveSearch()"
+                   class="{{ !empty($search) ? '' : 'hidden' }} absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                   title="Hapus pencarian">
+                    <i class="fa-solid fa-circle-xmark text-xs"></i>
+                </button>
             </div>
         </form>
     </div>
@@ -82,8 +83,7 @@
             </a>
         </div>
 
-        {{-- Right side: result count + Pilih button (normal) OR inline selection toolbar (selection mode) --}}
-        <div class="text-xs text-slate-500 flex items-center gap-2">
+        <div id="communitiesResultCountContainer" class="text-xs text-slate-500 flex items-center gap-2">
             @if(!empty($search))
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
                     <i class="fa-solid fa-magnifying-glass text-[9px]"></i> "{{ $search }}"
@@ -132,7 +132,8 @@
     </div>
 
     <!-- 3. Grid of Communities or Empty States -->
-    @if($communities->count() > 0)
+    <div id="communitiesListContainer" class="transition-opacity duration-150">
+        @if($communities->count() > 0)
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($communities as $comm)
                 <div class="bulk-item-wrapper relative h-full">
@@ -251,6 +252,7 @@
             </div>
         </div>
     @endif
+    </div>
 </div>
 @endsection
 
@@ -272,7 +274,106 @@
 
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+let communitiesSearchTimer = null;
+let communitiesAbortCtrl = null;
+
+function handleCommunitiesLiveSearch(query) {
+    const clearBtn = document.getElementById('communitiesSearchClearBtn');
+    if (clearBtn) {
+        if (query.trim().length > 0) clearBtn.classList.remove('hidden');
+        else clearBtn.classList.add('hidden');
+    }
+
+    if (communitiesSearchTimer) clearTimeout(communitiesSearchTimer);
+    communitiesSearchTimer = setTimeout(() => {
+        executeCommunitiesLiveSearch(query);
+    }, 350);
+}
+
+function clearCommunitiesLiveSearch() {
+    const input = document.getElementById('communitiesSearchInput');
+    if (input) {
+        input.value = '';
+        input.focus();
+        handleCommunitiesLiveSearch('');
+    }
+}
+
+async function executeCommunitiesLiveSearch(query) {
+    if (communitiesAbortCtrl) {
+        communitiesAbortCtrl.abort();
+    }
+    communitiesAbortCtrl = new AbortController();
+
+    const searchIcon = document.getElementById('communitiesSearchIcon');
+    const loadingIcon = document.getElementById('communitiesSearchLoadingIcon');
+    const listCont = document.getElementById('communitiesListContainer');
+
+    if (searchIcon && loadingIcon) {
+        searchIcon.classList.add('hidden');
+        loadingIcon.classList.remove('hidden');
+    }
+    if (listCont) {
+        listCont.style.opacity = '0.5';
+    }
+
+    const form = document.getElementById('communitiesSearchForm');
+    const url = new URL(form.action, window.location.origin);
+    const formData = new FormData(form);
+    for (const [k, v] of formData.entries()) {
+        if (k !== 'page' && v) {
+            url.searchParams.set(k, v);
+        }
+    }
+    if (!query) {
+        url.searchParams.delete('q');
+    } else {
+        url.searchParams.set('q', query);
+    }
+
+    try {
+        const res = await fetch(url.toString(), {
+            signal: communitiesAbortCtrl.signal,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        if (!res.ok) throw new Error('Search failed');
+
+        const html = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        const newList = doc.getElementById('communitiesListContainer');
+        if (newList && listCont) {
+            listCont.innerHTML = newList.innerHTML;
+        }
+
+        const newCount = doc.getElementById('communitiesResultCountContainer');
+        const countCont = document.getElementById('communitiesResultCountContainer');
+        if (newCount && countCont) {
+            countCont.innerHTML = newCount.innerHTML;
+        }
+
+        window.history.replaceState(null, '', url.toString());
+
+        if (typeof initCommunitiesBulkSelection === 'function') {
+            initCommunitiesBulkSelection();
+        }
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            console.error('Communities live search error:', e);
+        }
+    } finally {
+        if (searchIcon && loadingIcon) {
+            loadingIcon.classList.add('hidden');
+            searchIcon.classList.remove('hidden');
+        }
+        if (listCont) {
+            listCont.style.opacity = '1';
+        }
+    }
+}
+
+function initCommunitiesBulkSelection() {
     const btnEnterSelect   = document.getElementById('btn-enter-select-mode');
     const btnCancelSelect  = document.getElementById('btn-cancel-select');
     const btnSubmitBulk    = document.getElementById('btn-submit-bulk');
@@ -296,12 +397,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const count        = checkedBoxes.length;
         const pageTotal    = checkboxes.length;
 
-        // Show/hide checkbox overlays on each card via direct inline style
         document.querySelectorAll('.bulk-item-checkbox-container').forEach(el => {
             el.style.display = selectMode ? 'flex' : 'none';
         });
 
-        // Card highlight based on checked state
         checkboxes.forEach(cb => {
             const wrapper = cb.closest('.bulk-item-wrapper');
             const card    = wrapper ? wrapper.querySelector('.bulk-item-card') : null;
@@ -317,10 +416,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // Hide result count text when toolbar is active
         if (resultCount) resultCount.style.display = selectMode ? 'none' : '';
 
-        // Toggle Pilih button vs toolbar
         if (selectMode) {
             btnEnterSelect.style.display = 'none';
             bulkContainer.style.display  = 'flex';
@@ -350,22 +447,18 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    btnEnterSelect.addEventListener('click',  () => { selectMode = true;  updateUI(); });
-    btnCancelSelect.addEventListener('click', () => { selectMode = false; updateUI(); });
+    btnEnterSelect.onclick  = () => { selectMode = true;  updateUI(); };
+    btnCancelSelect.onclick = () => { selectMode = false; updateUI(); };
 
     if (bulkSelectAll) {
-        bulkSelectAll.addEventListener('change', (e) => {
+        bulkSelectAll.onchange = (e) => {
             getCheckboxes().forEach(cb => { cb.checked = e.target.checked; });
             updateUI();
-        });
+        };
     }
 
-    document.addEventListener('change', (e) => {
-        if (e.target.classList.contains('bulk-item-checkbox')) updateUI();
-    });
-
     if (btnSubmitBulk && bulkForm && bulkInputsCont) {
-        btnSubmitBulk.addEventListener('click', () => {
+        btnSubmitBulk.onclick = () => {
             const checkedBoxes = getChecked();
             const count = checkedBoxes.length;
             if (count === 0) return;
@@ -386,8 +479,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     bulkForm.submit();
                 }
             });
-        });
+        };
     }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    initCommunitiesBulkSelection();
 });
 </script>
 @endpush

@@ -162,23 +162,24 @@
 
         <!-- Right Side: Search Bar & Filter Button (Rata Kanan Presisi Sejajar dengan Card) -->
         <div class="flex items-center gap-2 w-full md:w-80 shrink-0">
-            <form method="GET" action="{{ route('games.index') }}" class="relative flex-1 min-w-0">
+            <form id="gamesSearchForm" method="GET" action="{{ route('games.index') }}" class="relative flex-1 min-w-0" onsubmit="event.preventDefault(); executeGamesLiveSearch(document.getElementById('gamesSearchInput').value);">
                 <input type="hidden" name="tab" value="{{ $activeTab ?? 'all' }}">
                 <input type="hidden" name="sport" value="{{ $selectedSport ?? 'all' }}">
                 <input type="hidden" name="status" value="{{ $selectedStatus ?? 'all' }}">
                 <input type="hidden" name="slots" value="{{ $selectedSlots ?? 'all' }}">
                 <input type="hidden" name="time" value="{{ $selectedTime ?? 'all' }}">
                 <div class="relative w-full">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
-                    <input type="text" name="q" value="{{ $search ?? '' }}" placeholder="Cari sesi, venue, host..." 
+                    <i id="gamesSearchIcon" class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none transition-opacity"></i>
+                    <i id="gamesSearchLoadingIcon" class="fa-solid fa-spinner fa-spin absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs hidden pointer-events-none"></i>
+                    <input type="text" id="gamesSearchInput" name="q" value="{{ $search ?? '' }}" placeholder="Cari sesi, venue, host..." 
+                           oninput="handleGamesLiveSearch(this.value)"
+                           autocomplete="off"
                            class="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-white border border-slate-200/90 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00] shadow-2xs transition-all">
-                    @if(!empty($search))
-                        <a href="{{ route('games.index', array_merge(request()->except(['page', 'q', 'search']), [])) }}" 
-                           class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                           title="Hapus pencarian">
-                            <i class="fa-solid fa-circle-xmark text-xs"></i>
-                        </a>
-                    @endif
+                    <button type="button" id="gamesSearchClearBtn" onclick="clearGamesLiveSearch()"
+                       class="{{ !empty($search) ? '' : 'hidden' }} absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                       title="Hapus pencarian">
+                        <i class="fa-solid fa-circle-xmark text-xs"></i>
+                    </button>
                 </div>
             </form>
 
@@ -212,7 +213,7 @@
             </a>
         </div>
 
-        <div class="text-xs text-slate-500 flex items-center gap-2">
+        <div id="gamesResultCountContainer" class="text-xs text-slate-500 flex items-center gap-2">
             @if(!empty($search))
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
                     <i class="fa-solid fa-magnifying-glass text-[9px]"></i> "{{ $search }}"
@@ -232,52 +233,55 @@
     </div>
 
     <!-- Active Filter Tags Bar (if any custom filters applied) -->
-    @if($hasActiveFilter ?? false)
-        <div class="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 text-xs">
-            <span class="text-slate-400 font-semibold text-[11px] uppercase tracking-wider shrink-0 mr-1">Filter Aktif:</span>
-            
-            @if(($selectedStatus ?? 'all') !== 'all')
-                <a href="{{ route('games.index', array_merge(request()->except(['page', 'status']), ['status' => 'all'])) }}" 
-                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#86EFAC] text-[#063B00] font-bold text-xs hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 transition-all group shrink-0">
-                    <span>Status: {{ $selectedStatus === 'upcoming' ? 'Belum Mulai' : ($selectedStatus === 'live' ? 'Sedang Main (LIVE)' : 'Selesai') }}</span>
-                    <i class="fa-solid fa-xmark text-[10px] group-hover:scale-125 transition-transform"></i>
-                </a>
-            @endif
+    <div id="gamesActiveFiltersContainer">
+        @if($hasActiveFilter ?? false)
+            <div class="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 text-xs">
+                <span class="text-slate-400 font-semibold text-[11px] uppercase tracking-wider shrink-0 mr-1">Filter Aktif:</span>
+                
+                @if(($selectedStatus ?? 'all') !== 'all')
+                    <a href="{{ route('games.index', array_merge(request()->except(['page', 'status']), ['status' => 'all'])) }}" 
+                       class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#86EFAC] text-[#063B00] font-bold text-xs hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 transition-all group shrink-0">
+                        <span>Status: {{ $selectedStatus === 'upcoming' ? 'Belum Mulai' : ($selectedStatus === 'live' ? 'Sedang Main (LIVE)' : 'Selesai') }}</span>
+                        <i class="fa-solid fa-xmark text-[10px] group-hover:scale-125 transition-transform"></i>
+                    </a>
+                @endif
 
-            @if(($selectedSlots ?? 'all') === 'available')
-                <a href="{{ route('games.index', array_merge(request()->except(['page', 'slots']), ['slots' => 'all'])) }}" 
-                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#86EFAC] text-[#063B00] font-bold text-xs hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 transition-all group shrink-0">
-                    <span>Hanya Slot Tersedia</span>
-                    <i class="fa-solid fa-xmark text-[10px] group-hover:scale-125 transition-transform"></i>
-                </a>
-            @endif
+                @if(($selectedSlots ?? 'all') === 'available')
+                    <a href="{{ route('games.index', array_merge(request()->except(['page', 'slots']), ['slots' => 'all'])) }}" 
+                       class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#86EFAC] text-[#063B00] font-bold text-xs hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 transition-all group shrink-0">
+                        <span>Hanya Slot Tersedia</span>
+                        <i class="fa-solid fa-xmark text-[10px] group-hover:scale-125 transition-transform"></i>
+                    </a>
+                @endif
 
-            @if(($selectedTime ?? 'all') !== 'all')
-                <a href="{{ route('games.index', array_merge(request()->except(['page', 'time']), ['time' => 'all'])) }}" 
-                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#86EFAC] text-[#063B00] font-bold text-xs hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 transition-all group shrink-0">
-                    <span>Waktu: {{ $selectedTime === 'today' ? 'Hari Ini' : ($selectedTime === 'tomorrow' ? 'Besok' : '7 Hari Ke Depan') }}</span>
-                    <i class="fa-solid fa-xmark text-[10px] group-hover:scale-125 transition-transform"></i>
-                </a>
-            @endif
+                @if(($selectedTime ?? 'all') !== 'all')
+                    <a href="{{ route('games.index', array_merge(request()->except(['page', 'time']), ['time' => 'all'])) }}" 
+                       class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#86EFAC] text-[#063B00] font-bold text-xs hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 transition-all group shrink-0">
+                        <span>Waktu: {{ $selectedTime === 'today' ? 'Hari Ini' : ($selectedTime === 'tomorrow' ? 'Besok' : '7 Hari Ke Depan') }}</span>
+                        <i class="fa-solid fa-xmark text-[10px] group-hover:scale-125 transition-transform"></i>
+                    </a>
+                @endif
 
-            <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}" 
-               class="text-rose-600 hover:text-rose-800 font-bold text-xs ml-2 hover:underline shrink-0">
-                Hapus Semua
-            </a>
-        </div>
-    @endif
+                <a href="{{ route('games.index', ['tab' => $activeTab ?? 'all', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}" 
+                   class="text-rose-600 hover:text-rose-800 font-bold text-xs ml-2 hover:underline shrink-0">
+                    Hapus Semua
+                </a>
+            </div>
+        @endif
+    </div>
 
     <!-- 3. Grid of Games or Empty States -->
-    @if($games->count() > 0)
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            @foreach($games as $game)
-                <x-game-card :game="$game" />
-            @endforeach
-        </div>
+    <div id="gamesListContainer" class="transition-opacity duration-150">
+        @if($games->count() > 0)
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                @foreach($games as $game)
+                    <x-game-card :game="$game" />
+                @endforeach
+            </div>
 
-        <!-- Pagination Component -->
-        <x-pagination :paginator="$games" />
-    @else
+            <!-- Pagination Component -->
+            <x-pagination :paginator="$games" />
+        @else
         <!-- Rich Clean Empty State -->
         <div class="glass-card rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto border border-white/90 space-y-4 shadow-sm">
             <div class="w-16 h-16 rounded-3xl bg-[#EBF8D8] border border-[#063B00]/20 flex items-center justify-center text-[#063B00] text-2xl mx-auto shadow-xs">
@@ -354,6 +358,7 @@
             </div>
         </div>
     @endif
+    </div>
 </div>
 
 <!-- Compact & Responsive Filter Modal Dialog -->
@@ -508,6 +513,113 @@
 
 @push('scripts')
 <script>
+    let gamesSearchTimer = null;
+    let gamesAbortCtrl = null;
+
+    function handleGamesLiveSearch(query) {
+        const clearBtn = document.getElementById('gamesSearchClearBtn');
+        if (clearBtn) {
+            if (query.trim().length > 0) clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+        }
+
+        if (gamesSearchTimer) clearTimeout(gamesSearchTimer);
+        gamesSearchTimer = setTimeout(() => {
+            executeGamesLiveSearch(query);
+        }, 350);
+    }
+
+    function clearGamesLiveSearch() {
+        const input = document.getElementById('gamesSearchInput');
+        if (input) {
+            input.value = '';
+            input.focus();
+            handleGamesLiveSearch('');
+        }
+    }
+
+    async function executeGamesLiveSearch(query) {
+        if (gamesAbortCtrl) {
+            gamesAbortCtrl.abort();
+        }
+        gamesAbortCtrl = new AbortController();
+
+        const searchIcon = document.getElementById('gamesSearchIcon');
+        const loadingIcon = document.getElementById('gamesSearchLoadingIcon');
+        const listCont = document.getElementById('gamesListContainer');
+
+        if (searchIcon && loadingIcon) {
+            searchIcon.classList.add('hidden');
+            loadingIcon.classList.remove('hidden');
+        }
+        if (listCont) {
+            listCont.style.opacity = '0.5';
+        }
+
+        const form = document.getElementById('gamesSearchForm');
+        const url = new URL(form.action, window.location.origin);
+        const formData = new FormData(form);
+        for (const [k, v] of formData.entries()) {
+            if (k !== 'page' && v) {
+                url.searchParams.set(k, v);
+            }
+        }
+        if (!query) {
+            url.searchParams.delete('q');
+        } else {
+            url.searchParams.set('q', query);
+        }
+
+        // Keep modal filter q in sync
+        const modalQInput = document.querySelector('#filter-form input[name="q"]');
+        if (modalQInput) {
+            modalQInput.value = query;
+        }
+
+        try {
+            const res = await fetch(url.toString(), {
+                signal: gamesAbortCtrl.signal,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!res.ok) throw new Error('Search failed');
+
+            const html = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const newList = doc.getElementById('gamesListContainer');
+            if (newList && listCont) {
+                listCont.innerHTML = newList.innerHTML;
+            }
+
+            const newCount = doc.getElementById('gamesResultCountContainer');
+            const countCont = document.getElementById('gamesResultCountContainer');
+            if (newCount && countCont) {
+                countCont.innerHTML = newCount.innerHTML;
+            }
+
+            const newActiveFilters = doc.getElementById('gamesActiveFiltersContainer');
+            const activeFiltersCont = document.getElementById('gamesActiveFiltersContainer');
+            if (newActiveFilters && activeFiltersCont) {
+                activeFiltersCont.innerHTML = newActiveFilters.innerHTML;
+            }
+
+            window.history.replaceState(null, '', url.toString());
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                console.error('Games live search error:', e);
+            }
+        } finally {
+            if (searchIcon && loadingIcon) {
+                loadingIcon.classList.add('hidden');
+                searchIcon.classList.remove('hidden');
+            }
+            if (listCont) {
+                listCont.style.opacity = '1';
+            }
+        }
+    }
+
     function setRadioFilter(groupName, value) {
         const input = document.getElementById(`filter-${groupName}-input`);
         if (input) {

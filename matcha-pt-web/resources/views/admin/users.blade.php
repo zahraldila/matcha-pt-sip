@@ -99,25 +99,26 @@
         </div>
 
         <!-- Search Bar -->
-        <form method="GET" action="{{ route('admin.users') }}" class="relative w-full md:w-80 shrink-0">
+        <form id="usersSearchForm" method="GET" action="{{ route('admin.users') }}" class="relative w-full md:w-80 shrink-0" onsubmit="event.preventDefault(); executeUsersLiveSearch(document.getElementById('usersSearchInput').value);">
             <input type="hidden" name="role" value="{{ $filterRole ?? 'all' }}">
             <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
-                <input type="text" name="q" value="{{ $search ?? '' }}" placeholder="Cari nama, email, no. hp..." 
+                <i id="usersSearchIcon" class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none transition-opacity"></i>
+                <i id="usersSearchLoadingIcon" class="fa-solid fa-spinner fa-spin absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs hidden pointer-events-none"></i>
+                <input type="text" id="usersSearchInput" name="q" value="{{ $search ?? '' }}" placeholder="Cari nama, email, no. hp..." 
+                       oninput="handleUsersLiveSearch(this.value)"
+                       autocomplete="off"
                        class="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-white border border-slate-200/90 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00] shadow-2xs transition-all">
-                @if(!empty($search))
-                    <a href="{{ route('admin.users', ['role' => $filterRole ?? 'all']) }}" 
-                       class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                       title="Hapus pencarian">
-                        <i class="fa-solid fa-circle-xmark text-xs"></i>
-                    </a>
-                @endif
+                <button type="button" id="usersSearchClearBtn" onclick="clearUsersLiveSearch()"
+                   class="{{ !empty($search) ? '' : 'hidden' }} absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                   title="Hapus pencarian">
+                    <i class="fa-solid fa-circle-xmark text-xs"></i>
+                </button>
             </div>
         </form>
     </div>
 
     {{-- 2. Sub-Filters & Result Counter --}}
-    <div class="glass-card p-3 sm:p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 border border-white/90 shadow-2xs">
+    <div id="usersResultCountContainer" class="glass-card p-3 sm:p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 border border-white/90 shadow-2xs">
         <div class="text-xs text-slate-500 flex items-center gap-2">
             @if(!empty($search))
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
@@ -138,8 +139,9 @@
         @endif
     </div>
 
-    {{-- 3. User Table --}}
-    <div class="glass-card rounded-2xl border border-white/80 shadow-2xs overflow-hidden">
+    {{-- 3. User Table & Pagination Container --}}
+    <div id="usersListContainer" class="transition-opacity duration-150 space-y-6">
+        <div class="glass-card rounded-2xl border border-white/80 shadow-2xs overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-xs">
                 <thead>
@@ -264,6 +266,7 @@
 
     {{-- 4. Consistent Pagination Component --}}
     <x-pagination :paginator="$users" />
+    </div>
 
 </div>
 
@@ -578,10 +581,99 @@
         }
     });
 
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeEditRoleDropdown();
+    let usersSearchTimer = null;
+    let usersAbortCtrl = null;
+
+    function handleUsersLiveSearch(query) {
+        const clearBtn = document.getElementById('usersSearchClearBtn');
+        if (clearBtn) {
+            if (query.trim().length > 0) clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
         }
-    });
+
+        if (usersSearchTimer) clearTimeout(usersSearchTimer);
+        usersSearchTimer = setTimeout(() => {
+            executeUsersLiveSearch(query);
+        }, 350);
+    }
+
+    function clearUsersLiveSearch() {
+        const input = document.getElementById('usersSearchInput');
+        if (input) {
+            input.value = '';
+            input.focus();
+            handleUsersLiveSearch('');
+        }
+    }
+
+    async function executeUsersLiveSearch(query) {
+        if (usersAbortCtrl) {
+            usersAbortCtrl.abort();
+        }
+        usersAbortCtrl = new AbortController();
+
+        const searchIcon = document.getElementById('usersSearchIcon');
+        const loadingIcon = document.getElementById('usersSearchLoadingIcon');
+        const listCont = document.getElementById('usersListContainer');
+
+        if (searchIcon && loadingIcon) {
+            searchIcon.classList.add('hidden');
+            loadingIcon.classList.remove('hidden');
+        }
+        if (listCont) {
+            listCont.style.opacity = '0.5';
+        }
+
+        const form = document.getElementById('usersSearchForm');
+        const url = new URL(form.action, window.location.origin);
+        const formData = new FormData(form);
+        for (const [k, v] of formData.entries()) {
+            if (k !== 'page' && v) {
+                url.searchParams.set(k, v);
+            }
+        }
+        if (!query) {
+            url.searchParams.delete('q');
+        } else {
+            url.searchParams.set('q', query);
+        }
+
+        try {
+            const res = await fetch(url.toString(), {
+                signal: usersAbortCtrl.signal,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!res.ok) throw new Error('Search failed');
+
+            const html = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const newList = doc.getElementById('usersListContainer');
+            if (newList && listCont) {
+                listCont.innerHTML = newList.innerHTML;
+            }
+
+            const newCount = doc.getElementById('usersResultCountContainer');
+            const countCont = document.getElementById('usersResultCountContainer');
+            if (newCount && countCont) {
+                countCont.innerHTML = newCount.innerHTML;
+            }
+
+            window.history.replaceState(null, '', url.toString());
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                console.error('Users live search error:', e);
+            }
+        } finally {
+            if (searchIcon && loadingIcon) {
+                loadingIcon.classList.add('hidden');
+                searchIcon.classList.remove('hidden');
+            }
+            if (listCont) {
+                listCont.style.opacity = '1';
+            }
+        }
+    }
 </script>
 @endsection
