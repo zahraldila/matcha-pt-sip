@@ -4,7 +4,7 @@
 <div class="space-y-12 pb-16">
     
     <!-- Hero Section: Clean Frosted Glass Sport Hub -->
-    <div class="py-12 sm:py-16">
+    <div class="py-12 sm:py-16 relative z-20" style="position: relative; z-index: 20;">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
             
             <div class="max-w-3xl space-y-3">
@@ -21,7 +21,7 @@
             </div>
 
             <!-- Clean Frosted Glass Search & Filter Card -->
-            <div class="glass-card rounded-3xl p-5 sm:p-6 shadow-sm max-w-5xl border border-white/80">
+            <div id="heroSearchCard" class="glass-card rounded-3xl p-5 sm:p-6 shadow-sm max-w-5xl border border-white/80 relative z-20" style="position: relative; z-index: 20;">
                 <!-- Tabs: Mabar / Venue / Komunitas -->
                 <div class="flex items-center gap-2 pb-4 mb-4 border-b border-slate-200/50 text-xs font-semibold overflow-x-auto scrollbar-none">
                     <button type="button" onclick="switchDashboardTab('mabar')" id="tab-btn-mabar" class="tab-btn px-4 py-2 rounded-xl bg-[#063B00] text-white shadow-xs flex items-center gap-2 font-bold cursor-pointer transition-all whitespace-nowrap">
@@ -67,6 +67,7 @@
                                 <div
                                     id="sportMenu"
                                     class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-slate-200/90 rounded-2xl shadow-2xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                    style="z-index: 100 !important;"
                                     onclick="event.stopPropagation()"
                                 >
                                     @foreach($sportOptions as $sVal => $sLabel)
@@ -105,6 +106,7 @@
                                 <div
                                     id="cityMenu"
                                     class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-slate-200/90 rounded-2xl shadow-2xl p-2 max-h-72 overflow-y-auto animate-in fade-in zoom-in-95 duration-150"
+                                    style="z-index: 100 !important;"
                                     onclick="event.stopPropagation()"
                                 >
                                     <!-- Live Search Bar -->
@@ -183,7 +185,7 @@
     </div>
 
     <!-- Main Container -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 relative z-10" style="position: relative; z-index: 10;">
         
         <!-- Category Pill Switcher (Preserving Active Tab) -->
         <div class="flex items-center gap-2.5 overflow-x-auto pb-1">
@@ -432,6 +434,7 @@
         const cityChevron = document.getElementById('cityChevron');
         const sportWrapper = document.getElementById('wrapper_dashboard_sport');
         const cityWrapper = document.getElementById('wrapper_dashboard_city');
+        const searchCard = document.getElementById('heroSearchCard');
 
         if (type === 'sport') {
             const isHidden = sportMenu.classList.contains('hidden');
@@ -440,6 +443,7 @@
                 sportMenu.classList.remove('hidden');
                 if (sportChevron) sportChevron.classList.add('rotate-180');
                 if (sportWrapper) sportWrapper.style.zIndex = '50';
+                if (searchCard) searchCard.style.zIndex = '30';
             }
         } else if (type === 'city') {
             const isHidden = cityMenu.classList.contains('hidden');
@@ -448,6 +452,7 @@
                 cityMenu.classList.remove('hidden');
                 if (cityChevron) cityChevron.classList.add('rotate-180');
                 if (cityWrapper) cityWrapper.style.zIndex = '50';
+                if (searchCard) searchCard.style.zIndex = '30';
 
                 // Reset search when opening & focus
                 const searchInput = document.getElementById('citySearchInput');
@@ -467,6 +472,7 @@
         const cityChevron = document.getElementById('cityChevron');
         const sportWrapper = document.getElementById('wrapper_dashboard_sport');
         const cityWrapper = document.getElementById('wrapper_dashboard_city');
+        const searchCard = document.getElementById('heroSearchCard');
 
         if (sportMenu) sportMenu.classList.add('hidden');
         if (sportChevron) sportChevron.classList.remove('rotate-180');
@@ -474,6 +480,7 @@
         if (cityChevron) cityChevron.classList.remove('rotate-180');
         if (sportWrapper) sportWrapper.style.zIndex = '';
         if (cityWrapper) cityWrapper.style.zIndex = '';
+        if (searchCard) searchCard.style.zIndex = '20';
     }
 
     function filterCityList(query) {
