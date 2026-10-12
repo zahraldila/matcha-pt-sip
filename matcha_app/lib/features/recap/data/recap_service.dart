@@ -309,25 +309,6 @@ class RecapService {
         } catch (_) {}
       }
 
-      // Cek via nama
-      if (playerName.isNotEmpty && playerName != 'Pemain Matcha') {
-        try {
-          final pNamaRes = await _supabase
-              .from('tb_player')
-              .select('player_id, nama, level, foto, email, user_id')
-              .ilike('nama', playerName.trim());
-          for (final p in pNamaRes as List<dynamic>) {
-            final pid = _toNullableInt(p['player_id']);
-            if (pid != null) allPlayerIds.add(pid);
-            if (p['level'] != null && p['level'].toString().isNotEmpty) {
-              currentLevel = p['level'].toString();
-            }
-            if (playerAvatar == null && p['foto'] != null && p['foto'].toString().isNotEmpty) {
-              playerAvatar = p['foto'].toString();
-            }
-          }
-        } catch (_) {}
-      }
 
       final username = '@${playerName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_')}';
       final avatar = (playerAvatar != null && playerAvatar.isNotEmpty)
