@@ -6,6 +6,7 @@ import '../../admin/presentation/admin_user_management_page.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../community/presentation/community_page.dart';
+import '../../court/presentation/create_venue_page.dart';
 import '../../court/presentation/venue_directory_page.dart';
 import '../../games/presentation/create_game_wizard_page.dart';
 import '../../home/presentation/home_page.dart';
@@ -56,8 +57,8 @@ class _MainShellPageState extends State<MainShellPage> {
   void _onTabTapped(int index) {
     final isAdmin = widget.authController?.currentUser?.isAdmin ?? false;
     if (!isAdmin && index == 2) {
-      // Tab Host Center Button clicked for non-admin
-      _handleHostAction();
+      // Center Action Button clicked for non-admin
+      _handleCenterAction();
       return;
     }
     setState(() {
@@ -69,13 +70,26 @@ class _MainShellPageState extends State<MainShellPage> {
     }
   }
 
-  void _handleHostAction() {
+  void _handleCenterAction() {
     final user = widget.authController?.currentUser;
+    final isVenueOwner = user?.isVenueOwner ?? false;
     final isHost = user?.isHost ?? false;
 
     if (user == null) {
       // Guest: tampilkan modal informasi Host
       _showHostInfoModal(isGuest: true);
+    } else if (isVenueOwner) {
+      // Role Venue Owner: langsung buka Form Tambah / Pendaftaran Venue Baru
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CreateVenuePage(
+            authController: widget.authController,
+          ),
+        ),
+      ).then((_) {
+        if (mounted) setState(() {});
+      });
     } else if (isHost) {
       // Host: langsung buka halaman Host Game Creation Wizard
       Navigator.push(
@@ -206,7 +220,7 @@ class _MainShellPageState extends State<MainShellPage> {
   Widget build(BuildContext context) {
     final user = widget.authController?.currentUser;
     final isAdmin = user?.isAdmin ?? false;
-    final isHost = user?.isHost ?? false;
+    final isVenueOwner = user?.isVenueOwner ?? false;
 
     // Tabs for Admin: Beranda (0), Mabar (1), Venue (2), Komunitas (3), Pengguna (4)
     final adminTabs = [
@@ -511,8 +525,8 @@ class _MainShellPageState extends State<MainShellPage> {
                         activeIcon: Icons.emoji_events_rounded,
                         label: 'Mabar',
                       ),
-                      // Center Host Button (+)
-                      _buildCenterHostButton(isHost: isHost),
+                      // Center Action Button (+)
+                      _buildCenterActionButton(isVenueOwner: isVenueOwner),
                       // Member Tab 3: Komunitas
                       _buildNavItem(
                         index: 3,
@@ -577,7 +591,8 @@ class _MainShellPageState extends State<MainShellPage> {
     );
   }
 
-  Widget _buildCenterHostButton({required bool isHost}) {
+  Widget _buildCenterActionButton({required bool isVenueOwner}) {
+    final label = isVenueOwner ? 'Venue' : 'Game';
     return Expanded(
       child: GestureDetector(
         onTap: () => _onTabTapped(2),
@@ -625,9 +640,9 @@ class _MainShellPageState extends State<MainShellPage> {
               ],
             ),
             const SizedBox(height: 2),
-            const Text(
-              'Game',
-              style: TextStyle(
+            Text(
+              label,
+              style: const TextStyle(
                 color: Color(0xFF063B00),
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
