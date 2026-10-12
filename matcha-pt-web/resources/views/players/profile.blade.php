@@ -306,14 +306,9 @@
 <div id="photoOptionsModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 transition-all" onclick="if(event.target === this) closePhotoOptionsModal();">
     <div class="bg-white/95 backdrop-blur-2xl border border-white/80 rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200" onclick="event.stopPropagation()">
         <!-- Modal Header -->
-        <div class="flex items-center justify-between pb-1 border-b border-slate-100">
-            <div>
-                <h3 class="text-sm font-black text-slate-900">Ubah Foto Profil</h3>
-                <p class="text-[11px] text-slate-500">Pilih opsi foto profil yang ingin Anda gunakan</p>
-            </div>
-            <button type="button" onclick="closePhotoOptionsModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors cursor-pointer">
-                <i class="fa-solid fa-xmark text-xs"></i>
-            </button>
+        <div class="pb-1 border-b border-slate-100">
+            <h3 class="text-sm font-black text-slate-900">Ubah Foto Profil</h3>
+            <p class="text-[11px] text-slate-500">Pilih opsi foto profil yang ingin Anda gunakan</p>
         </div>
 
         <!-- Options list -->
@@ -322,7 +317,8 @@
             <button
                 type="button"
                 onclick="takePhotoFromCamera()"
-                class="w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-[#EBF8D8] border border-slate-200/80 hover:border-[#063B00]/20 flex items-center gap-3.5 transition-all text-left cursor-pointer group"
+                class="w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-[#EBF8D8] border border-slate-200/80 hover:border-[#063B00]/20 flex items-center gap-3.5 transition-all text-left cursor-pointer group outline-none focus:outline-none focus:ring-0"
+                style="outline: none !important; -webkit-tap-highlight-color: transparent;"
             >
                 <div class="w-10 h-10 rounded-xl bg-emerald-100 text-[#063B00] group-hover:bg-[#063B00] group-hover:text-[#A8E63A] flex items-center justify-center text-sm transition-colors shrink-0">
                     <i class="fa-solid fa-camera"></i>
@@ -338,7 +334,8 @@
             <button
                 type="button"
                 onclick="choosePhotoFromGallery()"
-                class="w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-[#EBF8D8] border border-slate-200/80 hover:border-[#063B00]/20 flex items-center gap-3.5 transition-all text-left cursor-pointer group"
+                class="w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-[#EBF8D8] border border-slate-200/80 hover:border-[#063B00]/20 flex items-center gap-3.5 transition-all text-left cursor-pointer group outline-none focus:outline-none focus:ring-0"
+                style="outline: none !important; -webkit-tap-highlight-color: transparent;"
             >
                 <div class="w-10 h-10 rounded-xl bg-emerald-100 text-[#063B00] group-hover:bg-[#063B00] group-hover:text-[#A8E63A] flex items-center justify-center text-sm transition-colors shrink-0">
                     <i class="fa-solid fa-images"></i>
@@ -355,7 +352,8 @@
                 type="button"
                 id="modalOptionHapusFoto"
                 onclick="handleRemoveAvatar()"
-                class="{{ empty($user->foto) ? 'hidden' : 'flex' }} w-full p-3.5 rounded-2xl bg-rose-50/70 hover:bg-rose-100 border border-rose-200/80 hover:border-rose-300 items-center gap-3.5 transition-all text-left cursor-pointer group"
+                class="{{ empty($user->foto) ? 'hidden' : 'flex' }} w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-rose-50/80 border border-slate-200/80 hover:border-rose-200 items-center gap-3.5 transition-all text-left cursor-pointer group outline-none focus:outline-none focus:ring-0"
+                style="outline: none !important; -webkit-tap-highlight-color: transparent;"
             >
                 <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 group-hover:bg-rose-600 group-hover:text-white flex items-center justify-center text-sm transition-colors shrink-0">
                     <i class="fa-solid fa-trash-can"></i>
@@ -369,7 +367,12 @@
         </div>
 
         <div class="pt-1">
-            <button type="button" onclick="closePhotoOptionsModal()" class="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer">
+            <button
+                type="button"
+                onclick="closePhotoOptionsModal()"
+                class="w-full py-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-slate-700 font-bold text-xs transition-all cursor-pointer text-center outline-none focus:outline-none focus:ring-0"
+                style="outline: none !important; -webkit-tap-highlight-color: transparent;"
+            >
                 Batal
             </button>
         </div>
