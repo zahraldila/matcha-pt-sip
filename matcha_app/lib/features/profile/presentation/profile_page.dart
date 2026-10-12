@@ -257,6 +257,23 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                   _pickImage(ImageSource.camera);
                 },
               ),
+              if (_pickedImageBytes != null || (!_removeFoto && _currentFotoUrl != null && _currentFotoUrl!.isNotEmpty)) ...[
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFDC2626)),
+                  ),
+                  title: const Text('Hapus Foto Profil', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFFDC2626))),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _handleRemoveFoto();
+                  },
+                ),
+              ],
             ],
           ),
         ),
@@ -899,60 +916,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        InkWell(
-                          onTap: _showImageSourceDialog,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF0FDF4),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFBBF7D0)),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.camera_alt_outlined, size: 13, color: Color(0xFF166534)),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Pilih Foto',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF166534)),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        if (displayImage != null) ...[
-                          const SizedBox(width: 6),
-                          InkWell(
-                            onTap: _handleRemoveFoto,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFFFECACA)),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.delete_outline_rounded, size: 13, color: Color(0xFFDC2626)),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'Hapus Foto',
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
                     ),
                   ],
                 ),
