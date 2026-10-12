@@ -362,7 +362,7 @@
                     <div class="text-xs font-bold text-rose-700">Hapus Foto Profil</div>
                     <div class="text-[10px] text-rose-500">Gunakan inisial nama sebagai foto profil</div>
                 </div>
-                <i class="fa-solid fa-chevron-right text-xs text-rose-300 group-hover:text-rose-600 transition-colors"></i>
+                <i class="fa-solid fa-chevron-right text-xs text-slate-300 transition-colors"></i>
             </button>
         </div>
 
