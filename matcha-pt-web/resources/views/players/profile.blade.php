@@ -117,9 +117,9 @@
 
                 <!-- Profile Banner & Interactive Avatar -->
                 <div class="flex flex-col sm:flex-row items-center gap-5 pb-6 border-b border-slate-200/60">
-                    <!-- Interactive Avatar with Camera Overlay -->
-                    <div class="relative shrink-0" style="width: 96px; height: 96px;">
-                        <div id="avatarContainer" class="w-24 h-24 rounded-full bg-[#063B00] border-4 border-[#A8E63A]/40 flex items-center justify-center text-white text-3xl font-black shadow-md overflow-hidden relative" style="width: 96px; height: 96px; min-width: 96px; min-height: 96px;">
+                    <!-- Interactive Avatar with Camera Overlay (Clickable to open 3 options modal) -->
+                    <div class="relative shrink-0 cursor-pointer group" onclick="openPhotoOptionsModal()" title="Klik untuk ubah foto profil" style="width: 96px; height: 96px;">
+                        <div id="avatarContainer" class="w-24 h-24 rounded-full bg-[#063B00] border-4 border-[#A8E63A]/40 flex items-center justify-center text-white text-3xl font-black shadow-md overflow-hidden relative group-hover:ring-4 group-hover:ring-[#A8E63A]/40 transition-all" style="width: 96px; height: 96px; min-width: 96px; min-height: 96px;">
                             @if(!empty($user->foto))
                                 <img id="avatarImage" src="{{ $user->foto }}" alt="{{ $user->nama }}" class="w-full h-full object-cover" style="width: 100%; height: 100%; object-fit: cover;">
                                 <span id="avatarInitial" class="hidden">{{ strtoupper(substr($user->nama ?? 'U', 0, 1)) }}</span>
@@ -130,9 +130,9 @@
                         </div>
 
                         <!-- Camera Action Button Overlay -->
-                        <button type="button" onclick="document.getElementById('avatarFileInput').click()" title="Ubah Foto Profil" class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#063B00] hover:bg-[#042a00] border-2 border-white text-[#A8E63A] flex items-center justify-center text-xs shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer" style="width: 32px; height: 32px;">
+                        <div class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#063B00] group-hover:bg-[#042a00] border-2 border-white text-[#A8E63A] flex items-center justify-center text-xs shadow-md transition-transform group-hover:scale-110 active:scale-95 pointer-events-none" style="width: 32px; height: 32px;">
                             <i class="fa-solid fa-camera"></i>
-                        </button>
+                        </div>
                     </div>
 
                     <div class="text-center sm:text-left space-y-2 flex-1 min-w-0">
@@ -146,26 +146,10 @@
                             {{ '@' . \Illuminate\Support\Str::slug($user->nama, '_') }} &bull; {{ $user->email }}
                         </p>
 
-                        <!-- Avatar Action Buttons -->
-                        <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-0.5">
-                            <button type="button" onclick="document.getElementById('avatarFileInput').click()" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-200/80 transition-colors cursor-pointer">
-                                <i class="fa-solid fa-cloud-arrow-up text-[#063B00]"></i> <span>Pilih Foto</span>
-                            </button>
-                            <button type="button" id="btnHapusFoto" onclick="removeAvatar()" class="{{ empty($user->foto) ? 'hidden' : 'inline-flex' }} items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[11px] border border-rose-200 transition-colors cursor-pointer">
-                                <i class="fa-solid fa-trash-can text-xs"></i> <span>Hapus Foto</span>
-                            </button>
-                            <span id="fotoBadgeAlert" class="hidden px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 font-semibold text-[10px] border border-amber-200 animate-pulse">
-                                Foto baru terpilih &bull; Klik Simpan
-                            </span>
-                        </div>
-
                         @if(!$user->isAdmin())
                             <div class="flex flex-wrap gap-1.5 pt-1 justify-center sm:justify-start">
                                 <span class="px-2.5 py-0.5 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200">
                                     ⭐ Skill: <strong class="text-[#063B00]">{{ $player->level ?? 'Intermediate' }}</strong>
-                                </span>
-                                <span class="px-2.5 py-0.5 rounded-xl bg-[#EBF8D8] text-[#063B00] text-[11px] font-semibold border border-[#063B00]/20">
-                                    👥 Komunitas: <strong>{{ $player->community->nama_community ?? 'Personal' }}</strong>
                                 </span>
                                 @if(!empty($player->usia))
                                     <span class="px-2.5 py-0.5 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-semibold border border-slate-200">
@@ -174,6 +158,11 @@
                                 @endif
                             </div>
                         @endif
+
+                        <div id="fotoBadgeAlert" class="hidden inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 text-amber-800 font-bold text-[10px] border border-amber-200 animate-pulse">
+                            <i class="fa-solid fa-circle-info text-amber-600"></i>
+                            <span id="fotoBadgeAlertText">Foto baru terpilih &bull; Klik Simpan</span>
+                        </div>
                     </div>
                 </div>
 
@@ -318,7 +307,136 @@
     </div>
 </div>
 
+<!-- Photo Options Modal (Bottom Sheet on mobile, Dialog on desktop) -->
+<div id="photoOptionsModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-end sm:items-center justify-center p-0 sm:p-4 transition-all" onclick="if(event.target === this) closePhotoOptionsModal();">
+    <div class="bg-white/95 backdrop-blur-2xl border border-white/80 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in slide-in-from-bottom sm:zoom-in duration-200" onclick="event.stopPropagation()">
+        <!-- Modal Header / Drag handle on mobile -->
+        <div class="flex flex-col items-center sm:items-start space-y-1">
+            <div class="w-12 h-1 rounded-full bg-slate-200 sm:hidden mb-2"></div>
+            <div class="flex items-center justify-between w-full">
+                <h3 class="text-sm font-black text-slate-900">Ubah Foto Profil</h3>
+                <button type="button" onclick="closePhotoOptionsModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors cursor-pointer">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+            <p class="text-[11px] text-slate-500">Pilih opsi foto profil yang ingin Anda gunakan</p>
+        </div>
+
+        <!-- Options list -->
+        <div class="space-y-2 pt-1">
+            <!-- 1. Ambil dari Kamera -->
+            <button
+                type="button"
+                onclick="takePhotoFromCamera()"
+                class="w-full p-3 rounded-2xl bg-slate-50 hover:bg-[#EBF8D8] border border-slate-200/80 hover:border-[#063B00]/20 flex items-center gap-3.5 transition-all text-left cursor-pointer group"
+            >
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-[#063B00] group-hover:bg-[#063B00] group-hover:text-[#A8E63A] flex items-center justify-center text-sm transition-colors shrink-0">
+                    <i class="fa-solid fa-camera"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-bold text-slate-900 group-hover:text-[#063B00]">Ambil dari Kamera</div>
+                    <div class="text-[10px] text-slate-500">Potret langsung menggunakan kamera perangkat</div>
+                </div>
+                <i class="fa-solid fa-chevron-right text-xs text-slate-300 group-hover:text-[#063B00] transition-colors"></i>
+            </button>
+
+            <!-- 2. Pilih dari Galeri -->
+            <button
+                type="button"
+                onclick="choosePhotoFromGallery()"
+                class="w-full p-3 rounded-2xl bg-slate-50 hover:bg-[#EBF8D8] border border-slate-200/80 hover:border-[#063B00]/20 flex items-center gap-3.5 transition-all text-left cursor-pointer group"
+            >
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-[#063B00] group-hover:bg-[#063B00] group-hover:text-[#A8E63A] flex items-center justify-center text-sm transition-colors shrink-0">
+                    <i class="fa-solid fa-images"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-bold text-slate-900 group-hover:text-[#063B00]">Pilih dari Galeri</div>
+                    <div class="text-[10px] text-slate-500">Pilih gambar dari album atau penyimpanan berkas</div>
+                </div>
+                <i class="fa-solid fa-chevron-right text-xs text-slate-300 group-hover:text-[#063B00] transition-colors"></i>
+            </button>
+
+            <!-- 3. Hapus Foto Profil -->
+            <button
+                type="button"
+                id="modalOptionHapusFoto"
+                onclick="handleRemoveAvatar()"
+                class="{{ empty($user->foto) ? 'hidden' : 'flex' }} w-full p-3 rounded-2xl bg-rose-50/70 hover:bg-rose-100 border border-rose-200/80 hover:border-rose-300 items-center gap-3.5 transition-all text-left cursor-pointer group"
+            >
+                <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 group-hover:bg-rose-600 group-hover:text-white flex items-center justify-center text-sm transition-colors shrink-0">
+                    <i class="fa-solid fa-trash-can"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-bold text-rose-700">Hapus Foto Profil</div>
+                    <div class="text-[10px] text-rose-500">Gunakan inisial nama sebagai foto profil</div>
+                </div>
+                <i class="fa-solid fa-chevron-right text-xs text-rose-300 group-hover:text-rose-600 transition-colors"></i>
+            </button>
+        </div>
+
+        <div class="pt-2">
+            <button type="button" onclick="closePhotoOptionsModal()" class="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer">
+                Batal
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
+    function openPhotoOptionsModal() {
+        const modal = document.getElementById('photoOptionsModal');
+        const hapusBtn = document.getElementById('modalOptionHapusFoto');
+        const img = document.getElementById('avatarImage');
+        const hapusInput = document.getElementById('hapusFotoInput');
+        
+        const hasPhoto = img && img.src && !img.classList.contains('hidden') && (!hapusInput || hapusInput.value !== '1');
+        if (hapusBtn) {
+            if (hasPhoto) {
+                hapusBtn.classList.remove('hidden');
+                hapusBtn.classList.add('flex');
+            } else {
+                hapusBtn.classList.add('hidden');
+                hapusBtn.classList.remove('flex');
+            }
+        }
+        
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    }
+
+    function closePhotoOptionsModal() {
+        const modal = document.getElementById('photoOptionsModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
+
+    function takePhotoFromCamera() {
+        closePhotoOptionsModal();
+        const input = document.getElementById('avatarFileInput');
+        if (input) {
+            input.setAttribute('capture', 'user');
+            input.click();
+        }
+    }
+
+    function choosePhotoFromGallery() {
+        closePhotoOptionsModal();
+        const input = document.getElementById('avatarFileInput');
+        if (input) {
+            input.removeAttribute('capture');
+            input.click();
+        }
+    }
+
+    function handleRemoveAvatar() {
+        closePhotoOptionsModal();
+        removeAvatar();
+    }
+
     function previewAvatar(event) {
         const input = event.target;
         if (input.files && input.files[0]) {
@@ -335,8 +453,8 @@
             reader.onload = function(e) {
                 const img = document.getElementById('avatarImage');
                 const initial = document.getElementById('avatarInitial');
-                const btnHapus = document.getElementById('btnHapusFoto');
                 const badgeAlert = document.getElementById('fotoBadgeAlert');
+                const badgeAlertText = document.getElementById('fotoBadgeAlertText');
                 const hapusInput = document.getElementById('hapusFotoInput');
 
                 if (img) {
@@ -346,12 +464,11 @@
                 if (initial) {
                     initial.classList.add('hidden');
                 }
-                if (btnHapus) {
-                    btnHapus.classList.remove('hidden');
-                    btnHapus.classList.add('inline-flex');
-                }
                 if (badgeAlert) {
                     badgeAlert.classList.remove('hidden');
+                    if (badgeAlertText) {
+                        badgeAlertText.textContent = 'Foto baru terpilih • Klik Simpan';
+                    }
                 }
                 if (hapusInput) {
                     hapusInput.value = '0';
@@ -366,8 +483,8 @@
         const initial = document.getElementById('avatarInitial');
         const input = document.getElementById('avatarFileInput');
         const hapusInput = document.getElementById('hapusFotoInput');
-        const btnHapus = document.getElementById('btnHapusFoto');
         const badgeAlert = document.getElementById('fotoBadgeAlert');
+        const badgeAlertText = document.getElementById('fotoBadgeAlertText');
 
         if (input) {
             input.value = '';
@@ -382,13 +499,11 @@
         if (initial) {
             initial.classList.remove('hidden');
         }
-        if (btnHapus) {
-            btnHapus.classList.add('hidden');
-            btnHapus.classList.remove('inline-flex');
-        }
         if (badgeAlert) {
             badgeAlert.classList.remove('hidden');
-            badgeAlert.textContent = 'Foto akan dihapus saat disimpan';
+            if (badgeAlertText) {
+                badgeAlertText.textContent = 'Foto profil akan dihapus saat disimpan • Klik Simpan';
+            }
         }
     }
 
@@ -458,6 +573,7 @@
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             closeProfileCustomDropdowns();
+            closePhotoOptionsModal();
         }
     });
 </script>
