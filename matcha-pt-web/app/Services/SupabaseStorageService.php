@@ -24,7 +24,7 @@ class SupabaseStorageService
     public function __construct()
     {
         $this->url = config('services.supabase.url') ? rtrim(config('services.supabase.url', 'https://xkyneehswdqkdgzodwdc.supabase.co'), '/') : 'https://xkyneehswdqkdgzodwdc.supabase.co';
-        $this->apiKey = config('services.supabase.key');
+        $this->apiKey = config('services.supabase.service_key', config('services.supabase.key'));
         $this->bucket = config('services.supabase.bucket', 'venues');
         $this->communityBucket = config('services.supabase.community_bucket', 'community-logos');
         $this->avatarBucket = config('services.supabase.avatar_bucket', 'avatars');

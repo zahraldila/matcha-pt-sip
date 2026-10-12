@@ -634,7 +634,7 @@
     }
     
     const SUPABASE_URL   = '{{ config('services.supabase.url') }}';
-    const SUPABASE_KEY   = '{{ config('services.supabase.key') }}';
+    const SUPABASE_KEY   = '{{ config('services.supabase.public_key') }}';
 
     // ── Point Ladder ─────────────────────────────────────────────────────────
     const tennisPoints = ['0', '15', '30', '40'];
@@ -1899,22 +1899,6 @@
                     }
                 }
                 
-                // Broadcast Realtime (Opsional)
-                if (SUPABASE_URL && SUPABASE_KEY && data.success !== false) {
-                    const lastEventId = batchEvents[batchEvents.length - 1].eventId;
-                    supabase.channel('public:tb_score').send({
-                        type: 'broadcast',
-                        event: 'score_updated',
-                        payload: {
-                            ...data.saved,
-                            match_key: st.matchKey,
-                            court: st.courtNum,
-                            version: incomingVer,
-                            last_event_id: data.last_event_id || lastEventId
-                        }
-                    }).catch(e => console.warn('[Supabase Realtime] broadcast send warning:', e));
-                }
-
                 if (incomingVer > (st.serverVersion || 0)) {
                     st.serverVersion = incomingVer;
                 }
@@ -1922,20 +1906,27 @@
                     st.localVersion = incomingVer;
                 }
 
-                // Broadcast state terbaru via Supabase Realtime Channel client-side (near 0ms peer broadcast)
-                if (realtimeChannel && data.saved) {
-                    realtimeChannel.send({
-                        type: 'broadcast',
-                        event: 'score_update',
-                        payload: {
-                            ...data.saved,
-                            court: cIdx,
-                            match_key: st.matchKey,
-                            server_version: incomingVer,
-                            version: incomingVer,
-                            last_event_id: data.last_event_id || lastEventId
-                        }
-                    }).catch(e => console.warn('[Supabase Realtime] broadcast send warning:', e));
+                // Broadcast state terbaru via Supabase Realtime Channel client-side (peer broadcast dari snapshot server terkonfirmasi)
+                // Terisolasi dari flow penyimpanan agar kegagalan broadcast tidak menyebabkan re-queue skor yang sudah tersimpan
+                if (IS_HOST && realtimeChannel && data.saved) {
+                    try {
+                        const lastEvt = batchEvents && batchEvents.length > 0 ? batchEvents[batchEvents.length - 1] : null;
+                        const lastEventId = data.last_event_id || (lastEvt ? lastEvt.eventId : '');
+                        realtimeChannel.send({
+                            type: 'broadcast',
+                            event: 'score_update',
+                            payload: {
+                                ...data.saved,
+                                court: cIdx,
+                                match_key: st.matchKey,
+                                server_version: incomingVer,
+                                version: incomingVer,
+                                last_event_id: lastEventId
+                            }
+                        }).catch(e => console.warn('[Supabase Realtime] broadcast send warning:', e));
+                    } catch (e) {
+                        console.warn('[Supabase Realtime] peer broadcast warning:', e);
+                    }
                 }
 
                 if (latestTClick) {
@@ -2263,33 +2254,54 @@
                     console.log('[Supabase Realtime] session_finished broadcast received:', payload);
                     handleSessionFinishedEvent(payload, 'Realtime Broadcast');
                 })
-                .on('postgres_changes', {
+            const activeMatchIds = Object.values(courtsState)
+                .map(s => Number(s.matchId))
+                .filter(id => id > 0);
+
+            if (activeMatchIds.length > 0) {
+                const matchFilter = activeMatchIds.length === 1 
+                    ? `match_id=eq.${activeMatchIds[0]}` 
+                    : `match_id=in.(${activeMatchIds.join(',')})`;
+
+                realtimeChannel.on('postgres_changes', {
                     event: '*',
                     schema: 'public',
                     table: 'tb_score',
-                    filter: `game_id=eq.${GAME_ID}`
+                    filter: matchFilter
                 }, (payload) => {
                     console.log('[Supabase Realtime] postgres_changes tb_score:', payload);
                     if (payload.new && Number(payload.new.version ?? 0) > 0) {
                         handleIncomingScoreEvent(payload.new, 'Realtime DB Changes');
                     }
-                })
-                .subscribe((status) => {
-                    console.log('[Supabase Realtime] Status:', status);
-                    const badge = document.getElementById('realtimeSyncBadge');
-                    if (badge) {
-                        if (status === 'SUBSCRIBED') {
-                            badge.innerHTML = '<i class="fa-solid fa-bolt text-emerald-500 text-[9px]"></i> Realtime Active';
-                            badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold';
-                        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                            badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Polling Fallback';
-                            badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold';
-                        }
-                    }
                 });
+            }
+
+            realtimeChannel.subscribe((status) => {
+                console.log('[Supabase Realtime] Status:', status);
+                const badge = document.getElementById('realtimeSyncBadge');
+                if (badge) {
+                    if (status === 'SUBSCRIBED') {
+                        badge.innerHTML = '<i class="fa-solid fa-bolt text-emerald-500 text-[9px]"></i> Realtime Active';
+                        badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold';
+                        triggerAllCourtsPoll(true);
+                    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Polling Fallback';
+                        badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold';
+                    }
+                }
+            });
         } catch (err) {
             console.warn('[Supabase Realtime] Init exception:', err);
         }
+    }
+
+    const courtsPollWorkers = {};
+    function triggerAllCourtsPoll(isReconnect = false) {
+        Object.keys(courtsState).forEach(cIdx => {
+            if (typeof courtsPollWorkers[cIdx] === 'function') {
+                courtsPollWorkers[cIdx](isReconnect);
+            }
+        });
     }
 
     // Polling realtime untuk sinkronisasi skor (0.8 detik per siklus) — WAJIB TETAP ADA SEBAGAI FALLBACK/RECONCILIATION
@@ -2317,11 +2329,14 @@
 
         setInterval(updateTimerDisplay, 100);
 
-        const executePoll = async () => {
+        const executePoll = async (isReconnect = false) => {
             if (isPolling) return;
             isPolling = true;
             try {
-                const pollUrlWithTs = `${POLL_URL}&_t=${Date.now()}`;
+                let pollUrlWithTs = `${POLL_URL}&_t=${Date.now()}`;
+                if (isReconnect) {
+                    pollUrlWithTs += '&reconnect=1';
+                }
                 const res = await fetch(pollUrlWithTs, {
                     cache: 'no-store',
                     headers: { 'Accept': 'application/json' }
@@ -2332,7 +2347,7 @@
                 data.match_key = st.matchKey;
 
                 // Salurkan seluruh response polling melalui handler monotonic yang sama (Requirement 6)
-                handleIncomingScoreEvent(data, 'Polling 0.8s');
+                handleIncomingScoreEvent(data, isReconnect ? 'Polling Reconnect' : 'Polling 0.8s');
             } catch (err) {
                 // Ignore network polling error
             } finally {
@@ -2342,11 +2357,25 @@
             }
         };
 
+        courtsPollWorkers[cIdx] = executePoll;
+
         // Jalankan polling loop tiap 0.8 detik
-        setInterval(executePoll, POLL_INTERVAL_MS);
+        setInterval(() => executePoll(false), POLL_INTERVAL_MS);
 
         // Jalankan polling awal secara bertahap (staggered) agar tidak bertabrakan
-        setTimeout(executePoll, 100 + (Number(cIdx) * 150));
+        setTimeout(() => executePoll(false), 100 + (Number(cIdx) * 150));
+    });
+
+    // Pemulihan koneksi & Tab Visibility:
+    // Saat tab kembali dibuka setelah background, segera sinkronkan snapshot terbaru tanpa menunggu interval throttled
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            triggerAllCourtsPoll(true);
+        }
+    });
+
+    window.addEventListener('online', () => {
+        triggerAllCourtsPoll(true);
     });
 
     // Helper Toast

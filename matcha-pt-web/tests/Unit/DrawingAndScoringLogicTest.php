@@ -9,6 +9,7 @@ use App\Models\Drawing;
 use App\Models\GameMatch;
 use App\Models\MatchParticipant;
 use App\Models\Player;
+use App\Models\Score;
 use App\Models\SessionModel;
 use App\Models\User;
 use App\Services\Drawing\AmericanoService;
@@ -17,6 +18,7 @@ use App\Services\Scoring\ScoringService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -1169,6 +1171,7 @@ class DrawingAndScoringLogicTest extends TestCase
         if (! Schema::hasTable('tb_court')) {
             Schema::create('tb_court', function ($table) {
                 $table->id('court_id');
+                $table->unsignedBigInteger('venue_id')->nullable();
                 $table->string('nama_court');
                 $table->timestamps();
             });
@@ -1272,6 +1275,7 @@ class DrawingAndScoringLogicTest extends TestCase
         ]);
 
         $session = SessionModel::create([
+            'sport_id' => 1,
             'host_user_id' => $hostUser->user_id,
             'nama_session' => 'Test Americano '.$jenisPermainan,
             'scoring_system' => 'Total of 3',
@@ -1282,7 +1286,7 @@ class DrawingAndScoringLogicTest extends TestCase
 
         // Tambah courts
         for ($c = 1; $c <= $courtCount; $c++) {
-            $court = Court::create(['nama_court' => "Court {$c}"]);
+            $court = Court::create(['nama_court' => "Court {$c}", 'venue_id' => 1]);
             \DB::table('tb_session_court')->insert([
                 'session_id' => $session->session_id,
                 'court_id' => $court->court_id,
@@ -1899,7 +1903,7 @@ class DrawingAndScoringLogicTest extends TestCase
             'jenis_permainan' => 'Double',
         ]);
 
-        $court = Court::create(['nama_court' => 'Court 1']);
+        $court = Court::create(['nama_court' => 'Court 1', 'venue_id' => 1]);
         \DB::table('tb_session_court')->insert([
             'session_id' => $session->session_id,
             'court_id' => $court->court_id,
@@ -1951,6 +1955,193 @@ class DrawingAndScoringLogicTest extends TestCase
                 $this->assertStringNotContainsString('Marame Nagoan', $p);
             }
         }
+    }
+
+    public function test_successful_save_with_failed_broadcast_does_not_recount_points()
+    {
+        [$session, $hostUser] = $this->createTestSession('Single', 1);
+        $gameId = $session->session_id;
+        Auth::login($hostUser);
+
+        // Mock Supabase HTTP endpoint to simulate 401 Unauthorized
+        Http::fake([
+            '*/realtime/v1/api/broadcast' => Http::response(['message' => 'Unregistered API key'], 401),
+        ]);
+
+        $scoringController = new ScoringController;
+        $request = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'action' => 'batch_events',
+            'events' => [
+                [
+                    'action' => 'add_point',
+                    'team' => 'A',
+                    'event_id' => 'evt_test_1',
+                ],
+            ],
+            'client_id' => 'client_test_1',
+            'client_seq' => 1,
+            'event_id' => 'evt_test_1',
+        ]);
+
+        $res = $scoringController->updateScore($request);
+        $data = $res->getData(true);
+
+        $this->assertTrue($data['success']);
+        $this->assertEquals(1, $data['version']);
+        $this->assertEquals('15', $data['point_display_a']);
+
+        // Verify score is in Cache
+        $cached = Cache::get("scoring.game_{$gameId}.round_1_court_1");
+        $this->assertNotNull($cached);
+        $this->assertEquals('15', $cached['point_display_a']);
+    }
+
+    public function test_retry_same_event_id_is_deduplicated_and_does_not_increment_score()
+    {
+        [$session, $hostUser] = $this->createTestSession('Single', 1);
+        $gameId = $session->session_id;
+        Auth::login($hostUser);
+
+        Http::fake([
+            '*/realtime/v1/api/broadcast' => Http::response([], 200),
+        ]);
+
+        $scoringController = new ScoringController;
+        $req1 = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'action' => 'batch_events',
+            'events' => [
+                ['action' => 'add_point', 'team' => 'A', 'event_id' => 'evt_dedup_1'],
+            ],
+            'client_id' => 'client_test_1',
+            'client_seq' => 1,
+            'event_id' => 'evt_dedup_1',
+        ]);
+
+        $res1 = $scoringController->updateScore($req1)->getData(true);
+        $this->assertTrue($res1['success']);
+        $this->assertEquals('15', $res1['point_display_a']);
+        $this->assertEquals(1, $res1['version']);
+
+        // Retry same event
+        $res2 = $scoringController->updateScore($req1)->getData(true);
+        $this->assertTrue($res2['success']);
+        $this->assertTrue($res2['duplicate']);
+        $this->assertEquals('15', $res2['point_display_a'], 'Poin tidak boleh bertambah saat event_id di-retry');
+        $this->assertEquals(1, $res2['version'], 'Version tidak boleh bertambah saat event_id di-retry');
+    }
+
+    public function test_two_courts_updated_concurrently_do_not_lose_scores()
+    {
+        [$session, $hostUser] = $this->createTestSession('Double', 2);
+        $gameId = $session->session_id;
+        Auth::login($hostUser);
+
+        Http::fake(['*/realtime/v1/api/broadcast' => Http::response([], 200)]);
+
+        $scoringController = new ScoringController;
+
+        // Update Court 1
+        $reqCourt1 = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'action' => 'batch_events',
+            'events' => [['action' => 'add_point', 'team' => 'A', 'event_id' => 'c1_evt_1']],
+            'client_id' => 'host_1',
+            'client_seq' => 1,
+            'event_id' => 'c1_evt_1',
+        ]);
+        $scoringController->updateScore($reqCourt1);
+
+        // Update Court 2
+        $reqCourt2 = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_2',
+            'court' => 2,
+            'action' => 'batch_events',
+            'events' => [['action' => 'add_point', 'team' => 'B', 'event_id' => 'c2_evt_1']],
+            'client_id' => 'host_1',
+            'client_seq' => 2,
+            'event_id' => 'c2_evt_1',
+        ]);
+        $scoringController->updateScore($reqCourt2);
+
+        // Verify both courts exist in shared session cache array
+        $sharedScores = Cache::get("scoring.game_{$gameId}", []);
+        $this->assertArrayHasKey('round_1_court_1', $sharedScores, 'Court 1 tidak boleh hilang dari cache');
+        $this->assertArrayHasKey('round_1_court_2', $sharedScores, 'Court 2 tidak boleh hilang dari cache');
+        $this->assertEquals('15', $sharedScores['round_1_court_1']['point_display_a']);
+        $this->assertEquals('15', $sharedScores['round_1_court_2']['point_display_b']);
+    }
+
+    public function test_cache_follows_database_change_including_final_score()
+    {
+        [$session, $hostUser] = $this->createTestSession('Single', 1);
+        $gameId = $session->session_id;
+
+        // Initialize cache with in_progress score (games 3-2)
+        $initialCache = [
+            'version' => 10,
+            'games_a' => 3,
+            'games_b' => 2,
+            'point_display_a' => '0',
+            'point_display_b' => '0',
+            'status' => 'in_progress',
+        ];
+        Cache::put("scoring.game_{$gameId}.round_1_court_1", $initialCache, 300);
+
+        // Create drawing and match if not present
+        $drawing = Drawing::firstOrCreate(
+            ['session_id' => $gameId],
+            ['match_format_id' => 1]
+        );
+        $match = GameMatch::firstOrCreate(
+            ['drawing_id' => $drawing->drawing_id, 'nomor_match' => 1],
+            ['status_match' => 'In Progress', 'version' => 10]
+        );
+        $match->status_match = 'Completed';
+        $match->winner_team = 'Team A';
+        $match->version = 15;
+        $match->save();
+
+        Score::updateOrCreate(
+            ['match_id' => $match->match_id, 'set_number' => 1],
+            [
+                'game_number' => 1,
+                'game_score_a' => 6,
+                'game_score_b' => 2,
+                'point_score_a' => 'Game',
+                'point_score_b' => '0',
+                'status_score' => 'Final',
+                'version' => 15,
+            ]
+        );
+
+        // Poll with force_refresh/reconnect to trigger DB reconciliation
+        $scoringController = new ScoringController;
+        $req = Request::create("/scoring/get-score/{$gameId}/round_1", 'GET', [
+            'court' => 0,
+            'match_key' => 'round_1_court_1',
+            'reconnect' => '1',
+        ]);
+        $this->app->instance('request', $req);
+        $response = $scoringController->getScore($gameId, 'round_1');
+        $data = json_decode($response->getContent(), true);
+
+        $this->assertEquals('completed', $data['status'], 'Cache harus mengikuti skor final dari database');
+        $this->assertEquals(6, $data['games_a']);
+        $this->assertEquals(2, $data['games_b']);
+        $this->assertEquals(15, $data['version']);
     }
 
     protected function invokeMethod(&$object, $methodName, array $parameters = [])

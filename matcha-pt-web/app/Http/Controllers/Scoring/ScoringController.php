@@ -204,16 +204,19 @@ class ScoringController extends Controller
      */
     public function getScore($gameId, $round = 'round_1')
     {
-        SessionModel::findOrFail((int) $gameId);
-        $cacheKey = "scoring.game_{$gameId}";
-        $scores = Cache::get($cacheKey, []);
+        $sessionExists = Cache::remember("session_exists_{$gameId}", 300, function () use ($gameId) {
+            return SessionModel::where('session_id', (int) $gameId)->exists();
+        });
+        if (! $sessionExists) {
+            abort(404, 'Session not found.');
+        }
 
+        $cacheKey = "scoring.game_{$gameId}";
         $matchKey = request('match_key');
         $courtIndex = 0;
         if ($matchKey && preg_match('/court_(\d+)/', $matchKey, $mC)) {
             $courtIndex = max(0, ((int) $mC[1]) - 1);
         } elseif ($matchKey) {
-            // matchKey explicitly provided (misal 'round_1' pada single-court)
             $courtIndex = (int) request('court', 0);
         } elseif (request()->has('court_num')) {
             $courtNum = (int) request('court_num');
@@ -231,47 +234,97 @@ class ScoringController extends Controller
 
         $isMultiCourt = str_contains($matchKey, '_court_');
 
-        // Urutan sumber data:
-        // 1. Cache match-specific
-        $score = $scores[$matchKey] ?? null;
+        // 1. Fast Path: Coba ambil dari dedicated match cache key
+        $score = Cache::get("scoring.game_{$gameId}.{$matchKey}");
+        $scores = null;
 
-        // Fallback konsistensi untuk single-court jika key ada di format round_1 atau round_1_court_1
-        if (! $score && ! $isMultiCourt && isset($scores["{$matchKey}_court_1"])) {
-            $score = $scores["{$matchKey}_court_1"];
-        }
+        if (! $score) {
+            $scores = Cache::get($cacheKey, []);
+            $score = $scores[$matchKey] ?? null;
 
-        // Jika pada single-court ada data di kedua format, selalu pilih yang versinya lebih baru (newer version wins)
-        if (! $isMultiCourt && isset($scores["{$matchKey}_court_1"]) && isset($scores[$matchKey])) {
-            if ((int) ($scores["{$matchKey}_court_1"]['version'] ?? 0) > (int) ($scores[$matchKey]['version'] ?? 0)) {
+            if (! $score && ! $isMultiCourt && isset($scores["{$matchKey}_court_1"])) {
                 $score = $scores["{$matchKey}_court_1"];
+            }
+
+            if (! $isMultiCourt && isset($scores["{$matchKey}_court_1"]) && isset($scores[$matchKey])) {
+                if ((int) ($scores["{$matchKey}_court_1"]['version'] ?? 0) > (int) ($scores[$matchKey]['version'] ?? 0)) {
+                    $score = $scores["{$matchKey}_court_1"];
+                }
             }
         }
 
-        // 2. Authoritative Database Reconciliation:
-        // Jika database memiliki skor resmi yang sudah Completed/Final, pastikan skor tidak rollback dari snapshot cache lama.
-        $officialDbScore = $this->getOfficialCompletedScoreFromDatabase($gameId, $round, $courtIndex);
-        $dbScore = $officialDbScore ?: $this->getScoreFromDatabase($gameId, $round, $courtIndex);
+        // 2. Strategi Rekonsiliasi Database Terkontrol (Throttled & Recovery)
+        $isReconnect = request()->boolean('reconnect') || request()->boolean('force_refresh');
+        $throttleKey = "scoring.reconcile_throttle.{$gameId}.{$matchKey}";
+        $shouldReconcile = false;
 
-        if ($dbScore) {
-            $cachedTotalGames = (int) ($score['games_a'] ?? ($score['score_a'] ?? 0)) + (int) ($score['games_b'] ?? ($score['score_b'] ?? 0));
-            $dbTotalGames = (int) ($dbScore['games_a'] ?? ($dbScore['score_a'] ?? 0)) + (int) ($dbScore['games_b'] ?? ($dbScore['score_b'] ?? 0));
-            $dbCompleted = ($dbScore['status'] ?? '') === 'completed';
-            $cachedCompleted = ($score['status'] ?? '') === 'completed';
+        if (! $score || (int) ($score['version'] ?? 0) === 0) {
+            // Cache miss / empty: wajib sinkronisasi ke DB
+            $shouldReconcile = true;
+        } elseif ($isReconnect) {
+            // Reconnect / tab visibility: sinkronisasi paksa ke DB
+            $shouldReconcile = true;
+        } elseif (! Cache::has($throttleKey)) {
+            // Throttle periodik (3 detik): hanya 1 request per jendela waktu yang mengecek DB
+            Cache::put($throttleKey, true, 3);
+            $shouldReconcile = true;
+        }
 
-            if (! $score || ($dbCompleted && (! $cachedCompleted || $dbTotalGames >= $cachedTotalGames))) {
-                $score = $dbScore;
-                $scores[$matchKey] = $score;
-                if (! $isMultiCourt) {
-                    $scores[$round] = $score;
-                    $scores["{$round}_court_1"] = $score;
+        if ($shouldReconcile) {
+            // Anti-stampede mutex: Pastikan hanya 1 request yang menjalankan query rekonsiliasi DB mahal saat thundering herd/reconnect
+            $reconcileLock = Cache::lock("scoring.reconcile_lock.{$gameId}.{$matchKey}", 4);
+            if ($reconcileLock->get()) {
+                try {
+                    $dbScore = $this->getScoreFromDatabase($gameId, $round, $courtIndex);
+                    if ($dbScore) {
+                        $dbVersion = (int) ($dbScore['version'] ?? 0);
+                        // Fresh check: Rekonsiliasi DB tidak boleh menimpa cache baru jika host baru saja menyimpan skor in-flight
+                        $freshMatchCache = Cache::get("scoring.game_{$gameId}.{$matchKey}");
+                        $freshVersion = (int) ($freshMatchCache['version'] ?? ($score['version'] ?? 0));
+                        $cachedTotalGames = (int) ($freshMatchCache['games_a'] ?? ($freshMatchCache['score_a'] ?? 0)) + (int) ($freshMatchCache['games_b'] ?? ($freshMatchCache['score_b'] ?? 0));
+                        $dbTotalGames = (int) ($dbScore['games_a'] ?? ($dbScore['score_a'] ?? 0)) + (int) ($dbScore['games_b'] ?? ($dbScore['score_b'] ?? 0));
+                        $dbCompleted = ($dbScore['status'] ?? '') === 'completed';
+                        $cachedCompleted = ($freshMatchCache['status'] ?? '') === 'completed';
+
+                        // Update cache hanya jika data DB lebih baru, selesai, atau mengisi cache kosong
+                        if (! $freshMatchCache || ($dbCompleted && (! $cachedCompleted || $dbTotalGames >= $cachedTotalGames)) || ($dbVersion >= $freshVersion)) {
+                            $score = $dbScore;
+                            Cache::put("scoring.game_{$gameId}.{$matchKey}", $score, now()->addHours(4));
+
+                            $sLock = Cache::lock("scoring.session.{$gameId}", 3);
+                            if ($sLock->get()) {
+                                try {
+                                    $curScores = Cache::get($cacheKey, []);
+                                    $curMatchVer = (int) ($curScores[$matchKey]['version'] ?? 0);
+                                    if ($dbVersion >= $curMatchVer) {
+                                        $curScores[$matchKey] = $score;
+                                        if (! $isMultiCourt) {
+                                            $curScores[$round] = $score;
+                                            $curScores["{$round}_court_1"] = $score;
+                                        }
+                                        Cache::put($cacheKey, $curScores, now()->addHours(4));
+                                    }
+                                } finally {
+                                    $sLock->release();
+                                }
+                            }
+                        }
+                    }
+                } finally {
+                    $reconcileLock->release();
                 }
-                Cache::put($cacheKey, $scores, now()->addHours(4));
+            } else {
+                // Jika sedang ada request lain yang merekonsiliasi DB, gunakan cache terkini
+                $score = Cache::get("scoring.game_{$gameId}.{$matchKey}") ?: $score;
             }
         }
 
         // 3. Fallback hanya untuk single-court jika round key ada
-        if (! $score && ! $isMultiCourt && isset($scores[$round])) {
-            $score = $scores[$round];
+        if (! $score && ! $isMultiCourt) {
+            $scores = $scores ?? Cache::get($cacheKey, []);
+            if (isset($scores[$round])) {
+                $score = $scores[$round];
+            }
         }
 
         // 4. Default state jika masih kosong (DILARANG fallback ke court atau round lain untuk multi-court)
@@ -299,8 +352,17 @@ class ScoringController extends Controller
             ];
         }
 
-        $sessionActiveRound = $scores['_meta']['active_round'] ?? $this->resolveActiveRoundFromDatabase((int) $gameId) ?? $round;
+        $scores = $scores ?? Cache::get($cacheKey, []);
+        $sessionActiveRound = $scores['_meta']['active_round'] ?? $round;
         $sessionStatus = $scores['_meta']['status'] ?? 'in_progress';
+        if ($sessionStatus !== 'finished' && $shouldReconcile) {
+            $dbStatus = SessionModel::where('session_id', (int) $gameId)->value('status_session');
+            if (strtolower((string) $dbStatus) === 'finished') {
+                $sessionStatus = 'finished';
+                $scores['_meta'] = array_merge($scores['_meta'] ?? [], ['status' => 'finished']);
+                Cache::put($cacheKey, $scores, now()->addHours(4));
+            }
+        }
         $isSessionFinished = ($sessionStatus === 'finished');
 
         return response()->json([
@@ -386,7 +448,8 @@ class ScoringController extends Controller
         // When action=add_point with point_won_by provided, server computes the score.
         $actionField = $request->input('action', 'add_point');
         $hasEventAction = ($actionField === 'add_point' && $request->has('point_won_by')) ||
-            ($actionField === 'completion');
+            ($actionField === 'completion') ||
+            ($actionField === 'batch_events');
 
         $request->validate([
             'game_id' => 'required|integer',
@@ -531,9 +594,17 @@ class ScoringController extends Controller
             $isCompletion = ($status === 'completed' || $action === 'completion');
 
             // 1. EVENT DEDUPLICATION (Requirement 2 & 3):
-            // Cek apakah event_id yang sama sudah pernah diproses sebelumnya.
+            // Cek apakah event_id yang sama sudah pernah diproses sebelumnya (dari cache atau DB persisten).
             $processedEvents = $scores[$matchKey]['processed_events'] ?? [];
-            if (! empty($eventId) && isset($processedEvents[$eventId])) {
+            $lastSavedEventId = $scores[$matchKey]['last_event_id'] ?? '';
+            if (empty($lastSavedEventId) && empty($processedEvents)) {
+                $dbCheck = $this->getScoreFromDatabase($gameId, $round, $courtIndex);
+                if ($dbCheck) {
+                    $lastSavedEventId = $dbCheck['last_event_id'] ?? '';
+                }
+            }
+
+            if (! empty($eventId) && (isset($processedEvents[$eventId]) || ($lastSavedEventId !== '' && $eventId === $lastSavedEventId))) {
                 return response()->json([
                     'success' => true,
                     'duplicate' => true,
@@ -775,15 +846,8 @@ class ScoringController extends Controller
             $scorePayload['updated_at'] = now()->toDateTimeString();
 
             $isMultiCourt = str_contains($matchKey, '_court_');
-            $scores[$matchKey] = $scorePayload;
-            if (! $isMultiCourt) {
-                $scores[$round] = $scorePayload;
-                $scores["{$round}_court_1"] = $scorePayload;
-            }
 
-            Cache::put($cacheKey, $scores, now()->addHours(4));
-
-            // Persistensi ke Database (tb_match, tb_match_participant, tb_score) secara ATOMIC di dalam DB::transaction
+            // 1. Persistensi ke Database (tb_match, tb_match_participant, tb_score) secara ATOMIC terlebih dahulu
             try {
                 DB::transaction(function () use ($gameId, $round, $matchKey, $scorePayload, $newVersion, $eventId, $request) {
                     $session = SessionModel::with(['players', 'courts'])->find($gameId);
@@ -837,14 +901,36 @@ class ScoringController extends Controller
                     }
                 });
             } catch (\Throwable $e) {
-                Log::warning('Failed to persist live score to database: '.$e->getMessage());
+                Log::error('Failed to persist live score to database: '.$e->getMessage());
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menyimpan skor ke basis data. Silakan coba kembali.',
+                ], 500);
             }
 
-            // Broadcast state terbaru ke Supabase Realtime (Requirement 4 & 5)
-            $this->broadcastScoreUpdateRealtime($gameId, $matchKey, $scorePayload);
+            // 2. Simpan ke Cache hanya setelah DB commit berhasil (dilindungi sessionLock agar multi-court tidak saling menimpa)
+            $sessionLock = Cache::lock("scoring.session.{$gameId}", 5);
+            $sessionLock->block(3);
+            try {
+                $scores = Cache::get($cacheKey, []);
+                $scores[$matchKey] = $scorePayload;
+                if (! $isMultiCourt) {
+                    $scores[$round] = $scorePayload;
+                    $scores["{$round}_court_1"] = $scorePayload;
+                }
+                Cache::put($cacheKey, $scores, now()->addHours(4));
+                Cache::put("scoring.game_{$gameId}.{$matchKey}", $scorePayload, now()->addHours(4));
+            } finally {
+                $sessionLock->release();
+            }
         } finally {
+            // 3. Lepas scoreLock SEGERA setelah persistensi (DB + Cache) selesai
             $scoreLock->release();
         }
+
+        // 4. Broadcast Realtime dijalankan DI LUAR LOCK (tidak menahan lock mutasi)
+        $this->broadcastScoreUpdateRealtime($gameId, $matchKey, $scorePayload);
 
         return response()->json([
             'success' => true,
@@ -1108,6 +1194,7 @@ class ScoringController extends Controller
         ];
 
         Cache::put($cacheKey, $scores, now()->addHours(4));
+        Cache::put("scoring.game_{$gameId}.{$matchKey}", $scorePayload, now()->addHours(4));
 
         // 2. Simpan permanen ke Database jika session ada di tb_session
         try {
@@ -2122,6 +2209,7 @@ class ScoringController extends Controller
             'scoring_type' => (string) ($row->scoring_system ?? 'total_of_sets'),
             'status' => strtolower((string) ($match->status_match ?? '')) === 'completed' || in_array(strtolower((string) ($row->status_score ?? '')), ['final', 'completed'], true) ? 'completed' : 'in_progress',
             'winner_team' => $match->winner_team,
+            'last_event_id' => (string) ($row->last_event_id ?? ($match->last_event_id ?? '')),
         ];
     }
 
@@ -2297,7 +2385,7 @@ class ScoringController extends Controller
     {
         try {
             $url = rtrim(config('services.supabase.url', ''), '/').'/realtime/v1/api/broadcast';
-            $key = config('services.supabase.key');
+            $key = config('services.supabase.service_key', config('services.supabase.key'));
             if (empty($url) || empty($key)) {
                 return;
             }
@@ -2307,7 +2395,7 @@ class ScoringController extends Controller
             $sessionActiveRound = $savedScores['_meta']['active_round'] ?? 'round_1';
             $sessionStatus = $savedScores['_meta']['status'] ?? 'in_progress';
 
-            Http::withoutVerifying()
+            $response = Http::withoutVerifying()
                 ->withHeaders([
                     'apikey' => $key,
                     'Authorization' => 'Bearer '.$key,
@@ -2341,8 +2429,12 @@ class ScoringController extends Controller
                         ],
                     ],
                 ]);
+
+            if (! $response->successful()) {
+                Log::warning("Supabase realtime broadcast response HTTP {$response->status()}");
+            }
         } catch (\Throwable $e) {
-            Log::debug("Supabase realtime broadcast skipped: {$e->getMessage()}");
+            Log::warning("Supabase realtime broadcast failed: {$e->getMessage()}");
         }
     }
 
@@ -2353,12 +2445,12 @@ class ScoringController extends Controller
     {
         try {
             $url = rtrim(config('services.supabase.url', ''), '/').'/realtime/v1/api/broadcast';
-            $key = config('services.supabase.key');
+            $key = config('services.supabase.service_key', config('services.supabase.key'));
             if (empty($url) || empty($key)) {
                 return;
             }
 
-            Http::withoutVerifying()
+            $response = Http::withoutVerifying()
                 ->withHeaders([
                     'apikey' => $key,
                     'Authorization' => 'Bearer '.$key,
@@ -2380,8 +2472,12 @@ class ScoringController extends Controller
                         ],
                     ],
                 ]);
+
+            if (! $response->successful()) {
+                Log::warning("Supabase realtime round advanced broadcast response HTTP {$response->status()}");
+            }
         } catch (\Throwable $e) {
-            Log::debug("Supabase realtime round advanced broadcast skipped: {$e->getMessage()}");
+            Log::warning("Supabase realtime round advanced broadcast failed: {$e->getMessage()}");
         }
     }
 
@@ -2392,12 +2488,12 @@ class ScoringController extends Controller
     {
         try {
             $url = rtrim(config('services.supabase.url', ''), '/').'/realtime/v1/api/broadcast';
-            $key = config('services.supabase.key');
+            $key = config('services.supabase.service_key', config('services.supabase.key'));
             if (empty($url) || empty($key)) {
                 return;
             }
 
-            Http::withoutVerifying()
+            $response = Http::withoutVerifying()
                 ->withHeaders([
                     'apikey' => $key,
                     'Authorization' => 'Bearer '.$key,
@@ -2420,8 +2516,12 @@ class ScoringController extends Controller
                         ],
                     ],
                 ]);
+
+            if (! $response->successful()) {
+                Log::warning("Supabase realtime session finished broadcast response HTTP {$response->status()}");
+            }
         } catch (\Throwable $e) {
-            Log::debug("Supabase realtime session finished broadcast skipped: {$e->getMessage()}");
+            Log::warning("Supabase realtime session finished broadcast failed: {$e->getMessage()}");
         }
     }
 

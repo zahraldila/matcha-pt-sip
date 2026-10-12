@@ -1530,7 +1530,7 @@ class GameController extends Controller
     {
         try {
             $url = rtrim(config('services.supabase.url', ''), '/').'/realtime/v1/api/broadcast';
-            $key = config('services.supabase.key');
+            $key = config('services.supabase.service_key');
             if (empty($url) || empty($key)) {
                 return;
             }
@@ -1569,7 +1569,7 @@ class GameController extends Controller
     {
         try {
             $url = rtrim(config('services.supabase.url', ''), '/').'/realtime/v1/api/broadcast';
-            $key = config('services.supabase.key');
+            $key = config('services.supabase.service_key');
             if (empty($url) || empty($key)) {
                 return;
             }
