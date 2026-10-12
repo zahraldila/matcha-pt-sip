@@ -614,7 +614,7 @@ class _CommunityPageState extends State<CommunityPage> {
                       isSelected: _activeTab == 'all',
                     ),
                   ),
-                  if (!isGuest) ...[
+                  if (!isGuest && widget.authController?.currentUser?.isAdmin != true) ...[
                     const SizedBox(width: 10),
                     Expanded(
                       child: _buildMainTab(
