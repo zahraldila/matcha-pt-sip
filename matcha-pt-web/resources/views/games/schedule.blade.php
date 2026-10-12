@@ -151,9 +151,6 @@
                 </h1>
             </div>
         </div>
-        <span class="hidden sm:inline-flex px-3 py-1 rounded-full bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] text-xs font-bold">
-            <i class="fa-solid fa-calendar-plus mr-1.5 text-xs"></i> Publikasikan ke Komunitas
-        </span>
     </div>
 
     <!-- Main Glassmorphism Form Card -->
