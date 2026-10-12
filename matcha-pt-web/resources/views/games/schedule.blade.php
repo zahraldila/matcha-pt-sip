@@ -820,13 +820,10 @@
     <div class="bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 flex flex-col gap-4" style="width: 320px; max-width: 95vw; box-sizing: border-box;" onclick="event.stopPropagation();">
         
         <!-- Top Label -->
-        <div class="flex items-center justify-between">
+        <div>
             <span id="clockModalLabel" class="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
                 PILIH JAM MULAI
             </span>
-            <button type="button" onclick="closeClockPicker()" class="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer p-1">
-                <i class="fa-solid fa-xmark text-sm"></i>
-            </button>
         </div>
 
         <!-- Digital Time Header Box -->
@@ -922,10 +919,7 @@
 <!-- ========================================================= -->
 <!-- MATERIAL / FLUTTER STYLE DATE PICKER MODAL                -->
 <!-- ========================================================= -->
-<div id="datePickerModal" class="hidden" style="display: none; position: fixed; inset: 0; z-index: 999999 !important; justify-content: center; align-items: center; padding: 16px;">
-    <!-- Backdrop overlay -->
-    <div style="position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 1000000;" onclick="closeDatePickerModal()"></div>
-
+<div id="datePickerModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150" style="display: none; z-index: 99999; background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);" onclick="if(event.target === this) closeDatePickerModal();">
     <!-- Dialog Card -->
     <div style="position: relative; z-index: 1000001; background: #ffffff !important; background-color: #ffffff !important; border-radius: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); width: 100%; max-width: 330px; padding: 20px 24px; margin: auto; max-height: 90vh; overflow-y: auto;" class="select-none animate-in fade-in zoom-in-95 duration-150" onclick="event.stopPropagation();">
         <!-- Subtitle & Main Header -->
