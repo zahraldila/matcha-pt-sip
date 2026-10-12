@@ -806,7 +806,7 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
   // Options & Bottom Sheet Pickers (Modern Matcha Style)
   // =========================================================================
 
-  static const _surfaceOptions = [
+  static final List<Map<String, dynamic>> _surfaceOptions = [
     {
       'value': 'Artificial Turf',
       'title': 'Artificial Turf',
@@ -849,7 +849,7 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
     },
   ];
 
-  static const _openingDaysOptions = [
+  static final List<Map<String, dynamic>> _openingDaysOptions = [
     {
       'value': 'Setiap Hari (Senin - Minggu)',
       'title': 'Setiap Hari (Senin - Minggu)',
@@ -887,7 +887,7 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
     },
   ];
 
-  static const _courtCountOptions = [
+  static final List<Map<String, dynamic>> _courtCountOptions = [
     {
       'value': 1,
       'title': '1 Court',
@@ -925,7 +925,7 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
     },
   ];
 
-  static const _arenaTypeOptions = [
+  static final List<Map<String, dynamic>> _arenaTypeOptions = [
     {
       'value': 'Semi-Indoor',
       'title': 'Semi-Indoor',
@@ -960,10 +960,13 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
     IconData? icon,
     bool isRequired = false,
   }) {
-    final selectedOption = options.firstWhere(
-      (opt) => opt['value'] == value,
-      orElse: () => options.first,
-    );
+    Map<String, dynamic> selectedOption = options.first;
+    for (final opt in options) {
+      if (opt['value'] == value) {
+        selectedOption = opt;
+        break;
+      }
+    }
     final displayText = (selectedOption['label'] ?? selectedOption['title'] ?? '$value') as String;
     final itemIcon = icon ?? (selectedOption['icon'] as IconData? ?? Icons.tune_rounded);
 
