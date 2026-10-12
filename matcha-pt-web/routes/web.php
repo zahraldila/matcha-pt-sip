@@ -81,7 +81,8 @@ Route::prefix('scoring')->name('scoring.')->group(function () {
 });
 
 // Player Recap (Public Share & Guest-Accessible)
-Route::get('/player/recap/{id?}', [PlayerController::class, 'recap'])->name('player.recap');
+Route::get('/player/match-recap/{id?}', [PlayerController::class, 'recap'])->name('player.recap');
+Route::get('/player/recap/{id?}', [PlayerController::class, 'recap']);
 Route::get('/recap/user/{id}', [PlayerController::class, 'recap'])->name('recap.user');
 
 // Protected: Player Profile & Host Management

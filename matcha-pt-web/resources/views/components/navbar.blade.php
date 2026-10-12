@@ -132,11 +132,6 @@
                                     </span>
                                 </div>
                             </div>
-                            @if(Auth::user()->role === 'venue_owner')
-                                <a href="{{ route('venues.index', ['tab' => 'my_venues']) }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#063B00] bg-emerald-50/70 hover:bg-emerald-100 font-bold transition-colors">
-                                    <i class="fa-solid fa-crown text-amber-500 text-xs"></i> Kelola Venue Saya
-                                </a>
-                            @endif
                             @if(Auth::user()->isAdmin())
                                 <a href="{{ route('admin.users') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-800 bg-amber-50/70 hover:bg-amber-100 font-semibold transition-colors">
                                     <i class="fa-solid fa-users-gear text-amber-500 text-xs"></i> Manajemen Pengguna
