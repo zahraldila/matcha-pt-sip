@@ -29,8 +29,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
   List<VenueModel> _venues = [];
   bool _isLoadingVenues = true;
   final TextEditingController _activityNameController = TextEditingController();
-
-
+  bool _isCourtDropdownOpen = false;
   @override
   void initState() {
     super.initState();
@@ -1816,32 +1815,106 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                           style: const TextStyle(fontSize: 10.5, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
                         ),
                       ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          value: safeValue,
-                          isExpanded: true,
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8)),
-                          items: List.generate(maxCourt, (i) => i + 1).map((count) {
-                            return DropdownMenuItem<int>(
-                              value: count,
-                              child: Text(
-                                '$count Court${count > 1 ? 's' : ''}',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() => _config.courtCount = val);
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        return PopupMenuButton<int>(
+                          position: PopupMenuPosition.under,
+                          offset: const Offset(0, 6),
+                          color: Colors.white,
+                          elevation: 6,
+                          shadowColor: Colors.black.withValues(alpha: 0.15),
+                          constraints: BoxConstraints(
+                            minWidth: constraints.maxWidth,
+                            maxWidth: constraints.maxWidth,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          ),
+                          padding: EdgeInsets.zero,
+                          onOpened: () {
+                            FocusManager.instance.primaryFocus?.unfocus();
+                            setState(() => _isCourtDropdownOpen = true);
                           },
-                        ),
-                      ),
+                          onCanceled: () {
+                            setState(() => _isCourtDropdownOpen = false);
+                          },
+                          onSelected: (val) {
+                            setState(() {
+                              _config.courtCount = val;
+                              _isCourtDropdownOpen = false;
+                            });
+                          },
+                          itemBuilder: (_) => [
+                            for (int count = 1; count <= maxCourt; count++)
+                              PopupMenuItem<int>(
+                                value: count,
+                                height: 42,
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                                  decoration: BoxDecoration(
+                                    color: count == safeValue ? const Color(0xFFEBF8D8) : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        '$count Court${count > 1 ? "s" : ""}',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: count == safeValue ? FontWeight.w700 : FontWeight.w600,
+                                          color: count == safeValue ? const Color(0xFF063B00) : const Color(0xFF334155),
+                                        ),
+                                      ),
+                                      if (count == safeValue)
+                                        const Icon(
+                                          Icons.check_rounded,
+                                          size: 16,
+                                          color: Color(0xFF063B00),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: _isCourtDropdownOpen ? const Color(0xFF063B00) : const Color(0xFFE2E8F0),
+                                width: _isCourtDropdownOpen ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '$safeValue Court${safeValue > 1 ? "s" : ""}',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                                Icon(
+                                  _isCourtDropdownOpen
+                                      ? Icons.keyboard_arrow_up_rounded
+                                      : Icons.keyboard_arrow_down_rounded,
+                                  color: _isCourtDropdownOpen
+                                      ? const Color(0xFF063B00)
+                                      : const Color(0xFF94A3B8),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     if (selectedVenueModel == null)
                       Padding(
