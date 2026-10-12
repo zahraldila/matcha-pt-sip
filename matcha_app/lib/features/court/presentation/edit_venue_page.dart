@@ -1,9 +1,31 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../data/venue_service.dart';
 import '../domain/venue_model.dart';
+
+class _RegencyItem {
+  final String id;
+  final String name;
+  final String province;
+
+  const _RegencyItem({
+    required this.id,
+    required this.name,
+    required this.province,
+  });
+
+  factory _RegencyItem.fromJson(Map<String, dynamic> json) {
+    return _RegencyItem(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] as String? ?? '',
+      province: json['province'] as String? ?? '',
+    );
+  }
+}
 
 class EditVenuePage extends StatefulWidget {
   final VenueModel venue;
@@ -30,6 +52,7 @@ class _EditVenuePageState extends State<EditVenuePage> {
   late TextEditingController _picPhoneController;
   late TextEditingController _notesController;
 
+  List<_RegencyItem> _allRegencies = [];
   String _selectedCity = 'Bandung';
   String _selectedCategory = 'Padel Court'; // 'Padel Court', 'Tennis Court', 'Multi-Racquet'
   String _selectedArenaType = 'Semi-Indoor (Beratap Kanopi)';
@@ -61,26 +84,104 @@ class _EditVenuePageState extends State<EditVenuePage> {
     'Bali / Badung',
   ];
 
-  final List<String> _arenaTypeOptions = [
-    'Semi-Indoor (Beratap Kanopi)',
-    'Indoor (Gedung Tertutup)',
-    'Outdoor (Lapangan Terbuka)',
-    'Rooftop Outdoor',
+  static final List<Map<String, dynamic>> _arenaTypeDetailedOptions = [
+    {
+      'value': 'Semi-Indoor (Beratap Kanopi)',
+      'title': 'Semi-Indoor (Beratap Kanopi)',
+      'subtitle': 'Beratap pelindung kanopi dengan sirkulasi udara samping terbuka',
+      'badge': 'POPULER',
+      'icon': Icons.roofing_rounded,
+    },
+    {
+      'value': 'Indoor (Gedung Tertutup)',
+      'title': 'Indoor (Gedung Tertutup)',
+      'subtitle': 'Gedung olahraga tertutup penuh dengan tata cahaya & sirkulasi AC/exhaust',
+      'badge': 'ALL-WEATHER',
+      'icon': Icons.domain_rounded,
+    },
+    {
+      'value': 'Outdoor (Lapangan Terbuka)',
+      'title': 'Outdoor (Lapangan Terbuka)',
+      'subtitle': 'Lapangan terbuka alami dengan pencahayaan sinar matahari dan angin segar',
+      'badge': 'TERBUKA',
+      'icon': Icons.wb_sunny_rounded,
+    },
+    {
+      'value': 'Rooftop Outdoor',
+      'title': 'Rooftop Outdoor',
+      'subtitle': 'Lapangan di atap gedung dengan pemandangan kota dan suasana eksklusif',
+      'badge': 'PREMIUM',
+      'icon': Icons.location_city_rounded,
+    },
   ];
 
-  final List<String> _surfaceOptions = [
-    'Artificial Grass / Rumput Sintetis (Padel)',
-    'Hard Court (Acrylic / Beton Berpori)',
-    'Clay / Tanah Liat',
-    'Vinyl / Taraflex Court',
-    'Rumput Alami (Natural Grass)',
-    'Parquet / Kayu',
+  static final List<Map<String, dynamic>> _surfaceDetailedOptions = [
+    {
+      'value': 'Artificial Grass / Rumput Sintetis (Padel)',
+      'title': 'Rumput Sintetis (Padel)',
+      'subtitle': 'Karpet rumput sintetis berpasir silika standar FIP/WPT, ideal untuk padel',
+      'badge': 'STANDAR PADEL',
+      'icon': Icons.grass_rounded,
+    },
+    {
+      'value': 'Hard Court (Acrylic / Beton Berpori)',
+      'title': 'Hard Court (Acrylic / Beton)',
+      'subtitle': 'Permukaan keras beraspal/akrilik dengan pantulan bola cepat & konsisten',
+      'badge': 'STANDAR TENIS',
+      'icon': Icons.layers_rounded,
+    },
+    {
+      'value': 'Clay / Tanah Liat',
+      'title': 'Clay / Tanah Liat',
+      'subtitle': 'Permukaan tanah liat merah klasik dengan tempo permainan lambat & slide',
+      'badge': 'KLASIK',
+      'icon': Icons.terrain_rounded,
+    },
+    {
+      'value': 'Vinyl / Taraflex Court',
+      'title': 'Vinyl / Taraflex Court',
+      'subtitle': 'Lantai sintetis empuk dengan peredam kejut maksimal untuk sendi lutut',
+      'badge': 'INDOOR PRO',
+      'icon': Icons.crop_square_rounded,
+    },
+    {
+      'value': 'Rumput Alami (Natural Grass)',
+      'title': 'Rumput Alami (Natural Grass)',
+      'subtitle': 'Permukaan rumput alami hijau tradisional gaya Wimbledon',
+      'badge': 'TRADISIONAL',
+      'icon': Icons.yard_rounded,
+    },
+    {
+      'value': 'Parquet / Kayu',
+      'title': 'Parquet / Lantai Kayu',
+      'subtitle': 'Lantai kayu solid indoor dengan elastisitas pantulan tinggi',
+      'badge': 'MULTI-SPORT',
+      'icon': Icons.grid_view_rounded,
+    },
   ];
 
-  final List<String> _operatingDayOptions = [
-    'Setiap Hari (Senin – Minggu)',
-    'Senin – Jumat (Weekdays Saja)',
-    'Sabtu – Minggu (Weekend Saja)',
+  static final List<Map<String, dynamic>> _operatingDayDetailedOptions = [
+    {
+      'value': 'Setiap Hari (Senin – Minggu)',
+      'title': 'Setiap Hari (Senin – Minggu)',
+      'subtitle': 'Buka setiap hari 7 hari seminggu tanpa libur reguler',
+      'badge': 'REKOMENDASI',
+      'icon': Icons.calendar_today_rounded,
+    },
+    {
+      'value': 'Senin – Jumat (Weekdays Saja)',
+      'title': 'Senin – Jumat (Weekdays Saja)',
+      'subtitle': 'Khusus hari kerja reguler, akhir pekan libur',
+      'badge': 'WEEKDAYS',
+      'icon': Icons.work_outline_rounded,
+    },
+    {
+      'value': 'Sabtu – Minggu (Weekend Saja)',
+      'title': 'Sabtu – Minggu (Weekend Saja)',
+      'subtitle': 'Khusus akhir pekan sabtu dan minggu saja',
+      'badge': 'WEEKEND ONLY',
+      'icon': Icons.weekend_outlined,
+    },
   ];
 
   final List<Map<String, dynamic>> _facilityMaster = [
@@ -101,6 +202,7 @@ class _EditVenuePageState extends State<EditVenuePage> {
   @override
   void initState() {
     super.initState();
+    _loadRegencies();
     final v = widget.venue;
     _nameController = TextEditingController(text: v.namaVenue);
     _addressController = TextEditingController(text: v.alamat ?? '');
@@ -136,9 +238,7 @@ class _EditVenuePageState extends State<EditVenuePage> {
 
     // Operating days & hours parse
     if (v.hariBuka != null && v.hariBuka!.isNotEmpty) {
-      if (_operatingDayOptions.contains(v.hariBuka)) {
-        _selectedOperatingDays = v.hariBuka!;
-      }
+      _selectedOperatingDays = v.hariBuka!;
     }
 
     if (v.jamOperasional != null && v.jamOperasional!.contains('-')) {
@@ -209,6 +309,344 @@ class _EditVenuePageState extends State<EditVenuePage> {
     _picPhoneController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRegencies() async {
+    try {
+      final jsonStr = await rootBundle.loadString('assets/indonesia-regencies.json');
+      final List<dynamic> data = jsonDecode(jsonStr);
+      if (!mounted) return;
+      setState(() {
+        _allRegencies = data
+            .map((e) => _RegencyItem.fromJson(e as Map<String, dynamic>))
+            .toList();
+      });
+    } catch (e) {
+      debugPrint('Error loading regencies in EditVenuePage: $e');
+    }
+  }
+
+  Future<void> _openCitySearchPicker() async {
+    if (_allRegencies.isEmpty) {
+      await _loadRegencies();
+    }
+    if (!mounted) return;
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _CitySearchBottomSheet(
+        regencies: _allRegencies,
+        fallbackCities: _cityOptions,
+        selectedCity: _selectedCity,
+      ),
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedCity = selected;
+      });
+    }
+  }
+
+  Widget _buildCitySelectorTile() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildInputLabel('Kota / Kabupaten', isRequired: true),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: _openCitySearchPicker,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.location_city_rounded, size: 18, color: Color(0xFF64748B)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _selectedCity.isNotEmpty ? _selectedCity : 'Pilih Kota / Kabupaten',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _selectedCity.isNotEmpty ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: Color(0xFF94A3B8)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSelectorTile<T>({
+    required String label,
+    required T value,
+    required List<Map<String, dynamic>> options,
+    required VoidCallback onTap,
+    IconData? icon,
+    bool isRequired = false,
+  }) {
+    Map<String, dynamic> selectedOption = options.first;
+    for (final opt in options) {
+      if (opt['value'] == value) {
+        selectedOption = opt;
+        break;
+      }
+    }
+    if (selectedOption['value'] != value && value is String) {
+      final normVal = value.replaceAll('–', '-').trim().toLowerCase();
+      for (final opt in options) {
+        final optVal = (opt['value'] as String).replaceAll('–', '-').trim().toLowerCase();
+        if (optVal == normVal || optVal.contains(normVal) || normVal.contains(optVal)) {
+          selectedOption = opt;
+          break;
+        }
+      }
+    }
+    final displayText = (selectedOption['label'] ?? selectedOption['title'] ?? '$value') as String;
+    final itemIcon = icon ?? (selectedOption['icon'] as IconData? ?? Icons.tune_rounded);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildInputLabel(label, isRequired: isRequired),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                Icon(itemIcon, size: 18, color: const Color(0xFF64748B)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    displayText,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: Color(0xFF94A3B8)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showMatchaPickerBottomSheet<T>({
+    required String title,
+    required String subtitle,
+    required List<Map<String, dynamic>> items,
+    required T selectedValue,
+    required ValueChanged<T> onSelect,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 22),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 12),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: items.map((item) {
+                      final val = item['value'] as T;
+                      final isSelected = val == selectedValue ||
+                          (val is String &&
+                              selectedValue is String &&
+                              val.replaceAll('–', '-').trim().toLowerCase() ==
+                                  selectedValue.replaceAll('–', '-').trim().toLowerCase());
+                      final itemTitle = (item['label'] ?? item['title']) as String;
+                      final itemSub = item['subtitle'] as String? ?? '';
+                      final itemBadge = item['badge'] as String?;
+                      final itemIcon = item['icon'] as IconData? ?? Icons.check_circle_outline_rounded;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: InkWell(
+                          onTap: () {
+                            onSelect(val);
+                            Navigator.pop(ctx);
+                          },
+                          borderRadius: BorderRadius.circular(14),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.matchaSoftLime.withValues(alpha: 0.45) : Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(9),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? AppColors.matchaDark : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    itemIcon,
+                                    size: 18,
+                                    color: isSelected ? AppColors.matchaLime : const Color(0xFF94A3B8),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              itemTitle,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                                color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (itemBadge != null) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                              decoration: BoxDecoration(
+                                                color: isSelected ? AppColors.matchaDark : const Color(0xFFF1F5F9),
+                                                borderRadius: BorderRadius.circular(5),
+                                              ),
+                                              child: Text(
+                                                itemBadge,
+                                                style: TextStyle(
+                                                  fontSize: 8.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isSelected ? AppColors.matchaLime : const Color(0xFF334155),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      if (itemSub.isNotEmpty) ...[
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          itemSub,
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            color: isSelected ? AppColors.matchaDark.withValues(alpha: 0.8) : const Color(0xFF94A3B8),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Icon(
+                                  isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                  color: isSelected ? AppColors.matchaDark : const Color(0xFFCBD5E1),
+                                  size: 20,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _handleSave() async {
@@ -357,36 +795,7 @@ class _EditVenuePageState extends State<EditVenuePage> {
                   ),
                   const SizedBox(height: 14),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildInputLabel('Kota / Kabupaten', isRequired: true),
-                            const SizedBox(height: 6),
-                            DropdownButtonFormField<String>(
-                              initialValue: _selectedCity,
-                              isExpanded: true,
-                              items: _cityOptions.map((city) {
-                                return DropdownMenuItem(
-                                  value: city,
-                                  child: Text(city, style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A))),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) setState(() => _selectedCity = val);
-                              },
-                              decoration: _inputDecoration(
-                                hint: 'Pilih Kota',
-                                prefixIcon: Icons.location_city_rounded,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildCitySelectorTile(),
                   const SizedBox(height: 14),
 
                   _buildInputLabel('Link Google Maps (Opsional)'),
@@ -444,39 +853,41 @@ class _EditVenuePageState extends State<EditVenuePage> {
                   ),
                   const SizedBox(height: 14),
 
-                  _buildInputLabel('Tipe Arena Lapangan'),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedArenaType,
-                    isExpanded: true,
-                    items: _arenaTypeOptions.map((type) {
-                      return DropdownMenuItem(
-                        value: type,
-                        child: Text(type, style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A))),
+                  _buildSelectorTile(
+                    label: 'Tipe Arena Lapangan',
+                    value: _selectedArenaType,
+                    options: _arenaTypeDetailedOptions,
+                    icon: Icons.roofing_rounded,
+                    onTap: () {
+                      _showMatchaPickerBottomSheet(
+                        title: 'Tipe Arena Lapangan',
+                        subtitle: 'Pilih tipe pelindung dan struktur venue Anda',
+                        items: _arenaTypeDetailedOptions,
+                        selectedValue: _selectedArenaType,
+                        onSelect: (val) {
+                          setState(() => _selectedArenaType = val);
+                        },
                       );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedArenaType = val);
                     },
-                    decoration: _inputDecoration(hint: 'Pilih Tipe Arena'),
                   ),
                   const SizedBox(height: 14),
 
-                  _buildInputLabel('Jenis Permukaan / Karpet'),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedSurface,
-                    isExpanded: true,
-                    items: _surfaceOptions.map((surf) {
-                      return DropdownMenuItem(
-                        value: surf,
-                        child: Text(surf, style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A))),
+                  _buildSelectorTile(
+                    label: 'Jenis Permukaan / Karpet',
+                    value: _selectedSurface,
+                    options: _surfaceDetailedOptions,
+                    icon: Icons.grass_rounded,
+                    onTap: () {
+                      _showMatchaPickerBottomSheet(
+                        title: 'Jenis Permukaan / Karpet',
+                        subtitle: 'Pilih material karpet lapangan yang digunakan',
+                        items: _surfaceDetailedOptions,
+                        selectedValue: _selectedSurface,
+                        onSelect: (val) {
+                          setState(() => _selectedSurface = val);
+                        },
                       );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedSurface = val);
                     },
-                    decoration: _inputDecoration(hint: 'Pilih Jenis Permukaan'),
                   ),
                 ],
               ),
@@ -580,21 +991,22 @@ class _EditVenuePageState extends State<EditVenuePage> {
                   ),
                   const SizedBox(height: 14),
 
-                  _buildInputLabel('Hari Operasional'),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedOperatingDays,
-                    isExpanded: true,
-                    items: _operatingDayOptions.map((day) {
-                      return DropdownMenuItem(
-                        value: day,
-                        child: Text(day, style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A))),
+                  _buildSelectorTile(
+                    label: 'Hari Operasional',
+                    value: _selectedOperatingDays,
+                    options: _operatingDayDetailedOptions,
+                    icon: Icons.calendar_today_rounded,
+                    onTap: () {
+                      _showMatchaPickerBottomSheet(
+                        title: 'Hari Operasional',
+                        subtitle: 'Tentukan hari buka rutin venue Anda setiap minggunya',
+                        items: _operatingDayDetailedOptions,
+                        selectedValue: _selectedOperatingDays,
+                        onSelect: (val) {
+                          setState(() => _selectedOperatingDays = val);
+                        },
                       );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedOperatingDays = val);
                     },
-                    decoration: _inputDecoration(hint: 'Pilih Hari Operasional'),
                   ),
                   const SizedBox(height: 14),
 
@@ -920,6 +1332,242 @@ class _EditVenuePageState extends State<EditVenuePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Searchable Kota / Kabupaten Bottom Sheet
+// ---------------------------------------------------------------------------
+class _CitySearchBottomSheet extends StatefulWidget {
+  final List<_RegencyItem> regencies;
+  final List<String> fallbackCities;
+  final String? selectedCity;
+
+  const _CitySearchBottomSheet({
+    required this.regencies,
+    required this.fallbackCities,
+    this.selectedCity,
+  });
+
+  @override
+  State<_CitySearchBottomSheet> createState() => _CitySearchBottomSheetState();
+}
+
+class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
+  final _searchController = TextEditingController();
+  List<_RegencyItem> _all = [];
+  List<_RegencyItem> _filtered = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.regencies.isNotEmpty) {
+      _all = widget.regencies;
+    } else {
+      _all = widget.fallbackCities
+          .map((c) => _RegencyItem(id: c, name: c, province: 'Indonesia'))
+          .toList();
+    }
+    _filtered = _all;
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    final q = _searchController.text.trim().toLowerCase();
+    setState(() {
+      if (q.isEmpty) {
+        _filtered = _all;
+      } else {
+        _filtered = _all
+            .where((item) =>
+                item.name.toLowerCase().contains(q) ||
+                item.province.toLowerCase().contains(q))
+            .toList();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.8,
+      padding: EdgeInsets.only(bottom: bottomInset),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 10),
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Pilih Kota / Kabupaten',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      'Daftar wilayah se-Indonesia (${_all.length} kota/kabupaten)',
+                      style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF334155)),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _searchController,
+              autofocus: false,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              decoration: InputDecoration(
+                hintText: 'Cari kota atau kabupaten...',
+                hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 16, color: Color(0xFF94A3B8)),
+                        onPressed: () => _searchController.clear(),
+                      )
+                    : null,
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(14)),
+                  borderSide: BorderSide(color: AppColors.matchaDark, width: 1.5),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Expanded(
+            child: _filtered.isEmpty
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'Kota / Kabupaten tidak ditemukan.\nCoba kata kunci lain.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _filtered.length,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    itemBuilder: (context, index) {
+                      final item = _filtered[index];
+                      final isSelected = widget.selectedCity != null &&
+                          widget.selectedCity!.toLowerCase() == item.name.toLowerCase();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: InkWell(
+                          onTap: () => Navigator.pop(context, item.name),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.matchaSoftLime.withValues(alpha: 0.7) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              border: isSelected
+                                  ? Border.all(color: AppColors.matchaDark, width: 1.2)
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.location_city_outlined,
+                                  size: 16,
+                                  color: isSelected ? AppColors.matchaDark : const Color(0xFF94A3B8),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.name,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                                          color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        item.province,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                          color: isSelected ? AppColors.matchaDark.withValues(alpha: 0.8) : const Color(0xFF94A3B8),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 18,
+                                    color: AppColors.matchaDark,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
