@@ -293,8 +293,9 @@ class MatchService {
 
   /// Mengambil daftar match untuk suatu session_id beserta detail court, pemain, dan skor
   Future<List<Map<String, dynamic>>> getMatchesForSession(
-    dynamic sessionId,
-  ) async {
+    dynamic sessionId, {
+    int? courtCount,
+  }) async {
     try {
       if (sessionId == null) return [];
       final parsedSessionId = int.tryParse(sessionId.toString()) ?? sessionId;
@@ -314,16 +315,25 @@ class MatchService {
         return [];
       }
 
-      int sessionCourtCount = 1;
-      try {
-        final sCourts = await _supabase
-            .from('tb_session_court')
-            .select('court_id')
-            .eq('session_id', parsedSessionId);
-        if ((sCourts as List).isNotEmpty) {
-          sessionCourtCount = sCourts.length;
-        }
-      } catch (_) {}
+      int sessionCourtCount = (courtCount != null && courtCount > 0) ? courtCount : 0;
+      if (sessionCourtCount <= 0) {
+        try {
+          final sCourts = await _supabase
+              .from('tb_session_court')
+              .select('court_id')
+              .eq('session_id', parsedSessionId);
+          if ((sCourts as List).isNotEmpty) {
+            final uniqueCourtIds = (sCourts as List)
+                .map((c) => int.tryParse(c['court_id']?.toString() ?? ''))
+                .whereType<int>()
+                .where((id) => id > 0)
+                .toSet();
+            if (uniqueCourtIds.isNotEmpty) {
+              sessionCourtCount = uniqueCourtIds.length;
+            }
+          }
+        } catch (_) {}
+      }
       final effectiveCourtCount = sessionCourtCount > 0 ? sessionCourtCount : 1;
 
       // Batch ambil partisipan untuk seluruh match dalam drawing
@@ -763,24 +773,29 @@ class MatchService {
     required dynamic sessionId,
     required int currentRoundNum,
     required int nextRoundNum,
+    RealtimeChannel? activeChannel,
   }) async {
+    final channelName = sessionId != null ? 'session_$sessionId' : 'match_arena_live';
+    final payload = {
+      'session_id': sessionId,
+      'current_round': 'round_$currentRoundNum',
+      'current_round_num': currentRoundNum,
+      'next_round': 'round_$nextRoundNum',
+      'next_round_num': nextRoundNum,
+      'active_round': nextRoundNum,
+      'session_active_round': nextRoundNum,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    };
     try {
-      final channelName = sessionId != null ? 'session_$sessionId' : 'match_arena_live';
-      final channel = _supabase.channel(channelName);
-      await channel.sendBroadcastMessage(
+      final channel = activeChannel ?? _supabase.channel(channelName);
+      final res = await channel.sendBroadcastMessage(
         event: 'round_advanced',
-        payload: {
-          'session_id': sessionId,
-          'current_round': 'round_$currentRoundNum',
-          'current_round_num': currentRoundNum,
-          'next_round': 'round_$nextRoundNum',
-          'next_round_num': nextRoundNum,
-          'active_round': nextRoundNum,
-          'session_active_round': nextRoundNum,
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-        },
+        payload: payload,
       );
-    } catch (_) {}
+      debugPrint('[MATCHA_DEBUG] [Broadcast] round_advanced sent to $channelName (status: $res, payload: $payload)');
+    } catch (e) {
+      debugPrint('[MATCHA_ERROR] [Broadcast] Gagal broadcast round_advanced ke $channelName: $e');
+    }
   }
 
   /// Memperbarui status pertandingan ronde berikutnya menjadi In Progress pada tb_match
@@ -791,6 +806,10 @@ class MatchService {
   }) async {
     try {
       if (sessionId == null) return;
+      final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+      final drawingId = await getLatestDrawingId(parsedId);
+      debugPrint('[MATCHA_DEBUG] [AdvanceMatches] sessionId=$parsedId drawingId=$drawingId roundNumber=$roundNumber matchIds=$matchIds');
+
       if (matchIds != null && matchIds.isNotEmpty) {
         await _supabase
             .from('tb_match')
@@ -798,15 +817,18 @@ class MatchService {
             .inFilter('match_id', matchIds);
         return;
       }
-      final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
-      final drawingId = await getLatestDrawingId(parsedId);
       if (drawingId == null) return;
 
       final sCourts = await _supabase
           .from('tb_session_court')
           .select('court_id')
           .eq('session_id', parsedId);
-      final courtCount = (sCourts as List).isNotEmpty ? sCourts.length : 1;
+      final uniqueCourtIds = (sCourts as List)
+          .map((c) => int.tryParse(c['court_id']?.toString() ?? ''))
+          .whereType<int>()
+          .where((id) => id > 0)
+          .toSet();
+      final courtCount = uniqueCourtIds.isNotEmpty ? uniqueCourtIds.length : 1;
 
       final startMatchNo = (roundNumber - 1) * courtCount + 1;
       final endMatchNo = roundNumber * courtCount;
@@ -817,7 +839,9 @@ class MatchService {
           .eq('drawing_id', drawingId)
           .gte('nomor_match', startMatchNo)
           .lte('nomor_match', endMatchNo);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[MATCHA_ERROR] [AdvanceMatches] Gagal update status match ronde $roundNumber: $e');
+    }
   }
 
   /// Memperbarui status sesi menjadi Finished dan broadcast event session_finished
@@ -1140,12 +1164,10 @@ class MatchService {
 
     final List<DrawingRound> savedRounds = [];
     final int effectiveCourtCount = courtIds.length;
-    int matchCounter = 0;
 
     for (final round in rounds) {
       final List<DrawingMatch> savedMatches = [];
       for (final match in round.matches) {
-        matchCounter++;
         if (match.courtNumber < 1 ||
             match.courtNumber > effectiveCourtCount) {
           throw Exception('Nomor court pertandingan tidak valid.');
@@ -1157,13 +1179,17 @@ class MatchService {
             (round.roundNumber - 1) * effectiveCourtCount +
             match.courtNumber;
 
+        final initialStatus = round.roundNumber == 1
+            ? (matchStatus.isNotEmpty ? matchStatus : 'In Progress')
+            : 'Scheduled';
+
         final matchInsert = await _supabase
             .from('tb_match')
             .insert({
               'drawing_id': drawingId,
-              if (courtId != null) 'court_id': courtId,
+              'court_id': courtId,
               'nomor_match': nomorMatch,
-              'status_match': matchStatus,
+              'status_match': initialStatus,
               'created_at': DateTime.now().toIso8601String(),
             })
             .select('match_id')
@@ -1233,6 +1259,7 @@ class MatchService {
   Future<List<DrawingRound>?> loadSavedDrawing({
     required dynamic sessionId,
     List<GamePlayerItem>? registeredPlayers,
+    int? courtCount,
   }) async {
     try {
       if (sessionId == null) return null;
@@ -1337,16 +1364,25 @@ class MatchService {
       }
 
       // 3. Map match per ronde dengan rekonstruksi dari nomor_match (Web parity)
-      int sessionCourtCount = 1;
-      try {
-        final sCourts = await _supabase
-            .from('tb_session_court')
-            .select('court_id')
-            .eq('session_id', parsedSessionId);
-        if ((sCourts as List).isNotEmpty) {
-          sessionCourtCount = sCourts.length;
-        }
-      } catch (_) {}
+      int sessionCourtCount = (courtCount != null && courtCount > 0) ? courtCount : 0;
+      if (sessionCourtCount <= 0) {
+        try {
+          final sCourts = await _supabase
+              .from('tb_session_court')
+              .select('court_id')
+              .eq('session_id', parsedSessionId);
+          if ((sCourts as List).isNotEmpty) {
+            final uniqueCourtIds = (sCourts as List)
+                .map((c) => int.tryParse(c['court_id']?.toString() ?? ''))
+                .whereType<int>()
+                .where((id) => id > 0)
+                .toSet();
+            if (uniqueCourtIds.isNotEmpty) {
+              sessionCourtCount = uniqueCourtIds.length;
+            }
+          }
+        } catch (_) {}
+      }
       final effectiveCourtCount = sessionCourtCount > 0 ? sessionCourtCount : 1;
 
       final Map<int, List<DrawingMatch>> roundMap = {};
@@ -1447,6 +1483,7 @@ class MatchService {
     required List<DrawingRound> rounds,
     List<GamePlayerItem>? allPlayers,
     int? matchFormatId,
+    int? courtCount,
   }) async {
     if (sessionId == null) return rounds;
     final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
@@ -1474,17 +1511,40 @@ class MatchService {
         rounds: rounds,
         matchStatus: 'In Progress',
         allPlayers: allPlayers,
+        courtCount: courtCount,
         matchFormatId: matchFormatId,
       );
     } else if (drawingId > 0) {
+      final sCourts = await _supabase
+          .from('tb_session_court')
+          .select('court_id')
+          .eq('session_id', parsedId);
+      final uniqueCourtIds = (sCourts as List)
+          .map((c) => int.tryParse(c['court_id']?.toString() ?? ''))
+          .whereType<int>()
+          .where((id) => id > 0)
+          .toSet();
+      final effectiveCourtCount = courtCount ?? (uniqueCourtIds.isNotEmpty ? uniqueCourtIds.length : 1);
+
       await _supabase
           .from('tb_match')
           .update({'status_match': 'In Progress'})
-          .eq('drawing_id', drawingId);
+          .eq('drawing_id', drawingId)
+          .lte('nomor_match', effectiveCourtCount);
+
+      await _supabase
+          .from('tb_match')
+          .update({'status_match': 'Scheduled'})
+          .eq('drawing_id', drawingId)
+          .gt('nomor_match', effectiveCourtCount);
 
       final hasNullMatchId = rounds.any((r) => r.matches.any((m) => m.matchId == null || m.matchId! <= 0));
       if (hasNullMatchId) {
-        final reloaded = await loadSavedDrawing(sessionId: parsedId, registeredPlayers: allPlayers);
+        final reloaded = await loadSavedDrawing(
+          sessionId: parsedId,
+          registeredPlayers: allPlayers,
+          courtCount: courtCount,
+        );
         if (reloaded != null && reloaded.isNotEmpty) {
           finalRounds = reloaded;
         }

@@ -48,7 +48,10 @@ class MockMatchService extends MatchService {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getMatchesForSession(dynamic sessionId) async {
+  Future<List<Map<String, dynamic>>> getMatchesForSession(
+    dynamic sessionId, {
+    int? courtCount,
+  }) async {
     if (shouldThrowRoster) {
       throw Exception('Database participant query failed');
     }

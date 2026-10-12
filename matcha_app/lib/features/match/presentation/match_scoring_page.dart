@@ -149,6 +149,8 @@ class MatchScoringPageState extends State<MatchScoringPage> {
   bool _hasSessionLoadError = false;
   String? _sessionLoadErrorMessage;
   bool _isSessionFinished = false;
+  bool _isAdvancingRound = false;
+  int? _drawingId;
 
   int? _sessionHostUserId;
 
@@ -321,12 +323,20 @@ class MatchScoringPageState extends State<MatchScoringPage> {
         return i;
       }
 
-      // Jika ronde i sudah selesai tapi ronde berikutnya belum dimulai (belum ada poin/match jalan),
+      // Jika ronde i sudah selesai tapi ronde berikutnya belum dimulai (belum ada skor/permainan berjalan),
       // maka ronde aktif tetap ronde i (menunggu Host klik "Lanjut ke Ronde i+1").
       if (i + 1 < rounds.length) {
         final nextMatches = rounds[i + 1].matches;
         final nextStarted = nextMatches.any(
-          (m) => m.status == 'In Progress' || m.status == 'Completed' || m.scoreA > 0 || m.scoreB > 0,
+          (m) =>
+              m.status == 'In Progress' ||
+              m.status == 'Completed' ||
+              m.scoreA > 0 ||
+              m.scoreB > 0 ||
+              (m.pointDisplayA != '0' && m.pointDisplayA.isNotEmpty) ||
+              (m.pointDisplayB != '0' && m.pointDisplayB.isNotEmpty) ||
+              (m.idxA > 0) ||
+              (m.idxB > 0),
         );
         if (!nextStarted) {
           return i;
@@ -574,9 +584,14 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
       // 2. Ambil matches & scores riil dari backend
 
-      final dbMatches = await _matchService.getMatchesForSession(widget.sessionId);
+      final dbMatches = await _matchService.getMatchesForSession(
+        widget.sessionId,
+        courtCount: _config.courtCount > 0 ? _config.courtCount : null,
+      );
 
       if (dbMatches.isNotEmpty) {
+        final rawFirst = dbMatches.first['rawMatch'] as Map<String, dynamic>?;
+        _drawingId = rawFirst?['drawing_id'] as int?;
 
         final Map<int, List<DrawingMatch>> roundMap = {};
 
@@ -584,9 +599,13 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
           final rawMatch = m['rawMatch'] as Map<String, dynamic>?;
 
-          final rNum = (m['roundNumber'] ?? rawMatch?['round_number'] ?? 1) as int;
+          final nomorMatch = m['nomorMatch'] is int
+              ? m['nomorMatch'] as int
+              : (int.tryParse(m['nomorMatch']?.toString() ?? '') ?? 1);
+          final effectiveCourtCount = _config.courtCount > 0 ? _config.courtCount : 1;
+          final rNum = (m['roundNumber'] ?? rawMatch?['round_number'] ?? (((nomorMatch - 1) ~/ effectiveCourtCount) + 1)) as int;
 
-          final courtNum = (m['courtNumber'] ?? rawMatch?['court_id'] ?? m['nomorMatch'] ?? 1) as int;
+          final courtNum = (m['courtNumber'] as int?) ?? (((nomorMatch - 1) % effectiveCourtCount) + 1);
 
 
 
@@ -767,7 +786,13 @@ class MatchScoringPageState extends State<MatchScoringPage> {
         }
 
       } else {
-        final savedDrawing = await _matchService.loadSavedDrawing(sessionId: widget.sessionId);
+        final savedDrawing = await _matchService.loadSavedDrawing(
+          sessionId: widget.sessionId,
+          courtCount: _config.courtCount > 0 ? _config.courtCount : null,
+        );
+        if (widget.sessionId != null && _drawingId == null) {
+          _drawingId = await _matchService.getLatestDrawingId(widget.sessionId);
+        }
         if (savedDrawing != null && savedDrawing.isNotEmpty) {
           _rounds = savedDrawing;
           _sessionActiveRoundIndex = _resolveActiveRoundIndex(_rounds);
@@ -819,19 +844,20 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
   void _subscribeRealtime() {
-
     if (widget.sessionId == null) return;
 
+    if (_realtimeChannel != null) {
+      _matchService.unsubscribe(_realtimeChannel);
+      _realtimeChannel = null;
+    }
+
     try {
-
       _realtimeChannel = _matchService.subscribeLiveSession(
-
         sessionId: widget.sessionId,
-
         onDataChanged: _onRealtimeScoreChanged,
-
         onRoundAdvanced: (payload) {
           if (!mounted) return;
+          debugPrint('[MATCHA_DEBUG] [RoundAdvance] Diterima payload: $payload (sessionId=${widget.sessionId}, drawingId=$_drawingId, activeRoundIndex=$_sessionActiveRoundIndex)');
           int? nextRoundNum;
           final raw = payload['next_round_num'] ??
               payload['next_round'] ??
@@ -845,21 +871,34 @@ class MatchScoringPageState extends State<MatchScoringPage> {
               nextRoundNum = int.tryParse(digits);
             }
           }
-          if (nextRoundNum != null && nextRoundNum > 0) {
-            final nextIdx = nextRoundNum - 1;
-            if (nextIdx < _rounds.length && nextIdx > _sessionActiveRoundIndex) {
-              setState(() {
-                _sessionActiveRoundIndex = nextIdx;
-                _viewedRoundIndex = nextIdx;
-                _selectedCourtIndex = 0;
-                for (final m in _rounds[nextIdx].matches) {
-                  if (m.status == 'Scheduled') {
-                    m.status = 'In Progress';
-                  }
-                }
-              });
-            }
+
+          if (nextRoundNum == null || nextRoundNum <= 0) {
+            debugPrint('[MATCHA_DEBUG] [RoundAdvance] Ditolak: Gagal parse nomor ronde dari raw=$raw (payload=$payload)');
+            return;
           }
+
+          final nextIdx = nextRoundNum - 1;
+          if (nextIdx <= _sessionActiveRoundIndex) {
+            debugPrint('[MATCHA_DEBUG] [RoundAdvance] Ditolak: Event lama/duplikat (target nextIdx=$nextIdx <= active=$_sessionActiveRoundIndex, sessionId=${widget.sessionId}, drawingId=$_drawingId)');
+            return;
+          }
+
+          if (nextIdx >= _rounds.length) {
+            debugPrint('[MATCHA_DEBUG] [RoundAdvance] Ditolak: Target nextIdx=$nextIdx melampaui total rounds (${_rounds.length}, sessionId=${widget.sessionId}, drawingId=$_drawingId)');
+            return;
+          }
+
+          debugPrint('[MATCHA_DEBUG] [RoundAdvance] Diterapkan: Transisi ronde $_sessionActiveRoundIndex -> $nextIdx (Ronde $nextRoundNum, sessionId=${widget.sessionId}, drawingId=$_drawingId)');
+          setState(() {
+            _sessionActiveRoundIndex = nextIdx;
+            _viewedRoundIndex = nextIdx;
+            _selectedCourtIndex = 0;
+            for (final m in _rounds[nextIdx].matches) {
+              if (m.status == 'Scheduled') {
+                m.status = 'In Progress';
+              }
+            }
+          });
         },
         onSessionFinished: (payload) {
           if (!mounted) return;
@@ -867,17 +906,11 @@ class MatchScoringPageState extends State<MatchScoringPage> {
             _isSessionFinished = true;
           });
         },
-
       );
-
       _isRealtimeConnected = true;
-
     } catch (_) {
-
       _isRealtimeConnected = false;
-
     }
-
   }
 
 
@@ -892,7 +925,10 @@ class MatchScoringPageState extends State<MatchScoringPage> {
         return;
       }
 
-      final dbMatches = await _matchService.getMatchesForSession(widget.sessionId);
+      final dbMatches = await _matchService.getMatchesForSession(
+        widget.sessionId,
+        courtCount: _config.courtCount > 0 ? _config.courtCount : null,
+      );
 
       if (dbMatches.isEmpty) return;
 
@@ -1114,16 +1150,19 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
         }
 
-
-
-        // Resolusi ronde aktif secara konsisten menggunakan state ronde
-        final resolvedActiveRound = _resolveActiveRoundIndex(_rounds);
-        if (resolvedActiveRound > _sessionActiveRoundIndex) {
-          final wasViewingActive = _viewedRoundIndex == _sessionActiveRoundIndex;
-          _sessionActiveRoundIndex = resolvedActiveRound;
-          if (wasViewingActive || _viewedRoundIndex < _sessionActiveRoundIndex) {
-            _viewedRoundIndex = _sessionActiveRoundIndex;
-            _selectedCourtIndex = 0;
+        // Rekonsiliasi persistensi resmi:
+        // Jika Player sempat melewatkan event realtime round_advanced,
+        // cek apakah tb_match dari backend sudah menunjukkan bahwa Host memajukan ke ronde berikutnya.
+        final persistentActiveRound = _resolveActiveRoundIndex(_rounds);
+        if (persistentActiveRound > _sessionActiveRoundIndex) {
+          debugPrint('[MATCHA_DEBUG] [Reconciliation] Terdeteksi ronde persisten lebih baru: $_sessionActiveRoundIndex -> $persistentActiveRound (sessionId=${widget.sessionId}, drawingId=$_drawingId)');
+          _sessionActiveRoundIndex = persistentActiveRound;
+          _viewedRoundIndex = persistentActiveRound;
+          _selectedCourtIndex = 0;
+          for (final m in _rounds[persistentActiveRound].matches) {
+            if (m.status == 'Scheduled') {
+              m.status = 'In Progress';
+            }
           }
         }
       });
@@ -1777,54 +1816,56 @@ class MatchScoringPageState extends State<MatchScoringPage> {
     });
   }
 
-  void _advanceToNextRound() {
-
+  Future<void> _advanceToNextRound() async {
     if (!isHost) return;
-
+    if (_isAdvancingRound) return;
     if (_sessionActiveRoundIndex >= _rounds.length - 1) return;
 
-    final curr = _sessionActiveRoundIndex + 1;
+    _isAdvancingRound = true;
+    try {
+      final currentRoundNum = _sessionActiveRoundIndex + 1;
+      final nextRoundNum = _sessionActiveRoundIndex + 2;
+      final nextIdx = _sessionActiveRoundIndex + 1;
 
-    final next = _sessionActiveRoundIndex + 2;
+      debugPrint('[MATCHA_DEBUG] [HostAdvance] Memulai transisi: sessionId=${widget.sessionId}, drawingId=$_drawingId, Ronde $currentRoundNum -> Ronde $nextRoundNum (index $_sessionActiveRoundIndex -> $nextIdx)');
 
-
-
-    setState(() {
-      _sessionActiveRoundIndex++;
-      _viewedRoundIndex = _sessionActiveRoundIndex;
-      _selectedCourtIndex = 0;
-      for (final m in _rounds[_sessionActiveRoundIndex].matches) {
-        if (m.status == 'Scheduled') {
-          m.status = 'In Progress';
-        }
-      }
-    });
-
-    if (widget.sessionId != null) {
-      final nextMatches = _rounds[_sessionActiveRoundIndex].matches;
-      final matchIds = nextMatches.map((m) => m.matchId).whereType<int>().toList();
-      _matchService.advanceRoundMatches(
-        sessionId: widget.sessionId,
-        roundNumber: next,
-        matchIds: matchIds,
-      );
-      _matchService.broadcastRoundAdvanced(
-        sessionId: widget.sessionId,
-        currentRoundNum: curr,
-        nextRoundNum: next,
-      );
-      try {
-        _realtimeChannel?.sendBroadcastMessage(
-          event: 'round_advanced',
-          payload: {
-            'session_id': widget.sessionId,
-            'current_round_num': curr,
-            'next_round_num': next,
-            'session_active_round': next,
-            'timestamp': DateTime.now().millisecondsSinceEpoch,
-          },
+      if (widget.sessionId != null) {
+        final nextMatches = _rounds[nextIdx].matches;
+        final matchIds = nextMatches.map((m) => m.matchId).whereType<int>().toList();
+        
+        // 1. Simpan transisi ronde ke tb_match secara resmi
+        await _matchService.advanceRoundMatches(
+          sessionId: widget.sessionId,
+          roundNumber: nextRoundNum,
+          matchIds: matchIds,
         );
-      } catch (_) {}
+
+        // 2. Broadcast event round_advanced via realtime channel aktif
+        await _matchService.broadcastRoundAdvanced(
+          sessionId: widget.sessionId,
+          currentRoundNum: currentRoundNum,
+          nextRoundNum: nextRoundNum,
+          activeChannel: _realtimeChannel,
+        );
+      }
+
+      // 3. Perbarui state Host setelah persistensi dan broadcast selesai
+      setState(() {
+        _sessionActiveRoundIndex = nextIdx;
+        _viewedRoundIndex = _sessionActiveRoundIndex;
+        _selectedCourtIndex = 0;
+        for (final m in _rounds[_sessionActiveRoundIndex].matches) {
+          if (m.status == 'Scheduled') {
+            m.status = 'In Progress';
+          }
+        }
+      });
+
+      debugPrint('[MATCHA_DEBUG] [HostAdvance] Berhasil transisi: Host sekarang di Ronde $nextRoundNum (index $_sessionActiveRoundIndex, sessionId=${widget.sessionId}, drawingId=$_drawingId)');
+    } catch (e) {
+      debugPrint('[MATCHA_ERROR] [HostAdvance] Gagal transisi ronde: $e');
+    } finally {
+      _isAdvancingRound = false;
     }
   }
 

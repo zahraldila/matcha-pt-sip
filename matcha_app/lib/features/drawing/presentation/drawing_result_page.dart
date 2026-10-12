@@ -40,7 +40,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
   bool _isLocked = false;
   bool _isSavingDrawing = false;
   bool _isStartingScoring = false;
-  bool _hasAutoNavigatedToScoring = false;
   dynamic _sessionHostUserId;
   Map<String, dynamic>? _sessionData;
   RealtimeChannel? _realtimeChannel;
@@ -84,11 +83,8 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
   }
   int? _tryResolveMatchFormatId([String? type]) {
     final raw = (type ?? _config.gameType).trim();
-    if (raw.isEmpty) {
-      _config.gameType = 'Americano';
-      return MatchService.formatNameToId('Americano');
-    }
-    return MatchService.formatNameToId(raw) ?? MatchService.formatNameToId('Americano');
+    if (raw.isEmpty) return null;
+    return MatchService.formatNameToId(raw);
   }
 
   int _resolveMatchFormatId() {
@@ -239,9 +235,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                 _config.gameType = mapped;
               }
             }
-          }
-          if (_config.gameType.trim().isEmpty) {
-            _config.gameType = 'Americano';
           }
         }
 
@@ -424,6 +417,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           rounds: _rounds,
           allPlayers: _config.players,
           matchFormatId: _resolveMatchFormatId(),
+          courtCount: _config.courtCount,
         );
         if (!mounted) return;
         setState(() {

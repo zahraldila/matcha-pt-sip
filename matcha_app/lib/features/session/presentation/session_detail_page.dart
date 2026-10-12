@@ -894,7 +894,9 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                             gameType: _matchFormatName?.trim().isNotEmpty == true ? _matchFormatName!.trim() : 'Americano',
                             scoringSystem: session.scoringSystem,
                             playMode: session.jenisPermainan,
-                            courtCount: session.courtNames.length > 1 ? session.courtNames.length : 1,
+                            courtCount: session.courtNames.isNotEmpty
+                                ? session.courtNames.length
+                                : 1,
                             players: session.registeredPlayers
                                 .map(
                                   (p) => GamePlayerItem(

@@ -70,6 +70,7 @@ class _MockMatchServiceForFiveSteps extends MatchService {
   Future<List<DrawingRound>?> loadSavedDrawing({
     required dynamic sessionId,
     List<GamePlayerItem>? registeredPlayers,
+    int? courtCount,
   }) async {
     return savedDrawing;
   }
@@ -99,6 +100,7 @@ class _MockMatchServiceForFiveSteps extends MatchService {
     required List<DrawingRound> rounds,
     List<GamePlayerItem>? allPlayers,
     int? matchFormatId,
+    int? courtCount,
   }) async {
     lockCalled = true;
     isDrawingLockedResult = true;
@@ -131,7 +133,10 @@ class _MockMatchServiceForFiveSteps extends MatchService {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getMatchesForSession(dynamic sessionId) async {
+  Future<List<Map<String, dynamic>>> getMatchesForSession(
+    dynamic sessionId, {
+    int? courtCount,
+  }) async {
     return matchesData;
   }
 
@@ -140,6 +145,7 @@ class _MockMatchServiceForFiveSteps extends MatchService {
     required dynamic sessionId,
     required int currentRoundNum,
     required int nextRoundNum,
+    RealtimeChannel? activeChannel,
   }) async {
     broadcastRoundAdvancedCalled = true;
   }
@@ -644,8 +650,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // 1. Leaderboard icon button exists in AppBar
-      expect(find.byIcon(Icons.leaderboard_rounded), findsOneWidget);
+      // 1. Leaderboard icon button does NOT exist in AppBar
+      expect(find.byIcon(Icons.leaderboard_rounded), findsNothing);
 
       // 2. Player sees "Lihat Rekap & Podium" button
       expect(find.text('Lihat Rekap & Podium'), findsOneWidget);

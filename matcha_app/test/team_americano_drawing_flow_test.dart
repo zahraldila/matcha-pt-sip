@@ -69,6 +69,7 @@ class _MockMatchServiceForDrawingFlow extends MatchService {
   Future<List<DrawingRound>?> loadSavedDrawing({
     required dynamic sessionId,
     List<GamePlayerItem>? registeredPlayers,
+    int? courtCount,
   }) async {
     return savedDrawing;
   }
@@ -106,6 +107,7 @@ class _MockMatchServiceForDrawingFlow extends MatchService {
     required List<DrawingRound> rounds,
     List<GamePlayerItem>? allPlayers,
     int? matchFormatId,
+    int? courtCount,
   }) async {
     lockCalled = true;
     lastSavedMatchFormatId = matchFormatId;

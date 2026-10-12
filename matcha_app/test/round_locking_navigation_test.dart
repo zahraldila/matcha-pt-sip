@@ -54,6 +54,7 @@ class _MockMatchService extends MatchService {
   Future<List<DrawingRound>?> loadSavedDrawing({
     required dynamic sessionId,
     List<GamePlayerItem>? registeredPlayers,
+    int? courtCount,
   }) async {
     return savedDrawing;
   }
@@ -71,7 +72,10 @@ class _MockMatchService extends MatchService {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getMatchesForSession(dynamic sessionId) async {
+  Future<List<Map<String, dynamic>>> getMatchesForSession(
+    dynamic sessionId, {
+    int? courtCount,
+  }) async {
     return matchesData;
   }
 
@@ -87,6 +91,7 @@ class _MockMatchService extends MatchService {
     required dynamic sessionId,
     required int currentRoundNum,
     required int nextRoundNum,
+    RealtimeChannel? activeChannel,
   }) async {
     broadcastRoundAdvancedCalled = true;
     broadcastCurrentRound = currentRoundNum;

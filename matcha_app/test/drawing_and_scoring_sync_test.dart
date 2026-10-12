@@ -61,7 +61,10 @@ class MockMatchServiceForSync extends MatchService {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getMatchesForSession(dynamic sessionId) async {
+  Future<List<Map<String, dynamic>>> getMatchesForSession(
+    dynamic sessionId, {
+    int? courtCount,
+  }) async {
     return matchesData;
   }
 
@@ -74,6 +77,7 @@ class MockMatchServiceForSync extends MatchService {
   Future<List<DrawingRound>?> loadSavedDrawing({
     required dynamic sessionId,
     List<GamePlayerItem>? registeredPlayers,
+    int? courtCount,
   }) async {
     return savedDrawing;
   }
@@ -114,6 +118,7 @@ class MockMatchServiceForSync extends MatchService {
     required List<DrawingRound> rounds,
     List<GamePlayerItem>? allPlayers,
     int? matchFormatId,
+    int? courtCount,
   }) async {
     if (shouldFailLock) {
       throw Exception('Database connection failed');
