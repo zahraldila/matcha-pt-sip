@@ -44,6 +44,30 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
   String _selectedSport = 'padel'; // 'padel', 'tennis', 'all_racquet'
   String _selectedTargetLevel = 'All Levels';
 
+  final List<Map<String, dynamic>> _targetLevels = [
+    {
+      'key': 'All Levels',
+      'title': 'Semua Level',
+      'subtitle': 'Terbuka untuk pemain baru hingga yang sudah mahir',
+      'badge': 'ALL LEVELS',
+      'icon': Icons.all_inclusive_rounded,
+    },
+    {
+      'key': 'Beginners',
+      'title': 'Newbie / Beginner',
+      'subtitle': 'Fokus belajar dasar, latihan santai & fun games',
+      'badge': 'PEMULA',
+      'icon': Icons.sentiment_satisfied_alt_rounded,
+    },
+    {
+      'key': 'Intermediate',
+      'title': 'Intermediate+',
+      'subtitle': 'Pemain berpengalaman dengan rally stabil & kompetitif',
+      'badge': 'MENENGAH+',
+      'icon': Icons.sports_tennis_rounded,
+    },
+  ];
+
   // Benefits - kosong by default, user memilih sendiri
   final Set<String> _selectedBenefits = {};
 
@@ -409,17 +433,7 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
 
                     _buildFieldLabel('Target Level Member'),
                     const SizedBox(height: 6),
-                    _buildDropdown(
-                      value: _selectedTargetLevel,
-                      items: const [
-                        DropdownMenuItem(value: 'All Levels', child: Text('Semua Level')),
-                        DropdownMenuItem(value: 'Beginners', child: Text('Newbie / Beginner')),
-                        DropdownMenuItem(value: 'Intermediate', child: Text('Intermediate+')),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setState(() => _selectedTargetLevel = v);
-                      },
-                    ),
+                    _buildTargetLevelSelector(),
 
                     const SizedBox(height: 28),
 
@@ -1102,25 +1116,260 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
     );
   }
 
-  Widget _buildDropdown({
-    required String value,
-    required List<DropdownMenuItem<String>> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      items: items,
-      onChanged: onChanged,
-      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
-      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+  Widget _buildTargetLevelSelector() {
+    final currentLevel = _targetLevels.firstWhere(
+      (lvl) => lvl['key'] == _selectedTargetLevel,
+      orElse: () => _targetLevels.first,
+    );
+
+    return InkWell(
+      onTap: _showTargetLevelPickerModal,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.matchaSoftLime.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                currentLevel['icon'] as IconData? ?? Icons.layers_rounded,
+                size: 18,
+                color: AppColors.matchaDark,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        currentLevel['title'] as String? ?? _selectedTargetLevel,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.matchaDark,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          currentLevel['badge'] as String? ?? '',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFA8E63A),
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    currentLevel['subtitle'] as String? ?? '',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF64748B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  void _showTargetLevelPickerModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Target Level Member',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Pilih tingkat kemampuan anggota komunitas Anda',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 22),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 14),
+              ..._targetLevels.map((lvl) {
+                final isSelected = _selectedTargetLevel == lvl['key'];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedTargetLevel = lvl['key'] as String;
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.matchaSoftLime.withValues(alpha: 0.35) : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.matchaDark : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              lvl['icon'] as IconData? ?? Icons.sports_tennis_rounded,
+                              size: 18,
+                              color: isSelected ? const Color(0xFFA8E63A) : const Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      lvl['title'] as String,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                        color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? AppColors.matchaDark : const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        lvl['badge'] as String,
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: isSelected ? const Color(0xFFA8E63A) : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  lvl['subtitle'] as String,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isSelected ? AppColors.matchaDark.withValues(alpha: 0.8) : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                            color: isSelected ? AppColors.matchaDark : const Color(0xFFCBD5E1),
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
     );
   }
 
