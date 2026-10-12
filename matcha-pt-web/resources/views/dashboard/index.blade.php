@@ -338,12 +338,12 @@
 <x-join-modal />
 
 <!-- Custom Date Picker Modal (Material / Flutter style matching mobile) -->
-<div id="datePickerModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+<div id="datePickerModal" class="fixed inset-0 z-[70] hidden items-center justify-center p-4" style="display: none;">
     <!-- Backdrop overlay -->
-    <div class="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity" onclick="closeDatePickerModal()"></div>
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity" onclick="closeDatePickerModal()"></div>
 
     <!-- Dialog Card -->
-    <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-[340px] p-5 sm:p-6 z-10 animate-in fade-in zoom-in-95 duration-150 select-none">
+    <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-[340px] p-5 sm:p-6 z-10 animate-in fade-in zoom-in-95 duration-150 select-none mx-auto my-auto" style="max-height: 90vh;">
         <!-- Subtitle & Main Header -->
         <div class="pb-3 border-b border-slate-100">
             <span class="block text-xs font-medium text-slate-500">Select date</span>
@@ -371,8 +371,8 @@
             </div>
         </div>
 
-        <!-- Days of Week Header -->
-        <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-500 py-1">
+        <!-- Days of Week Header (Explicit 7 Columns Grid) -->
+        <div class="text-center text-xs font-semibold text-slate-500 py-1" style="display: grid !important; grid-template-columns: repeat(7, 1fr) !important; gap: 2px !important;">
             <span>S</span>
             <span>M</span>
             <span>T</span>
@@ -382,8 +382,8 @@
             <span>S</span>
         </div>
 
-        <!-- Calendar Days Grid -->
-        <div id="pickerCalendarGrid" class="grid grid-cols-7 gap-1 py-1 text-xs">
+        <!-- Calendar Days Grid (Explicit 7 Columns Grid) -->
+        <div id="pickerCalendarGrid" class="py-1 text-xs" style="display: grid !important; grid-template-columns: repeat(7, 1fr) !important; gap: 2px !important;">
             <!-- Dynamically populated by JavaScript -->
         </div>
 
@@ -714,12 +714,18 @@
         renderCalendar();
 
         const modal = document.getElementById('datePickerModal');
-        if (modal) modal.classList.remove('hidden');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
     }
 
     function closeDatePickerModal() {
         const modal = document.getElementById('datePickerModal');
-        if (modal) modal.classList.add('hidden');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
     }
 
     function confirmDatePicker() {
@@ -786,7 +792,7 @@
 
         // Empty padding cells before first day
         for (let i = 0; i < firstDayIndex; i++) {
-            gridHtml += `<div class="w-8 h-8 mx-auto"></div>`;
+            gridHtml += `<div class="mx-auto" style="width: 32px; height: 32px;"></div>`;
         }
 
         // Day cells
@@ -808,7 +814,8 @@
                     <button
                         type="button"
                         onclick="selectPickerDate(${d})"
-                        class="w-8 h-8 rounded-full mx-auto flex items-center justify-center font-bold bg-[#063B00] text-white shadow-xs cursor-pointer transition-transform scale-105"
+                        style="width: 32px; height: 32px;"
+                        class="rounded-full mx-auto flex items-center justify-center font-bold bg-[#063B00] text-white shadow-xs cursor-pointer transition-transform scale-105"
                     >
                         ${d}
                     </button>
@@ -818,7 +825,8 @@
                     <button
                         type="button"
                         onclick="selectPickerDate(${d})"
-                        class="w-8 h-8 rounded-full mx-auto flex items-center justify-center font-bold border border-[#063B00] text-[#063B00] hover:bg-slate-100 cursor-pointer transition-colors"
+                        style="width: 32px; height: 32px;"
+                        class="rounded-full mx-auto flex items-center justify-center font-bold border border-[#063B00] text-[#063B00] hover:bg-slate-100 cursor-pointer transition-colors"
                     >
                         ${d}
                     </button>
@@ -828,7 +836,8 @@
                     <button
                         type="button"
                         onclick="selectPickerDate(${d})"
-                        class="w-8 h-8 rounded-full mx-auto flex items-center justify-center font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer transition-colors"
+                        style="width: 32px; height: 32px;"
+                        class="rounded-full mx-auto flex items-center justify-center font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer transition-colors"
                     >
                         ${d}
                     </button>
