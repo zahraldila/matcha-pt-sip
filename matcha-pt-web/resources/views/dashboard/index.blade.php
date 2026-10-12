@@ -4,7 +4,7 @@
 <div class="space-y-12 pb-16">
     
     <!-- Hero Section: Clean Frosted Glass Sport Hub -->
-    <div class="py-12 sm:py-16">
+    <div class="py-12 sm:py-16 relative z-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
             
             <div class="max-w-3xl space-y-3">
@@ -21,7 +21,7 @@
             </div>
 
             <!-- Clean Frosted Glass Search & Filter Card -->
-            <div class="glass-card rounded-3xl p-5 sm:p-6 shadow-sm max-w-5xl border border-white/80">
+            <div class="glass-card rounded-3xl p-5 sm:p-6 shadow-sm max-w-5xl border border-white/80 relative z-30">
                 <!-- Tabs: Mabar / Venue / Komunitas -->
                 <div class="flex items-center gap-2 pb-4 mb-4 border-b border-slate-200/50 text-xs font-semibold overflow-x-auto scrollbar-none">
                     <button type="button" onclick="switchDashboardTab('mabar')" id="tab-btn-mabar" class="tab-btn px-4 py-2 rounded-xl bg-[#063B00] text-white shadow-xs flex items-center gap-2 font-bold cursor-pointer transition-all whitespace-nowrap">
@@ -66,7 +66,7 @@
 
                                 <div
                                     id="sportMenu"
-                                    class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                    class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-slate-200/90 rounded-2xl shadow-2xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
                                     onclick="event.stopPropagation()"
                                 >
                                     @foreach($sportOptions as $sVal => $sLabel)
@@ -104,10 +104,42 @@
 
                                 <div
                                     id="cityMenu"
-                                    class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-150"
+                                    class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-slate-200/90 rounded-2xl shadow-2xl p-2 max-h-72 overflow-y-auto animate-in fade-in zoom-in-95 duration-150"
                                     onclick="event.stopPropagation()"
                                 >
-                                    <!-- Populated by JavaScript rebuildCityOptions -->
+                                    <!-- Live Search Bar -->
+                                    <div class="sticky top-0 bg-white pb-2 mb-1 border-b border-slate-100 z-10" onclick="event.stopPropagation()">
+                                        <div class="relative flex items-center">
+                                            <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs absolute left-3 pointer-events-none"></i>
+                                            <input
+                                                type="text"
+                                                id="citySearchInput"
+                                                placeholder="Cari kota..."
+                                                oninput="filterCityList(this.value)"
+                                                class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-7 py-2 text-xs text-slate-900 placeholder:text-slate-400 font-medium focus:bg-white focus:border-[#063B00] focus:ring-1 focus:ring-[#063B00] focus:outline-none transition-all"
+                                                autocomplete="off"
+                                            >
+                                            <button
+                                                type="button"
+                                                id="citySearchClearBtn"
+                                                onclick="clearCitySearch()"
+                                                class="hidden absolute right-2.5 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                                                title="Hapus"
+                                            >
+                                                <i class="fa-solid fa-xmark"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- City List Container -->
+                                    <div id="cityListItems" class="space-y-1">
+                                        <!-- Populated by JavaScript rebuildCityOptions -->
+                                    </div>
+
+                                    <!-- Not Found State -->
+                                    <div id="cityNotFound" class="hidden text-center py-4 text-xs text-slate-400 font-medium">
+                                        Kota tidak ditemukan
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -146,7 +178,7 @@
     </div>
 
     <!-- Main Container -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 relative z-10">
         
         <!-- Category Pill Switcher (Preserving Active Tab) -->
         <div class="flex items-center gap-2.5 overflow-x-auto pb-1">
@@ -393,6 +425,8 @@
         const sportChevron = document.getElementById('sportChevron');
         const cityMenu = document.getElementById('cityMenu');
         const cityChevron = document.getElementById('cityChevron');
+        const sportWrapper = document.getElementById('wrapper_dashboard_sport');
+        const cityWrapper = document.getElementById('wrapper_dashboard_city');
 
         if (type === 'sport') {
             const isHidden = sportMenu.classList.contains('hidden');
@@ -400,6 +434,7 @@
             if (isHidden) {
                 sportMenu.classList.remove('hidden');
                 if (sportChevron) sportChevron.classList.add('rotate-180');
+                if (sportWrapper) sportWrapper.style.zIndex = '50';
             }
         } else if (type === 'city') {
             const isHidden = cityMenu.classList.contains('hidden');
@@ -407,6 +442,15 @@
             if (isHidden) {
                 cityMenu.classList.remove('hidden');
                 if (cityChevron) cityChevron.classList.add('rotate-180');
+                if (cityWrapper) cityWrapper.style.zIndex = '50';
+
+                // Reset search when opening & focus
+                const searchInput = document.getElementById('citySearchInput');
+                if (searchInput) {
+                    searchInput.value = '';
+                    filterCityList('');
+                    setTimeout(() => searchInput.focus(), 60);
+                }
             }
         }
     }
@@ -416,11 +460,50 @@
         const sportChevron = document.getElementById('sportChevron');
         const cityMenu = document.getElementById('cityMenu');
         const cityChevron = document.getElementById('cityChevron');
+        const sportWrapper = document.getElementById('wrapper_dashboard_sport');
+        const cityWrapper = document.getElementById('wrapper_dashboard_city');
 
         if (sportMenu) sportMenu.classList.add('hidden');
         if (sportChevron) sportChevron.classList.remove('rotate-180');
         if (cityMenu) cityMenu.classList.add('hidden');
         if (cityChevron) cityChevron.classList.remove('rotate-180');
+        if (sportWrapper) sportWrapper.style.zIndex = '';
+        if (cityWrapper) cityWrapper.style.zIndex = '';
+    }
+
+    function filterCityList(query) {
+        const q = (query || '').trim().toLowerCase();
+        const clearBtn = document.getElementById('citySearchClearBtn');
+        if (clearBtn) {
+            clearBtn.classList.toggle('hidden', q.length === 0);
+        }
+
+        const items = document.querySelectorAll('#cityListItems .city-item-btn');
+        let matchedCount = 0;
+        items.forEach(btn => {
+            const val = (btn.getAttribute('data-val') || '').toLowerCase();
+            const text = (btn.textContent || '').toLowerCase();
+            if (!q || val.includes(q) || text.includes(q)) {
+                btn.classList.remove('hidden');
+                matchedCount++;
+            } else {
+                btn.classList.add('hidden');
+            }
+        });
+
+        const notFound = document.getElementById('cityNotFound');
+        if (notFound) {
+            notFound.classList.toggle('hidden', matchedCount > 0);
+        }
+    }
+
+    function clearCitySearch() {
+        const input = document.getElementById('citySearchInput');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+        filterCityList('');
     }
 
     function selectDashboardSport(val, label) {
@@ -447,7 +530,7 @@
         if (input) input.value = val;
         if (display) display.textContent = label;
 
-        document.querySelectorAll('#cityMenu .city-item-btn').forEach(btn => {
+        document.querySelectorAll('#cityListItems .city-item-btn').forEach(btn => {
             const isSelected = btn.getAttribute('data-val').toLowerCase() === val.toLowerCase();
             if (isSelected) {
                 btn.className = 'city-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-bold transition-all cursor-pointer bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/15';
@@ -462,8 +545,8 @@
     function rebuildCityOptions(tab) {
         const input = document.getElementById('filterCityInput');
         const display = document.getElementById('cityDisplay');
-        const menu = document.getElementById('cityMenu');
-        if (!input || !menu) return;
+        const container = document.getElementById('cityListItems');
+        if (!input || !container) return;
 
         let currentVal = input.value || 'all';
         const cities = citiesPerTab[tab] || [];
@@ -501,7 +584,15 @@
             `;
         });
 
-        menu.innerHTML = html;
+        container.innerHTML = html;
+
+        // Reset filter
+        const searchInput = document.getElementById('citySearchInput');
+        if (searchInput && searchInput.value) {
+            filterCityList(searchInput.value);
+        } else {
+            filterCityList('');
+        }
     }
 
     // ==========================================
