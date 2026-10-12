@@ -4,7 +4,7 @@
 <div class="space-y-12 pb-16">
     
     <!-- Hero Section: Clean Frosted Glass Sport Hub -->
-    <div class="py-12 sm:py-16 relative z-20">
+    <div class="py-12 sm:py-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
             
             <div class="max-w-3xl space-y-3">
@@ -21,7 +21,7 @@
             </div>
 
             <!-- Clean Frosted Glass Search & Filter Card -->
-            <div class="glass-card rounded-3xl p-5 sm:p-6 shadow-sm max-w-5xl border border-white/80 relative z-30">
+            <div class="glass-card rounded-3xl p-5 sm:p-6 shadow-sm max-w-5xl border border-white/80">
                 <!-- Tabs: Mabar / Venue / Komunitas -->
                 <div class="flex items-center gap-2 pb-4 mb-4 border-b border-slate-200/50 text-xs font-semibold overflow-x-auto scrollbar-none">
                     <button type="button" onclick="switchDashboardTab('mabar')" id="tab-btn-mabar" class="tab-btn px-4 py-2 rounded-xl bg-[#063B00] text-white shadow-xs flex items-center gap-2 font-bold cursor-pointer transition-all whitespace-nowrap">
@@ -178,7 +178,7 @@
     </div>
 
     <!-- Main Container -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 relative z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         
         <!-- Category Pill Switcher (Preserving Active Tab) -->
         <div class="flex items-center gap-2.5 overflow-x-auto pb-1">
@@ -338,12 +338,12 @@
 <x-join-modal />
 
 <!-- Custom Date Picker Modal (Material / Flutter style matching mobile) -->
-<div id="datePickerModal" class="fixed inset-0 z-[70] hidden items-center justify-center p-4" style="display: none;">
+<div id="datePickerModal" class="hidden" style="display: none; position: fixed; inset: 0; z-index: 999999 !important; justify-content: center; align-items: center; padding: 16px;">
     <!-- Backdrop overlay -->
-    <div class="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity" onclick="closeDatePickerModal()"></div>
+    <div style="position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 1000000;" onclick="closeDatePickerModal()"></div>
 
     <!-- Dialog Card -->
-    <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-[340px] p-5 sm:p-6 z-10 animate-in fade-in zoom-in-95 duration-150 select-none mx-auto my-auto" style="max-height: 90vh;">
+    <div style="position: relative; z-index: 1000001; background: #ffffff !important; background-color: #ffffff !important; border-radius: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); width: 100%; max-width: 330px; padding: 20px 24px; margin: auto; max-height: 90vh; overflow-y: auto;" class="select-none animate-in fade-in zoom-in-95 duration-150">
         <!-- Subtitle & Main Header -->
         <div class="pb-3 border-b border-slate-100">
             <span class="block text-xs font-medium text-slate-500">Select date</span>
