@@ -306,7 +306,7 @@
                     <i class="fa-solid fa-trophy text-[11px]"></i> {{ $unitTabLabel }} {{ $activeRoundNum }} SCORE
                 </span>
                 <span class="font-medium text-slate-400">
-                    Target: <strong class="text-white">{{ $scoringSystem['is_sets'] ? ($scoringSystem['target_sets'] . ' Set') : ($scoringSystem['target_games'] . ' Games') }}</strong>
+                    {{ $scoringSystem['is_sets'] ? 'Format: ' : 'Target: ' }}<strong class="text-white">{{ $scoringSystem['is_sets'] ? ('Total of ' . $scoringSystem['max_sets'] . ' Set (Semua set dimainkan)') : ($scoringSystem['target_games'] . ' Games (Tuntas)') }}</strong>
                 </span>
             </div>
 
@@ -1020,16 +1020,35 @@
         }
     }
 
+    function determineWinner(gamesA, gamesB) {
+        if (IS_SETS) {
+            // Sebelum mencapai 5-5: pertama mencapai 6 memenangkan set (6-0 s/d 6-4)
+            if (gamesA === 6 && gamesB <= 4) return 'Team A';
+            if (gamesB === 6 && gamesA <= 4) return 'Team B';
+            // Jika mencapai 5-5: target berubah menjadi 7 (7-5 atau 7-6)
+            // Catatan: 5-5, 6-5, 5-6, dan 6-6 belum selesai
+            if (gamesA === 7 && (gamesB === 5 || gamesB === 6)) return 'Team A';
+            if (gamesB === 7 && (gamesA === 5 || gamesA === 6)) return 'Team B';
+            if (gamesA > 7 && gamesA > gamesB) return 'Team A';
+            if (gamesB > 7 && gamesB > gamesA) return 'Team B';
+            return null;
+        } else {
+            if (TARGET_GAMES > 0) {
+                if (gamesA >= TARGET_GAMES && gamesA > gamesB) return 'Team A';
+                if (gamesB >= TARGET_GAMES && gamesB > gamesA) return 'Team B';
+                if (gamesA >= TARGET_GAMES && gamesB >= TARGET_GAMES) return gamesA >= gamesB ? 'Team A' : 'Team B';
+            }
+            return null;
+        }
+    }
+
+    function isSetFinished(gamesA, gamesB) {
+        return determineWinner(gamesA, gamesB) !== null;
+    }
+
     function checkSetWinner(cIdx, clientSeq = null, tClick = null, baseVersion = 0, teamWon = null, eventId = null) {
         let st = courtsState[cIdx];
-        let setWon = null;
-        if (TARGET_GAMES > 0) {
-            if (st.gamesA >= TARGET_GAMES) {
-                setWon = 'Team A';
-            } else if (st.gamesB >= TARGET_GAMES) {
-                setWon = 'Team B';
-            }
-        }
+        let setWon = determineWinner(st.gamesA, st.gamesB);
 
         if (setWon) {
             st.matchDone = true;
@@ -1056,8 +1075,22 @@
     function manualCompleteSet(cIdx) {
         let st = courtsState[cIdx];
         if (st.matchDone) return;
-        if (Math.max(st.gamesA, st.gamesB) < TARGET_GAMES) {
-            showToast(`Target ${TARGET_GAMES} belum mencapai target.`);
+        
+        const setWon = determineWinner(st.gamesA, st.gamesB);
+        if (!setWon) {
+            if (IS_SETS) {
+                if (st.gamesA === 5 && st.gamesB === 5) {
+                    showToast('Skor 5–5: Target kemenangan berubah menjadi 7 (belum selesai).');
+                } else if ((st.gamesA === 6 && st.gamesB === 5) || (st.gamesA === 5 && st.gamesB === 6)) {
+                    showToast('Skor 6–5: Pertandingan belum selesai (lanjut hingga 7–5 atau tie-break 7–6).');
+                } else if (st.gamesA === 6 && st.gamesB === 6) {
+                    showToast('Skor 6–6: Pertandingan belum selesai (lanjut hingga 7–6 atau 6–7).');
+                } else {
+                    showToast('Syarat kemenangan set belum tercapai (minimal 6 game atau 7 game setelah 5–5).');
+                }
+            } else {
+                showToast(`Target ${TARGET_GAMES} Games belum dicapai.`);
+            }
             return;
         }
         const courtLabel = st.courtName || ('Court ' + st.courtNum);
@@ -1070,7 +1103,7 @@
         st.clientSeq = (st.clientSeq || 0) + 1; // Increment SATU KALI per aksi manual
         const clientSeq = st.clientSeq;
         const baseVersion = st.serverVersion || 0;
-        const winnerTeam = (st.gamesA >= st.gamesB) ? 'Team A' : 'Team B';
+        const winnerTeam = setWon;
 
         st.matchDone = true;
         st.completionSavePending = true;
@@ -1198,7 +1231,7 @@
                 lockedBadge.classList.add('hidden');
             }
             
-            const isTargetReached = (TARGET_GAMES > 0 && Math.max(st.gamesA, st.gamesB) >= TARGET_GAMES);
+            const isTargetReached = isSetFinished(st.gamesA, st.gamesB);
             if (btnManual) {
                 btnManual.classList.toggle('hidden', !isTargetReached);
             }
@@ -1909,6 +1942,17 @@
                     const roundtripMs = performance.now() - latestTClick;
                     console.log(`[Network Roundtrip] Court ${st.courtNum} save batch (${batchEvents.length} events) roundtrip: ${roundtripMs.toFixed(2)}ms (serverVersion=${st.serverVersion})`);
                 }
+            } else if (res.status === 422) {
+                const errData = await res.json().catch(() => ({}));
+                console.warn(`[Score Rejected 422] Court ${st.courtNum}:`, errData);
+                showToast(errData.message || 'Pembaruan skor ditolak oleh server.');
+                // Koreksi state lokal dari server authority
+                st.inFlightQueue = [];
+                if (st.matchDone && !st.completionSaveSucceeded) {
+                    st.matchDone = false;
+                    st.completionSavePending = false;
+                }
+                updateDisplay(cIdx);
             } else {
                 console.error(`Update score batch failed for court ${st.courtNum}:`, await res.text());
                 isRetryableError = true;

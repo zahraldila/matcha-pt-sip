@@ -247,17 +247,33 @@
                     </label>
                     @php
                         $currScoring = old('scoring_system', 'Total of 3');
-                        $scoringLabels = [
+                        $totalOfOptions = [
                             'Total of 3' => 'Total of 3 Poin',
                             'Total of 4' => 'Total of 4 Poin',
                             'Total of 5' => 'Total of 5 Poin',
                             'Total of 6' => 'Total of 6 Poin',
                             'Total of 7' => 'Total of 7 Poin',
+                            'Total of 8' => 'Total of 8 Poin',
+                            'Total of 9' => 'Total of 9 Poin',
+                            'Total of 10' => 'Total of 10 Poin',
+                        ];
+                        $firstToOptions = [
+                            'First to 2' => 'First to 2 Poin (Tuntas)',
+                            'First to 3' => 'First to 3 Poin (Tuntas)',
+                            'First to 4' => 'First to 4 Poin (Tuntas)',
+                            'First to 5' => 'First to 5 Poin (Tuntas)',
+                            'First to 6' => 'First to 6 Poin (Tuntas)',
+                            'First to 7' => 'First to 7 Poin (Tuntas)',
                             'First to 8' => 'First to 8 Poin (Tuntas)',
+                            'First to 9' => 'First to 9 Poin (Tuntas)',
+                            'First to 10' => 'First to 10 Poin (Tuntas)',
+                        ];
+                        $legacyOptions = [
                             'First to 11' => 'First to 11 Poin (Tuntas)',
                             'First to 15' => 'First to 15 Poin (Tuntas)',
                             'First to 21' => 'First to 21 Poin (Tuntas)',
                         ];
+                        $scoringLabels = array_merge($totalOfOptions, $firstToOptions, $legacyOptions);
                         $currScoringLabel = $scoringLabels[$currScoring] ?? 'Total of 3 Poin';
                     @endphp
                     <input type="hidden" name="scoring_system" id="scoringSystemInput" value="{{ $currScoring }}">
@@ -280,7 +296,7 @@
                             <div class="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
                                 Sistem Rotasi Poin (Total of X)
                             </div>
-                            @foreach(['Total of 3' => 'Total of 3 Poin', 'Total of 4' => 'Total of 4 Poin', 'Total of 5' => 'Total of 5 Poin', 'Total of 6' => 'Total of 6 Poin', 'Total of 7' => 'Total of 7 Poin'] as $sVal => $sLabel)
+                            @foreach($totalOfOptions as $sVal => $sLabel)
                                 <button
                                     type="button"
                                     onclick="selectScheduleOption('scoringSystem', '{{ $sVal }}', '{{ $sLabel }}', onFormatOrScoringChanged)"
@@ -294,7 +310,7 @@
                             <div class="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mt-2 mb-1">
                                 Sistem Langsung Tuntas (First to X)
                             </div>
-                            @foreach(['First to 8' => 'First to 8 Poin (Tuntas)', 'First to 11' => 'First to 11 Poin (Tuntas)', 'First to 15' => 'First to 15 Poin (Tuntas)', 'First to 21' => 'First to 21 Poin (Tuntas)'] as $sVal => $sLabel)
+                            @foreach($firstToOptions as $sVal => $sLabel)
                                 <button
                                     type="button"
                                     onclick="selectScheduleOption('scoringSystem', '{{ $sVal }}', '{{ $sLabel }}', onFormatOrScoringChanged)"

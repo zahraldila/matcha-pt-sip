@@ -469,10 +469,10 @@ class ScoringController extends Controller
             $gamesA = $request->integer('games_a', 0);
             $gamesB = $request->integer('games_b', 0);
 
-            if (! $isWalkover && ($gamesA < $scoringSystem['target_games'] && $gamesB < $scoringSystem['target_games'])) {
+            if (! $isWalkover && ! ScoringService::isMatchCompleted($gamesA, $gamesB, $scoringSystem)) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Target {$scoringSystem['target_games']} belum dicapai.",
+                    'message' => "Pertandingan belum memenuhi syarat selesai untuk sistem skor {$scoringSystem['label']} (skor saat ini: {$gamesA}–{$gamesB}).",
                 ], 422);
             }
         }
@@ -672,8 +672,14 @@ class ScoringController extends Controller
                         continue;
                     }
 
-                    if ($evAction === 'add_point' && ! empty($evTeam) && in_array($evTeam, ['A', 'B']) && ($scorePayload['status'] ?? '') !== 'completed') {
-                        $scorePayload = $this->applyPointDeltaToState($scorePayload, $evTeam, $scoringSystem);
+                    if ($evAction === 'add_point' && ! empty($evTeam) && in_array($evTeam, ['A', 'B'])) {
+                        if (($scorePayload['status'] ?? '') !== 'completed') {
+                            $scorePayload = $this->applyPointDeltaToState($scorePayload, $evTeam, $scoringSystem);
+                            if (($scorePayload['status'] ?? '') === 'completed') {
+                                // Hentikan penerapan sisa event tambahan poin dalam batch setelah kondisi final tercapai
+                                break;
+                            }
+                        }
                     } elseif ($evAction === 'completion' || ($ev['status'] ?? '') === 'completed') {
                         $evGamesA = isset($ev['games_a']) ? (int) $ev['games_a'] : (isset($ev['snapshot']['gamesA']) ? (int) $ev['snapshot']['gamesA'] : null);
                         $evGamesB = isset($ev['games_b']) ? (int) $ev['games_b'] : (isset($ev['snapshot']['gamesB']) ? (int) $ev['snapshot']['gamesB'] : null);
@@ -694,17 +700,18 @@ class ScoringController extends Controller
                         : null;
 
                     if ($finalGamesA !== null && $finalGamesB !== null) {
-                        $scorePayload['games_a'] = $finalGamesA;
-                        $scorePayload['games_b'] = $finalGamesB;
-                        $scorePayload['score_a'] = $finalGamesA;
-                        $scorePayload['score_b'] = $finalGamesB;
-                        $scorePayload['status'] = 'completed';
+                        if (ScoringService::isMatchCompleted($finalGamesA, $finalGamesB, $scoringSystem)) {
+                            $scorePayload['games_a'] = $finalGamesA;
+                            $scorePayload['games_b'] = $finalGamesB;
+                            $scorePayload['score_a'] = $finalGamesA;
+                            $scorePayload['score_b'] = $finalGamesB;
+                            $scorePayload['status'] = 'completed';
 
-                        $scorePayload['sets_a'] =
-                            $finalGamesA > $finalGamesB ? 1 : 0;
-
-                        $scorePayload['sets_b'] =
-                            $finalGamesB > $finalGamesA ? 1 : 0;
+                            $winner = ScoringService::determineMatchWinner($finalGamesA, $finalGamesB, $scoringSystem);
+                            $scorePayload['winner_team'] = $winner;
+                            $scorePayload['sets_a'] = ($winner === 'Team A') ? 1 : 0;
+                            $scorePayload['sets_b'] = ($winner === 'Team B') ? 1 : 0;
+                        }
                     }
                 }
 
@@ -994,9 +1001,9 @@ class ScoringController extends Controller
         $winnerTeam = $request->input('winner_team', $prev['winner_team'] ?? null);
         $isWalkover = $request->boolean('is_walkover', false);
 
-        if (! $isWalkover && ($gamesA < $system['target_games'] && $gamesB < $system['target_games'])) {
+        if (! $isWalkover && ! ScoringService::isMatchCompleted($gamesA, $gamesB, $system)) {
             return redirect()->back()->withErrors([
-                'score' => "Target {$system['target_games']} belum dicapai.",
+                'score' => "Pertandingan belum memenuhi syarat selesai untuk sistem skor {$system['label']} (skor saat ini: {$gamesA}–{$gamesB}).",
             ]);
         }
 
@@ -2123,6 +2130,11 @@ class ScoringController extends Controller
      */
     protected function applyPointDeltaToState(array $currentState, string $team, array $scoringSystem): array
     {
+        // Jika match sudah selesai, tambahan skor/point delta diabaikan
+        if (($currentState['status'] ?? '') === 'completed') {
+            return $currentState;
+        }
+
         $tennisPoints = ['0', '15', '30', '40'];
         $idxA = (int) ($currentState['idx_a'] ?? 0);
         $idxB = (int) ($currentState['idx_b'] ?? 0);
@@ -2213,26 +2225,16 @@ class ScoringController extends Controller
         }
 
         // Cek apakah set/match selesai
-        if (! $isSets) {
-            if ($targetGames > 0 && $gamesA >= $targetGames) {
-                $status = 'completed';
-                $winnerTeam = 'Team A';
-                $setsA = 1;
-            } elseif ($targetGames > 0 && $gamesB >= $targetGames) {
-                $status = 'completed';
-                $winnerTeam = 'Team B';
-                $setsB = 1;
-            }
+        $winnerTeam = ScoringService::determineMatchWinner($gamesA, $gamesB, $scoringSystem);
+        if ($winnerTeam !== null) {
+            $status = 'completed';
+            $setsA = ($winnerTeam === 'Team A') ? 1 : 0;
+            $setsB = ($winnerTeam === 'Team B') ? 1 : 0;
         } else {
-            if (($gamesA >= 6 && $gamesA - $gamesB >= 2) || ($gamesA === 7 && $gamesB === 6)) {
-                $status = 'completed';
-                $winnerTeam = 'Team A';
-                $setsA = 1;
-            } elseif (($gamesB >= 6 && $gamesB - $gamesA >= 2) || ($gamesB === 7 && $gamesA === 6)) {
-                $status = 'completed';
-                $winnerTeam = 'Team B';
-                $setsB = 1;
-            }
+            $status = 'in_progress';
+            $winnerTeam = null;
+            $setsA = 0;
+            $setsB = 0;
         }
 
         return array_merge($currentState, [
@@ -2271,7 +2273,7 @@ class ScoringController extends Controller
             $explicitWinner = 'Team B';
         }
 
-        $winner = $explicitWinner ?: ($gamesA >= $gamesB ? 'Team A' : 'Team B');
+        $winner = $explicitWinner ?: (ScoringService::determineMatchWinner($gamesA, $gamesB, $scoringSystem) ?: ($gamesA >= $gamesB ? 'Team A' : 'Team B'));
         $setsA = ($winner === 'Team A') ? 1 : 0;
         $setsB = ($winner === 'Team B') ? 1 : 0;
 

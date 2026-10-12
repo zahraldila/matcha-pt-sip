@@ -315,10 +315,18 @@
                             <option value="Total of 5">Total of 5</option>
                             <option value="Total of 6">Total of 6</option>
                             <option value="Total of 7">Total of 7</option>
+                            <option value="Total of 8">Total of 8</option>
+                            <option value="Total of 9">Total of 9</option>
+                            <option value="Total of 10">Total of 10</option>
+                            <option value="First to 2">First to 2</option>
+                            <option value="First to 3">First to 3</option>
+                            <option value="First to 4">First to 4</option>
+                            <option value="First to 5">First to 5</option>
+                            <option value="First to 6">First to 6</option>
+                            <option value="First to 7">First to 7</option>
                             <option value="First to 8">First to 8</option>
-                            <option value="First to 11">First to 11</option>
-                            <option value="First to 15">First to 15</option>
-                            <option value="First to 21">First to 21</option>
+                            <option value="First to 9">First to 9</option>
+                            <option value="First to 10">First to 10</option>
                         </select>
 
                         <button type="button" id="scoringDropdownTrigger" onclick="toggleScoringDropdown()"

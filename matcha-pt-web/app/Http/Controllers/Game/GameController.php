@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class GameController extends Controller
 {
@@ -475,7 +476,7 @@ class GameController extends Controller
             'format' => 'required|string',
             'num_courts' => 'required|integer|min:1|max:4',
             'venue_id' => 'required|integer|exists:tb_venue,venue_id',
-            'scoring_system' => 'required|string|max:100',
+            'scoring_system' => ['required', 'string', Rule::in(ScoringService::getAllowedNewScoringSystems())],
             'rank_by' => 'required|in:point,win',
             'jenis_permainan' => 'nullable|in:Single,Double',
 
@@ -486,6 +487,8 @@ class GameController extends Controller
             'players.*.gender' => 'required|in:Male,Female',
             'players.*.level' => 'required|string|max:50',
             'players.*.type' => 'required|in:Host,Member,Guest',
+        ], [
+            'scoring_system.in' => 'Sistem skor yang dipilih tidak valid. Pilihan tersedia: Total of 3–10 atau First to 2–10.',
         ]);
 
         // Validasi format Team Americano: Wajib Genap (2 pemain per tim)
@@ -692,7 +695,7 @@ class GameController extends Controller
             'nama_session' => 'required|string|max:255',
             'sport_id' => 'required|integer|exists:tb_sport,sport_id',
             'format' => 'nullable|in:Americano,Team Americano',
-            'scoring_system' => 'nullable|string|max:50',
+            'scoring_system' => ['nullable', 'string', Rule::in(ScoringService::getAllowedNewScoringSystems())],
             'venue_id' => 'required|integer|exists:tb_venue,venue_id',
             'court_id' => 'nullable|integer|exists:tb_court,court_id',
             'court_ids' => 'nullable|array|min:1',
@@ -704,6 +707,8 @@ class GameController extends Controller
             'jenis_permainan' => 'nullable|in:Single,Double',
             'level_rekomendasi' => 'nullable|string',
             'deskripsi' => 'nullable|string',
+        ], [
+            'scoring_system.in' => 'Sistem skor yang dipilih tidak valid. Pilihan tersedia: Total of 3–10 atau First to 2–10.',
         ]);
 
         $format = $request->input('format', 'Americano');

@@ -28,6 +28,62 @@ class ScoringService
      * 8. First to 15 (Target 15 Game)
      * 9. First to 21 (Target 21 Game)
      */
+    /**
+     * Daftar opsi Total of yang dapat dipilih untuk sesi baru (3 sampai 10, inklusif).
+     */
+    public static function getSelectableTotalOfOptions(): array
+    {
+        return [3, 4, 5, 6, 7, 8, 9, 10];
+    }
+
+    /**
+     * Daftar opsi First to yang dapat dipilih untuk sesi baru (2 sampai 10, inklusif).
+     */
+    public static function getSelectableFirstToOptions(): array
+    {
+        return [2, 3, 4, 5, 6, 7, 8, 9, 10];
+    }
+
+    /**
+     * Daftar opsi First to legacy untuk kompatibilitas sesi lama (11, 15, 21).
+     */
+    public static function getLegacyFirstToOptions(): array
+    {
+        return [11, 15, 21];
+    }
+
+    /**
+     * Daftar string sistem skor yang valid untuk pembuatan sesi baru.
+     */
+    public static function getAllowedNewScoringSystems(): array
+    {
+        $options = [];
+        foreach (self::getSelectableTotalOfOptions() as $sets) {
+            $options[] = "Total of {$sets}";
+        }
+        foreach (self::getSelectableFirstToOptions() as $games) {
+            $options[] = "First to {$games}";
+        }
+
+        return $options;
+    }
+
+    /**
+     * Periksa apakah suatu nilai string merupakan sistem skor yang sah untuk sesi baru.
+     */
+    public static function isValidNewScoringOption(?string $scoringSystem): bool
+    {
+        if ($scoringSystem === null || trim($scoringSystem) === '') {
+            return false;
+        }
+
+        return in_array(trim($scoringSystem), self::getAllowedNewScoringSystems(), true);
+    }
+
+    /**
+     * Deteksi dan parse konfigurasi scoring system.
+     * Mendukung opsi baru (Total of 3-10, First to 2-10) serta opsi legacy (First to 11, 15, 21).
+     */
     public static function detectScoringSystem(string $scoringSystem = ''): array
     {
         $str = trim($scoringSystem);
@@ -35,7 +91,7 @@ class ScoringService
         // Grup Total of X (Sets)
         if (preg_match('/total\s*of\s*(\d+)/i', $str, $matches)) {
             $sets = (int) $matches[1];
-            if (! in_array($sets, [3, 4, 5, 6, 7])) {
+            if (! in_array($sets, self::getSelectableTotalOfOptions(), true)) {
                 $sets = 3;
             }
             $targetSets = intdiv($sets, 2) + 1;
@@ -51,10 +107,11 @@ class ScoringService
             ];
         }
 
-        // Grup First to X (Games)
+        // Grup First to X (Games) - mendukung opsi baru 2..10 dan legacy 11, 15, 21
         if (preg_match('/first\s*to\s*(\d+)/i', $str, $matches)) {
             $games = (int) $matches[1];
-            if (! in_array($games, [8, 11, 15, 21])) {
+            $allowedGames = array_merge(self::getSelectableFirstToOptions(), self::getLegacyFirstToOptions());
+            if (! in_array($games, $allowedGames, true)) {
                 $games = 8;
             }
 
@@ -79,6 +136,76 @@ class ScoringService
             'label' => 'Total of 3',
             'is_sets' => true,
         ];
+    }
+
+    /**
+     * Menentukan apakah suatu pertandingan per set/ronde telah selesai sesuai aturan scoring system.
+     *
+     * Aturan Total Of (Sets):
+     * - Sebelum mencapai 5–5: pertama mencapai 6 memenangkan set (6–0, 6–1, 6–2, 6–3, 6–4, dan kebalikannya).
+     * - Jika mencapai 5–5: target kemenangan berubah menjadi 7 (7–5 atau 7–6, dan kebalikannya).
+     * - Skor 5–5, 6–5, 5–6, dan 6–6 belum selesai.
+     * - 7–6 atau 6–7 langsung selesai.
+     *
+     * Aturan First To (Games):
+     * - Selesai ketika salah satu tim mencapai target_games (X).
+     */
+    public static function isMatchCompleted(int $gamesA, int $gamesB, array $scoringSystem): bool
+    {
+        return self::determineMatchWinner($gamesA, $gamesB, $scoringSystem) !== null;
+    }
+
+    /**
+     * Menentukan tim pemenang match ('Team A' | 'Team B' | null).
+     */
+    public static function determineMatchWinner(int $gamesA, int $gamesB, array $scoringSystem): ?string
+    {
+        $isSets = (bool) ($scoringSystem['is_sets'] ?? true);
+
+        if (! $isSets) {
+            $target = (int) ($scoringSystem['target_games'] ?? 8);
+            if ($target > 0) {
+                if ($gamesA >= $target && $gamesA > $gamesB) {
+                    return 'Team A';
+                }
+                if ($gamesB >= $target && $gamesB > $gamesA) {
+                    return 'Team B';
+                }
+                if ($gamesA >= $target && $gamesB >= $target) {
+                    return $gamesA >= $gamesB ? 'Team A' : 'Team B';
+                }
+            }
+
+            return null;
+        }
+
+        // Total Of (Sets)
+        // 1. Sebelum mencapai 5-5: pertama mencapai 6 memenangkan set (6-0 s.d. 6-4)
+        if ($gamesA === 6 && $gamesB <= 4) {
+            return 'Team A';
+        }
+        if ($gamesB === 6 && $gamesA <= 4) {
+            return 'Team B';
+        }
+
+        // 2. Jika mencapai 5-5: target berubah menjadi 7 (7-5 atau 7-6)
+        // Catatan: 5-5, 6-5, 5-6, dan 6-6 belum selesai.
+        if ($gamesA === 7 && ($gamesB === 5 || $gamesB === 6)) {
+            return 'Team A';
+        }
+        if ($gamesB === 7 && ($gamesA === 5 || $gamesA === 6)) {
+            return 'Team B';
+        }
+
+        // 3. Batas fallback di atas 7 jika skor melampaui kondisi normal
+        if ($gamesA > 7 && $gamesA > $gamesB) {
+            return 'Team A';
+        }
+        if ($gamesB > 7 && $gamesB > $gamesA) {
+            return 'Team B';
+        }
+
+        return null;
     }
 
     /**
