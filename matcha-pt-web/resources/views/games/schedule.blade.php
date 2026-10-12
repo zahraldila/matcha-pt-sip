@@ -917,6 +917,8 @@
             </button>
         </div>
     </div>
+</div>
+
 <!-- ========================================================= -->
 <!-- MATERIAL / FLUTTER STYLE DATE PICKER MODAL                -->
 <!-- ========================================================= -->
@@ -1382,6 +1384,9 @@
     }
 
     function openDatePickerModal() {
+        if (typeof closeClockPicker === 'function') {
+            closeClockPicker();
+        }
         const input = document.getElementById('tanggalMabarInput');
         if (input && input.value) {
             pickerSelectedDate = parseYmd(input.value);
@@ -1572,6 +1577,9 @@
     let selectedPeriod = 'AM';       // 'AM' | 'PM'
 
     function openClockPicker() {
+        if (typeof closeDatePickerModal === 'function') {
+            closeDatePickerModal();
+        }
         const rawVal = document.getElementById('jamMulaiInput')?.value || '06:00';
         const parts = rawVal.split(':');
         let h24 = parseInt(parts[0] || '6', 10);
