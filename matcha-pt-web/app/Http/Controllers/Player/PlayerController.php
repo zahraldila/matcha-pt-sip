@@ -105,9 +105,10 @@ class PlayerController extends Controller
         try {
             DB::beginTransaction();
 
-            $cleanEmail = strtolower(trim($request->email));
-            $cleanNoHp = preg_replace('/[^0-9]/', '', (string) $request->no_hp);
-            $communityId = ($request->community_id && $request->community_id !== 'none') ? (int) $request->community_id : null;
+            $existingPlayer = Player::where('user_id', $user->user_id)->first();
+            $communityId = $request->has('community_id')
+                ? (($request->community_id && $request->community_id !== 'none') ? (int) $request->community_id : null)
+                : ($existingPlayer->community_id ?? null);
             $playerLevel = $request->input('level', 'Intermediate');
             $playerUsia = $request->filled('usia') ? (int) $request->usia : 25;
 

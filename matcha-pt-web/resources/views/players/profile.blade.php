@@ -306,54 +306,6 @@
                             </div>
                         </div>
 
-                        <!-- Komunitas -->
-                        <div class="space-y-1 relative" id="wrapper_community_id">
-                            <label class="block font-bold text-slate-800">
-                                Afiliasi Komunitas
-                            </label>
-                            @php
-                                $currCommId = old('community_id', $player->community_id ?? 'none');
-                                $commOptions = ['none' => 'Personal (Non-Community / Belum Ada)'];
-                                if (isset($communities)) {
-                                    foreach ($communities as $comm) {
-                                        $cId = (string) ($comm->community_id ?? $comm['id']);
-                                        $cName = $comm->nama_community ?? $comm['name'];
-                                        $commOptions[$cId] = $cName;
-                                    }
-                                }
-                                $currCommLabel = $commOptions[(string)$currCommId] ?? 'Personal (Non-Community / Belum Ada)';
-                            @endphp
-                            <input type="hidden" id="community_idInput" name="community_id" value="{{ $currCommId }}">
-                            <div class="relative">
-                                <button
-                                    type="button"
-                                    id="community_idTrigger"
-                                    onclick="toggleProfileCustomDropdown('community_id', event)"
-                                    class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
-                                >
-                                    <span id="community_idDisplay" class="truncate font-semibold">{{ $currCommLabel }}</span>
-                                    <i id="community_idChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
-                                </button>
-
-                                <div
-                                    id="community_idMenu"
-                                    class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto"
-                                    onclick="event.stopPropagation()"
-                                >
-                                    @foreach($commOptions as $optId => $optName)
-                                        <button
-                                            type="button"
-                                            onclick="selectProfileCustomOption('community_id', '{{ $optId }}', '{{ addslashes($optName) }}')"
-                                            class="community_id-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer {{ (string)$currCommId === (string)$optId ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
-                                            data-val="{{ $optId }}"
-                                        >
-                                            <span class="truncate pr-2">{{ $optName }}</span>
-                                            <i class="fa-solid fa-circle-check text-[#063B00] text-sm shrink-0 {{ (string)$currCommId === (string)$optId ? '' : 'hidden' }}"></i>
-                                        </button>
-                                    @endforeach
-                                </div>
-                            </div>
-                        </div>
                     @endif
                 </div>
 
@@ -442,8 +394,8 @@
         }
     }
 
-    // Profile Custom Dropdowns (gender, level, community_id)
-    const profileCustomDropdownIds = ['gender', 'level', 'community_id'];
+    // Profile Custom Dropdowns (gender, level)
+    const profileCustomDropdownIds = ['gender', 'level'];
 
     function closeProfileCustomDropdowns() {
         profileCustomDropdownIds.forEach(id => {
