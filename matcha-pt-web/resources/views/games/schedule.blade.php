@@ -1,8 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-<!-- Flatpickr CSS & Custom Matcha Theme (Compact & Refined) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
     .flatpickr-calendar {
         font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
@@ -431,8 +429,16 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                     <div class="space-y-1.5">
                         <label class="block font-bold text-slate-800">Tanggal Mabar</label>
-                        <div class="relative">
-                            <input type="text" name="tanggal" id="tanggalMabarInput" value="" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs cursor-pointer" placeholder="Pilih Tanggal Mabar" required readonly>
+                        <div class="relative cursor-pointer" onclick="openDatePickerModal()">
+                            <input
+                                type="text"
+                                id="tanggalMabarDisplay"
+                                value="{{ old('tanggal') ? date('d/m/Y', strtotime(old('tanggal'))) : '' }}"
+                                class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs cursor-pointer pointer-events-none"
+                                placeholder="Pilih Tanggal Mabar"
+                                readonly
+                            >
+                            <input type="hidden" name="tanggal" id="tanggalMabarInput" value="{{ old('tanggal') }}" required>
                             <i class="fa-regular fa-calendar absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
                         <p id="tanggalErrorNotice" class="text-[10px] text-rose-600 font-bold hidden"></p>
@@ -911,10 +917,79 @@
             </button>
         </div>
     </div>
+<!-- ========================================================= -->
+<!-- MATERIAL / FLUTTER STYLE DATE PICKER MODAL                -->
+<!-- ========================================================= -->
+<div id="datePickerModal" class="hidden" style="display: none; position: fixed; inset: 0; z-index: 999999 !important; justify-content: center; align-items: center; padding: 16px;">
+    <!-- Backdrop overlay -->
+    <div style="position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 1000000;" onclick="closeDatePickerModal()"></div>
+
+    <!-- Dialog Card -->
+    <div style="position: relative; z-index: 1000001; background: #ffffff !important; background-color: #ffffff !important; border-radius: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); width: 100%; max-width: 330px; padding: 20px 24px; margin: auto; max-height: 90vh; overflow-y: auto;" class="select-none animate-in fade-in zoom-in-95 duration-150" onclick="event.stopPropagation();">
+        <!-- Subtitle & Main Header -->
+        <div class="pb-3 border-b border-slate-100">
+            <span class="block text-xs font-medium text-slate-500">Select date</span>
+            <div class="flex items-center justify-between mt-1">
+                <span id="pickerHeaderDate" class="text-2xl sm:text-3xl font-medium text-slate-800">Tue, Oct 13</span>
+                <button type="button" class="text-slate-400 hover:text-slate-600 transition-colors p-1" title="Select date">
+                    <i class="fa-solid fa-pen text-xs"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Month Navigation -->
+        <div class="flex items-center justify-between pt-4 pb-2">
+            <div class="flex items-center gap-1.5 cursor-pointer">
+                <span id="pickerMonthYearLabel" class="text-xs sm:text-sm font-semibold text-slate-800">October 2026</span>
+                <i class="fa-solid fa-caret-down text-[10px] text-slate-500"></i>
+            </div>
+            <div class="flex items-center gap-1 text-slate-500">
+                <button type="button" onclick="prevPickerMonth()" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer" title="Bulan Sebelumnya">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                <button type="button" onclick="nextPickerMonth()" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer" title="Bulan Selanjutnya">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Days of Week Header (Explicit 7 Columns Grid) -->
+        <div class="text-center text-xs font-semibold text-slate-500 py-1" style="display: grid !important; grid-template-columns: repeat(7, 1fr) !important; gap: 2px !important;">
+            <span>S</span>
+            <span>M</span>
+            <span>T</span>
+            <span>W</span>
+            <span>T</span>
+            <span>F</span>
+            <span>S</span>
+        </div>
+
+        <!-- Calendar Days Grid (Explicit 7 Columns Grid) -->
+        <div id="pickerCalendarGrid" class="py-1 text-xs" style="display: grid !important; grid-template-columns: repeat(7, 1fr) !important; gap: 2px !important;">
+            <!-- Dynamically populated by JavaScript -->
+        </div>
+
+        <!-- Action Footer -->
+        <div class="flex items-center justify-end gap-2 pt-4 mt-2 border-t border-slate-100">
+            <button
+                type="button"
+                onclick="closeDatePickerModal()"
+                class="px-4 py-2 text-xs font-bold text-[#063B00] hover:bg-[#063B00]/5 rounded-xl transition-colors cursor-pointer"
+            >
+                Cancel
+            </button>
+            <button
+                type="button"
+                onclick="confirmDatePicker()"
+                class="px-4 py-2 text-xs font-bold text-[#063B00] hover:bg-[#063B00]/10 rounded-xl transition-colors cursor-pointer"
+            >
+                OK
+            </button>
+        </div>
+    </div>
 </div>
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     // Venue and Courts mapping
     let venuesData = @json($venues);
@@ -1248,37 +1323,244 @@
         return false;
     }
 
-    /**
-     * Inisialisasi kalender Flatpickr dengan aturan disable hari libur venue
-     */
-    function initFlatpickr() {
-        if (typeof flatpickr === 'undefined') return;
+    // ==========================================
+    // MATERIAL DESIGN DATE PICKER CONTROLLER
+    // ==========================================
+    const dayNamesShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthNamesShort = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
 
-        const inputEl = document.getElementById('tanggalMabarInput');
-        if (!inputEl) return;
+    let pickerSelectedDate = new Date();
+    let pickerTempDate = new Date();
+    let pickerViewingYear = pickerTempDate.getFullYear();
+    let pickerViewingMonth = pickerTempDate.getMonth();
 
-        const defaultVal = inputEl.value || null;
+    function parseYmd(dateStr) {
+        if (!dateStr) return new Date();
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
+        return new Date();
+    }
 
-        fpTanggal = flatpickr(inputEl, {
-            dateFormat: "Y-m-d",
-            altInput: true,
-            altFormat: "d/m/Y",
-            minDate: "today",
-            defaultDate: defaultVal || undefined,
-            monthSelectorType: "static",
-            disable: [
-                function(date) {
-                    const venueInput = document.getElementById('venueIdInput');
-                    if (!venueInput || !venueInput.value) return false;
-                    const venueId = parseInt(venueInput.value);
-                    const selectedVenue = venuesData.find(v => v.venue_id === venueId);
-                    return isDateDisabledForVenue(date, selectedVenue);
-                }
-            ],
-            onChange: function(selectedDates, dateStr) {
-                onTanggalChanged();
+    function formatYmd(d) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function formatDisplayDate(d) {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${dd}/${mm}/${yyyy}`;
+    }
+
+    function isScheduleDateDisabled(dDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const checkDate = new Date(dDate.getFullYear(), dDate.getMonth(), dDate.getDate(), 0, 0, 0, 0);
+        if (checkDate < today) return true;
+
+        const venueInput = document.getElementById('venueIdInput');
+        if (venueInput && venueInput.value) {
+            const venueId = parseInt(venueInput.value);
+            const selectedVenue = venuesData.find(v => v.venue_id === venueId);
+            if (selectedVenue && typeof isDateDisabledForVenue === 'function') {
+                return isDateDisabledForVenue(dDate, selectedVenue);
             }
-        });
+        }
+        return false;
+    }
+
+    function openDatePickerModal() {
+        const input = document.getElementById('tanggalMabarInput');
+        if (input && input.value) {
+            pickerSelectedDate = parseYmd(input.value);
+        } else {
+            pickerSelectedDate = new Date();
+            if (isScheduleDateDisabled(pickerSelectedDate)) {
+                let nextD = new Date(pickerSelectedDate);
+                for (let i = 1; i <= 14; i++) {
+                    nextD.setDate(nextD.getDate() + 1);
+                    if (!isScheduleDateDisabled(nextD)) {
+                        pickerSelectedDate = nextD;
+                        break;
+                    }
+                }
+            }
+        }
+        pickerTempDate = new Date(pickerSelectedDate);
+        pickerViewingYear = pickerTempDate.getFullYear();
+        pickerViewingMonth = pickerTempDate.getMonth();
+
+        renderCalendar();
+
+        const modal = document.getElementById('datePickerModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
+    }
+
+    function closeDatePickerModal() {
+        const modal = document.getElementById('datePickerModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    }
+
+    function confirmDatePicker() {
+        if (isScheduleDateDisabled(pickerTempDate)) {
+            return;
+        }
+        pickerSelectedDate = new Date(pickerTempDate);
+        const ymd = formatYmd(pickerSelectedDate);
+        const displayFormatted = formatDisplayDate(pickerSelectedDate);
+
+        const input = document.getElementById('tanggalMabarInput');
+        const display = document.getElementById('tanggalMabarDisplay');
+        if (input) input.value = ymd;
+        if (display) display.value = displayFormatted;
+
+        closeDatePickerModal();
+
+        if (typeof onTanggalChanged === 'function') {
+            onTanggalChanged();
+        }
+    }
+
+    function prevPickerMonth() {
+        pickerViewingMonth--;
+        if (pickerViewingMonth < 0) {
+            pickerViewingMonth = 11;
+            pickerViewingYear--;
+        }
+        renderCalendar();
+    }
+
+    function nextPickerMonth() {
+        pickerViewingMonth++;
+        if (pickerViewingMonth > 11) {
+            pickerViewingMonth = 0;
+            pickerViewingYear++;
+        }
+        renderCalendar();
+    }
+
+    function selectPickerDate(day) {
+        const candidate = new Date(pickerViewingYear, pickerViewingMonth, day);
+        if (isScheduleDateDisabled(candidate)) return;
+        pickerTempDate = candidate;
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        const headerEl = document.getElementById('pickerHeaderDate');
+        if (headerEl) {
+            const dayName = dayNamesShort[pickerTempDate.getDay()];
+            const monthName = monthNamesShort[pickerTempDate.getMonth()];
+            const dayNum = pickerTempDate.getDate();
+            headerEl.textContent = `${dayName}, ${monthName} ${dayNum}`;
+        }
+
+        const monthYearLabel = document.getElementById('pickerMonthYearLabel');
+        if (monthYearLabel) {
+            monthYearLabel.textContent = `${monthNames[pickerViewingMonth]} ${pickerViewingYear}`;
+        }
+
+        const grid = document.getElementById('pickerCalendarGrid');
+        if (!grid) return;
+
+        const firstDayIndex = new Date(pickerViewingYear, pickerViewingMonth, 1).getDay();
+        const totalDays = new Date(pickerViewingYear, pickerViewingMonth + 1, 0).getDate();
+        const today = new Date();
+
+        let gridHtml = '';
+
+        for (let i = 0; i < firstDayIndex; i++) {
+            gridHtml += `<div class="mx-auto" style="width: 32px; height: 32px;"></div>`;
+        }
+
+        for (let d = 1; d <= totalDays; d++) {
+            const dayDate = new Date(pickerViewingYear, pickerViewingMonth, d);
+            const isDisabled = isScheduleDateDisabled(dayDate);
+
+            const isSelected = (
+                pickerTempDate.getFullYear() === pickerViewingYear &&
+                pickerTempDate.getMonth() === pickerViewingMonth &&
+                pickerTempDate.getDate() === d
+            );
+
+            const isToday = (
+                today.getFullYear() === pickerViewingYear &&
+                today.getMonth() === pickerViewingMonth &&
+                today.getDate() === d
+            );
+
+            if (isDisabled) {
+                gridHtml += `
+                    <div
+                        style="width: 32px; height: 32px;"
+                        class="rounded-full mx-auto flex items-center justify-center text-xs text-slate-300 font-normal cursor-not-allowed select-none"
+                    >
+                        ${d}
+                    </div>
+                `;
+            } else if (isSelected) {
+                gridHtml += `
+                    <button
+                        type="button"
+                        onclick="selectPickerDate(${d})"
+                        style="width: 32px; height: 32px;"
+                        class="rounded-full mx-auto flex items-center justify-center font-bold bg-[#063B00] text-white shadow-xs cursor-pointer transition-transform scale-105"
+                    >
+                        ${d}
+                    </button>
+                `;
+            } else if (isToday) {
+                gridHtml += `
+                    <button
+                        type="button"
+                        onclick="selectPickerDate(${d})"
+                        style="width: 32px; height: 32px;"
+                        class="rounded-full mx-auto flex items-center justify-center font-bold border border-[#063B00] text-[#063B00] hover:bg-slate-100 cursor-pointer transition-colors"
+                    >
+                        ${d}
+                    </button>
+                `;
+            } else {
+                gridHtml += `
+                    <button
+                        type="button"
+                        onclick="selectPickerDate(${d})"
+                        style="width: 32px; height: 32px;"
+                        class="rounded-full mx-auto flex items-center justify-center font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer transition-colors"
+                    >
+                        ${d}
+                    </button>
+                `;
+            }
+        }
+
+        grid.innerHTML = gridHtml;
+    }
+
+    function initFlatpickr() {
+        const inputEl = document.getElementById('tanggalMabarInput');
+        const displayEl = document.getElementById('tanggalMabarDisplay');
+        if (inputEl && inputEl.value && displayEl) {
+            displayEl.value = formatDisplayDate(parseYmd(inputEl.value));
+        }
     }
 
     // =========================================================
@@ -1550,22 +1832,22 @@
             badge.classList.remove('hidden');
         }
 
-        // Update aturan disable di kalender Flatpickr sesuai venue terpilih
-        if (fpTanggal) {
-            fpTanggal.set('disable', [
-                function(date) {
-                    return isDateDisabledForVenue(date, selectedVenue);
-                }
-            ]);
-
-            // Jika tanggal yang sedang dipilih ternyata libur di venue ini, auto-pindah ke hari buka berikutnya
-            const curDate = fpTanggal.selectedDates[0];
-            if (curDate && isDateDisabledForVenue(curDate, selectedVenue)) {
+        // Update jika tanggal yang dipilih libur di venue ini, auto-pindah ke hari buka berikutnya
+        const tanggalVal = document.getElementById('tanggalMabarInput')?.value;
+        if (tanggalVal && selectedVenue) {
+            const curDate = parseYmd(tanggalVal);
+            if (isDateDisabledForVenue(curDate, selectedVenue)) {
                 let nextValid = new Date(curDate);
                 for (let i = 1; i <= 14; i++) {
                     nextValid.setDate(nextValid.getDate() + 1);
                     if (!isDateDisabledForVenue(nextValid, selectedVenue)) {
-                        fpTanggal.setDate(nextValid, true); // true agar trigger onChange
+                        const ymd = formatYmd(nextValid);
+                        const displayFormatted = formatDisplayDate(nextValid);
+                        const inp = document.getElementById('tanggalMabarInput');
+                        const disp = document.getElementById('tanggalMabarDisplay');
+                        if (inp) inp.value = ymd;
+                        if (disp) disp.value = displayFormatted;
+                        onTanggalChanged();
                         break;
                     }
                 }
