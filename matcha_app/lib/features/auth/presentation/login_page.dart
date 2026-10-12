@@ -38,10 +38,11 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (success && mounted) {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) => MainShellPage(authController: widget.authController),
           ),
+          (route) => false,
         );
       }
     }
@@ -473,10 +474,11 @@ class _LoginPageState extends State<LoginPage> {
                                           const SizedBox(height: 4),
                                           GestureDetector(
                                             onTap: () {
-                                              Navigator.of(context).pushReplacement(
+                                              Navigator.of(context).pushAndRemoveUntil(
                                                 MaterialPageRoute(
                                                   builder: (context) => MainShellPage(authController: widget.authController),
                                                 ),
+                                                (route) => false,
                                               );
                                             },
                                             child: const Row(
@@ -533,12 +535,13 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                   ),
                                 );
-                                if (!mounted) return;
+                                if (!context.mounted) return;
                                 if (widget.authController.isAuthenticated) {
-                                  Navigator.of(context).pushReplacement(
+                                  Navigator.of(context).pushAndRemoveUntil(
                                     MaterialPageRoute(
                                       builder: (context) => MainShellPage(authController: widget.authController),
                                     ),
+                                    (route) => false,
                                   );
                                 } else if (registeredEmail != null && registeredEmail.isNotEmpty) {setState(() {
                                   _loginIdController.text = registeredEmail;
