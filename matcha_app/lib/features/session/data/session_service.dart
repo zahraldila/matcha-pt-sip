@@ -462,10 +462,13 @@ class SessionService {
   }
 
   /// Mencari pemain dari tb_player berdasarkan nama (termasuk foto dari tb_player / tb_user)
+  /// Hasil pencarian dideduplikasi agar akun pemilik terdaftar hanya muncul 1 kali,
+  /// dan pemain tamu (input manual) tetap dapat ditemukan tanpa duplikasi.
   Future<List<Map<String, dynamic>>> searchPlayers({
     String? query,
     int limit = 30,
   }) async {
+    final fetchLimit = limit > 0 ? limit * 3 : 60;
     try {
       var req = _supabase
           .from('tb_player')
@@ -486,9 +489,9 @@ class SessionService {
         req = req.ilike('nama', '%${query.trim()}%');
       }
 
-      final res = await req.order('player_id', ascending: false).limit(limit);
+      final res = await req.order('player_id', ascending: false).limit(fetchLimit);
       final rawList = List<Map<String, dynamic>>.from(res as List);
-      return rawList.map((p) {
+      final mappedList = rawList.map((p) {
         String? fotoUrl = p['foto'] as String?;
         if ((fotoUrl == null || fotoUrl.trim().isEmpty) && p['tb_user'] is Map) {
           fotoUrl = p['tb_user']['foto'] as String?;
@@ -497,6 +500,8 @@ class SessionService {
         copy['foto'] = (fotoUrl != null && fotoUrl.trim().isNotEmpty) ? fotoUrl.trim() : null;
         return copy;
       }).toList();
+
+      return deduplicateSearchResults(mappedList, limit: limit);
     } catch (_) {
       try {
         var req = _supabase
@@ -507,14 +512,83 @@ class SessionService {
           req = req.ilike('nama', '%${query.trim()}%');
         }
 
-        final res = await req.order('player_id', ascending: false).limit(limit);
-        return List<Map<String, dynamic>>.from(res as List);
+        final res = await req.order('player_id', ascending: false).limit(fetchLimit);
+        final rawList = List<Map<String, dynamic>>.from(res as List);
+        return deduplicateSearchResults(rawList, limit: limit);
       } on PostgrestException catch (e) {
         throw Exception('Gagal mencari pemain: ${e.message}');
       } catch (e) {
         throw Exception('Terjadi kesalahan saat mencari pemain: $e');
       }
     }
+  }
+
+  /// Deduplikasi hasil pencarian pemain:
+  /// 1. Akun terdaftar (user_id != null) hanya muncul 1 kali per akun unik.
+  ///    Data profil (seperti foto/level/gender) dilengkapi jika ada record lain yang memilikinya.
+  /// 2. Pemain dari input manual (user_id == null) tetap dimunculkan,
+  ///    namun tidak diduplikasi jika ada nama yang sama atau sudah terdaftar di akun.
+  static List<Map<String, dynamic>> deduplicateSearchResults(
+    List<Map<String, dynamic>> players, {
+    int limit = 30,
+  }) {
+    // Kumpulkan nama dari akun terdaftar terlebih dahulu
+    final Set<String> registeredAccountNames = {};
+    for (final p in players) {
+      final rawUserId = p['user_id'];
+      final userId = rawUserId is int ? rawUserId : int.tryParse(rawUserId?.toString() ?? '');
+      final name = (p['nama'] ?? '').toString().trim().toLowerCase();
+      if (userId != null && userId > 0 && name.isNotEmpty) {
+        registeredAccountNames.add(name);
+      }
+    }
+
+    final List<Map<String, dynamic>> result = [];
+    final Map<int, int> userIndexMap = {}; // userId -> index di result
+    final Set<String> seenGuestNames = {};
+
+    for (final p in players) {
+      final rawUserId = p['user_id'];
+      final userId = rawUserId is int ? rawUserId : int.tryParse(rawUserId?.toString() ?? '');
+      final name = (p['nama'] ?? '').toString().trim().toLowerCase();
+      if (name.isEmpty) continue;
+
+      if (userId != null && userId > 0) {
+        // Akun terdaftar: hanya muncul 1 kali per akun
+        if (!userIndexMap.containsKey(userId)) {
+          userIndexMap[userId] = result.length;
+          result.add(Map<String, dynamic>.from(p));
+        } else {
+          // Lengkapi data yang mungkin null di record sebelumnya
+          final existing = result[userIndexMap[userId]!];
+          if ((existing['foto'] == null || existing['foto'].toString().trim().isEmpty) &&
+              p['foto'] != null &&
+              p['foto'].toString().trim().isNotEmpty) {
+            existing['foto'] = p['foto'];
+          }
+          if ((existing['level'] == null || existing['level'].toString().trim().isEmpty) &&
+              p['level'] != null &&
+              p['level'].toString().trim().isNotEmpty) {
+            existing['level'] = p['level'];
+          }
+          if ((existing['gender'] == null || existing['gender'].toString().trim().isEmpty) &&
+              p['gender'] != null &&
+              p['gender'].toString().trim().isNotEmpty) {
+            existing['gender'] = p['gender'];
+          }
+        }
+      } else {
+        // Pemain dari input manual (tanpa user_id)
+        if (!registeredAccountNames.contains(name) && !seenGuestNames.contains(name)) {
+          seenGuestNames.add(name);
+          result.add(Map<String, dynamic>.from(p));
+        }
+      }
+
+      if (limit > 0 && result.length >= limit) break;
+    }
+
+    return result;
   }
 
   /// Membatalkan keikutsertaan pemain dari sesi mabar
