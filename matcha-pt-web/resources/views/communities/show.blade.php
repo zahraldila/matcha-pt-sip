@@ -226,9 +226,9 @@
                                 </p>
                             </div>
 
-                            <form action="{{ route('communities.leave', $community->community_id) }}" method="POST">
+                            <form id="leaveCommunityForm" action="{{ route('communities.leave', $community->community_id) }}" method="POST">
                                 @csrf
-                                <button type="submit" class="w-full px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-all border border-rose-200 flex items-center justify-center gap-2 cursor-pointer">
+                                <button type="button" onclick="openLeaveModal()" class="w-full px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-all border border-rose-200 flex items-center justify-center gap-2 cursor-pointer">
                                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                                     Keluar dari Komunitas
                                 </button>
@@ -240,9 +240,9 @@
                             <h3 class="text-sm font-bold text-slate-900">Gabung Komunitas</h3>
                             <p class="text-xs text-slate-500 leading-relaxed">Bergabunglah dengan komunitas ini untuk mengikuti sesi mabar dan turnamen!</p>
 
-                            <form action="{{ route('communities.join', $community->community_id) }}" method="POST">
+                            <form id="joinCommunityForm" action="{{ route('communities.join', $community->community_id) }}" method="POST">
                                 @csrf
-                                <button type="submit" class="w-full px-4 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                <button type="button" onclick="openJoinModal()" class="w-full px-4 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer">
                                     <i class="fa-solid fa-user-plus text-[#A8E63A]"></i>
                                     <span>Bergabung Sekarang</span>
                                 </button>
@@ -271,6 +271,56 @@
         </div>
     </div>
 </div>
+
+@if(Auth::check() && !Auth::user()->isAdmin())
+    @if(!$isMember)
+        <!-- Join Confirmation Modal -->
+        <div id="joinConfirmModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="bg-white/95 backdrop-blur-2xl border border-white/80 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+                <div class="w-14 h-14 rounded-3xl bg-[#EBF8D8] border border-[#063B00]/20 text-[#063B00] flex items-center justify-center text-2xl mx-auto shadow-xs">
+                    <i class="fa-solid fa-user-plus"></i>
+                </div>
+                <div class="text-center space-y-1.5">
+                    <h3 class="text-base font-black text-slate-900">Konfirmasi Bergabung</h3>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Apakah Anda yakin ingin bergabung dengan komunitas <strong class="text-slate-800 font-semibold">{{ $community->nama_community }}</strong>?
+                    </p>
+                </div>
+                <div class="flex gap-2.5 pt-2">
+                    <button type="button" onclick="closeJoinModal()" class="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="button" onclick="submitJoinForm()" class="flex-1 py-3 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all cursor-pointer">
+                        Ya, Bergabung
+                    </button>
+                </div>
+            </div>
+        </div>
+    @else
+        <!-- Leave Confirmation Modal -->
+        <div id="leaveConfirmModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="bg-white/95 backdrop-blur-2xl border border-white/80 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+                <div class="w-14 h-14 rounded-3xl bg-rose-100 border border-rose-200 text-rose-600 flex items-center justify-center text-2xl mx-auto shadow-xs">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </div>
+                <div class="text-center space-y-1.5">
+                    <h3 class="text-base font-black text-slate-900">Konfirmasi Keluar Komunitas</h3>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Apakah Anda yakin ingin keluar dari komunitas <strong class="text-slate-800 font-semibold">{{ $community->nama_community }}</strong>? Anda tidak lagi terdaftar sebagai anggota komunitas ini.
+                    </p>
+                </div>
+                <div class="flex gap-2.5 pt-2">
+                    <button type="button" onclick="closeLeaveModal()" class="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="button" onclick="submitLeaveForm()" class="flex-1 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-md transition-all cursor-pointer">
+                        Ya, Keluar Komunitas
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+@endif
 
 <!-- MODAL DELETE COMMUNITY CONFIRMATION -->
 <div id="deleteCommunityModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeDeleteCommunityModal();">
@@ -316,5 +366,54 @@
         const m = document.getElementById('deleteCommunityModal');
         if (m) m.style.display = 'none';
     }
+
+    function openJoinModal() {
+        const modal = document.getElementById('joinConfirmModal');
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeJoinModal() {
+        const modal = document.getElementById('joinConfirmModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function submitJoinForm() {
+        const form = document.getElementById('joinCommunityForm');
+        if (form) form.submit();
+    }
+
+    function openLeaveModal() {
+        const modal = document.getElementById('leaveConfirmModal');
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeLeaveModal() {
+        const modal = document.getElementById('leaveConfirmModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function submitLeaveForm() {
+        const form = document.getElementById('leaveCommunityForm');
+        if (form) form.submit();
+    }
+
+    window.addEventListener('click', function(e) {
+        const joinModal = document.getElementById('joinConfirmModal');
+        const leaveModal = document.getElementById('leaveConfirmModal');
+        if (joinModal && e.target === joinModal) {
+            closeJoinModal();
+        }
+        if (leaveModal && e.target === leaveModal) {
+            closeLeaveModal();
+        }
+    });
+
+    window.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeJoinModal();
+            closeLeaveModal();
+            closeDeleteCommunityModal();
+        }
+    });
 </script>
 @endsection
