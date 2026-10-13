@@ -471,8 +471,9 @@ class PlayerController extends Controller
                 $isWinner = ($isSideA && $winnerSide === 'A') || (! $isSideA && $winnerSide === 'B');
             } else {
                 // Evaluasi dari tb_score jika winner_team belum terisi eksplisit
-                $scoreA = (int) ($match->scores->sum('game_score_a') + $match->scores->sum('set_score_a'));
-                $scoreB = (int) ($match->scores->sum('game_score_b') + $match->scores->sum('set_score_b'));
+                $authScores = \App\Services\Scoring\ScoringService::getAuthoritativeScoresForMatch($match->scores);
+                $scoreA = (int) ($authScores->sum('game_score_a') + $authScores->sum('set_score_a'));
+                $scoreB = (int) ($authScores->sum('game_score_b') + $authScores->sum('set_score_b'));
                 if ($scoreA > $scoreB) {
                     $isWinner = $isSideA;
                 } elseif ($scoreB > $scoreA) {
@@ -524,9 +525,10 @@ class PlayerController extends Controller
             $matchDate = $match->updated_at ? $match->updated_at->format('d M Y') : ($session && $session->datetime ? $session->datetime->format('d M Y') : date('d M Y'));
 
             $scoreDisplay = $match->hasil_pertandingan ?: '';
-            if ($match->scores->isNotEmpty()) {
-                $sumA = (int) $match->scores->sum('game_score_a');
-                $sumB = (int) $match->scores->sum('game_score_b');
+            $authScores = \App\Services\Scoring\ScoringService::getAuthoritativeScoresForMatch($match->scores);
+            if ($authScores->isNotEmpty()) {
+                $sumA = (int) $authScores->sum('game_score_a');
+                $sumB = (int) $authScores->sum('game_score_b');
                 $scoreDisplay = $isSideA ? "{$sumA} - {$sumB}" : "{$sumB} - {$sumA}";
             }
             if (empty($scoreDisplay)) {

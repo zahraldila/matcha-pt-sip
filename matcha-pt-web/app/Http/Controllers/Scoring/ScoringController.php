@@ -1553,29 +1553,46 @@ class ScoringController extends Controller
                     $courtNumber = (($match->nomor_match - 1) % $courtCount) + 1;
                     $rKey = "round_{$roundNumber}";
                     $scoreKey = ScoringService::buildMatchKey($rKey, $courtNumber, $courtCount);
-                    $matchScores = $match->scores;
+                    $authScores = ScoringService::getAuthoritativeScoresForMatch($match->scores);
                     $mSetsA = 0;
                     $mSetsB = 0;
                     $mGamesA = 0;
                     $mGamesB = 0;
                     $mSetHistory = [];
 
-                    foreach ($matchScores as $sc) {
-                        $mSetsA = max($mSetsA, (int) $sc->set_score_a);
-                        $mSetsB = max($mSetsB, (int) $sc->set_score_b);
-                        $mGamesA += (int) $sc->game_score_a;
-                        $mGamesB += (int) $sc->game_score_b;
-                        if ($scoringSystem['is_sets']) {
-                            $mSetHistory[] = [
-                                'set' => (int) $sc->set_number,
-                                'score_a' => (int) $sc->score_side_a,
-                                'score_b' => (int) $sc->score_side_b,
-                            ];
-                        }
+                    foreach ($authScores as $sc) {
+                        $sa = (int) ($sc->set_score_a ?? 0);
+                        $sb = (int) ($sc->set_score_b ?? 0);
+                        $ga = (int) ($sc->game_score_a ?: ($sc->score_side_a ?? 0));
+                        $gb = (int) ($sc->game_score_b ?: ($sc->score_side_b ?? 0));
+
+                        $mSetsA = max($mSetsA, $sa);
+                        $mSetsB = max($mSetsB, $sb);
+                        $mGamesA += $ga;
+                        $mGamesB += $gb;
+
+                        $mSetHistory[] = [
+                            'set' => (int) ($sc->set_number ?? 1),
+                            'score_a' => $ga,
+                            'score_b' => $gb,
+                        ];
                     }
 
-                    if ($matchScores->isNotEmpty() || $match->status_match === 'Completed') {
+                    if ($authScores->isNotEmpty() || $match->status_match === 'Completed') {
                         $dbScoresRecovered = true;
+
+                        // Tentukan pemenang secara objektif (hindari badge WIN sepihak jika hasil seri)
+                        $winnerTeam = $match->winner_team;
+                        if (empty($winnerTeam)) {
+                            if ($scoringSystem['is_sets'] && $mSetsA !== $mSetsB) {
+                                $winnerTeam = $mSetsA > $mSetsB ? 'Team A' : 'Team B';
+                            } elseif ($mGamesA !== $mGamesB) {
+                                $winnerTeam = $mGamesA > $mGamesB ? 'Team A' : 'Team B';
+                            } else {
+                                $winnerTeam = null; // Draw / Seri
+                            }
+                        }
+
                         $savedScores[$scoreKey] = [
                             'score_a' => $scoringSystem['is_sets'] ? $mSetsA : $mGamesA,
                             'score_b' => $scoringSystem['is_sets'] ? $mSetsB : $mGamesB,
@@ -1586,10 +1603,10 @@ class ScoringController extends Controller
                             'sets_b' => $mSetsB,
                             'games_a' => $mGamesA,
                             'games_b' => $mGamesB,
-                            'set_history' => $mSetHistory,
+                            'set_history' => ScoringService::sanitizeSetHistory($mSetHistory),
                             'scoring_type' => $scoringSystem['type'],
                             'scoring_system' => $scoringSystem['type'],
-                            'winner_team' => $match->winner_team ?: ($mGamesA >= $mGamesB ? 'Team A' : 'Team B'),
+                            'winner_team' => $winnerTeam,
                             'status' => 'completed',
                             'updated_at' => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
                         ];
@@ -1857,35 +1874,88 @@ class ScoringController extends Controller
         return $rounds ?: $fallbackDrawing;
     }
 
-    private function buildPlayerRecap(array $game, array $rankedPlayers, ?string $requestedPlayerName = null): array
+    private function buildPlayerRecap(array $game, array $rankedPlayers, ?string $requestedPlayerName = null): ?array
     {
-        $selectedPlayer = null;
+        $playerName = null;
+        $participant = null;
         $user = Auth::user();
 
-        if ($requestedPlayerName) {
-            $selectedPlayer = Player::where('nama', $requestedPlayerName)->first();
+        if ($requestedPlayerName !== null && $requestedPlayerName !== '') {
+            $cleanReqName = ScoringService::cleanPlayerName($requestedPlayerName);
+            $playerName = $requestedPlayerName;
+            $participant = collect($game['participants'] ?? [])->first(function ($p) use ($cleanReqName) {
+                return ScoringService::cleanPlayerName($p['name'] ?? '') === $cleanReqName;
+            });
         } elseif ($user) {
-            $selectedPlayer = Player::where('user_id', $user->user_id)->first();
+            // Pengguna sedang login: cari peserta sesi yang terhubung ke akun ini
+            $userPlayerIds = Player::where('user_id', $user->user_id)->pluck('player_id')->map('intval')->all();
+            $cleanUserName = ScoringService::cleanPlayerName($user->nama ?? '');
+
+            // 1. Cari via session participants ($game['participants'])
+            $participant = collect($game['participants'] ?? [])->first(function ($p) use ($user, $userPlayerIds, $cleanUserName) {
+                $pUserId = isset($p['user_id']) ? (int) $p['user_id'] : null;
+                $pId = isset($p['id']) ? (int) $p['id'] : (isset($p['player_id']) ? (int) $p['player_id'] : null);
+
+                if ($pUserId !== null && $pUserId === (int) $user->user_id) {
+                    return true;
+                }
+                if ($pId !== null && in_array($pId, $userPlayerIds, true)) {
+                    return true;
+                }
+
+                return ScoringService::cleanPlayerName($p['name'] ?? '') === $cleanUserName;
+            });
+
+            // 2. Jika tidak ditemukan di $game['participants'], cek relasi tb_session_player di database
+            if (! $participant && ! empty($game['id'])) {
+                $sessionPlayer = Player::whereHas('sessions', function ($q) use ($game) {
+                    $q->where('tb_session.session_id', (int) $game['id']);
+                })->where(function ($q) use ($user, $userPlayerIds) {
+                    $q->where('user_id', $user->user_id);
+                    if (! empty($userPlayerIds)) {
+                        $q->orWhereIn('player_id', $userPlayerIds);
+                    }
+                })->first();
+
+                if ($sessionPlayer) {
+                    $playerName = $sessionPlayer->nama;
+                    $cleanSessionPlayerName = ScoringService::cleanPlayerName($playerName);
+                    $participant = collect($game['participants'] ?? [])->first(function ($p) use ($cleanSessionPlayerName) {
+                        return ScoringService::cleanPlayerName($p['name'] ?? '') === $cleanSessionPlayerName;
+                    }) ?: [
+                        'id' => $sessionPlayer->player_id,
+                        'name' => $sessionPlayer->nama,
+                        'level' => $sessionPlayer->level ?? 'Intermediate',
+                        'avatar' => $sessionPlayer->foto,
+                    ];
+                }
+            }
+
+            if ($participant) {
+                $playerName = $participant['name'] ?? $playerName;
+            } else {
+                // User login tidak berpartisipasi dalam sesi ini -> jangan tampilkan kartu peserta lain
+                return null;
+            }
+        } else {
+            // Pengunjung anonim / guest -> jangan tampilkan kartu peserta lain
+            return null;
         }
 
-        $playerName = $requestedPlayerName ?: $selectedPlayer?->nama;
-        $playerStats = collect($rankedPlayers)->first(function (array $player) use ($playerName) {
-            return $playerName && ScoringService::cleanPlayerName($player['name']) === ScoringService::cleanPlayerName($playerName);
+        if (empty($playerName)) {
+            return null;
+        }
+
+        $cleanPlayerName = ScoringService::cleanPlayerName($playerName);
+        $playerStats = collect($rankedPlayers)->first(function (array $player) use ($cleanPlayerName) {
+            return ScoringService::cleanPlayerName($player['name'] ?? '') === $cleanPlayerName;
         });
 
-        $playerStats ??= $rankedPlayers[0] ?? [
-            'name' => $playerName ?: 'Pemain Matcha',
-            'points_for' => 0,
-            'matches' => 0,
-            'wins' => 0,
-        ];
-        $playerName = $playerStats['name'];
+        if (! $playerStats) {
+            return null;
+        }
 
-        $participant = collect($game['participants'] ?? [])->first(function (array $participant) use ($playerName) {
-            return ScoringService::cleanPlayerName($participant['name'] ?? '') === ScoringService::cleanPlayerName($playerName);
-        });
         $durationMinutes = 0;
-
         try {
             $drawing = Drawing::where('session_id', $game['id'])->first();
             if ($drawing) {
@@ -1894,12 +1964,12 @@ class ScoringController extends Controller
                     ->where('status_match', 'Completed')
                     ->get();
 
+                $participantId = $participant['id'] ?? null;
                 foreach ($matches as $match) {
-                    $isParticipant = $selectedPlayer
-                        ? $match->participants->contains('player_id', $selectedPlayer->player_id)
-                        : $match->participants->contains(function ($matchParticipant) use ($playerName) {
-                            return ScoringService::cleanPlayerName($matchParticipant->player?->nama ?? '')
-                                === ScoringService::cleanPlayerName($playerName);
+                    $isParticipant = $participantId
+                        ? $match->participants->contains('player_id', (int) $participantId)
+                        : $match->participants->contains(function ($matchParticipant) use ($cleanPlayerName) {
+                            return ScoringService::cleanPlayerName($matchParticipant->player?->nama ?? '') === $cleanPlayerName;
                         });
 
                     if (! $isParticipant || ! $match->waktu_mulai || ! $match->waktu_selesai) {
@@ -1921,14 +1991,15 @@ class ScoringController extends Controller
         $wins = (int) ($playerStats['wins'] ?? 0);
 
         return [
-            'player_name' => $playerName,
-            'avatar' => $participant['avatar'] ?? null,
+            'player_name' => $playerStats['name'] ?? $playerName,
+            'avatar' => $participant['avatar'] ?? ($playerStats['avatar'] ?? null),
             'level' => $participant['level'] ?? ($playerStats['level'] ?? 'Intermediate'),
             'total_points' => (int) ($playerStats['points_for'] ?? 0),
             'duration_played' => $durationMinutes > 0 ? round($durationMinutes).'m' : '0m',
             'wins' => $wins,
             'losses' => max(0, $matchesPlayed - $wins),
             'win_rate' => $matchesPlayed > 0 ? round(($wins / $matchesPlayed) * 100).'%' : '0%',
+            'is_participant' => true,
         ];
     }
 
@@ -1956,6 +2027,7 @@ class ScoringController extends Controller
             $participants = $dbSession->players->map(function ($p) {
                 return [
                     'id' => $p->player_id,
+                    'user_id' => $p->user_id,
                     'name' => $p->nama,
                     'gender' => $p->gender ?? 'Male',
                     'age' => $p->usia,

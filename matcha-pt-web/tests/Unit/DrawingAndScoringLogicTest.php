@@ -1241,6 +1241,13 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->unsignedBigInteger('player_id');
             });
         }
+        if (! Schema::hasTable('tb_match_format')) {
+            Schema::create('tb_match_format', function ($table) {
+                $table->id('match_format_id');
+                $table->string('nama_format')->default('americano');
+                $table->timestamps();
+            });
+        }
         if (! Schema::hasTable('tb_drawing')) {
             Schema::create('tb_drawing', function ($table) {
                 $table->id('drawing_id');
@@ -1293,6 +1300,17 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->string('status_score')->default('In Progress');
                 $table->integer('version')->nullable();
                 $table->string('last_event_id')->nullable();
+                $table->timestamps();
+            });
+        }
+        if (! Schema::hasTable('tb_kudos')) {
+            Schema::create('tb_kudos', function ($table) {
+                $table->id('kudos_id');
+                $table->unsignedBigInteger('session_id')->index();
+                $table->unsignedBigInteger('giver_user_id')->nullable()->index();
+                $table->unsignedBigInteger('recipient_player_id')->nullable()->index();
+                $table->string('recipient_name')->index();
+                $table->string('badge');
                 $table->timestamps();
             });
         }
@@ -2705,6 +2723,411 @@ class DrawingAndScoringLogicTest extends TestCase
             $this->assertTrue(ScoringService::isMatchCompleted($ftTarget, 0, $ft));
             $this->assertSame('Team A', ScoringService::determineMatchWinner($ftTarget, 0, $ft));
         }
+    }
+
+    /**
+     * 1. Fixture: Satu match memiliki banyak EventLog/snapshot dan satu hasil final 2–1.
+     * Hasil otoritatif tetap 2–1, rincian tidak berulang, total statistik tidak menghitung snapshot.
+     */
+    public function test_authoritative_score_filtering_eliminates_eventlogs_and_snapshots()
+    {
+        $mockScores = collect([
+            (object) ['score_id' => 101, 'set_number' => 1, 'status_score' => 'EventLog', 'version' => 1, 'game_score_a' => 0, 'game_score_b' => 0, 'set_score_a' => 0, 'set_score_b' => 0, 'score_side_a' => 0, 'score_side_b' => 0],
+            (object) ['score_id' => 102, 'set_number' => 1, 'status_score' => 'EventLog', 'version' => 2, 'game_score_a' => 0, 'game_score_b' => 1, 'set_score_a' => 0, 'set_score_b' => 0, 'score_side_a' => 0, 'score_side_b' => 1],
+            (object) ['score_id' => 103, 'set_number' => 1, 'status_score' => 'EventLog', 'version' => 3, 'game_score_a' => 1, 'game_score_b' => 1, 'set_score_a' => 0, 'set_score_b' => 0, 'score_side_a' => 1, 'score_side_b' => 1],
+            (object) ['score_id' => 104, 'set_number' => 1, 'status_score' => 'Final', 'version' => 4, 'game_score_a' => 2, 'game_score_b' => 1, 'set_score_a' => 1, 'set_score_b' => 0, 'score_side_a' => 2, 'score_side_b' => 1],
+            (object) ['score_id' => 105, 'set_number' => 1, 'status_score' => 'EventLog', 'version' => 4, 'game_score_a' => 2, 'game_score_b' => 1, 'set_score_a' => 1, 'set_score_b' => 0, 'score_side_a' => 2, 'score_side_b' => 1],
+        ]);
+
+        $authScores = ScoringService::getAuthoritativeScoresForMatch($mockScores);
+        $this->assertCount(1, $authScores);
+        $this->assertSame(104, $authScores->first()->score_id);
+        $this->assertSame(2, (int) $authScores->first()->game_score_a);
+        $this->assertSame(1, (int) $authScores->first()->game_score_b);
+
+        // Uji sanitasi set_history
+        $rawHistory = [
+            ['set' => 1, 'score_a' => 0, 'score_b' => 0],
+            ['set' => 1, 'score_a' => 0, 'score_b' => 1],
+            ['set' => 1, 'score_a' => 1, 'score_b' => 1],
+            ['set' => 1, 'score_a' => 2, 'score_b' => 1],
+        ];
+        $sanitized = ScoringService::sanitizeSetHistory($rawHistory);
+        $this->assertCount(1, $sanitized);
+        $this->assertSame(1, $sanitized[0]['set']);
+        $this->assertSame(2, $sanitized[0]['score_a']);
+        $this->assertSame(1, $sanitized[0]['score_b']);
+
+        // Uji calculateRecap tidak mengakumulasi snapshot
+        $game = [
+            'id' => 999,
+            'scoring_system' => 'Total of 3',
+            'participants' => [
+                ['name' => 'Ahmad'],
+                ['name' => 'Marcello'],
+            ],
+            'drawing' => [
+                'round_1' => [
+                    'matches' => [
+                        ['court' => 1, 'team_a' => ['Ahmad'], 'team_b' => ['Marcello']],
+                    ],
+                ],
+            ],
+        ];
+        $sessionScores = [
+            'round_1' => [
+                'status' => 'completed',
+                'games_a' => 10, // Terinflasi oleh snapshot lama
+                'games_b' => 15,
+                'sets_a' => 1,
+                'sets_b' => 0,
+                'set_history' => $rawHistory,
+            ],
+        ];
+
+        $recap = ScoringService::calculateRecap($game, $sessionScores);
+        $ahmad = collect($recap)->firstWhere('name', 'Ahmad');
+        $marcello = collect($recap)->firstWhere('name', 'Marcello');
+
+        $this->assertSame(2, $ahmad['points_for']);
+        $this->assertSame(1, $marcello['points_for']);
+        $this->assertSame(1, $ahmad['wins']);
+        $this->assertSame(0, $marcello['wins']);
+    }
+
+    /**
+     * 2. Fixture Tiga ronde: setiap hasil final tampil sekali dan statistik terakumulasi sekali.
+     */
+    public function test_three_rounds_recap_displays_each_final_once_and_accumulates_correctly()
+    {
+        $game = [
+            'id' => 998,
+            'scoring_system' => 'Total of 3',
+            'participants' => [
+                ['name' => 'Ahmad'],
+                ['name' => 'Marcello'],
+            ],
+            'drawing' => [
+                'round_1' => ['matches' => [['court' => 1, 'team_a' => ['Ahmad'], 'team_b' => ['Marcello']]]],
+                'round_2' => ['matches' => [['court' => 1, 'team_a' => ['Ahmad'], 'team_b' => ['Marcello']]]],
+                'round_3' => ['matches' => [['court' => 1, 'team_a' => ['Ahmad'], 'team_b' => ['Marcello']]]],
+            ],
+        ];
+
+        $sessionScores = [
+            'round_1' => [
+                'status' => 'completed',
+                'games_a' => 2,
+                'games_b' => 1,
+                'set_history' => [
+                    ['set' => 1, 'score_a' => 0, 'score_b' => 1],
+                    ['set' => 1, 'score_a' => 2, 'score_b' => 1],
+                ],
+            ],
+            'round_2' => [
+                'status' => 'completed',
+                'games_a' => 2,
+                'games_b' => 1,
+                'set_history' => [
+                    ['set' => 1, 'score_a' => 1, 'score_b' => 1],
+                    ['set' => 1, 'score_a' => 2, 'score_b' => 1],
+                ],
+            ],
+            'round_3' => [
+                'status' => 'completed',
+                'games_a' => 0,
+                'games_b' => 3,
+                'set_history' => [
+                    ['set' => 1, 'score_a' => 0, 'score_b' => 3],
+                ],
+            ],
+        ];
+
+        $effective = ScoringService::getEffectiveScores($game, $sessionScores);
+        $this->assertCount(1, $effective['round_1']['set_history']);
+        $this->assertCount(1, $effective['round_2']['set_history']);
+        $this->assertCount(1, $effective['round_3']['set_history']);
+
+        $recap = ScoringService::calculateRecap($game, $sessionScores);
+        $ahmad = collect($recap)->firstWhere('name', 'Ahmad');
+        $marcello = collect($recap)->firstWhere('name', 'Marcello');
+
+        // Ahmad: 2 + 2 + 0 = 4 points, 2 wins
+        $this->assertSame(4, $ahmad['points_for']);
+        $this->assertSame(2, $ahmad['wins']);
+        $this->assertSame(1, $ahmad['losses']);
+
+        // Marcello: 1 + 1 + 3 = 5 points, 1 win
+        $this->assertSame(5, $marcello['points_for']);
+        $this->assertSame(1, $marcello['wins']);
+        $this->assertSame(2, $marcello['losses']);
+    }
+
+    /**
+     * 3. Fixture Multi-court: semua match tampil tanpa duplikasi atau kehilangan data.
+     */
+    public function test_multi_court_session_preserves_distinct_matches_without_dropping_or_merging()
+    {
+        $game = [
+            'id' => 997,
+            'scoring_system' => 'Total of 3',
+            'participants' => [
+                ['name' => 'Player 1'],
+                ['name' => 'Player 2'],
+                ['name' => 'Player 3'],
+                ['name' => 'Player 4'],
+            ],
+            'drawing' => [
+                'round_1' => [
+                    'court_count' => 2,
+                    'matches' => [
+                        ['court' => 1, 'team_a' => ['Player 1'], 'team_b' => ['Player 2']],
+                        ['court' => 2, 'team_a' => ['Player 3'], 'team_b' => ['Player 4']],
+                    ],
+                ],
+            ],
+        ];
+
+        $sessionScores = [
+            'round_1_court_1' => ['status' => 'completed', 'games_a' => 2, 'games_b' => 1, 'set_history' => [['set' => 1, 'score_a' => 2, 'score_b' => 1]]],
+            'round_1_court_2' => ['status' => 'completed', 'games_a' => 0, 'games_b' => 3, 'set_history' => [['set' => 1, 'score_a' => 0, 'score_b' => 3]]],
+        ];
+
+        $effective = ScoringService::getEffectiveScores($game, $sessionScores);
+        $this->assertArrayHasKey('round_1_court_1', $effective);
+        $this->assertArrayHasKey('round_1_court_2', $effective);
+        $this->assertSame(2, $effective['round_1_court_1']['games_a']);
+        $this->assertSame(3, $effective['round_1_court_2']['games_b']);
+
+        $recap = ScoringService::calculateRecap($game, $sessionScores);
+        $this->assertCount(4, $recap);
+    }
+
+    /**
+     * 4. Hasil seri: tidak ada badge WIN sepihak.
+     */
+    public function test_draw_match_does_not_assign_one_sided_win_badge()
+    {
+        $ft = ScoringService::detectScoringSystem('Total of 4');
+        $winner = ScoringService::determineMatchWinner(2, 2, $ft);
+        $this->assertNull($winner, 'Pertandingan dengan skor 2-2 harus menghasilkan draw / seri (winner null)');
+    }
+
+    /**
+     * 5, 6, 7. Login Ahmad dan Marcello bergantian, nonpeserta tidak mendapat kartu, refresh mempertahankan hasil.
+     */
+    public function test_personal_stats_card_matches_authenticated_participant_strictly()
+    {
+        $this->setupTestDatabaseSchema();
+
+        $userAhmad = User::create(['nama' => 'Ahmad Subarjo', 'email' => 'ahmad@test.id', 'password' => bcrypt('password')]);
+        $userMarcel = User::create(['nama' => 'Marcello Este Camaro', 'email' => 'marcel@test.id', 'password' => bcrypt('password')]);
+        $userSpectator = User::create(['nama' => 'Penonton Netral', 'email' => 'spectator@test.id', 'password' => bcrypt('password')]);
+
+        $playerAhmad = Player::create(['user_id' => $userAhmad->user_id, 'nama' => 'Ahmad Subarjo']);
+        $playerMarcel = Player::create(['user_id' => $userMarcel->user_id, 'nama' => 'Marcello Este Camaro']);
+        $playerSpectator = Player::create(['user_id' => $userSpectator->user_id, 'nama' => 'Penonton Netral']);
+
+        $controller = new \App\Http\Controllers\Scoring\ScoringController;
+
+        $game = [
+            'id' => 409,
+            'sport' => 'Tennis',
+            'participants' => [
+                ['id' => $playerAhmad->player_id, 'user_id' => $userAhmad->user_id, 'name' => 'Ahmad Subarjo', 'level' => 'Intermediate', 'avatar' => null],
+                ['id' => $playerMarcel->player_id, 'user_id' => $userMarcel->user_id, 'name' => 'Marcello Este Camaro', 'level' => 'Advanced', 'avatar' => null],
+            ],
+        ];
+
+        $rankedPlayers = [
+            ['name' => 'Marcello Este Camaro', 'points_for' => 5, 'wins' => 1, 'matches' => 3, 'level' => 'Advanced'],
+            ['name' => 'Ahmad Subarjo', 'points_for' => 4, 'wins' => 2, 'matches' => 3, 'level' => 'Intermediate'],
+        ];
+
+        // 5a. Login Ahmad (User 4)
+        Auth::login($userAhmad);
+        $ahmadCard = $this->invokeMethod($controller, 'buildPlayerRecap', [$game, $rankedPlayers]);
+        $this->assertNotNull($ahmadCard);
+        $this->assertSame('Ahmad Subarjo', $ahmadCard['player_name']);
+        $this->assertSame(4, $ahmadCard['total_points']);
+        $this->assertSame('67%', $ahmadCard['win_rate']);
+        $this->assertSame(2, $ahmadCard['wins']);
+
+        // 5b. Login Marcello (User 3)
+        Auth::login($userMarcel);
+        $marcelCard = $this->invokeMethod($controller, 'buildPlayerRecap', [$game, $rankedPlayers]);
+        $this->assertNotNull($marcelCard);
+        $this->assertSame('Marcello Este Camaro', $marcelCard['player_name']);
+        $this->assertSame(5, $marcelCard['total_points']);
+        $this->assertSame('33%', $marcelCard['win_rate']);
+        $this->assertSame(1, $marcelCard['wins']);
+
+        // 6a. Non-peserta (User 99)
+        Auth::login($userSpectator);
+        $spectatorCard = $this->invokeMethod($controller, 'buildPlayerRecap', [$game, $rankedPlayers]);
+        $this->assertNull($spectatorCard, 'Pengguna non-peserta tidak boleh menerima kartu pemain lain');
+
+        // 6b. Guest (Auth::logout)
+        Auth::logout();
+        $guestCard = $this->invokeMethod($controller, 'buildPlayerRecap', [$game, $rankedPlayers]);
+        $this->assertNull($guestCard, 'Pengunjung anonim / guest tidak boleh menerima kartu pemain');
+    }
+
+    /**
+     * Regression Test First To 3:
+     * Banyak snapshot/EventLog plus satu hasil final harus menghasilkan skor final sekali saja,
+     * tanpa inflasi pada rincian, klasemen, atau statistik pribadi.
+     */
+    public function test_first_to_3_recap_eliminates_eventlogs_and_prevents_score_inflation()
+    {
+        $this->setupTestDatabaseSchema();
+
+        $userBambang = User::create(['nama' => 'Bambang Sudirman', 'email' => 'bambang@test.id', 'password' => bcrypt('password')]);
+        $userCandra = User::create(['nama' => 'Candra Wijaya', 'email' => 'candra@test.id', 'password' => bcrypt('password')]);
+
+        $playerBambang = Player::create(['user_id' => $userBambang->user_id, 'nama' => 'Bambang Sudirman']);
+        $playerCandra = Player::create(['user_id' => $userCandra->user_id, 'nama' => 'Candra Wijaya']);
+
+        $sport = \App\Models\Sport::create(['nama_sport' => 'Tennis']);
+        $venue = \App\Models\Venue::create(['nama_venue' => 'Arena Test']);
+        \Illuminate\Support\Facades\DB::table('tb_match_format')->insertOrIgnore([
+            'match_format_id' => 1,
+            'nama_format' => 'americano',
+        ]);
+
+        $session = SessionModel::create([
+            'host_user_id' => $userBambang->user_id,
+            'sport_id' => $sport->sport_id,
+            'venue_id' => $venue->venue_id,
+            'nama_session' => 'Sesi First To 3 Test',
+            'scoring_system' => 'First to 3',
+            'status_session' => 'Finished',
+            'jenis_permainan' => 'Single',
+        ]);
+        $session->players()->attach([$playerBambang->player_id, $playerCandra->player_id]);
+
+        $drawing = Drawing::create([
+            'session_id' => $session->session_id,
+            'match_format_id' => 1,
+        ]);
+
+        $match = GameMatch::create([
+            'drawing_id' => $drawing->drawing_id,
+            'nomor_match' => 1,
+            'status_match' => 'Completed',
+            'winner_team' => 'Team B',
+            'hasil_pertandingan' => 'Game Score 1 - 3',
+            'waktu_mulai' => now()->subMinutes(30),
+            'waktu_selesai' => now(),
+        ]);
+
+        MatchParticipant::create(['match_id' => $match->match_id, 'player_id' => $playerBambang->player_id, 'side' => 'A']);
+        MatchParticipant::create(['match_id' => $match->match_id, 'player_id' => $playerCandra->player_id, 'side' => 'B']);
+
+        // Simulasikan 9 event logs progres seperti pada sesi 411 yang jika dijumlahkan bernilai tinggi
+        for ($v = 1; $v <= 9; $v++) {
+            Score::create([
+                'match_id' => $match->match_id,
+                'set_number' => 1,
+                'game_number' => 1,
+                'game_score_a' => 1,
+                'game_score_b' => 2,
+                'version' => $v,
+                'status_score' => 'EventLog',
+                'last_event_id' => 'evt_'.$v,
+            ]);
+        }
+
+        // 1 baris In Progress
+        Score::create([
+            'match_id' => $match->match_id,
+            'set_number' => 1,
+            'game_number' => 1,
+            'game_score_a' => 0,
+            'game_score_b' => 2,
+            'version' => 10,
+            'status_score' => 'In Progress',
+        ]);
+
+        // 1 baris Final otoritatif: Skor akhir 1 - 3
+        Score::create([
+            'match_id' => $match->match_id,
+            'set_number' => 1,
+            'game_number' => 1,
+            'game_score_a' => 1,
+            'game_score_b' => 3,
+            'version' => 15,
+            'status_score' => 'Final',
+            'hasil_pertandingan' => 'Game Score 1 - 3',
+        ]);
+
+        // 1. Verifikasi getAuthoritativeScoresForMatch()
+        $dbScores = Score::where('match_id', $match->match_id)->get();
+        $this->assertCount(11, $dbScores, 'Ada 11 baris skor total di tb_score');
+
+        $authScores = ScoringService::getAuthoritativeScoresForMatch($dbScores);
+        $this->assertCount(1, $authScores, 'Hanya ada 1 skor otoritatif untuk set 1');
+        $this->assertSame(1, (int) $authScores->first()->game_score_a);
+        $this->assertSame(3, (int) $authScores->first()->game_score_b);
+
+        // 2. Verifikasi ScoringController::recap()
+        $controller = new \App\Http\Controllers\Scoring\ScoringController;
+        $recapView = $controller->recap($session->session_id);
+        $data = $recapView->getData();
+
+        // Rincian match round 1
+        $effectiveScores = $data['effectiveScores'];
+        $this->assertArrayHasKey('round_1', $effectiveScores);
+        $this->assertSame(1, (int) $effectiveScores['round_1']['games_a'], 'Game A tidak boleh terinflasi ke 10');
+        $this->assertSame(3, (int) $effectiveScores['round_1']['games_b'], 'Game B tidak boleh terinflasi ke 23');
+        $this->assertSame('Team B', $effectiveScores['round_1']['winner_team']);
+
+        // Klasemen / rankedPlayers
+        $ranked = collect($data['rankedPlayers']);
+        $bambangStats = $ranked->firstWhere('name', 'Bambang Sudirman');
+        $candraStats = $ranked->firstWhere('name', 'Candra Wijaya');
+
+        $this->assertNotNull($bambangStats);
+        $this->assertNotNull($candraStats);
+
+        $this->assertSame(1, (int) $bambangStats['points_for'], 'Poin Bambang harus 1, bukan terinflasi');
+        $this->assertSame(0, (int) $bambangStats['wins']);
+        $this->assertSame(1, (int) $bambangStats['losses']);
+
+        $this->assertSame(3, (int) $candraStats['points_for'], 'Poin Candra harus 3, bukan 23');
+        $this->assertSame(1, (int) $candraStats['wins']);
+        $this->assertSame(0, (int) $candraStats['losses']);
+
+        // 3. Verifikasi statistik pribadi (buildPlayerRecap)
+        $game = [
+            'id' => $session->session_id,
+            'sport' => 'Tennis',
+            'participants' => [
+                ['id' => $playerBambang->player_id, 'user_id' => $userBambang->user_id, 'name' => 'Bambang Sudirman', 'level' => 'Intermediate', 'avatar' => null],
+                ['id' => $playerCandra->player_id, 'user_id' => $userCandra->user_id, 'name' => 'Candra Wijaya', 'level' => 'Advanced', 'avatar' => null],
+            ],
+        ];
+
+        Auth::login($userCandra);
+        $candraCard = $this->invokeMethod($controller, 'buildPlayerRecap', [$game, $data['rankedPlayers']]);
+        $this->assertNotNull($candraCard);
+        $this->assertSame('Candra Wijaya', $candraCard['player_name']);
+        $this->assertSame(3, $candraCard['total_points'], 'Kartu pribadi Candra harus 3 poin');
+        $this->assertSame('100%', $candraCard['win_rate']);
+
+        Auth::login($userBambang);
+        $bambangCard = $this->invokeMethod($controller, 'buildPlayerRecap', [$game, $data['rankedPlayers']]);
+        $this->assertNotNull($bambangCard);
+        $this->assertSame('Bambang Sudirman', $bambangCard['player_name']);
+        $this->assertSame(1, $bambangCard['total_points'], 'Kartu pribadi Bambang harus 1 poin');
+        $this->assertSame('0%', $bambangCard['win_rate']);
+
+        // 4. Verifikasi PlayerController::calculateRealPlayerRecap()
+        $playerRecap = \App\Http\Controllers\Player\PlayerController::calculateRealPlayerRecap($userCandra, $playerCandra);
+        $this->assertSame(1, $playerRecap['player']['total_matches']);
+        $this->assertSame(1, $playerRecap['player']['wins']);
+        $this->assertNotEmpty($playerRecap['recent_matches']);
+        $this->assertSame('3 - 1', $playerRecap['recent_matches'][0]['score'], 'Skor riwayat profil harus 3 - 1, bukan terinflasi');
     }
 
     protected function invokeMethod(&$object, $methodName, array $parameters = [])
