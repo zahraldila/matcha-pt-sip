@@ -561,7 +561,7 @@
 
 
                 <!-- Gender + Level -->
-                <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
                     <div id="manualGenderContainer" class="space-y-1 relative">
                         <label class="block text-[11px] font-bold text-slate-700">
                             Gender
