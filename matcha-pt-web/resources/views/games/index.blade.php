@@ -171,8 +171,7 @@
                 <input type="hidden" name="slots" value="{{ $selectedSlots ?? 'all' }}">
                 <input type="hidden" name="time" value="{{ $selectedTime ?? 'all' }}">
                 <div class="relative w-full">
-                    <i id="gamesSearchIcon" class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none transition-opacity"></i>
-                    <i id="gamesSearchLoadingIcon" class="fa-solid fa-spinner fa-spin absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs hidden pointer-events-none"></i>
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                     <input type="text" id="gamesSearchInput" name="q" value="{{ $search ?? '' }}" placeholder="Cari sesi, venue, host..." 
                            oninput="handleGamesLiveSearch(this.value)"
                            autocomplete="off"
@@ -593,14 +592,8 @@
         }
         gamesAbortCtrl = new AbortController();
 
-        const searchIcon = document.getElementById('gamesSearchIcon');
-        const loadingIcon = document.getElementById('gamesSearchLoadingIcon');
         const listCont = document.getElementById('gamesListContainer');
 
-        if (searchIcon && loadingIcon) {
-            searchIcon.classList.add('hidden');
-            loadingIcon.classList.remove('hidden');
-        }
         if (listCont) {
             listCont.style.opacity = '0.5';
         }
@@ -663,10 +656,6 @@
                 console.error('Games live search error:', e);
             }
         } finally {
-            if (searchIcon && loadingIcon) {
-                loadingIcon.classList.add('hidden');
-                searchIcon.classList.remove('hidden');
-            }
             if (listCont) {
                 listCont.style.opacity = '1';
             }

@@ -51,8 +51,7 @@
             <input type="hidden" name="tab" value="{{ $activeTab ?? 'all' }}">
             <input type="hidden" name="sport" value="{{ $selectedSport ?? 'all' }}">
             <div class="relative">
-                <i id="communitiesSearchIcon" class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none transition-opacity"></i>
-                <i id="communitiesSearchLoadingIcon" class="fa-solid fa-spinner fa-spin absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs hidden pointer-events-none"></i>
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                 <input type="text" id="communitiesSearchInput" name="q" value="{{ $search ?? '' }}" placeholder="Cari nama klub, kota, admin..." 
                        oninput="handleCommunitiesLiveSearch(this.value)"
                        autocomplete="off"
@@ -305,14 +304,8 @@ async function executeCommunitiesLiveSearch(query) {
     }
     communitiesAbortCtrl = new AbortController();
 
-    const searchIcon = document.getElementById('communitiesSearchIcon');
-    const loadingIcon = document.getElementById('communitiesSearchLoadingIcon');
     const listCont = document.getElementById('communitiesListContainer');
 
-    if (searchIcon && loadingIcon) {
-        searchIcon.classList.add('hidden');
-        loadingIcon.classList.remove('hidden');
-    }
     if (listCont) {
         listCont.style.opacity = '0.5';
     }
@@ -363,10 +356,6 @@ async function executeCommunitiesLiveSearch(query) {
             console.error('Communities live search error:', e);
         }
     } finally {
-        if (searchIcon && loadingIcon) {
-            loadingIcon.classList.add('hidden');
-            searchIcon.classList.remove('hidden');
-        }
         if (listCont) {
             listCont.style.opacity = '1';
         }

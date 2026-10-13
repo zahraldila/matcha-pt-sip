@@ -54,8 +54,7 @@
             <input type="hidden" name="tab" value="{{ $activeTab ?? 'all' }}">
             <input type="hidden" name="sport" value="{{ $selectedSport ?? 'all' }}">
             <div class="relative">
-                <i id="venuesSearchIcon" class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none transition-opacity"></i>
-                <i id="venuesSearchLoadingIcon" class="fa-solid fa-spinner fa-spin absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs hidden pointer-events-none"></i>
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                 <input type="text" id="venuesSearchInput" name="q" value="{{ $search ?? '' }}" placeholder="Cari venue, kota, fasilitas..." 
                        oninput="handleVenuesLiveSearch(this.value)"
                        autocomplete="off"
@@ -331,14 +330,8 @@ async function executeVenuesLiveSearch(query) {
     }
     venuesAbortCtrl = new AbortController();
 
-    const searchIcon = document.getElementById('venuesSearchIcon');
-    const loadingIcon = document.getElementById('venuesSearchLoadingIcon');
     const listCont = document.getElementById('venuesListContainer');
 
-    if (searchIcon && loadingIcon) {
-        searchIcon.classList.add('hidden');
-        loadingIcon.classList.remove('hidden');
-    }
     if (listCont) {
         listCont.style.opacity = '0.5';
     }
@@ -389,10 +382,6 @@ async function executeVenuesLiveSearch(query) {
             console.error('Venues live search error:', e);
         }
     } finally {
-        if (searchIcon && loadingIcon) {
-            loadingIcon.classList.add('hidden');
-            searchIcon.classList.remove('hidden');
-        }
         if (listCont) {
             listCont.style.opacity = '1';
         }
