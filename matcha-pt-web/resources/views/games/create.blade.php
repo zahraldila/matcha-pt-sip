@@ -540,6 +540,7 @@
 
             <form
                 onsubmit="handleManualPlayerSubmit(event)"
+                novalidate
                 class="space-y-4"
             >
 
@@ -555,13 +556,12 @@
                         placeholder="Masukkan nama player..."
                         autocomplete="off"
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none"
-                        required
                     >
                 </div>
 
 
                 <!-- Gender + Level -->
-                <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-3">
                     <div id="manualGenderContainer" class="space-y-1 relative">
                         <label class="block text-[11px] font-bold text-slate-700">
                             Gender
@@ -572,7 +572,7 @@
                                 <option value="Female">Perempuan</option>
                             </select>
                             <button type="button" onclick="toggleManualDropdown('manualGenderMenu', 'manualGenderArrow')"
-                                class="w-full h-[40px] bg-slate-50 border border-slate-200 rounded-xl px-3 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] transition-colors flex items-center justify-between cursor-pointer text-left">
+                                class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] transition-colors flex items-center justify-between cursor-pointer text-left">
                                 <span id="manualGenderLabel" class="truncate">Laki-laki</span>
                                 <i id="manualGenderArrow" class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
                             </button>
@@ -592,7 +592,7 @@
                                 <option value="Advanced">Advanced</option>
                             </select>
                             <button type="button" onclick="toggleManualDropdown('manualLevelMenu', 'manualLevelArrow')"
-                                class="w-full h-[40px] bg-slate-50 border border-slate-200 rounded-xl px-3 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] transition-colors flex items-center justify-between cursor-pointer text-left">
+                                class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] transition-colors flex items-center justify-between cursor-pointer text-left">
                                 <span id="manualLevelLabel" class="truncate">Beginner</span>
                                 <i id="manualLevelArrow" class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
                             </button>
