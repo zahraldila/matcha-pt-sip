@@ -306,7 +306,7 @@
                     <i class="fa-solid fa-trophy text-[11px]"></i> {{ $unitTabLabel }} {{ $activeRoundNum }} SCORE
                 </span>
                 <span class="font-medium text-slate-400">
-                    Target: <strong class="text-white">{{ $scoringSystem['is_sets'] ? ($scoringSystem['target_sets'] . ' Set') : ($scoringSystem['target_games'] . ' Games') }}</strong>
+                    {{ $scoringSystem['is_sets'] ? 'Format: ' : 'Target: ' }}<strong class="text-white">{{ $scoringSystem['is_sets'] ? ('Total of ' . $scoringSystem['max_sets'] . ' Set (Semua set dimainkan)') : ($scoringSystem['target_games'] . ' Games (Tuntas)') }}</strong>
                 </span>
             </div>
 
@@ -634,7 +634,7 @@
     }
     
     const SUPABASE_URL   = '{{ config('services.supabase.url') }}';
-    const SUPABASE_KEY   = '{{ config('services.supabase.key') }}';
+    const SUPABASE_KEY   = '{{ config('services.supabase.public_key') }}';
 
     // ── Point Ladder ─────────────────────────────────────────────────────────
     const tennisPoints = ['0', '15', '30', '40'];
@@ -1020,16 +1020,35 @@
         }
     }
 
+    function determineWinner(gamesA, gamesB) {
+        if (IS_SETS) {
+            // Sebelum mencapai 5-5: pertama mencapai 6 memenangkan set (6-0 s/d 6-4)
+            if (gamesA === 6 && gamesB <= 4) return 'Team A';
+            if (gamesB === 6 && gamesA <= 4) return 'Team B';
+            // Jika mencapai 5-5: target berubah menjadi 7 (7-5 atau 7-6)
+            // Catatan: 5-5, 6-5, 5-6, dan 6-6 belum selesai
+            if (gamesA === 7 && (gamesB === 5 || gamesB === 6)) return 'Team A';
+            if (gamesB === 7 && (gamesA === 5 || gamesA === 6)) return 'Team B';
+            if (gamesA > 7 && gamesA > gamesB) return 'Team A';
+            if (gamesB > 7 && gamesB > gamesA) return 'Team B';
+            return null;
+        } else {
+            if (TARGET_GAMES > 0) {
+                if (gamesA >= TARGET_GAMES && gamesA > gamesB) return 'Team A';
+                if (gamesB >= TARGET_GAMES && gamesB > gamesA) return 'Team B';
+                if (gamesA >= TARGET_GAMES && gamesB >= TARGET_GAMES) return gamesA >= gamesB ? 'Team A' : 'Team B';
+            }
+            return null;
+        }
+    }
+
+    function isSetFinished(gamesA, gamesB) {
+        return determineWinner(gamesA, gamesB) !== null;
+    }
+
     function checkSetWinner(cIdx, clientSeq = null, tClick = null, baseVersion = 0, teamWon = null, eventId = null) {
         let st = courtsState[cIdx];
-        let setWon = null;
-        if (TARGET_GAMES > 0) {
-            if (st.gamesA >= TARGET_GAMES) {
-                setWon = 'Team A';
-            } else if (st.gamesB >= TARGET_GAMES) {
-                setWon = 'Team B';
-            }
-        }
+        let setWon = determineWinner(st.gamesA, st.gamesB);
 
         if (setWon) {
             st.matchDone = true;
@@ -1056,8 +1075,22 @@
     function manualCompleteSet(cIdx) {
         let st = courtsState[cIdx];
         if (st.matchDone) return;
-        if (Math.max(st.gamesA, st.gamesB) < TARGET_GAMES) {
-            showToast(`Target ${TARGET_GAMES} belum mencapai target.`);
+        
+        const setWon = determineWinner(st.gamesA, st.gamesB);
+        if (!setWon) {
+            if (IS_SETS) {
+                if (st.gamesA === 5 && st.gamesB === 5) {
+                    showToast('Skor 5–5: Target kemenangan berubah menjadi 7 (belum selesai).');
+                } else if ((st.gamesA === 6 && st.gamesB === 5) || (st.gamesA === 5 && st.gamesB === 6)) {
+                    showToast('Skor 6–5: Pertandingan belum selesai (lanjut hingga 7–5 atau tie-break 7–6).');
+                } else if (st.gamesA === 6 && st.gamesB === 6) {
+                    showToast('Skor 6–6: Pertandingan belum selesai (lanjut hingga 7–6 atau 6–7).');
+                } else {
+                    showToast('Syarat kemenangan set belum tercapai (minimal 6 game atau 7 game setelah 5–5).');
+                }
+            } else {
+                showToast(`Target ${TARGET_GAMES} Games belum dicapai.`);
+            }
             return;
         }
         const courtLabel = st.courtName || ('Court ' + st.courtNum);
@@ -1070,7 +1103,7 @@
         st.clientSeq = (st.clientSeq || 0) + 1; // Increment SATU KALI per aksi manual
         const clientSeq = st.clientSeq;
         const baseVersion = st.serverVersion || 0;
-        const winnerTeam = (st.gamesA >= st.gamesB) ? 'Team A' : 'Team B';
+        const winnerTeam = setWon;
 
         st.matchDone = true;
         st.completionSavePending = true;
@@ -1198,7 +1231,7 @@
                 lockedBadge.classList.add('hidden');
             }
             
-            const isTargetReached = (TARGET_GAMES > 0 && Math.max(st.gamesA, st.gamesB) >= TARGET_GAMES);
+            const isTargetReached = isSetFinished(st.gamesA, st.gamesB);
             if (btnManual) {
                 btnManual.classList.toggle('hidden', !isTargetReached);
             }
@@ -1866,22 +1899,6 @@
                     }
                 }
                 
-                // Broadcast Realtime (Opsional)
-                if (SUPABASE_URL && SUPABASE_KEY && data.success !== false) {
-                    const lastEventId = batchEvents[batchEvents.length - 1].eventId;
-                    supabase.channel('public:tb_score').send({
-                        type: 'broadcast',
-                        event: 'score_updated',
-                        payload: {
-                            ...data.saved,
-                            match_key: st.matchKey,
-                            court: st.courtNum,
-                            version: incomingVer,
-                            last_event_id: data.last_event_id || lastEventId
-                        }
-                    }).catch(e => console.warn('[Supabase Realtime] broadcast send warning:', e));
-                }
-
                 if (incomingVer > (st.serverVersion || 0)) {
                     st.serverVersion = incomingVer;
                 }
@@ -1889,26 +1906,44 @@
                     st.localVersion = incomingVer;
                 }
 
-                // Broadcast state terbaru via Supabase Realtime Channel client-side (near 0ms peer broadcast)
-                if (realtimeChannel && data.saved) {
-                    realtimeChannel.send({
-                        type: 'broadcast',
-                        event: 'score_update',
-                        payload: {
-                            ...data.saved,
-                            court: cIdx,
-                            match_key: st.matchKey,
-                            server_version: incomingVer,
-                            version: incomingVer,
-                            last_event_id: data.last_event_id || lastEventId
-                        }
-                    }).catch(e => console.warn('[Supabase Realtime] broadcast send warning:', e));
+                // Broadcast state terbaru via Supabase Realtime Channel client-side (peer broadcast dari snapshot server terkonfirmasi)
+                // Terisolasi dari flow penyimpanan agar kegagalan broadcast tidak menyebabkan re-queue skor yang sudah tersimpan
+                if (IS_HOST && realtimeChannel && data.saved) {
+                    try {
+                        const lastEvt = batchEvents && batchEvents.length > 0 ? batchEvents[batchEvents.length - 1] : null;
+                        const lastEventId = data.last_event_id || (lastEvt ? lastEvt.eventId : '');
+                        realtimeChannel.send({
+                            type: 'broadcast',
+                            event: 'score_update',
+                            payload: {
+                                ...data.saved,
+                                court: cIdx,
+                                match_key: st.matchKey,
+                                server_version: incomingVer,
+                                version: incomingVer,
+                                last_event_id: lastEventId
+                            }
+                        }).catch(e => console.warn('[Supabase Realtime] broadcast send warning:', e));
+                    } catch (e) {
+                        console.warn('[Supabase Realtime] peer broadcast warning:', e);
+                    }
                 }
 
                 if (latestTClick) {
                     const roundtripMs = performance.now() - latestTClick;
                     console.log(`[Network Roundtrip] Court ${st.courtNum} save batch (${batchEvents.length} events) roundtrip: ${roundtripMs.toFixed(2)}ms (serverVersion=${st.serverVersion})`);
                 }
+            } else if (res.status === 422) {
+                const errData = await res.json().catch(() => ({}));
+                console.warn(`[Score Rejected 422] Court ${st.courtNum}:`, errData);
+                showToast(errData.message || 'Pembaruan skor ditolak oleh server.');
+                // Koreksi state lokal dari server authority
+                st.inFlightQueue = [];
+                if (st.matchDone && !st.completionSaveSucceeded) {
+                    st.matchDone = false;
+                    st.completionSavePending = false;
+                }
+                updateDisplay(cIdx);
             } else {
                 console.error(`Update score batch failed for court ${st.courtNum}:`, await res.text());
                 isRetryableError = true;
@@ -2219,33 +2254,54 @@
                     console.log('[Supabase Realtime] session_finished broadcast received:', payload);
                     handleSessionFinishedEvent(payload, 'Realtime Broadcast');
                 })
-                .on('postgres_changes', {
+            const activeMatchIds = Object.values(courtsState)
+                .map(s => Number(s.matchId))
+                .filter(id => id > 0);
+
+            if (activeMatchIds.length > 0) {
+                const matchFilter = activeMatchIds.length === 1 
+                    ? `match_id=eq.${activeMatchIds[0]}` 
+                    : `match_id=in.(${activeMatchIds.join(',')})`;
+
+                realtimeChannel.on('postgres_changes', {
                     event: '*',
                     schema: 'public',
                     table: 'tb_score',
-                    filter: `game_id=eq.${GAME_ID}`
+                    filter: matchFilter
                 }, (payload) => {
                     console.log('[Supabase Realtime] postgres_changes tb_score:', payload);
                     if (payload.new && Number(payload.new.version ?? 0) > 0) {
                         handleIncomingScoreEvent(payload.new, 'Realtime DB Changes');
                     }
-                })
-                .subscribe((status) => {
-                    console.log('[Supabase Realtime] Status:', status);
-                    const badge = document.getElementById('realtimeSyncBadge');
-                    if (badge) {
-                        if (status === 'SUBSCRIBED') {
-                            badge.innerHTML = '<i class="fa-solid fa-bolt text-emerald-500 text-[9px]"></i> Realtime Active';
-                            badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold';
-                        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                            badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Polling Fallback';
-                            badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold';
-                        }
-                    }
                 });
+            }
+
+            realtimeChannel.subscribe((status) => {
+                console.log('[Supabase Realtime] Status:', status);
+                const badge = document.getElementById('realtimeSyncBadge');
+                if (badge) {
+                    if (status === 'SUBSCRIBED') {
+                        badge.innerHTML = '<i class="fa-solid fa-bolt text-emerald-500 text-[9px]"></i> Realtime Active';
+                        badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold';
+                        triggerAllCourtsPoll(true);
+                    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Polling Fallback';
+                        badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold';
+                    }
+                }
+            });
         } catch (err) {
             console.warn('[Supabase Realtime] Init exception:', err);
         }
+    }
+
+    const courtsPollWorkers = {};
+    function triggerAllCourtsPoll(isReconnect = false) {
+        Object.keys(courtsState).forEach(cIdx => {
+            if (typeof courtsPollWorkers[cIdx] === 'function') {
+                courtsPollWorkers[cIdx](isReconnect);
+            }
+        });
     }
 
     // Polling realtime untuk sinkronisasi skor (0.8 detik per siklus) — WAJIB TETAP ADA SEBAGAI FALLBACK/RECONCILIATION
@@ -2273,11 +2329,14 @@
 
         setInterval(updateTimerDisplay, 100);
 
-        const executePoll = async () => {
+        const executePoll = async (isReconnect = false) => {
             if (isPolling) return;
             isPolling = true;
             try {
-                const pollUrlWithTs = `${POLL_URL}&_t=${Date.now()}`;
+                let pollUrlWithTs = `${POLL_URL}&_t=${Date.now()}`;
+                if (isReconnect) {
+                    pollUrlWithTs += '&reconnect=1';
+                }
                 const res = await fetch(pollUrlWithTs, {
                     cache: 'no-store',
                     headers: { 'Accept': 'application/json' }
@@ -2288,7 +2347,7 @@
                 data.match_key = st.matchKey;
 
                 // Salurkan seluruh response polling melalui handler monotonic yang sama (Requirement 6)
-                handleIncomingScoreEvent(data, 'Polling 0.8s');
+                handleIncomingScoreEvent(data, isReconnect ? 'Polling Reconnect' : 'Polling 0.8s');
             } catch (err) {
                 // Ignore network polling error
             } finally {
@@ -2298,11 +2357,25 @@
             }
         };
 
+        courtsPollWorkers[cIdx] = executePoll;
+
         // Jalankan polling loop tiap 0.8 detik
-        setInterval(executePoll, POLL_INTERVAL_MS);
+        setInterval(() => executePoll(false), POLL_INTERVAL_MS);
 
         // Jalankan polling awal secara bertahap (staggered) agar tidak bertabrakan
-        setTimeout(executePoll, 100 + (Number(cIdx) * 150));
+        setTimeout(() => executePoll(false), 100 + (Number(cIdx) * 150));
+    });
+
+    // Pemulihan koneksi & Tab Visibility:
+    // Saat tab kembali dibuka setelah background, segera sinkronkan snapshot terbaru tanpa menunggu interval throttled
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            triggerAllCourtsPoll(true);
+        }
+    });
+
+    window.addEventListener('online', () => {
+        triggerAllCourtsPoll(true);
     });
 
     // Helper Toast

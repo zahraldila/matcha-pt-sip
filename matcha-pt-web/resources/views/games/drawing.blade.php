@@ -514,7 +514,7 @@
     const gameSessionId = {{ (int) $game['id'] }};
     const liveScoringUrl = '{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano']) }}';
     const SUPABASE_URL = '{{ config('services.supabase.url') }}';
-    const SUPABASE_KEY = '{{ config('services.supabase.key') }}';
+    const SUPABASE_KEY = '{{ config('services.supabase.public_key') }}';
 
     // ── Realtime Drawing Sync & Lock Detector (Untuk Penonton / Player) ──────
     function applyRemoteDrawingUpdate(newRounds, newParticipantsMap, message = 'Jadwal & susunan tim diacak ulang oleh Host! 🎲') {
