@@ -167,8 +167,13 @@
                         <label class="block font-bold text-slate-800">
                             Nama Lengkap <span class="text-rose-500">*</span>
                         </label>
-                        <input type="text" name="nama" value="{{ old('nama', $player->nama ?? $user->nama ?? '') }}" required placeholder="Contoh: Billy Santoso" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                        <input type="text" name="nama" value="{{ old('nama', $user->nama ?? $player->nama ?? '') }}" required placeholder="Contoh: Billy Santoso" class="w-full border rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:outline-none transition-all shadow-2xs {{ $errors->has('nama') ? 'border-rose-400 bg-rose-50/30 ring-2 ring-rose-400/20' : 'bg-slate-50/80 border-slate-200/80 focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25' }}">
                         <p class="text-[10px] text-slate-400">Nama akun yang digunakan pada identitas sistem.</p>
+                        @error('nama')
+                            <p class="text-[11px] text-rose-600 font-semibold flex items-center gap-1 mt-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> {{ $message }}
+                            </p>
+                        @enderror
                     </div>
 
                     <!-- Email (Akun Utama) -->
@@ -176,8 +181,13 @@
                         <label class="block font-bold text-slate-800">
                             Alamat Email (Akun Utama) <span class="text-rose-500">*</span>
                         </label>
-                        <input type="email" name="email" value="{{ old('email', $user->email ?? '') }}" required placeholder="contoh: admin@matcha.id" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                        <input type="email" name="email" value="{{ old('email', $user->email ?? '') }}" required placeholder="contoh: admin@matcha.id" class="w-full border rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:outline-none transition-all shadow-2xs {{ $errors->has('email') ? 'border-rose-400 bg-rose-50/30 ring-2 ring-rose-400/20' : 'bg-slate-50/80 border-slate-200/80 focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25' }}">
                         <p class="text-[10px] text-slate-400">Email akun terhubung dan digunakan untuk masuk ke sistem.</p>
+                        @error('email')
+                            <p class="text-[11px] text-rose-600 font-semibold flex items-center gap-1 mt-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> {{ $message }}
+                            </p>
+                        @enderror
                     </div>
 
                     <!-- Nomor WhatsApp -->
@@ -185,8 +195,13 @@
                         <label class="block font-bold text-slate-800">
                             Nomor WhatsApp / HP <span class="text-rose-500">*</span>
                         </label>
-                        <input type="tel" name="no_hp" value="{{ old('no_hp', $player->no_hp ?? $user->no_hp ?? '') }}" required maxlength="15" oninput="this.value = this.value.replace(/[^0-9]/g, '')" placeholder="0812xxxxxxxx" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                        <input type="tel" name="no_hp" value="{{ old('no_hp', $user->no_hp ?? $player->no_hp ?? '') }}" required maxlength="15" oninput="this.value = this.value.replace(/[^0-9]/g, '')" placeholder="0812xxxxxxxx" class="w-full border rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:outline-none transition-all shadow-2xs {{ $errors->has('no_hp') ? 'border-rose-400 bg-rose-50/30 ring-2 ring-rose-400/20' : 'bg-slate-50/80 border-slate-200/80 focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25' }}">
                         <p class="text-[10px] text-slate-400">Nomor kontak resmi untuk koordinasi &amp; notifikasi sistem.</p>
+                        @error('no_hp')
+                            <p class="text-[11px] text-rose-600 font-semibold flex items-center gap-1 mt-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> {{ $message }}
+                            </p>
+                        @enderror
                     </div>
 
                     @if(!$user->isAdmin())
@@ -241,7 +256,12 @@
                             <label class="block font-bold text-slate-800">
                                 Usia (Tahun) <span class="text-rose-500">*</span>
                             </label>
-                            <input type="number" name="usia" value="{{ old('usia', $player->usia ?? 25) }}" min="10" max="90" required placeholder="Contoh: 26" class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs">
+                            <input type="number" name="usia" value="{{ old('usia', $player->usia ?? 25) }}" min="10" max="90" required placeholder="Contoh: 26" class="w-full border rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:outline-none transition-all shadow-2xs {{ $errors->has('usia') ? 'border-rose-400 bg-rose-50/30 ring-2 ring-rose-400/20' : 'bg-slate-50/80 border-slate-200/80 focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25' }}">
+                            @error('usia')
+                                <p class="text-[11px] text-rose-600 font-semibold flex items-center gap-1 mt-1">
+                                    <i class="fa-solid fa-circle-exclamation"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
 
                         <!-- Skill Level -->
@@ -292,6 +312,13 @@
 
                     @endif
                 </div>
+
+                @if($errors->any())
+                    <div class="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5">
+                        <i class="fa-solid fa-circle-exclamation text-rose-500 shrink-0"></i>
+                        <span class="font-semibold">Mohon periksa kembali formulir profil di atas, data belum tersimpan karena ada input yang belum sesuai atau sudah terdaftar.</span>
+                    </div>
+                @endif
 
                 <div class="flex justify-end pt-5 border-t border-slate-200/60">
                     <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer">

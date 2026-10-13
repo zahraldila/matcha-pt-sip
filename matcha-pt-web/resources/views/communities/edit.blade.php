@@ -278,7 +278,7 @@
                                 </div>
 
                                 <!-- Venue Items Container (Scrollable) -->
-                                <div id="venueListContainer" class="overflow-y-auto max-h-48 space-y-1 scrollbar-thin px-1 pb-1">
+                                <div id="venueListContainer" class="overflow-y-auto max-h-48 space-y-1 scrollbar-thin px-1 pb-1" style="max-height: 200px; overflow-y: auto;">
                                     <!-- Option: Kosongkan -->
                                     <button
                                         type="button"
