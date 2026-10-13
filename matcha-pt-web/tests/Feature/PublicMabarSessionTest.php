@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Court;
+use App\Models\Drawing;
+use App\Models\MatchFormat;
+use App\Models\Player;
 use App\Models\SessionModel;
 use App\Models\Sport;
 use App\Models\User;
@@ -477,5 +480,195 @@ class PublicMabarSessionTest extends TestCase
             ->assertDontSee('Kelola Drawing Tim')
             ->assertDontSee('Live Match Scoring')
             ->assertSee('Hapus Jadwal Mabar');
+    }
+
+    public function test_store_schedule_allows_first_to_with_flexible_player_counts(): void
+    {
+        $host = User::create([
+            'nama' => 'Host Budi',
+            'email' => 'hostfirstto@matcha.test',
+            'role' => 'host',
+            'is_host' => true,
+            'password' => bcrypt('password'),
+        ]);
+
+        $sport = Sport::firstOrCreate(['nama_sport' => 'Padel'], ['status_sport' => 'active']);
+        $venue = Venue::create(['nama_venue' => 'Padel Arena Kemang', 'owner_user_id' => $host->user_id]);
+        $court = Court::create(['nama_court' => 'Court 1']);
+
+        // 1. Americano Double dengan First to 8 dan 8 pemain (bukan cuma 4)
+        $response = $this->actingAs($host)->post('/games/schedule', [
+            'nama_session' => 'Mabar First to 8 Pemain',
+            'sport_id' => $sport->sport_id,
+            'format' => 'Americano',
+            'scoring_system' => 'First to 8',
+            'venue_id' => $venue->venue_id,
+            'court_ids' => [$court->court_id],
+            'tanggal' => now()->addDays(2)->toDateString(),
+            'jam' => '19:00',
+            'durasi' => '2 Jam',
+            'jumlah_pemain' => 8,
+            'jenis_permainan' => 'Double',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('tb_session', [
+            'nama_session' => 'Mabar First to 8 Pemain',
+            'scoring_system' => 'First to 8',
+            'jumlah_pemain' => 8,
+        ]);
+
+        // 2. Team Americano dengan First to 6 dan 6 pemain (harus genap, bukan cuma 4)
+        $responseTeam = $this->actingAs($host)->post('/games/schedule', [
+            'nama_session' => 'Team Mabar First to 6 Pemain',
+            'sport_id' => $sport->sport_id,
+            'format' => 'Team Americano',
+            'scoring_system' => 'First to 6',
+            'venue_id' => $venue->venue_id,
+            'court_ids' => [$court->court_id],
+            'tanggal' => now()->addDays(3)->toDateString(),
+            'jam' => '20:00',
+            'durasi' => '2 Jam',
+            'jumlah_pemain' => 6,
+            'jenis_permainan' => 'Double',
+        ]);
+
+        $responseTeam->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('tb_session', [
+            'nama_session' => 'Team Mabar First to 6 Pemain',
+            'scoring_system' => 'First to 6',
+            'jumlah_pemain' => 6,
+        ]);
+
+        // 3. Americano Single dengan First to 4 dan 4 pemain (bukan cuma 2)
+        $responseSingle = $this->actingAs($host)->post('/games/schedule', [
+            'nama_session' => 'Single First to 4 Pemain',
+            'sport_id' => $sport->sport_id,
+            'format' => 'Americano',
+            'scoring_system' => 'First to 4',
+            'venue_id' => $venue->venue_id,
+            'court_ids' => [$court->court_id],
+            'tanggal' => now()->addDays(4)->toDateString(),
+            'jam' => '18:00',
+            'durasi' => '1 Jam',
+            'jumlah_pemain' => 4,
+            'jenis_permainan' => 'Single',
+        ]);
+
+        $responseSingle->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('tb_session', [
+            'nama_session' => 'Single First to 4 Pemain',
+            'scoring_system' => 'First to 4',
+            'jumlah_pemain' => 4,
+        ]);
+    }
+
+    public function test_store_schedule_still_validates_constraints(): void
+    {
+        $host = User::create([
+            'nama' => 'Host Constraint',
+            'email' => 'hostconstraint@matcha.test',
+            'role' => 'host',
+            'is_host' => true,
+            'password' => bcrypt('password'),
+        ]);
+
+        $sport = Sport::firstOrCreate(['nama_sport' => 'Padel'], ['status_sport' => 'active']);
+        $venue = Venue::create(['nama_venue' => 'Padel Arena TB Simatupang', 'owner_user_id' => $host->user_id]);
+        $court = Court::create(['nama_court' => 'Court 2']);
+
+        // 1. Team Americano dengan pemain ganjil (5 pemain) harus ditolak
+        $responseOdd = $this->actingAs($host)->post('/games/schedule', [
+            'nama_session' => 'Team Ganjil Ditolak',
+            'sport_id' => $sport->sport_id,
+            'format' => 'Team Americano',
+            'scoring_system' => 'First to 8',
+            'venue_id' => $venue->venue_id,
+            'court_ids' => [$court->court_id],
+            'tanggal' => now()->addDays(2)->toDateString(),
+            'jam' => '19:00',
+            'durasi' => '2 Jam',
+            'jumlah_pemain' => 5,
+            'jenis_permainan' => 'Double',
+        ]);
+
+        $responseOdd->assertSessionHasErrors('jumlah_pemain');
+
+        // 2. Americano Double dengan pemain kurang dari 4 (misal 3 pemain) harus ditolak
+        $responseDoubleFew = $this->actingAs($host)->post('/games/schedule', [
+            'nama_session' => 'Double Kurang Pemain',
+            'sport_id' => $sport->sport_id,
+            'format' => 'Americano',
+            'scoring_system' => 'First to 6',
+            'venue_id' => $venue->venue_id,
+            'court_ids' => [$court->court_id],
+            'tanggal' => now()->addDays(2)->toDateString(),
+            'jam' => '19:00',
+            'durasi' => '2 Jam',
+            'jumlah_pemain' => 3,
+            'jenis_permainan' => 'Double',
+        ]);
+
+        $responseDoubleFew->assertSessionHasErrors('jumlah_pemain');
+    }
+
+    public function test_drawing_page_generates_multi_round_for_first_to_session(): void
+    {
+        $host = User::create([
+            'nama' => 'Host MultiRound',
+            'email' => 'hostmultiround@matcha.test',
+            'role' => 'host',
+            'is_host' => true,
+            'password' => bcrypt('password'),
+        ]);
+
+        $sport = Sport::firstOrCreate(['nama_sport' => 'Padel'], ['status_sport' => 'active']);
+        $venue = Venue::create(['nama_venue' => 'Padel Arena Kemang', 'owner_user_id' => $host->user_id]);
+        $court = Court::create(['nama_court' => 'Court 1']);
+        MatchFormat::firstOrCreate(['match_format_id' => 1], ['nama_format' => 'Americano']);
+
+        $session = SessionModel::create([
+            'host_user_id' => $host->user_id,
+            'sport_id' => $sport->sport_id,
+            'venue_id' => $venue->venue_id,
+            'nama_session' => 'Mabar First to 8 Multi-Ronde',
+            'scoring_system' => 'First to 8',
+            'waktu_session' => '19:00 WIB (2 Jam)',
+            'datetime' => now(),
+            'status_session' => 'Open',
+            'jumlah_pemain' => 4,
+            'jenis_permainan' => 'Double',
+        ]);
+
+        DB::table('tb_session_court')->insert([
+            'session_id' => $session->session_id,
+            'court_id' => $court->court_id,
+        ]);
+
+        $players = [];
+        for ($i = 1; $i <= 4; $i++) {
+            $p = Player::create([
+                'nama' => "Player {$i}",
+                'gender' => 'Male',
+                'level' => 'Intermediate',
+            ]);
+            $players[] = $p->player_id;
+        }
+        $session->players()->sync($players);
+
+        Drawing::create([
+            'session_id' => $session->session_id,
+            'match_format_id' => 1,
+            'tanggal_drawing' => now()->toDateString(),
+            'jam_drawing' => now()->format('H:i:s'),
+        ]);
+
+        $response = $this->actingAs($host)->get("/games/{$session->session_id}/drawing");
+
+        $response->assertStatus(200);
+        $drawingData = $response->viewData('drawingData');
+        $this->assertNotEmpty($drawingData['rounds']);
+        // Untuk 4 pemain pada First to 8, harus menghasilkan 3 ronde rotasi lengkap (bukan hanya 1)
+        $this->assertCount(3, $drawingData['rounds'], 'First to 8 dengan 4 pemain harus menghasilkan 3 ronde rotasi.');
     }
 }

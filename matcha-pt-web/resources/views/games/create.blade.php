@@ -1485,6 +1485,18 @@
             name: @json($hostPlayer->nama),
             gender: @json($hostPlayer->gender ?? 'Male'),
             level: @json($hostPlayer->level ?? 'Intermediate'),
+            foto: @json($hostPlayer->foto ?? Auth::user()->foto ?? null),
+            type: 'Host'
+        };
+
+        addPlayerToList(hostPlayer);
+    @elseif(Auth::check())
+        const hostPlayer = {
+            player_id: null,
+            name: @json(Auth::user()->nama ?? 'Host'),
+            gender: @json(Auth::user()->gender ?? 'Male'),
+            level: 'Intermediate',
+            foto: @json(Auth::user()->foto ?? null),
             type: 'Host'
         };
 
@@ -1495,17 +1507,6 @@
     }
 
     function openAddPlayerModal() {
-        const scoringSystem = document.getElementById('scoringGeneralValue')?.value || 'Total of 3';
-        const isFirstTo = scoringSystem.toLowerCase().startsWith('first to');
-        const numCourts = parseInt(document.getElementById('numCourts')?.value) || 1;
-        const isAmericanoSingle = (selectedGameType === 'Americano' && jenisPermainan === 'Single');
-        const requiredCount = isAmericanoSingle ? (numCourts * 2) : (numCourts * 4);
-
-        if (isFirstTo && players.length >= requiredCount) {
-            showToast(`Kapasitas pemain untuk ${scoringSystem} (${isAmericanoSingle ? 'Single' : 'Double'}, ${numCourts} court) sudah pas (${requiredCount} pemain).`);
-            return;
-        }
-
         const searchInput = document.getElementById('playerSearchInput');
         const manualName = document.getElementById('manualPlayerName');
 
@@ -1604,6 +1605,7 @@
             name: name,
             gender: gender,
             level: level,
+            foto: null,
             type: 'Guest'
         };
 
@@ -1711,8 +1713,12 @@
 
         container.innerHTML = data.map(player => {
             const alreadyAdded = players.some(
-            p => Number(p.player_id) === Number(player.player_id)
-        );
+                p => Number(p.player_id) === Number(player.player_id)
+            );
+            const initial = (player.nama || 'P').charAt(0).toUpperCase();
+            const avatarHtml = player.foto
+                ? `<img src="${escapeHtml(player.foto)}" alt="${escapeHtml(player.nama)}" class="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0" onerror="this.outerHTML='<div class=\\'w-9 h-9 rounded-full bg-[#EBF8D8] text-[#063B00] flex items-center justify-center font-bold text-xs shrink-0\\'>${escapeHtml(initial)}</div>'">`
+                : `<div class="w-9 h-9 rounded-full bg-[#EBF8D8] text-[#063B00] flex items-center justify-center font-bold text-xs shrink-0">${escapeHtml(initial)}</div>`;
 
             return `
                 <button
@@ -1726,9 +1732,7 @@
                         }"
                 >
                     <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-9 h-9 rounded-full bg-[#EBF8D8] flex items-center justify-center shrink-0">
-                            <i class="fa-solid fa-user text-xs text-[#063B00]"></i>
-                        </div>
+                        ${avatarHtml}
 
                         <div class="min-w-0">
                             <p class="font-bold text-xs text-slate-900 truncate">
@@ -1761,6 +1765,7 @@
             name: player.nama,
             gender: player.gender || 'Male',
             level: player.level || 'Intermediate',
+            foto: player.foto || null,
             type: 'Member'
         });
 
@@ -1813,18 +1818,24 @@
                                p.level === 'Beginner' ? 'bg-[#EBF8D8] text-[#063B00] border-[#063B00]/25' :
                                'bg-sky-50 text-sky-800 border-sky-200';
 
+            const initial = (p.name || 'P').charAt(0).toUpperCase();
+            const avatarHtml = p.foto
+                ? `<img src="${escapeHtml(p.foto)}" alt="${escapeHtml(p.name)}" class="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0\\'>${escapeHtml(initial)}</div>'">`
+                : `<div class="w-8 h-8 rounded-full ${p.type === 'Host' ? 'bg-[#063B00] text-white' : (p.type === 'Member' ? 'bg-[#EBF8D8] text-[#063B00]' : 'bg-slate-100 text-slate-600')} flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">${escapeHtml(initial)}</div>`;
+
             html += `
                 <div class="p-3 bg-white rounded-xl border border-slate-200/80 flex items-center justify-between shadow-2xs text-xs">
-                    <div class="flex items-center gap-2.5">
-                        <span class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">${idx + 1}</span>
-                        <div>
-                            <p class="font-bold text-slate-900">${p.name}</p>
-                            <p class="text-[10px] text-slate-400">${p.gender} • <span class="font-semibold text-slate-600">${p.type}</span></p>
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600 shrink-0">${idx + 1}</span>
+                        ${avatarHtml}
+                        <div class="min-w-0">
+                            <p class="font-bold text-slate-900 truncate">${escapeHtml(p.name)}</p>
+                            <p class="text-[10px] text-slate-400 truncate">${escapeHtml(p.gender)} • <span class="font-semibold text-slate-600">${escapeHtml(p.type)}</span></p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badgeClass}">${p.level}</span>
-                        <button type="button" onclick="removePlayer(${idx})" class="text-slate-400 hover:text-rose-600 p-1 text-xs">
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badgeClass}">${escapeHtml(p.level)}</span>
+                        <button type="button" onclick="removePlayer(${idx})" class="text-slate-400 hover:text-rose-600 p-1 text-xs cursor-pointer transition-colors" title="Hapus Pemain">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
@@ -1841,36 +1852,18 @@
         const isAmericanoSingle = selectedGameType === 'Americano' && jenisPermainan === 'Single';
         const minPlayers = isAmericanoSingle ? 2 : 4;
         const isOddPlayers = (players.length % 2 !== 0);
-        const requiredFirstToPlayers = isAmericanoSingle ? (numCourts * 2) : (numCourts * 4);
 
         // Update empty state hint
         const emptyHint = document.getElementById('emptyStateHint');
         if (emptyHint) {
-            if (isFirstTo) {
-                emptyHint.textContent = `Format ${scoringSystem} (${isAmericanoSingle ? 'Single' : 'Double'}, ${numCourts} court) membutuhkan tepat ${requiredFirstToPlayers} pemain.`;
-            } else if (isAmericanoSingle) {
+            if (isAmericanoSingle) {
                 emptyHint.textContent = 'Tambahkan minimal 2 pemain untuk Americano Single (1 vs 1).';
             } else {
                 emptyHint.textContent = 'Tambahkan minimal 4 pemain untuk memulai pengacakan drawing tim.';
             }
         }
 
-        if (isFirstTo) {
-            if (players.length < requiredFirstToPlayers) {
-                startBtn.disabled = true;
-                startBtn.className = 'w-full py-3.5 rounded-xl bg-slate-200 text-slate-400 font-black text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2';
-                startBtn.innerHTML = `<i class="fa-solid fa-users"></i> ${scoringSystem}: Butuh ${requiredFirstToPlayers - players.length} Pemain Lagi (${players.length}/${requiredFirstToPlayers} Pemain)`;
-            } else if (players.length > requiredFirstToPlayers) {
-                startBtn.disabled = true;
-                startBtn.className = 'w-full py-3.5 rounded-xl bg-rose-100 text-rose-800 border border-rose-300 font-bold text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2';
-                startBtn.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose-600"></i> ${scoringSystem}: Kelebihan ${players.length - requiredFirstToPlayers} Pemain (Wajib Tepat ${requiredFirstToPlayers} Pemain)`;
-            } else {
-                startBtn.disabled = false;
-                startBtn.className = 'w-full py-3.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer flex items-center justify-center gap-2';
-                const modeLabel = isAmericanoSingle ? ' (Single 1v1)' : ' (Double 2v2)';
-                startBtn.innerHTML = `<i class="fa-solid fa-shuffle"></i> 🎲 Generate Drawing &amp; Start Game (${scoringSystem}${modeLabel})`;
-            }
-        } else if (players.length < minPlayers) {
+        if (players.length < minPlayers) {
             startBtn.disabled = true;
             startBtn.className = 'w-full py-3.5 rounded-xl bg-slate-200 text-slate-400 font-black text-xs shadow-none cursor-not-allowed transition-all flex items-center justify-center gap-2';
             startBtn.innerHTML = `<i class="fa-solid fa-users"></i> Tambahkan Minimal ${minPlayers} Pemain${isAmericanoSingle ? ' (Single 1v1)' : ''}`;
@@ -1892,12 +1885,6 @@
         const numCourts = parseInt(document.getElementById('numCourts')?.value) || 1;
         const isAmericanoSingle = selectedGameType === 'Americano' && jenisPermainan === 'Single';
         const minPlayers = isAmericanoSingle ? 2 : 4;
-        const requiredFirstToPlayers = isAmericanoSingle ? (numCourts * 2) : (numCourts * 4);
-
-        if (isFirstTo && players.length !== requiredFirstToPlayers) {
-            showToast(`Untuk format ${scoringSystem} (${isAmericanoSingle ? 'Single' : 'Double'}) dengan ${numCourts} court, jumlah pemain harus tepat ${requiredFirstToPlayers} orang.`);
-            return;
-        }
 
         if (players.length < minPlayers) {
             showToast(`Minimal ${minPlayers} pemain untuk ${isAmericanoSingle ? 'Americano Single' : 'generate drawing'}.`);

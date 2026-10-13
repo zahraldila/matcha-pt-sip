@@ -433,7 +433,7 @@ class GameController extends Controller
             $venues = MatchaDummyDataService::getVenues();
         }
 
-        $hostPlayer = Player::where('user_id', Auth::id())->first();
+        $hostPlayer = Player::with('user')->where('user_id', Auth::id())->first();
 
         return view('games.create', compact('venues', 'hostPlayer'));
     }
@@ -443,36 +443,25 @@ class GameController extends Controller
         $search = $request->query('search', '');
 
         $players = Player::query()
+            ->with('user')
             ->where(function ($query) use ($search) {
                 $query->where('nama', 'ilike', "%{$search}%");
             })
             ->orderBy('nama')
-            ->get([
-                'player_id',
-                'user_id',
-                'nama',
-                'gender',
-                'level',
-            ])
-            ->unique(function ($player) {
-                if ($player->user_id !== null) {
-                    return 'account:'.$player->user_id;
-                }
+            ->limit(20)
+            ->get();
 
-                $normalizedName = mb_strtolower(trim(preg_replace('/\s+/', ' ', (string) $player->nama)));
+        $data = $players->map(function ($p) {
+            return [
+                'player_id' => $p->player_id,
+                'nama' => $p->nama,
+                'gender' => $p->gender,
+                'level' => $p->level,
+                'foto' => $p->foto ?? ($p->user?->foto ?? null),
+            ];
+        });
 
-                return 'guest:'.$normalizedName;
-            })
-            ->take(20)
-            ->map(fn ($player) => [
-                'player_id' => $player->player_id,
-                'nama' => $player->nama,
-                'gender' => $player->gender,
-                'level' => $player->level,
-            ])
-            ->values();
-
-        return response()->json($players);
+        return response()->json($data);
     }
 
     public function store(Request $request)
@@ -518,26 +507,6 @@ class GameController extends Controller
             }
 
             return back()->withInput()->withErrors(['players' => $msg]);
-        }
-
-        // Validasi format First to X (Single & Double): Jumlah pemain harus tepat sesuai kapasitas court
-        $scoringSystemInput = $request->input('scoring_system', '');
-        $isFirstToSystem = str_starts_with(strtolower(trim($scoringSystemInput)), 'first to');
-        $numCourts = (int) $request->input('num_courts', 1);
-        $playerCount = count($request->input('players', []));
-
-        if ($isFirstToSystem) {
-            $requiredPlayers = $isSingleMode ? ($numCourts * 2) : ($numCourts * 4);
-            $modeLabel = $isSingleMode ? 'Single (1 vs 1)' : 'Double (2 vs 2)';
-
-            if ($playerCount !== $requiredPlayers) {
-                $msg = "Untuk format {$scoringSystemInput} ({$modeLabel}) dengan {$numCourts} court, jumlah pemain harus tepat {$requiredPlayers} orang (tidak boleh kurang atau lebih).";
-                if ($request->wantsJson() || $request->ajax()) {
-                    return response()->json(['success' => false, 'message' => $msg], 422);
-                }
-
-                return back()->withInput()->withErrors(['players' => $msg]);
-            }
         }
 
         try {
@@ -733,7 +702,6 @@ class GameController extends Controller
         $format = $request->input('format', 'Americano');
         $isTeamAmericano = str_contains(strtolower($format), 'team');
         $scoringSystem = $request->input('scoring_system', 'Total of 3');
-        $isFirstTo = str_starts_with(strtolower(trim($scoringSystem)), 'first to');
         $jenisPermainan = $isTeamAmericano ? 'Double' : $request->input('jenis_permainan', 'Double');
         $isSingle = strtolower($jenisPermainan) === 'single';
         $jumlahPemain = (int) $request->input('jumlah_pemain');
@@ -746,18 +714,18 @@ class GameController extends Controller
             ]);
         }
 
-        // 2. First to X constraints (1 court)
-        if ($isFirstTo) {
-            if ($isSingle && $jumlahPemain !== 2) {
-                return back()->withInput()->withErrors([
-                    'jumlah_pemain' => "Untuk format {$scoringSystem} (Single 1v1), kuota pemain harus tepat 2 orang (tidak boleh kurang atau lebih).",
-                ]);
-            }
-            if (! $isSingle && $jumlahPemain !== 4) {
-                return back()->withInput()->withErrors([
-                    'jumlah_pemain' => "Untuk format {$scoringSystem} (Double 2v2), kuota pemain harus tepat 4 orang (tidak boleh kurang atau lebih).",
-                ]);
-            }
+        // 2. Americano Single: Minimal 2
+        if ($isSingle && $jumlahPemain < 2) {
+            return back()->withInput()->withErrors([
+                'jumlah_pemain' => 'Kuota pemain Americano Single minimal 2 orang.',
+            ]);
+        }
+
+        // 3. Americano Double: Minimal 4
+        if (! $isSingle && ! $isTeamAmericano && $jumlahPemain < 4) {
+            return back()->withInput()->withErrors([
+                'jumlah_pemain' => 'Kuota pemain Americano Double minimal 4 orang.',
+            ]);
         }
 
         // 3. Validasi Jam Operasional & Hari Buka Venue
@@ -1393,11 +1361,21 @@ class GameController extends Controller
 
         if ($needsGeneration) {
             $seed = (int) $request->query('seed', rand(1000, 999999));
+            $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
+            $isSingleMode = strtolower($drawingMode) === 'single';
+            $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
+
             try {
                 if ($isTeam) {
                     // Team Americano Engine (Fixed Pairs). Pengacakan hanya mengacak urutan tim, bukan anggota tim!
-                    $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
-                    $roundCount = ($scoringSystem['is_sets'] && ! ($scoringSystem['is_total_of'] ?? false)) ? $scoringSystem['max_sets'] : null;
+                    $roundCount = ScoringService::determineSessionRoundCount(
+                        $scoringSystem,
+                        count($participants),
+                        true,
+                        false,
+                        $dbSession->waktu_session ?? null,
+                        $courtCount
+                    );
                     $teamService = new TeamAmericanoService;
                     $drawingData = $teamService->generateTeamRounds($participants, $courtCount, $seed, $roundCount);
                     $rounds = $drawingData['rounds'] ?? [];
@@ -1410,10 +1388,14 @@ class GameController extends Controller
                     foreach ($pKeys as $k) {
                         $shuffled[] = $participants[$k];
                     }
-                    // Ambil jenis_permainan dari session (Single/Double), default Double
-                    $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
-                    $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
-                    $roundCount = ($scoringSystem['is_sets'] && ! ($scoringSystem['is_total_of'] ?? false)) ? $scoringSystem['max_sets'] : null;
+                    $roundCount = ScoringService::determineSessionRoundCount(
+                        $scoringSystem,
+                        count($participants),
+                        false,
+                        $isSingleMode,
+                        $dbSession->waktu_session ?? null,
+                        $courtCount
+                    );
                     $americanoService = new AmericanoService;
                     $rounds = $americanoService->generateRounds($shuffled, $courtCount, $roundCount, $drawingMode);
                     $drawingData = [
@@ -1426,11 +1408,22 @@ class GameController extends Controller
                     ];
                 }
             } catch (\Throwable $e) {
+                $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
+                $isSingleMode = strtolower($drawingMode) === 'single';
+                $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
+                $roundCount = ScoringService::determineSessionRoundCount(
+                    $scoringSystem,
+                    count($participants),
+                    $isTeam,
+                    $isSingleMode,
+                    $dbSession->waktu_session ?? null,
+                    $courtCount
+                );
                 $americanoService = new AmericanoService;
-                $rounds = $americanoService->generateRounds($participants, $courtCount);
+                $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $drawingMode);
                 $drawingData = [
-                    'format' => 'Americano',
-                    'mode' => 'Double',
+                    'format' => 'Americano '.$drawingMode,
+                    'mode' => $drawingMode,
                     'total_teams' => count($participants),
                     'total_rounds' => count($rounds),
                     'total_matches' => array_sum(array_map(fn ($r) => count($r['matches'] ?? []), $rounds)),

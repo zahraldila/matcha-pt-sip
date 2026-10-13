@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Tests\TestCase;
 
 class DrawingAndScoringLogicTest extends TestCase
@@ -73,14 +75,14 @@ class DrawingAndScoringLogicTest extends TestCase
     public function test_scoring_configuration_uses_expected_set_and_point_targets()
     {
         foreach ([
-            'Total of 3' => [3, 3, false, 3],
-            'Total of 4' => [4, 4, false, 4],
-            'Total of 5' => [5, 5, false, 5],
-            'Total of 6' => [6, 6, false, 6],
-            'Total of 7' => [7, 7, false, 7],
-            'Total of 8' => [8, 8, false, 8],
-            'Total of 9' => [9, 9, false, 9],
-            'Total of 10' => [10, 10, false, 10],
+            'Total of 3' => [3, 3, true, 3],
+            'Total of 4' => [4, 4, true, 4],
+            'Total of 5' => [5, 5, true, 5],
+            'Total of 6' => [6, 6, true, 6],
+            'Total of 7' => [7, 7, true, 7],
+            'Total of 8' => [8, 8, true, 8],
+            'Total of 9' => [9, 9, true, 9],
+            'Total of 10' => [10, 10, true, 10],
             'First to 2' => [1, 1, false, 2],
             'First to 3' => [1, 1, false, 3],
             'First to 4' => [1, 1, false, 4],
@@ -158,9 +160,9 @@ class DrawingAndScoringLogicTest extends TestCase
         }
 
         // 4. Controller request validation menolak opsi invalid untuk sesi baru
-        $validator = \Illuminate\Support\Facades\Validator::make(
+        $validator = Validator::make(
             ['scoring_system' => 'Total of 99'],
-            ['scoring_system' => ['required', 'string', \Illuminate\Validation\Rule::in(ScoringService::getAllowedNewScoringSystems())]],
+            ['scoring_system' => ['required', 'string', Rule::in(ScoringService::getAllowedNewScoringSystems())]],
             ['scoring_system.in' => 'Sistem skor yang dipilih tidak valid. Pilihan tersedia: Total of 3–10 atau First to 2–10.']
         );
         $this->assertTrue($validator->fails());
@@ -170,9 +172,9 @@ class DrawingAndScoringLogicTest extends TestCase
         );
 
         // Validator juga menolak opsi legacy pada pembuatan sesi baru
-        $legacyValidator = \Illuminate\Support\Facades\Validator::make(
+        $legacyValidator = Validator::make(
             ['scoring_system' => 'First to 11'],
-            ['scoring_system' => ['required', 'string', \Illuminate\Validation\Rule::in(ScoringService::getAllowedNewScoringSystems())]]
+            ['scoring_system' => ['required', 'string', Rule::in(ScoringService::getAllowedNewScoringSystems())]]
         );
         $this->assertTrue($legacyValidator->fails(), 'Opsi legacy First to 11 harus ditolak pada pembuatan sesi baru.');
     }
@@ -2433,6 +2435,276 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertEquals(3, $resRetry['version'], 'Hanya evt_D yang menambah versi');
         $this->assertEquals('30', $resRetry['point_display_a'], 'evt_A tidak boleh diproses ulang');
         $this->assertEquals('30', $resRetry['point_display_b'], 'evt_D (Team B) harus berhasil diterapkan');
+    }
+
+    public function test_determine_session_round_count_uses_n_rounds_for_total_of(): void
+    {
+        foreach ([3, 4, 5, 6, 7, 8, 9, 10] as $sets) {
+            $count = ScoringService::determineSessionRoundCount("Total of {$sets}", 8, false, false, '2 Jam', 1);
+            $this->assertSame($sets, $count, "Total of {$sets} harus menghasilkan tepat {$sets} ronde.");
+        }
+    }
+
+    public function test_determine_session_round_count_for_first_to_multi_round(): void
+    {
+        // 1. Americano Double 4 pemain -> 3 ronde
+        $this->assertSame(3, ScoringService::determineSessionRoundCount('First to 8', 4, false, false, '2 Jam', 1));
+
+        // 2. Americano Double 6 pemain -> 5 ronde
+        $this->assertSame(5, ScoringService::determineSessionRoundCount('First to 6', 6, false, false, '2 Jam', 1));
+
+        // 3. Americano Double 8 pemain -> multi-ronde (5-7 ronde)
+        $count8 = ScoringService::determineSessionRoundCount('First to 8', 8, false, false, '2 Jam', 1);
+        $this->assertGreaterThanOrEqual(5, $count8);
+        $this->assertLessThanOrEqual(7, $count8);
+
+        // 4. Team Americano 4 pemain (2 tim) -> 3 ronde (best of 3 sets)
+        $this->assertSame(3, ScoringService::determineSessionRoundCount('First to 6', 4, true, false, '2 Jam', 1));
+
+        // 5. Team Americano 6 pemain (3 tim) -> 3 ronde
+        $this->assertSame(3, ScoringService::determineSessionRoundCount('First to 8', 6, true, false, '2 Jam', 1));
+
+        // 6. Americano Single 2 pemain (1v1) -> 3 ronde (best of 3 sets)
+        $this->assertSame(3, ScoringService::determineSessionRoundCount('First to 4', 2, false, true, '1 Jam', 1));
+
+        // 7. Americano Single 4 pemain -> 3 ronde
+        $this->assertSame(3, ScoringService::determineSessionRoundCount('First to 6', 4, false, true, '1 Jam', 1));
+    }
+    /**
+     * Pengujian terarah sesuai Aturan Final Total Of N:
+     * 1. Semua Total Of 3–10 menghasilkan N ronde (drawing).
+     * 2. Setiap pertandingan pada tiap ronde memiliki batas total N game (games_a + games_b = N).
+     * 3. Total Of 3: skor 2–0 masih aktif; 2–1 atau 3–0 selesai.
+     * 4. Setelah set pertama selesai, skor set berikutnya dimulai dari nol dan riwayat set pertama tetap utuh.
+     * 5. Dua kemenangan pertama tidak mengakhiri Total Of 3; set ketiga tetap dimainkan.
+     * 6. Total Of 4: skor 2–2 final (draw/seri) dan ronde berikutnya dapat dilanjutkan setelah semua court final.
+     * 7. Total Of 10: skor 5–5 final pada set tersebut, bukan otomatis mengakhiri seluruh sesi.
+     * 8. Satu court final tidak membuka ronde berikutnya jika court lain masih aktif.
+     * 9. Poin tambahan setelah final tidak mengubah skor.
+     * 10. Penyelesaian seluruh N ronde menghasilkan recap yang membaca hasil setiap ronde.
+     * 11. First To tetap berjalan tanpa regresi.
+     */
+    public function test_total_of_final_rules_dual_n_sets_and_games_and_completion_behavior()
+    {
+        $this->setupTestDatabaseSchema();
+        $controller = new ScoringController;
+        $americanoService = new AmericanoService;
+        $teamService = new TeamAmericanoService;
+
+        // 1. Semua Total Of 3–10 menghasilkan N ronde
+        foreach (range(3, 10) as $n) {
+            $scoring = ScoringService::detectScoringSystem("Total of {$n}");
+            $this->assertTrue($scoring['is_sets'], "Total of {$n} harus memiliki is_sets = true");
+            $this->assertSame($n, $scoring['max_sets'], "Total of {$n} harus memiliki max_sets = {$n}");
+            $this->assertSame($n, $scoring['target_total_games'], "Total of {$n} harus memiliki target_total_games = {$n}");
+
+            // Americano Double (4 players)
+            $players4 = ['P1', 'P2', 'P3', 'P4'];
+            $roundsAm = $americanoService->generateRounds($players4, 1, $scoring['max_sets'], 'Double');
+            $this->assertCount($n, $roundsAm, "Americano Double Total of {$n} harus menghasilkan {$n} ronde");
+
+            // Americano Single (2 players)
+            $players2 = ['P1', 'P2'];
+            $roundsSingle = $americanoService->generateRounds($players2, 1, $scoring['max_sets'], 'Single');
+            $this->assertCount($n, $roundsSingle, "Americano Single Total of {$n} harus menghasilkan {$n} ronde");
+
+            // Team Americano (4 players = 2 pairs)
+            $roundsTeam = $teamService->generateTeamRounds($players4, 1, null, $scoring['max_sets']);
+            $this->assertCount($n, $roundsTeam['rounds'], "Team Americano Total of {$n} harus menghasilkan {$n} ronde");
+        }
+
+        // 2 & 3. Total Of 3: skor 2–0 masih aktif; 2–1 atau 3–0 selesai
+        $total3 = ScoringService::detectScoringSystem('Total of 3');
+        $this->assertFalse(ScoringService::isMatchCompleted(2, 0, $total3), 'Total of 3 skor 2–0 masih aktif');
+        $this->assertNull(ScoringService::determineMatchWinner(2, 0, $total3));
+        $this->assertTrue(ScoringService::isMatchCompleted(2, 1, $total3), 'Total of 3 skor 2–1 selesai');
+        $this->assertSame('Team A', ScoringService::determineMatchWinner(2, 1, $total3));
+        $this->assertTrue(ScoringService::isMatchCompleted(0, 3, $total3), 'Total of 3 skor 0–3 selesai');
+        $this->assertSame('Team B', ScoringService::determineMatchWinner(0, 3, $total3));
+
+        // 4. Setelah set pertama selesai, skor set berikutnya dimulai dari nol dan riwayat set pertama tetap utuh
+        $savedScoresSession = [
+            'round_1' => [
+                'status' => 'completed',
+                'games_a' => 2,
+                'games_b' => 1,
+                'score_a' => 2,
+                'score_b' => 1,
+                'winner_team' => 'Team A',
+            ],
+            'round_2' => [
+                'status' => 'in_progress',
+                'games_a' => 0,
+                'games_b' => 0,
+                'score_a' => 0,
+                'score_b' => 0,
+            ],
+        ];
+        $this->assertSame(2, $savedScoresSession['round_1']['games_a']);
+        $this->assertSame(1, $savedScoresSession['round_1']['games_b']);
+        $this->assertSame(0, $savedScoresSession['round_2']['games_a']);
+        $this->assertSame(0, $savedScoresSession['round_2']['games_b']);
+
+        // 5. Dua kemenangan pertama tidak mengakhiri Total Of 3; set ketiga tetap dimainkan
+        $gameTotal3 = [
+            'id' => 991,
+            'scoring_system' => 'Total of 3',
+            'drawing' => [
+                'round_1' => ['matches' => [['court' => 1, 'team_a' => ['P1', 'P2'], 'team_b' => ['P3', 'P4']]]],
+                'round_2' => ['matches' => [['court' => 1, 'team_a' => ['P1', 'P3'], 'team_b' => ['P2', 'P4']]]],
+                'round_3' => ['matches' => [['court' => 1, 'team_a' => ['P1', 'P4'], 'team_b' => ['P2', 'P3']]]],
+            ],
+        ];
+        // Team A (atau sisi A) menang di round 1 (2-1) dan menang di round 2 (3-0)
+        $scoresRound1And2Won = [
+            'round_1' => ['status' => 'completed', 'games_a' => 2, 'games_b' => 1, 'winner_team' => 'Team A'],
+            'round_2' => ['status' => 'completed', 'games_a' => 3, 'games_b' => 0, 'winner_team' => 'Team A'],
+        ];
+        $access = $this->invokeMethod($controller, 'getRoundAccess', [$gameTotal3, $total3, $scoresRound1And2Won]);
+        $this->assertTrue($access['round_1']);
+        $this->assertTrue($access['round_2']);
+        $this->assertTrue($access['round_3'], 'Set ketiga wajib terbuka dan tetap dimainkan meskipun 2 set pertama dimenangkan satu pihak.');
+
+        // 6. Total Of 4: skor 2–2 final (draw/seri) dan ronde berikutnya dapat dilanjutkan setelah semua court final
+        $total4 = ScoringService::detectScoringSystem('Total of 4');
+        $this->assertTrue(ScoringService::isMatchCompleted(2, 2, $total4), 'Total of 4 skor 2–2 adalah final/selesai');
+        $this->assertNull(ScoringService::determineMatchWinner(2, 2, $total4), 'Total of 4 skor 2–2 adalah seri (winner_team = null)');
+
+        $gameTotal4 = [
+            'id' => 992,
+            'scoring_system' => 'Total of 4',
+            'drawing' => [
+                'round_1' => ['matches' => [['court' => 1, 'team_a' => ['P1', 'P2'], 'team_b' => ['P3', 'P4']]]],
+                'round_2' => ['matches' => [['court' => 1, 'team_a' => ['P1', 'P3'], 'team_b' => ['P2', 'P4']]]],
+                'round_3' => ['matches' => [['court' => 1, 'team_a' => ['P1', 'P4'], 'team_b' => ['P2', 'P3']]]],
+                'round_4' => ['matches' => [['court' => 1, 'team_a' => ['P1', 'P2'], 'team_b' => ['P3', 'P4']]]],
+            ],
+        ];
+        $scoresTotal4Round1Draw = [
+            'round_1' => ['status' => 'completed', 'games_a' => 2, 'games_b' => 2, 'winner_team' => null],
+        ];
+        $accessTotal4 = $this->invokeMethod($controller, 'getRoundAccess', [$gameTotal4, $total4, $scoresTotal4Round1Draw]);
+        $this->assertTrue($accessTotal4['round_2'], 'Round 2 harus terbuka setelah round 1 selesai dengan hasil seri 2–2.');
+
+        // 7. Total Of 10: skor 5–5 final pada set tersebut, bukan otomatis mengakhiri seluruh sesi
+        $total10 = ScoringService::detectScoringSystem('Total of 10');
+        $this->assertTrue(ScoringService::isMatchCompleted(5, 5, $total10), 'Total of 10 skor 5–5 adalah final pada set tersebut');
+        $this->assertNull(ScoringService::determineMatchWinner(5, 5, $total10), 'Total of 10 skor 5–5 adalah seri (null)');
+        // Sesi memiliki 10 ronde
+        $gameTotal10 = [
+            'id' => 993,
+            'scoring_system' => 'Total of 10',
+            'drawing' => array_combine(
+                array_map(fn ($r) => "round_{$r}", range(1, 10)),
+                array_map(fn ($r) => ['matches' => [['court' => 1, 'team_a' => ['P1', 'P2'], 'team_b' => ['P3', 'P4']]]], range(1, 10))
+            ),
+        ];
+        $scoresTotal10Set1Draw = [
+            'round_1' => ['status' => 'completed', 'games_a' => 5, 'games_b' => 5, 'winner_team' => null],
+        ];
+        $accessTotal10 = $this->invokeMethod($controller, 'getRoundAccess', [$gameTotal10, $total10, $scoresTotal10Set1Draw]);
+        $this->assertTrue($accessTotal10['round_2'], 'Set 2 harus terbuka setelah Set 1 selesai 5–5');
+        $this->assertFalse($accessTotal10['round_3'], 'Set 3 belum terbuka karena Set 2 belum dimainkan');
+
+        // 8. Satu court final tidak membuka ronde berikutnya jika court lain masih aktif
+        $gameMultiCourt = [
+            'id' => 994,
+            'scoring_system' => 'Total of 3',
+            'drawing' => [
+                'round_1' => [
+                    'court_count' => 2,
+                    'matches' => [
+                        ['court' => 1, 'team_a' => ['P1', 'P2'], 'team_b' => ['P3', 'P4']],
+                        ['court' => 2, 'team_a' => ['P5', 'P6'], 'team_b' => ['P7', 'P8']],
+                    ],
+                ],
+                'round_2' => [
+                    'court_count' => 2,
+                    'matches' => [
+                        ['court' => 1, 'team_a' => ['P1', 'P3'], 'team_b' => ['P2', 'P4']],
+                        ['court' => 2, 'team_a' => ['P5', 'P7'], 'team_b' => ['P6', 'P8']],
+                    ],
+                ],
+            ],
+        ];
+        $scoresPartialCourt = [
+            'round_1_court_1' => ['status' => 'completed', 'games_a' => 2, 'games_b' => 1],
+            'round_1_court_2' => ['status' => 'in_progress', 'games_a' => 1, 'games_b' => 1],
+        ];
+        $this->assertFalse(
+            $this->invokeMethod($controller, 'isRoundFullyCompleted', [$gameMultiCourt, 'round_1', $scoresPartialCourt]),
+            'Round 1 belum sepenuhnya selesai jika court 2 masih in_progress'
+        );
+        $accessPartial = $this->invokeMethod($controller, 'getRoundAccess', [$gameMultiCourt, $total3, $scoresPartialCourt]);
+        $this->assertFalse($accessPartial['round_2'], 'Round 2 tidak boleh terbuka jika court 2 masih in_progress');
+
+        // Setelah court 2 selesai, round 2 baru terbuka
+        $scoresAllCourtDone = [
+            'round_1_court_1' => ['status' => 'completed', 'games_a' => 2, 'games_b' => 1],
+            'round_1_court_2' => ['status' => 'completed', 'games_a' => 3, 'games_b' => 0],
+        ];
+        $this->assertTrue($this->invokeMethod($controller, 'isRoundFullyCompleted', [$gameMultiCourt, 'round_1', $scoresAllCourtDone]));
+        $accessAllDone = $this->invokeMethod($controller, 'getRoundAccess', [$gameMultiCourt, $total3, $scoresAllCourtDone]);
+        $this->assertTrue($accessAllDone['round_2'], 'Round 2 harus terbuka setelah kedua court selesai');
+
+        // 9. Poin tambahan setelah final tidak mengubah skor
+        $completedState = [
+            'games_a' => 2,
+            'games_b' => 1,
+            'score_a' => 2,
+            'score_b' => 1,
+            'status' => 'completed',
+            'winner_team' => 'Team A',
+            'idx_a' => 0,
+            'idx_b' => 0,
+        ];
+        $attemptAddPointAfterFinal = $this->invokeMethod($controller, 'applyPointDeltaToState', [$completedState, 'A', $total3]);
+        $this->assertSame(2, $attemptAddPointAfterFinal['games_a']);
+        $this->assertSame(1, $attemptAddPointAfterFinal['games_b']);
+        $this->assertSame('completed', $attemptAddPointAfterFinal['status']);
+
+        // 10. Penyelesaian seluruh N ronde menghasilkan recap yang membaca hasil setiap ronde
+        $gameForRecap = [
+            'id' => 995,
+            'match_format' => 'Americano',
+            'scoring_system' => 'Total of 3',
+            'participants' => [
+                ['name' => 'Alice'],
+                ['name' => 'Bob'],
+                ['name' => 'Charlie'],
+                ['name' => 'David'],
+            ],
+            'drawing' => [
+                'round_1' => ['matches' => [['court' => 1, 'team_a' => ['Alice', 'Bob'], 'team_b' => ['Charlie', 'David']]]],
+                'round_2' => ['matches' => [['court' => 1, 'team_a' => ['Alice', 'Charlie'], 'team_b' => ['Bob', 'David']]]],
+                'round_3' => ['matches' => [['court' => 1, 'team_a' => ['Alice', 'David'], 'team_b' => ['Bob', 'Charlie']]]],
+            ],
+        ];
+        $scoresAll3Rounds = [
+            'round_1_court_1' => ['status' => 'completed', 'score_a' => 2, 'score_b' => 1, 'games_a' => 2, 'games_b' => 1, 'winner_team' => 'Team A'],
+            'round_2_court_1' => ['status' => 'completed', 'score_a' => 0, 'score_b' => 3, 'games_a' => 0, 'games_b' => 3, 'winner_team' => 'Team B'],
+            'round_3_court_1' => ['status' => 'completed', 'score_a' => 2, 'score_b' => 1, 'games_a' => 2, 'games_b' => 1, 'winner_team' => 'Team A'],
+        ];
+        $recap = ScoringService::calculateRecap($gameForRecap, $scoresAll3Rounds);
+        $this->assertCount(4, $recap);
+        $aliceStats = collect($recap)->firstWhere('name', 'Alice');
+        $this->assertNotNull($aliceStats);
+        $this->assertSame(3, $aliceStats['matches'], 'Alice harus bermain di semua 3 ronde');
+        // Alice di round 1 menang 2-1 (+2 games, +1 win), round 2 kalah 0-3 (Charlie menang bersama Bob di B), round 3 menang 2-1 (+2 games, +1 win)
+        $this->assertSame(2, $aliceStats['wins']);
+        $this->assertSame(1, $aliceStats['losses']);
+        $this->assertSame(4, $aliceStats['games_won']);
+
+        // 11. First To tetap berjalan tanpa regresi
+        foreach (range(2, 10) as $ftTarget) {
+            $ft = ScoringService::detectScoringSystem("First to {$ftTarget}");
+            $this->assertFalse($ft['is_sets'], "First to {$ftTarget} is_sets harus false");
+            $this->assertSame(1, $ft['max_sets']);
+            $this->assertSame($ftTarget, $ft['target_games']);
+            $this->assertFalse(ScoringService::isMatchCompleted($ftTarget - 1, 0, $ft));
+            $this->assertTrue(ScoringService::isMatchCompleted($ftTarget, 0, $ft));
+            $this->assertSame('Team A', ScoringService::determineMatchWinner($ftTarget, 0, $ft));
+        }
     }
 
     protected function invokeMethod(&$object, $methodName, array $parameters = [])
