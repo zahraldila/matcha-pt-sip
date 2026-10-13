@@ -144,7 +144,91 @@ class ScoringService
     }
 
     /**
-     * Menentukan apakah suatu pertandingan telah selesai sesuai aturan scoring system.
+     * Menghitung jumlah ronde yang tepat untuk sesi pertandingan.
+     *
+     * - Untuk Total of X: selalu mengikuti aturan Total of (null agar drawing fleksibel / tidak membatasi rotasi).
+     * - Untuk First to X: mendukung rotasi multi-ronde sesuai jumlah pemain, format, dan durasi bermain.
+     *
+     * @param  int  $playerCount  Jumlah pemain
+     * @param  bool  $isTeam  Apakah format Team Americano (pasangan tetap)
+     * @param  bool  $isSingle  Apakah format Americano Single (1 vs 1)
+     * @param  string|null  $waktuSession  Misal: "19:00 WIB (2 Jam)"
+     * @param  int  $courtCount  Jumlah court aktif
+     * @return int|null Jumlah ronde yang dihasilkan
+     */
+    public static function determineSessionRoundCount(
+        array|string $scoringSystem,
+        int $playerCount,
+        bool $isTeam = false,
+        bool $isSingle = false,
+        ?string $waktuSession = null,
+        int $courtCount = 1
+    ): ?int {
+        $system = is_array($scoringSystem) ? $scoringSystem : self::detectScoringSystem($scoringSystem);
+
+        // 1. Total of X: jika is_total_of true, ikuti logika Total of (null agar drawing fleksibel / tidak membatasi rotasi)
+        if (! empty($system['is_total_of']) || ($system['category'] ?? '') === 'total_of') {
+            return ($system['is_sets'] && ! ($system['is_total_of'] ?? false)) ? (int) $system['max_sets'] : null;
+        }
+
+        if (! empty($system['is_sets'])) {
+            return (int) ($system['max_sets'] ?? 3);
+        }
+
+        // 2. First to X: Hitung estimasi ronde rotasi
+        $durationHours = null;
+        if (! empty($waktuSession) && preg_match('/(\d+)\s*jam/i', $waktuSession, $matches)) {
+            $durationHours = (int) $matches[1];
+        }
+
+        if ($isSingle) {
+            // Americano Single (1v1)
+            if ($playerCount <= 2) {
+                return 3; // 2 pemain: 3 ronde pertandingan (best of 3 sets)
+            }
+            $completeRotation = ($playerCount % 2 === 0) ? ($playerCount - 1) : $playerCount;
+            if ($durationHours !== null && $durationHours > 0) {
+                $maxDurationRounds = max(3, $durationHours * 3);
+
+                return min($completeRotation, $maxDurationRounds);
+            }
+
+            return max(3, min(7, $completeRotation));
+        }
+
+        if ($isTeam) {
+            // Team Americano (2 pemain per tim tetap)
+            $teams = max(2, intdiv($playerCount, 2));
+            if ($teams <= 2) {
+                return 3; // 2 tim: 3 ronde pertandingan (Set 1, 2, 3)
+            }
+            $completeRotation = ($teams % 2 === 0) ? ($teams - 1) : $teams;
+            if ($durationHours !== null && $durationHours > 0) {
+                $maxDurationRounds = max(3, $durationHours * 2);
+
+                return min($completeRotation, $maxDurationRounds);
+            }
+
+            return max(3, min(5, $completeRotation));
+        }
+
+        // Americano Double (2v2 berganti partner)
+        if ($playerCount <= 4) {
+            return 3; // 4 pemain: tepat 3 ronde rotasi unik
+        }
+
+        $completeRotation = ($playerCount % 2 === 0) ? ($playerCount - 1) : $playerCount;
+        if ($durationHours !== null && $durationHours > 0) {
+            $estRounds = max(3, (int) round(($durationHours * 60) / 25 * max(1, $courtCount)));
+
+            return min($completeRotation, $estRounds);
+        }
+
+        return max(3, min(7, $completeRotation));
+    }
+
+    /**
+     * Menentukan apakah suatu pertandingan per set/ronde telah selesai sesuai aturan scoring system.
      *
      * Aturan Total Of N:
      * - N merupakan total gabungan skor besar kedua sisi dalam satu pertandingan (games_a + games_b = N).
@@ -174,7 +258,7 @@ class ScoringService
             return false;
         }
 
-        return ($gamesA >= $target || $gamesB >= $target);
+        return $gamesA >= $target || $gamesB >= $target;
     }
 
     /**
@@ -1032,13 +1116,23 @@ class ScoringService
                         $sessionJenisPermainan = $session->jenis_permainan ?? 'Double';
                         $format = strtolower($session->match_format ?? 'americano');
                         $scoringSystem = self::detectScoringSystem($session->scoring_system ?? 'Total of 3');
+                        $isTeamFormat = str_contains($format, 'team');
+                        $isSingleMode = strtolower($sessionJenisPermainan) === 'single';
+                        $roundCount = self::determineSessionRoundCount(
+                            $scoringSystem,
+                            count($participants),
+                            $isTeamFormat,
+                            $isSingleMode,
+                            $session->waktu_session,
+                            $courtCount
+                        );
                         if (str_contains($format, 'team') && count($participants) >= 4 && count($participants) % 2 === 0) {
                             $teamService = new TeamAmericanoService;
-                            $drawingData = $teamService->generateTeamRounds($participants, $courtCount, null);
+                            $drawingData = $teamService->generateTeamRounds($participants, $courtCount, null, $roundCount);
                             $rounds = $drawingData['rounds'] ?? [];
                         } else {
                             $americanoService = new AmericanoService;
-                            $rounds = $americanoService->generateRounds($participants, $courtCount, null, $sessionJenisPermainan);
+                            $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan);
                         }
                     }
 

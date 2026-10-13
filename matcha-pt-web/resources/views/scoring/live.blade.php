@@ -311,7 +311,7 @@
                     @if($scoringSystem['is_total_of'] ?? false)
                         Format: <strong class="text-white">Total of {{ $scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? 3) }} &mdash; total {{ $scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? 3) }} game</strong>
                     @else
-                        Target: <strong class="text-white">First to {{ $scoringSystem['target_games'] ?? 8 }} Games (Tuntas)</strong>
+                        Target: <strong class="text-white">First to {{ $scoringSystem['target_games'] ?? 8 }} Games (Target Menang)</strong>
                     @endif
                 </span>
             </div>
