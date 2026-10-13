@@ -1,25 +1,18 @@
 <!-- Modal Quick Join (100% Real Database) -->
-<div id="joinModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4 transition-all">
-    <div class="glass-card bg-white/95! max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl p-5 sm:p-7 border border-white/80 space-y-5 shadow-2xl relative animate-in fade-in zoom-in duration-150">
-        <div class="flex items-start gap-3 pr-9">
-            <div class="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center text-matcha-dark text-base shrink-0 shadow-2xs">
-                <i class="fa-solid fa-user-plus"></i>
-            </div>
-            <div class="min-w-0">
-                <h3 class="text-base font-bold text-slate-900">Gabung Sesi Mabar</h3>
-                <p class="mt-0.5 text-xs text-slate-500">Lengkapi profil untuk bergabung ke sesi ini.</p>
-            </div>
-        </div>
-        <button type="button" onclick="closeJoinModal()" class="absolute top-5 right-5 sm:top-7 sm:right-7 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors cursor-pointer" title="Tutup">
-            <i class="fa-solid fa-xmark text-sm"></i>
-        </button>
-
-        <div class="rounded-2xl bg-slate-50 border border-slate-200/80 px-4 py-3">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sesi mabar</p>
-            <p id="modalGameTitle" class="mt-1 text-sm font-bold text-slate-900 wrap-break-word"></p>
+<div id="joinModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="glass-card !bg-white/95 max-w-md w-full rounded-3xl p-6 border border-white space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-user-plus text-[#063B00]"></i> Gabung Sesi Mabar
+            </h3>
+            <button onclick="closeJoinModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none">&times;</button>
         </div>
 
-        <form id="joinModalForm" onsubmit="handleJoinSubmit(event)" class="space-y-5 text-sm">
+        <p class="text-xs text-slate-600">
+            Sesi mabar: <strong id="modalGameTitle" class="text-slate-900"></strong>
+        </p>
+
+        <form id="joinModalForm" onsubmit="handleJoinSubmit(event)" class="space-y-4 text-xs">
             @csrf
 
             @auth
@@ -71,44 +64,42 @@
             <input type="hidden" name="level" value="{{ $playerLevel }}">
             @else
             <!-- Mode Guest / Belum Login -->
-            <div class="p-3.5 rounded-2xl bg-[#EBF8D8]/70 border border-matcha-dark/15 flex items-start gap-3 text-xs text-matcha-dark leading-relaxed">
-                <span class="w-8 h-8 rounded-xl bg-white/80 border border-matcha-dark/10 flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-user-clock text-sm"></i>
-                </span>
-                <span class="pt-0.5">Mode Tamu <span class="text-[#42623D]">Anda bergabung sebagai</span> <strong>Guest Player</strong> tanpa perlu login.</span>
+            <div class="p-2.5 rounded-xl bg-[#EBF8D8]/80 border border-[#063B00]/15 flex items-center gap-2 text-[11px] text-[#063B00] font-semibold">
+                <i class="fa-solid fa-user-clock text-xs text-[#063B00]"></i>
+                <span>Mode Tamu: Anda bergabung sebagai <strong>Guest Player</strong> tanpa perlu login.</span>
             </div>
 
-            <div class="space-y-1.5">
-                <label class="block text-slate-700 font-semibold text-xs">Nama Pemain <span class="text-rose-500">*</span></label>
-                <input type="text" name="nama" id="joinPlayerName" placeholder="Contoh: Alex Pratama" class="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-3.5 text-slate-800 font-medium placeholder:text-slate-400 focus:border-matcha-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-matcha-dark/10 text-sm transition-colors" required>
+            <div>
+                <label class="block text-slate-700 font-semibold mb-1 text-xs">Nama Pemain <span class="text-rose-500">*</span></label>
+                <input type="text" name="nama" id="joinPlayerName" placeholder="Contoh: Alex Pratama" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none text-xs" required>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="grid grid-cols-3 gap-2">
                 <!-- Gender -->
                 <div class="relative" id="joinGenderContainer">
-                    <label class="block text-slate-700 font-semibold mb-1.5 text-xs">Gender <span class="text-rose-500">*</span></label>
+                    <label class="block text-slate-700 font-semibold mb-1 text-[11px]">Gender <span class="text-rose-500">*</span></label>
                     <div class="relative">
                         <select name="gender" id="joinGuestGender" class="sr-only">
                             <option value="Male" selected>Laki-laki</option>
                             <option value="Female">Perempuan</option>
                         </select>
                         <button type="button" onclick="toggleJoinDropdown('joinGenderMenu', 'joinGenderArrow')"
-                            class="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-3 text-slate-800 font-semibold hover:border-slate-300 focus:border-matcha-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-matcha-dark/10 transition-colors text-sm flex items-center justify-between cursor-pointer text-left">
+                            class="w-full h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white transition-colors text-xs flex items-center justify-between cursor-pointer text-left">
                             <span id="joinGenderLabel" class="truncate">Laki-laki</span>
                             <i id="joinGenderArrow" class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
                         </button>
-                        <div id="joinGenderMenu" class="hidden absolute z-50 left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 text-sm space-y-1 ring-1 ring-black/5"></div>
+                        <div id="joinGenderMenu" class="hidden absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-1 text-xs space-y-0.5 ring-1 ring-black/5"></div>
                     </div>
                 </div>
 
                 <!-- Usia -->
                 <div>
-                    <label class="block text-slate-700 font-semibold mb-1.5 text-xs">Usia (tahun) <span class="text-rose-500">*</span></label>
-                    <input type="number" name="usia" min="10" max="90" placeholder="24" class="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-3 text-slate-800 font-semibold placeholder:text-slate-400 focus:border-matcha-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-matcha-dark/10 text-sm transition-colors" required>
+                    <label class="block text-slate-700 font-semibold mb-1 text-[11px]">Usia (Thn) <span class="text-rose-500">*</span></label>
+                    <input type="number" name="usia" min="10" max="90" placeholder="24" class="w-full h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-2.5 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none text-xs" required>
                 </div>
 
                 <!-- Skill Level -->
                 <div class="relative" id="joinLevelContainer">
-                    <label class="block text-slate-700 font-semibold mb-1.5 text-xs">Level Bermain <span class="text-rose-500">*</span></label>
+                    <label class="block text-slate-700 font-semibold mb-1 text-[11px]">Skill Level <span class="text-rose-500">*</span></label>
                     <div class="relative">
                         <select name="level" id="joinGuestLevel" class="sr-only">
                             <option value="Newbie">Newbie</option>
@@ -117,21 +108,21 @@
                             <option value="Advanced">Advanced</option>
                         </select>
                         <button type="button" onclick="toggleJoinDropdown('joinLevelMenu', 'joinLevelArrow')"
-                            class="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-3 text-slate-800 font-semibold hover:border-slate-300 focus:border-matcha-dark focus:bg-white focus:outline-none focus:ring-2 focus:ring-matcha-dark/10 transition-colors text-sm flex items-center justify-between cursor-pointer text-left">
+                            class="w-full h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white transition-colors text-xs flex items-center justify-between cursor-pointer text-left">
                             <span id="joinLevelLabel" class="truncate">Intermediate</span>
                             <i id="joinLevelArrow" class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
                         </button>
-                        <div id="joinLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 text-sm max-h-48 overflow-y-auto space-y-1 ring-1 ring-black/5"></div>
+                        <div id="joinLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-1 text-xs max-h-40 overflow-y-auto space-y-0.5 ring-1 ring-black/5"></div>
                     </div>
                 </div>
             </div>
             @endauth
 
-            <div class="flex flex-col-reverse sm:flex-row gap-2.5 pt-4 border-t border-slate-100">
-                <button type="button" onclick="closeJoinModal()" class="flex-1 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors cursor-pointer text-sm">
+            <div class="flex gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeJoinModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors cursor-pointer">
                     Batal
                 </button>
-                <button type="submit" id="joinSubmitBtn" class="flex-1 py-3 rounded-xl bg-matcha-dark hover:bg-matcha-dark-hover text-white font-bold shadow-sm transition-colors cursor-pointer text-sm">
+                <button type="submit" id="joinSubmitBtn" class="flex-1 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold shadow-xs transition-colors cursor-pointer">
                     Konfirmasi Gabung
                 </button>
             </div>
@@ -160,7 +151,7 @@
             const btn = document.createElement('button');
             btn.type = 'button';
             const isSelected = String(select.value) === String(opt.value);
-            btn.className = `w-full min-h-10 px-3 py-2 rounded-lg text-left text-sm font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+            btn.className = `w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
                 isSelected
                     ? 'bg-[#EBF8D8] text-[#063B00] font-bold'
                     : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
