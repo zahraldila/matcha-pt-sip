@@ -1485,6 +1485,18 @@
             name: @json($hostPlayer->nama),
             gender: @json($hostPlayer->gender ?? 'Male'),
             level: @json($hostPlayer->level ?? 'Intermediate'),
+            foto: @json($hostPlayer->foto ?? Auth::user()->foto ?? null),
+            type: 'Host'
+        };
+
+        addPlayerToList(hostPlayer);
+    @elseif(Auth::check())
+        const hostPlayer = {
+            player_id: null,
+            name: @json(Auth::user()->nama ?? 'Host'),
+            gender: @json(Auth::user()->gender ?? 'Male'),
+            level: 'Intermediate',
+            foto: @json(Auth::user()->foto ?? null),
             type: 'Host'
         };
 
@@ -1593,6 +1605,7 @@
             name: name,
             gender: gender,
             level: level,
+            foto: null,
             type: 'Guest'
         };
 
@@ -1700,8 +1713,12 @@
 
         container.innerHTML = data.map(player => {
             const alreadyAdded = players.some(
-            p => Number(p.player_id) === Number(player.player_id)
-        );
+                p => Number(p.player_id) === Number(player.player_id)
+            );
+            const initial = (player.nama || 'P').charAt(0).toUpperCase();
+            const avatarHtml = player.foto
+                ? `<img src="${escapeHtml(player.foto)}" alt="${escapeHtml(player.nama)}" class="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0" onerror="this.outerHTML='<div class=\\'w-9 h-9 rounded-full bg-[#EBF8D8] text-[#063B00] flex items-center justify-center font-bold text-xs shrink-0\\'>${escapeHtml(initial)}</div>'">`
+                : `<div class="w-9 h-9 rounded-full bg-[#EBF8D8] text-[#063B00] flex items-center justify-center font-bold text-xs shrink-0">${escapeHtml(initial)}</div>`;
 
             return `
                 <button
@@ -1715,9 +1732,7 @@
                         }"
                 >
                     <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-9 h-9 rounded-full bg-[#EBF8D8] flex items-center justify-center shrink-0">
-                            <i class="fa-solid fa-user text-xs text-[#063B00]"></i>
-                        </div>
+                        ${avatarHtml}
 
                         <div class="min-w-0">
                             <p class="font-bold text-xs text-slate-900 truncate">
@@ -1750,6 +1765,7 @@
             name: player.nama,
             gender: player.gender || 'Male',
             level: player.level || 'Intermediate',
+            foto: player.foto || null,
             type: 'Member'
         });
 
@@ -1802,18 +1818,24 @@
                                p.level === 'Beginner' ? 'bg-[#EBF8D8] text-[#063B00] border-[#063B00]/25' :
                                'bg-sky-50 text-sky-800 border-sky-200';
 
+            const initial = (p.name || 'P').charAt(0).toUpperCase();
+            const avatarHtml = p.foto
+                ? `<img src="${escapeHtml(p.foto)}" alt="${escapeHtml(p.name)}" class="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0\\'>${escapeHtml(initial)}</div>'">`
+                : `<div class="w-8 h-8 rounded-full ${p.type === 'Host' ? 'bg-[#063B00] text-white' : (p.type === 'Member' ? 'bg-[#EBF8D8] text-[#063B00]' : 'bg-slate-100 text-slate-600')} flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">${escapeHtml(initial)}</div>`;
+
             html += `
                 <div class="p-3 bg-white rounded-xl border border-slate-200/80 flex items-center justify-between shadow-2xs text-xs">
-                    <div class="flex items-center gap-2.5">
-                        <span class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">${idx + 1}</span>
-                        <div>
-                            <p class="font-bold text-slate-900">${p.name}</p>
-                            <p class="text-[10px] text-slate-400">${p.gender} • <span class="font-semibold text-slate-600">${p.type}</span></p>
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600 shrink-0">${idx + 1}</span>
+                        ${avatarHtml}
+                        <div class="min-w-0">
+                            <p class="font-bold text-slate-900 truncate">${escapeHtml(p.name)}</p>
+                            <p class="text-[10px] text-slate-400 truncate">${escapeHtml(p.gender)} • <span class="font-semibold text-slate-600">${escapeHtml(p.type)}</span></p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badgeClass}">${p.level}</span>
-                        <button type="button" onclick="removePlayer(${idx})" class="text-slate-400 hover:text-rose-600 p-1 text-xs">
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badgeClass}">${escapeHtml(p.level)}</span>
+                        <button type="button" onclick="removePlayer(${idx})" class="text-slate-400 hover:text-rose-600 p-1 text-xs cursor-pointer transition-colors" title="Hapus Pemain">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>

@@ -433,7 +433,7 @@ class GameController extends Controller
             $venues = MatchaDummyDataService::getVenues();
         }
 
-        $hostPlayer = Player::where('user_id', Auth::id())->first();
+        $hostPlayer = Player::with('user')->where('user_id', Auth::id())->first();
 
         return view('games.create', compact('venues', 'hostPlayer'));
     }
@@ -443,19 +443,25 @@ class GameController extends Controller
         $search = $request->query('search', '');
 
         $players = Player::query()
+            ->with('user')
             ->where(function ($query) use ($search) {
                 $query->where('nama', 'ilike', "%{$search}%");
             })
             ->orderBy('nama')
             ->limit(20)
-            ->get([
-                'player_id',
-                'nama',
-                'gender',
-                'level',
-            ]);
+            ->get();
 
-        return response()->json($players);
+        $data = $players->map(function ($p) {
+            return [
+                'player_id' => $p->player_id,
+                'nama' => $p->nama,
+                'gender' => $p->gender,
+                'level' => $p->level,
+                'foto' => $p->foto ?? ($p->user?->foto ?? null),
+            ];
+        });
+
+        return response()->json($data);
     }
 
     public function store(Request $request)
