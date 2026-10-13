@@ -35,14 +35,16 @@
             </a>
 
             @auth
-                <a href="{{ route('communities.index', ['tab' => 'joined', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}"
-                   class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? 'all') === 'joined' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
-                    <i class="fa-solid fa-circle-check text-xs {{ ($activeTab ?? 'all') === 'joined' ? 'text-[#A8E63A]' : 'text-emerald-500' }}"></i> 
-                    <span>Komunitas Saya</span>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? 'all') === 'joined' ? 'bg-[#A8E63A] text-[#063B00]' : 'bg-emerald-50 text-emerald-800 border border-emerald-200' }}">
-                        {{ $myCommunitiesCount ?? 0 }}
-                    </span>
-                </a>
+                @if(Auth::user()->role !== 'admin')
+                    <a href="{{ route('communities.index', ['tab' => 'joined', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}"
+                       class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap {{ ($activeTab ?? 'all') === 'joined' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
+                        <i class="fa-solid fa-circle-check text-xs {{ ($activeTab ?? 'all') === 'joined' ? 'text-[#A8E63A]' : 'text-emerald-500' }}"></i> 
+                        <span>Komunitas Saya</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? 'all') === 'joined' ? 'bg-[#A8E63A] text-[#063B00]' : 'bg-emerald-50 text-emerald-800 border border-emerald-200' }}">
+                            {{ $myCommunitiesCount ?? 0 }}
+                        </span>
+                    </a>
+                @endif
             @endauth
         </div>
 
