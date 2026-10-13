@@ -1359,7 +1359,14 @@ class GameController extends Controller
                 if ($isTeam) {
                     // Team Americano Engine (Fixed Pairs). Pengacakan hanya mengacak urutan tim, bukan anggota tim!
                     $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
-                    $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
+                    $roundCount = ScoringService::determineSessionRoundCount(
+                        $scoringSystem,
+                        count($participants),
+                        true,
+                        false,
+                        $dbSession->waktu_session ?? null,
+                        $courtCount
+                    );
                     $teamService = new TeamAmericanoService;
                     $drawingData = $teamService->generateTeamRounds($participants, $courtCount, $seed, $roundCount);
                     $rounds = $drawingData['rounds'] ?? [];
@@ -1374,8 +1381,16 @@ class GameController extends Controller
                     }
                     // Ambil jenis_permainan dari session (Single/Double), default Double
                     $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
+                    $isSingleMode = strtolower($drawingMode) === 'single';
                     $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
-                    $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
+                    $roundCount = ScoringService::determineSessionRoundCount(
+                        $scoringSystem,
+                        count($participants),
+                        false,
+                        $isSingleMode,
+                        $dbSession->waktu_session ?? null,
+                        $courtCount
+                    );
                     $americanoService = new AmericanoService;
                     $rounds = $americanoService->generateRounds($shuffled, $courtCount, $roundCount, $drawingMode);
                     $drawingData = [
@@ -1388,11 +1403,22 @@ class GameController extends Controller
                     ];
                 }
             } catch (\Throwable $e) {
+                $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
+                $isSingleMode = strtolower($drawingMode) === 'single';
+                $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
+                $roundCount = ScoringService::determineSessionRoundCount(
+                    $scoringSystem,
+                    count($participants),
+                    $isTeam,
+                    $isSingleMode,
+                    $dbSession->waktu_session ?? null,
+                    $courtCount
+                );
                 $americanoService = new AmericanoService;
-                $rounds = $americanoService->generateRounds($participants, $courtCount);
+                $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $drawingMode);
                 $drawingData = [
-                    'format' => 'Americano',
-                    'mode' => 'Double',
+                    'format' => 'Americano '.$drawingMode,
+                    'mode' => $drawingMode,
                     'total_teams' => count($participants),
                     'total_rounds' => count($rounds),
                     'total_matches' => array_sum(array_map(fn ($r) => count($r['matches'] ?? []), $rounds)),

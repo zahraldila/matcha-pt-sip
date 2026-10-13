@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Tests\TestCase;
 
 class DrawingAndScoringLogicTest extends TestCase
@@ -153,9 +155,9 @@ class DrawingAndScoringLogicTest extends TestCase
         }
 
         // 4. Controller request validation menolak opsi invalid untuk sesi baru
-        $validator = \Illuminate\Support\Facades\Validator::make(
+        $validator = Validator::make(
             ['scoring_system' => 'Total of 99'],
-            ['scoring_system' => ['required', 'string', \Illuminate\Validation\Rule::in(ScoringService::getAllowedNewScoringSystems())]],
+            ['scoring_system' => ['required', 'string', Rule::in(ScoringService::getAllowedNewScoringSystems())]],
             ['scoring_system.in' => 'Sistem skor yang dipilih tidak valid. Pilihan tersedia: Total of 3–10 atau First to 2–10.']
         );
         $this->assertTrue($validator->fails());
@@ -165,9 +167,9 @@ class DrawingAndScoringLogicTest extends TestCase
         );
 
         // Validator juga menolak opsi legacy pada pembuatan sesi baru
-        $legacyValidator = \Illuminate\Support\Facades\Validator::make(
+        $legacyValidator = Validator::make(
             ['scoring_system' => 'First to 11'],
-            ['scoring_system' => ['required', 'string', \Illuminate\Validation\Rule::in(ScoringService::getAllowedNewScoringSystems())]]
+            ['scoring_system' => ['required', 'string', Rule::in(ScoringService::getAllowedNewScoringSystems())]]
         );
         $this->assertTrue($legacyValidator->fails(), 'Opsi legacy First to 11 harus ditolak pada pembuatan sesi baru.');
     }
@@ -2390,6 +2392,40 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertEquals(3, $resRetry['version'], 'Hanya evt_D yang menambah versi');
         $this->assertEquals('30', $resRetry['point_display_a'], 'evt_A tidak boleh diproses ulang');
         $this->assertEquals('30', $resRetry['point_display_b'], 'evt_D (Team B) harus berhasil diterapkan');
+    }
+
+    public function test_determine_session_round_count_preserves_total_of_sets(): void
+    {
+        foreach ([3, 4, 5, 6, 7, 8, 9, 10] as $sets) {
+            $count = ScoringService::determineSessionRoundCount("Total of {$sets}", 8, false, false, '2 Jam', 1);
+            $this->assertSame($sets, $count, "Total of {$sets} harus selalu menghasilkan tepat {$sets} set/ronde.");
+        }
+    }
+
+    public function test_determine_session_round_count_for_first_to_multi_round(): void
+    {
+        // 1. Americano Double 4 pemain -> 3 ronde
+        $this->assertSame(3, ScoringService::determineSessionRoundCount('First to 8', 4, false, false, '2 Jam', 1));
+
+        // 2. Americano Double 6 pemain -> 5 ronde
+        $this->assertSame(5, ScoringService::determineSessionRoundCount('First to 6', 6, false, false, '2 Jam', 1));
+
+        // 3. Americano Double 8 pemain -> multi-ronde (5-7 ronde)
+        $count8 = ScoringService::determineSessionRoundCount('First to 8', 8, false, false, '2 Jam', 1);
+        $this->assertGreaterThanOrEqual(5, $count8);
+        $this->assertLessThanOrEqual(7, $count8);
+
+        // 4. Team Americano 4 pemain (2 tim) -> 3 ronde (best of 3 sets)
+        $this->assertSame(3, ScoringService::determineSessionRoundCount('First to 6', 4, true, false, '2 Jam', 1));
+
+        // 5. Team Americano 6 pemain (3 tim) -> 3 ronde
+        $this->assertSame(3, ScoringService::determineSessionRoundCount('First to 8', 6, true, false, '2 Jam', 1));
+
+        // 6. Americano Single 2 pemain (1v1) -> 3 ronde (best of 3 sets)
+        $this->assertSame(3, ScoringService::determineSessionRoundCount('First to 4', 2, false, true, '1 Jam', 1));
+
+        // 7. Americano Single 4 pemain -> 3 ronde
+        $this->assertSame(3, ScoringService::determineSessionRoundCount('First to 6', 4, false, true, '1 Jam', 1));
     }
 
     protected function invokeMethod(&$object, $methodName, array $parameters = [])

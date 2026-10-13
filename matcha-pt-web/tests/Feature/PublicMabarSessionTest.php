@@ -611,4 +611,64 @@ class PublicMabarSessionTest extends TestCase
 
         $responseDoubleFew->assertSessionHasErrors('jumlah_pemain');
     }
+
+    public function test_drawing_page_generates_multi_round_for_first_to_session(): void
+    {
+        $host = User::create([
+            'nama' => 'Host MultiRound',
+            'email' => 'hostmultiround@matcha.test',
+            'role' => 'host',
+            'is_host' => true,
+            'password' => bcrypt('password'),
+        ]);
+
+        $sport = Sport::firstOrCreate(['nama_sport' => 'Padel'], ['status_sport' => 'active']);
+        $venue = Venue::create(['nama_venue' => 'Padel Arena Kemang', 'owner_user_id' => $host->user_id]);
+        $court = Court::create(['nama_court' => 'Court 1']);
+        MatchFormat::firstOrCreate(['match_format_id' => 1], ['nama_format' => 'Americano']);
+
+        $session = SessionModel::create([
+            'host_user_id' => $host->user_id,
+            'sport_id' => $sport->sport_id,
+            'venue_id' => $venue->venue_id,
+            'nama_session' => 'Mabar First to 8 Multi-Ronde',
+            'scoring_system' => 'First to 8',
+            'waktu_session' => '19:00 WIB (2 Jam)',
+            'datetime' => now(),
+            'status_session' => 'Open',
+            'jumlah_pemain' => 4,
+            'jenis_permainan' => 'Double',
+        ]);
+
+        DB::table('tb_session_court')->insert([
+            'session_id' => $session->session_id,
+            'court_id' => $court->court_id,
+        ]);
+
+        $players = [];
+        for ($i = 1; $i <= 4; $i++) {
+            $p = Player::create([
+                'nama' => "Player {$i}",
+                'gender' => 'Male',
+                'level' => 'Intermediate',
+            ]);
+            $players[] = $p->player_id;
+        }
+        $session->players()->sync($players);
+
+        Drawing::create([
+            'session_id' => $session->session_id,
+            'match_format_id' => 1,
+            'tanggal_drawing' => now()->toDateString(),
+            'jam_drawing' => now()->format('H:i:s'),
+        ]);
+
+        $response = $this->actingAs($host)->get("/games/{$session->session_id}/drawing");
+
+        $response->assertStatus(200);
+        $drawingData = $response->viewData('drawingData');
+        $this->assertNotEmpty($drawingData['rounds']);
+        // Untuk 4 pemain pada First to 8, harus menghasilkan 3 ronde rotasi lengkap (bukan hanya 1)
+        $this->assertCount(3, $drawingData['rounds'], 'First to 8 dengan 4 pemain harus menghasilkan 3 ronde rotasi.');
+    }
 }

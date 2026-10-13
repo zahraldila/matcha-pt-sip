@@ -306,7 +306,7 @@
                     <i class="fa-solid fa-trophy text-[11px]"></i> {{ $unitTabLabel }} {{ $activeRoundNum }} SCORE
                 </span>
                 <span class="font-medium text-slate-400">
-                    {{ $scoringSystem['is_sets'] ? 'Format: ' : 'Target: ' }}<strong class="text-white">{{ $scoringSystem['is_sets'] ? ('Total of ' . $scoringSystem['max_sets'] . ' Set (Semua set dimainkan)') : ($scoringSystem['target_games'] . ' Games (Tuntas)') }}</strong>
+                    {{ $scoringSystem['is_sets'] ? 'Format: ' : 'Target: ' }}<strong class="text-white">{{ $scoringSystem['is_sets'] ? ('Total of ' . $scoringSystem['max_sets'] . ' Set (Semua set dimainkan)') : ('First to ' . $scoringSystem['target_games'] . ' Games (Target Menang)') }}</strong>
                 </span>
             </div>
 
