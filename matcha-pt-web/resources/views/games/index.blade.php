@@ -137,7 +137,7 @@
                 @endif
 
                 <!-- Tab 2: Mabar yang Saya Ikuti (Player Scope) -->
-                @if(Auth::user()->role !== 'venue_owner')
+                @if(Auth::user()->role !== 'admin' && Auth::user()->role !== 'venue_owner')
                     <a href="{{ route('games.index', array_merge(request()->except(['page']), ['tab' => 'joined'])) }}" 
                        class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap shrink-0 {{ ($activeTab ?? '') === 'joined' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
                         <i class="fa-solid fa-circle-check text-xs {{ ($activeTab ?? '') === 'joined' ? 'text-[#A8E63A]' : 'text-emerald-500' }}"></i>
@@ -149,7 +149,7 @@
                 @endif
 
                 <!-- Tab 3: Dikelola Saya (Host Scope) -->
-                @if(Auth::user()->is_host || ($countHosted ?? 0) > 0)
+                @if(Auth::user()->role !== 'admin' && (Auth::user()->is_host || ($countHosted ?? 0) > 0))
                     <a href="{{ route('games.index', array_merge(request()->except(['page']), ['tab' => 'hosted'])) }}" 
                        class="px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap shrink-0 {{ ($activeTab ?? '') === 'hosted' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608] hover:bg-white' }}">
                         <i class="fa-solid fa-crown text-xs {{ ($activeTab ?? '') === 'hosted' ? 'text-[#A8E63A]' : 'text-amber-500' }}"></i>

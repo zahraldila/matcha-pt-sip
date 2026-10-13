@@ -124,10 +124,14 @@
                         <div>
                             @php
                                 $statusLower = strtolower($session['status']);
+                                $isFinished = in_array($statusLower, ['finished', 'completed', 'selesai'])
+                                    || str_contains($statusLower, 'completed')
+                                    || str_contains($statusLower, 'finished')
+                                    || str_contains($statusLower, 'selesai');
                                 $badgeClass = match(true) {
                                     str_contains($statusLower, 'ready') => 'bg-emerald-50 text-emerald-800 border-emerald-200',
                                     str_contains($statusLower, 'in progress') || str_contains($statusLower, 'live') => 'bg-rose-50 text-rose-800 border-rose-200',
-                                    str_contains($statusLower, 'completed') || str_contains($statusLower, 'finished') => 'bg-slate-100 text-slate-700 border-slate-200',
+                                    $isFinished => 'bg-slate-100 text-slate-700 border-slate-200',
                                     default => 'bg-sky-50 text-sky-800 border-sky-200',
                                 };
                             @endphp
@@ -162,13 +166,15 @@
                                 <i class="fa-solid fa-ranking-star text-[10px] text-amber-600"></i> Rekap Juara
                             </a>
 
-                            <a href="{{ route('games.drawing', $session['id']) }}" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs shadow-2xs transition-all flex items-center gap-1.5">
-                                <i class="fa-solid fa-shuffle text-[10px] text-slate-500"></i> Drawing
-                            </a>
+                            @if(!$isFinished)
+                                <a href="{{ route('games.drawing', $session['id']) }}" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs shadow-2xs transition-all flex items-center gap-1.5">
+                                    <i class="fa-solid fa-shuffle text-[10px] text-slate-500"></i> Drawing
+                                </a>
 
-                            <a href="{{ route('scoring.live', $session['id']) }}" class="px-3.5 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5">
-                                <i class="fa-solid fa-circle-play text-[10px] text-[#A8E63A]"></i> Scoring Live
-                            </a>
+                                <a href="{{ route('scoring.live', $session['id']) }}" class="px-3.5 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-play text-[10px] text-[#A8E63A]"></i> Scoring Live
+                                </a>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -199,11 +205,11 @@
                     <div class="flex items-center gap-1.5 self-center sm:self-auto">
                         {{-- Previous Button --}}
                         @if ($hostSessions->onFirstPage())
-                            <span class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-100/60 cursor-not-allowed">
+                            <span class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-100/60 border border-slate-200/50 cursor-not-allowed">
                                 <i class="fa-solid fa-chevron-left mr-1"></i> Prev
                             </span>
                         @else
-                            <a href="{{ $hostSessions->previousPageUrl() }}" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 glass-card hover:bg-[#063B00] hover:text-white transition-all shadow-2xs">
+                            <a href="{{ $hostSessions->previousPageUrl() }}" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-[#063B00] hover:text-white hover:border-[#063B00] border border-slate-200/80 transition-all shadow-2xs">
                                 <i class="fa-solid fa-chevron-left mr-1"></i> Prev
                             </a>
                         @endif
@@ -215,7 +221,7 @@
                                     {{ $page }}
                                 </span>
                             @else
-                                <a href="{{ $url }}" class="w-8 h-8 rounded-xl text-xs font-bold text-slate-700 glass-card hover:bg-slate-100 flex items-center justify-center transition-all shadow-2xs">
+                                <a href="{{ $url }}" class="w-8 h-8 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-[#063B00] hover:text-white hover:border-[#063B00] border border-slate-200/80 flex items-center justify-center transition-all shadow-2xs">
                                     {{ $page }}
                                 </a>
                             @endif
@@ -223,11 +229,11 @@
 
                         {{-- Next Button --}}
                         @if ($hostSessions->hasMorePages())
-                            <a href="{{ $hostSessions->nextPageUrl() }}" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 glass-card hover:bg-[#063B00] hover:text-white transition-all shadow-2xs">
+                            <a href="{{ $hostSessions->nextPageUrl() }}" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-[#063B00] hover:text-white hover:border-[#063B00] border border-slate-200/80 transition-all shadow-2xs">
                                 Next <i class="fa-solid fa-chevron-right ml-1"></i>
                             </a>
                         @else
-                            <span class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-100/60 cursor-not-allowed">
+                            <span class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-100/60 border border-slate-200/50 cursor-not-allowed">
                                 Next <i class="fa-solid fa-chevron-right ml-1"></i>
                             </span>
                         @endif
