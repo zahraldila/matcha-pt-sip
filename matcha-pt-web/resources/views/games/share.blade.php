@@ -12,52 +12,27 @@
         </div>
     </div>
 
+    @php
+        $isFull = count($game['participants']) >= $game['quota'];
+    @endphp
+
     <!-- Header Card -->
-    <div class="clean-card rounded-2xl p-6 sm:p-7 space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div class="space-y-1">
-                <div class="flex items-center gap-2">
-                    <x-badge :type="strtolower($game['sport']) === 'tennis' ? 'tennis' : 'padel'">
-                        {{ $game['sport'] }}
-                    </x-badge>
-                    <x-badge :type="str_contains(strtolower($game['status']), 'selesai') || !empty($game['is_finished']) ? 'finished' : (str_contains(strtolower($game['status']), 'sedang') || str_contains(strtolower($game['status']), 'in progress') ? 'playing' : (str_contains(strtolower($game['status']), 'ready') ? 'full' : 'open'))">
-                        {{ $game['status'] }}
-                    </x-badge>
-                </div>
-                <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight pt-1">
-                    {{ $game['title'] }}
-                </h1>
-                <p class="text-xs text-slate-500">
-                    Diselenggarakan oleh <strong class="text-slate-700">{{ $game['host']['name'] }}</strong>
-                </p>
+    <div class="clean-card rounded-2xl p-6 sm:p-7">
+        <div class="space-y-1">
+            <div class="flex items-center gap-2">
+                <x-badge :type="strtolower($game['sport']) === 'tennis' ? 'tennis' : 'padel'">
+                    {{ $game['sport'] }}
+                </x-badge>
+                <x-badge :type="str_contains(strtolower($game['status']), 'selesai') || !empty($game['is_finished']) ? 'finished' : (str_contains(strtolower($game['status']), 'sedang') || str_contains(strtolower($game['status']), 'in progress') ? 'playing' : (str_contains(strtolower($game['status']), 'ready') ? 'full' : 'open'))">
+                    {{ $game['status'] }}
+                </x-badge>
             </div>
-
-            <!-- Action Buttons -->
-            <div class="flex items-center gap-2 shrink-0">
-                <button
-                    type="button"
-                    onclick="openShareModal('{{ $shareUrl }}', '{{ addslashes($game['title']) }}', '{{ $game['sport'] }}', '{{ \Carbon\Carbon::parse($game['date'])->isoFormat('D MMM Y') }}', '{{ $game['time'] }}', '{{ addslashes($game['venue_name']) }}')"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs shadow-2xs transition-all hover:scale-[1.01] active:scale-95 cursor-pointer"
-                >
-                    <i class="fa-solid fa-share-nodes text-emerald-600"></i>
-                    <span>Bagikan Jadwal</span>
-                </button>
-
-                @php
-                    $isFull = count($game['participants']) >= $game['quota'];
-                @endphp
-
-                @if(empty($isJoinedByMe) && !$isFull && empty($hasDrawingStarted) && empty($isFinished))
-                    <button
-                        type="button"
-                        onclick="showJoinModal('{{ $game['id'] }}', '{{ addslashes($game['title']) }}')"
-                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md shadow-[#063B00]/15 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
-                    >
-                        <i class="fa-solid fa-user-plus text-[#A8E63A]"></i>
-                        <span>Ikut Mabar</span>
-                    </button>
-                @endif
-            </div>
+            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight pt-1">
+                {{ $game['title'] }}
+            </h1>
+            <p class="text-xs text-slate-500">
+                Diselenggarakan oleh <strong class="text-slate-700">{{ $game['host']['name'] }}</strong>
+            </p>
         </div>
     </div>
 
