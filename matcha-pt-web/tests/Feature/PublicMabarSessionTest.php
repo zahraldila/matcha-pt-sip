@@ -181,6 +181,69 @@ class PublicMabarSessionTest extends TestCase
         return $session;
     }
 
+    public function test_player_search_returns_unique_accounts_and_guest_names(): void
+    {
+        $searcher = User::create([
+            'nama' => 'Host Search',
+            'email' => 'searcher_'.uniqid().'@matcha.com',
+            'role' => 'host',
+            'is_host' => true,
+            'password' => bcrypt('secret'),
+        ]);
+        $firstAccount = User::create([
+            'nama' => 'Marcello Este Camaro',
+            'email' => 'first_'.uniqid().'@matcha.com',
+            'password' => bcrypt('secret'),
+        ]);
+        $secondAccount = User::create([
+            'nama' => 'Marcello Este Camaro',
+            'email' => 'second_'.uniqid().'@matcha.com',
+            'password' => bcrypt('secret'),
+        ]);
+
+        $firstAccountPlayer = Player::create([
+            'user_id' => $firstAccount->user_id,
+            'nama' => 'Marcello Este Camaro',
+            'gender' => 'Male',
+            'level' => 'Intermediate',
+        ]);
+        Player::create([
+            'user_id' => $firstAccount->user_id,
+            'nama' => 'Marcello Este Camaro',
+            'gender' => 'Male',
+            'level' => 'Intermediate',
+        ]);
+        $secondAccountPlayer = Player::create([
+            'user_id' => $secondAccount->user_id,
+            'nama' => 'Marcello Este Camaro',
+            'gender' => 'Male',
+            'level' => 'Intermediate',
+        ]);
+        $firstGuest = Player::create([
+            'nama' => 'Marcello Este Camaro',
+            'gender' => 'Male',
+            'level' => 'Intermediate',
+        ]);
+        $secondGuest = Player::create([
+            'nama' => ' marcello   este camaro ',
+            'gender' => 'Male',
+            'level' => 'Intermediate',
+        ]);
+
+        $response = $this->actingAs($searcher)
+            ->get(route('games.players.search', ['search' => 'marc']));
+
+        $response->assertOk()->assertJsonCount(3);
+        $returnedPlayerIds = collect($response->json())->pluck('player_id');
+
+        $this->assertContains($firstAccountPlayer->player_id, $returnedPlayerIds);
+        $this->assertContains($secondAccountPlayer->player_id, $returnedPlayerIds);
+        $this->assertCount(1, $returnedPlayerIds->intersect([
+            $firstGuest->player_id,
+            $secondGuest->player_id,
+        ]));
+    }
+
     /**
      * Test A: Sesi valid -> HTTP 200 dan detail session benar.
      */
