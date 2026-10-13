@@ -468,6 +468,7 @@ class CommunityController extends Controller
             'homebase_venue' => ['nullable', 'string', 'max:255', 'not_regex:/<[^>]*script/i'],
             'venue_utama' => ['nullable', 'string', 'max:255', 'not_regex:/<[^>]*script/i'],
             'logo_url' => 'nullable|string',
+            'remove_logo' => 'nullable|string',
             'logo' => 'nullable|file|mimes:jpeg,jpg,png|max:2048',
         ]);
 
@@ -478,8 +479,21 @@ class CommunityController extends Controller
             default => 'padel',
         };
 
-        $logoUrl = $validated['logo_url'] ?? $community->logo;
-        if ($request->hasFile('logo')) {
+        $logoUrl = $community->logo;
+        if ($request->input('remove_logo') == '1' || $request->input('remove_logo') === true) {
+            if (!empty($community->logo)) {
+                try {
+                    $storageService->deleteLogo($community->logo);
+                } catch (\Throwable $e) {
+                    Log::warning('Logo delete error during update: '.$e->getMessage());
+                }
+            }
+            $logoUrl = null;
+        } elseif (!empty($validated['logo_url'])) {
+            $logoUrl = $validated['logo_url'];
+        }
+
+        if ($request->hasFile('logo') && $request->input('remove_logo') != '1') {
             try {
                 $uploadResult = $storageService->uploadLogo($request->file('logo'));
                 if ($uploadResult['success']) {
