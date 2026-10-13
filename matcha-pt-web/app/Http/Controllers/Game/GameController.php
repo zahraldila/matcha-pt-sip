@@ -1472,6 +1472,16 @@ class GameController extends Controller
             $rounds = $savedSchedule['rounds'] ?? [];
         }
 
+        $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
+        $isSingleMode = strtolower($drawingMode) === 'single';
+        if ($isSingleMode && count($participants) === 4 && $courtCount === 1) {
+            $savedScores = Cache::get("scoring.game_{$game['id']}", []);
+            $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
+            $americanoService = new AmericanoService;
+            $rounds = $americanoService->resolveDynamicSingleRounds($rounds, $savedScores, $scoringSystem, (int) $game['id']);
+            $drawingData['rounds'] = $rounds;
+        }
+
         // Jika request via AJAX / Fetch JSON
         if ($request->wantsJson() || $request->ajax() || $request->query('json')) {
             return response()->json([

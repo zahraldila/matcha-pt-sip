@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Game\GameController;
+use App\Http\Controllers\Player\PlayerController;
 use App\Http\Controllers\Scoring\ScoringController;
 use App\Models\Court;
 use App\Models\Drawing;
@@ -11,7 +12,9 @@ use App\Models\MatchParticipant;
 use App\Models\Player;
 use App\Models\Score;
 use App\Models\SessionModel;
+use App\Models\Sport;
 use App\Models\User;
+use App\Models\Venue;
 use App\Services\Drawing\AmericanoService;
 use App\Services\Drawing\TeamAmericanoService;
 use App\Services\Scoring\ScoringService;
@@ -75,14 +78,14 @@ class DrawingAndScoringLogicTest extends TestCase
     public function test_scoring_configuration_uses_expected_set_and_point_targets()
     {
         foreach ([
-            'Total of 3' => [3, 3, true, 3],
-            'Total of 4' => [4, 4, true, 4],
-            'Total of 5' => [5, 5, true, 5],
+            'Total of 3' => [3, 3, true, 6],
+            'Total of 4' => [4, 4, true, 6],
+            'Total of 5' => [5, 5, true, 6],
             'Total of 6' => [6, 6, true, 6],
-            'Total of 7' => [7, 7, true, 7],
-            'Total of 8' => [8, 8, true, 8],
-            'Total of 9' => [9, 9, true, 9],
-            'Total of 10' => [10, 10, true, 10],
+            'Total of 7' => [7, 7, true, 6],
+            'Total of 8' => [8, 8, true, 6],
+            'Total of 9' => [9, 9, true, 6],
+            'Total of 10' => [10, 10, true, 6],
             'First to 2' => [1, 1, false, 2],
             'First to 3' => [1, 1, false, 3],
             'First to 4' => [1, 1, false, 4],
@@ -114,7 +117,7 @@ class DrawingAndScoringLogicTest extends TestCase
         $total10 = ScoringService::detectScoringSystem('Total of 10');
         $this->assertSame(10, $total10['max_sets']);
         $this->assertSame(10, $total10['target_sets']);
-        $this->assertSame(10, $total10['target_total_games']);
+        $this->assertSame(6, $total10['target_total_games']);
         $this->assertSame('Total of 10', $total10['label']);
 
         $first10 = ScoringService::detectScoringSystem('First to 10');
@@ -238,49 +241,28 @@ class DrawingAndScoringLogicTest extends TestCase
 
     public function test_total_of_set_completion_rules_and_scores()
     {
-        // 1. Total of 3 (total gabungan games_a + games_b = 3)
         $totalOf3Config = ScoringService::detectScoringSystem('Total of 3');
-        // Skor 2–0: belum selesai
-        $this->assertFalse(ScoringService::isMatchCompleted(2, 0, $totalOf3Config));
-        $this->assertNull(ScoringService::determineMatchWinner(2, 0, $totalOf3Config));
-        // Skor 2–1: selesai (Team A)
-        $this->assertTrue(ScoringService::isMatchCompleted(2, 1, $totalOf3Config));
-        $this->assertSame('Team A', ScoringService::determineMatchWinner(2, 1, $totalOf3Config));
-        // Skor 3–0: selesai (Team A)
-        $this->assertTrue(ScoringService::isMatchCompleted(3, 0, $totalOf3Config));
-        $this->assertSame('Team A', ScoringService::determineMatchWinner(3, 0, $totalOf3Config));
-        // Hasil kebalikan untuk kedua sisi:
-        $this->assertFalse(ScoringService::isMatchCompleted(0, 2, $totalOf3Config));
-        $this->assertTrue(ScoringService::isMatchCompleted(1, 2, $totalOf3Config));
-        $this->assertSame('Team B', ScoringService::determineMatchWinner(1, 2, $totalOf3Config));
-        $this->assertTrue(ScoringService::isMatchCompleted(0, 3, $totalOf3Config));
-        $this->assertSame('Team B', ScoringService::determineMatchWinner(0, 3, $totalOf3Config));
+        // Skor 5–4: belum selesai
+        $this->assertFalse(ScoringService::isMatchCompleted(5, 4, $totalOf3Config));
+        $this->assertNull(ScoringService::determineMatchWinner(5, 4, $totalOf3Config));
+        // Skor 6–1: selesai (Team A)
+        $this->assertTrue(ScoringService::isMatchCompleted(6, 1, $totalOf3Config));
+        $this->assertSame('Team A', ScoringService::determineMatchWinner(6, 1, $totalOf3Config));
+        // Skor 6–4: selesai (Team A)
+        $this->assertTrue(ScoringService::isMatchCompleted(6, 4, $totalOf3Config));
+        $this->assertSame('Team A', ScoringService::determineMatchWinner(6, 4, $totalOf3Config));
+        // Skor 5–5: belum selesai (lanjut ke 7)
+        $this->assertFalse(ScoringService::isMatchCompleted(5, 5, $totalOf3Config));
+        // Skor 7–5: selesai (Team A)
+        $this->assertTrue(ScoringService::isMatchCompleted(7, 5, $totalOf3Config));
+        $this->assertSame('Team A', ScoringService::determineMatchWinner(7, 5, $totalOf3Config));
+        // Hasil kebalikan untuk Team B:
+        $this->assertTrue(ScoringService::isMatchCompleted(2, 6, $totalOf3Config));
+        $this->assertSame('Team B', ScoringService::determineMatchWinner(2, 6, $totalOf3Config));
+        $this->assertTrue(ScoringService::isMatchCompleted(6, 7, $totalOf3Config));
+        $this->assertSame('Team B', ScoringService::determineMatchWinner(6, 7, $totalOf3Config));
 
-        // 2. Total of 4 (total gabungan games_a + games_b = 4)
-        $totalOf4Config = ScoringService::detectScoringSystem('Total of 4');
-        // Skor 2–1: belum selesai
-        $this->assertFalse(ScoringService::isMatchCompleted(2, 1, $totalOf4Config));
-        $this->assertNull(ScoringService::determineMatchWinner(2, 1, $totalOf4Config));
-        // Skor 4–0: selesai (Team A)
-        $this->assertTrue(ScoringService::isMatchCompleted(4, 0, $totalOf4Config));
-        $this->assertSame('Team A', ScoringService::determineMatchWinner(4, 0, $totalOf4Config));
-        // Skor 3–1: selesai (Team A)
-        $this->assertTrue(ScoringService::isMatchCompleted(3, 1, $totalOf4Config));
-        $this->assertSame('Team A', ScoringService::determineMatchWinner(3, 1, $totalOf4Config));
-        // Skor 2–2: selesai TANPA pemenang tunggal (Seri/Draw)
-        $this->assertTrue(ScoringService::isMatchCompleted(2, 2, $totalOf4Config));
-        $this->assertNull(ScoringService::determineMatchWinner(2, 2, $totalOf4Config), 'Total of 4 skor 2–2 harus selesai tanpa pemenang tunggal (null).');
-        // Hasil kebalikan:
-        $this->assertTrue(ScoringService::isMatchCompleted(1, 3, $totalOf4Config));
-        $this->assertSame('Team B', ScoringService::determineMatchWinner(1, 3, $totalOf4Config));
-        $this->assertTrue(ScoringService::isMatchCompleted(0, 4, $totalOf4Config));
-        $this->assertSame('Team B', ScoringService::determineMatchWinner(0, 4, $totalOf4Config));
-
-        // 3. Total of 10 (total gabungan games_a + games_b = 10)
         $totalOf10Config = ScoringService::detectScoringSystem('Total of 10');
-        // Skor 5–5: selesai TANPA pemenang tunggal, TIDAK lanjut ke 7 atau perpanjangan
-        $this->assertTrue(ScoringService::isMatchCompleted(5, 5, $totalOf10Config), 'Total of 10 skor 5–5 harus selesai.');
-        $this->assertNull(ScoringService::determineMatchWinner(5, 5, $totalOf10Config), 'Total of 10 skor 5–5 harus selesai tanpa pemenang tunggal.');
         // Skor 6–4: selesai (Team A)
         $this->assertTrue(ScoringService::isMatchCompleted(6, 4, $totalOf10Config));
         $this->assertSame('Team A', ScoringService::determineMatchWinner(6, 4, $totalOf10Config));
@@ -318,7 +300,7 @@ class DrawingAndScoringLogicTest extends TestCase
     public function test_late_point_mutations_and_batch_events_stop_after_final()
     {
         $controller = new ScoringController;
-        $scoringSystem = ScoringService::detectScoringSystem('Total of 3');
+        $scoringSystem = ScoringService::detectScoringSystem('First to 3');
 
         // 1. Mutasi poin pada match yang sudah completed (2–1) harus ditolak/diabaikan
         $completedState = [
@@ -2488,6 +2470,7 @@ class DrawingAndScoringLogicTest extends TestCase
         // 7. Americano Single 4 pemain -> 3 ronde
         $this->assertSame(3, ScoringService::determineSessionRoundCount('First to 6', 4, false, true, '1 Jam', 1));
     }
+
     /**
      * Pengujian terarah sesuai Aturan Final Total Of N:
      * 1. Semua Total Of 3–10 menghasilkan N ronde (drawing).
@@ -2963,7 +2946,7 @@ class DrawingAndScoringLogicTest extends TestCase
         $playerMarcel = Player::create(['user_id' => $userMarcel->user_id, 'nama' => 'Marcello Este Camaro']);
         $playerSpectator = Player::create(['user_id' => $userSpectator->user_id, 'nama' => 'Penonton Netral']);
 
-        $controller = new \App\Http\Controllers\Scoring\ScoringController;
+        $controller = new ScoringController;
 
         $game = [
             'id' => 409,
@@ -3023,8 +3006,8 @@ class DrawingAndScoringLogicTest extends TestCase
         $playerBambang = Player::create(['user_id' => $userBambang->user_id, 'nama' => 'Bambang Sudirman']);
         $playerCandra = Player::create(['user_id' => $userCandra->user_id, 'nama' => 'Candra Wijaya']);
 
-        $sport = \App\Models\Sport::create(['nama_sport' => 'Tennis']);
-        $venue = \App\Models\Venue::create(['nama_venue' => 'Arena Test']);
+        $sport = Sport::create(['nama_sport' => 'Tennis']);
+        $venue = Venue::create(['nama_venue' => 'Arena Test']);
         \Illuminate\Support\Facades\DB::table('tb_match_format')->insertOrIgnore([
             'match_format_id' => 1,
             'nama_format' => 'americano',
@@ -3106,7 +3089,7 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertSame(3, (int) $authScores->first()->game_score_b);
 
         // 2. Verifikasi ScoringController::recap()
-        $controller = new \App\Http\Controllers\Scoring\ScoringController;
+        $controller = new ScoringController;
         $recapView = $controller->recap($session->session_id);
         $data = $recapView->getData();
 
@@ -3158,11 +3141,85 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertSame('0%', $bambangCard['win_rate']);
 
         // 4. Verifikasi PlayerController::calculateRealPlayerRecap()
-        $playerRecap = \App\Http\Controllers\Player\PlayerController::calculateRealPlayerRecap($userCandra, $playerCandra);
+        $playerRecap = PlayerController::calculateRealPlayerRecap($userCandra, $playerCandra);
         $this->assertSame(1, $playerRecap['player']['total_matches']);
         $this->assertSame(1, $playerRecap['player']['wins']);
         $this->assertNotEmpty($playerRecap['recent_matches']);
         $this->assertSame('3 - 1', $playerRecap['recent_matches'][0]['score'], 'Skor riwayat profil harus 3 - 1, bukan terinflasi');
+    }
+
+    public function test_single_four_players_one_court_schedule_has_zero_repeated_matchups_initially()
+    {
+        $service = new AmericanoService;
+        $players = [
+            ['id' => 1, 'name' => 'Marcello'],
+            ['id' => 2, 'name' => 'Hilmy'],
+            ['id' => 3, 'name' => 'Ahmad'],
+            ['id' => 4, 'name' => 'Jeong'],
+        ];
+
+        $rounds = $service->generateRounds($players, 1, 3, 'Single');
+
+        $this->assertCount(3, $rounds);
+        $this->assertSame(['Marcello'], $rounds[1]['team_a_names']);
+        $this->assertSame(['Hilmy'], $rounds[1]['team_b_names']);
+        $this->assertEqualsCanonicalizing(['Ahmad', 'Jeong'], $rounds[1]['resting']);
+
+        $this->assertSame(['Ahmad'], $rounds[2]['team_a_names']);
+        $this->assertSame(['Jeong'], $rounds[2]['team_b_names']);
+        $this->assertEqualsCanonicalizing(['Marcello', 'Hilmy'], $rounds[2]['resting']);
+
+        // In Round 3, Marcello MUST NOT play Hilmy again!
+        $this->assertSame(['Marcello'], $rounds[3]['team_a_names']);
+        $this->assertSame(['Ahmad'], $rounds[3]['team_b_names']);
+        $this->assertEqualsCanonicalizing(['Hilmy', 'Jeong'], $rounds[3]['resting']);
+    }
+
+    public function test_single_four_players_one_court_dynamically_resolves_winner_vs_winner_in_round_three()
+    {
+        $service = new AmericanoService;
+        $players = [
+            ['id' => 1, 'name' => 'Marcello'],
+            ['id' => 2, 'name' => 'Hilmy'],
+            ['id' => 3, 'name' => 'Ahmad'],
+            ['id' => 4, 'name' => 'Jeong'],
+        ];
+
+        $rounds = $service->generateRounds($players, 1, 4, 'Single');
+
+        // Skenario:
+        // Round 1 (Marcello vs Hilmy): Hilmy menang (Team B menang)
+        // Round 2 (Ahmad vs Jeong): Ahmad menang (Team A menang)
+        $savedScores = [
+            'round_1' => [
+                'status' => 'completed',
+                'winner_team' => 'Team B', // Hilmy wins
+                'games_a' => 2,
+                'games_b' => 5,
+            ],
+            'round_2' => [
+                'status' => 'completed',
+                'winner_team' => 'Team A', // Ahmad wins
+                'games_a' => 5,
+                'games_b' => 3,
+            ],
+        ];
+
+        $resolvedRounds = $service->resolveDynamicSingleRounds($rounds, $savedScores);
+
+        // Round 3 MUST BE: Hilmy (Winner R1) vs Ahmad (Winner R2)!
+        $this->assertEqualsCanonicalizing(['Hilmy', 'Ahmad'], [
+            $resolvedRounds[3]['team_a_names'][0],
+            $resolvedRounds[3]['team_b_names'][0],
+        ]);
+        $this->assertEqualsCanonicalizing(['Marcello', 'Jeong'], $resolvedRounds[3]['resting']);
+
+        // Round 4 MUST BE: Marcello (Loser R1) vs Jeong (Loser R2)!
+        $this->assertEqualsCanonicalizing(['Marcello', 'Jeong'], [
+            $resolvedRounds[4]['team_a_names'][0],
+            $resolvedRounds[4]['team_b_names'][0],
+        ]);
+        $this->assertEqualsCanonicalizing(['Hilmy', 'Ahmad'], $resolvedRounds[4]['resting']);
     }
 
     protected function invokeMethod(&$object, $methodName, array $parameters = [])

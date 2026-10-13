@@ -1070,6 +1070,21 @@ class ScoringController extends Controller
                 }
                 Cache::put($cacheKey, $scores, now()->addHours(4));
                 Cache::put("scoring.game_{$gameId}.{$matchKey}", $scorePayload, now()->addHours(4));
+
+                // Jika format Single 4 pemain 1 court, update cache schedule dengan pasangan dinamis
+                if (($scorePayload['status'] ?? '') === 'completed') {
+                    $cachedScheduleKey = "drawing_schedule_{$gameId}";
+                    $cachedSchedule = Cache::get($cachedScheduleKey);
+                    if ($cachedSchedule && ! empty($cachedSchedule['rounds'])) {
+                        $americanoService = new AmericanoService;
+                        $updatedRounds = $americanoService->resolveDynamicSingleRounds($cachedSchedule['rounds'], $scores, null, (int) $gameId);
+                        $cachedSchedule['rounds'] = $updatedRounds;
+                        if (isset($cachedSchedule['drawingData'])) {
+                            $cachedSchedule['drawingData']['rounds'] = $updatedRounds;
+                        }
+                        Cache::put($cachedScheduleKey, $cachedSchedule, now()->addHours(12));
+                    }
+                }
             } finally {
                 $sessionLock->release();
             }
@@ -2172,6 +2187,15 @@ class ScoringController extends Controller
                     $americanoService = new AmericanoService;
                     $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan ?? 'Double');
                 }
+            }
+
+            $isSingle = strtolower($sessionJenisPermainan ?? '') === 'single';
+            if ($isSingle && count($participants) === 4 && $courtCount === 1) {
+                $cacheKey = "scoring.game_{$dbSession->session_id}";
+                $savedScores = Cache::get($cacheKey, []);
+                $americanoService = new AmericanoService;
+                $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
+                $rounds = $americanoService->resolveDynamicSingleRounds($rounds, $savedScores, $scoringSystem, (int) $dbSession->session_id);
             }
 
             $drawingMap = [];

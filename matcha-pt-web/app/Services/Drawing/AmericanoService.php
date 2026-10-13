@@ -2,6 +2,10 @@
 
 namespace App\Services\Drawing;
 
+use App\Models\Drawing;
+use App\Models\GameMatch;
+use App\Models\Score;
+
 class AmericanoService
 {
     /**
@@ -247,6 +251,10 @@ class AmericanoService
             $totalRounds = min(3, $maxTheoreticalRounds);
         } else {
             $totalRounds = $roundCount;
+        }
+
+        if ($playerCount === 4 && $courtCount === 1) {
+            return $this->generateSingleFourPlayerRounds($normalizedPlayers, $totalRounds);
         }
 
         // Tracking structures
@@ -806,5 +814,231 @@ class AmericanoService
         return strcmp((string) $id1, (string) $id2) < 0
             ? "{$id1}-{$id2}"
             : "{$id2}-{$id1}";
+    }
+
+    /**
+     * Generate Americano Single schedule specifically for 4 players on 1 court.
+     *
+     * Guarantee zero repeated matchups in the initial rotation schedule:
+     * - Round 1: P0 vs P1 (P2, P3 rest)
+     * - Round 2: P2 vs P3 (P0, P1 rest)
+     * - Round 3: P0 vs P2 (P1, P3 rest) -> will be dynamically resolved to Winner R1 vs Winner R2 once R1 & R2 complete
+     * - Round 4: P1 vs P3 (P0, P2 rest) -> will be dynamically resolved to Loser R1 vs Loser R2 once R1 & R2 complete
+     * - Round 5: P0 vs P3 (P1, P2 rest)
+     * - Round 6: P1 vs P2 (P0, P3 rest)
+     */
+    private function generateSingleFourPlayerRounds(array $normalizedPlayers, int $totalRounds): array
+    {
+        $p = array_values($normalizedPlayers);
+        $schedulePattern = [
+            1 => [[0, 1], [2, 3]],
+            2 => [[2, 3], [0, 1]],
+            3 => [[0, 2], [1, 3]],
+            4 => [[1, 3], [0, 2]],
+            5 => [[0, 3], [1, 2]],
+            6 => [[1, 2], [0, 3]],
+        ];
+
+        $rounds = [];
+        for ($r = 1; $r <= $totalRounds; $r++) {
+            $patternIndex = (($r - 1) % 6) + 1;
+            [$activeIdx, $restIdx] = $schedulePattern[$patternIndex];
+
+            $pA = $p[$activeIdx[0]];
+            $pB = $p[$activeIdx[1]];
+            $rA = $p[$restIdx[0]];
+            $rB = $p[$restIdx[1]];
+
+            $match = [
+                'court' => 1,
+                'court_name' => 'Court 1',
+                'team_a' => [$pA],
+                'team_b' => [$pB],
+                'team_a_names' => [$pA['name']],
+                'team_b_names' => [$pB['name']],
+                'teamA_names' => [$pA['name']],
+                'teamB_names' => [$pB['name']],
+                'status' => 'Scheduled',
+            ];
+
+            $roundName = match (true) {
+                $r === 1 => 'Ronde 1 (Pembuka)',
+                $r === $totalRounds => "Ronde {$r} (Final)",
+                $r === 2 => 'Ronde 2 (Rotasi)',
+                default => "Ronde {$r}",
+            };
+
+            $rounds[$r] = [
+                'round' => $r,
+                'round_number' => $r,
+                'round_name' => $roundName,
+                'round_title' => $roundName,
+                'court_count' => 1,
+                'matches' => [$match],
+                'teamA' => [$pA['name']],
+                'teamB' => [$pB['name']],
+                'team_a' => [$pA],
+                'team_b' => [$pB],
+                'team_a_names' => [$pA['name']],
+                'team_b_names' => [$pB['name']],
+                'resting' => [$rA['name'], $rB['name']],
+                'primary_match' => $match,
+                'resting_players' => [$rA, $rB],
+            ];
+        }
+
+        return $rounds;
+    }
+
+    /**
+     * Dynamically resolve Round 3 and Round 4 matchups for Single 4-player 1-court format
+     * based on completed match results of Round 1 and Round 2:
+     * - Round 3: Winner of Round 1 vs Winner of Round 2 (Losers rest on bench)
+     * - Round 4: Loser of Round 1 vs Loser of Round 2 (Winners rest on bench)
+     */
+    public function resolveDynamicSingleRounds(array $rounds, array $savedScores, ?array $scoringSystem = null, ?int $sessionId = null): array
+    {
+        if (! isset($rounds[1], $rounds[2], $rounds[3])) {
+            return $rounds;
+        }
+
+        $allPlayersCount = count($rounds[1]['team_a'] ?? []) + count($rounds[1]['team_b'] ?? []) + count($rounds[1]['resting'] ?? []);
+        if ($allPlayersCount !== 4 || ($rounds[1]['court_count'] ?? 1) !== 1) {
+            return $rounds;
+        }
+
+        $getRoundScore = function (int $roundNum) use ($savedScores, $sessionId) {
+            $key = "round_{$roundNum}";
+            $score = $savedScores[$key] ?? ($savedScores["{$key}_court_1"] ?? null);
+            if ((! $score || ($score['status'] ?? '') !== 'completed') && $sessionId) {
+                try {
+                    $drawing = Drawing::where('session_id', $sessionId)->first();
+                    if ($drawing) {
+                        $match = GameMatch::where('drawing_id', $drawing->drawing_id)
+                            ->where('nomor_match', $roundNum)
+                            ->first();
+                        if ($match && $match->status_match === 'Completed') {
+                            $sc = Score::where('match_id', $match->match_id)->first();
+                            $score = [
+                                'status' => 'completed',
+                                'winner_team' => ($match->pemenang === 'Tim A' || $match->pemenang === 'Team A') ? 'Team A' : (($match->pemenang === 'Tim B' || $match->pemenang === 'Team B') ? 'Team B' : null),
+                                'games_a' => $sc->skor_tim_a ?? 0,
+                                'games_b' => $sc->skor_tim_b ?? 0,
+                            ];
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // Ignore DB fallback errors
+                }
+            }
+
+            return $score;
+        };
+
+        $scoreR1 = $getRoundScore(1);
+        $scoreR2 = $getRoundScore(2);
+
+        $isR1Completed = $scoreR1 && (($scoreR1['status'] ?? '') === 'completed');
+        $isR2Completed = $scoreR2 && (($scoreR2['status'] ?? '') === 'completed');
+
+        if (! $isR1Completed || ! $isR2Completed) {
+            return $rounds;
+        }
+
+        $pA1 = $rounds[1]['team_a'][0] ?? null;
+        $pB1 = $rounds[1]['team_b'][0] ?? null;
+        if (! $pA1 || ! $pB1) {
+            return $rounds;
+        }
+
+        $winnerTeam1 = $scoreR1['winner_team'] ?? null;
+        $gamesA1 = (int) ($scoreR1['games_a'] ?? $scoreR1['score_a'] ?? 0);
+        $gamesB1 = (int) ($scoreR1['games_b'] ?? $scoreR1['score_b'] ?? 0);
+
+        if ($winnerTeam1 === 'Team A' || ($winnerTeam1 === null && $gamesA1 >= $gamesB1)) {
+            $winner1 = $pA1;
+            $loser1 = $pB1;
+        } else {
+            $winner1 = $pB1;
+            $loser1 = $pA1;
+        }
+
+        $pA2 = $rounds[2]['team_a'][0] ?? null;
+        $pB2 = $rounds[2]['team_b'][0] ?? null;
+        if (! $pA2 || ! $pB2) {
+            return $rounds;
+        }
+
+        $winnerTeam2 = $scoreR2['winner_team'] ?? null;
+        $gamesA2 = (int) ($scoreR2['games_a'] ?? $scoreR2['score_a'] ?? 0);
+        $gamesB2 = (int) ($scoreR2['games_b'] ?? $scoreR2['score_b'] ?? 0);
+
+        if ($winnerTeam2 === 'Team A' || ($winnerTeam2 === null && $gamesA2 >= $gamesB2)) {
+            $winner2 = $pA2;
+            $loser2 = $pB2;
+        } else {
+            $winner2 = $pB2;
+            $loser2 = $pA2;
+        }
+
+        // Resolve Round 3: Winner R1 vs Winner R2
+        $matchR3 = [
+            'court' => 1,
+            'court_name' => 'Court 1',
+            'team_a' => [$winner1],
+            'team_b' => [$winner2],
+            'team_a_names' => [$winner1['name']],
+            'team_b_names' => [$winner2['name']],
+            'teamA_names' => [$winner1['name']],
+            'teamB_names' => [$winner2['name']],
+            'status' => 'Scheduled',
+        ];
+
+        $round3Name = $rounds[3]['round_name'] ?? 'Ronde 3';
+
+        $rounds[3] = array_merge($rounds[3], [
+            'teamA' => [$winner1['name']],
+            'teamB' => [$winner2['name']],
+            'team_a' => [$winner1],
+            'team_b' => [$winner2],
+            'team_a_names' => [$winner1['name']],
+            'team_b_names' => [$winner2['name']],
+            'resting' => [$loser1['name'], $loser2['name']],
+            'resting_players' => [$loser1, $loser2],
+            'matches' => [$matchR3],
+            'primary_match' => $matchR3,
+            'is_dynamic_resolved' => true,
+        ]);
+
+        // Resolve Round 4 (if present): Loser R1 vs Loser R2
+        if (isset($rounds[4])) {
+            $matchR4 = [
+                'court' => 1,
+                'court_name' => 'Court 1',
+                'team_a' => [$loser1],
+                'team_b' => [$loser2],
+                'team_a_names' => [$loser1['name']],
+                'team_b_names' => [$loser2['name']],
+                'teamA_names' => [$loser1['name']],
+                'teamB_names' => [$loser2['name']],
+                'status' => 'Scheduled',
+            ];
+
+            $rounds[4] = array_merge($rounds[4], [
+                'teamA' => [$loser1['name']],
+                'teamB' => [$loser2['name']],
+                'team_a' => [$loser1],
+                'team_b' => [$loser2],
+                'team_a_names' => [$loser1['name']],
+                'team_b_names' => [$loser2['name']],
+                'resting' => [$winner1['name'], $winner2['name']],
+                'resting_players' => [$winner1, $winner2],
+                'matches' => [$matchR4],
+                'primary_match' => $matchR4,
+                'is_dynamic_resolved' => true,
+            ]);
+        }
+
+        return $rounds;
     }
 }
