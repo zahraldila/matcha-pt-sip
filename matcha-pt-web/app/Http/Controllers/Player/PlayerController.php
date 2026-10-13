@@ -57,11 +57,13 @@ class PlayerController extends Controller
             return redirect()->route('login');
         }
 
-        // Sanitize no_hp
-        if ($request->has('no_hp')) {
-            $cleanNoHp = preg_replace('/[^0-9]/', '', (string) $request->no_hp);
-            $request->merge(['no_hp' => $cleanNoHp]);
-        }
+        // Sanitize no_hp & email
+        $cleanEmail = strtolower(trim((string) $request->email));
+        $cleanNoHp = preg_replace('/[^0-9]/', '', (string) $request->no_hp);
+        $request->merge([
+            'email' => $cleanEmail,
+            'no_hp' => $cleanNoHp,
+        ]);
 
         $isAdmin = $user->isAdmin();
 
