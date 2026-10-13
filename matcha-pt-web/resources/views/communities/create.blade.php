@@ -158,57 +158,32 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                    <!-- Target Level Member -->
-                    <div class="space-y-1.5 relative" id="targetLevelDropdownContainer">
-                        <label class="block font-bold text-slate-800">Target Level Member</label>
-                        <div class="relative">
-                            <select id="targetLevelSelect" name="target_level" class="sr-only">
-                                <option value="All Levels" {{ old('target_level', 'All Levels') === 'All Levels' ? 'selected' : '' }}>Semua Level (Newbie s/d Advanced)</option>
-                                <option value="Beginners" {{ old('target_level') === 'Beginners' ? 'selected' : '' }}>Fokus Newbie & Beginner</option>
-                                <option value="Intermediate" {{ old('target_level') === 'Intermediate' ? 'selected' : '' }}>Intermediate & Competitive</option>
-                            </select>
+                <!-- Hidden input status keanggotaan default Open -->
+                <input type="hidden" name="status_keanggotaan" value="Open">
 
-                            <button
-                                type="button"
-                                id="targetLevelTrigger"
-                                onclick="toggleDropdownMenu('targetLevelMenu', 'targetLevelArrow')"
-                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left"
-                            >
-                                <span id="targetLevelSelected" class="text-xs font-bold text-slate-900 truncate">
-                                    {{ old('target_level') === 'Beginners' ? 'Fokus Newbie & Beginner' : (old('target_level') === 'Intermediate' ? 'Intermediate & Competitive' : 'Semua Level (Newbie s/d Advanced)') }}
-                                </span>
-                                <i id="targetLevelArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
-                            </button>
+                <!-- Target Level Member -->
+                <div class="space-y-1.5 pt-1 relative" id="targetLevelDropdownContainer">
+                    <label class="block font-bold text-slate-800">Target Level Member</label>
+                    <div class="relative">
+                        <select id="targetLevelSelect" name="target_level" class="sr-only">
+                            <option value="All Levels" {{ old('target_level', 'All Levels') === 'All Levels' ? 'selected' : '' }}>Semua Level (Newbie s/d Advanced)</option>
+                            <option value="Beginners" {{ old('target_level') === 'Beginners' ? 'selected' : '' }}>Fokus Newbie & Beginner</option>
+                            <option value="Intermediate" {{ old('target_level') === 'Intermediate' ? 'selected' : '' }}>Intermediate & Competitive</option>
+                        </select>
 
-                            <div id="targetLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
-                        </div>
-                    </div>
+                        <button
+                            type="button"
+                            id="targetLevelTrigger"
+                            onclick="toggleDropdownMenu('targetLevelMenu', 'targetLevelArrow')"
+                            class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left"
+                        >
+                            <span id="targetLevelSelected" class="text-xs font-bold text-slate-900 truncate">
+                                {{ old('target_level') === 'Beginners' ? 'Fokus Newbie & Beginner' : (old('target_level') === 'Intermediate' ? 'Intermediate & Competitive' : 'Semua Level (Newbie s/d Advanced)') }}
+                            </span>
+                            <i id="targetLevelArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                        </button>
 
-                    <!-- Status Keanggotaan -->
-                    <div class="space-y-1.5 relative" id="statusKeanggotaanDropdownContainer">
-                        <label class="block font-bold text-slate-800">Status Keanggotaan</label>
-                        <div class="relative">
-                            <select id="statusKeanggotaanSelect" name="status_keanggotaan" class="sr-only">
-                                <option value="Open" {{ old('status_keanggotaan', old('membership_status', 'Open')) === 'Open' ? 'selected' : '' }}>Terbuka untuk Umum (Free Join)</option>
-                                <option value="Approval" {{ old('status_keanggotaan', old('membership_status')) === 'Approval' ? 'selected' : '' }}>Memerlukan Persetujuan Admin</option>
-                                <option value="Private" {{ old('status_keanggotaan', old('membership_status')) === 'Private' ? 'selected' : '' }}>Undangan Khusus (Private)</option>
-                            </select>
-
-                            <button
-                                type="button"
-                                id="statusKeanggotaanTrigger"
-                                onclick="toggleDropdownMenu('statusKeanggotaanMenu', 'statusKeanggotaanArrow')"
-                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left"
-                            >
-                                <span id="statusKeanggotaanSelected" class="text-xs font-bold text-slate-900 truncate">
-                                    {{ old('status_keanggotaan', old('membership_status')) === 'Approval' ? 'Memerlukan Persetujuan Admin' : (old('status_keanggotaan', old('membership_status')) === 'Private' ? 'Undangan Khusus (Private)' : 'Terbuka untuk Umum (Free Join)') }}
-                                </span>
-                                <i id="statusKeanggotaanArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
-                            </button>
-
-                            <div id="statusKeanggotaanMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
-                        </div>
+                        <div id="targetLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5" style="max-height: 240px; overflow-y: auto;"></div>
                     </div>
                 </div>
             </div>
@@ -267,7 +242,7 @@
                                     <i id="homebaseVenueIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
                                 </button>
 
-                                <div id="homebaseVenueMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
+                                <div id="homebaseVenueMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-60 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5" style="max-height: 250px; overflow-y: auto; overscroll-behavior: contain;"></div>
                             </div>
                         </div>
                     </div>
@@ -425,10 +400,10 @@
         </div>
 
         <!-- Form -->
-        <form id="quickAddVenueForm" onsubmit="submitQuickAddVenue(event)" class="mt-4 space-y-3">
+        <form id="quickAddVenueForm" onsubmit="submitQuickAddVenue(event)" class="flex flex-col gap-4" style="display: flex; flex-direction: column; gap: 18px;">
             <!-- Nama Venue -->
-            <div>
-                <label class="block text-[11px] font-bold text-slate-700 mb-1">
+            <div class="space-y-2" style="display: flex; flex-direction: column; gap: 8px;">
+                <label class="block text-[11px] font-bold text-slate-800">
                     Nama Venue <span class="text-rose-500">*</span>
                 </label>
                 <div class="relative">
@@ -437,16 +412,17 @@
                         id="quickVenueName"
                         required
                         placeholder="Contoh: Matcha Padel Arena Dago"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 font-semibold focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                        class="w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200/90 hover:border-[#063B00] focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 rounded-2xl pl-10 pr-4 py-3 text-xs text-slate-900 font-semibold placeholder:text-slate-400 placeholder:font-normal focus:outline-none transition-all shadow-2xs"
+                        style="height: 48px; min-height: 48px; box-sizing: border-box;"
                     />
-                    <i class="fa-solid fa-building absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                    <i class="fa-solid fa-building absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                 </div>
             </div>
 
             <!-- Cabang Olahraga & Jumlah Court -->
-            <div class="grid grid-cols-2 gap-2.5">
-                <div id="quickSportDropdownContainer" class="space-y-1 relative">
-                    <label class="block text-[11px] font-bold text-slate-700">
+            <div class="grid grid-cols-2 gap-3">
+                <div id="quickSportDropdownContainer" class="space-y-2 relative" style="display: flex; flex-direction: column; gap: 8px;">
+                    <label class="block text-[11px] font-bold text-slate-800">
                         Cabang Olahraga <span class="text-rose-500">*</span>
                     </label>
                     <div class="relative">
@@ -463,18 +439,19 @@
                             type="button"
                             id="quickSportTrigger"
                             onclick="toggleDropdownMenu('quickSportMenu', 'quickSportArrow')"
-                            class="w-full h-[40px] flex items-center justify-between bg-slate-50 hover:bg-white border border-slate-200 hover:border-[#063B00] rounded-xl px-3 text-xs text-slate-800 font-semibold focus:outline-none transition-colors cursor-pointer text-left"
+                            class="w-full flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/90 hover:border-[#063B00] rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#A8E63A]/25 transition-all shadow-2xs cursor-pointer text-left"
+                            style="height: 48px; min-height: 48px; box-sizing: border-box;"
                         >
-                            <span id="quickSportSelected" class="truncate font-semibold text-slate-800">Padel</span>
-                            <i id="quickSportArrow" class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform"></i>
+                            <span id="quickSportSelected" class="truncate font-semibold text-slate-900">Padel</span>
+                            <i id="quickSportArrow" class="fa-solid fa-chevron-down text-[11px] text-slate-400 transition-transform"></i>
                         </button>
 
-                        <div id="quickSportMenu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl ring-1 ring-black/5"></div>
+                        <div id="quickSportMenu" class="hidden absolute z-50 left-0 right-0 mt-1.5 max-h-48 overflow-y-auto rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-xl p-1.5 shadow-2xl ring-1 ring-black/5" style="max-height: 200px; overflow-y: auto;"></div>
                     </div>
                 </div>
 
-                <div id="quickCourtCountDropdownContainer" class="space-y-1 relative">
-                    <label class="block text-[11px] font-bold text-slate-700">
+                <div id="quickCourtCountDropdownContainer" class="space-y-2 relative" style="display: flex; flex-direction: column; gap: 8px;">
+                    <label class="block text-[11px] font-bold text-slate-800">
                         Jumlah Lapangan <span class="text-rose-500">*</span>
                     </label>
                     <div class="relative">
@@ -494,71 +471,76 @@
                             type="button"
                             id="quickCourtCountTrigger"
                             onclick="toggleDropdownMenu('quickCourtCountMenu', 'quickCourtCountArrow')"
-                            class="w-full h-[40px] flex items-center justify-between bg-slate-50 hover:bg-white border border-slate-200 hover:border-[#063B00] rounded-xl px-3 text-xs text-slate-800 font-semibold focus:outline-none transition-colors cursor-pointer text-left"
+                            class="w-full flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/90 hover:border-[#063B00] rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#A8E63A]/25 transition-all shadow-2xs cursor-pointer text-left"
+                            style="height: 48px; min-height: 48px; box-sizing: border-box;"
                         >
-                            <span id="quickCourtCountSelected" class="truncate font-semibold text-slate-800">2 Courts</span>
-                            <i id="quickCourtCountArrow" class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform"></i>
+                            <span id="quickCourtCountSelected" class="truncate font-semibold text-slate-900">2 Courts</span>
+                            <i id="quickCourtCountArrow" class="fa-solid fa-chevron-down text-[11px] text-slate-400 transition-transform"></i>
                         </button>
 
-                        <div id="quickCourtCountMenu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl ring-1 ring-black/5"></div>
+                        <div id="quickCourtCountMenu" class="hidden absolute z-50 left-0 right-0 mt-1.5 max-h-48 overflow-y-auto rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-xl p-1.5 shadow-2xl ring-1 ring-black/5" style="max-height: 200px; overflow-y: auto;"></div>
                     </div>
                 </div>
             </div>
 
             <!-- Kota / Wilayah & Alamat -->
-            <div class="grid grid-cols-2 gap-2.5">
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-2" style="display: flex; flex-direction: column; gap: 8px;">
+                    <label class="block text-[11px] font-bold text-slate-800">
                         Kota / Wilayah
                     </label>
                     <input
                         type="text"
                         id="quickVenueCity"
                         placeholder="Contoh: Bandung"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                        class="w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200/90 hover:border-[#063B00] focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold placeholder:text-slate-400 placeholder:font-normal focus:outline-none transition-all shadow-2xs"
+                        style="height: 48px; min-height: 48px; box-sizing: border-box;"
                     />
                 </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                <div class="space-y-2" style="display: flex; flex-direction: column; gap: 8px;">
+                    <label class="block text-[11px] font-bold text-slate-800">
                         Alamat Singkat
                     </label>
                     <input
                         type="text"
                         id="quickVenueAddress"
                         placeholder="Contoh: Jl. Ir. H. Juanda No. 10"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-[#063B00] focus:outline-none transition-colors"
+                        class="w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200/90 hover:border-[#063B00] focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold placeholder:text-slate-400 placeholder:font-normal focus:outline-none transition-all shadow-2xs"
+                        style="height: 48px; min-height: 48px; box-sizing: border-box;"
                     />
                 </div>
             </div>
 
             <!-- Info Box -->
-            <div class="flex items-center gap-2.5 p-2.5 rounded-xl bg-[#F4FBEA] border border-[#d6f3b0]">
+            <div class="flex items-center gap-2.5 p-3 rounded-2xl bg-[#F4FBEA] border border-[#d6f3b0]">
                 <i class="fa-solid fa-circle-info text-[#063B00] text-xs shrink-0"></i>
-                <p class="text-[10px] text-[#063B00] leading-snug font-medium">
+                <p class="text-[11px] text-[#063B00] leading-snug font-medium">
                     Sistem otomatis mendaftarkan court dan memilih venue ini sebagai homebase.
                 </p>
             </div>
 
             <!-- Error Banner -->
-            <div id="quickVenueError" class="hidden p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+            <div id="quickVenueError" class="hidden p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
                 <i class="fa-solid fa-triangle-exclamation shrink-0"></i>
                 <span id="quickVenueErrorText"></span>
             </div>
 
             <!-- Actions -->
-            <div class="pt-2 space-y-2">
+            <div class="flex flex-col gap-2.5 pt-1" style="display: flex; flex-direction: column; gap: 10px;">
                 <button
                     type="submit"
                     id="btnSubmitQuickVenue"
-                    class="w-full py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    class="w-full rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                    style="height: 46px; min-height: 46px;"
                 >
-                    <i class="fa-solid fa-floppy-disk text-[11px] text-[#A8E63A]"></i>
+                    <i class="fa-solid fa-floppy-disk text-xs text-[#A8E63A]"></i>
                     <span>Simpan &amp; Pilih Venue</span>
                 </button>
                 <button
                     type="button"
                     onclick="closeQuickAddVenueModal()"
-                    class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors cursor-pointer"
+                    class="w-full rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors cursor-pointer flex items-center justify-center"
+                    style="height: 42px; min-height: 42px;"
                 >
                     Batal
                 </button>
@@ -962,7 +944,7 @@
                 newOpt.textContent = `${data.venue.nama_venue} (${cityName})`;
                 newOpt.selected = true;
                 venueSelect.appendChild(newOpt);
-                renderHomebaseVenueDropdown();
+                renderSelectDropdown('homebase_venue_select', 'homebaseVenueMenu', 'homebaseVenueSelected', null, 'Pilih Venue Homebase (Opsional)');
             }
 
             closeQuickAddVenueModal();
@@ -981,7 +963,6 @@
 
     const customDropdownList = [
         { selectId: 'targetLevelSelect', menuId: 'targetLevelMenu', labelId: 'targetLevelSelected', arrowId: 'targetLevelArrow', containerId: 'targetLevelDropdownContainer', sectionId: 'section2Container' },
-        { selectId: 'statusKeanggotaanSelect', menuId: 'statusKeanggotaanMenu', labelId: 'statusKeanggotaanSelected', arrowId: 'statusKeanggotaanArrow', containerId: 'statusKeanggotaanDropdownContainer', sectionId: 'section2Container' },
         { selectId: 'homebase_venue_select', menuId: 'homebaseVenueMenu', labelId: 'homebaseVenueSelected', arrowId: 'homebaseVenueIcon', containerId: 'homebaseVenueDropdownContainer', sectionId: 'section3Container', defaultPlaceholder: 'Pilih Venue Homebase (Opsional)' },
         { selectId: 'quickVenueSport', menuId: 'quickSportMenu', labelId: 'quickSportSelected', arrowId: 'quickSportArrow', containerId: 'quickSportDropdownContainer' },
         { selectId: 'quickVenueCourtCount', menuId: 'quickCourtCountMenu', labelId: 'quickCourtCountSelected', arrowId: 'quickCourtCountArrow', containerId: 'quickCourtCountDropdownContainer' },
@@ -1007,11 +988,41 @@
         if (!select || !menu || !label) return;
 
         menu.innerHTML = '';
+
+        // Jika dropdown homebase venue memiliki banyak pilihan, sediakan kolom pencarian sticky di bagian atas
+        if (menuId === 'homebaseVenueMenu' && select.options.length > 5) {
+            const searchBox = document.createElement('div');
+            searchBox.className = 'sticky -top-1.5 z-10 bg-white pt-1 pb-1.5 px-1 border-b border-slate-100 mb-1';
+            searchBox.innerHTML = `
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
+                    <input type="text" placeholder="Cari venue homebase..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 font-semibold placeholder:text-slate-400 focus:bg-white focus:border-[#063B00] focus:outline-none transition-all">
+                </div>
+            `;
+            const searchInput = searchBox.querySelector('input');
+            searchInput.onclick = (e) => e.stopPropagation();
+            searchInput.oninput = (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                const items = menu.querySelectorAll('.dropdown-item-btn');
+                items.forEach(btn => {
+                    const text = btn.textContent.toLowerCase();
+                    const isBlank = btn.getAttribute('data-value') === '';
+                    if (!query || text.includes(query) || isBlank) {
+                        btn.style.display = '';
+                    } else {
+                        btn.style.display = 'none';
+                    }
+                });
+            };
+            menu.appendChild(searchBox);
+        }
+
         Array.from(select.options).forEach(opt => {
             const btn = document.createElement('button');
             btn.type = 'button';
+            btn.setAttribute('data-value', opt.value);
             const isSelected = String(select.value) === String(opt.value);
-            btn.className = `w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+            btn.className = `dropdown-item-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
                 isSelected && opt.value !== ''
                     ? 'bg-[#EBF8D8] text-[#063B00] font-bold'
                     : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
@@ -1071,6 +1082,15 @@
                 if (currentItem.sectionId) {
                     const section = document.getElementById(currentItem.sectionId);
                     if (section) section.style.zIndex = '40';
+                }
+            }
+            if (menuId === 'homebaseVenueMenu') {
+                const searchInput = menu.querySelector('input');
+                if (searchInput) {
+                    searchInput.value = '';
+                    const items = menu.querySelectorAll('.dropdown-item-btn');
+                    items.forEach(btn => btn.style.display = '');
+                    setTimeout(() => searchInput.focus(), 60);
                 }
             }
         } else {

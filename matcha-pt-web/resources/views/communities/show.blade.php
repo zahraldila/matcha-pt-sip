@@ -84,9 +84,39 @@
 
             <!-- Card Tentang Komunitas -->
             <div class="glass-card rounded-3xl p-6 sm:p-8 space-y-5 border border-white/90 shadow-sm">
+                @php
+                    $communityBenefitLabels = [
+                        'weekly_mabar' => 'Sesi Mabar Mingguan',
+                        'internal_tournament' => 'Internal Tournament',
+                        'coaching_clinic' => 'Coaching Clinic',
+                        'whatsapp_group' => 'WhatsApp Group Aktif',
+                        'court_discount' => 'Diskon Sewa Court',
+                        'official_jersey' => 'Jersey Official Club',
+                        'rating_tracking' => 'Tracking Rating Pemain',
+                        'networking' => 'Networking Profesional',
+                    ];
+                    $communityBenefits = collect($community->benefits ?? [])
+                        ->map(fn ($benefit) => $communityBenefitLabels[$benefit] ?? $benefit)
+                        ->filter();
+                    $membershipStatusLabel = match ($community->status_keanggotaan) {
+                        'Open' => 'Terbuka untuk Umum (Free Join)',
+                        'Approval' => 'Memerlukan Persetujuan Admin',
+                        'Private' => 'Undangan Khusus (Private)',
+                        default => $community->status_keanggotaan,
+                    };
+                    $targetLevelLabel = match ($community->target_level) {
+                        'All Levels' => 'Semua Level (Newbie s/d Advanced)',
+                        'Beginners' => 'Fokus Newbie & Beginner',
+                        'Intermediate' => 'Intermediate & Competitive',
+                        default => $community->target_level,
+                    };
+                @endphp
                 <h3 class="text-base font-bold text-slate-900">
                     Tentang Komunitas
                 </h3>
+                @if(!empty($community->tagline))
+                    <p class="text-sm font-semibold text-matcha-dark">“{{ $community->tagline }}”</p>
+                @endif
                 <p class="text-xs sm:text-sm text-slate-600 leading-relaxed break-words">{{ $community->deskripsi ?: 'Tidak ada deskripsi tersedia.' }}</p>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
@@ -96,9 +126,46 @@
                     </div>
                     <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 min-w-0">
                         <span class="text-slate-500 block mb-0.5">Jadwal Rutin Mabar</span>
-                        <strong class="text-slate-900 block truncate">{{ $community->jadwal_rutin ?: 'Sesuai kesepakatan anggota' }}</strong>
+                        <strong class="text-slate-900 block wrap-break-word">{{ $community->jadwal_rutin ?: 'Sesuai kesepakatan anggota' }}</strong>
                     </div>
+                    @if(!empty($community->kota_homebase))
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 min-w-0">
+                            <span class="text-slate-500 block mb-0.5">Kota Homebase</span>
+                            <strong class="text-slate-900 block wrap-break-word">{{ $community->kota_homebase }}</strong>
+                        </div>
+                    @endif
+                    @if(!empty($targetLevelLabel))
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 min-w-0">
+                            <span class="text-slate-500 block mb-0.5">Target Level Member</span>
+                            <strong class="text-slate-900 block wrap-break-word">{{ $targetLevelLabel }}</strong>
+                        </div>
+                    @endif
+                    @if(!empty($membershipStatusLabel))
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 min-w-0">
+                            <span class="text-slate-500 block mb-0.5">Status Keanggotaan</span>
+                            <strong class="text-slate-900 block wrap-break-word">{{ $membershipStatusLabel }}</strong>
+                        </div>
+                    @endif
+                    @if(!empty($community->homebase_venue))
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 min-w-0">
+                            <span class="text-slate-500 block mb-0.5">Homebase Venue Utama</span>
+                            <strong class="text-slate-900 block wrap-break-word">{{ $community->homebase_venue }}</strong>
+                        </div>
+                    @endif
                 </div>
+
+                @if($communityBenefits->isNotEmpty())
+                    <div class="space-y-2 border-t border-slate-100 pt-4">
+                        <h4 class="text-xs font-bold text-slate-700">Benefit & Kegiatan Komunitas</h4>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach($communityBenefits as $benefit)
+                                <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
+                                    <i class="fa-solid fa-check text-[9px]"></i>{{ $benefit }}
+                                </span>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
             </div>
 
             <!-- Card Daftar Anggota Komunitas -->
