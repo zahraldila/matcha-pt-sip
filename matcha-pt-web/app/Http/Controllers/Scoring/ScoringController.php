@@ -574,6 +574,13 @@ class ScoringController extends Controller
             // Abaikan kegagalan koneksi DB sekunder pada update AJAX realtime
         }
 
+        $courtIndex = 0;
+        if (preg_match('/court_(\d+)/', $matchKey, $cm)) {
+            $courtIndex = max(0, ((int) $cm[1]) - 1);
+        } elseif ($request->has('court')) {
+            $courtIndex = max(0, ((int) $request->input('court')) - 1);
+        }
+
         // Serialize cache read/compare/write so concurrent requests cannot overwrite a newer snapshot.
         $scoreLock = Cache::lock("scoring.update.{$gameId}.{$matchKey}", 10);
         $scoreLock->block(5);
@@ -597,25 +604,49 @@ class ScoringController extends Controller
             // Cek apakah event_id yang sama sudah pernah diproses sebelumnya (dari cache atau DB persisten).
             $processedEvents = $scores[$matchKey]['processed_events'] ?? [];
             $lastSavedEventId = $scores[$matchKey]['last_event_id'] ?? '';
-            if (empty($lastSavedEventId) && empty($processedEvents)) {
+            $dbCheck = null;
+            if (empty($lastSavedEventId) || empty($processedEvents) || $prevVersion === 0) {
                 $dbCheck = $this->getScoreFromDatabase($gameId, $round, $courtIndex);
                 if ($dbCheck) {
-                    $lastSavedEventId = $dbCheck['last_event_id'] ?? '';
+                    if (empty($lastSavedEventId)) {
+                        $lastSavedEventId = $dbCheck['last_event_id'] ?? '';
+                    }
+                    if ($prevVersion === 0 && isset($dbCheck['version'])) {
+                        $prevVersion = (int) $dbCheck['version'];
+                    }
                 }
             }
 
-            if (! empty($eventId) && (isset($processedEvents[$eventId]) || ($lastSavedEventId !== '' && $eventId === $lastSavedEventId))) {
+            $dbPersistentEventIds = $dbCheck['persistent_event_ids'] ?? [];
+            if (! empty($dbPersistentEventIds)) {
+                foreach ($dbPersistentEventIds as $pId) {
+                    $processedEvents[$pId] = true;
+                }
+            }
+
+            // Pengecekan duplikat berbasis IDENTITAS EVENT (bukan version semata):
+            // Event diakui duplikat HANYA jika identitas event_id pernah diproses sebelumnya (di cache atau riwayat DB).
+            // Jangan menganggap base_version < prevVersion sebagai duplikat, agar event sah dari host lain tetap di-merge.
+            $isDuplicateEvent = (! empty($eventId) && (
+                isset($processedEvents[$eventId])
+                || ($lastSavedEventId !== '' && $eventId === $lastSavedEventId)
+                || in_array($eventId, $dbPersistentEventIds, true)
+            ));
+
+            if (! empty($eventId) && $action !== 'batch_events' && $isDuplicateEvent) {
+                $savedState = ! empty($scores[$matchKey]) ? $scores[$matchKey] : ($dbCheck ?? []);
+
                 return response()->json([
                     'success' => true,
                     'duplicate' => true,
                     'message' => 'Event duplicate ignored.',
-                    'score_a' => (int) ($scores[$matchKey]['games_a'] ?? ($scores[$matchKey]['score_a'] ?? 0)),
-                    'score_b' => (int) ($scores[$matchKey]['games_b'] ?? ($scores[$matchKey]['score_b'] ?? 0)),
-                    'games_a' => (int) ($scores[$matchKey]['games_a'] ?? ($scores[$matchKey]['score_a'] ?? 0)),
-                    'games_b' => (int) ($scores[$matchKey]['games_b'] ?? ($scores[$matchKey]['score_b'] ?? 0)),
-                    'point_display_a' => (string) ($scores[$matchKey]['point_display_a'] ?? '0'),
-                    'point_display_b' => (string) ($scores[$matchKey]['point_display_b'] ?? '0'),
-                    'saved' => $scores[$matchKey],
+                    'score_a' => (int) ($savedState['games_a'] ?? ($savedState['score_a'] ?? 0)),
+                    'score_b' => (int) ($savedState['games_b'] ?? ($savedState['score_b'] ?? 0)),
+                    'games_a' => (int) ($savedState['games_a'] ?? ($savedState['score_a'] ?? 0)),
+                    'games_b' => (int) ($savedState['games_b'] ?? ($savedState['score_b'] ?? 0)),
+                    'point_display_a' => (string) ($savedState['point_display_a'] ?? '0'),
+                    'point_display_b' => (string) ($savedState['point_display_b'] ?? '0'),
+                    'saved' => $savedState,
                     'match_key' => $matchKey,
                     'version' => $prevVersion,
                     'server_version' => $prevVersion,
@@ -730,24 +761,82 @@ class ScoringController extends Controller
             }
 
             $isMerged = false;
+            $appliedBatchEventIds = [];
 
             if ($action === 'batch_events') {
                 $batchEvents = $request->input('events', []);
                 $scorePayload = $currentState;
-                foreach ($batchEvents as $ev) {
+
+                // Cek apakah ada event di batch yang sudah pernah tersimpan di DB (last_event_id persisten)
+                $indexOfLastSavedEvent = -1;
+                if (! empty($lastSavedEventId)) {
+                    foreach ($batchEvents as $idx => $ev) {
+                        if (($ev['event_id'] ?? '') === $lastSavedEventId) {
+                            $indexOfLastSavedEvent = $idx;
+                            break;
+                        }
+                    }
+                }
+
+                // Cek apakah ada minimal satu event yang belum pernah diproses
+                $hasAnyUnprocessedEvent = false;
+                foreach ($batchEvents as $idx => $ev) {
+                    $evId = $ev['event_id'] ?? '';
+                    if ($indexOfLastSavedEvent !== -1 && $idx <= $indexOfLastSavedEvent) {
+                        continue;
+                    }
+                    if (! empty($evId) && (isset($processedEvents[$evId]) || in_array($evId, $dbPersistentEventIds, true))) {
+                        continue;
+                    }
+                    $hasAnyUnprocessedEvent = true;
+                    break;
+                }
+
+                if (! $hasAnyUnprocessedEvent) {
+                    return response()->json([
+                        'success' => true,
+                        'duplicate' => true,
+                        'message' => 'Batch events already processed.',
+                        'score_a' => (int) ($currentState['games_a'] ?? ($currentState['score_a'] ?? 0)),
+                        'score_b' => (int) ($currentState['games_b'] ?? ($currentState['score_b'] ?? 0)),
+                        'games_a' => (int) ($currentState['games_a'] ?? ($currentState['score_a'] ?? 0)),
+                        'games_b' => (int) ($currentState['games_b'] ?? ($currentState['score_b'] ?? 0)),
+                        'point_display_a' => (string) ($currentState['point_display_a'] ?? '0'),
+                        'point_display_b' => (string) ($currentState['point_display_b'] ?? '0'),
+                        'saved' => $currentState,
+                        'match_key' => $matchKey,
+                        'version' => $prevVersion,
+                        'server_version' => $prevVersion,
+                        'last_event_id' => $lastSavedEventId,
+                        'event_id' => $eventId,
+                        'server_time_ms' => $serverTimeMs,
+                        'client_seq' => $clientSeq,
+                        'stale_ignored' => true,
+                    ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+                }
+
+                foreach ($batchEvents as $idx => $ev) {
                     $evAction = $ev['action'] ?? 'add_point';
                     $evEventId = $ev['event_id'] ?? '';
                     $evTeam = $ev['team'] ?? '';
 
-                    if (! empty($evEventId) && isset($processedEvents[$evEventId])) {
+                    // 1. Lewati event yang sudah ada di index sebelum atau pada last_event_id yang tersimpan di DB
+                    if ($indexOfLastSavedEvent !== -1 && $idx <= $indexOfLastSavedEvent) {
+                        continue;
+                    }
+
+                    // 2. Lewati event yang sudah tercatat di processed_events cache atau persistent DB
+                    if (! empty($evEventId) && (isset($processedEvents[$evEventId]) || in_array($evEventId, $dbPersistentEventIds, true))) {
                         continue;
                     }
 
                     if ($evAction === 'add_point' && ! empty($evTeam) && in_array($evTeam, ['A', 'B'])) {
                         if (($scorePayload['status'] ?? '') !== 'completed') {
                             $scorePayload = $this->applyPointDeltaToState($scorePayload, $evTeam, $scoringSystem);
+                            if (! empty($evEventId)) {
+                                $appliedBatchEventIds[] = $evEventId;
+                            }
                             if (($scorePayload['status'] ?? '') === 'completed') {
-                                // Hentikan penerapan sisa event tambahan poin dalam batch setelah kondisi final tercapai
                                 break;
                             }
                         }
@@ -755,10 +844,13 @@ class ScoringController extends Controller
                         $evGamesA = isset($ev['games_a']) ? (int) $ev['games_a'] : (isset($ev['snapshot']['gamesA']) ? (int) $ev['snapshot']['gamesA'] : null);
                         $evGamesB = isset($ev['games_b']) ? (int) $ev['games_b'] : (isset($ev['snapshot']['gamesB']) ? (int) $ev['snapshot']['gamesB'] : null);
                         $scorePayload = $this->applyCompletionToState($scorePayload, $scoringSystem, $ev['team'] ?? null, $evGamesA, $evGamesB);
+                        if (! empty($evEventId)) {
+                            $appliedBatchEventIds[] = $evEventId;
+                        }
                     }
 
                     if (! empty($evEventId)) {
-                        $processedEvents[$evEventId] = true; // Temporary mark to prevent intra-batch dupes
+                        $processedEvents[$evEventId] = true;
                     }
                 }
                 if ($isCompletion) {
@@ -849,7 +941,7 @@ class ScoringController extends Controller
 
             // 1. Persistensi ke Database (tb_match, tb_match_participant, tb_score) secara ATOMIC terlebih dahulu
             try {
-                DB::transaction(function () use ($gameId, $round, $matchKey, $scorePayload, $newVersion, $eventId, $request) {
+                DB::transaction(function () use ($gameId, $round, $matchKey, $scorePayload, $newVersion, $eventId, $request, $action, $appliedBatchEventIds) {
                     $session = SessionModel::with(['players', 'courts'])->find($gameId);
                     if ($session) {
                         $courtIndex = 0;
@@ -874,29 +966,49 @@ class ScoringController extends Controller
                             }
                             $match->save();
 
-                            // Simpan / update ke tb_score
+                            // Simpan ke tb_score: catat entri skor untuk persistensi version dan last_event_id
                             $setNumber = $scorePayload['set_number'] ?? 1;
-                            Score::updateOrCreate(
-                                [
-                                    'match_id' => $match->match_id,
-                                    'set_number' => $setNumber,
-                                ],
-                                [
-                                    'game_number' => 1,
-                                    'point_score_a' => (string) ($scorePayload['point_display_a'] ?? '0'),
-                                    'point_score_b' => (string) ($scorePayload['point_display_b'] ?? '0'),
-                                    'game_score_a' => (int) ($scorePayload['games_a'] ?? 0),
-                                    'game_score_b' => (int) ($scorePayload['games_b'] ?? 0),
-                                    'set_score_a' => (int) ($scorePayload['sets_a'] ?? 0),
-                                    'set_score_b' => (int) ($scorePayload['sets_b'] ?? 0),
-                                    'score_side_a' => (int) ($scorePayload['games_a'] ?? 0),
-                                    'score_side_b' => (int) ($scorePayload['games_b'] ?? 0),
-                                    'scoring_system' => (string) ($scorePayload['scoring_type'] ?? 'total_of_sets'),
-                                    'status_score' => ($finalStatus === 'completed') ? 'Final' : 'In Progress',
-                                    'version' => $newVersion,
-                                    'last_event_id' => $eventId,
-                                ]
-                            );
+                            Score::create([
+                                'match_id' => $match->match_id,
+                                'set_number' => $setNumber,
+                                'game_number' => 1,
+                                'point_score_a' => (string) ($scorePayload['point_display_a'] ?? '0'),
+                                'point_score_b' => (string) ($scorePayload['point_display_b'] ?? '0'),
+                                'game_score_a' => (int) ($scorePayload['games_a'] ?? 0),
+                                'game_score_b' => (int) ($scorePayload['games_b'] ?? 0),
+                                'set_score_a' => (int) ($scorePayload['sets_a'] ?? 0),
+                                'set_score_b' => (int) ($scorePayload['sets_b'] ?? 0),
+                                'score_side_a' => (int) ($scorePayload['games_a'] ?? 0),
+                                'score_side_b' => (int) ($scorePayload['games_b'] ?? 0),
+                                'scoring_system' => (string) ($scorePayload['scoring_type'] ?? 'total_of_sets'),
+                                'status_score' => ($finalStatus === 'completed') ? 'Final' : 'In Progress',
+                                'version' => $newVersion,
+                                'last_event_id' => $eventId,
+                            ]);
+
+                            if ($action === 'batch_events' && ! empty($appliedBatchEventIds)) {
+                                foreach ($appliedBatchEventIds as $bevId) {
+                                    if ($bevId !== $eventId) {
+                                        Score::create([
+                                            'match_id' => $match->match_id,
+                                            'set_number' => $setNumber,
+                                            'game_number' => 1,
+                                            'point_score_a' => (string) ($scorePayload['point_display_a'] ?? '0'),
+                                            'point_score_b' => (string) ($scorePayload['point_display_b'] ?? '0'),
+                                            'game_score_a' => (int) ($scorePayload['games_a'] ?? 0),
+                                            'game_score_b' => (int) ($scorePayload['games_b'] ?? 0),
+                                            'set_score_a' => (int) ($scorePayload['sets_a'] ?? 0),
+                                            'set_score_b' => (int) ($scorePayload['sets_b'] ?? 0),
+                                            'score_side_a' => (int) ($scorePayload['games_a'] ?? 0),
+                                            'score_side_b' => (int) ($scorePayload['games_b'] ?? 0),
+                                            'scoring_system' => (string) ($scorePayload['scoring_type'] ?? 'total_of_sets'),
+                                            'status_score' => ($finalStatus === 'completed') ? 'Final' : 'In Progress',
+                                            'version' => $newVersion,
+                                            'last_event_id' => $bevId,
+                                        ]);
+                                    }
+                                }
+                            }
                         }
                     }
                 });
@@ -2096,14 +2208,21 @@ class ScoringController extends Controller
             $gamesA = 0;
             $gamesB = 0;
 
-            foreach ($scores as $sc) {
-                $setsA = max($setsA, (int) $sc->set_score_a);
-                $setsB = max($setsB, (int) $sc->set_score_b);
+            $groupedBySet = $scores->groupBy('set_number');
+            foreach ($groupedBySet as $setNum => $setScores) {
+                $latestSetScore = $setScores->sortByDesc('version')->sortByDesc('score_id')->first();
+                $setsA = max($setsA, (int) $latestSetScore->set_score_a);
+                $setsB = max($setsB, (int) $latestSetScore->set_score_b);
                 $setHistory[] = [
-                    'set' => (int) $sc->set_number,
-                    'score_a' => (int) ($sc->game_score_a ?? $sc->score_side_a ?? 0),
-                    'score_b' => (int) ($sc->game_score_b ?? $sc->score_side_b ?? 0),
+                    'set' => (int) $setNum,
+                    'score_a' => (int) ($latestSetScore->game_score_a ?? $latestSetScore->score_side_a ?? 0),
+                    'score_b' => (int) ($latestSetScore->game_score_b ?? $latestSetScore->score_side_b ?? 0),
                 ];
+            }
+
+            $persistentEventIds = $scores->pluck('last_event_id')->filter()->unique()->values()->all();
+            if ($match->last_event_id && ! in_array($match->last_event_id, $persistentEventIds, true)) {
+                $persistentEventIds[] = (string) $match->last_event_id;
             }
 
             if ($lastScore) {
@@ -2115,27 +2234,43 @@ class ScoringController extends Controller
 
             $status = $isCompleted ? 'completed' : 'in_progress';
 
+            $tennisPoints = ['0', '15', '30', '40'];
+            $ptA = (string) ($lastScore->point_score_a ?? '0');
+            $ptB = (string) ($lastScore->point_score_b ?? '0');
+            $idxA = array_search($ptA, $tennisPoints);
+            $idxA = ($idxA !== false) ? (int) $idxA : 0;
+            $idxB = array_search($ptB, $tennisPoints);
+            $idxB = ($idxB !== false) ? (int) $idxB : 0;
+            $isDeuce = ($ptA === '40' && $ptB === '40') || ($ptA === 'ADV' || $ptB === 'ADV');
+            $advantage = ($ptA === 'ADV') ? 'A' : (($ptB === 'ADV') ? 'B' : null);
+            if ($isDeuce) {
+                $idxA = 3;
+                $idxB = 3;
+            }
+
             return [
                 'match_id' => $match->match_id,
                 'version' => (int) ($lastScore->version ?? ($match->version ?? 1)),
                 'updated_at_ms' => $match->updated_at ? (int) round($match->updated_at->timestamp * 1000) : (int) round(microtime(true) * 1000),
                 'score_a' => $gamesA,
                 'score_b' => $gamesB,
-                'point_display_a' => (string) ($lastScore->point_score_a ?? '0'),
-                'point_display_b' => (string) ($lastScore->point_score_b ?? '0'),
+                'point_display_a' => $ptA,
+                'point_display_b' => $ptB,
                 'set_number' => (int) ($lastScore->set_number ?? 1),
                 'sets_a' => $setsA,
                 'sets_b' => $setsB,
                 'games_a' => $gamesA,
                 'games_b' => $gamesB,
                 'set_history' => $setHistory,
-                'idx_a' => 0,
-                'idx_b' => 0,
-                'is_deuce' => false,
-                'advantage' => null,
+                'idx_a' => $idxA,
+                'idx_b' => $idxB,
+                'is_deuce' => $isDeuce,
+                'advantage' => $advantage,
                 'scoring_type' => $lastScore->scoring_system ?? 'total_of_sets',
                 'status' => $status,
                 'winner_team' => $match->winner_team,
+                'last_event_id' => (string) ($lastScore->last_event_id ?? ($match->last_event_id ?? '')),
+                'persistent_event_ids' => $persistentEventIds,
             ];
         } catch (\Throwable $e) {
             Log::warning('Failed to get score from database: '.$e->getMessage());
@@ -2395,12 +2530,16 @@ class ScoringController extends Controller
             $sessionActiveRound = $savedScores['_meta']['active_round'] ?? 'round_1';
             $sessionStatus = $savedScores['_meta']['status'] ?? 'in_progress';
 
-            $response = Http::withoutVerifying()
-                ->withHeaders([
-                    'apikey' => $key,
-                    'Authorization' => 'Bearer '.$key,
-                    'Content-Type' => 'application/json',
-                ])
+            $headers = [
+                'apikey' => $key,
+                'Content-Type' => 'application/json',
+            ];
+            if (str_starts_with($key, 'ey')) {
+                $headers['Authorization'] = 'Bearer '.$key;
+            }
+
+            $response = Http::withOptions(['verify' => $this->resolveCaBundle()])
+                ->withHeaders($headers)
                 ->timeout(2)
                 ->post($url, [
                     'messages' => [
@@ -2450,12 +2589,16 @@ class ScoringController extends Controller
                 return;
             }
 
-            $response = Http::withoutVerifying()
-                ->withHeaders([
-                    'apikey' => $key,
-                    'Authorization' => 'Bearer '.$key,
-                    'Content-Type' => 'application/json',
-                ])
+            $headers = [
+                'apikey' => $key,
+                'Content-Type' => 'application/json',
+            ];
+            if (str_starts_with($key, 'ey')) {
+                $headers['Authorization'] = 'Bearer '.$key;
+            }
+
+            $response = Http::withOptions(['verify' => $this->resolveCaBundle()])
+                ->withHeaders($headers)
                 ->timeout(2)
                 ->post($url, [
                     'messages' => [
@@ -2493,12 +2636,16 @@ class ScoringController extends Controller
                 return;
             }
 
-            $response = Http::withoutVerifying()
-                ->withHeaders([
-                    'apikey' => $key,
-                    'Authorization' => 'Bearer '.$key,
-                    'Content-Type' => 'application/json',
-                ])
+            $headers = [
+                'apikey' => $key,
+                'Content-Type' => 'application/json',
+            ];
+            if (str_starts_with($key, 'ey')) {
+                $headers['Authorization'] = 'Bearer '.$key;
+            }
+
+            $response = Http::withOptions(['verify' => $this->resolveCaBundle()])
+                ->withHeaders($headers)
                 ->timeout(2)
                 ->post($url, [
                     'messages' => [
@@ -2567,5 +2714,27 @@ class ScoringController extends Controller
         } catch (\Throwable $e) {
             return 'round_1';
         }
+    }
+
+    /**
+     * Cari berkas bundle CA cert lokal untuk verifikasi SSL aman.
+     */
+    protected function resolveCaBundle(): string|bool
+    {
+        $candidates = [
+            ini_get('curl.cainfo'),
+            ini_get('openssl.cafile'),
+            getenv('CURL_CA_BUNDLE'),
+            'C:\\xampp\\apache\\bin\\curl-ca-bundle.crt',
+            'C:\\php\\extras\\ssl\\cacert.pem',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && $candidate !== '' && is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return true;
     }
 }
