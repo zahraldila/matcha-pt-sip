@@ -258,20 +258,20 @@
                             'Total of 10' => 'Total of 10 Poin',
                         ];
                         $firstToOptions = [
-                            'First to 2' => 'First to 2 Poin (Tuntas)',
-                            'First to 3' => 'First to 3 Poin (Tuntas)',
-                            'First to 4' => 'First to 4 Poin (Tuntas)',
-                            'First to 5' => 'First to 5 Poin (Tuntas)',
-                            'First to 6' => 'First to 6 Poin (Tuntas)',
-                            'First to 7' => 'First to 7 Poin (Tuntas)',
-                            'First to 8' => 'First to 8 Poin (Tuntas)',
-                            'First to 9' => 'First to 9 Poin (Tuntas)',
-                            'First to 10' => 'First to 10 Poin (Tuntas)',
+                            'First to 2' => 'First to 2 Poin',
+                            'First to 3' => 'First to 3 Poin',
+                            'First to 4' => 'First to 4 Poin',
+                            'First to 5' => 'First to 5 Poin',
+                            'First to 6' => 'First to 6 Poin',
+                            'First to 7' => 'First to 7 Poin',
+                            'First to 8' => 'First to 8 Poin',
+                            'First to 9' => 'First to 9 Poin',
+                            'First to 10' => 'First to 10 Poin',
                         ];
                         $legacyOptions = [
-                            'First to 11' => 'First to 11 Poin (Tuntas)',
-                            'First to 15' => 'First to 15 Poin (Tuntas)',
-                            'First to 21' => 'First to 21 Poin (Tuntas)',
+                            'First to 11' => 'First to 11 Poin',
+                            'First to 15' => 'First to 15 Poin',
+                            'First to 21' => 'First to 21 Poin',
                         ];
                         $scoringLabels = array_merge($totalOfOptions, $firstToOptions, $legacyOptions);
                         $currScoringLabel = $scoringLabels[$currScoring] ?? 'Total of 3 Poin';
@@ -308,7 +308,7 @@
                             @endforeach
 
                             <div class="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mt-2 mb-1">
-                                Sistem Langsung Tuntas (First to X)
+                                Sistem Game (First to X)
                             </div>
                             @foreach($firstToOptions as $sVal => $sLabel)
                                 <button
@@ -2222,64 +2222,49 @@
         let noticeMessage = '';
 
         if (isTeamAmericano) {
-            if (isFirstTo) {
-                options = [
-                    { val: '4', text: '4 Pemain' }
-                ];
-                noticeMessage = `🎯 <strong>Team Americano (${scoringSystem})</strong>: Pertandingan langsung tuntas 1 court, kuota terkunci <strong>tepat 4 pemain (2 tim)</strong>.`;
-            } else {
-                options = [
-                    { val: '4', text: '4 Pemain' },
-                    { val: '6', text: '6 Pemain' },
-                    { val: '8', text: '8 Pemain' },
-                    { val: '10', text: '10 Pemain' },
-                    { val: '12', text: '12 Pemain' },
-                    { val: '14', text: '14 Pemain' },
-                    { val: '16', text: '16 Pemain' }
-                ];
-                noticeMessage = `👥 <strong>Team Americano</strong>: Setiap tim terdiri dari 2 orang tetap. Kuota pemain <strong>wajib genap</strong> (4, 6, 8, dst).`;
-            }
+            options = [
+                { val: '4', text: '4 Pemain' },
+                { val: '6', text: '6 Pemain' },
+                { val: '8', text: '8 Pemain' },
+                { val: '10', text: '10 Pemain' },
+                { val: '12', text: '12 Pemain' },
+                { val: '14', text: '14 Pemain' },
+                { val: '16', text: '16 Pemain' }
+            ];
+            noticeMessage = isFirstTo
+                ? `🎯 <strong>Team Americano (${scoringSystem})</strong>: Pasangan tim tetap dengan target first to games. Kuota pemain <strong>wajib genap</strong> (4, 6, 8, dst).`
+                : `👥 <strong>Team Americano</strong>: Setiap tim terdiri dari 2 orang tetap. Kuota pemain <strong>wajib genap</strong> (4, 6, 8, dst).`;
         } else if (isSingle) {
-            if (isFirstTo) {
-                options = [
-                    { val: '2', text: '2 Pemain' }
-                ];
-                noticeMessage = `🎯 <strong>Americano Single (${scoringSystem})</strong>: Pertandingan 1v1 langsung tuntas, kuota terkunci <strong>tepat 2 pemain</strong>.`;
-            } else {
-                options = [
-                    { val: '2', text: '2 Pemain' },
-                    { val: '3', text: '3 Pemain' },
-                    { val: '4', text: '4 Pemain' },
-                    { val: '5', text: '5 Pemain' },
-                    { val: '6', text: '6 Pemain' },
-                    { val: '8', text: '8 Pemain' }
-                ];
-                noticeMessage = `🎾 <strong>Americano Single (1v1)</strong>: Setiap pemain saling berhadapan secara round-robin individu.`;
-            }
+            options = [
+                { val: '2', text: '2 Pemain' },
+                { val: '3', text: '3 Pemain' },
+                { val: '4', text: '4 Pemain' },
+                { val: '5', text: '5 Pemain' },
+                { val: '6', text: '6 Pemain' },
+                { val: '8', text: '8 Pemain' }
+            ];
+            noticeMessage = isFirstTo
+                ? `🎯 <strong>Americano Single (${scoringSystem})</strong>: Pertandingan 1v1 dengan target first to games secara round-robin individu.`
+                : `🎾 <strong>Americano Single (1v1)</strong>: Setiap pemain saling berhadapan secara round-robin individu.`;
         } else {
-            if (isFirstTo) {
-                options = [
-                    { val: '4', text: '4 Pemain' }
-                ];
-                noticeMessage = `🎯 <strong>Americano Double (${scoringSystem})</strong>: Pertandingan 2v2 langsung tuntas, kuota terkunci <strong>tepat 4 pemain</strong>.`;
-            } else {
-                options = [
-                    { val: '4', text: '4 Pemain' },
-                    { val: '5', text: '5 Pemain' },
-                    { val: '6', text: '6 Pemain' },
-                    { val: '7', text: '7 Pemain' },
-                    { val: '8', text: '8 Pemain' },
-                    { val: '9', text: '9 Pemain' },
-                    { val: '10', text: '10 Pemain' },
-                    { val: '11', text: '11 Pemain' },
-                    { val: '12', text: '12 Pemain' },
-                    { val: '13', text: '13 Pemain' },
-                    { val: '14', text: '14 Pemain' },
-                    { val: '15', text: '15 Pemain' },
-                    { val: '16', text: '16 Pemain' }
-                ];
-                noticeMessage = `🔄 <strong>Americano Double</strong>: Pasangan partner berganti tiap ronde secara dinamis dan adil.`;
-            }
+            options = [
+                { val: '4', text: '4 Pemain' },
+                { val: '5', text: '5 Pemain' },
+                { val: '6', text: '6 Pemain' },
+                { val: '7', text: '7 Pemain' },
+                { val: '8', text: '8 Pemain' },
+                { val: '9', text: '9 Pemain' },
+                { val: '10', text: '10 Pemain' },
+                { val: '11', text: '11 Pemain' },
+                { val: '12', text: '12 Pemain' },
+                { val: '13', text: '13 Pemain' },
+                { val: '14', text: '14 Pemain' },
+                { val: '15', text: '15 Pemain' },
+                { val: '16', text: '16 Pemain' }
+            ];
+            noticeMessage = isFirstTo
+                ? `🎯 <strong>Americano Double (${scoringSystem})</strong>: Pasangan partner berganti tiap ronde dengan sistem first to games.`
+                : `🔄 <strong>Americano Double</strong>: Pasangan partner berganti tiap ronde secara dinamis dan adil.`;
         }
 
         let selectedOpt = options.find(o => String(o.val) === String(currentVal)) || options[0];

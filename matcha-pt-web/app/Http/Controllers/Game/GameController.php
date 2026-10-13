@@ -503,26 +503,6 @@ class GameController extends Controller
             return back()->withInput()->withErrors(['players' => $msg]);
         }
 
-        // Validasi format First to X (Single & Double): Jumlah pemain harus tepat sesuai kapasitas court
-        $scoringSystemInput = $request->input('scoring_system', '');
-        $isFirstToSystem = str_starts_with(strtolower(trim($scoringSystemInput)), 'first to');
-        $numCourts = (int) $request->input('num_courts', 1);
-        $playerCount = count($request->input('players', []));
-
-        if ($isFirstToSystem) {
-            $requiredPlayers = $isSingleMode ? ($numCourts * 2) : ($numCourts * 4);
-            $modeLabel = $isSingleMode ? 'Single (1 vs 1)' : 'Double (2 vs 2)';
-
-            if ($playerCount !== $requiredPlayers) {
-                $msg = "Untuk format {$scoringSystemInput} ({$modeLabel}) dengan {$numCourts} court, jumlah pemain harus tepat {$requiredPlayers} orang (tidak boleh kurang atau lebih).";
-                if ($request->wantsJson() || $request->ajax()) {
-                    return response()->json(['success' => false, 'message' => $msg], 422);
-                }
-
-                return back()->withInput()->withErrors(['players' => $msg]);
-            }
-        }
-
         try {
             DB::beginTransaction();
 
@@ -716,7 +696,6 @@ class GameController extends Controller
         $format = $request->input('format', 'Americano');
         $isTeamAmericano = str_contains(strtolower($format), 'team');
         $scoringSystem = $request->input('scoring_system', 'Total of 3');
-        $isFirstTo = str_starts_with(strtolower(trim($scoringSystem)), 'first to');
         $jenisPermainan = $isTeamAmericano ? 'Double' : $request->input('jenis_permainan', 'Double');
         $isSingle = strtolower($jenisPermainan) === 'single';
         $jumlahPemain = (int) $request->input('jumlah_pemain');
@@ -729,18 +708,18 @@ class GameController extends Controller
             ]);
         }
 
-        // 2. First to X constraints (1 court)
-        if ($isFirstTo) {
-            if ($isSingle && $jumlahPemain !== 2) {
-                return back()->withInput()->withErrors([
-                    'jumlah_pemain' => "Untuk format {$scoringSystem} (Single 1v1), kuota pemain harus tepat 2 orang (tidak boleh kurang atau lebih).",
-                ]);
-            }
-            if (! $isSingle && $jumlahPemain !== 4) {
-                return back()->withInput()->withErrors([
-                    'jumlah_pemain' => "Untuk format {$scoringSystem} (Double 2v2), kuota pemain harus tepat 4 orang (tidak boleh kurang atau lebih).",
-                ]);
-            }
+        // 2. Americano Single: Minimal 2
+        if ($isSingle && $jumlahPemain < 2) {
+            return back()->withInput()->withErrors([
+                'jumlah_pemain' => 'Kuota pemain Americano Single minimal 2 orang.',
+            ]);
+        }
+
+        // 3. Americano Double: Minimal 4
+        if (! $isSingle && ! $isTeamAmericano && $jumlahPemain < 4) {
+            return back()->withInput()->withErrors([
+                'jumlah_pemain' => 'Kuota pemain Americano Double minimal 4 orang.',
+            ]);
         }
 
         // 3. Validasi Jam Operasional & Hari Buka Venue
