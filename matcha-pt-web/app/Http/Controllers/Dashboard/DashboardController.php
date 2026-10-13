@@ -140,7 +140,7 @@ class DashboardController extends Controller
                 'pic_name' => $v->owner->nama ?? 'PIC Venue',
                 'pic_phone' => $v->owner->no_hp ?? '-',
                 'operating_hours' => '07:00 - 22:00',
-                'image' => $v->foto ?: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80',
+                'image' => $v->main_photo,
                 'courts' => $v->courts,
             ];
         })->toArray();

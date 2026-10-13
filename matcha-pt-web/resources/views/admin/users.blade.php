@@ -102,8 +102,7 @@
         <form id="usersSearchForm" method="GET" action="{{ route('admin.users') }}" class="relative w-full md:w-80 shrink-0" onsubmit="event.preventDefault(); executeUsersLiveSearch(document.getElementById('usersSearchInput').value);">
             <input type="hidden" name="role" value="{{ $filterRole ?? 'all' }}">
             <div class="relative">
-                <i id="usersSearchIcon" class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none transition-opacity"></i>
-                <i id="usersSearchLoadingIcon" class="fa-solid fa-spinner fa-spin absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs hidden pointer-events-none"></i>
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                 <input type="text" id="usersSearchInput" name="q" value="{{ $search ?? '' }}" placeholder="Cari nama, email, no. hp..." 
                        oninput="handleUsersLiveSearch(this.value)"
                        autocomplete="off"
@@ -612,14 +611,8 @@
         }
         usersAbortCtrl = new AbortController();
 
-        const searchIcon = document.getElementById('usersSearchIcon');
-        const loadingIcon = document.getElementById('usersSearchLoadingIcon');
         const listCont = document.getElementById('usersListContainer');
 
-        if (searchIcon && loadingIcon) {
-            searchIcon.classList.add('hidden');
-            loadingIcon.classList.remove('hidden');
-        }
         if (listCont) {
             listCont.style.opacity = '0.5';
         }
@@ -666,10 +659,6 @@
                 console.error('Users live search error:', e);
             }
         } finally {
-            if (searchIcon && loadingIcon) {
-                loadingIcon.classList.add('hidden');
-                searchIcon.classList.remove('hidden');
-            }
             if (listCont) {
                 listCont.style.opacity = '1';
             }

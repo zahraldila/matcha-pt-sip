@@ -248,7 +248,7 @@
                     <div class="glass-card rounded-2xl overflow-hidden group flex flex-col justify-between">
                         <div>
                             <div class="relative h-44 overflow-hidden">
-                                <img src="{{ $venue['image'] }}" alt="{{ $venue['name'] }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                                <img src="{{ $venue['image'] }}" alt="{{ $venue['name'] }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80';">
                                 <div class="absolute top-3 left-3">
                                     <x-badge :type="strtolower($venue['sport']) === 'tennis' ? 'tennis' : 'padel'">
                                         {{ $venue['sport'] }}
@@ -354,11 +354,8 @@
         <!-- Subtitle & Main Header -->
         <div class="pb-3 border-b border-slate-100">
             <span class="block text-xs font-medium text-slate-500">Select date</span>
-            <div class="flex items-center justify-between mt-1">
+            <div class="mt-1">
                 <span id="pickerHeaderDate" class="text-2xl sm:text-3xl font-medium text-slate-800">Tue, Oct 13</span>
-                <button type="button" class="text-slate-400 hover:text-slate-600 transition-colors p-1" title="Select date">
-                    <i class="fa-solid fa-pen text-xs"></i>
-                </button>
             </div>
         </div>
 

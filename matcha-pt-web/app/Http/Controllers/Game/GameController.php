@@ -331,6 +331,7 @@ class GameController extends Controller
                 if ($selectedStatus === 'finished') {
                     return $g['is_finished'] ?? false;
                 }
+
                 return true;
             });
         }
@@ -362,6 +363,7 @@ class GameController extends Controller
                 if ($selectedTime === 'this_week') {
                     return $gameDate >= $today && $gameDate <= $next7Days;
                 }
+
                 return true;
             });
         }
@@ -922,7 +924,7 @@ class GameController extends Controller
         $isJoinedByMe = false;
         if (Auth::check()) {
             $user = Auth::user();
-            $isHost = ((int) $user->user_id === (int) $dbSession->host_user_id || $user->role === 'admin');
+            $isHost = ((int) $user->user_id === (int) $dbSession->host_user_id);
             $userId = $user->user_id;
             $userEmail = strtolower(trim($user->email ?? ''));
             $userName = strtolower(trim($user->nama ?? ''));
@@ -1667,35 +1669,6 @@ class GameController extends Controller
                 ->with('error', 'Akses ditolak: Hanya Administrator platform yang dapat menghapus jadwal mabar.');
         }
 
-        // Validasi: Hanya jadwal mabar yang BELUM MULAI yang dapat dihapus.
-        // Jadwal yang sudah mulai, sedang berlangsung, atau sudah selesai tidak boleh dihapus.
-        $hasStarted = in_array(strtolower($session->status_session ?? ''), [
-            'in progress', 'in_progress', 'live', 'playing', 'finished', 'completed', 'selesai',
-        ], true);
-
-        if (! $hasStarted && Schema::hasTable('tb_match') && Schema::hasTable('tb_drawing')) {
-            try {
-                $hasStarted = GameMatch::whereHas('drawing', function ($q) use ($session) {
-                    $q->where('session_id', $session->session_id);
-                })->exists();
-            } catch (\Throwable $e) {
-                $hasStarted = false;
-            }
-        }
-
-        if ($hasStarted) {
-            $msg = 'Jadwal mabar tidak dapat dihapus karena sesi sudah dimulai, sedang berlangsung, atau telah selesai.';
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $msg,
-                ], 422);
-            }
-
-            return redirect()->route('games.show', $session->session_id)
-                ->with('error', $msg);
-        }
-
         try {
             DB::beginTransaction();
 
@@ -1782,51 +1755,43 @@ class GameController extends Controller
                     continue;
                 }
 
-                $hasStarted = in_array(strtolower($session->status_session ?? ''), [
-                    'in progress', 'in_progress', 'live', 'playing', 'finished', 'completed', 'selesai',
-                ], true);
-
-                if (! $hasStarted && Schema::hasTable('tb_match') && Schema::hasTable('tb_drawing')) {
-                    try {
-                        $hasStarted = GameMatch::whereHas('drawing', function ($q) use ($session) {
-                            $q->where('session_id', $session->session_id);
-                        })->exists();
-                    } catch (\Throwable $e) {
-                        $hasStarted = false;
-                    }
-                }
-
-                if ($hasStarted) {
-                    $skippedCount++;
-
-                    continue;
-                }
-
+                // 1. Hapus Kudos terkait sesi jika tabel ada
                 if (Schema::hasTable('tb_kudos')) {
                     Kudos::where('session_id', $session->session_id)->delete();
                 }
+
+                // 2. Hapus Drawing dan Match terkait sesi jika tabel ada
                 if (Schema::hasTable('tb_drawing')) {
-                    Drawing::where('session_id', $session->session_id)->delete();
+                    $drawings = Drawing::where('session_id', $session->session_id)->get();
+                    foreach ($drawings as $drawing) {
+                        if (Schema::hasTable('tb_match')) {
+                            $matches = GameMatch::where('drawing_id', $drawing->drawing_id)->get();
+                            foreach ($matches as $match) {
+                                if (Schema::hasTable('tb_match_participant')) {
+                                    MatchParticipant::where('match_id', $match->match_id)->delete();
+                                }
+                                if (Schema::hasTable('tb_match_score')) {
+                                    MatchScore::where('match_id', $match->match_id)->delete();
+                                }
+                                $match->delete();
+                            }
+                        }
+                        $drawing->delete();
+                    }
                 }
 
+                // 3. Detach pivot players & courts
                 $session->players()->detach();
                 $session->courts()->detach();
+
+                // 4. Hapus session
                 $session->delete();
                 $deletedCount++;
             }
 
             DB::commit();
 
-            if ($deletedCount === 0 && $skippedCount > 0) {
-                return back()->with('error', 'Semua sesi yang dipilih tidak dapat dihapus karena sudah dimulai atau telah selesai.');
-            }
-
-            $msg = $deletedCount.' jadwal mabar berhasil dihapus.';
-            if ($skippedCount > 0) {
-                $msg .= " ({$skippedCount} sesi dilewati karena sudah dimulai/selesai).";
-            }
-
-            return back()->with('success', $msg);
+            return back()->with('success', $deletedCount.' jadwal mabar berhasil dihapus.');
         } catch (\Throwable $e) {
             DB::rollBack();
 

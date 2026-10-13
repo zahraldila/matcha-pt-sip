@@ -217,20 +217,16 @@
                     </div>
 
                     <div class="space-y-2 pt-2">
-                        @if(!empty($isHost))
-                            {{-- TAMPILAN KHUSUS HOST --}}
-                            @php $isAdminUser = Auth::check() && Auth::user()->isAdmin(); @endphp
-
-                            @if(!$isAdminUser)
-                                @if(empty($isJoinedByMe) && !$isFull && empty($hasDrawingStarted) && empty($isFinished))
-                                    <button type="button" onclick="showJoinModal('{{ $game['id'] }}', '{{ addslashes($game['title']) }}')" class="w-full text-center py-2.5 rounded-xl bg-[#EBF8D8] hover:bg-[#A8E63A]/30 text-[#063B00] border border-[#063B00]/30 font-bold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
-                                        <i class="fa-solid fa-user-plus text-[#063B00]"></i> Ikut Serta Bermain (+ Add Yourself)
-                                    </button>
-                                @elseif(!empty($isJoinedByMe))
-                                    <div class="w-full text-center py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center justify-center gap-1.5">
-                                        <i class="fa-solid fa-circle-check text-emerald-600"></i> Anda Terdaftar Sebagai Pemain
-                                    </div>
-                                @endif
+                        @if(!empty($isHost) && (!Auth::check() || Auth::user()->role !== 'admin'))
+                            {{-- TAMPILAN KHUSUS HOST (NON-ADMIN) --}}
+                            @if(empty($isJoinedByMe) && !$isFull && empty($hasDrawingStarted) && empty($isFinished))
+                                <button type="button" onclick="showJoinModal('{{ $game['id'] }}', '{{ addslashes($game['title']) }}')" class="w-full text-center py-2.5 rounded-xl bg-[#EBF8D8] hover:bg-[#A8E63A]/30 text-[#063B00] border border-[#063B00]/30 font-bold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-user-plus text-[#063B00]"></i> Ikut Serta Bermain (+ Add Yourself)
+                                </button>
+                            @elseif(!empty($isJoinedByMe))
+                                <div class="w-full text-center py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-circle-check text-emerald-600"></i> Anda Terdaftar Sebagai Pemain
+                                </div>
                             @endif
 
                             @if(!empty($hasDrawingStarted))
@@ -241,7 +237,7 @@
                                 <a href="{{ route('scoring.live', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#063B00] font-semibold text-xs border-1.5 border-[#063B00] transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
                                     <i class="fa-solid fa-stopwatch text-[11px]"></i> Live Match Scoring
                                 </a>
-                            @elseif(!$isAdminUser)
+                            @else
                                 {{-- Hanya Host non-admin yang bisa memulai drawing --}}
                                 @if($isFull)
                                     <a href="{{ route('games.drawing', $game['id']) }}" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
@@ -255,7 +251,7 @@
                             @endif
 
                         @else
-                            {{-- TAMPILAN PESERTA & VENUE OWNER (NON-HOST) --}}
+                            {{-- TAMPILAN PESERTA & VENUE OWNER (NON-HOST) / ADMIN --}}
                             @if(empty($isJoinedByMe) && !$isFull && empty($hasDrawingStarted) && empty($isFinished) && (Auth::guest() || (Auth::user()->role !== 'venue_owner' && Auth::user()->role !== 'admin')))
                                 <button type="button" onclick="showJoinModal('{{ $game['id'] }}', '{{ addslashes($game['title']) }}')" class="w-full text-center py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer">
                                     <i class="fa-solid fa-user-plus text-[#A8E63A]"></i> Gabung Sesi Mabar
@@ -273,7 +269,7 @@
                             @endif
                         @endif
 
-                        @if(Auth::check() && Auth::user()->role === 'admin' && empty($isFinished) && empty($hasDrawingStarted))
+                        @if(Auth::check() && Auth::user()->role === 'admin')
                             <button type="button" onclick="openDeleteSessionModal()" class="w-full text-center py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2">
                                 <i class="fa-solid fa-trash-can text-rose-600"></i> Hapus Jadwal Mabar
                             </button>
@@ -350,7 +346,7 @@
 </script>
 @endif
 
-@if(Auth::check() && Auth::user()->role === 'admin' && empty($isFinished) && empty($hasDrawingStarted))
+@if(Auth::check() && Auth::user()->role === 'admin')
 <!-- MODAL DELETE SESSION CONFIRMATION -->
 <div id="deleteSessionModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeDeleteSessionModal();">
     <div class="bg-white rounded-3xl p-6 shadow-2xl space-y-4 my-8 border border-slate-100 flex flex-col" style="max-width: 440px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">

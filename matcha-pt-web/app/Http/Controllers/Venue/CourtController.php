@@ -41,7 +41,7 @@ class CourtController extends Controller
             'hari_buka' => $venueModel->hari_buka ?: 'Setiap Hari (Senin - Minggu)',
             'unavailability_note' => $venueModel->catatan ?: 'Sesuai jadwal ketersediaan lapangan reguler.',
             'catatan' => $venueModel->catatan,
-            'image' => $venueModel->foto ?? 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80',
+            'image' => $venueModel->main_photo,
             'facilities' => explode(',', $venueModel->fasilitas ?: 'Belum dicatat'),
             'courts' => $venueModel->courts->map(function (Court $court) {
                 $type = $court->tipe_court;
