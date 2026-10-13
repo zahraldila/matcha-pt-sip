@@ -88,22 +88,23 @@ class ScoringService
     {
         $str = trim($scoringSystem);
 
-        // Grup Total of X (Sets)
+        // Grup Total of X (Total Games gabungan kedua tim dalam satu pertandingan)
         if (preg_match('/total\s*of\s*(\d+)/i', $str, $matches)) {
-            $sets = (int) $matches[1];
-            if (! in_array($sets, self::getSelectableTotalOfOptions(), true)) {
-                $sets = 3;
+            $total = (int) $matches[1];
+            if (! in_array($total, self::getSelectableTotalOfOptions(), true)) {
+                $total = 3;
             }
-            $targetSets = intdiv($sets, 2) + 1;
 
             return [
                 'type' => 'total_of_sets',
-                'category' => 'sets',
-                'max_sets' => $sets,
-                'target_sets' => $targetSets,
-                'target_games' => 6,
-                'label' => "Total of {$sets}",
-                'is_sets' => true,
+                'category' => 'total_of',
+                'max_sets' => $total,
+                'target_sets' => $total,
+                'target_games' => $total,
+                'target_total_games' => $total,
+                'label' => "Total of {$total}",
+                'is_sets' => false,
+                'is_total_of' => true,
             ];
         }
 
@@ -121,88 +122,111 @@ class ScoringService
                 'max_sets' => 1,
                 'target_sets' => 1,
                 'target_games' => $games,
+                'target_total_games' => $games,
                 'label' => "First to {$games}",
                 'is_sets' => false,
+                'is_total_of' => false,
             ];
         }
 
         // Default fallback ke Total of 3
         return [
             'type' => 'total_of_sets',
-            'category' => 'sets',
+            'category' => 'total_of',
             'max_sets' => 3,
-            'target_sets' => 2,
-            'target_games' => 6,
+            'target_sets' => 3,
+            'target_games' => 3,
+            'target_total_games' => 3,
             'label' => 'Total of 3',
-            'is_sets' => true,
+            'is_sets' => false,
+            'is_total_of' => true,
         ];
     }
 
     /**
-     * Menentukan apakah suatu pertandingan per set/ronde telah selesai sesuai aturan scoring system.
+     * Menentukan apakah suatu pertandingan telah selesai sesuai aturan scoring system.
      *
-     * Aturan Total Of (Sets):
-     * - Sebelum mencapai 5–5: pertama mencapai 6 memenangkan set (6–0, 6–1, 6–2, 6–3, 6–4, dan kebalikannya).
-     * - Jika mencapai 5–5: target kemenangan berubah menjadi 7 (7–5 atau 7–6, dan kebalikannya).
-     * - Skor 5–5, 6–5, 5–6, dan 6–6 belum selesai.
-     * - 7–6 atau 6–7 langsung selesai.
+     * Aturan Total Of N:
+     * - N merupakan total gabungan skor besar kedua sisi dalam satu pertandingan (games_a + games_b = N).
+     * - Pertandingan selesai jika dan hanya jika: games_a + games_b = N.
+     * - Seluruh N game tetap dimainkan; tidak berhenti dini hanya karena mayoritas telah tercapai.
+     * - Jika games_a + games_b < N: pertandingan masih aktif (in_progress).
      *
-     * Aturan First To (Games):
-     * - Selesai ketika salah satu tim mencapai target_games (X).
+     * Aturan First To X:
+     * - Sisi pertama yang mencapai target skor besar memenangkan pertandingan.
+     * - Selesai jika salah satu tim mencapai target_games (games_a >= X || games_b >= X).
      */
     public static function isMatchCompleted(int $gamesA, int $gamesB, array $scoringSystem): bool
     {
-        return self::determineMatchWinner($gamesA, $gamesB, $scoringSystem) !== null;
+        $isTotalOf = ($scoringSystem['category'] ?? '') === 'total_of'
+            || ($scoringSystem['is_total_of'] ?? false)
+            || preg_match('/total\s*of\s*(\d+)/i', $scoringSystem['label'] ?? '');
+
+        if ($isTotalOf) {
+            $target = (int) ($scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? ($scoringSystem['max_sets'] ?? 3)));
+
+            return ($gamesA + $gamesB) === $target;
+        }
+
+        // First to games
+        $target = (int) ($scoringSystem['target_games'] ?? 8);
+        if ($target <= 0) {
+            return false;
+        }
+
+        return ($gamesA >= $target || $gamesB >= $target);
     }
 
     /**
      * Menentukan tim pemenang match ('Team A' | 'Team B' | null).
+     *
+     * Total Of N:
+     * - Selesai jika games_a + games_b = N.
+     * - Jika games_a > games_b: 'Team A'
+     * - Jika games_b > games_a: 'Team B'
+     * - Jika games_a === games_b (hasil genap seri, misal 2-2 pada Total Of 4, 5-5 pada Total of 10):
+     *   null (selesai tanpa pemenang tunggal).
+     *
+     * First To X:
+     * - games_a >= X dan games_a > games_b: 'Team A'
+     * - games_b >= X dan games_b > games_a: 'Team B'
+     * - Jika keduanya >= X: sisi dengan skor lebih tinggi menang.
      */
     public static function determineMatchWinner(int $gamesA, int $gamesB, array $scoringSystem): ?string
     {
-        $isSets = (bool) ($scoringSystem['is_sets'] ?? true);
+        $isTotalOf = ($scoringSystem['category'] ?? '') === 'total_of'
+            || ($scoringSystem['is_total_of'] ?? false)
+            || preg_match('/total\s*of\s*(\d+)/i', $scoringSystem['label'] ?? '');
 
-        if (! $isSets) {
-            $target = (int) ($scoringSystem['target_games'] ?? 8);
-            if ($target > 0) {
-                if ($gamesA >= $target && $gamesA > $gamesB) {
-                    return 'Team A';
-                }
-                if ($gamesB >= $target && $gamesB > $gamesA) {
-                    return 'Team B';
-                }
-                if ($gamesA >= $target && $gamesB >= $target) {
-                    return $gamesA >= $gamesB ? 'Team A' : 'Team B';
-                }
+        if ($isTotalOf) {
+            $target = (int) ($scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? ($scoringSystem['max_sets'] ?? 3)));
+            if (($gamesA + $gamesB) !== $target) {
+                return null;
             }
 
+            if ($gamesA > $gamesB) {
+                return 'Team A';
+            }
+            if ($gamesB > $gamesA) {
+                return 'Team B';
+            }
+
+            // Seri (Draw): Selesai tanpa pemenang tunggal
             return null;
         }
 
-        // Total Of (Sets)
-        // 1. Sebelum mencapai 5-5: pertama mencapai 6 memenangkan set (6-0 s.d. 6-4)
-        if ($gamesA === 6 && $gamesB <= 4) {
-            return 'Team A';
-        }
-        if ($gamesB === 6 && $gamesA <= 4) {
-            return 'Team B';
-        }
-
-        // 2. Jika mencapai 5-5: target berubah menjadi 7 (7-5 atau 7-6)
-        // Catatan: 5-5, 6-5, 5-6, dan 6-6 belum selesai.
-        if ($gamesA === 7 && ($gamesB === 5 || $gamesB === 6)) {
-            return 'Team A';
-        }
-        if ($gamesB === 7 && ($gamesA === 5 || $gamesA === 6)) {
-            return 'Team B';
-        }
-
-        // 3. Batas fallback di atas 7 jika skor melampaui kondisi normal
-        if ($gamesA > 7 && $gamesA > $gamesB) {
-            return 'Team A';
-        }
-        if ($gamesB > 7 && $gamesB > $gamesA) {
-            return 'Team B';
+        // First to games
+        $target = (int) ($scoringSystem['target_games'] ?? 8);
+        if ($target > 0) {
+            if ($gamesA >= $target && $gamesA > $gamesB) {
+                return 'Team A';
+            }
+            if ($gamesB >= $target && $gamesB > $gamesA) {
+                return 'Team B';
+            }
+            if ($gamesA >= $target && $gamesB >= $target) {
+                return $gamesA >= $gamesB ? 'Team A' : 'Team B';
+            }
         }
 
         return null;
@@ -767,45 +791,25 @@ class ScoringService
 
         $flip = $seed % 2 === 0;
 
-        if ($system['type'] === 'total_of_sets') {
-            $targetSets = $system['target_sets'];
-            $winnerSets = $targetSets;
-            $loserSets = rand(0, max(0, $targetSets - 1));
-
-            $setHistory = [];
-            $totalGamesA = 0;
-            $totalGamesB = 0;
-
-            for ($s = 1; $s <= ($winnerSets + $loserSets); $s++) {
-                $isWinnerSet = ($s <= $winnerSets);
-                $gWin = 6;
-                $gLose = rand(2, 4);
-                $sA = $isWinnerSet ? $gWin : $gLose;
-                $sB = $isWinnerSet ? $gLose : $gWin;
-
-                if ($flip) {
-                    $setHistory[] = ['set' => $s, 'score_a' => $sA, 'score_b' => $sB];
-                    $totalGamesA += $sA;
-                    $totalGamesB += $sB;
-                } else {
-                    $setHistory[] = ['set' => $s, 'score_a' => $sB, 'score_b' => $sA];
-                    $totalGamesA += $sB;
-                    $totalGamesB += $sA;
-                }
-            }
+        if ($system['type'] === 'total_of_sets' || ($system['is_total_of'] ?? false)) {
+            $targetTotal = (int) ($system['target_total_games'] ?? ($system['target_games'] ?? 3));
+            $winnerGames = rand((int) ceil($targetTotal / 2), $targetTotal);
+            $loserGames = max(0, $targetTotal - $winnerGames);
+            $gA = $flip ? $winnerGames : $loserGames;
+            $gB = $flip ? $loserGames : $winnerGames;
 
             srand();
-            $setsA = $flip ? $winnerSets : $loserSets;
-            $setsB = $flip ? $loserSets : $winnerSets;
 
             return [
-                'score_a' => $setsA,
-                'score_b' => $setsB,
-                'sets_a' => $setsA,
-                'sets_b' => $setsB,
-                'games_a' => $totalGamesA,
-                'games_b' => $totalGamesB,
-                'set_history' => $setHistory,
+                'score_a' => $gA,
+                'score_b' => $gB,
+                'sets_a' => ($gA > $gB) ? 1 : 0,
+                'sets_b' => ($gB > $gA) ? 1 : 0,
+                'games_a' => $gA,
+                'games_b' => $gB,
+                'set_history' => [
+                    ['set' => 1, 'score_a' => $gA, 'score_b' => $gB],
+                ],
             ];
         }
 
@@ -1028,14 +1032,13 @@ class ScoringService
                         $sessionJenisPermainan = $session->jenis_permainan ?? 'Double';
                         $format = strtolower($session->match_format ?? 'americano');
                         $scoringSystem = self::detectScoringSystem($session->scoring_system ?? 'Total of 3');
-                        $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
                         if (str_contains($format, 'team') && count($participants) >= 4 && count($participants) % 2 === 0) {
                             $teamService = new TeamAmericanoService;
-                            $drawingData = $teamService->generateTeamRounds($participants, $courtCount, null, $roundCount);
+                            $drawingData = $teamService->generateTeamRounds($participants, $courtCount, null);
                             $rounds = $drawingData['rounds'] ?? [];
                         } else {
                             $americanoService = new AmericanoService;
-                            $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan);
+                            $rounds = $americanoService->generateRounds($participants, $courtCount, null, $sessionJenisPermainan);
                         }
                     }
 
