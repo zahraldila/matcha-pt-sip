@@ -119,7 +119,7 @@
                 <i class="fa-solid fa-earth-americas text-xs {{ ($activeTab ?? 'all') === 'all' ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i>
                 <span>Semua Sesi</span>
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? 'all') === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
-                    {{ $countAll ?? $games->total() }}
+                    {{ $countAll ?? $games->count() }}
                 </span>
             </a>
 
@@ -221,7 +221,7 @@
                 </span>
             @endif
             <span id="games-result-count">
-                Menampilkan <strong class="text-[#050608]">{{ $games->total() }}</strong> sesi
+                Menampilkan <strong class="text-[#050608]">{{ $games->count() }}</strong> sesi
                 @if(($activeTab ?? 'all') === 'joined')
                     <span>yang kamu ikuti</span>
                 @elseif(($activeTab ?? 'all') === 'hosted')
@@ -321,8 +321,6 @@
                 @endforeach
             </div>
 
-            <!-- Pagination Component -->
-            <x-pagination :paginator="$games" />
         @else
         <!-- Rich Clean Empty State -->
         <div class="glass-card rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto border border-white/90 space-y-4 shadow-sm">
