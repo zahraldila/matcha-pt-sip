@@ -446,6 +446,10 @@ function initCommunitiesBulkSelection() {
         };
     }
 
+    document.querySelectorAll('.bulk-item-checkbox').forEach(cb => {
+        cb.onchange = () => updateUI();
+    });
+
     if (btnSubmitBulk && bulkForm && bulkInputsCont) {
         btnSubmitBulk.onclick = () => {
             const checkedBoxes = getChecked();
