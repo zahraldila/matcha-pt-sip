@@ -205,11 +205,11 @@
                     <div class="flex items-center gap-1.5 self-center sm:self-auto">
                         {{-- Previous Button --}}
                         @if ($hostSessions->onFirstPage())
-                            <span class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-100/60 cursor-not-allowed">
+                            <span class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-100/60 border border-slate-200/50 cursor-not-allowed">
                                 <i class="fa-solid fa-chevron-left mr-1"></i> Prev
                             </span>
                         @else
-                            <a href="{{ $hostSessions->previousPageUrl() }}" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 glass-card hover:bg-[#063B00] hover:text-white transition-all shadow-2xs">
+                            <a href="{{ $hostSessions->previousPageUrl() }}" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-[#063B00] hover:text-white hover:border-[#063B00] border border-slate-200/80 transition-all shadow-2xs">
                                 <i class="fa-solid fa-chevron-left mr-1"></i> Prev
                             </a>
                         @endif
@@ -221,7 +221,7 @@
                                     {{ $page }}
                                 </span>
                             @else
-                                <a href="{{ $url }}" class="w-8 h-8 rounded-xl text-xs font-bold text-slate-700 glass-card hover:bg-slate-100 flex items-center justify-center transition-all shadow-2xs">
+                                <a href="{{ $url }}" class="w-8 h-8 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-[#063B00] hover:text-white hover:border-[#063B00] border border-slate-200/80 flex items-center justify-center transition-all shadow-2xs">
                                     {{ $page }}
                                 </a>
                             @endif
@@ -229,11 +229,11 @@
 
                         {{-- Next Button --}}
                         @if ($hostSessions->hasMorePages())
-                            <a href="{{ $hostSessions->nextPageUrl() }}" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 glass-card hover:bg-[#063B00] hover:text-white transition-all shadow-2xs">
+                            <a href="{{ $hostSessions->nextPageUrl() }}" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-[#063B00] hover:text-white hover:border-[#063B00] border border-slate-200/80 transition-all shadow-2xs">
                                 Next <i class="fa-solid fa-chevron-right ml-1"></i>
                             </a>
                         @else
-                            <span class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-100/60 cursor-not-allowed">
+                            <span class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-100/60 border border-slate-200/50 cursor-not-allowed">
                                 Next <i class="fa-solid fa-chevron-right ml-1"></i>
                             </span>
                         @endif
