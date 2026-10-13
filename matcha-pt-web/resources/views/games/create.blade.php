@@ -334,7 +334,7 @@
                             <span id="scoringDropdownLabel" class="min-w-0 truncate">Total of 3</span>
                             <i id="scoringDropdownIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 shrink-0"></i>
                         </button>
-                        <div id="scoringDropdownMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"></div>
+                        <div id="scoringDropdownMenu" class="hidden absolute z-30 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl" style="max-height: min(14rem, calc(100vh - 12rem)); overflow-y: auto;"></div>
                     </div>
                 </div>
 
@@ -561,7 +561,7 @@
 
 
                 <!-- Gender + Level -->
-                <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
                     <div id="manualGenderContainer" class="space-y-1 relative">
                         <label class="block text-[11px] font-bold text-slate-700">
                             Gender
