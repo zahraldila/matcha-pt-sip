@@ -51,4 +51,31 @@ class Venue extends Model
     {
         return $this->hasMany(SessionModel::class, 'venue_id', 'venue_id');
     }
+
+    /**
+     * Resolves the primary/first photo of the venue.
+     */
+    public function getMainPhotoAttribute(): string
+    {
+        $rawPhotos = array_filter(array_map('trim', explode(',', $this->foto ?? '')));
+        $resolvedPhotos = array_values(array_map(function ($p) {
+            return str_starts_with($p, 'http') ? $p : asset($p);
+        }, $rawPhotos));
+
+        return $resolvedPhotos[0] ?? 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80';
+    }
+
+    /**
+     * Resolves all gallery photos as absolute URLs.
+     *
+     * @return string[]
+     */
+    public function getGalleryPhotosAttribute(): array
+    {
+        $rawPhotos = array_filter(array_map('trim', explode(',', $this->foto ?? '')));
+
+        return array_values(array_map(function ($p) {
+            return str_starts_with($p, 'http') ? $p : asset($p);
+        }, $rawPhotos));
+    }
 }

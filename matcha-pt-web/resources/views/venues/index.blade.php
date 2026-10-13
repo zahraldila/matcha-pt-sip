@@ -146,7 +146,7 @@
                     <div class="bulk-item-card venue-card glass-card rounded-3xl overflow-hidden flex flex-col justify-between group transition-all duration-200 flex-1 {{ !empty($venue['is_mine']) ? 'border-2 border-emerald-500/40 shadow-sm ring-1 ring-emerald-500/15' : 'border border-white/90' }}">
                     <div>
                         <div class="relative h-44 overflow-hidden bg-slate-100">
-                            <img src="{{ $venue['image'] }}" alt="{{ $venue['name'] }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                            <img src="{{ $venue['image'] }}" alt="{{ $venue['name'] }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80';">
                             
                             <!-- Sport Badge -->
                             <div class="absolute top-3 left-3">
