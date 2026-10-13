@@ -315,45 +315,101 @@
                     $adminUser = $community->creator ?? Auth::user();
                     $adminName = $adminUser->nama ?? 'Admin Komunitas';
                     $adminInitial = substr($adminName, 0, 1);
+                    $hasLogo = !empty($community->logo);
                 @endphp
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch">
                     <!-- Admin Card -->
-                    <div class="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex items-center gap-3.5">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#063B00] to-emerald-800 text-white flex items-center justify-center text-base font-bold shadow-xs">
+                    <div class="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex items-center gap-3.5 h-full">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#063B00] to-emerald-800 text-white flex items-center justify-center text-base font-bold shadow-xs shrink-0">
                             {{ $adminInitial }}
                         </div>
-                        <div>
+                        <div class="min-w-0">
                             <div class="flex items-center gap-1.5">
-                                <span class="text-xs font-black text-slate-900">{{ $adminName }}</span>
-                                <i class="fa-solid fa-circle-check text-[#063B00] text-[10px]"></i>
+                                <span class="text-xs font-black text-slate-900 truncate">{{ $adminName }}</span>
+                                <i class="fa-solid fa-circle-check text-[#063B00] text-[10px] shrink-0"></i>
                             </div>
-                            <p class="text-[10px] text-slate-500 mt-0.5">Admin Utama Komunitas</p>
+                            <p class="text-[10px] text-slate-500 mt-0.5 truncate">Admin Utama Komunitas</p>
                             <span class="inline-block px-2 py-0.5 rounded-md bg-[#EBF8D8] text-[#063B00] text-[9px] font-extrabold mt-1">
                                 Verified Founder
                             </span>
                         </div>
                     </div>
 
-                    <!-- Logo Dropzone -->
+                    <!-- Logo Card -->
                     <div class="space-y-1">
-                        <div class="relative">
-                            <div id="logo-dropzone" onclick="document.getElementById('input_logo').click()" class="border-2 border-dashed border-slate-200 hover:border-[#063B00] rounded-2xl p-4 bg-slate-50/50 text-center transition-all cursor-pointer group flex flex-col items-center justify-center overflow-hidden min-h-0">
-                                <!-- Fixed-size compact preview container -->
-                                <div id="logo-preview-container" class="{{ !empty($community->logo) ? '' : 'hidden' }} w-full max-w-[240px] h-32 rounded-xl overflow-hidden border border-[#063B00]/30 shadow-xs mb-2 shrink-0 bg-slate-100" style="width: 100%; max-width: 240px; height: 128px; max-height: 128px; overflow: hidden;">
-                                    <img id="logo-preview-img" src="{{ $community->logo ?? '' }}" alt="Preview Foto" class="w-full h-full object-cover object-center block" style="width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: cover; display: block;">
+                        <div id="logo-card-container" class="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex items-center transition-all h-full min-h-[96px]">
+                            <!-- State 1: Active Photo Preview (Ada Foto) -->
+                            <div id="logo-active-view" class="{{ $hasLogo ? 'flex' : 'hidden' }} items-center gap-3.5 w-full">
+                                <div class="w-20 h-14 sm:w-24 sm:h-16 rounded-xl overflow-hidden border border-slate-200 shadow-2xs shrink-0 bg-slate-200 relative">
+                                    <img id="logo-preview-img" src="{{ $community->logo ?? '' }}" alt="Foto Komunitas" class="w-full h-full object-cover object-center block">
+                                    <div id="logo-upload-spinner" class="hidden absolute inset-0 bg-black/40 backdrop-blur-2xs flex items-center justify-center text-white">
+                                        <i class="fa-solid fa-circle-notch fa-spin text-sm"></i>
+                                    </div>
                                 </div>
-                                <i id="logo-icon" class="fa-solid fa-image text-slate-400 group-hover:text-[#063B00] text-lg mb-1"></i>
-                                <p id="logo-title" class="text-[11px] font-bold text-slate-800">{{ !empty($community->logo) ? 'Ganti Foto Komunitas' : 'Upload Foto Komunitas' }}</p>
-                                <p id="logo-filename" class="text-[9px] text-slate-400">{{ !empty($community->logo) ? 'Klik untuk memilih foto baru (JPG/PNG maks 2 MB)' : 'Rasio horizontal format JPG/PNG' }}</p>
+                                <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                                    <div class="min-w-0">
+                                        <span id="logo-status-title" class="text-xs font-black text-slate-900 block truncate">Foto Komunitas</span>
+                                        <p id="logo-status-desc" class="text-[10px] text-slate-500 mt-0.5 truncate">JPG / PNG maks 2 MB</p>
+                                    </div>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <button
+                                            type="button"
+                                            onclick="triggerLogoSelect()"
+                                            class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-[#063B00] hover:text-[#063B00] text-slate-700 text-[11px] font-bold shadow-2xs inline-flex items-center gap-1.5 transition-all cursor-pointer hover:bg-slate-50"
+                                            title="Pilih foto baru dari perangkat"
+                                        >
+                                            <i class="fa-solid fa-camera text-[10px] text-slate-500"></i>
+                                            <span>Ganti</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onclick="markLogoForDeletion()"
+                                            class="px-2.5 py-1 rounded-lg bg-white border border-rose-200 hover:border-rose-400 hover:bg-rose-50 text-rose-600 text-[11px] font-bold shadow-2xs inline-flex items-center gap-1.5 transition-all cursor-pointer"
+                                            title="Hapus foto komunitas ini"
+                                        >
+                                            <i class="fa-regular fa-trash-can text-[10px]"></i>
+                                            <span>Hapus</span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            <!-- Clear button: muncul saat file baru dipilih -->
-                            <button type="button" id="logo-clear-btn" onclick="clearLogoSelection(event)" class="hidden absolute w-5 h-5 rounded-full bg-slate-200 hover:bg-rose-100 hover:text-rose-600 text-slate-500 flex items-center justify-center transition-all z-10 shadow-sm" style="top: -8px; right: -8px;" title="Batal pilih gambar baru">
-                                <i class="fa-solid fa-xmark text-[10px]"></i>
-                            </button>
+
+                            <!-- State 2: Marked for Deletion (Ditandai untuk Dihapus) -->
+                            <div id="logo-deleted-view" class="hidden items-center justify-between gap-3 w-full">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <div class="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 text-rose-500 flex items-center justify-center shrink-0">
+                                        <i class="fa-regular fa-trash-can text-sm"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-xs font-bold text-rose-600 truncate">Foto ditandai dihapus</p>
+                                        <p class="text-[10px] text-slate-500 truncate">Klik Simpan untuk konfirmasi</p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onclick="cancelLogoDeletion()"
+                                    class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-[11px] font-bold shadow-2xs transition-all cursor-pointer shrink-0"
+                                >
+                                    Batalkan
+                                </button>
+                            </div>
+
+                            <!-- State 3: Empty Dropzone (Belum Ada Foto) -->
+                            <div id="logo-empty-view" onclick="triggerLogoSelect()" class="{{ $hasLogo ? 'hidden' : 'flex' }} items-center justify-center gap-3 w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-[#063B00] rounded-xl transition-all cursor-pointer group text-center">
+                                <i class="fa-solid fa-cloud-arrow-up text-slate-400 group-hover:text-[#063B00] text-lg transition-colors shrink-0"></i>
+                                <div class="text-left">
+                                    <p class="text-xs font-bold text-slate-800 group-hover:text-[#063B00] transition-colors">Upload Foto Komunitas</p>
+                                    <p class="text-[10px] text-slate-400">JPG / PNG maks 2 MB</p>
+                                </div>
+                            </div>
                         </div>
+
+                        <!-- Hidden Inputs -->
                         <input type="file" id="input_logo" name="logo" accept="image/jpeg,image/jpg,image/png" class="sr-only">
                         <input type="hidden" id="uploaded_logo_url" name="logo_url" value="{{ old('logo_url') }}">
+                        <input type="hidden" id="remove_logo_input" name="remove_logo" value="0">
+
                         <p id="err_logo" class="hidden text-rose-500 font-bold text-[11px] items-center gap-1 mt-1">
                             <i class="fa-solid fa-circle-exclamation text-[10px]"></i> Format tidak valid.
                         </p>
@@ -579,141 +635,136 @@
         }
     }
 
+    const initialLogoUrl = @json($community->logo ?? '');
     let isLogoUploading = false;
+
+    function triggerLogoSelect() {
+        const input = document.getElementById('input_logo');
+        if (input) input.click();
+    }
+
+    function markLogoForDeletion() {
+        const removeInput = document.getElementById('remove_logo_input');
+        const uploadedUrlInput = document.getElementById('uploaded_logo_url');
+        const fileInput = document.getElementById('input_logo');
+        const activeView = document.getElementById('logo-active-view');
+        const deletedView = document.getElementById('logo-deleted-view');
+        const emptyView = document.getElementById('logo-empty-view');
+        const errEl = document.getElementById('err_logo');
+
+        if (errEl) {
+            errEl.classList.add('hidden');
+            errEl.classList.remove('flex');
+        }
+        if (fileInput) fileInput.value = '';
+        if (uploadedUrlInput) uploadedUrlInput.value = '';
+
+        if (initialLogoUrl) {
+            if (removeInput) removeInput.value = '1';
+            if (activeView) { activeView.classList.add('hidden'); activeView.classList.remove('flex'); }
+            if (deletedView) { deletedView.classList.remove('hidden'); deletedView.classList.add('flex'); }
+            if (emptyView) { emptyView.classList.add('hidden'); emptyView.classList.remove('flex'); }
+        } else {
+            if (removeInput) removeInput.value = '0';
+            if (activeView) { activeView.classList.add('hidden'); activeView.classList.remove('flex'); }
+            if (deletedView) { deletedView.classList.add('hidden'); deletedView.classList.remove('flex'); }
+            if (emptyView) { emptyView.classList.remove('hidden'); emptyView.classList.add('flex'); }
+        }
+    }
+
+    function cancelLogoDeletion() {
+        const removeInput = document.getElementById('remove_logo_input');
+        const activeView = document.getElementById('logo-active-view');
+        const deletedView = document.getElementById('logo-deleted-view');
+        const previewImg = document.getElementById('logo-preview-img');
+        const titleEl = document.getElementById('logo-status-title');
+        const descEl = document.getElementById('logo-status-desc');
+
+        if (removeInput) removeInput.value = '0';
+        if (previewImg && initialLogoUrl) {
+            previewImg.src = initialLogoUrl;
+        }
+        if (titleEl) titleEl.textContent = 'Foto Komunitas';
+        if (descEl) descEl.textContent = 'JPG / PNG maks 2 MB';
+
+        if (deletedView) { deletedView.classList.add('hidden'); deletedView.classList.remove('flex'); }
+        if (activeView) { activeView.classList.remove('hidden'); activeView.classList.add('flex'); }
+    }
 
     function validateLogoField() {
         const input = document.getElementById('input_logo');
         const errEl = document.getElementById('err_logo');
-        const dropzone = document.getElementById('logo-dropzone');
-        if (!input || !errEl || !dropzone) return true;
+        if (!input || !errEl) return true;
 
         if (!input.files || input.files.length === 0) {
             errEl.classList.add('hidden');
             errEl.classList.remove('flex');
-            dropzone.classList.remove('border-rose-400', 'bg-rose-50/40');
-            dropzone.classList.add('border-slate-200');
             return true;
         }
 
         const file = input.files[0];
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+        const ext = (file.name || '').split('.').pop().toLowerCase();
+        const allowedExtensions = ['jpg', 'jpeg', 'png'];
         const maxBytes = 2 * 1024 * 1024; // 2 MB
 
-        let logoError = null;
-        const fileName = file.name || '';
-        const ext = fileName.split('.').pop().toLowerCase();
-        const allowedExtensions = ['jpg', 'jpeg', 'png'];
-
+        let errorMsg = null;
         if (!allowedTypes.includes(file.type.toLowerCase()) && !allowedExtensions.includes(ext)) {
-            logoError = 'Format logo tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.';
+            errorMsg = 'Format foto tidak valid. Hanya JPG, JPEG, atau PNG yang diterima.';
         } else if (file.size > maxBytes) {
-            logoError = 'Ukuran logo maksimal 2 MB.';
+            errorMsg = 'Ukuran foto maksimal 2 MB.';
         }
 
-        if (logoError) {
-            errEl.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> ${logoError}`;
+        if (errorMsg) {
+            errEl.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> ${errorMsg}`;
             errEl.classList.remove('hidden');
             errEl.classList.add('flex');
-            dropzone.classList.add('border-rose-400', 'bg-rose-50/40');
-            dropzone.classList.remove('border-slate-200', 'border-emerald-500/70', 'bg-[#EBF8D8]/30');
             return false;
         }
 
         errEl.classList.add('hidden');
         errEl.classList.remove('flex');
-        dropzone.classList.remove('border-rose-400', 'bg-rose-50/40');
-        dropzone.classList.add('border-slate-200');
         return true;
     }
 
-    function clearLogoSelection(e) {
-        if (e) e.stopPropagation();
-        const input = document.getElementById('input_logo');
-        const clearBtn = document.getElementById('logo-clear-btn');
-        const filenameEl = document.getElementById('logo-filename');
-        const titleEl = document.getElementById('logo-title');
-        const iconEl = document.getElementById('logo-icon');
-        const previewContainer = document.getElementById('logo-preview-container');
-        const previewImg = document.getElementById('logo-preview-img');
-        const errEl = document.getElementById('err_logo');
-        const dropzone = document.getElementById('logo-dropzone');
-        const logoUrlInput = document.getElementById('uploaded_logo_url');
-
-        if (input) input.value = '';
-        if (logoUrlInput) logoUrlInput.value = '';
-        if (clearBtn) clearBtn.classList.add('hidden');
-
-        if (initialLogoUrl) {
-            if (previewContainer) previewContainer.classList.remove('hidden');
-            if (previewImg) {
-                previewImg.src = initialLogoUrl;
-                previewImg.classList.remove('hidden');
-            }
-            if (titleEl) titleEl.textContent = 'Ganti Foto Komunitas';
-            if (filenameEl) filenameEl.textContent = 'Klik untuk memilih foto baru (JPG/PNG maks 2 MB)';
-        } else {
-            if (previewContainer) previewContainer.classList.add('hidden');
-            if (previewImg) {
-                previewImg.src = '';
-                previewImg.classList.add('hidden');
-            }
-            if (titleEl) titleEl.textContent = 'Upload Foto Komunitas';
-            if (filenameEl) filenameEl.textContent = 'Rasio horizontal format JPG/PNG';
-        }
-
-        if (iconEl) {
-            iconEl.className = 'fa-solid fa-image text-slate-400 group-hover:text-[#063B00] text-lg mb-1';
-        }
-        if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('flex'); }
-        if (dropzone) {
-            dropzone.classList.remove('border-rose-400', 'bg-rose-50/40', 'border-emerald-500/70', 'bg-[#EBF8D8]/30');
-            dropzone.classList.add('border-slate-200');
-        }
-        isLogoUploading = false;
-    }
-
     document.getElementById('input_logo')?.addEventListener('change', function() {
-        const filenameEl = document.getElementById('logo-filename');
-        const titleEl = document.getElementById('logo-title');
-        const iconEl = document.getElementById('logo-icon');
-        const previewContainer = document.getElementById('logo-preview-container');
+        const removeInput = document.getElementById('remove_logo_input');
+        const uploadedUrlInput = document.getElementById('uploaded_logo_url');
+        const activeView = document.getElementById('logo-active-view');
+        const deletedView = document.getElementById('logo-deleted-view');
+        const emptyView = document.getElementById('logo-empty-view');
         const previewImg = document.getElementById('logo-preview-img');
-        const clearBtn = document.getElementById('logo-clear-btn');
+        const spinner = document.getElementById('logo-upload-spinner');
+        const titleEl = document.getElementById('logo-status-title');
+        const descEl = document.getElementById('logo-status-desc');
         const errEl = document.getElementById('err_logo');
-        const dropzone = document.getElementById('logo-dropzone');
-        const logoUrlInput = document.getElementById('uploaded_logo_url');
 
         if (!this.files || this.files.length === 0) {
-            clearLogoSelection();
             return;
         }
 
-        const isValid = validateLogoField();
-        if (!isValid) {
-            if (logoUrlInput) logoUrlInput.value = '';
-            if (clearBtn) clearBtn.classList.remove('hidden');
-            if (previewContainer) previewContainer.classList.add('hidden');
-            if (previewImg) previewImg.classList.add('hidden');
-            if (filenameEl) filenameEl.textContent = this.files[0]?.name || 'File tidak valid';
-            if (iconEl) iconEl.className = 'fa-solid fa-image text-rose-500 text-lg mb-1';
+        if (!validateLogoField()) {
+            this.value = '';
             return;
         }
 
         const file = this.files[0];
-        if (previewContainer) previewContainer.classList.remove('hidden');
-        if (previewImg) {
-            previewImg.src = URL.createObjectURL(file);
-            previewImg.classList.remove('hidden');
-        }
-        if (filenameEl) filenameEl.textContent = file.name;
-        if (titleEl) titleEl.textContent = 'Sedang mengunggah foto...';
-        if (iconEl) iconEl.className = 'fa-solid fa-circle-notch fa-spin text-[#063B00] text-lg mb-1';
-        if (clearBtn) clearBtn.classList.add('hidden');
+
+        if (removeInput) removeInput.value = '0';
+
+        if (previewImg) previewImg.src = URL.createObjectURL(file);
+        if (titleEl) titleEl.textContent = 'Mengunggah foto...';
+        if (descEl) descEl.textContent = file.name;
+        if (spinner) spinner.classList.remove('hidden');
+
+        if (emptyView) { emptyView.classList.add('hidden'); emptyView.classList.remove('flex'); }
+        if (deletedView) { deletedView.classList.add('hidden'); deletedView.classList.remove('flex'); }
+        if (activeView) { activeView.classList.remove('hidden'); activeView.classList.add('flex'); }
+
         isLogoUploading = true;
 
         const formData = new FormData();
         formData.append('logo', file);
-
         const csrfToken = document.querySelector('input[name="_token"]')?.value || '';
 
         fetch("{{ route('communities.upload-logo') }}", {
@@ -733,38 +784,25 @@
         })
         .then(data => {
             isLogoUploading = false;
+            if (spinner) spinner.classList.add('hidden');
             if (data.success && data.url) {
-                if (logoUrlInput) logoUrlInput.value = data.url;
-                if (titleEl) titleEl.textContent = 'Foto Berhasil Diunggah';
-                if (filenameEl) filenameEl.textContent = file.name;
-                if (iconEl) iconEl.className = 'fa-solid fa-circle-check text-[#063B00] text-lg mb-1';
-                if (clearBtn) clearBtn.classList.remove('hidden');
-                if (dropzone) {
-                    dropzone.classList.remove('border-slate-200', 'border-rose-400', 'bg-rose-50/40');
-                    dropzone.classList.add('border-emerald-500/70', 'bg-[#EBF8D8]/30');
-                }
-                if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('flex'); }
+                if (uploadedUrlInput) uploadedUrlInput.value = data.url;
+                if (titleEl) titleEl.textContent = 'Foto Siap Disimpan';
+                if (descEl) descEl.textContent = 'Berhasil diunggah (' + file.name + ')';
             } else {
                 throw new Error(data.message || 'Gagal mengunggah foto.');
             }
         })
         .catch(error => {
             isLogoUploading = false;
-            if (logoUrlInput) logoUrlInput.value = '';
-            if (clearBtn) clearBtn.classList.remove('hidden');
-            if (previewContainer) previewContainer.classList.add('hidden');
-            if (previewImg) previewImg.classList.add('hidden');
-            if (titleEl) titleEl.textContent = 'Ganti Foto Komunitas';
-            if (filenameEl) filenameEl.textContent = file.name;
-            if (iconEl) iconEl.className = 'fa-solid fa-image text-rose-500 text-lg mb-1';
+            if (spinner) spinner.classList.add('hidden');
+            if (uploadedUrlInput) uploadedUrlInput.value = '';
+            if (titleEl) titleEl.textContent = 'Gagal Mengunggah';
+            if (descEl) descEl.textContent = error.message || 'Silakan coba lagi';
             if (errEl) {
                 errEl.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> ${error.message}`;
                 errEl.classList.remove('hidden');
                 errEl.classList.add('flex');
-            }
-            if (dropzone) {
-                dropzone.classList.remove('border-slate-200', 'border-emerald-500/70', 'bg-[#EBF8D8]/30');
-                dropzone.classList.add('border-rose-400', 'bg-rose-50/40');
             }
         });
     });
@@ -783,22 +821,15 @@
 
         const inputLogo = document.getElementById('input_logo');
         const logoUrlInput = document.getElementById('uploaded_logo_url');
+        const removeInput = document.getElementById('remove_logo_input');
         const errLogo = document.getElementById('err_logo');
-        const dropzone = document.getElementById('logo-dropzone');
 
-        if (inputLogo && inputLogo.files && inputLogo.files.length > 0 && (!logoUrlInput || !logoUrlInput.value)) {
+        if (inputLogo && inputLogo.files && inputLogo.files.length > 0 && (!logoUrlInput || !logoUrlInput.value) && (!removeInput || removeInput.value !== '1')) {
             e.preventDefault();
             if (errLogo) {
-                if (errLogo.classList.contains('hidden')) {
-                    errLogo.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> Upload foto belum berhasil. Silakan tunggu atau batalkan pilihan foto.`;
-                    errLogo.classList.remove('hidden');
-                    errLogo.classList.add('flex');
-                }
-            }
-            if (dropzone) {
-                dropzone.classList.add('border-rose-400', 'bg-rose-50/40');
-                dropzone.classList.remove('border-slate-200', 'border-emerald-500/70', 'bg-[#EBF8D8]/30');
-                dropzone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                errLogo.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i> Upload foto belum berhasil. Silakan tunggu atau batalkan pilihan foto.`;
+                errLogo.classList.remove('hidden');
+                errLogo.classList.add('flex');
             }
             return false;
         }
