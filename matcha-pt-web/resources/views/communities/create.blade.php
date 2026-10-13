@@ -425,9 +425,9 @@
         </div>
 
         <!-- Form -->
-        <form id="quickAddVenueForm" onsubmit="submitQuickAddVenue(event)" class="mt-4 space-y-3.5">
+        <form id="quickAddVenueForm" onsubmit="submitQuickAddVenue(event)" class="flex flex-col gap-4" style="display: flex; flex-direction: column; gap: 18px;">
             <!-- Nama Venue -->
-            <div class="space-y-1.5">
+            <div class="space-y-2" style="display: flex; flex-direction: column; gap: 8px;">
                 <label class="block text-[11px] font-bold text-slate-800">
                     Nama Venue <span class="text-rose-500">*</span>
                 </label>
@@ -446,7 +446,7 @@
 
             <!-- Cabang Olahraga & Jumlah Court -->
             <div class="grid grid-cols-2 gap-3">
-                <div id="quickSportDropdownContainer" class="space-y-1.5 relative">
+                <div id="quickSportDropdownContainer" class="space-y-2 relative" style="display: flex; flex-direction: column; gap: 8px;">
                     <label class="block text-[11px] font-bold text-slate-800">
                         Cabang Olahraga <span class="text-rose-500">*</span>
                     </label>
@@ -475,7 +475,7 @@
                     </div>
                 </div>
 
-                <div id="quickCourtCountDropdownContainer" class="space-y-1.5 relative">
+                <div id="quickCourtCountDropdownContainer" class="space-y-2 relative" style="display: flex; flex-direction: column; gap: 8px;">
                     <label class="block text-[11px] font-bold text-slate-800">
                         Jumlah Lapangan <span class="text-rose-500">*</span>
                     </label>
@@ -510,7 +510,7 @@
 
             <!-- Kota / Wilayah & Alamat -->
             <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1.5">
+                <div class="space-y-2" style="display: flex; flex-direction: column; gap: 8px;">
                     <label class="block text-[11px] font-bold text-slate-800">
                         Kota / Wilayah
                     </label>
@@ -522,7 +522,7 @@
                         style="height: 48px; min-height: 48px; box-sizing: border-box;"
                     />
                 </div>
-                <div class="space-y-1.5">
+                <div class="space-y-2" style="display: flex; flex-direction: column; gap: 8px;">
                     <label class="block text-[11px] font-bold text-slate-800">
                         Alamat Singkat
                     </label>
@@ -551,7 +551,7 @@
             </div>
 
             <!-- Actions -->
-            <div class="pt-2 space-y-2">
+            <div class="flex flex-col gap-2.5 pt-1" style="display: flex; flex-direction: column; gap: 10px;">
                 <button
                     type="submit"
                     id="btnSubmitQuickVenue"
