@@ -1537,12 +1537,16 @@ class GameController extends Controller
                 return;
             }
 
-            Http::withoutVerifying()
-                ->withHeaders([
-                    'apikey' => $key,
-                    'Authorization' => 'Bearer '.$key,
-                    'Content-Type' => 'application/json',
-                ])
+            $headers = [
+                'apikey' => $key,
+                'Content-Type' => 'application/json',
+            ];
+            if (str_starts_with($key, 'ey')) {
+                $headers['Authorization'] = 'Bearer '.$key;
+            }
+
+            Http::withOptions(['verify' => $this->resolveCaBundle()])
+                ->withHeaders($headers)
                 ->timeout(2)
                 ->post($url, [
                     'messages' => [
@@ -1576,12 +1580,16 @@ class GameController extends Controller
                 return;
             }
 
-            Http::withoutVerifying()
-                ->withHeaders([
-                    'apikey' => $key,
-                    'Authorization' => 'Bearer '.$key,
-                    'Content-Type' => 'application/json',
-                ])
+            $headers = [
+                'apikey' => $key,
+                'Content-Type' => 'application/json',
+            ];
+            if (str_starts_with($key, 'ey')) {
+                $headers['Authorization'] = 'Bearer '.$key;
+            }
+
+            Http::withOptions(['verify' => $this->resolveCaBundle()])
+                ->withHeaders($headers)
                 ->timeout(2)
                 ->post($url, [
                     'messages' => [
@@ -1789,5 +1797,27 @@ class GameController extends Controller
 
             return back()->with('error', 'Gagal menghapus jadwal mabar: '.$e->getMessage());
         }
+    }
+
+    /**
+     * Cari berkas bundle CA cert lokal untuk verifikasi SSL aman.
+     */
+    protected function resolveCaBundle(): string|bool
+    {
+        $candidates = [
+            ini_get('curl.cainfo'),
+            ini_get('openssl.cafile'),
+            getenv('CURL_CA_BUNDLE'),
+            'C:\\xampp\\apache\\bin\\curl-ca-bundle.crt',
+            'C:\\php\\extras\\ssl\\cacert.pem',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && $candidate !== '' && is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return true;
     }
 }

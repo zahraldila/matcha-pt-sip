@@ -354,11 +354,8 @@
         <!-- Subtitle & Main Header -->
         <div class="pb-3 border-b border-slate-100">
             <span class="block text-xs font-medium text-slate-500">Select date</span>
-            <div class="flex items-center justify-between mt-1">
+            <div class="mt-1">
                 <span id="pickerHeaderDate" class="text-2xl sm:text-3xl font-medium text-slate-800">Tue, Oct 13</span>
-                <button type="button" class="text-slate-400 hover:text-slate-600 transition-colors p-1" title="Select date">
-                    <i class="fa-solid fa-pen text-xs"></i>
-                </button>
             </div>
         </div>
 

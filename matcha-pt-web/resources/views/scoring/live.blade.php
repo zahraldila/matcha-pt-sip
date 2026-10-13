@@ -1778,6 +1778,7 @@
                 action: e.action || 'add_point',
                 team: e.team,
                 event_id: e.eventId,
+                base_version: e.baseVersion,
                 tClick: e.tClick,
                 status: e.status,
 

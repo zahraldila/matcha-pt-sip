@@ -2038,6 +2038,129 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertEquals(1, $res2['version'], 'Version tidak boleh bertambah saat event_id di-retry');
     }
 
+    public function test_historical_event_retry_after_cache_cleared_does_not_increment_score()
+    {
+        [$session, $hostUser] = $this->createTestSession('Single', 1);
+        $gameId = $session->session_id;
+        Auth::login($hostUser);
+
+        Http::fake(['*/realtime/v1/api/broadcast' => Http::response([], 200)]);
+
+        $scoringController = new ScoringController;
+
+        // 1. Simpan Event A (Team A tambah poin -> 15-0, version 1)
+        $reqA = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'action' => 'batch_events',
+            'events' => [
+                ['action' => 'add_point', 'team' => 'A', 'event_id' => 'evt_hist_A', 'base_version' => 0],
+            ],
+            'client_id' => 'client_test_1',
+            'client_seq' => 1,
+            'event_id' => 'evt_hist_A',
+            'base_version' => 0,
+        ]);
+        $resA = $scoringController->updateScore($reqA)->getData(true);
+        $this->assertTrue($resA['success']);
+        $this->assertEquals('15', $resA['point_display_a']);
+        $this->assertEquals(1, $resA['version']);
+
+        // 2. Simpan Event B (Team B tambah poin -> 15-15, version 2)
+        $reqB = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'action' => 'batch_events',
+            'events' => [
+                ['action' => 'add_point', 'team' => 'B', 'event_id' => 'evt_hist_B', 'base_version' => 1],
+            ],
+            'client_id' => 'client_test_1',
+            'client_seq' => 2,
+            'event_id' => 'evt_hist_B',
+            'base_version' => 1,
+        ]);
+        $resB = $scoringController->updateScore($reqB)->getData(true);
+        $this->assertTrue($resB['success']);
+        $this->assertEquals('15', $resB['point_display_a']);
+        $this->assertEquals('15', $resB['point_display_b']);
+        $this->assertEquals(2, $resB['version']);
+
+        // 3. Simulasikan CACHE HILANG TOTAL
+        Cache::flush();
+
+        // 4. Kirim ulang Event A (yang base_version=0, lebih tua dari DB version=2 dan bukan last_event_id DB)
+        $resRetryA = $scoringController->updateScore($reqA)->getData(true);
+        $this->assertTrue($resRetryA['success']);
+        $this->assertTrue($resRetryA['duplicate'], 'Event A lama harus dikenali sebagai duplikat/historical');
+        $this->assertEquals('15', $resRetryA['point_display_a'], 'Skor Team A tidak boleh bertambah');
+        $this->assertEquals('15', $resRetryA['point_display_b'], 'Skor Team B tidak boleh berubah');
+        $this->assertEquals(2, $resRetryA['version'], 'Version tidak boleh bertambah saat event lama di-retry');
+    }
+
+    public function test_batch_retry_with_partially_processed_events_only_applies_new_events()
+    {
+        [$session, $hostUser] = $this->createTestSession('Single', 1);
+        $gameId = $session->session_id;
+        Auth::login($hostUser);
+
+        Http::fake(['*/realtime/v1/api/broadcast' => Http::response([], 200)]);
+
+        $scoringController = new ScoringController;
+
+        // 1. Kirim Batch 1: [Event A, Event B] (15-15, version 2)
+        $reqBatch1 = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'action' => 'batch_events',
+            'events' => [
+                ['action' => 'add_point', 'team' => 'A', 'event_id' => 'batch_evt_A', 'base_version' => 0],
+                ['action' => 'add_point', 'team' => 'B', 'event_id' => 'batch_evt_B', 'base_version' => 1],
+            ],
+            'client_id' => 'client_test_1',
+            'client_seq' => 2,
+            'event_id' => 'batch_evt_B',
+            'base_version' => 1,
+        ]);
+        $resBatch1 = $scoringController->updateScore($reqBatch1)->getData(true);
+        $this->assertTrue($resBatch1['success']);
+        $this->assertEquals(1, $resBatch1['version']);
+        $this->assertEquals('15', $resBatch1['point_display_a']);
+        $this->assertEquals('15', $resBatch1['point_display_b']);
+
+        // 2. Simulasikan CACHE HILANG TOTAL
+        Cache::flush();
+
+        // 3. Client mencoba retry antrean offline yang berisi [Event A, Event B, Event C]
+        // Event A & B sudah pernah tersimpan, hanya Event C (Team A tambah poin -> 30-15) yang baru!
+        $reqBatch2 = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'action' => 'batch_events',
+            'events' => [
+                ['action' => 'add_point', 'team' => 'A', 'event_id' => 'batch_evt_A', 'base_version' => 0],
+                ['action' => 'add_point', 'team' => 'B', 'event_id' => 'batch_evt_B', 'base_version' => 1],
+                ['action' => 'add_point', 'team' => 'A', 'event_id' => 'batch_evt_C', 'base_version' => 2],
+            ],
+            'client_id' => 'client_test_1',
+            'client_seq' => 3,
+            'event_id' => 'batch_evt_C',
+            'base_version' => 2,
+        ]);
+        $resBatch2 = $scoringController->updateScore($reqBatch2)->getData(true);
+        $this->assertTrue($resBatch2['success']);
+        $this->assertEquals(2, $resBatch2['version'], 'Version harus bertambah tepat 1 untuk Event C');
+        $this->assertEquals('30', $resBatch2['point_display_a'], 'Hanya Event C yang diterapkan ke Team A');
+        $this->assertEquals('15', $resBatch2['point_display_b'], 'Team B tidak boleh bertambah lagi');
+    }
+
     public function test_two_courts_updated_concurrently_do_not_lose_scores()
     {
         [$session, $hostUser] = $this->createTestSession('Double', 2);
@@ -2142,6 +2265,131 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertEquals(6, $data['games_a']);
         $this->assertEquals(2, $data['games_b']);
         $this->assertEquals(15, $data['version']);
+    }
+
+    public function test_concurrent_hosts_with_same_base_version_merges_without_losing_points()
+    {
+        [$session, $hostUser] = $this->createTestSession('Single', 1);
+        $gameId = $session->session_id;
+        Auth::login($hostUser);
+
+        Http::fake(['*/realtime/v1/api/broadcast' => Http::response([], 200)]);
+        $scoringController = new ScoringController;
+
+        // Host 1 mengirim poin untuk Team A dari base_version 0
+        $reqHost1 = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'action' => 'add_point',
+            'point_won_by' => 'A',
+            'event_id' => 'evt_host1_A',
+            'base_version' => 0,
+            'client_id' => 'host_1',
+            'client_seq' => 1,
+        ]);
+        $resHost1 = $scoringController->updateScore($reqHost1)->getData(true);
+        $this->assertTrue($resHost1['success']);
+        $this->assertEquals(1, $resHost1['version']);
+        $this->assertEquals('15', $resHost1['point_display_a']);
+        $this->assertEquals('0', $resHost1['point_display_b']);
+
+        // Host 2 mengirim poin untuk Team B juga dari base_version 0 (concurrent/stale base)
+        // Request ini TIDAK BOLEH dianggap duplikat karena event_id berbeda dan mewakili poin sah!
+        $reqHost2 = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'action' => 'add_point',
+            'point_won_by' => 'B',
+            'event_id' => 'evt_host2_B',
+            'base_version' => 0,
+            'client_id' => 'host_2',
+            'client_seq' => 1,
+        ]);
+        $resHost2 = $scoringController->updateScore($reqHost2)->getData(true);
+        $this->assertTrue($resHost2['success']);
+        $this->assertFalse(! empty($resHost2['duplicate']), 'Event baru dari host lain tidak boleh dianggap duplikat');
+        $this->assertTrue(! empty($resHost2['merged']), 'Event harus di-merge secara 3-way delta');
+        $this->assertEquals(2, $resHost2['version']);
+        $this->assertEquals('15', $resHost2['point_display_a'], 'Poin Host 1 (Team A) harus tetap terjaga');
+        $this->assertEquals('15', $resHost2['point_display_b'], 'Poin Host 2 (Team B) harus berhasil ditambahkan');
+    }
+
+    public function test_batch_retry_without_last_event_id_does_not_drop_new_events_nor_duplicate_old_events()
+    {
+        [$session, $hostUser] = $this->createTestSession('Single', 1);
+        $gameId = $session->session_id;
+        Auth::login($hostUser);
+
+        Http::fake(['*/realtime/v1/api/broadcast' => Http::response([], 200)]);
+        $scoringController = new ScoringController;
+
+        // 1. Kirim Batch 1: [evt_A (Team A 15), evt_B (Team B 15)] -> Version 1
+        $reqBatch1 = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'action' => 'batch_events',
+            'events' => [
+                ['action' => 'add_point', 'team' => 'A', 'event_id' => 'batch_evt_A', 'base_version' => 0],
+                ['action' => 'add_point', 'team' => 'B', 'event_id' => 'batch_evt_B', 'base_version' => 1],
+            ],
+            'client_id' => 'client_1',
+            'client_seq' => 1,
+            'event_id' => 'batch_evt_B',
+            'base_version' => 1,
+        ]);
+        $res1 = $scoringController->updateScore($reqBatch1)->getData(true);
+        $this->assertTrue($res1['success']);
+        $this->assertEquals(1, $res1['version']);
+
+        // 2. Kirim Event C secara individual (Team A tambah poin -> 30-15) -> Version 2, last_event_id DB menjadi evt_C
+        $reqC = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'action' => 'add_point',
+            'point_won_by' => 'A',
+            'event_id' => 'batch_evt_C',
+            'base_version' => 1,
+            'client_id' => 'client_2',
+            'client_seq' => 1,
+        ]);
+        $resC = $scoringController->updateScore($reqC)->getData(true);
+        $this->assertTrue($resC['success']);
+        $this->assertEquals('30', $resC['point_display_a']);
+        $this->assertEquals(2, $resC['version']);
+
+        // 3. Simulasikan Cache di-flush total
+        Cache::flush();
+
+        // 4. Client 1 retries antrean batch parsial: [evt_A, evt_D] (Team B tambah poin)
+        // Perhatikan: evt_A sudah pernah diproses di DB, evt_C tidak ada di dalam batch ini sama sekali!
+        $reqBatchRetry = new Request([
+            'game_id' => $gameId,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_1',
+            'court' => 1,
+            'action' => 'batch_events',
+            'events' => [
+                ['action' => 'add_point', 'team' => 'A', 'event_id' => 'batch_evt_A', 'base_version' => 0],
+                ['action' => 'add_point', 'team' => 'B', 'event_id' => 'batch_evt_D', 'base_version' => 2],
+            ],
+            'client_id' => 'client_1',
+            'client_seq' => 2,
+            'event_id' => 'batch_evt_D',
+            'base_version' => 2,
+        ]);
+        $resRetry = $scoringController->updateScore($reqBatchRetry)->getData(true);
+        $this->assertTrue($resRetry['success']);
+        $this->assertEquals(3, $resRetry['version'], 'Hanya evt_D yang menambah versi');
+        $this->assertEquals('30', $resRetry['point_display_a'], 'evt_A tidak boleh diproses ulang');
+        $this->assertEquals('30', $resRetry['point_display_b'], 'evt_D (Team B) harus berhasil diterapkan');
     }
 
     protected function invokeMethod(&$object, $methodName, array $parameters = [])
