@@ -73,6 +73,7 @@ class PublicMabarSessionTest extends TestCase
                 $table->string('status_session')->default('Open');
                 $table->integer('jumlah_pemain')->default(4);
                 $table->string('jenis_permainan')->default('Double');
+                $table->string('share_token')->nullable();
                 $table->timestamps();
             });
         }

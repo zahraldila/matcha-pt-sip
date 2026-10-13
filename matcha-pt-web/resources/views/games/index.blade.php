@@ -221,7 +221,7 @@
                     <i class="fa-solid fa-magnifying-glass text-[9px]"></i> "{{ $search }}"
                 </span>
             @endif
-            <span>
+            <span id="games-result-count">
                 Menampilkan <strong class="text-[#050608]">{{ $games->total() }}</strong> sesi
                 @if(($activeTab ?? 'all') === 'joined')
                     <span>yang kamu ikuti</span>
@@ -231,6 +231,38 @@
                     <span>di venue milikmu</span>
                 @endif
             </span>
+            @if(Auth::check() && Auth::user()->role === 'admin' && $games->count() > 0)
+                {{-- Normal: "Pilih" button --}}
+                <button type="button" id="btn-enter-select-mode"
+                    class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-xs cursor-pointer select-none">
+                    Pilih
+                </button>
+
+                {{-- Selection mode: compact inline toolbar (hidden by default) --}}
+                <div id="bulk-selection-container" class="hidden items-center gap-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap">
+                        <input type="checkbox" id="bulk-select-all"
+                            class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
+                        <span id="bulk-select-label" class="text-xs font-semibold text-slate-700">
+                            Pilih semua
+                        </span>
+                    </label>
+                    <button type="button" id="btn-cancel-select"
+                        class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs transition-all cursor-pointer whitespace-nowrap">
+                        Batal
+                    </button>
+                    <button type="button" id="btn-submit-bulk" disabled
+                        class="px-3 py-1.5 text-xs font-semibold rounded-lg shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        style="background-color:#dc2626;color:white;border:1px solid #b91c1c;">
+                        Hapus <span id="bulk-count-display">0</span> sesi
+                    </button>
+                    <form id="bulk-delete-form" action="{{ route('games.bulkDestroy') }}" method="POST" class="hidden">
+                        @csrf
+                        @method('DELETE')
+                        <div id="bulk-delete-inputs"></div>
+                    </form>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -277,7 +309,16 @@
         @if($games->count() > 0)
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 @foreach($games as $game)
-                    <x-game-card :game="$game" />
+                    <div class="bulk-item-wrapper relative h-full">
+                        @if(Auth::check() && Auth::user()->role === 'admin')
+                            <label class="bulk-item-checkbox-container absolute top-3 right-3 z-30 items-center justify-center bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg p-1.5 cursor-pointer hover:bg-slate-50 transition-colors" style="display:none">
+                                <input type="checkbox" value="{{ $game['id'] }}" class="bulk-item-checkbox w-4.5 h-4.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shadow-xs">
+                            </label>
+                        @endif
+                        <div class="bulk-item-card h-full transition-all duration-200 rounded-2xl">
+                            <x-game-card :game="$game" />
+                        </div>
+                    </div>
                 @endforeach
             </div>
 
@@ -613,6 +654,10 @@
             }
 
             window.history.replaceState(null, '', url.toString());
+
+            if (typeof initGamesBulkSelection === 'function') {
+                initGamesBulkSelection();
+            }
         } catch (e) {
             if (e.name !== 'AbortError') {
                 console.error('Games live search error:', e);
@@ -730,8 +775,142 @@
         }
     });
 
+    function initGamesBulkSelection() {
+        const btnEnterSelect  = document.getElementById('btn-enter-select-mode');
+        const btnCancelSelect = document.getElementById('btn-cancel-select');
+        const btnSubmitBulk   = document.getElementById('btn-submit-bulk');
+        const bulkContainer   = document.getElementById('bulk-selection-container');
+        const bulkSelectAll   = document.getElementById('bulk-select-all');
+        const bulkSelectLabel = document.getElementById('bulk-select-label');
+        const bulkForm        = document.getElementById('bulk-delete-form');
+        const bulkInputsCont  = document.getElementById('bulk-delete-inputs');
+        const resultCount     = document.getElementById('games-result-count');
+
+        if (!btnEnterSelect || !bulkContainer) return;
+
+        let selectMode = false;
+
+        function getCheckboxes() { return document.querySelectorAll('.bulk-item-checkbox'); }
+        function getChecked()    { return document.querySelectorAll('.bulk-item-checkbox:checked'); }
+
+        function updateUI() {
+            const checkboxes   = getCheckboxes();
+            const checkedBoxes = getChecked();
+            const count        = checkedBoxes.length;
+            const pageTotal    = checkboxes.length;
+
+            document.querySelectorAll('.bulk-item-checkbox-container').forEach(el => {
+                el.style.display = selectMode ? 'flex' : 'none';
+            });
+
+            checkboxes.forEach(cb => {
+                const wrapper = cb.closest('.bulk-item-wrapper');
+                const card    = wrapper ? wrapper.querySelector('.bulk-item-card') : null;
+                if (!selectMode) { cb.checked = false; }
+                if (card) {
+                    if (selectMode && cb.checked) {
+                        card.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50/20');
+                    } else {
+                        card.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50/20');
+                    }
+                }
+                if (wrapper) {
+                    if (selectMode) {
+                        wrapper.onclick = function(e) {
+                            if (e.target.tagName.toLowerCase() !== 'input') {
+                                e.preventDefault();
+                                cb.checked = !cb.checked;
+                                updateUI();
+                            }
+                        };
+                    } else {
+                        wrapper.onclick = null;
+                    }
+                }
+            });
+
+            if (resultCount) resultCount.style.display = selectMode ? 'none' : '';
+
+            if (selectMode) {
+                btnEnterSelect.style.display = 'none';
+                bulkContainer.style.display  = 'flex';
+            } else {
+                btnEnterSelect.style.display = '';
+                bulkContainer.style.display  = 'none';
+                if (bulkSelectAll)   { bulkSelectAll.checked = false; bulkSelectAll.indeterminate = false; }
+                if (bulkSelectLabel) bulkSelectLabel.textContent = 'Pilih semua';
+                if (btnSubmitBulk)   { btnSubmitBulk.disabled = true; btnSubmitBulk.innerHTML = 'Hapus 0 sesi'; }
+                return;
+            }
+
+            if (!bulkSelectAll || !bulkSelectLabel || !btnSubmitBulk) return;
+
+            if (count === 0) {
+                bulkSelectAll.checked = false; bulkSelectAll.indeterminate = false;
+                bulkSelectLabel.textContent = 'Pilih semua';
+                btnSubmitBulk.disabled = true; btnSubmitBulk.innerHTML = 'Hapus 0 sesi';
+            } else if (count === pageTotal && pageTotal > 0) {
+                bulkSelectAll.checked = true; bulkSelectAll.indeterminate = false;
+                bulkSelectLabel.innerHTML = `Semua <strong>${count}</strong> terpilih`;
+                btnSubmitBulk.disabled = false; btnSubmitBulk.innerHTML = `Hapus ${count} sesi`;
+            } else {
+                bulkSelectAll.checked = false; bulkSelectAll.indeterminate = true;
+                bulkSelectLabel.innerHTML = `<strong>${count}</strong> dipilih`;
+                btnSubmitBulk.disabled = false; btnSubmitBulk.innerHTML = `Hapus ${count} sesi`;
+            }
+        }
+
+        btnEnterSelect.onclick  = () => { selectMode = true;  updateUI(); };
+        btnCancelSelect.onclick = () => { selectMode = false; updateUI(); };
+
+        if (bulkSelectAll) {
+            bulkSelectAll.onchange = (e) => {
+                getCheckboxes().forEach(cb => { cb.checked = e.target.checked; });
+                updateUI();
+            };
+        }
+
+        document.querySelectorAll('.bulk-item-checkbox').forEach(cb => {
+            cb.onchange = () => updateUI();
+        });
+
+        if (btnSubmitBulk && bulkForm && bulkInputsCont) {
+            btnSubmitBulk.onclick = () => {
+                const checkedBoxes = getChecked();
+                const count = checkedBoxes.length;
+                if (count === 0) return;
+
+                const submitAction = () => {
+                    bulkInputsCont.innerHTML = '';
+                    checkedBoxes.forEach(cb => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'selected_ids[]';
+                        input.value = cb.value;
+                        bulkInputsCont.appendChild(input);
+                    });
+                    bulkForm.submit();
+                };
+
+                if (typeof window.showConfirmDeleteModal === 'function') {
+                    window.showConfirmDeleteModal({
+                        title: `Hapus ${count} Jadwal Mabar?`,
+                        message: `Data ${count} jadwal sesi mabar yang dipilih beserta seluruh informasi drawing dan riwayat pertandingan terkait akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.`,
+                        confirmText: `Ya, Hapus ${count} Sesi`,
+                        onConfirm: submitAction
+                    });
+                } else if (confirm(`Apakah Anda yakin ingin menghapus ${count} jadwal sesi mabar yang dipilih?`)) {
+                    submitAction();
+                }
+            };
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         checkFilterState();
+        if (typeof initGamesBulkSelection === 'function') {
+            initGamesBulkSelection();
+        }
     });
 </script>
 @endpush
