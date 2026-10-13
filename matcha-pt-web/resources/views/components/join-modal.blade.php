@@ -73,33 +73,33 @@
                 <label class="block text-slate-700 font-semibold mb-1 text-xs">Nama Pemain <span class="text-rose-500">*</span></label>
                 <input type="text" name="nama" id="joinPlayerName" placeholder="Contoh: Alex Pratama" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none text-xs" required>
             </div>
-            <div class="grid grid-cols-3 gap-2">
+            <div class="grid grid-cols-3 gap-3">
                 <!-- Gender -->
                 <div class="relative" id="joinGenderContainer">
-                    <label class="block text-slate-700 font-semibold mb-1 text-[11px]">Gender <span class="text-rose-500">*</span></label>
+                    <label class="block font-bold text-slate-800 mb-1.5 text-xs">Gender <span class="text-rose-500">*</span></label>
                     <div class="relative">
                         <select name="gender" id="joinGuestGender" class="sr-only">
                             <option value="Male" selected>Laki-laki</option>
                             <option value="Female">Perempuan</option>
                         </select>
                         <button type="button" onclick="toggleJoinDropdown('joinGenderMenu', 'joinGenderArrow')"
-                            class="w-full h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white transition-colors text-xs flex items-center justify-between cursor-pointer text-left">
-                            <span id="joinGenderLabel" class="truncate">Laki-laki</span>
-                            <i id="joinGenderArrow" class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
+                            class="w-full h-12 flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-matcha-dark rounded-2xl px-3 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left">
+                            <span id="joinGenderLabel" class="text-xs font-bold text-slate-900 truncate">Laki-laki</span>
+                            <i id="joinGenderArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
                         </button>
-                        <div id="joinGenderMenu" class="hidden absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-1 text-xs space-y-0.5 ring-1 ring-black/5"></div>
+                        <div id="joinGenderMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
                     </div>
                 </div>
 
                 <!-- Usia -->
                 <div>
-                    <label class="block text-slate-700 font-semibold mb-1 text-[11px]">Usia (Thn) <span class="text-rose-500">*</span></label>
-                    <input type="number" name="usia" min="10" max="90" placeholder="24" class="w-full h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-2.5 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white focus:outline-none text-xs" required>
+                    <label class="block font-bold text-slate-800 mb-1.5 text-xs">Usia (Thn) <span class="text-rose-500">*</span></label>
+                    <input type="number" name="usia" min="10" max="90" placeholder="24" class="w-full h-12 bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-matcha-dark rounded-2xl px-3 text-slate-900 font-semibold focus:bg-white focus:border-matcha-dark focus:ring-2 focus:ring-matcha-primary/25 focus:outline-none transition-all shadow-2xs text-xs" required>
                 </div>
 
                 <!-- Skill Level -->
                 <div class="relative" id="joinLevelContainer">
-                    <label class="block text-slate-700 font-semibold mb-1 text-[11px]">Skill Level <span class="text-rose-500">*</span></label>
+                    <label class="block font-bold text-slate-800 mb-1.5 text-xs">Skill Level <span class="text-rose-500">*</span></label>
                     <div class="relative">
                         <select name="level" id="joinGuestLevel" class="sr-only">
                             <option value="Newbie">Newbie</option>
@@ -108,11 +108,11 @@
                             <option value="Advanced">Advanced</option>
                         </select>
                         <button type="button" onclick="toggleJoinDropdown('joinLevelMenu', 'joinLevelArrow')"
-                            class="w-full h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-slate-800 font-semibold focus:border-[#063B00] focus:bg-white transition-colors text-xs flex items-center justify-between cursor-pointer text-left">
-                            <span id="joinLevelLabel" class="truncate">Intermediate</span>
-                            <i id="joinLevelArrow" class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
+                            class="w-full h-12 flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-matcha-dark rounded-2xl px-3 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left">
+                            <span id="joinLevelLabel" class="text-xs font-bold text-slate-900 truncate">Intermediate</span>
+                            <i id="joinLevelArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
                         </button>
-                        <div id="joinLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-1 text-xs max-h-40 overflow-y-auto space-y-0.5 ring-1 ring-black/5"></div>
+                        <div id="joinLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
                     </div>
                 </div>
             </div>
@@ -151,7 +151,7 @@
             const btn = document.createElement('button');
             btn.type = 'button';
             const isSelected = String(select.value) === String(opt.value);
-            btn.className = `w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+            btn.className = `w-full px-4 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
                 isSelected
                     ? 'bg-[#EBF8D8] text-[#063B00] font-bold'
                     : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
