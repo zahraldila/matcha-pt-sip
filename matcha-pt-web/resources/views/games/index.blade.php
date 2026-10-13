@@ -95,14 +95,16 @@
         </div>
 
         @auth
-            @if(Auth::user()->is_host)
-                <a href="{{ route('games.schedule') }}" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01] shrink-0 text-center">
-                    <i class="fa-solid fa-plus text-[#A8E63A] text-xs"></i> <span>Buat Sesi Mabar Baru</span>
-                </a>
-            @elseif(Auth::user()->role !== 'venue_owner')
-                <a href="{{ route('player.profile', ['notice' => 'host_required']) }}" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-bold text-xs shadow-2xs transition-all hover:scale-[1.01] shrink-0 text-center" title="Aktifkan Mode Host untuk Membuat Sesi Mabar">
-                    <i class="fa-solid fa-bolt text-[11px]"></i> <span>Jadi Host untuk Buat Mabar</span>
-                </a>
+            @if(Auth::user()->role !== 'admin')
+                @if(Auth::user()->is_host)
+                    <a href="{{ route('games.schedule') }}" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01] shrink-0 text-center">
+                        <i class="fa-solid fa-plus text-[#A8E63A] text-xs"></i> <span>Buat Sesi Mabar Baru</span>
+                    </a>
+                @elseif(Auth::user()->role !== 'venue_owner')
+                    <a href="{{ route('player.profile', ['notice' => 'host_required']) }}" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#EBF8D8] border border-[#063B00]/25 hover:bg-[#A8E63A]/30 text-[#063B00] font-bold text-xs shadow-2xs transition-all hover:scale-[1.01] shrink-0 text-center" title="Aktifkan Mode Host untuk Membuat Sesi Mabar">
+                        <i class="fa-solid fa-bolt text-[11px]"></i> <span>Jadi Host untuk Buat Mabar</span>
+                    </a>
+                @endif
             @endif
         @endauth
     </div>
@@ -343,9 +345,15 @@
                         <i class="fa-solid fa-earth-americas text-[#A8E63A]"></i> <span>Jelajahi Semua Sesi</span>
                     </a>
                 @elseif(($activeTab ?? 'all') === 'hosted')
-                    <a href="{{ route('games.schedule') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01]">
-                        <i class="fa-solid fa-plus text-[#A8E63A]"></i> <span>Buat Sesi Mabar</span>
-                    </a>
+                    @if(Auth::check() && Auth::user()->role !== 'admin')
+                        <a href="{{ route('games.schedule') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01]">
+                            <i class="fa-solid fa-plus text-[#A8E63A]"></i> <span>Buat Sesi Mabar</span>
+                        </a>
+                    @else
+                        <a href="{{ route('games.index', ['tab' => 'all']) }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01]">
+                            <i class="fa-solid fa-earth-americas text-[#A8E63A]"></i> <span>Jelajahi Semua Sesi</span>
+                        </a>
+                    @endif
                 @elseif(($activeTab ?? 'all') === 'venue')
                     <a href="{{ route('venues.index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all hover:scale-[1.01]">
                         <i class="fa-solid fa-building text-[#A8E63A]"></i> <span>Kelola Venue & Lapangan</span>
