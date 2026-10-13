@@ -124,10 +124,14 @@
                         <div>
                             @php
                                 $statusLower = strtolower($session['status']);
+                                $isFinished = in_array($statusLower, ['finished', 'completed', 'selesai'])
+                                    || str_contains($statusLower, 'completed')
+                                    || str_contains($statusLower, 'finished')
+                                    || str_contains($statusLower, 'selesai');
                                 $badgeClass = match(true) {
                                     str_contains($statusLower, 'ready') => 'bg-emerald-50 text-emerald-800 border-emerald-200',
                                     str_contains($statusLower, 'in progress') || str_contains($statusLower, 'live') => 'bg-rose-50 text-rose-800 border-rose-200',
-                                    str_contains($statusLower, 'completed') || str_contains($statusLower, 'finished') => 'bg-slate-100 text-slate-700 border-slate-200',
+                                    $isFinished => 'bg-slate-100 text-slate-700 border-slate-200',
                                     default => 'bg-sky-50 text-sky-800 border-sky-200',
                                 };
                             @endphp
@@ -162,13 +166,15 @@
                                 <i class="fa-solid fa-ranking-star text-[10px] text-amber-600"></i> Rekap Juara
                             </a>
 
-                            <a href="{{ route('games.drawing', $session['id']) }}" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs shadow-2xs transition-all flex items-center gap-1.5">
-                                <i class="fa-solid fa-shuffle text-[10px] text-slate-500"></i> Drawing
-                            </a>
+                            @if(!$isFinished)
+                                <a href="{{ route('games.drawing', $session['id']) }}" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs shadow-2xs transition-all flex items-center gap-1.5">
+                                    <i class="fa-solid fa-shuffle text-[10px] text-slate-500"></i> Drawing
+                                </a>
 
-                            <a href="{{ route('scoring.live', $session['id']) }}" class="px-3.5 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5">
-                                <i class="fa-solid fa-circle-play text-[10px] text-[#A8E63A]"></i> Scoring Live
-                            </a>
+                                <a href="{{ route('scoring.live', $session['id']) }}" class="px-3.5 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-play text-[10px] text-[#A8E63A]"></i> Scoring Live
+                                </a>
+                            @endif
                         </div>
                     </div>
                 </div>
