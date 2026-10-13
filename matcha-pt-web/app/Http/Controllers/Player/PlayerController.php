@@ -41,6 +41,18 @@ class PlayerController extends Controller
                     'level' => 'Intermediate',
                     'rating' => 1.00,
                 ]);
+            } else {
+                // Pastikan no_hp, nama, dan email di tb_player selalu sinkron dengan tb_user
+                if ($player->no_hp !== $user->no_hp || $player->nama !== $user->nama || $player->email !== $user->email) {
+                    Player::where('user_id', $user->user_id)->update([
+                        'no_hp' => $user->no_hp,
+                        'nama' => $user->nama,
+                        'email' => $user->email,
+                    ]);
+                    $player->no_hp = $user->no_hp;
+                    $player->nama = $user->nama;
+                    $player->email = $user->email;
+                }
             }
         }
 
@@ -147,8 +159,7 @@ class PlayerController extends Controller
 
             // 2. Update or Create tb_player (Sync all existing player rows for this user)
             $matchingPlayers = Player::where('user_id', $user->user_id)
-                ->orWhere('email', $user->email)
-                ->orWhere('nama', $user->nama)
+                ->orWhere('email', $cleanEmail)
                 ->get();
 
             if ($matchingPlayers->isNotEmpty()) {
@@ -168,8 +179,7 @@ class PlayerController extends Controller
                 }
 
                 Player::where('user_id', $user->user_id)
-                    ->orWhere('email', $user->email)
-                    ->orWhere('nama', $user->nama)
+                    ->orWhere('email', $cleanEmail)
                     ->update($playerData);
             } else {
                 Player::create([
