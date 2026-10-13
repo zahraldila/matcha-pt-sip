@@ -33,6 +33,7 @@ class PublicMabarSessionTest extends TestCase
                 $table->string('password')->default('password');
                 $table->string('role')->default('member');
                 $table->boolean('is_host')->default(false);
+                $table->string('foto')->nullable();
                 $table->timestamps();
             });
         }
@@ -100,6 +101,7 @@ class PublicMabarSessionTest extends TestCase
                 $table->float('rating')->nullable();
                 $table->string('no_hp')->nullable();
                 $table->string('email')->nullable();
+                $table->string('foto')->nullable();
                 $table->timestamps();
             });
         }
@@ -193,6 +195,7 @@ class PublicMabarSessionTest extends TestCase
         $firstAccount = User::create([
             'nama' => 'Marcello Este Camaro',
             'email' => 'first_'.uniqid().'@matcha.com',
+            'foto' => 'users/marcello.jpg',
             'password' => bcrypt('secret'),
         ]);
         $secondAccount = User::create([
@@ -206,6 +209,7 @@ class PublicMabarSessionTest extends TestCase
             'nama' => 'Marcello Este Camaro',
             'gender' => 'Male',
             'level' => 'Intermediate',
+            'foto' => 'players/outdated-marcello.jpg',
         ]);
         Player::create([
             'user_id' => $firstAccount->user_id,
@@ -223,6 +227,7 @@ class PublicMabarSessionTest extends TestCase
             'nama' => 'Marcello Este Camaro',
             'gender' => 'Male',
             'level' => 'Intermediate',
+            'foto' => 'guests/marcello.jpg',
         ]);
         $secondGuest = Player::create([
             'nama' => ' marcello   este camaro ',
@@ -242,6 +247,8 @@ class PublicMabarSessionTest extends TestCase
             $firstGuest->player_id,
             $secondGuest->player_id,
         ]));
+        $response->assertJsonFragment(['foto' => 'users/marcello.jpg']);
+        $response->assertJsonFragment(['foto' => 'guests/marcello.jpg']);
     }
 
     /**

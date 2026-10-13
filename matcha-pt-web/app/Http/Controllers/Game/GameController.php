@@ -443,6 +443,7 @@ class GameController extends Controller
         $search = $request->query('search', '');
 
         $players = Player::query()
+            ->with('user:user_id,foto')
             ->where(function ($query) use ($search) {
                 $query->whereRaw('LOWER(nama) LIKE ?', ['%'.mb_strtolower($search).'%']);
             })
@@ -454,8 +455,9 @@ class GameController extends Controller
                 'nama',
                 'gender',
                 'level',
+                'foto',
             ])
-            ->unique(function (Player $player): string {
+            ->groupBy(function (Player $player): string {
                 if ($player->user_id !== null) {
                     return 'user:'.$player->user_id;
                 }
@@ -464,6 +466,10 @@ class GameController extends Controller
 
                 return 'guest:'.($normalizedName ?? '');
             })
+            ->map(function ($group): Player {
+                return $group->first(fn (Player $player): bool => ! empty($player->foto))
+                    ?? $group->first();
+            })
             ->take(20)
             ->values()
             ->map(fn (Player $player): array => $player->only([
@@ -471,6 +477,7 @@ class GameController extends Controller
                 'nama',
                 'gender',
                 'level',
+                'foto',
             ]));
 
         return response()->json($players);
