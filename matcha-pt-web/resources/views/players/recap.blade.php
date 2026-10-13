@@ -29,9 +29,11 @@
                 </a>
             @endif
             @if($isHost && $activeTab === 'host')
-                <a href="{{ route('games.create') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] cursor-pointer">
-                    <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> Buat Sesi Mabar Baru
-                </a>
+                @if(Auth::user()->role !== 'venue_owner')
+                    <a href="{{ route('games.create') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] cursor-pointer">
+                        <i class="fa-solid fa-plus text-[10px] text-[#A8E63A]"></i> Buat Sesi Mabar Baru
+                    </a>
+                @endif
             @else
                 <button onclick="openShareModal()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-semibold text-xs shadow-xs transition-all hover:scale-[1.01] cursor-pointer">
                     <i class="fa-solid fa-arrow-up-from-bracket text-[10px] text-[#A8E63A]"></i> Bagikan Rekap
@@ -187,11 +189,13 @@
                     <p class="text-xs text-slate-500 max-w-md mx-auto">
                         Kamu belum menyelenggarakan sesi mabar. Buat sesi mabar pertama kamu sekarang untuk mengundang pemain dan memulai drawing!
                     </p>
-                    <div class="pt-2">
-                        <a href="{{ route('games.create') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all">
-                            <i class="fa-solid fa-plus text-[#A8E63A]"></i> Buat Sesi Mabar Pertama
-                        </a>
-                    </div>
+                    @if(Auth::user()->role !== 'venue_owner')
+                        <div class="pt-2">
+                            <a href="{{ route('games.create') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-md transition-all">
+                                <i class="fa-solid fa-plus text-[#A8E63A]"></i> Buat Sesi Mabar Pertama
+                            </a>
+                        </div>
+                    @endif
                 </div>
             @endforelse
 
