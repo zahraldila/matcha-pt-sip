@@ -441,7 +441,7 @@ class PublicMabarSessionTest extends TestCase
             ->assertSee('Hapus Jadwal Mabar');
     }
 
-    public function test_admin_cannot_delete_started_or_finished_session(): void
+    public function test_admin_can_delete_session(): void
     {
         $admin = User::create([
             'nama' => 'Admin抹茶',
@@ -450,26 +450,16 @@ class PublicMabarSessionTest extends TestCase
             'role' => 'admin',
         ]);
 
-        // Sesi yang sedang berjalan
-        $ongoingSession = $this->createValidSession('Sesi Berjalan');
-        $ongoingSession->update(['status_session' => 'In Progress']);
+        $session = $this->createValidSession('Sesi Berjalan');
+        $session->update(['status_session' => 'In Progress']);
 
-        $responseOngoing = $this->actingAs($admin)->delete('/games/'.$ongoingSession->session_id);
-        $responseOngoing->assertRedirect(route('games.show', $ongoingSession->session_id));
-        $responseOngoing->assertSessionHas('error');
-        $this->assertDatabaseHas('tb_session', ['session_id' => $ongoingSession->session_id]);
-
-        // Sesi yang sudah selesai
-        $finishedSession = $this->createValidSession('Sesi Selesai');
-        $finishedSession->update(['status_session' => 'Finished']);
-
-        $responseFinished = $this->actingAs($admin)->delete('/games/'.$finishedSession->session_id);
-        $responseFinished->assertRedirect(route('games.show', $finishedSession->session_id));
-        $responseFinished->assertSessionHas('error');
-        $this->assertDatabaseHas('tb_session', ['session_id' => $finishedSession->session_id]);
+        $response = $this->actingAs($admin)->delete('/games/'.$session->session_id);
+        $response->assertRedirect(route('games.index'));
+        $response->assertSessionHas('success');
+        $this->assertDatabaseMissing('tb_session', ['session_id' => $session->session_id]);
     }
 
-    public function test_admin_does_not_see_podium_button_on_finished_session(): void
+    public function test_admin_does_not_see_host_operational_buttons_on_show_page(): void
     {
         $admin = User::create([
             'nama' => 'Admin抹茶',
@@ -478,17 +468,14 @@ class PublicMabarSessionTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $finishedSession = $this->createValidSession('Sesi Selesai Mabar');
-        $finishedSession->update(['status_session' => 'Finished']);
+        $session = $this->createValidSession('Sesi Selesai Mabar');
+        $session->update(['status_session' => 'In Progress']);
 
-        // Pada halaman show, admin tidak melihat tombol Buka Hasil Akhir & Podium
+        // Pada halaman show, admin tidak melihat tombol operasional host
         $this->actingAs($admin)
-            ->get('/games/'.$finishedSession->session_id)
-            ->assertDontSee('Buka Hasil Akhir & Podium');
-
-        // Pada halaman show, admin juga tidak melihat tombol Hapus karena sesi sudah selesai
-        $this->actingAs($admin)
-            ->get('/games/'.$finishedSession->session_id)
-            ->assertDontSee('Hapus Jadwal Mabar');
+            ->get('/games/'.$session->session_id)
+            ->assertDontSee('Kelola Drawing Tim')
+            ->assertDontSee('Live Match Scoring')
+            ->assertSee('Hapus Jadwal Mabar');
     }
 }

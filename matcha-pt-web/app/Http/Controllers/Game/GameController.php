@@ -924,7 +924,7 @@ class GameController extends Controller
         $isJoinedByMe = false;
         if (Auth::check()) {
             $user = Auth::user();
-            $isHost = ((int) $user->user_id === (int) $dbSession->host_user_id || $user->role === 'admin');
+            $isHost = ((int) $user->user_id === (int) $dbSession->host_user_id);
             $userId = $user->user_id;
             $userEmail = strtolower(trim($user->email ?? ''));
             $userName = strtolower(trim($user->nama ?? ''));
@@ -1659,35 +1659,6 @@ class GameController extends Controller
 
             return redirect()->route('games.show', $session->session_id)
                 ->with('error', 'Akses ditolak: Hanya Administrator platform yang dapat menghapus jadwal mabar.');
-        }
-
-        // Validasi: Hanya jadwal mabar yang BELUM MULAI yang dapat dihapus.
-        // Jadwal yang sudah mulai, sedang berlangsung, atau sudah selesai tidak boleh dihapus.
-        $hasStarted = in_array(strtolower($session->status_session ?? ''), [
-            'in progress', 'in_progress', 'live', 'playing', 'finished', 'completed', 'selesai',
-        ], true);
-
-        if (! $hasStarted && Schema::hasTable('tb_match') && Schema::hasTable('tb_drawing')) {
-            try {
-                $hasStarted = GameMatch::whereHas('drawing', function ($q) use ($session) {
-                    $q->where('session_id', $session->session_id);
-                })->exists();
-            } catch (\Throwable $e) {
-                $hasStarted = false;
-            }
-        }
-
-        if ($hasStarted) {
-            $msg = 'Jadwal mabar tidak dapat dihapus karena sesi sudah dimulai, sedang berlangsung, atau telah selesai.';
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $msg,
-                ], 422);
-            }
-
-            return redirect()->route('games.show', $session->session_id)
-                ->with('error', $msg);
         }
 
         try {
