@@ -31,7 +31,7 @@
                     <i class="fa-solid fa-layer-group text-xs {{ ($activeTab ?? 'all') !== 'my_venues' ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i> 
                     <span>Semua Venue</span>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? 'all') !== 'my_venues' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
-                        {{ $totalVenuesCount ?? $venues->total() }}
+                        {{ $totalVenuesCount ?? $venues->count() }}
                     </span>
                 </a>
                 <a href="{{ route('venues.index', ['tab' => 'my_venues', 'sport' => $selectedSport ?? 'all', 'q' => $search ?? '']) }}"
@@ -92,7 +92,7 @@
                 </span>
             @endif
             <span id="venues-result-count">
-                Menampilkan <strong class="text-[#050608]">{{ $venues->total() }}</strong> venue
+                Menampilkan <strong class="text-[#050608]">{{ $venues->count() }}</strong> venue
                 @if(($activeTab ?? 'all') === 'my_venues')
                     <span>yang Anda daftarkan</span>
                 @endif
@@ -232,8 +232,6 @@
             @endforeach
         </div>
 
-        <!-- Pagination Component -->
-        <x-pagination :paginator="$venues" />
     @else
         <!-- Rich Clean Empty State -->
         <div class="glass-card rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto border border-white/90 space-y-4 shadow-sm">

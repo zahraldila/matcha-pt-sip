@@ -19,8 +19,6 @@ use App\Services\MatchaDummyDataService;
 use App\Services\Scoring\ScoringService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -385,20 +383,7 @@ class GameController extends Controller
             $filteredGames = $allMappedGames->values();
         }
 
-        // Pagination: 6 items per page
-        $perPage = 6;
-        $currentPage = Paginator::resolveCurrentPage('page') ?: 1;
-        $totalItems = $filteredGames->count();
-        $currentItems = $filteredGames->slice(($currentPage - 1) * $perPage, $perPage)->values();
-
-        $games = new LengthAwarePaginator(
-            $currentItems,
-            $totalItems,
-            $perPage,
-            $currentPage,
-            ['path' => Paginator::resolveCurrentPath(), 'pageName' => 'page']
-        );
-        $games->withQueryString();
+        $games = $filteredGames;
 
         $hasActiveFilter = ($selectedStatus !== 'all') || ($selectedSlots === 'available') || ($selectedTime !== 'all');
 

@@ -9,8 +9,6 @@ use App\Models\Venue;
 use App\Services\MatchaDummyDataService;
 use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -133,20 +131,7 @@ class VenueController extends Controller
             $filteredVenues = $allVenues->values();
         }
 
-        // Pagination: 6 items per page
-        $perPage = 6;
-        $currentPage = Paginator::resolveCurrentPage('page') ?: 1;
-        $totalItems = $filteredVenues->count();
-        $currentItems = $filteredVenues->slice(($currentPage - 1) * $perPage, $perPage)->values();
-
-        $venues = new LengthAwarePaginator(
-            $currentItems,
-            $totalItems,
-            $perPage,
-            $currentPage,
-            ['path' => Paginator::resolveCurrentPath(), 'pageName' => 'page']
-        );
-        $venues->withQueryString();
+        $venues = $filteredVenues;
 
         return view('venues.index', compact('venues', 'activeTab', 'selectedSport', 'search', 'myVenuesCount', 'totalVenuesCount', 'userHasVenues'));
     }

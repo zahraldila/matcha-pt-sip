@@ -30,7 +30,7 @@
                 <i class="fa-solid fa-users text-xs {{ ($activeTab ?? 'all') !== 'joined' ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i> 
                 <span>Semua Komunitas</span>
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ ($activeTab ?? 'all') !== 'joined' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
-                    {{ $totalCommunitiesCount ?? $communities->total() }}
+                    {{ $totalCommunitiesCount ?? $communities->count() }}
                 </span>
             </a>
 
@@ -91,7 +91,7 @@
                 </span>
             @endif
             <span id="communities-result-count">
-                Menampilkan <strong class="text-[#050608]">{{ $communities->total() }}</strong> komunitas
+                Menampilkan <strong class="text-[#050608]">{{ $communities->count() }}</strong> komunitas
                 @if(($activeTab ?? 'all') === 'joined')
                     <span>yang kamu ikuti</span>
                 @endif
@@ -200,8 +200,6 @@
             @endforeach
         </div>
 
-        <!-- Pagination Component -->
-        <x-pagination :paginator="$communities" />
     @else
         <!-- Rich Clean Empty State -->
         <div class="glass-card rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto border border-white/90 space-y-4 shadow-sm">

@@ -9,8 +9,6 @@ use App\Models\Venue;
 use App\Services\MatchaDummyDataService;
 use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -93,20 +91,7 @@ class CommunityController extends Controller
             $filteredCommunities = $allCommunities->values();
         }
 
-        // Pagination: 6 items per page
-        $perPage = 6;
-        $currentPage = Paginator::resolveCurrentPage('page') ?: 1;
-        $totalItems = $filteredCommunities->count();
-        $currentItems = $filteredCommunities->slice(($currentPage - 1) * $perPage, $perPage)->values();
-
-        $communities = new LengthAwarePaginator(
-            $currentItems,
-            $totalItems,
-            $perPage,
-            $currentPage,
-            ['path' => Paginator::resolveCurrentPath(), 'pageName' => 'page']
-        );
-        $communities->withQueryString();
+        $communities = $filteredCommunities;
 
         return view('communities.index', compact(
             'communities',
@@ -481,7 +466,7 @@ class CommunityController extends Controller
 
         $logoUrl = $community->logo;
         if ($request->input('remove_logo') == '1' || $request->input('remove_logo') === true) {
-            if (!empty($community->logo)) {
+            if (! empty($community->logo)) {
                 try {
                     $storageService->deleteLogo($community->logo);
                 } catch (\Throwable $e) {
@@ -489,7 +474,7 @@ class CommunityController extends Controller
                 }
             }
             $logoUrl = null;
-        } elseif (!empty($validated['logo_url'])) {
+        } elseif (! empty($validated['logo_url'])) {
             $logoUrl = $validated['logo_url'];
         }
 
