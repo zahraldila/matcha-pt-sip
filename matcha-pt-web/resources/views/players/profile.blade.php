@@ -189,49 +189,51 @@
                         <p class="text-[10px] text-slate-400">Nomor kontak resmi untuk koordinasi &amp; notifikasi sistem.</p>
                     </div>
 
-                    <!-- Gender -->
-                    <div class="space-y-1 relative" id="wrapper_gender">
-                        <label class="block font-bold text-slate-800">
-                            Jenis Kelamin <span class="text-rose-500">*</span>
-                        </label>
-                        @php
-                            $currGender = old('gender', $player->gender ?? 'Male');
-                            $genderMap = [
-                                'Male' => 'Laki-laki',
-                                'Female' => 'Perempuan',
-                            ];
-                            $currGenderLabel = $genderMap[$currGender] ?? 'Laki-laki';
-                        @endphp
-                        <input type="hidden" id="genderInput" name="gender" value="{{ $currGender }}">
-                        <div class="relative">
-                            <button
-                                type="button"
-                                id="genderTrigger"
-                                onclick="toggleProfileCustomDropdown('gender', event)"
-                                class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
-                            >
-                                <span id="genderDisplay" class="truncate font-semibold">{{ $currGenderLabel }}</span>
-                                <i id="genderChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
-                            </button>
+                    @if(!$user->isAdmin())
+                        <!-- Gender -->
+                        <div class="space-y-1 relative" id="wrapper_gender">
+                            <label class="block font-bold text-slate-800">
+                                Jenis Kelamin <span class="text-rose-500">*</span>
+                            </label>
+                            @php
+                                $currGender = old('gender', $player->gender ?? 'Male');
+                                $genderMap = [
+                                    'Male' => 'Laki-laki',
+                                    'Female' => 'Perempuan',
+                                ];
+                                $currGenderLabel = $genderMap[$currGender] ?? 'Laki-laki';
+                            @endphp
+                            <input type="hidden" id="genderInput" name="gender" value="{{ $currGender }}">
+                            <div class="relative">
+                                <button
+                                    type="button"
+                                    id="genderTrigger"
+                                    onclick="toggleProfileCustomDropdown('gender', event)"
+                                    class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 focus:outline-none transition-all shadow-2xs text-left flex items-center justify-between cursor-pointer"
+                                >
+                                    <span id="genderDisplay" class="truncate font-semibold">{{ $currGenderLabel }}</span>
+                                    <i id="genderChevron" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 pointer-events-none"></i>
+                                </button>
 
-                            <div
-                                id="genderMenu"
-                                class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
-                                onclick="event.stopPropagation()"
-                            >
-                                @foreach($genderMap as $gVal => $gLabel)
-                                    <button
-                                        type="button"
-                                        onclick="selectProfileCustomOption('gender', '{{ $gVal }}', '{{ $gLabel }}')"
-                                        class="gender-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer {{ $currGender === $gVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
-                                        data-val="{{ $gVal }}"
-                                    >
-                                        <span>{{ $gLabel }}</span>
-                                    </button>
-                                @endforeach
+                                <div
+                                    id="genderMenu"
+                                    class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                    onclick="event.stopPropagation()"
+                                >
+                                    @foreach($genderMap as $gVal => $gLabel)
+                                        <button
+                                            type="button"
+                                            onclick="selectProfileCustomOption('gender', '{{ $gVal }}', '{{ $gLabel }}')"
+                                            class="gender-item-btn w-full px-3 py-2 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer {{ $currGender === $gVal ? 'bg-[#EBF8D8] text-[#063B00] font-bold border border-[#063B00]/15' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' }}"
+                                            data-val="{{ $gVal }}"
+                                        >
+                                            <span>{{ $gLabel }}</span>
+                                        </button>
+                                    @endforeach
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    @endif
 
                     @if(!$user->isAdmin())
                         <!-- Usia -->

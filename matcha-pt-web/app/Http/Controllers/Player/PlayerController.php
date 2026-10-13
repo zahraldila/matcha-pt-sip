@@ -81,7 +81,7 @@ class PlayerController extends Controller
                 'regex:/^[0-9]{9,15}$/',
                 'unique:tb_user,no_hp,'.$user->user_id.',user_id',
             ],
-            'gender' => 'required|in:Male,Female',
+            'gender' => $isAdmin ? 'nullable|in:Male,Female' : 'required|in:Male,Female',
             'usia' => $isAdmin ? 'nullable|integer|min:10|max:90' : 'required|integer|min:10|max:90',
             'level' => $isAdmin ? 'nullable|in:Newbie,Beginner,Intermediate,Advanced' : 'required|in:Newbie,Beginner,Intermediate,Advanced',
             'community_id' => 'nullable',
@@ -152,27 +152,32 @@ class PlayerController extends Controller
                 ->get();
 
             if ($matchingPlayers->isNotEmpty()) {
+                $playerData = [
+                    'user_id' => $user->user_id,
+                    'nama' => trim($request->nama),
+                    'email' => $cleanEmail,
+                    'no_hp' => $cleanNoHp,
+                    'usia' => $playerUsia,
+                    'level' => $playerLevel,
+                    'community_id' => $communityId,
+                    'foto' => $fotoUrl,
+                ];
+
+                if ($request->filled('gender')) {
+                    $playerData['gender'] = $request->gender;
+                }
+
                 Player::where('user_id', $user->user_id)
                     ->orWhere('email', $user->email)
                     ->orWhere('nama', $user->nama)
-                    ->update([
-                        'user_id' => $user->user_id,
-                        'nama' => trim($request->nama),
-                        'email' => $cleanEmail,
-                        'no_hp' => $cleanNoHp,
-                        'gender' => $request->gender,
-                        'usia' => $playerUsia,
-                        'level' => $playerLevel,
-                        'community_id' => $communityId,
-                        'foto' => $fotoUrl,
-                    ]);
+                    ->update($playerData);
             } else {
                 Player::create([
                     'user_id' => $user->user_id,
                     'community_id' => $communityId,
                     'nama' => trim($request->nama),
                     'usia' => $playerUsia,
-                    'gender' => $request->gender,
+                    'gender' => $request->input('gender') ?: 'Male',
                     'level' => $playerLevel,
                     'rating' => 1.00,
                     'no_hp' => $cleanNoHp,
