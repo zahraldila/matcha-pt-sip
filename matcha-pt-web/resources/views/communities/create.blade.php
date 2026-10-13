@@ -181,7 +181,7 @@
                                 <i id="targetLevelArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
                             </button>
 
-                            <div id="targetLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
+                            <div id="targetLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5" style="max-height: 240px; overflow-y: auto;"></div>
                         </div>
                     </div>
 
@@ -207,7 +207,7 @@
                                 <i id="statusKeanggotaanArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
                             </button>
 
-                            <div id="statusKeanggotaanMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
+                            <div id="statusKeanggotaanMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5" style="max-height: 240px; overflow-y: auto;"></div>
                         </div>
                     </div>
                 </div>
@@ -267,7 +267,7 @@
                                     <i id="homebaseVenueIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
                                 </button>
 
-                                <div id="homebaseVenueMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"></div>
+                                <div id="homebaseVenueMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-60 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5" style="max-height: 250px; overflow-y: auto; overscroll-behavior: contain;"></div>
                             </div>
                         </div>
                     </div>
@@ -469,7 +469,7 @@
                             <i id="quickSportArrow" class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform"></i>
                         </button>
 
-                        <div id="quickSportMenu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl ring-1 ring-black/5"></div>
+                        <div id="quickSportMenu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl ring-1 ring-black/5" style="max-height: 200px; overflow-y: auto;"></div>
                     </div>
                 </div>
 
@@ -500,7 +500,7 @@
                             <i id="quickCourtCountArrow" class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform"></i>
                         </button>
 
-                        <div id="quickCourtCountMenu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl ring-1 ring-black/5"></div>
+                        <div id="quickCourtCountMenu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl ring-1 ring-black/5" style="max-height: 200px; overflow-y: auto;"></div>
                     </div>
                 </div>
             </div>
@@ -962,7 +962,7 @@
                 newOpt.textContent = `${data.venue.nama_venue} (${cityName})`;
                 newOpt.selected = true;
                 venueSelect.appendChild(newOpt);
-                renderHomebaseVenueDropdown();
+                renderSelectDropdown('homebase_venue_select', 'homebaseVenueMenu', 'homebaseVenueSelected', null, 'Pilih Venue Homebase (Opsional)');
             }
 
             closeQuickAddVenueModal();
@@ -1007,11 +1007,41 @@
         if (!select || !menu || !label) return;
 
         menu.innerHTML = '';
+
+        // Jika dropdown homebase venue memiliki banyak pilihan, sediakan kolom pencarian sticky di bagian atas
+        if (menuId === 'homebaseVenueMenu' && select.options.length > 5) {
+            const searchBox = document.createElement('div');
+            searchBox.className = 'sticky -top-1.5 z-10 bg-white pt-1 pb-1.5 px-1 border-b border-slate-100 mb-1';
+            searchBox.innerHTML = `
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
+                    <input type="text" placeholder="Cari venue homebase..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 font-semibold placeholder:text-slate-400 focus:bg-white focus:border-[#063B00] focus:outline-none transition-all">
+                </div>
+            `;
+            const searchInput = searchBox.querySelector('input');
+            searchInput.onclick = (e) => e.stopPropagation();
+            searchInput.oninput = (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                const items = menu.querySelectorAll('.dropdown-item-btn');
+                items.forEach(btn => {
+                    const text = btn.textContent.toLowerCase();
+                    const isBlank = btn.getAttribute('data-value') === '';
+                    if (!query || text.includes(query) || isBlank) {
+                        btn.style.display = '';
+                    } else {
+                        btn.style.display = 'none';
+                    }
+                });
+            };
+            menu.appendChild(searchBox);
+        }
+
         Array.from(select.options).forEach(opt => {
             const btn = document.createElement('button');
             btn.type = 'button';
+            btn.setAttribute('data-value', opt.value);
             const isSelected = String(select.value) === String(opt.value);
-            btn.className = `w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
+            btn.className = `dropdown-item-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
                 isSelected && opt.value !== ''
                     ? 'bg-[#EBF8D8] text-[#063B00] font-bold'
                     : 'text-slate-700 hover:bg-[#F4FBEA] hover:text-[#063B00]'
@@ -1071,6 +1101,15 @@
                 if (currentItem.sectionId) {
                     const section = document.getElementById(currentItem.sectionId);
                     if (section) section.style.zIndex = '40';
+                }
+            }
+            if (menuId === 'homebaseVenueMenu') {
+                const searchInput = menu.querySelector('input');
+                if (searchInput) {
+                    searchInput.value = '';
+                    const items = menu.querySelectorAll('.dropdown-item-btn');
+                    items.forEach(btn => btn.style.display = '');
+                    setTimeout(() => searchInput.focus(), 60);
                 }
             }
         } else {
