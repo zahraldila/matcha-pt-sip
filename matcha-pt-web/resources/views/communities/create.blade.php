@@ -437,7 +437,8 @@
                         id="quickVenueName"
                         required
                         placeholder="Contoh: Matcha Padel Arena Dago"
-                        class="w-full h-[46px] bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200/90 hover:border-[#063B00] focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 rounded-2xl pl-10 pr-4 text-xs text-slate-900 font-semibold placeholder:text-slate-400 placeholder:font-normal focus:outline-none transition-all shadow-2xs"
+                        class="w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200/90 hover:border-[#063B00] focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 rounded-2xl pl-10 pr-4 py-3 text-xs text-slate-900 font-semibold placeholder:text-slate-400 placeholder:font-normal focus:outline-none transition-all shadow-2xs"
+                        style="height: 48px; min-height: 48px; box-sizing: border-box;"
                     />
                     <i class="fa-solid fa-building absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
                 </div>
@@ -463,7 +464,8 @@
                             type="button"
                             id="quickSportTrigger"
                             onclick="toggleDropdownMenu('quickSportMenu', 'quickSportArrow')"
-                            class="w-full h-[46px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/90 hover:border-[#063B00] rounded-2xl px-3.5 text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#A8E63A]/25 transition-all shadow-2xs cursor-pointer text-left"
+                            class="w-full flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/90 hover:border-[#063B00] rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#A8E63A]/25 transition-all shadow-2xs cursor-pointer text-left"
+                            style="height: 48px; min-height: 48px; box-sizing: border-box;"
                         >
                             <span id="quickSportSelected" class="truncate font-semibold text-slate-900">Padel</span>
                             <i id="quickSportArrow" class="fa-solid fa-chevron-down text-[11px] text-slate-400 transition-transform"></i>
@@ -494,7 +496,8 @@
                             type="button"
                             id="quickCourtCountTrigger"
                             onclick="toggleDropdownMenu('quickCourtCountMenu', 'quickCourtCountArrow')"
-                            class="w-full h-[46px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/90 hover:border-[#063B00] rounded-2xl px-3.5 text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#A8E63A]/25 transition-all shadow-2xs cursor-pointer text-left"
+                            class="w-full flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/90 hover:border-[#063B00] rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#A8E63A]/25 transition-all shadow-2xs cursor-pointer text-left"
+                            style="height: 48px; min-height: 48px; box-sizing: border-box;"
                         >
                             <span id="quickCourtCountSelected" class="truncate font-semibold text-slate-900">2 Courts</span>
                             <i id="quickCourtCountArrow" class="fa-solid fa-chevron-down text-[11px] text-slate-400 transition-transform"></i>
@@ -515,7 +518,8 @@
                         type="text"
                         id="quickVenueCity"
                         placeholder="Contoh: Bandung"
-                        class="w-full h-[46px] bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200/90 hover:border-[#063B00] focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 rounded-2xl px-3.5 text-xs text-slate-900 font-semibold placeholder:text-slate-400 placeholder:font-normal focus:outline-none transition-all shadow-2xs"
+                        class="w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200/90 hover:border-[#063B00] focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold placeholder:text-slate-400 placeholder:font-normal focus:outline-none transition-all shadow-2xs"
+                        style="height: 48px; min-height: 48px; box-sizing: border-box;"
                     />
                 </div>
                 <div class="space-y-1.5">
@@ -526,7 +530,8 @@
                         type="text"
                         id="quickVenueAddress"
                         placeholder="Contoh: Jl. Ir. H. Juanda No. 10"
-                        class="w-full h-[46px] bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200/90 hover:border-[#063B00] focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 rounded-2xl px-3.5 text-xs text-slate-900 font-semibold placeholder:text-slate-400 placeholder:font-normal focus:outline-none transition-all shadow-2xs"
+                        class="w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200/90 hover:border-[#063B00] focus:border-[#063B00] focus:ring-2 focus:ring-[#A8E63A]/25 rounded-2xl px-4 py-3 text-xs text-slate-900 font-semibold placeholder:text-slate-400 placeholder:font-normal focus:outline-none transition-all shadow-2xs"
+                        style="height: 48px; min-height: 48px; box-sizing: border-box;"
                     />
                 </div>
             </div>
@@ -550,7 +555,8 @@
                 <button
                     type="submit"
                     id="btnSubmitQuickVenue"
-                    class="w-full h-[44px] rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                    class="w-full rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-black text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                    style="height: 46px; min-height: 46px;"
                 >
                     <i class="fa-solid fa-floppy-disk text-xs text-[#A8E63A]"></i>
                     <span>Simpan &amp; Pilih Venue</span>
@@ -558,7 +564,8 @@
                 <button
                     type="button"
                     onclick="closeQuickAddVenueModal()"
-                    class="w-full h-[40px] rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors cursor-pointer flex items-center justify-center"
+                    class="w-full rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors cursor-pointer flex items-center justify-center"
+                    style="height: 42px; min-height: 42px;"
                 >
                     Batal
                 </button>
