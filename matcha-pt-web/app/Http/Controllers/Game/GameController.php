@@ -447,13 +447,30 @@ class GameController extends Controller
                 $query->where('nama', 'ilike', "%{$search}%");
             })
             ->orderBy('nama')
-            ->limit(20)
             ->get([
                 'player_id',
+                'user_id',
                 'nama',
                 'gender',
                 'level',
-            ]);
+            ])
+            ->unique(function ($player) {
+                if ($player->user_id !== null) {
+                    return 'account:'.$player->user_id;
+                }
+
+                $normalizedName = mb_strtolower(trim(preg_replace('/\s+/', ' ', (string) $player->nama)));
+
+                return 'guest:'.$normalizedName;
+            })
+            ->take(20)
+            ->map(fn ($player) => [
+                'player_id' => $player->player_id,
+                'nama' => $player->nama,
+                'gender' => $player->gender,
+                'level' => $player->level,
+            ])
+            ->values();
 
         return response()->json($players);
     }
