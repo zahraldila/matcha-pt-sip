@@ -525,13 +525,25 @@ class ScoringController extends Controller
             ]);
         }
 
-        if ($status === 'completed') {
-            $scoringSystemName = SessionModel::where('session_id', $gameId)->value('scoring_system')
-                ?? 'Total of 3';
-            $scoringSystem = ScoringService::detectScoringSystem($scoringSystemName);
-            $gamesA = $request->integer('games_a', 0);
-            $gamesB = $request->integer('games_b', 0);
+        $scoringSystemName = SessionModel::where('session_id', $gameId)->value('scoring_system')
+            ?? 'Total of 3';
+        $scoringSystem = ScoringService::detectScoringSystem($scoringSystemName);
+        $gamesA = $request->integer('games_a', 0);
+        $gamesB = $request->integer('games_b', 0);
 
+        // Validasi ketidaksesuaian data: total skor tidak boleh melebihi N pada Total Of N
+        if (($scoringSystem['is_total_of'] ?? false) && ($request->has('games_a') || $request->has('games_b'))) {
+            $maxAllowed = (int) ($scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? 3));
+            if (($gamesA + $gamesB) > $maxAllowed) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'data_mismatch',
+                    'message' => "Ketidaksesuaian data: total skor ({$gamesA}+{$gamesB}=" . ($gamesA + $gamesB) . ") melebihi batas Total Of {$maxAllowed}.",
+                ], 422);
+            }
+        }
+
+        if ($status === 'completed') {
             if (! $isWalkover && ! ScoringService::isMatchCompleted($gamesA, $gamesB, $scoringSystem)) {
                 return response()->json([
                     'success' => false,
@@ -2036,20 +2048,20 @@ class ScoringController extends Controller
                     if (str_contains($format, 'team') && count($participants) >= 4 && count($participants) % 2 === 0) {
                         $teamService = new TeamAmericanoService;
                         $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
-                        $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
+                        $roundCount = ($scoringSystem['is_sets'] && ! ($scoringSystem['is_total_of'] ?? false)) ? $scoringSystem['max_sets'] : null;
                         $drawingData = $teamService->generateTeamRounds($participants, $courtCount, null, $roundCount);
                         $rounds = $drawingData['rounds'] ?? [];
                     } else {
                         // Gunakan jenis_permainan dari session agar Single/Double benar
                         $americanoService = new AmericanoService;
                         $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
-                        $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
+                        $roundCount = ($scoringSystem['is_sets'] && ! ($scoringSystem['is_total_of'] ?? false)) ? $scoringSystem['max_sets'] : null;
                         $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan ?? 'Double');
                     }
                 } catch (\Throwable $e) {
                     $americanoService = new AmericanoService;
                     $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
-                    $roundCount = $scoringSystem['is_sets'] ? $scoringSystem['max_sets'] : 1;
+                    $roundCount = ($scoringSystem['is_sets'] && ! ($scoringSystem['is_total_of'] ?? false)) ? $scoringSystem['max_sets'] : null;
                     $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan ?? 'Double');
                 }
             }
@@ -2166,11 +2178,13 @@ class ScoringController extends Controller
     private function getRoundAccess(array $game, array $scoringSystem, array $savedScores): array
     {
         $drawingRounds = ! empty($game['drawing']) ? array_keys($game['drawing']) : [];
-        if ($scoringSystem['is_sets']) {
-            $numSets = max(count($drawingRounds), (int) ($scoringSystem['max_sets'] ?? 1));
-            $roundKeys = array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, $numSets));
+        if (! empty($drawingRounds)) {
+            $roundKeys = $drawingRounds;
+        } elseif ($scoringSystem['is_sets'] && ! ($scoringSystem['is_total_of'] ?? false)) {
+            $numSets = (int) ($scoringSystem['max_sets'] ?? 1);
+            $roundKeys = array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, max(1, $numSets)));
         } else {
-            $roundKeys = ! empty($drawingRounds) ? $drawingRounds : ['round_1'];
+            $roundKeys = ['round_1'];
         }
         $roundAccess = [];
         $previousRoundCompleted = true;
@@ -2385,8 +2399,11 @@ class ScoringController extends Controller
      */
     protected function applyPointDeltaToState(array $currentState, string $team, array $scoringSystem): array
     {
-        // Jika match sudah selesai, tambahan skor/point delta diabaikan
-        if (($currentState['status'] ?? '') === 'completed') {
+        $gamesA = (int) ($currentState['games_a'] ?? ($currentState['score_a'] ?? 0));
+        $gamesB = (int) ($currentState['games_b'] ?? ($currentState['score_b'] ?? 0));
+
+        // Jika match sudah selesai atau sudah memenuhi batas game, tambahan skor/point delta diabaikan
+        if (($currentState['status'] ?? '') === 'completed' || ScoringService::isMatchCompleted($gamesA, $gamesB, $scoringSystem)) {
             return $currentState;
         }
 
@@ -2395,8 +2412,6 @@ class ScoringController extends Controller
         $idxB = (int) ($currentState['idx_b'] ?? 0);
         $isDeuce = (bool) ($currentState['is_deuce'] ?? false);
         $advantage = $currentState['advantage'] ?? null;
-        $gamesA = (int) ($currentState['games_a'] ?? ($currentState['score_a'] ?? 0));
-        $gamesB = (int) ($currentState['games_b'] ?? ($currentState['score_b'] ?? 0));
         $setsA = (int) ($currentState['sets_a'] ?? 0);
         $setsB = (int) ($currentState['sets_b'] ?? 0);
         $status = $currentState['status'] ?? 'in_progress';
@@ -2480,9 +2495,10 @@ class ScoringController extends Controller
         }
 
         // Cek apakah set/match selesai
-        $winnerTeam = ScoringService::determineMatchWinner($gamesA, $gamesB, $scoringSystem);
-        if ($winnerTeam !== null) {
+        $isCompleted = ScoringService::isMatchCompleted($gamesA, $gamesB, $scoringSystem);
+        if ($isCompleted) {
             $status = 'completed';
+            $winnerTeam = ScoringService::determineMatchWinner($gamesA, $gamesB, $scoringSystem);
             $setsA = ($winnerTeam === 'Team A') ? 1 : 0;
             $setsB = ($winnerTeam === 'Team B') ? 1 : 0;
         } else {
@@ -2528,7 +2544,7 @@ class ScoringController extends Controller
             $explicitWinner = 'Team B';
         }
 
-        $winner = $explicitWinner ?: (ScoringService::determineMatchWinner($gamesA, $gamesB, $scoringSystem) ?: ($gamesA >= $gamesB ? 'Team A' : 'Team B'));
+        $winner = $explicitWinner ?: ScoringService::determineMatchWinner($gamesA, $gamesB, $scoringSystem);
         $setsA = ($winner === 'Team A') ? 1 : 0;
         $setsB = ($winner === 'Team B') ? 1 : 0;
 

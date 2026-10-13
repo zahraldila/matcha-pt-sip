@@ -80,11 +80,13 @@
         // Team Americano menggunakan istilah 'Set' (pasangan tetap), sedangkan Americano menggunakan 'Ronde' (pasangan berganti)
         $unitTabLabel = $isTeamFormat ? 'Set' : 'Ronde';
         $drawingRounds = !empty($game['drawing']) ? array_keys($game['drawing']) : [];
-        if ($scoringSystem['is_sets']) {
+        if (!empty($drawingRounds)) {
+            $allRoundsList = $drawingRounds;
+        } elseif ($scoringSystem['is_sets'] && !($scoringSystem['is_total_of'] ?? false)) {
             $numSets = max(count($drawingRounds), (int) ($scoringSystem['max_sets'] ?? 1));
             $allRoundsList = array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, $numSets));
         } else {
-            $allRoundsList = !empty($drawingRounds) ? $drawingRounds : ['round_1'];
+            $allRoundsList = ['round_1'];
         }
         $currentRIndex = array_search($activeRound, $allRoundsList);
         $nextRoundKey = ($currentRIndex !== false && isset($allRoundsList[$currentRIndex + 1])) ? $allRoundsList[$currentRIndex + 1] : null;
@@ -306,7 +308,11 @@
                     <i class="fa-solid fa-trophy text-[11px]"></i> {{ $unitTabLabel }} {{ $activeRoundNum }} SCORE
                 </span>
                 <span class="font-medium text-slate-400">
-                    {{ $scoringSystem['is_sets'] ? 'Format: ' : 'Target: ' }}<strong class="text-white">{{ $scoringSystem['is_sets'] ? ('Total of ' . $scoringSystem['max_sets'] . ' Set (Semua set dimainkan)') : ($scoringSystem['target_games'] . ' Games (Tuntas)') }}</strong>
+                    @if($scoringSystem['is_total_of'] ?? false)
+                        Format: <strong class="text-white">Total of {{ $scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? 3) }} &mdash; total {{ $scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? 3) }} game</strong>
+                    @else
+                        Target: <strong class="text-white">First to {{ $scoringSystem['target_games'] ?? 8 }} Games (Tuntas)</strong>
+                    @endif
                 </span>
             </div>
 
@@ -611,11 +617,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
     // ── Config dari PHP ──────────────────────────────────────────────────────
-    const SCORING_TYPE   = '{{ $scoringSystem['type'] }}';
-    const IS_SETS        = {{ $scoringSystem['is_sets'] ? 'true' : 'false' }};
-    const TARGET_SETS    = {{ $scoringSystem['target_sets'] ?? 2 }};
-    const MAX_SETS       = {{ $scoringSystem['max_sets'] ?? 3 }};
-    const TARGET_GAMES   = {{ $scoringSystem['target_games'] ?? 6 }};
+    const SCORING_TYPE       = '{{ $scoringSystem['type'] }}';
+    const IS_TOTAL_OF        = {{ ($scoringSystem['is_total_of'] ?? false) ? 'true' : 'false' }};
+    const TARGET_TOTAL_GAMES = {{ (int) ($scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? 3)) }};
+    const IS_SETS            = {{ $scoringSystem['is_sets'] ? 'true' : 'false' }};
+    const TARGET_SETS        = {{ $scoringSystem['target_sets'] ?? 1 }};
+    const MAX_SETS           = {{ $scoringSystem['max_sets'] ?? 1 }};
+    const TARGET_GAMES       = {{ (int) ($scoringSystem['target_games'] ?? 8) }};
     const GAME_ID        = {{ $game['id'] }};
     const ACTIVE_ROUND   = '{{ $activeRound }}';
     const ACTIVE_ROUND_NUM = '{{ preg_replace('/[^0-9]/', '', $activeRound) ?: '1' }}';
@@ -1021,17 +1029,13 @@
     }
 
     function determineWinner(gamesA, gamesB) {
-        if (IS_SETS) {
-            // Sebelum mencapai 5-5: pertama mencapai 6 memenangkan set (6-0 s/d 6-4)
-            if (gamesA === 6 && gamesB <= 4) return 'Team A';
-            if (gamesB === 6 && gamesA <= 4) return 'Team B';
-            // Jika mencapai 5-5: target berubah menjadi 7 (7-5 atau 7-6)
-            // Catatan: 5-5, 6-5, 5-6, dan 6-6 belum selesai
-            if (gamesA === 7 && (gamesB === 5 || gamesB === 6)) return 'Team A';
-            if (gamesB === 7 && (gamesA === 5 || gamesA === 6)) return 'Team B';
-            if (gamesA > 7 && gamesA > gamesB) return 'Team A';
-            if (gamesB > 7 && gamesB > gamesA) return 'Team B';
-            return null;
+        if (IS_TOTAL_OF) {
+            if ((gamesA + gamesB) !== TARGET_TOTAL_GAMES) {
+                return null;
+            }
+            if (gamesA > gamesB) return 'Team A';
+            if (gamesB > gamesA) return 'Team B';
+            return null; // Draw / Seri (tanpa pemenang tunggal)
         } else {
             if (TARGET_GAMES > 0) {
                 if (gamesA >= TARGET_GAMES && gamesA > gamesB) return 'Team A';
@@ -1043,14 +1047,21 @@
     }
 
     function isSetFinished(gamesA, gamesB) {
-        return determineWinner(gamesA, gamesB) !== null;
+        if (IS_TOTAL_OF) {
+            return (gamesA + gamesB) === TARGET_TOTAL_GAMES;
+        }
+        if (TARGET_GAMES > 0) {
+            return (gamesA >= TARGET_GAMES || gamesB >= TARGET_GAMES);
+        }
+        return false;
     }
 
     function checkSetWinner(cIdx, clientSeq = null, tClick = null, baseVersion = 0, teamWon = null, eventId = null) {
         let st = courtsState[cIdx];
-        let setWon = determineWinner(st.gamesA, st.gamesB);
+        let isFinished = isSetFinished(st.gamesA, st.gamesB);
 
-        if (setWon) {
+        if (isFinished) {
+            let setWon = determineWinner(st.gamesA, st.gamesB);
             st.matchDone = true;
             st.completionSavePending = true;
             st.completionSaveSucceeded = false;
@@ -1068,7 +1079,7 @@
             const baseVersionAuto = st.serverVersion || 0;
             const compEventId = 'evt_auto_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
             
-            queueScoreSave(cIdx, 'completed', clientSeqAuto, tClickAuto, compEventId, 'auto_completion', (setWon === 'Team A' ? 'A' : 'B'), baseVersionAuto);
+            queueScoreSave(cIdx, 'completed', clientSeqAuto, tClickAuto, compEventId, 'auto_completion', (setWon === 'Team A' ? 'A' : (setWon === 'Team B' ? 'B' : null)), baseVersionAuto);
         }
     }
 
@@ -1076,18 +1087,10 @@
         let st = courtsState[cIdx];
         if (st.matchDone) return;
         
-        const setWon = determineWinner(st.gamesA, st.gamesB);
-        if (!setWon) {
-            if (IS_SETS) {
-                if (st.gamesA === 5 && st.gamesB === 5) {
-                    showToast('Skor 5–5: Target kemenangan berubah menjadi 7 (belum selesai).');
-                } else if ((st.gamesA === 6 && st.gamesB === 5) || (st.gamesA === 5 && st.gamesB === 6)) {
-                    showToast('Skor 6–5: Pertandingan belum selesai (lanjut hingga 7–5 atau tie-break 7–6).');
-                } else if (st.gamesA === 6 && st.gamesB === 6) {
-                    showToast('Skor 6–6: Pertandingan belum selesai (lanjut hingga 7–6 atau 6–7).');
-                } else {
-                    showToast('Syarat kemenangan set belum tercapai (minimal 6 game atau 7 game setelah 5–5).');
-                }
+        const isFinished = isSetFinished(st.gamesA, st.gamesB);
+        if (!isFinished) {
+            if (IS_TOTAL_OF) {
+                showToast(`Total ${TARGET_TOTAL_GAMES} game belum tercapai (skor saat ini: ${st.gamesA}–${st.gamesB}, total: ${st.gamesA + st.gamesB}/${TARGET_TOTAL_GAMES}).`);
             } else {
                 showToast(`Target ${TARGET_GAMES} Games belum dicapai.`);
             }
@@ -1097,25 +1100,25 @@
         const conf = confirm(`Apakah Anda yakin ingin menyelesaikan dan mengunci skor pada ${courtLabel}?`);
         if (!conf) return;
 
+        const setWon = determineWinner(st.gamesA, st.gamesB);
         const tClick = performance.now();
         st.lastLocalActionTime = Date.now();
         st.localVersion = (st.localVersion || 0) + 1;
-        st.clientSeq = (st.clientSeq || 0) + 1; // Increment SATU KALI per aksi manual
+        st.clientSeq = (st.clientSeq || 0) + 1;
         const clientSeq = st.clientSeq;
         const baseVersion = st.serverVersion || 0;
-        const winnerTeam = setWon;
 
         st.matchDone = true;
         st.completionSavePending = true;
         st.completionSaveSucceeded = false;
-        st.winnerTeam = winnerTeam;
-        st.setsA = (winnerTeam === 'Team A') ? 1 : 0;
-        st.setsB = (winnerTeam === 'Team B') ? 1 : 0;
+        st.winnerTeam = setWon;
+        st.setsA = (setWon === 'Team A') ? 1 : 0;
+        st.setsB = (setWon === 'Team B') ? 1 : 0;
         updateDisplay(cIdx);
         syncRoundCompletionStatus();
 
         const compEventId = 'evt_manual_' + CLIENT_ID + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
-        queueScoreSave(cIdx, 'completed', clientSeq, tClick, compEventId, 'completion', (winnerTeam === 'Team A' ? 'A' : 'B'), baseVersion);
+        queueScoreSave(cIdx, 'completed', clientSeq, tClick, compEventId, 'manual_completion', (setWon === 'Team A' ? 'A' : (setWon === 'Team B' ? 'B' : null)), baseVersion);
         showToast(`Skor ${courtLabel} berhasil dikunci!`);
     }
 
@@ -1281,8 +1284,9 @@
         const courtLabel = st.courtName || ('Court ' + st.courtNum);
         const scoreUnit = IS_SETS ? 'Games' : 'Poin';
 
+        const winnerLabel = winner ? (winner === 'Team A' ? 'Tim A Menang' : (winner === 'Team B' ? 'Tim B Menang' : winner)) : 'Seri';
         if (msg) msg.textContent = `🏆 ${courtLabel} telah selesai pada ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM}!`;
-        if (subMsg) subMsg.innerHTML = `Skor Akhir: <strong>${st.gamesA} &mdash; ${st.gamesB} ${scoreUnit}</strong> (${winner}) &bull; Poin telah dicatat ke klasemen.`;
+        if (subMsg) subMsg.innerHTML = `Skor Akhir: <strong>${st.gamesA} &mdash; ${st.gamesB} ${scoreUnit}</strong> (${winnerLabel}) &bull; Poin telah dicatat ke klasemen.`;
         if (banner) banner.classList.remove('hidden');
 
         const bA = document.getElementById('btnAddA_' + cIdx);

@@ -158,57 +158,32 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                    <!-- Target Level Member -->
-                    <div class="space-y-1.5 relative" id="targetLevelDropdownContainer">
-                        <label class="block font-bold text-slate-800">Target Level Member</label>
-                        <div class="relative">
-                            <select id="targetLevelSelect" name="target_level" class="sr-only">
-                                <option value="All Levels" {{ old('target_level', 'All Levels') === 'All Levels' ? 'selected' : '' }}>Semua Level (Newbie s/d Advanced)</option>
-                                <option value="Beginners" {{ old('target_level') === 'Beginners' ? 'selected' : '' }}>Fokus Newbie & Beginner</option>
-                                <option value="Intermediate" {{ old('target_level') === 'Intermediate' ? 'selected' : '' }}>Intermediate & Competitive</option>
-                            </select>
+                <!-- Hidden input status keanggotaan default Open -->
+                <input type="hidden" name="status_keanggotaan" value="Open">
 
-                            <button
-                                type="button"
-                                id="targetLevelTrigger"
-                                onclick="toggleDropdownMenu('targetLevelMenu', 'targetLevelArrow')"
-                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left"
-                            >
-                                <span id="targetLevelSelected" class="text-xs font-bold text-slate-900 truncate">
-                                    {{ old('target_level') === 'Beginners' ? 'Fokus Newbie & Beginner' : (old('target_level') === 'Intermediate' ? 'Intermediate & Competitive' : 'Semua Level (Newbie s/d Advanced)') }}
-                                </span>
-                                <i id="targetLevelArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
-                            </button>
+                <!-- Target Level Member -->
+                <div class="space-y-1.5 pt-1 relative" id="targetLevelDropdownContainer">
+                    <label class="block font-bold text-slate-800">Target Level Member</label>
+                    <div class="relative">
+                        <select id="targetLevelSelect" name="target_level" class="sr-only">
+                            <option value="All Levels" {{ old('target_level', 'All Levels') === 'All Levels' ? 'selected' : '' }}>Semua Level (Newbie s/d Advanced)</option>
+                            <option value="Beginners" {{ old('target_level') === 'Beginners' ? 'selected' : '' }}>Fokus Newbie & Beginner</option>
+                            <option value="Intermediate" {{ old('target_level') === 'Intermediate' ? 'selected' : '' }}>Intermediate & Competitive</option>
+                        </select>
 
-                            <div id="targetLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5" style="max-height: 240px; overflow-y: auto;"></div>
-                        </div>
-                    </div>
+                        <button
+                            type="button"
+                            id="targetLevelTrigger"
+                            onclick="toggleDropdownMenu('targetLevelMenu', 'targetLevelArrow')"
+                            class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left"
+                        >
+                            <span id="targetLevelSelected" class="text-xs font-bold text-slate-900 truncate">
+                                {{ old('target_level') === 'Beginners' ? 'Fokus Newbie & Beginner' : (old('target_level') === 'Intermediate' ? 'Intermediate & Competitive' : 'Semua Level (Newbie s/d Advanced)') }}
+                            </span>
+                            <i id="targetLevelArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                        </button>
 
-                    <!-- Status Keanggotaan -->
-                    <div class="space-y-1.5 relative" id="statusKeanggotaanDropdownContainer">
-                        <label class="block font-bold text-slate-800">Status Keanggotaan</label>
-                        <div class="relative">
-                            <select id="statusKeanggotaanSelect" name="status_keanggotaan" class="sr-only">
-                                <option value="Open" {{ old('status_keanggotaan', old('membership_status', 'Open')) === 'Open' ? 'selected' : '' }}>Terbuka untuk Umum (Free Join)</option>
-                                <option value="Approval" {{ old('status_keanggotaan', old('membership_status')) === 'Approval' ? 'selected' : '' }}>Memerlukan Persetujuan Admin</option>
-                                <option value="Private" {{ old('status_keanggotaan', old('membership_status')) === 'Private' ? 'selected' : '' }}>Undangan Khusus (Private)</option>
-                            </select>
-
-                            <button
-                                type="button"
-                                id="statusKeanggotaanTrigger"
-                                onclick="toggleDropdownMenu('statusKeanggotaanMenu', 'statusKeanggotaanArrow')"
-                                class="w-full h-[48px] flex items-center justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-[#063B00] rounded-2xl px-4 text-slate-900 font-semibold transition-all shadow-2xs cursor-pointer text-left"
-                            >
-                                <span id="statusKeanggotaanSelected" class="text-xs font-bold text-slate-900 truncate">
-                                    {{ old('status_keanggotaan', old('membership_status')) === 'Approval' ? 'Memerlukan Persetujuan Admin' : (old('status_keanggotaan', old('membership_status')) === 'Private' ? 'Undangan Khusus (Private)' : 'Terbuka untuk Umum (Free Join)') }}
-                                </span>
-                                <i id="statusKeanggotaanArrow" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
-                            </button>
-
-                            <div id="statusKeanggotaanMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5" style="max-height: 240px; overflow-y: auto;"></div>
-                        </div>
+                        <div id="targetLevelMenu" class="hidden absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5" style="max-height: 240px; overflow-y: auto;"></div>
                     </div>
                 </div>
             </div>
@@ -988,7 +963,6 @@
 
     const customDropdownList = [
         { selectId: 'targetLevelSelect', menuId: 'targetLevelMenu', labelId: 'targetLevelSelected', arrowId: 'targetLevelArrow', containerId: 'targetLevelDropdownContainer', sectionId: 'section2Container' },
-        { selectId: 'statusKeanggotaanSelect', menuId: 'statusKeanggotaanMenu', labelId: 'statusKeanggotaanSelected', arrowId: 'statusKeanggotaanArrow', containerId: 'statusKeanggotaanDropdownContainer', sectionId: 'section2Container' },
         { selectId: 'homebase_venue_select', menuId: 'homebaseVenueMenu', labelId: 'homebaseVenueSelected', arrowId: 'homebaseVenueIcon', containerId: 'homebaseVenueDropdownContainer', sectionId: 'section3Container', defaultPlaceholder: 'Pilih Venue Homebase (Opsional)' },
         { selectId: 'quickVenueSport', menuId: 'quickSportMenu', labelId: 'quickSportSelected', arrowId: 'quickSportArrow', containerId: 'quickSportDropdownContainer' },
         { selectId: 'quickVenueCourtCount', menuId: 'quickCourtCountMenu', labelId: 'quickCourtCountSelected', arrowId: 'quickCourtCountArrow', containerId: 'quickCourtCountDropdownContainer' },

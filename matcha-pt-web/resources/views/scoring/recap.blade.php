@@ -168,10 +168,16 @@
                 if ($mWinner === 'A') $mWinner = 'Team A';
                 if ($mWinner === 'B') $mWinner = 'Team B';
                 if ($isDone && !$mWinner) {
-                    if ($isSets) {
-                        $mWinner = ($mScore['sets_a'] ?? 0) >= ($mScore['sets_b'] ?? 0) ? 'Team A' : 'Team B';
+                    $sa = (int) ($mScore['sets_a'] ?? 0);
+                    $sb = (int) ($mScore['sets_b'] ?? 0);
+                    $ga = (int) ($mScore['games_a'] ?? 0);
+                    $gb = (int) ($mScore['games_b'] ?? 0);
+                    if ($isSets && ($sa !== $sb)) {
+                        $mWinner = $sa > $sb ? 'Team A' : 'Team B';
+                    } elseif ($ga !== $gb) {
+                        $mWinner = $ga > $gb ? 'Team A' : 'Team B';
                     } else {
-                        $mWinner = ($mScore['games_a'] ?? 0) >= ($mScore['games_b'] ?? 0) ? 'Team A' : 'Team B';
+                        $mWinner = null; // Draw / Seri
                     }
                 }
                 $mTeamA = $m['team_a_names'] ?? ($m['teamA_names'] ?? ($m['team_a'] ?? []));
