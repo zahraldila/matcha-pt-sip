@@ -174,10 +174,10 @@ class AmericanoService
             $teamBNames = $matches[0]['team_b_names'];
             $restingNames = array_map(fn ($p) => $p['name'], $restingPlayers);
 
-            $roundName = match ($r) {
-                1 => 'Ronde 1 (Pembuka)',
-                2 => 'Ronde 2 (Rotasi)',
-                3 => 'Ronde 3 (Final)',
+            $roundName = match (true) {
+                $r === 1 => 'Ronde 1 (Pembuka)',
+                $r === $totalRounds => "Ronde {$r} (Final)",
+                $r === 2 => 'Ronde 2 (Rotasi)',
                 default => "Ronde {$r}",
             };
 
@@ -337,10 +337,10 @@ class AmericanoService
             $teamBNames = $primaryMatch['team_b_names'];
             $restingNames = array_map(fn ($p) => $p['name'], $restingPlayers);
 
-            $roundName = match ($r) {
-                1 => 'Ronde 1 (Pembuka)',
-                2 => 'Ronde 2 (Rotasi)',
-                3 => 'Ronde 3 (Final)',
+            $roundName = match (true) {
+                $r === 1 => 'Ronde 1 (Pembuka)',
+                $r === $totalRounds => "Ronde {$r} (Final)",
+                $r === 2 => 'Ronde 2 (Rotasi)',
                 default => "Ronde {$r}",
             };
 

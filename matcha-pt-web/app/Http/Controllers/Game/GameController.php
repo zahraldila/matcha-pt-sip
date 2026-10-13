@@ -1351,7 +1351,19 @@ class GameController extends Controller
             $cachedPlayerNames = array_keys($cachedPlayers);
             sort($cachedPlayerNames);
 
-            if (! $isLocked && $currentParticipantNames !== $cachedPlayerNames) {
+            $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
+            $isSingleMode = strtolower($drawingMode) === 'single';
+            $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
+            $expectedRounds = ScoringService::determineSessionRoundCount(
+                $scoringSystem,
+                count($participants),
+                $isTeam,
+                $isSingleMode,
+                $dbSession->waktu_session ?? null,
+                $courtCount
+            );
+
+            if (! $isLocked && ($currentParticipantNames !== $cachedPlayerNames || ($expectedRounds !== null && count($savedSchedule['rounds']) !== $expectedRounds))) {
                 $isCacheStale = true;
             }
         }
@@ -1368,18 +1380,18 @@ class GameController extends Controller
             $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
             $isSingleMode = strtolower($drawingMode) === 'single';
             $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
+            $roundCount = ScoringService::determineSessionRoundCount(
+                $scoringSystem,
+                count($participants),
+                $isTeam,
+                $isSingleMode,
+                $dbSession->waktu_session ?? null,
+                $courtCount
+            );
 
             try {
                 if ($isTeam) {
                     // Team Americano Engine (Fixed Pairs). Pengacakan hanya mengacak urutan tim, bukan anggota tim!
-                    $roundCount = ScoringService::determineSessionRoundCount(
-                        $scoringSystem,
-                        count($participants),
-                        true,
-                        false,
-                        $dbSession->waktu_session ?? null,
-                        $courtCount
-                    );
                     $teamService = new TeamAmericanoService;
                     $drawingData = $teamService->generateTeamRounds($participants, $courtCount, $seed, $roundCount);
                     $rounds = $drawingData['rounds'] ?? [];
@@ -1392,14 +1404,6 @@ class GameController extends Controller
                     foreach ($pKeys as $k) {
                         $shuffled[] = $participants[$k];
                     }
-                    $roundCount = ScoringService::determineSessionRoundCount(
-                        $scoringSystem,
-                        count($participants),
-                        false,
-                        $isSingleMode,
-                        $dbSession->waktu_session ?? null,
-                        $courtCount
-                    );
                     $americanoService = new AmericanoService;
                     $rounds = $americanoService->generateRounds($shuffled, $courtCount, $roundCount, $drawingMode);
                     $drawingData = [

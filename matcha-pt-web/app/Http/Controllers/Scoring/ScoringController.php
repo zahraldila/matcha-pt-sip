@@ -531,14 +531,13 @@ class ScoringController extends Controller
         $gamesA = $request->integer('games_a', 0);
         $gamesB = $request->integer('games_b', 0);
 
-        // Validasi ketidaksesuaian data: total skor tidak boleh melebihi N pada Total Of N
+        // Validasi ketidaksesuaian data: skor tidak boleh melebihi batas set Total Of
         if (($scoringSystem['is_total_of'] ?? false) && ($request->has('games_a') || $request->has('games_b'))) {
-            $maxAllowed = (int) ($scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? 3));
-            if (($gamesA + $gamesB) > $maxAllowed) {
+            if ($gamesA > 7 || $gamesB > 7 || ($gamesA === 7 && $gamesB < 5) || ($gamesB === 7 && $gamesA < 5)) {
                 return response()->json([
                     'success' => false,
                     'error' => 'data_mismatch',
-                    'message' => "Ketidaksesuaian data: total skor ({$gamesA}+{$gamesB}=".($gamesA + $gamesB).") melebihi batas Total Of {$maxAllowed}.",
+                    'message' => "Ketidaksesuaian data: skor ({$gamesA}–{$gamesB}) melebihi batas aturan set Total Of (maksimal 6 game menang, atau 7 jika 5–5).",
                 ], 422);
             }
         }
@@ -1216,6 +1215,14 @@ class ScoringController extends Controller
         $game = $this->getGameData($gameId);
         $scoringSystemName = $request->input('scoring_system', $game['scoring_system'] ?? 'Total of 3');
         $system = ScoringService::detectScoringSystem($scoringSystemName);
+
+        $allRoundKeys = array_keys($game['drawing'] ?? []);
+        $lastRoundKey = ! empty($allRoundKeys) ? end($allRoundKeys) : $round;
+        if (! empty($allRoundKeys) && $round !== $lastRoundKey) {
+            return redirect()->back()->withErrors([
+                'score' => 'Sesi belum mencapai ronde terakhir. Selesaikan seluruh ronde pertandingan terlebih dahulu.',
+            ]);
+        }
 
         // Ambil data skor dari request atau fallback ke cache
         $cacheKey = "scoring.game_{$gameId}";
@@ -2107,7 +2114,19 @@ class ScoringController extends Controller
                 $cachedPlayerNames = array_keys($cachedPlayers);
                 sort($cachedPlayerNames);
 
-                if (! $isLocked && $currentParticipantNames !== $cachedPlayerNames) {
+                $isTeam = str_contains($format, 'team');
+                $isSingle = strtolower($sessionJenisPermainan ?? '') === 'single';
+                $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
+                $expectedRounds = ScoringService::determineSessionRoundCount(
+                    $scoringSystem,
+                    count($participants),
+                    $isTeam,
+                    $isSingle,
+                    $dbSession->waktu_session ?? null,
+                    $courtCount
+                );
+
+                if (! $isLocked && ($currentParticipantNames !== $cachedPlayerNames || ($expectedRounds !== null && count($cachedSchedule['rounds']) !== $expectedRounds))) {
                     $isCacheStale = true;
                 }
             }

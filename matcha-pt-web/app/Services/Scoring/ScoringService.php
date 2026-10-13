@@ -100,8 +100,8 @@ class ScoringService
                 'category' => 'total_of',
                 'max_sets' => $total,
                 'target_sets' => $total,
-                'target_games' => $total,
-                'target_total_games' => $total,
+                'target_games' => 6,
+                'target_total_games' => 6,
                 'label' => "Total of {$total}",
                 'is_sets' => true,
                 'is_total_of' => true,
@@ -135,8 +135,8 @@ class ScoringService
             'category' => 'total_of',
             'max_sets' => 3,
             'target_sets' => 3,
-            'target_games' => 3,
-            'target_total_games' => 3,
+            'target_games' => 6,
+            'target_total_games' => 6,
             'label' => 'Total of 3',
             'is_sets' => true,
             'is_total_of' => true,
@@ -227,10 +227,12 @@ class ScoringService
      * Menentukan apakah suatu pertandingan per set/ronde telah selesai sesuai aturan scoring system.
      *
      * Aturan Total Of N:
-     * - N merupakan total gabungan skor besar kedua sisi dalam satu pertandingan (games_a + games_b = N).
-     * - Pertandingan selesai jika dan hanya jika: games_a + games_b = N.
-     * - Seluruh N game tetap dimainkan; tidak berhenti dini hanya karena mayoritas telah tercapai.
-     * - Jika games_a + games_b < N: pertandingan masih aktif (in_progress).
+     * Aturan Total Of (Sets):
+     * - Total Of N menentukan jumlah set/ronde yang dimainkan (seluruh N ronde dimainkan tanpa early stopping).
+     * - Batas skor besar setiap set:
+     *   * Normal: sisi pertama mencapai 6 game menang, selama lawan maksimal 4 (6-0..6-4 atau kebalikannya).
+     *   * Jika mencapai 5–5, lanjut hingga salah satu sisi mencapai 7 (7-5, 7-6 atau kebalikannya; tidak wajib selisih dua).
+     *   * 5–5, 6–5, 5–6, dan 6–6 masih aktif (belum selesai).
      *
      * Aturan First To X:
      * - Sisi pertama yang mencapai target skor besar memenangkan pertandingan.
@@ -243,9 +245,22 @@ class ScoringService
             || preg_match('/total\s*of\s*(\d+)/i', $scoringSystem['label'] ?? '');
 
         if ($isTotalOf) {
-            $target = (int) ($scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? ($scoringSystem['max_sets'] ?? 3)));
+            // Normal: sisi pertama mencapai 6 game menang, selama lawan maksimal 4
+            if (($gamesA === 6 && $gamesB <= 4) || ($gamesB === 6 && $gamesA <= 4)) {
+                return true;
+            }
 
-            return ($gamesA + $gamesB) === $target;
+            // Jika mencapai 5–5, lanjut hingga salah satu sisi mencapai 7 (7–5 atau 7–6)
+            if (($gamesA === 7 && ($gamesB === 5 || $gamesB === 6)) || ($gamesB === 7 && ($gamesA === 5 || $gamesA === 6))) {
+                return true;
+            }
+
+            // Toleransi jika skor terisi > 7
+            if (($gamesA > 7 && $gamesA > $gamesB) || ($gamesB > 7 && $gamesB > $gamesA)) {
+                return true;
+            }
+
+            return false;
         }
 
         // First to games
@@ -260,12 +275,10 @@ class ScoringService
     /**
      * Menentukan tim pemenang match ('Team A' | 'Team B' | null).
      *
-     * Total Of N:
-     * - Selesai jika games_a + games_b = N.
+     * Total Of:
+     * - Menggunakan isMatchCompleted() untuk memastikan set benar-benar selesai.
      * - Jika games_a > games_b: 'Team A'
      * - Jika games_b > games_a: 'Team B'
-     * - Jika games_a === games_b (hasil genap seri, misal 2-2 pada Total Of 4, 5-5 pada Total of 10):
-     *   null (selesai tanpa pemenang tunggal).
      *
      * First To X:
      * - games_a >= X dan games_a > games_b: 'Team A'
@@ -279,8 +292,7 @@ class ScoringService
             || preg_match('/total\s*of\s*(\d+)/i', $scoringSystem['label'] ?? '');
 
         if ($isTotalOf) {
-            $target = (int) ($scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? ($scoringSystem['max_sets'] ?? 3)));
-            if (($gamesA + $gamesB) !== $target) {
+            if (! self::isMatchCompleted($gamesA, $gamesB, $scoringSystem)) {
                 return null;
             }
 
@@ -291,7 +303,6 @@ class ScoringService
                 return 'Team B';
             }
 
-            // Seri (Draw): Selesai tanpa pemenang tunggal
             return null;
         }
 
@@ -988,9 +999,12 @@ class ScoringService
         $flip = $seed % 2 === 0;
 
         if ($system['type'] === 'total_of_sets' || ($system['is_total_of'] ?? false)) {
-            $targetTotal = (int) ($system['target_total_games'] ?? ($system['target_games'] ?? 3));
-            $winnerGames = rand((int) ceil($targetTotal / 2), $targetTotal);
-            $loserGames = max(0, $targetTotal - $winnerGames);
+            $validOutcomes = [
+                [6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [7, 5], [7, 6],
+            ];
+            $choice = $validOutcomes[abs($seed) % count($validOutcomes)];
+            $winnerGames = $choice[0];
+            $loserGames = $choice[1];
             $gA = $flip ? $winnerGames : $loserGames;
             $gB = $flip ? $loserGames : $winnerGames;
 

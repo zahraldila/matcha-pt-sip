@@ -309,7 +309,7 @@
                 </span>
                 <span class="font-medium text-slate-400">
                     @if($scoringSystem['is_total_of'] ?? false)
-                        Format: <strong class="text-white">Total of {{ $scoringSystem['max_sets'] ?? 3 }} &mdash; {{ $scoringSystem['max_sets'] ?? 3 }} set, total {{ $scoringSystem['target_total_games'] ?? 3 }} game per set.</strong>
+                        Format: <strong class="text-white">Total of {{ $scoringSystem['max_sets'] ?? 3 }} &mdash; {{ $scoringSystem['max_sets'] ?? 3 }} set. Target 6 game; jika 5–5, lanjut sampai 7.</strong>
                     @else
                         Target: <strong class="text-white">First to {{ $scoringSystem['target_games'] ?? 8 }} Games (Target Menang)</strong>
                     @endif
@@ -1030,7 +1030,7 @@
 
     function determineWinner(gamesA, gamesB) {
         if (IS_TOTAL_OF) {
-            if ((gamesA + gamesB) !== TARGET_TOTAL_GAMES) {
+            if (!isSetFinished(gamesA, gamesB)) {
                 return null;
             }
             if (gamesA > gamesB) return 'Team A';
@@ -1048,7 +1048,19 @@
 
     function isSetFinished(gamesA, gamesB) {
         if (IS_TOTAL_OF) {
-            return (gamesA + gamesB) === TARGET_TOTAL_GAMES;
+            // Normal: sisi pertama mencapai 6 game menang, selama lawan maksimal 4
+            if ((gamesA === 6 && gamesB <= 4) || (gamesB === 6 && gamesA <= 4)) {
+                return true;
+            }
+            // Jika mencapai 5–5, lanjut hingga salah satu sisi mencapai 7 (7–5 atau 7–6)
+            if ((gamesA === 7 && (gamesB === 5 || gamesB === 6)) || (gamesB === 7 && (gamesA === 5 || gamesA === 6))) {
+                return true;
+            }
+            // Toleransi jika skor terisi > 7
+            if ((gamesA > 7 && gamesA > gamesB) || (gamesB > 7 && gamesB > gamesA)) {
+                return true;
+            }
+            return false;
         }
         if (TARGET_GAMES > 0) {
             return (gamesA >= TARGET_GAMES || gamesB >= TARGET_GAMES);
@@ -1090,7 +1102,7 @@
         const isFinished = isSetFinished(st.gamesA, st.gamesB);
         if (!isFinished) {
             if (IS_TOTAL_OF) {
-                showToast(`Total ${TARGET_TOTAL_GAMES} game belum tercapai (skor saat ini: ${st.gamesA}–${st.gamesB}, total: ${st.gamesA + st.gamesB}/${TARGET_TOTAL_GAMES}).`);
+                showToast(`Target set belum tercapai (skor saat ini: ${st.gamesA}–${st.gamesB}). Target 6 game; jika 5–5, lanjut sampai 7.`);
             } else {
                 showToast(`Target ${TARGET_GAMES} Games belum dicapai.`);
             }
