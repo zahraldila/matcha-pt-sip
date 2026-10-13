@@ -313,6 +313,103 @@ class ScoringService
     }
 
     /**
+     * Dapatkan baris skor otoritatif untuk setiap set pada match.
+     * Mengeliminasi EventLog atau duplikasi snapshot progres, memprioritaskan
+     * status Final/Completed dan versi tertinggi.
+     */
+    public static function getAuthoritativeScoresForMatch($scores): \Illuminate\Support\Collection
+    {
+        if ($scores instanceof \Illuminate\Database\Eloquent\Collection || $scores instanceof \Illuminate\Support\Collection) {
+            $scoresColl = $scores;
+        } else {
+            $scoresColl = collect($scores);
+        }
+
+        if ($scoresColl->isEmpty()) {
+            return collect();
+        }
+
+        // Kelompokkan per nomor set
+        return $scoresColl->groupBy(function ($sc) {
+            return (int) ($sc->set_number ?? 1);
+        })->map(function ($setScores) {
+            // 1. Prioritaskan baris non-EventLog
+            $nonEventLogs = $setScores->filter(function ($sc) {
+                return strtolower($sc->status_score ?? '') !== 'eventlog';
+            });
+
+            $candidates = $nonEventLogs->isNotEmpty() ? $nonEventLogs : $setScores;
+
+            // 2. Prioritaskan status 'Final' atau 'Completed'
+            $finals = $candidates->filter(function ($sc) {
+                $st = strtolower($sc->status_score ?? '');
+                return in_array($st, ['final', 'completed']);
+            });
+
+            $pool = $finals->isNotEmpty() ? $finals : $candidates;
+
+            // 3. Urutkan berdasarkan version desc, lalu score_id desc
+            return $pool->sort(function ($a, $b) {
+                $vA = (int) ($a->version ?? 0);
+                $vB = (int) ($b->version ?? 0);
+                if ($vA !== $vB) {
+                    return $vB <=> $vA;
+                }
+                $idA = (int) ($a->score_id ?? ($a->id ?? 0));
+                $idB = (int) ($b->score_id ?? ($b->id ?? 0));
+                return $idB <=> $idA;
+            })->first();
+        })->sortBy(function ($sc) {
+            return (int) ($sc->set_number ?? 1);
+        })->values();
+    }
+
+    /**
+     * Sanitasi set_history agar hanya menyimpan satu hasil final per nomor set.
+     * Menghilangkan duplikasi set berulang dari akumulasi snapshot progres.
+     */
+    public static function sanitizeSetHistory(array $setHistory): array
+    {
+        if (empty($setHistory)) {
+            return [];
+        }
+
+        $bySet = [];
+        foreach ($setHistory as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $setNum = (int) ($item['set'] ?? ($item['set_number'] ?? 1));
+            $ga = (int) ($item['score_a'] ?? ($item['score_side_a'] ?? ($item['game_score_a'] ?? 0)));
+            $gb = (int) ($item['score_b'] ?? ($item['score_side_b'] ?? ($item['game_score_b'] ?? 0)));
+
+            if (! isset($bySet[$setNum])) {
+                $bySet[$setNum] = [
+                    'set' => $setNum,
+                    'score_a' => $ga,
+                    'score_b' => $gb,
+                ];
+            } else {
+                // Jika sudah ada kandidat untuk set ini, prioritaskan skor dengan total game lebih besar
+                // (karena snapshot progres biasanya 0-0, 0-1, lalu final 2-1)
+                $currentTotal = $bySet[$setNum]['score_a'] + $bySet[$setNum]['score_b'];
+                $newTotal = $ga + $gb;
+                if ($newTotal >= $currentTotal) {
+                    $bySet[$setNum] = [
+                        'set' => $setNum,
+                        'score_a' => $ga,
+                        'score_b' => $gb,
+                    ];
+                }
+            }
+        }
+
+        ksort($bySet);
+
+        return array_values($bySet);
+    }
+
+    /**
      * Helper sentralistik untuk membangun format key skor yang konsisten di semua layer.
      */
     public static function buildMatchKey(string $roundKey, int $courtNumber, int $totalCourtCount): string
@@ -431,30 +528,34 @@ class ScoringService
                         $eSetsB = (int) ($effective[$matchKey]['sets_b'] ?? 0);
                         $eGamesA = (int) ($effective[$matchKey]['games_a'] ?? 0);
                         $eGamesB = (int) ($effective[$matchKey]['games_b'] ?? 0);
-                        $eHist = $effective[$matchKey]['set_history'] ?? [];
+                        $eHist = self::sanitizeSetHistory($effective[$matchKey]['set_history'] ?? []);
 
                         if (! empty($eHist)) {
-                            $lastSet = $eHist[array_key_last($eHist)];
-                            $lastGameA = (int) ($lastSet['score_a'] ?? 0);
-                            $lastGameB = (int) ($lastSet['score_b'] ?? 0);
-
-                            if (($eGamesA === 0 && $eGamesB === 0) && ($lastGameA > 0 || $lastGameB > 0)) {
-                                $eGamesA = $lastGameA;
-                                $eGamesB = $lastGameB;
+                            $calcGamesA = 0;
+                            $calcGamesB = 0;
+                            $calcSetsA = 0;
+                            $calcSetsB = 0;
+                            foreach ($eHist as $set) {
+                                $ga = (int) ($set['score_a'] ?? 0);
+                                $gb = (int) ($set['score_b'] ?? 0);
+                                $calcGamesA += $ga;
+                                $calcGamesB += $gb;
+                                if ($ga > $gb) {
+                                    $calcSetsA++;
+                                } elseif ($gb > $ga) {
+                                    $calcSetsB++;
+                                }
                             }
 
-                            if (($eSetsA === 0 && $eSetsB === 0) || empty($eHist)) {
-                                $eSetsA = 0;
-                                $eSetsB = 0;
-                                foreach ($eHist as $set) {
-                                    $ga = (int) ($set['score_a'] ?? 0);
-                                    $gb = (int) ($set['score_b'] ?? 0);
-                                    if ($ga > $gb) {
-                                        $eSetsA++;
-                                    } elseif ($gb > $ga) {
-                                        $eSetsB++;
-                                    }
-                                }
+                            // Hindari inflasi games_a/b dari akumulasi snapshot progres
+                            if (count($eHist) === 1 || ($eGamesA === 0 && $eGamesB === 0) || ($eGamesA > $calcGamesA || $eGamesB > $calcGamesB)) {
+                                $eGamesA = $calcGamesA;
+                                $eGamesB = $calcGamesB;
+                            }
+
+                            if ($eSetsA === 0 && $eSetsB === 0) {
+                                $eSetsA = $calcSetsA;
+                                $eSetsB = $calcSetsB;
                             }
                         } elseif ($eGamesA > 0 || $eGamesB > 0) {
                             $eHist = [
@@ -666,12 +767,13 @@ class ScoringService
                 $gamesB = (int) ($matchScore['games_b'] ?? 0);
 
                 if ($system['type'] === 'total_of_sets') {
-                    if (! empty($matchScore['set_history'])) {
+                    $sanitizedHist = self::sanitizeSetHistory($matchScore['set_history'] ?? []);
+                    if (! empty($sanitizedHist)) {
                         $shSetsA = 0;
                         $shSetsB = 0;
                         $shGamesA = 0;
                         $shGamesB = 0;
-                        foreach ($matchScore['set_history'] as $sh) {
+                        foreach ($sanitizedHist as $sh) {
                             $ga = (int) ($sh['score_a'] ?? 0);
                             $gb = (int) ($sh['score_b'] ?? 0);
                             $shGamesA += $ga;
@@ -686,7 +788,8 @@ class ScoringService
                             $setsA = $shSetsA;
                             $setsB = $shSetsB;
                         }
-                        if ($gamesA === 0 && $gamesB === 0) {
+                        // Hindari inflasi games_a/b dari akumulasi snapshot progres
+                        if (count($sanitizedHist) === 1 || ($gamesA === 0 && $gamesB === 0) || ($gamesA > $shGamesA || $gamesB > $shGamesB)) {
                             $gamesA = $shGamesA;
                             $gamesB = $shGamesB;
                         }
@@ -700,6 +803,19 @@ class ScoringService
                     $ptsForA = $gamesA > 0 ? $gamesA : ($scoreA > 0 ? $scoreA : $setsA);
                     $ptsForB = $gamesB > 0 ? $gamesB : ($scoreB > 0 ? $scoreB : $setsB);
                 } else {
+                    $sanitizedHist = self::sanitizeSetHistory($matchScore['set_history'] ?? []);
+                    if (! empty($sanitizedHist)) {
+                        $shGamesA = 0;
+                        $shGamesB = 0;
+                        foreach ($sanitizedHist as $sh) {
+                            $shGamesA += (int) ($sh['score_a'] ?? 0);
+                            $shGamesB += (int) ($sh['score_b'] ?? 0);
+                        }
+                        if (count($sanitizedHist) === 1 || ($gamesA === 0 && $gamesB === 0) || ($gamesA > $shGamesA || $gamesB > $shGamesB)) {
+                            $gamesA = $shGamesA;
+                            $gamesB = $shGamesB;
+                        }
+                    }
                     $winnerSide = $gamesA > $gamesB ? 'A' : ($gamesB > $gamesA ? 'B' : ($scoreA > $scoreB ? 'A' : ($scoreB > $scoreA ? 'B' : null)));
                     $ptsForA = $gamesA > 0 ? $gamesA : $scoreA;
                     $ptsForB = $gamesB > 0 ? $gamesB : $scoreB;

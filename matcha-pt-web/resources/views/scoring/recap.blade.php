@@ -156,28 +156,28 @@
                         : ($effectiveScores[$mKey] ?? $roundScore);
                 }
                 $isDone = ($mScore['status'] ?? '') === 'completed';
-                $mSetsHist = $mScore['set_history'] ?? [];
+                $mSetsHist = \App\Services\Scoring\ScoringService::sanitizeSetHistory($mScore['set_history'] ?? []);
                 $mLastSet = !empty($mSetsHist) ? $mSetsHist[array_key_last($mSetsHist)] : [];
-                $mPrimaryScoreA = $isSets
-                    ? (($mScore['games_a'] ?? $mScore['score_a'] ?? ($mLastSet['score_a'] ?? 0)))
-                    : (($mScore['games_a'] ?? $mScore['score_a'] ?? 0));
-                $mPrimaryScoreB = $isSets
-                    ? (($mScore['games_b'] ?? $mScore['score_b'] ?? ($mLastSet['score_b'] ?? 0)))
-                    : (($mScore['games_b'] ?? $mScore['score_b'] ?? 0));
+                $mPrimaryScoreA = (count($mSetsHist) === 1 && isset($mLastSet['score_a']))
+                    ? $mLastSet['score_a']
+                    : ($mScore['games_a'] ?? ($mScore['score_a'] ?? ($mLastSet['score_a'] ?? 0)));
+                $mPrimaryScoreB = (count($mSetsHist) === 1 && isset($mLastSet['score_b']))
+                    ? $mLastSet['score_b']
+                    : ($mScore['games_b'] ?? ($mScore['score_b'] ?? ($mLastSet['score_b'] ?? 0)));
                 $mWinner = $mScore['winner_team'] ?? null;
                 if ($mWinner === 'A') $mWinner = 'Team A';
                 if ($mWinner === 'B') $mWinner = 'Team B';
-                if ($isDone && !$mWinner) {
+                if ($isDone) {
                     $sa = (int) ($mScore['sets_a'] ?? 0);
                     $sb = (int) ($mScore['sets_b'] ?? 0);
-                    $ga = (int) ($mScore['games_a'] ?? 0);
-                    $gb = (int) ($mScore['games_b'] ?? 0);
+                    $ga = (int) ($mPrimaryScoreA);
+                    $gb = (int) ($mPrimaryScoreB);
                     if ($isSets && ($sa !== $sb)) {
                         $mWinner = $sa > $sb ? 'Team A' : 'Team B';
                     } elseif ($ga !== $gb) {
                         $mWinner = $ga > $gb ? 'Team A' : 'Team B';
                     } else {
-                        $mWinner = null; // Draw / Seri
+                        $mWinner = null; // Draw / Seri (tidak ada badge WIN sepihak)
                     }
                 }
                 $mTeamA = $m['team_a_names'] ?? ($m['teamA_names'] ?? ($m['team_a'] ?? []));
@@ -498,6 +498,7 @@
     </div>
 
     <!-- Strava-like Player Stats Card -->
+    @if(!empty($playerRecap) && ($playerRecap['is_participant'] ?? true))
     <div class="glass-card rounded-3xl p-6 sm:p-8 border border-white space-y-5">
         <div class="flex items-center justify-between border-b border-slate-100 pb-4">
             <div class="flex items-center gap-3">
@@ -525,6 +526,7 @@
             </div>
         </div>
     </div>
+    @endif
 
 </div>
 
@@ -866,14 +868,23 @@
                                 </div>
                                 <img src="{{ asset('images/logo.svg') }}" class="w-5 h-5" alt="Matcha">
                             </div>
+                            @php
+                                $highlightPlayer = $playerRecap ?? ($rankedPlayers[0] ?? null);
+                                $hlName = $highlightPlayer['player_name'] ?? ($highlightPlayer['name'] ?? 'Pemain Matcha');
+                                $hlPoints = $highlightPlayer['total_points'] ?? ($highlightPlayer['points_for'] ?? 0);
+                                $hlWins = (int) ($highlightPlayer['wins'] ?? 0);
+                                $hlMatches = (int) ($highlightPlayer['matches'] ?? (($highlightPlayer['wins'] ?? 0) + ($highlightPlayer['losses'] ?? 0)));
+                                $hlLosses = (int) ($highlightPlayer['losses'] ?? max(0, $hlMatches - $hlWins));
+                                $hlWinRate = $highlightPlayer['win_rate'] ?? ($hlMatches > 0 ? round(($hlWins / $hlMatches) * 100).'%' : '0%');
+                            @endphp
                             <!-- Player Profile Info -->
                             <div class="flex items-center gap-2.5 pt-1">
                                 <div class="w-9 h-9 rounded-full bg-emerald-600 border-2 border-[#A8E63A] flex items-center justify-center font-black text-xs text-white shadow" id="stravaAvatarInitial">
-                                    {{ mb_substr($rankedPlayers[0]['name'] ?? 'M', 0, 1) }}
+                                    {{ mb_substr($hlName, 0, 1) }}
                                 </div>
                                 <div>
                                     <h4 class="text-xs font-black text-white leading-tight" id="stravaPlayerName">
-                                        {{ $rankedPlayers[0]['name'] ?? 'Pemain Matcha' }}
+                                        {{ $hlName }}
                                     </h4>
                                     <p class="text-[9px] text-slate-300">
                                         {{ $game['sport'] }} &bull; <span class="text-[#A8E63A] font-bold">{{ $game['venue_name'] ?? 'Matcha Arena' }}</span>
@@ -888,19 +899,19 @@
                                 <div class="p-2 rounded-xl bg-white/5 border border-white/5">
                                     <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Total Poin</p>
                                     <p class="text-2xl font-black text-white mt-0.5" id="stravaPoints">
-                                        {{ isset($rankedPlayers[0]) ? ($rankedPlayers[0]['points_for'] ?? $playerRecap['total_points']) : $playerRecap['total_points'] }}
+                                        {{ $hlPoints }}
                                     </p>
                                 </div>
                                 <div class="p-2 rounded-xl bg-[#063B00]/70 border border-[#A8E63A]/40">
                                     <p class="text-[8px] font-bold text-[#A8E63A] uppercase tracking-wider">Win Rate</p>
                                     <p class="text-2xl font-black text-[#A8E63A] mt-0.5" id="stravaWinRate">
-                                        {{ isset($rankedPlayers[0]) && !empty($rankedPlayers[0]['matches']) ? round(($rankedPlayers[0]['wins'] / $rankedPlayers[0]['matches']) * 100) . '%' : $playerRecap['win_rate'] }}
+                                        {{ $hlWinRate }}
                                     </p>
                                 </div>
                                 <div class="p-2 rounded-xl bg-white/5 border border-white/5 col-span-2">
                                     <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Match Record</p>
                                     <p class="text-base font-black text-slate-200 mt-0.5" id="stravaRecord">
-                                        {{ isset($rankedPlayers[0]) ? ($rankedPlayers[0]['wins'] ?? $playerRecap['wins']) : $playerRecap['wins'] }}W - {{ isset($rankedPlayers[0]) ? ($rankedPlayers[0]['losses'] ?? $playerRecap['losses']) : $playerRecap['losses'] }}L
+                                        {{ $hlWins }}W - {{ $hlLosses }}L
                                     </p>
                                 </div>
                             </div>
