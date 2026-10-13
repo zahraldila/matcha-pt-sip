@@ -53,7 +53,30 @@ class AuthController extends Controller
             })
             ->first();
 
-        if ($user && Hash::check($password, $user->password)) {
+        $passwordMatches = false;
+        if ($user && ! empty($user->password)) {
+            $rawStoredHash = (string) $user->password;
+            $normalizedHash = str_starts_with($rawStoredHash, '$2a$')
+                ? '$2y$'.substr($rawStoredHash, 4)
+                : $rawStoredHash;
+
+            try {
+                $passwordMatches = Hash::check($password, $normalizedHash)
+                    || Hash::check($password, $rawStoredHash)
+                    || password_verify($password, $rawStoredHash);
+            } catch (\Throwable $e) {
+                $passwordMatches = password_verify($password, $rawStoredHash)
+                    || password_verify($password, $normalizedHash);
+            }
+
+            // Jika password cocok dan berasal dari $2a$ atau butuh rehash, upgrade ke standard Bcrypt Laravel
+            if ($passwordMatches && (str_starts_with($rawStoredHash, '$2a$') || Hash::needsRehash($normalizedHash))) {
+                $user->password = Hash::make($password);
+                $user->save();
+            }
+        }
+
+        if ($user && $passwordMatches) {
             Auth::login($user, false);
             return redirect()->intended(route('dashboard'))->with('success', "Selamat datang kembali, {$user->nama}!");
         }

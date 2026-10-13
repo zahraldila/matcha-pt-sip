@@ -966,25 +966,50 @@ class ScoringController extends Controller
                             }
                             $match->save();
 
-                            // Simpan ke tb_score: catat entri skor untuk persistensi version dan last_event_id
+                            // 1. Simpan / update baris aktif set di tb_score (agar score_id dan baris set terupdate)
                             $setNumber = $scorePayload['set_number'] ?? 1;
-                            Score::create([
-                                'match_id' => $match->match_id,
-                                'set_number' => $setNumber,
-                                'game_number' => 1,
-                                'point_score_a' => (string) ($scorePayload['point_display_a'] ?? '0'),
-                                'point_score_b' => (string) ($scorePayload['point_display_b'] ?? '0'),
-                                'game_score_a' => (int) ($scorePayload['games_a'] ?? 0),
-                                'game_score_b' => (int) ($scorePayload['games_b'] ?? 0),
-                                'set_score_a' => (int) ($scorePayload['sets_a'] ?? 0),
-                                'set_score_b' => (int) ($scorePayload['sets_b'] ?? 0),
-                                'score_side_a' => (int) ($scorePayload['games_a'] ?? 0),
-                                'score_side_b' => (int) ($scorePayload['games_b'] ?? 0),
-                                'scoring_system' => (string) ($scorePayload['scoring_type'] ?? 'total_of_sets'),
-                                'status_score' => ($finalStatus === 'completed') ? 'Final' : 'In Progress',
-                                'version' => $newVersion,
-                                'last_event_id' => $eventId,
-                            ]);
+                            Score::updateOrCreate(
+                                [
+                                    'match_id' => $match->match_id,
+                                    'set_number' => $setNumber,
+                                ],
+                                [
+                                    'game_number' => 1,
+                                    'point_score_a' => (string) ($scorePayload['point_display_a'] ?? '0'),
+                                    'point_score_b' => (string) ($scorePayload['point_display_b'] ?? '0'),
+                                    'game_score_a' => (int) ($scorePayload['games_a'] ?? 0),
+                                    'game_score_b' => (int) ($scorePayload['games_b'] ?? 0),
+                                    'set_score_a' => (int) ($scorePayload['sets_a'] ?? 0),
+                                    'set_score_b' => (int) ($scorePayload['sets_b'] ?? 0),
+                                    'score_side_a' => (int) ($scorePayload['games_a'] ?? 0),
+                                    'score_side_b' => (int) ($scorePayload['games_b'] ?? 0),
+                                    'scoring_system' => (string) ($scorePayload['scoring_type'] ?? 'total_of_sets'),
+                                    'status_score' => ($finalStatus === 'completed') ? 'Final' : 'In Progress',
+                                    'version' => $newVersion,
+                                    'last_event_id' => $eventId,
+                                ]
+                            );
+
+                            // 2. Simpan entri event log agar identitas event_id persisten tidak hilang saat cache dingin
+                            if (! empty($eventId)) {
+                                Score::create([
+                                    'match_id' => $match->match_id,
+                                    'set_number' => $setNumber,
+                                    'game_number' => $newVersion + 1000,
+                                    'point_score_a' => (string) ($scorePayload['point_display_a'] ?? '0'),
+                                    'point_score_b' => (string) ($scorePayload['point_display_b'] ?? '0'),
+                                    'game_score_a' => (int) ($scorePayload['games_a'] ?? 0),
+                                    'game_score_b' => (int) ($scorePayload['games_b'] ?? 0),
+                                    'set_score_a' => (int) ($scorePayload['sets_a'] ?? 0),
+                                    'set_score_b' => (int) ($scorePayload['sets_b'] ?? 0),
+                                    'score_side_a' => (int) ($scorePayload['games_a'] ?? 0),
+                                    'score_side_b' => (int) ($scorePayload['games_b'] ?? 0),
+                                    'scoring_system' => (string) ($scorePayload['scoring_type'] ?? 'total_of_sets'),
+                                    'status_score' => 'EventLog',
+                                    'version' => $newVersion,
+                                    'last_event_id' => $eventId,
+                                ]);
+                            }
 
                             if ($action === 'batch_events' && ! empty($appliedBatchEventIds)) {
                                 foreach ($appliedBatchEventIds as $bevId) {
@@ -992,7 +1017,7 @@ class ScoringController extends Controller
                                         Score::create([
                                             'match_id' => $match->match_id,
                                             'set_number' => $setNumber,
-                                            'game_number' => 1,
+                                            'game_number' => $newVersion + 1000,
                                             'point_score_a' => (string) ($scorePayload['point_display_a'] ?? '0'),
                                             'point_score_b' => (string) ($scorePayload['point_display_b'] ?? '0'),
                                             'game_score_a' => (int) ($scorePayload['games_a'] ?? 0),
@@ -1002,13 +1027,14 @@ class ScoringController extends Controller
                                             'score_side_a' => (int) ($scorePayload['games_a'] ?? 0),
                                             'score_side_b' => (int) ($scorePayload['games_b'] ?? 0),
                                             'scoring_system' => (string) ($scorePayload['scoring_type'] ?? 'total_of_sets'),
-                                            'status_score' => ($finalStatus === 'completed') ? 'Final' : 'In Progress',
+                                            'status_score' => 'EventLog',
                                             'version' => $newVersion,
                                             'last_event_id' => $bevId,
                                         ]);
                                     }
                                 }
                             }
+
                         }
                     }
                 });
@@ -2186,21 +2212,27 @@ class ScoringController extends Controller
                 return null;
             }
 
-            $scores = Score::where('match_id', $match->match_id)->orderBy('set_number', 'asc')->orderBy('version', 'desc')->orderBy('score_id', 'desc')->get();
-            if ($scores->isEmpty() && strtolower($match->status_match) !== 'completed') {
+            $scores = Score::where('match_id', $match->match_id)
+                ->orderBy('set_number', 'asc')
+                ->orderBy('version', 'desc')
+                ->orderBy('score_id', 'desc')
+                ->get();
+
+            $activeScores = $scores->filter(fn ($sc) => strtolower((string) ($sc->status_score ?? '')) !== 'eventlog');
+            if ($activeScores->isEmpty() && strtolower($match->status_match) !== 'completed') {
                 return null;
             }
 
             $isCompleted = strtolower((string) ($match->status_match ?? '')) === 'completed';
             if ($isCompleted) {
-                $officialScore = $scores
+                $officialScore = $activeScores
                     ->filter(fn ($sc) => in_array(strtolower((string) ($sc->status_score ?? '')), ['final', 'completed'], true))
                     ->sortByDesc('version')
                     ->sortByDesc('score_id')
                     ->first();
-                $lastScore = $officialScore ?: $scores->sortByDesc('version')->sortByDesc('score_id')->first();
+                $lastScore = $officialScore ?: $activeScores->sortByDesc('version')->sortByDesc('score_id')->first();
             } else {
-                $lastScore = $scores->sortByDesc('version')->sortByDesc('score_id')->first();
+                $lastScore = $activeScores->sortByDesc('version')->sortByDesc('score_id')->first();
             }
             $setHistory = [];
             $setsA = 0;
@@ -2208,7 +2240,7 @@ class ScoringController extends Controller
             $gamesA = 0;
             $gamesB = 0;
 
-            $groupedBySet = $scores->groupBy('set_number');
+            $groupedBySet = $activeScores->groupBy('set_number');
             foreach ($groupedBySet as $setNum => $setScores) {
                 $latestSetScore = $setScores->sortByDesc('version')->sortByDesc('score_id')->first();
                 $setsA = max($setsA, (int) $latestSetScore->set_score_a);
