@@ -82,7 +82,7 @@
         $drawingRounds = !empty($game['drawing']) ? array_keys($game['drawing']) : [];
         if (!empty($drawingRounds)) {
             $allRoundsList = $drawingRounds;
-        } elseif ($scoringSystem['is_sets'] && !($scoringSystem['is_total_of'] ?? false)) {
+        } elseif ($scoringSystem['is_sets']) {
             $numSets = max(count($drawingRounds), (int) ($scoringSystem['max_sets'] ?? 1));
             $allRoundsList = array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, $numSets));
         } else {
@@ -305,11 +305,11 @@
         <div class="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 text-center space-y-2 shadow-sm relative overflow-hidden">
             <div class="flex items-center justify-between text-xs text-slate-300 border-b border-slate-800 pb-2">
                 <span class="font-bold uppercase tracking-wider text-[#A8E63A] flex items-center gap-1.5">
-                    <i class="fa-solid fa-trophy text-[11px]"></i> {{ $unitTabLabel }} {{ $activeRoundNum }} SCORE
+                    <i class="fa-solid fa-trophy text-[11px]"></i> {{ $unitTabLabel }} {{ $activeRoundNum }} dari {{ $scoringSystem['is_sets'] ? ($scoringSystem['max_sets'] ?? count($allRoundsList)) : count($allRoundsList) }} SCORE
                 </span>
                 <span class="font-medium text-slate-400">
                     @if($scoringSystem['is_total_of'] ?? false)
-                        Format: <strong class="text-white">Total of {{ $scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? 3) }} &mdash; total {{ $scoringSystem['target_total_games'] ?? ($scoringSystem['target_games'] ?? 3) }} game</strong>
+                        Format: <strong class="text-white">Total of {{ $scoringSystem['max_sets'] ?? 3 }} &mdash; {{ $scoringSystem['max_sets'] ?? 3 }} set, total {{ $scoringSystem['target_total_games'] ?? 3 }} game per set.</strong>
                     @else
                         Target: <strong class="text-white">First to {{ $scoringSystem['target_games'] ?? 8 }} Games (Target Menang)</strong>
                     @endif
@@ -334,7 +334,7 @@
 
             <div id="setHistoryContainer_{{ $mIdx }}" class="flex items-center justify-center gap-2 flex-wrap pt-1 text-[11px]">
                 <span class="text-slate-400 font-semibold" id="currentSetLabel_{{ $mIdx }}">
-                    Status: <strong>{{ $isMCompleted ? ($unitTabLabel . ' Selesai & Terkunci') : 'Sedang Berlangsung' }}</strong>
+                    Status: <strong>{{ $isMCompleted ? ($unitTabLabel . ' Selesai & Terkunci') : 'Sedang Berlangsung' }}</strong> &bull; Progres: {{ $unitTabLabel }} {{ $activeRoundNum }} dari {{ $scoringSystem['is_sets'] ? ($scoringSystem['max_sets'] ?? count($allRoundsList)) : count($allRoundsList) }}
                 </span>
                 <span id="currentSetGamesBadge_{{ $mIdx }}" class="px-2.5 py-0.5 rounded-md bg-white/10 text-[#A8E63A] font-bold border border-white/10">
                     Game Score: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}

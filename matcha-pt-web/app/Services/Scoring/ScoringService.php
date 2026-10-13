@@ -103,7 +103,7 @@ class ScoringService
                 'target_games' => $total,
                 'target_total_games' => $total,
                 'label' => "Total of {$total}",
-                'is_sets' => false,
+                'is_sets' => true,
                 'is_total_of' => true,
             ];
         }
@@ -138,7 +138,7 @@ class ScoringService
             'target_games' => 3,
             'target_total_games' => 3,
             'label' => 'Total of 3',
-            'is_sets' => false,
+            'is_sets' => true,
             'is_total_of' => true,
         ];
     }
@@ -166,12 +166,8 @@ class ScoringService
     ): ?int {
         $system = is_array($scoringSystem) ? $scoringSystem : self::detectScoringSystem($scoringSystem);
 
-        // 1. Total of X: jika is_total_of true, ikuti logika Total of (null agar drawing fleksibel / tidak membatasi rotasi)
-        if (! empty($system['is_total_of']) || ($system['category'] ?? '') === 'total_of') {
-            return ($system['is_sets'] && ! ($system['is_total_of'] ?? false)) ? (int) $system['max_sets'] : null;
-        }
-
-        if (! empty($system['is_sets'])) {
+        // 1. Total of N: Jumlah set/ronde yang dimainkan adalah N
+        if (! empty($system['is_total_of']) || ($system['category'] ?? '') === 'total_of' || ! empty($system['is_sets'])) {
             return (int) ($system['max_sets'] ?? 3);
         }
 
@@ -696,7 +692,7 @@ class ScoringService
                         }
                     }
                     if ($setsA === 0 && $setsB === 0 && ($gamesA > 0 || $gamesB > 0)) {
-                        $setsA = $gamesA >= $gamesB ? 1 : 0;
+                        $setsA = $gamesA > $gamesB ? 1 : 0;
                         $setsB = $gamesB > $gamesA ? 1 : 0;
                     }
 

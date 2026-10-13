@@ -2197,7 +2197,7 @@ class ScoringController extends Controller
         $drawingRounds = ! empty($game['drawing']) ? array_keys($game['drawing']) : [];
         if (! empty($drawingRounds)) {
             $roundKeys = $drawingRounds;
-        } elseif ($scoringSystem['is_sets'] && ! ($scoringSystem['is_total_of'] ?? false)) {
+        } elseif ($scoringSystem['is_sets']) {
             $numSets = (int) ($scoringSystem['max_sets'] ?? 1);
             $roundKeys = array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, max(1, $numSets)));
         } else {

@@ -1355,6 +1355,10 @@ class GameController extends Controller
 
         if ($needsGeneration) {
             $seed = (int) $request->query('seed', rand(1000, 999999));
+            $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
+            $isSingleMode = strtolower($drawingMode) === 'single';
+            $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
+
             try {
                 if ($isTeam) {
                     // Team Americano Engine (Fixed Pairs). Pengacakan hanya mengacak urutan tim, bukan anggota tim!
@@ -1378,10 +1382,6 @@ class GameController extends Controller
                     foreach ($pKeys as $k) {
                         $shuffled[] = $participants[$k];
                     }
-                    // Ambil jenis_permainan dari session (Single/Double), default Double
-                    $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
-                    $isSingleMode = strtolower($drawingMode) === 'single';
-                    $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
                     $roundCount = ScoringService::determineSessionRoundCount(
                         $scoringSystem,
                         count($participants),
