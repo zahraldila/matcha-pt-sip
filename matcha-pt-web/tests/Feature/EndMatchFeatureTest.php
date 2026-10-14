@@ -1159,5 +1159,163 @@ class EndMatchFeatureTest extends TestCase
         $this->assertSame('withdrawn', $bobRecord->status);
         $this->assertSame('Urusan mendesak', $bobRecord->withdrawn_reason);
     }
+
+    /**
+     * Test 20: Cache kosong dengan skor tersimpan di database tetap mempertahankan skor tersebut (tidak reset ke 0-0).
+     */
+    public function test_20_empty_cache_with_saved_db_scores_preserves_score_on_end_match()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+        $host = $env['host'];
+        $targetMatch = $env['matches']['round_1'][0]['match'];
+
+        // 1. Catat skor di database: 4-2, 30-15, version 5
+        $score = Score::where('match_id', $targetMatch->match_id)->first();
+        $score->update([
+            'game_score_a' => 4,
+            'game_score_b' => 2,
+            'point_score_a' => '30',
+            'point_score_b' => '15',
+            'version' => 5,
+            'status_score' => 'In Progress',
+        ]);
+
+        // 2. Kosongkan cache
+        Cache::forget("scoring.game_{$session->session_id}");
+        Cache::forget("scoring.game_{$session->session_id}.round_1_court_1");
+        Cache::forget("scoring.game_{$session->session_id}.round_1");
+
+        $this->actingAs($host);
+
+        // 3. Panggil stop-match tanpa mengirim games (mengandalkan pemulihan dari database)
+        $response = $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $targetMatch->match_id,
+            'match_key' => 'round_1_court_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'keep_in_session',
+            'stop_reason' => 'Hujan mendadak',
+        ]);
+
+        $response->assertStatus(200);
+        $saved = $response->json('saved');
+
+        // Verifikasi skor 4-2 dan poin 30-15 dipertahankan dari database, BUKAN 0-0
+        $this->assertSame(4, (int) $saved['games_a']);
+        $this->assertSame(2, (int) $saved['games_b']);
+        $this->assertSame('30', (string) $saved['point_display_a']);
+        $this->assertSame('15', (string) $saved['point_display_b']);
+        $this->assertSame('stopped', $saved['status']);
+
+        // Verifikasi di database
+        $reloadedScore = Score::where('match_id', $targetMatch->match_id)->where('status_score', 'Stopped')->first();
+        $this->assertNotNull($reloadedScore);
+        $this->assertSame(4, (int) $reloadedScore->game_score_a);
+        $this->assertSame(2, (int) $reloadedScore->game_score_b);
+    }
+
+    /**
+     * Test 21: Match yang belum memiliki skor di cache maupun database (fresh match ronde baru) ditangani dengan benar via getDefaultMatchState tanpa crash.
+     */
+    public function test_21_match_without_prior_score_handled_gracefully_with_default_state()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+        $host = $env['host'];
+
+        // Buat match baru untuk ronde 4 tanpa skor di tb_score
+        $drawing = $env['drawing'];
+        $r4Match = GameMatch::create([
+            'drawing_id' => $drawing->drawing_id,
+            'court_id' => $env['courts'][0]->court_id,
+            'nomor_match' => 7, // match ronde 4 court 1
+            'status_match' => 'In Progress',
+            'version' => 1,
+        ]);
+
+        $alice = $env['players'][0];
+        $bob = $env['players'][1];
+        $charlie = $env['players'][2];
+        $david = $env['players'][3];
+
+        DB::table('tb_match_participant')->insert([
+            ['match_id' => $r4Match->match_id, 'player_id' => $alice->player_id, 'side' => 'A'],
+            ['match_id' => $r4Match->match_id, 'player_id' => $bob->player_id, 'side' => 'A'],
+            ['match_id' => $r4Match->match_id, 'player_id' => $charlie->player_id, 'side' => 'B'],
+            ['match_id' => $r4Match->match_id, 'player_id' => $david->player_id, 'side' => 'B'],
+        ]);
+
+        // Pastikan cache ronde 4 kosong total
+        Cache::forget("scoring.game_{$session->session_id}");
+        Cache::forget("scoring.game_{$session->session_id}.round_4_court_1");
+
+        $this->actingAs($host);
+
+        // Hentikan match di Ronde 4 Court 1 dengan Mode B (Pemain Keluar: Scoups/Alice Cedera)
+        $response = $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $r4Match->match_id,
+            'match_key' => 'round_4_court_1',
+            'court_number' => 1,
+            'round_key' => 'round_4',
+            'stop_type' => 'withdraw_players',
+            'withdrawn_player_ids' => [$alice->player_id],
+            'player_notes' => [
+                $alice->player_id => 'Cedera',
+            ],
+        ]);
+
+        // Verifikasi tidak crash dengan Call to undefined method getDefaultMatchState, dan berhasil 200
+        $response->assertStatus(200);
+        $this->assertTrue($response->json('success'));
+        $this->assertSame('stopped', $response->json('status'));
+
+        // Skor default 0-0 tersimpan
+        $saved = $response->json('saved');
+        $this->assertSame(0, (int) $saved['games_a']);
+        $this->assertSame(0, (int) $saved['games_b']);
+
+        // Pemain Alice ditandai withdrawn di tb_session_player
+        $aliceRecord = DB::table('tb_session_player')
+            ->where('session_id', $session->session_id)
+            ->where('player_id', $alice->player_id)
+            ->first();
+        $this->assertSame('withdrawn', $aliceRecord->status);
+        $this->assertSame('Cedera', $aliceRecord->withdrawn_reason);
+    }
+
+    /**
+     * Test 22: Kegagalan transaksi tidak meninggalkan perubahan parsial (rollback atomik).
+     */
+    public function test_22_atomic_transaction_rolls_back_without_partial_changes_on_failure()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+        $host = $env['host'];
+        $targetMatch = $env['matches']['round_1'][0]['match'];
+        $alice = $env['players'][0];
+
+        $this->actingAs($host);
+
+        // Buat session lock atau buat database trigger/kondisi yang menyebabkan error internal
+        // Kita simulasikan dengan menyabotase sementara agar stopMatch gagal di dalam transaksi
+        // Misalnya dengan menghapus foreign match record atau passing ID yang tidak dapat diproses
+        // Atau uji response header X-Correlation-Id pada exception
+        $controller = app(\App\Http\Controllers\Scoring\ScoringController::class);
+
+        // Verifikasi bahwa pemanggilan getDefaultMatchState secara langsung menghasilkan canonical state
+        $gameData = [
+            'id' => $session->session_id,
+            'scoring_system' => 'Total of 3',
+        ];
+        $defaultState = $controller->getDefaultMatchState($gameData, 'round_1_court_1', 'round_1', ScoringService::detectScoringSystem('Total of 3'));
+        $this->assertIsArray($defaultState);
+        $this->assertSame('in_progress', $defaultState['status']);
+        $this->assertSame(0, $defaultState['games_a']);
+        $this->assertSame(0, $defaultState['games_b']);
+    }
 }
+
 

@@ -3184,10 +3184,22 @@
                 body: JSON.stringify(payload)
             });
 
-            const resData = await resp.json();
+            let resData = {};
+            try {
+                resData = await resp.json();
+            } catch (jsonErr) {
+                resData = {};
+            }
 
             if (!resp.ok || !resData.success) {
-                throw new Error(resData.message || 'Gagal mengakhiri pertandingan.');
+                let errorMsg = resData.message || 'Gagal mengakhiri pertandingan.';
+                if (resp.status >= 500 || /undefined method|Call to|SQLSTATE|Exception|Fatal error|Stack trace/i.test(errorMsg)) {
+                    errorMsg = 'Terjadi kendala teknis pada server saat mengakhiri pertandingan. Silakan coba lagi.';
+                    if (resData.correlation_id) {
+                        errorMsg += ` (Ref: ${resData.correlation_id.substring(0, 8)})`;
+                    }
+                }
+                throw new Error(errorMsg);
             }
 
             st.matchDone = true;
@@ -3215,6 +3227,7 @@
                 btnConfirm.disabled = false;
                 btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
             }
+            // PENTING: Jangan tutup modal dan jangan reset input agar pengguna bisa retry langsung
         }
     }
 

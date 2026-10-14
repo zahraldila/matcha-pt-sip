@@ -1419,13 +1419,18 @@ class ScoringController extends Controller
             ], 422);
         }
 
+        $correlationId = (string) Str::uuid();
+
         // Penguncian kompatibel dengan updateScore
         $scoreLock = Cache::lock("scoring.lock.{$gameId}.{$matchKey}", 5);
         $scoreLock->block(3);
         try {
             $cacheKey = "scoring.game_{$gameId}";
             $scores = Cache::get($cacheKey, []);
-            $currentState = $scores[$matchKey] ?? $this->getScoreFromDatabase($gameId, $round, $courtIndex);
+            $currentState = $scores[$matchKey] ?? ($courtCount === 1 ? ($scores[$round] ?? null) : null);
+            if (empty($currentState)) {
+                $currentState = Cache::get("scoring.game_{$gameId}.{$matchKey}");
+            }
             if (empty($currentState)) {
                 $game = $this->getGameData($gameId);
                 $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? '');
@@ -1443,6 +1448,14 @@ class ScoringController extends Controller
                 $currentState['games_b'] = (int) $incGamesB;
                 $currentState['score_b'] = (int) $incGamesB;
             }
+            $incPtA = $request->input('point_a', $request->input('point_display_a'));
+            $incPtB = $request->input('point_b', $request->input('point_display_b'));
+            if ($incPtA !== null) {
+                $currentState['point_display_a'] = (string) $incPtA;
+            }
+            if ($incPtB !== null) {
+                $currentState['point_display_b'] = (string) $incPtB;
+            }
 
             // Idempotency: Jika sudah stopped, kembalikan response sukses secara idempoten
             if (($currentState['status'] ?? '') === 'stopped') {
@@ -1453,7 +1466,8 @@ class ScoringController extends Controller
                     'match_key' => $matchKey,
                     'status' => 'stopped',
                     'saved' => $currentState,
-                ]);
+                    'correlation_id' => $correlationId,
+                ])->header('X-Correlation-Id', $correlationId);
             }
 
             $prevVersion = (int) ($currentState['version'] ?? 0);
@@ -1598,11 +1612,15 @@ class ScoringController extends Controller
             $scheduleAdjusted = false;
             $adjustedScheduleSummary = null;
             if ($isWithdraw && ! empty($withdrawnPlayerIds)) {
-                preg_match('/(\d+)/', $round, $rM);
-                $currRoundNum = isset($rM[1]) ? (int) $rM[1] : 1;
-                $adjustedSchedule = ScoringService::adjustFutureScheduleOnWithdrawal($session, $withdrawnPlayerIds, $currRoundNum);
-                $scheduleAdjusted = true;
-                $adjustedScheduleSummary = $adjustedSchedule['summary'] ?? null;
+                try {
+                    preg_match('/(\d+)/', $round, $rM);
+                    $currRoundNum = isset($rM[1]) ? (int) $rM[1] : 1;
+                    $adjustedSchedule = ScoringService::adjustFutureScheduleOnWithdrawal($session, $withdrawnPlayerIds, $currRoundNum);
+                    $scheduleAdjusted = true;
+                    $adjustedScheduleSummary = $adjustedSchedule['summary'] ?? null;
+                } catch (\Throwable $e) {
+                    Log::error("[stopMatch] [{$correlationId}] Schedule adjustment error: {$e->getMessage()}");
+                }
             }
 
             // 3. Simpan ke Cache setelah DB commit berhasil
@@ -1624,6 +1642,19 @@ class ScoringController extends Controller
             } finally {
                 $sessionLock->release();
             }
+        } catch (\Throwable $e) {
+            Log::error("[Stop Match Error] [{$correlationId}] {$e->getMessage()}", [
+                'exception' => $e,
+                'game_id' => $gameId,
+                'match_key' => $matchKey,
+                'round' => $round,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kendala teknis pada server saat mengakhiri pertandingan. Silakan coba lagi.',
+                'correlation_id' => $correlationId,
+            ], 500)->header('X-Correlation-Id', $correlationId);
         } finally {
             $scoreLock->release();
         }
@@ -1644,7 +1675,8 @@ class ScoringController extends Controller
             'schedule_summary' => $adjustedScheduleSummary,
             'has_insufficient_players' => $hasInsufficient,
             'warning' => $insufficientWarning,
-        ]);
+            'correlation_id' => $correlationId,
+        ])->header('X-Correlation-Id', $correlationId);
     }
 
     /**
@@ -2961,9 +2993,78 @@ class ScoringController extends Controller
     }
 
     /**
+     * Membentuk canonical match state awal atau memulihkan dari database jika cache kosong.
+     * Menggunakan sumber kebenaran database dan aturan scoring system aplikasi.
+     * State default hanya digunakan jika pertandingan memang belum memiliki skor di DB.
+     *
+     * @param  array  $game
+     * @param  string  $matchKey
+     * @param  string  $round
+     * @param  array  $scoringSystem
+     * @return array
+     */
+    public function getDefaultMatchState(array $game, string $matchKey, string $round, array $scoringSystem): array
+    {
+        $gameId = (int) ($game['id'] ?? 0);
+        $courtIndex = 0;
+        if (preg_match('/court_(\d+)/i', $matchKey, $mC)) {
+            $courtIndex = max(0, ((int) $mC[1]) - 1);
+        }
+
+        // 1. Coba ambil skor yang sah dari database terlebih dahulu (lempar exception jika DB bermasalah)
+        $dbScore = $this->getScoreFromDatabase($gameId, $round, $courtIndex, true);
+        if (! empty($dbScore)) {
+            return $dbScore;
+        }
+
+        // 2. Jika database berhasil dibaca dan memang belum memiliki skor untuk match ini,
+        // cari match record untuk mendapatkan nomor match, ID, dan version yang sinkron
+        $match = null;
+        try {
+            $session = SessionModel::find($gameId);
+            if ($session) {
+                $match = ScoringService::ensureMatchAndParticipants($session, $round, $courtIndex);
+            }
+        } catch (\Throwable $e) {
+            Log::warning("[getDefaultMatchState] Could not ensure match record: {$e->getMessage()}");
+        }
+
+        $nowMs = (int) round(microtime(true) * 1000);
+        $scoringType = $scoringSystem['type'] ?? ($scoringSystem['is_total_of'] ?? false ? 'total_of_sets' : 'first_to_games');
+
+        return [
+            'match_id' => $match ? (int) $match->match_id : null,
+            'version' => $match ? (int) ($match->version ?? 1) : 1,
+            'server_version' => $match ? (int) ($match->version ?? 1) : 1,
+            'updated_at_ms' => $nowMs,
+            'score_a' => 0,
+            'score_b' => 0,
+            'games_a' => 0,
+            'games_b' => 0,
+            'point_display_a' => '0',
+            'point_display_b' => '0',
+            'set_number' => 1,
+            'sets_a' => 0,
+            'sets_b' => 0,
+            'set_history' => [],
+            'idx_a' => 0,
+            'idx_b' => 0,
+            'is_deuce' => false,
+            'advantage' => null,
+            'scoring_type' => $scoringType,
+            'status' => 'in_progress',
+            'winner_team' => null,
+            'stop_type' => null,
+            'stop_reason' => null,
+            'stopped_by_user_id' => null,
+            'last_event_id' => $match ? $match->last_event_id : null,
+        ];
+    }
+
+    /**
      * Ambil skor dari database (tb_match & tb_score) untuk round & court tertentu.
      */
-    protected function getScoreFromDatabase($gameId, $round, $courtIndex = 0)
+    protected function getScoreFromDatabase($gameId, $round, $courtIndex = 0, bool $throwOnFailure = false)
     {
         try {
             $drawing = Drawing::where('session_id', (int) $gameId)->first();
@@ -3086,6 +3187,9 @@ class ScoringController extends Controller
             ];
         } catch (\Throwable $e) {
             Log::warning('Failed to get score from database: '.$e->getMessage());
+            if ($throwOnFailure) {
+                throw $e;
+            }
 
             return null;
         }
