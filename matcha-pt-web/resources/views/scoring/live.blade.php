@@ -551,7 +551,7 @@
 
                         <button type="submit" id="btnGlobalNextRound" onclick="submitNextRound(event)"
                             class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer">
-                            <span id="btnNextRoundText">Lanjut ke {{ $unitTabLabel }} {{ $nextRoundNum }} (Pertandingan Berikutnya)</span>
+                            <span id="btnNextRoundText">Lanjut ke {{ $unitTabLabel }} {{ $nextRoundNum }} (Lihat Drawing Lapangan)</span>
                             <i id="btnNextRoundIcon" class="fa-solid fa-arrow-right text-[11px] text-[#A8E63A]"></i>
                         </button>
                     </form>
@@ -2089,10 +2089,10 @@
                 icon.className = 'fa-solid fa-spinner fa-spin text-xs text-[#A8E63A]';
             }
             if (text) {
-                text.textContent = 'Membuka {{ $unitTabLabel }} {{ $nextRoundNum ?? "Berikutnya" }}...';
+                text.textContent = 'Membuka Drawing {{ $unitTabLabel }} {{ $nextRoundNum ?? "Berikutnya" }}...';
             }
         }
-        showToast('Membuka {{ $unitTabLabel }} {{ $nextRoundNum ?? "Berikutnya" }}...');
+        showToast('Membuka Drawing {{ $unitTabLabel }} {{ $nextRoundNum ?? "Berikutnya" }}...');
         const form = document.getElementById('globalNextRoundForm');
         if (form) form.submit();
     }

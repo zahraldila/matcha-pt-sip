@@ -1190,12 +1190,32 @@ class ScoringController extends Controller
         $isTeamFormat = str_contains(strtolower($game['match_format'] ?? ''), 'team');
         $unitLabel = $isTeamFormat ? 'Set' : 'Ronde';
 
-        return redirect()->route('scoring.live', [
+        if ($request->input('redirect_to') === 'live') {
+            return redirect()->route('scoring.live', [
+                'id' => $gameId,
+                'format' => request('format', $game['match_format'] ?? 'Americano'),
+                'round' => $nextRound,
+                'court' => (int) $request->input('court', 0),
+            ])->with('success', "Berhasil lanjut ke {$unitLabel} {$nextNum}!");
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "{$unitLabel} {$currNum} selesai! Membuka susunan pertandingan {$unitLabel} {$nextNum}...",
+                'redirect' => route('games.drawing', [
+                    'id' => $gameId,
+                    'round' => $nextNum,
+                ]),
+                'next_round' => $nextRound,
+                'next_round_num' => (int) $nextNum,
+            ]);
+        }
+
+        return redirect()->route('games.drawing', [
             'id' => $gameId,
-            'format' => request('format', $game['match_format'] ?? 'Americano'),
-            'round' => $nextRound,
-            'court' => (int) $request->input('court', 0),
-        ])->with('success', "Berhasil lanjut ke {$unitLabel} {$nextNum}!");
+            'round' => $nextNum,
+        ])->with('success', "{$unitLabel} {$currNum} selesai! Silakan periksa susunan pemain & jadwal {$unitLabel} {$nextNum}.");
     }
 
     /**
@@ -2790,6 +2810,7 @@ class ScoringController extends Controller
                                 'previous_round' => $currentRound,
                                 'next_round' => $nextRound,
                                 'active_round' => $nextRound,
+                                'drawing_url' => route('games.drawing', ['id' => $gameId, 'round' => (int) preg_replace('/[^0-9]/', '', $nextRound)]),
                                 'timestamp' => now()->toIso8601String(),
                             ],
                         ],

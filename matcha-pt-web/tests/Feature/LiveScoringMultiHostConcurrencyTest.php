@@ -698,13 +698,25 @@ class LiveScoringMultiHostConcurrencyTest extends TestCase
             'current_round' => 'round_1',
             'next_round' => 'round_2',
         ]);
-        $resAllowed->assertRedirect(route('scoring.live', [
+        $resAllowed->assertRedirect(route('games.drawing', [
+            'id' => $session->session_id,
+            'round' => 2,
+        ]));
+        $resAllowed->assertSessionHas('success');
+
+        // Opsional: jika request menyertakan redirect_to => live, tetap diarahkan langsung ke scoring live
+        $resDirectLive = $this->actingAs($hostUser)->post(route('scoring.next-round'), [
+            'game_id' => $session->session_id,
+            'current_round' => 'round_1',
+            'next_round' => 'round_2',
+            'redirect_to' => 'live',
+        ]);
+        $resDirectLive->assertRedirect(route('scoring.live', [
             'id' => $session->session_id,
             'format' => 'americano',
             'round' => 'round_2',
             'court' => 0,
         ]));
-        $resAllowed->assertSessionHas('success');
     }
 
     /**

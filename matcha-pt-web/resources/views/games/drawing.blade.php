@@ -63,6 +63,19 @@
 
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
+    @if(session('success'))
+        <div class="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold shadow-2xs transition-all">
+            <i class="fa-solid fa-circle-check text-emerald-600 text-base shrink-0"></i>
+            <span class="flex-1">{{ session('success') }}</span>
+        </div>
+    @endif
+    @if(session('warning'))
+        <div class="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold shadow-2xs transition-all">
+            <i class="fa-solid fa-triangle-exclamation text-amber-600 text-base shrink-0"></i>
+            <span class="flex-1">{{ session('warning') }}</span>
+        </div>
+    @endif
+
     <!-- Header & Breadcrumb -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/50 pb-4">
         <div>
@@ -509,8 +522,14 @@
 
                 <!-- CTA Button to Live Scoring / Lock Drawing -->
                 @if($isLocked ?? false)
-                    <a id="ctaLiveBtn" href="{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano', 'round' => 'round_'.$activeRoundNum]) }}" class="block text-center py-3.5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
-                        <i class="fa-solid fa-lock mr-1.5"></i> <span id="ctaLiveText">Buka Scoring Live (Match Sedang Berjalan)</span> <i class="fa-solid fa-arrow-right text-[10px] ml-1"></i>
+                    @php
+                        $targetRoundStat = $roundStatus[$activeRoundNum] ?? 'ready';
+                        $initialCtaLabel = ($targetRoundStat === 'completed')
+                            ? "Buka Rekap / Skor {$unitLabel} {$activeRoundNum}"
+                            : "Mulai Scoring Live {$unitLabel} {$activeRoundNum}";
+                    @endphp
+                    <a id="ctaLiveBtn" href="{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano', 'round' => 'round_'.$activeRoundNum]) }}" class="block text-center py-3.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
+                        <i class="fa-solid fa-play mr-1.5 text-[#A8E63A]"></i> <span id="ctaLiveText">{{ $initialCtaLabel }}</span> <i class="fa-solid fa-arrow-right text-[10px] text-[#A8E63A] ml-1"></i>
                     </a>
                 @elseif($isHost ?? false)
                     <form method="POST" action="{{ route('games.lock', $game['id']) }}" class="block" id="formLockDrawing">

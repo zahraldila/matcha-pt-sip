@@ -3380,6 +3380,106 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertSame(2, $dataR3Locked['active_round_num']);
     }
 
+    public function test_scoring_next_round_redirects_to_drawing_preview_and_supports_json_and_direct_live()
+    {
+        $this->setupTestDatabaseSchema();
+
+        if (! Schema::hasColumn('tb_user', 'is_host')) {
+            Schema::table('tb_user', function ($table) {
+                $table->boolean('is_host')->default(false);
+            });
+        }
+
+        $hostUser = User::create([
+            'nama' => 'Host User',
+            'email' => 'host_'.uniqid().'@test.com',
+            'role' => 'host',
+            'is_host' => true,
+            'password' => bcrypt('password'),
+        ]);
+
+        $session = SessionModel::create([
+            'host_user_id' => $hostUser->user_id,
+            'sport_id' => 1,
+            'venue_id' => 1,
+            'nama_session' => 'Mabar Tahap 3 Test',
+            'scoring_system' => 'Total of 3',
+            'waktu_session' => '08:00 WIB (2 Jam)',
+            'datetime' => '2026-09-17 08:00:00',
+            'status_session' => 'In Progress',
+            'jumlah_pemain' => '4',
+            'jenis_permainan' => 'Single',
+        ]);
+
+        $drawing = Drawing::create([
+            'session_id' => $session->session_id,
+            'match_format_id' => 1,
+            'tanggal_drawing' => '2026-09-17',
+            'jam_drawing' => '08:00:00',
+        ]);
+
+        // Simpan match 1 completed
+        GameMatch::create([
+            'drawing_id' => $drawing->drawing_id,
+            'nomor_match' => 1,
+            'status_match' => 'Completed',
+            'winner_team' => 'Team A',
+        ]);
+
+        Cache::put("scoring.game_{$session->session_id}", [
+            'round_1' => [
+                'status' => 'completed',
+                'games_a' => 6,
+                'games_b' => 2,
+            ],
+            '_meta' => [
+                'active_round' => 'round_1',
+            ],
+        ]);
+
+        Auth::login($hostUser);
+        $scoringController = new ScoringController;
+
+        // 1. Default Next Round: redirect ke games.drawing dengan round=2
+        $requestDefault = Request::create(route('scoring.next-round'), 'POST', [
+            'game_id' => $session->session_id,
+            'current_round' => 'round_1',
+            'next_round' => 'round_2',
+        ]);
+        $responseDefault = $scoringController->nextRound($requestDefault);
+        $this->assertTrue($responseDefault->isRedirect(route('games.drawing', [
+            'id' => $session->session_id,
+            'round' => 2,
+        ])));
+
+        // 2. JSON Request Next Round: mengembalikan payload redirect ke games.drawing
+        $requestJson = Request::create(route('scoring.next-round'), 'POST', [
+            'game_id' => $session->session_id,
+            'current_round' => 'round_1',
+            'next_round' => 'round_2',
+        ], [], [], ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $responseJson = $scoringController->nextRound($requestJson);
+        $dataJson = $responseJson->getData(true);
+        $this->assertTrue($dataJson['success']);
+        $this->assertSame(route('games.drawing', ['id' => $session->session_id, 'round' => 2]), $dataJson['redirect']);
+        $this->assertSame(2, $dataJson['next_round_num']);
+
+        // 3. Request dengan redirect_to=live: tetap mendukung redirect langsung ke live scoring jika diminta
+        $requestLive = Request::create(route('scoring.next-round'), 'POST', [
+            'game_id' => $session->session_id,
+            'current_round' => 'round_1',
+            'next_round' => 'round_2',
+            'redirect_to' => 'live',
+        ]);
+        $responseLive = $scoringController->nextRound($requestLive);
+        $this->assertTrue($responseLive->isRedirect(route('scoring.live', [
+            'id' => $session->session_id,
+            'format' => 'americano',
+            'round' => 'round_2',
+            'court' => 0,
+        ])));
+    }
+
     protected function invokeMethod(&$object, $methodName, array $parameters = [])
     {
         $reflection = new \ReflectionClass(get_class($object));
