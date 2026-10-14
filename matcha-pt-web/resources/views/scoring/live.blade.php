@@ -338,13 +338,13 @@
         <div class="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 text-center space-y-2 shadow-sm relative overflow-hidden">
             <div class="flex items-center justify-between text-xs text-slate-300 border-b border-slate-800 pb-2">
                 <span class="font-bold uppercase tracking-wider text-[#A8E63A] flex items-center gap-1.5">
-                    <i class="fa-solid fa-trophy text-[11px]"></i> {{ $unitTabLabel }} {{ $activeRoundNum }} dari {{ $scoringSystem['is_sets'] ? ($scoringSystem['max_sets'] ?? count($allRoundsList)) : count($allRoundsList) }} SCORE
+                    <i class="fa-solid fa-trophy text-[11px]"></i> {{ $unitTabLabel }} {{ $activeRoundNum }} dari {{ $scoringSystem['is_sets'] ? ($scoringSystem['max_sets'] ?? count($allRoundsList)) : count($allRoundsList) }}
                 </span>
                 <span class="font-medium text-slate-400">
                     @if($scoringSystem['is_total_of'] ?? false)
-                        Format: <strong class="text-white">Total of {{ $scoringSystem['max_sets'] ?? 3 }} &mdash; {{ $scoringSystem['max_sets'] ?? 3 }} set. Target 6 game; jika 5–5, lanjut sampai 7.</strong>
+                        Format: <strong class="text-white">Total of {{ $scoringSystem['max_sets'] ?? 3 }} Set</strong>
                     @else
-                        Target: <strong class="text-white">First to {{ $scoringSystem['target_games'] ?? 8 }} Games (Target Menang)</strong>
+                        Target: <strong class="text-white">{{ $scoringSystem['target_games'] ?? 8 }} Games</strong>
                     @endif
                 </span>
             </div>
@@ -367,11 +367,9 @@
 
             <div id="setHistoryContainer_{{ $mIdx }}" class="flex items-center justify-center gap-2 flex-wrap pt-1 text-[11px]">
                 <span class="text-slate-400 font-semibold" id="currentSetLabel_{{ $mIdx }}">
-                    Status: <strong>{{ $isMStopped ? ($unitTabLabel . ' Dihentikan') : ($isMCompleted ? ($unitTabLabel . ' Selesai & Terkunci') : 'Sedang Berlangsung') }}</strong> &bull; Progres: {{ $unitTabLabel }} {{ $activeRoundNum }} dari {{ $scoringSystem['is_sets'] ? ($scoringSystem['max_sets'] ?? count($allRoundsList)) : count($allRoundsList) }}
+                    Status: <strong class="text-white">{{ $isMStopped ? ($unitTabLabel . ' Dihentikan') : ($isMCompleted ? ($unitTabLabel . ' Selesai & Terkunci') : 'Sedang Berlangsung') }}</strong>
                 </span>
-                <span id="currentSetGamesBadge_{{ $mIdx }}" class="px-2.5 py-0.5 rounded-md bg-white/10 text-[#A8E63A] font-bold border border-white/10">
-                    Game Score: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}
-                </span>
+                <span id="currentSetGamesBadge_{{ $mIdx }}" class="hidden"></span>
             </div>
         </div>
 
@@ -405,9 +403,7 @@
                     <div id="scoreDisplayA_{{ $mIdx }}" class="text-6xl font-black text-slate-900 tracking-tight transition-all duration-300">
                         {{ $currentScore['point_display_a'] ?? '0' }}
                     </div>
-                    <span id="subScoreLabelA_{{ $mIdx }}" class="text-xs text-slate-500 font-semibold block mt-1">
-                        Games Won: {{ $currentScore['games_a'] ?? 0 }} Game
-                    </span>
+                    <span id="subScoreLabelA_{{ $mIdx }}" class="hidden"></span>
                 </div>
 
                 <!-- Point Button — hanya tampil untuk Host -->
@@ -455,9 +451,7 @@
                     <div id="scoreDisplayB_{{ $mIdx }}" class="text-6xl font-black text-slate-900 tracking-tight transition-all duration-300">
                         {{ $currentScore['point_display_b'] ?? '0' }}
                     </div>
-                    <span id="subScoreLabelB_{{ $mIdx }}" class="text-xs text-slate-500 font-semibold block mt-1">
-                        Games Won: {{ $currentScore['games_b'] ?? 0 }} Game
-                    </span>
+                    <span id="subScoreLabelB_{{ $mIdx }}" class="hidden"></span>
                 </div>
 
                 <!-- Point Button — hanya tampil untuk Host -->
@@ -480,13 +474,11 @@
         </div>
 
         <!-- Score Status Notice -->
-        <div id="matchNotice_{{ $mIdx }}" class="p-3.5 bg-white/90 rounded-xl border border-slate-200/70 text-center text-xs font-semibold text-slate-700 shadow-2xs">
+        <div id="matchNotice_{{ $mIdx }}" class="p-3.5 bg-white/90 rounded-xl border border-slate-200/70 text-center text-xs font-semibold text-slate-700 shadow-2xs {{ ($isMStopped || $isMCompleted) ? '' : 'hidden' }}">
             @if($isMStopped)
                 ⚠️ <strong>{{ $unitTabLabel }} {{ $activeRoundNum }} Dihentikan</strong> &bull; Skor: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}
             @elseif($isMCompleted)
                 🔒 <strong>{{ $unitTabLabel }} {{ $activeRoundNum }} Selesai & Terkunci</strong> &bull; Skor: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}
-            @else
-                Point: <strong>0 &mdash; 0</strong> &bull; <em>Game sedang berlangsung</em>
             @endif
         </div>
 
@@ -1497,9 +1489,7 @@
         if (gameDispA) gameDispA.innerText = st.gamesA;
         if (gameDispB) gameDispB.innerText = st.gamesB;
         if (curBadge) {
-            curBadge.innerText = IS_SETS 
-                ? `Game Score: ${st.gamesA} — ${st.gamesB}` 
-                : `Target: ${TARGET_GAMES} Games (Score: ${st.gamesA} — ${st.gamesB})`;
+            curBadge.innerText = '';
         }
         if (subA) {
             subA.innerText = `Games Won: ${st.gamesA} Game`;
@@ -1509,15 +1499,18 @@
         }
 
         if (setLbl) {
-            setLbl.innerHTML = `Status: <strong>${st.isStopped ? (UNIT_TAB_LABEL + ' Dihentikan') : (st.matchDone ? (UNIT_TAB_LABEL + ' Selesai & Terkunci') : 'Sedang Berlangsung')}</strong>`;
+            setLbl.innerHTML = `Status: <strong class="text-white">${st.isStopped ? (UNIT_TAB_LABEL + ' Dihentikan') : (st.matchDone ? (UNIT_TAB_LABEL + ' Selesai & Terkunci') : 'Sedang Berlangsung')}</strong>`;
         }
 
         if (notice) {
             if (st.isStopped) {
+                notice.classList.remove('hidden');
                 notice.innerHTML = `⚠️ <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Dihentikan</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB} Games</strong>`;
             } else if (st.matchDone) {
+                notice.classList.remove('hidden');
                 notice.innerHTML = `🔒 <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Selesai & Terkunci</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB} Games</strong> (${st.winnerTeam || 'Selesai'})`;
             } else if (st.isDeuce) {
+                notice.classList.remove('hidden');
                 if (st.advantage === 'A') {
                     notice.innerHTML = '<strong class="text-[#063B00]">ADVANTAGE TEAM A</strong> &bull; Butuh 1 poin lagi untuk memenangkan game';
                 } else if (st.advantage === 'B') {
@@ -1526,7 +1519,8 @@
                     notice.innerHTML = '<strong class="text-amber-700">DEUCE (40 - 40)</strong> &bull; Perebutan advantage point';
                 }
             } else {
-                notice.innerHTML = `${UNIT_TAB_LABEL} score: <strong>${st.gamesA}</strong> — <strong>${st.gamesB}</strong> &bull; Point: <strong>${displays.a} : ${displays.b}</strong>`;
+                notice.classList.add('hidden');
+                notice.innerHTML = '';
             }
         }
 
