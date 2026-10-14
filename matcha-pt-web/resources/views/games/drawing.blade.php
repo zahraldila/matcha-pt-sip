@@ -533,7 +533,7 @@
                             ? "Buka Rekap / Skor {$unitLabel} {$activeRoundNum}"
                             : "Mulai Scoring Live {$unitLabel} {$activeRoundNum}";
                     @endphp
-                    <a id="ctaLiveBtn" href="{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano', 'round' => 'round_'.$activeRoundNum]) }}" class="block text-center py-3.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
+                    <a id="ctaLiveBtn" onclick="onHostOpenScoring(event)" href="{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano', 'round' => 'round_'.$activeRoundNum]) }}" class="block text-center py-3.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
                         <i class="fa-solid fa-play mr-1.5 text-[#A8E63A]"></i> <span id="ctaLiveText">{{ $initialCtaLabel }}</span> <i class="fa-solid fa-arrow-right text-[10px] text-[#A8E63A] ml-1"></i>
                     </a>
                 @elseif($isHost ?? false)
@@ -764,20 +764,42 @@
         }
     }
 
-    if (!isSessionLocked && !isHostUser) {
+    function onHostOpenScoring(event) {
+        if (!isHostUser) return;
+        if (window.supabase && SUPABASE_URL && SUPABASE_KEY) {
+            try {
+                const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                const separator = baseLiveScoringUrl.includes('?') ? '&' : '?';
+                const targetUrl = `${baseLiveScoringUrl}${separator}round=round_${currentRoundKey}`;
+                sb.channel('session_' + gameSessionId).send({
+                    type: 'broadcast',
+                    event: 'scoring_opened',
+                    payload: {
+                        session_id: gameSessionId,
+                        round: 'round_' + currentRoundKey,
+                        round_num: currentRoundKey,
+                        redirect_url: targetUrl
+                    }
+                }).catch(err => console.warn('[Supabase Realtime] onHostOpenScoring send warning:', err));
+            } catch (err) {}
+        }
+    }
+
+    if (!isHostUser) {
         let isRedirecting = false;
         const triggerRedirectToLive = (url) => {
             if (isRedirecting) return;
             isRedirecting = true;
             if (typeof showToast === 'function') {
-                showToast('🏆 Host telah mengunci tim & memulai pertandingan! Membuka Live Scoring...');
+                showToast(`🏆 Host telah membuka ${unitLabel} ${currentRoundKey}! Membuka Live Scoring...`);
             }
             setTimeout(() => {
-                window.location.href = url || liveScoringUrl;
-            }, 500);
+                const separator = baseLiveScoringUrl.includes('?') ? '&' : '?';
+                window.location.href = url || `${baseLiveScoringUrl}${separator}round=round_${currentRoundKey}`;
+            }, 400);
         };
 
-        // 1. Supabase Realtime Listener (Instant Push for drawing_locked & drawing_shuffled)
+        // 1. Supabase Realtime Listener (Instant Push for drawing_locked, scoring_opened, score_update, drawing_shuffled)
         if (window.supabase && SUPABASE_URL && SUPABASE_KEY) {
             try {
                 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -785,6 +807,20 @@
                     .on('broadcast', { event: 'drawing_locked' }, ({ payload }) => {
                         console.log('[Drawing Realtime] Drawing locked event received:', payload);
                         triggerRedirectToLive(payload?.redirect_url);
+                    })
+                    .on('broadcast', { event: 'scoring_opened' }, ({ payload }) => {
+                        console.log('[Drawing Realtime] scoring_opened event received:', payload);
+                        const targetRound = payload?.round || ('round_' + (payload?.round_num || currentRoundKey));
+                        const separator = baseLiveScoringUrl.includes('?') ? '&' : '?';
+                        const targetUrl = payload?.redirect_url || `${baseLiveScoringUrl}${separator}round=${targetRound}`;
+                        triggerRedirectToLive(targetUrl);
+                    })
+                    .on('broadcast', { event: 'score_update' }, ({ payload }) => {
+                        console.log('[Drawing Realtime] score_update event received:', payload);
+                        const targetRound = payload?.session_active_round || payload?.active_round || ('round_' + currentRoundKey);
+                        const separator = baseLiveScoringUrl.includes('?') ? '&' : '?';
+                        const targetUrl = `${baseLiveScoringUrl}${separator}round=${targetRound}`;
+                        triggerRedirectToLive(targetUrl);
                     })
                     .on('broadcast', { event: 'drawing_shuffled' }, ({ payload }) => {
                         console.log('[Drawing Realtime] Drawing shuffled event received:', payload);
@@ -800,7 +836,7 @@
             }
         }
 
-        // 2. Smart Polling Fallback (setiap 1.2 detik untuk deteksi lock dan shuffle otomatis)
+        // 2. Smart Polling Fallback (setiap 1.2 detik untuk deteksi lock, scoring dibuka, dan shuffle otomatis)
         const checkLockInterval = setInterval(async () => {
             if (isRedirecting) {
                 clearInterval(checkLockInterval);
@@ -808,7 +844,7 @@
             }
             const pollStart = performance.now();
             try {
-                const res = await fetch(`{{ route('games.drawing', $game['id']) }}?json=1&_t=${Date.now()}`, {
+                const res = await fetch(`{{ route('games.drawing', $game['id']) }}?json=1&round=${currentRoundKey}&_t=${Date.now()}`, {
                     headers: { 'Accept': 'application/json' }
                 });
                 const pollDuration = performance.now() - pollStart;
@@ -831,11 +867,23 @@
                 }
 
                 const data = await res.json();
-                if (data && data.isLocked) {
+                
+                // Jika ronde pertama baru di-lock
+                if (!isSessionLocked && data && data.isLocked) {
                     clearInterval(checkLockInterval);
                     triggerRedirectToLive(data.redirect_url);
                     return;
                 }
+
+                // Jika scoring untuk ronde saat ini sudah dibuka oleh Host (Realtime flag atau status in_progress)
+                if (data && (data.scoring_opened || (data.round_status && data.round_status[currentRoundKey] === 'in_progress'))) {
+                    clearInterval(checkLockInterval);
+                    const separator = baseLiveScoringUrl.includes('?') ? '&' : '?';
+                    const targetUrl = data.redirect_url || `${baseLiveScoringUrl}${separator}round=round_${currentRoundKey}`;
+                    triggerRedirectToLive(targetUrl);
+                    return;
+                }
+
                 if (data && (data.rounds || data.drawingData?.rounds)) {
                     if (data.round_access) roundAccessData = data.round_access;
                     if (data.round_status) roundStatusData = data.round_status;

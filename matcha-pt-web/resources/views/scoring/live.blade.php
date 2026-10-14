@@ -2775,13 +2775,29 @@
             realtimeChannel.subscribe((status, err) => {
                 console.log('[Supabase Realtime] Status:', status, err || '');
                 const badge = document.getElementById('realtimeSyncBadge');
-                if (badge) {
-                    if (status === 'SUBSCRIBED') {
+                if (status === 'SUBSCRIBED') {
+                    if (badge) {
                         badge.innerHTML = '<i class="fa-solid fa-bolt text-emerald-500 text-[9px]"></i> Realtime Active';
                         badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold';
-                        triggerAllCourtsPoll(true);
-                    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                        console.warn('[Supabase Realtime] Channel disconnected or errored:', status, err);
+                    }
+                    triggerAllCourtsPoll(true);
+
+                    // Beritahu seluruh Player di halaman Drawing bahwa Scoring untuk ronde ini telah resmi dibuka oleh Host
+                    if (IS_HOST && realtimeChannel) {
+                        realtimeChannel.send({
+                            type: 'broadcast',
+                            event: 'scoring_opened',
+                            payload: {
+                                session_id: GAME_ID,
+                                round: ACTIVE_ROUND,
+                                round_num: parseInt(ACTIVE_ROUND_NUM, 10),
+                                redirect_url: window.location.href
+                            }
+                        }).catch(e => console.warn('[Supabase Realtime] scoring_opened broadcast error:', e));
+                    }
+                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    console.warn('[Supabase Realtime] Channel disconnected or errored:', status, err);
+                    if (badge) {
                         badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Polling Fallback';
                         badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold';
                     }
