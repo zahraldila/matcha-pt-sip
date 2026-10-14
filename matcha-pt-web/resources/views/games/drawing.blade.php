@@ -76,6 +76,11 @@
         </div>
     @endif
 
+    {{-- Network Quality & Offline Status Banner --}}
+    <div id="networkStatusBannerContainer" class="hidden transition-all duration-300">
+        <!-- Rendered dynamically by updateNetworkStatusUI -->
+    </div>
+
     <!-- Header & Breadcrumb -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/50 pb-4">
         <div>
@@ -569,6 +574,120 @@
     const SUPABASE_URL = '{{ config('services.supabase.url') }}';
     const SUPABASE_KEY = '{{ config('services.supabase.public_key') }}';
 
+    // ── Network Quality & Offline Banner Controller ───────────────────────────
+    let currentNetworkState = 'normal';
+    let recoveredHideTimeout = null;
+    let consecutivePollFailures = 0;
+
+    function updateNetworkStatusUI(status, details = {}) {
+        const container = document.getElementById('networkStatusBannerContainer');
+        if (!container) return;
+
+        if (recoveredHideTimeout) {
+            clearTimeout(recoveredHideTimeout);
+            recoveredHideTimeout = null;
+        }
+
+        currentNetworkState = status;
+
+        if (status === 'normal') {
+            container.classList.add('hidden');
+            container.innerHTML = '';
+            return;
+        }
+
+        container.classList.remove('hidden');
+
+        if (status === 'offline') {
+            container.innerHTML = `
+                <div class="p-3.5 mb-3 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start sm:items-center justify-between gap-3 shadow-xs transition-all duration-200">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-9 h-9 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0 text-rose-600">
+                            <i class="fa-solid fa-wifi-slash text-base animate-pulse"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-xs sm:text-sm text-rose-950 flex items-center gap-1.5 flex-wrap">
+                                <span>Koneksi Terputus (Mode Offline)</span>
+                                <span class="inline-block w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                            </div>
+                            <p class="text-[11px] sm:text-xs text-rose-700 mt-0.5 leading-snug">
+                                Jadwal pertandingan ditampilkan dari data lokal. Pembaruan akan otomatis disinkronkan segera setelah internet pulih.
+                            </p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-semibold shrink-0 self-start sm:self-center">
+                        <i class="fa-solid fa-floppy-disk text-[10px]"></i> Data lokal
+                    </span>
+                </div>
+            `;
+        } else if (status === 'slow') {
+            const latencyMs = details.latencyMs || 0;
+            const latencySec = latencyMs > 0 ? (latencyMs / 1000).toFixed(1) + 's' : '>2.5s';
+            const latencyBadge = latencyMs > 0 ? `~${latencySec}` : 'Lambat';
+
+            container.innerHTML = `
+                <div class="p-3.5 mb-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 flex items-start sm:items-center justify-between gap-3 shadow-xs transition-all duration-200">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0 text-amber-700">
+                            <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-xs sm:text-sm text-amber-950 flex items-center gap-1.5 flex-wrap">
+                                <span>Koneksi Jaringan Lambat</span>
+                                <span class="text-[11px] font-semibold text-amber-700">(${latencyBadge})</span>
+                            </div>
+                            <p class="text-[11px] sm:text-xs text-amber-800 mt-0.5 leading-snug">
+                                Respon server memakan waktu ${latencySec}. Pembaruan jadwal atau pengacakan mungkin memerlukan beberapa saat.
+                            </p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-200/80 text-amber-900 text-[10px] font-bold shrink-0 self-start sm:self-center">
+                        <i class="fa-solid fa-gauge-high text-[10px]"></i> ${latencyBadge}
+                    </span>
+                </div>
+            `;
+        } else if (status === 'recovered') {
+            container.innerHTML = `
+                <div class="p-3.5 mb-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 flex items-start sm:items-center justify-between gap-3 shadow-xs transition-all duration-200">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-9 h-9 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 text-emerald-600">
+                            <i class="fa-solid fa-circle-check text-base"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-xs sm:text-sm text-emerald-950 flex items-center gap-1.5 flex-wrap">
+                                <span>Koneksi Normal Kembali</span>
+                            </div>
+                            <p class="text-[11px] sm:text-xs text-emerald-800 mt-0.5 leading-snug">
+                                Jaringan internet kembali stabil.
+                            </p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0 self-start sm:self-center">
+                        <i class="fa-solid fa-check text-[10px]"></i> Terhubung
+                    </span>
+                </div>
+            `;
+
+            recoveredHideTimeout = setTimeout(() => {
+                if (currentNetworkState === 'recovered') {
+                    updateNetworkStatusUI('normal');
+                }
+            }, 3500);
+        }
+    }
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        updateNetworkStatusUI('offline');
+    }
+
+    window.addEventListener('offline', () => {
+        updateNetworkStatusUI('offline');
+    });
+
+    window.addEventListener('online', () => {
+        updateNetworkStatusUI('recovered');
+    });
+
     function getActiveUnlockedRound() {
         const allKeys = Object.keys(roundsData).map(Number).sort((a, b) => a - b);
         let activeUnlocked = allKeys[0] || 1;
@@ -703,26 +822,50 @@
                 clearInterval(checkLockInterval);
                 return;
             }
+            const pollStart = performance.now();
             try {
                 const res = await fetch(`{{ route('games.drawing', $game['id']) }}?json=1&_t=${Date.now()}`, {
                     headers: { 'Accept': 'application/json' }
                 });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.isLocked) {
-                        clearInterval(checkLockInterval);
-                        triggerRedirectToLive(data.redirect_url);
-                        return;
+                const pollDuration = performance.now() - pollStart;
+                if (!res.ok) {
+                    consecutivePollFailures++;
+                    if (consecutivePollFailures >= 2 && currentNetworkState !== 'offline') {
+                        if (!navigator.onLine) {
+                            updateNetworkStatusUI('offline');
+                        } else {
+                            updateNetworkStatusUI('slow', { latencyMs: pollDuration });
+                        }
                     }
-                    if (data && (data.rounds || data.drawingData?.rounds)) {
-                        if (data.round_access) roundAccessData = data.round_access;
-                        if (data.round_status) roundStatusData = data.round_status;
-                        const newRounds = data.rounds || data.drawingData?.rounds;
-                        applyRemoteDrawingUpdate(newRounds, data.participantsMap, '🎲 Jadwal diperbarui otomatis.');
-                    }
+                    return;
+                }
+                consecutivePollFailures = 0;
+                if (pollDuration > 2500) {
+                    updateNetworkStatusUI('slow', { latencyMs: pollDuration });
+                } else if (currentNetworkState === 'slow' || currentNetworkState === 'offline') {
+                    updateNetworkStatusUI('recovered');
+                }
+
+                const data = await res.json();
+                if (data && data.isLocked) {
+                    clearInterval(checkLockInterval);
+                    triggerRedirectToLive(data.redirect_url);
+                    return;
+                }
+                if (data && (data.rounds || data.drawingData?.rounds)) {
+                    if (data.round_access) roundAccessData = data.round_access;
+                    if (data.round_status) roundStatusData = data.round_status;
+                    const newRounds = data.rounds || data.drawingData?.rounds;
+                    applyRemoteDrawingUpdate(newRounds, data.participantsMap, '🎲 Jadwal diperbarui otomatis.');
                 }
             } catch (e) {
-                // Ignore network error
+                consecutivePollFailures++;
+                const pollDuration = performance.now() - pollStart;
+                if (!navigator.onLine) {
+                    updateNetworkStatusUI('offline');
+                } else if (consecutivePollFailures >= 2) {
+                    updateNetworkStatusUI('slow', { latencyMs: pollDuration });
+                }
             }
         }, 1200);
     }

@@ -74,6 +74,11 @@
         </div>
     @endif
 
+    {{-- Network Quality & Offline Status Banner --}}
+    <div id="networkStatusBannerContainer" class="hidden transition-all duration-300">
+        <!-- Rendered dynamically by updateNetworkStatusUI -->
+    </div>
+
     {{-- Round / Set Selector (Set 1, Set 2, Set 3) --}}
     @php
         $isTeamFormat = str_contains(strtolower($game['match_format'] ?? ''), 'team');
@@ -1036,6 +1041,131 @@
         } catch (e) {
             console.warn(`[Offline Sync] Orphaned queue network error for ${matchKey}, will retry later.`, e);
         }
+    }
+
+    // ── Network Quality & Offline Banner Controller ───────────────────────────
+    let currentNetworkState = 'normal'; // 'normal', 'slow', 'offline', 'recovered'
+    let recoveredHideTimeout = null;
+    let consecutivePollFailures = 0;
+
+    function getTotalPendingSaves() {
+        let total = 0;
+        for (const cIdx in courtsState) {
+            const st = courtsState[cIdx];
+            if (st) {
+                total += (st.saveQueue?.length || 0) + (st.inFlightQueue?.length || 0);
+            }
+        }
+        return total;
+    }
+
+    function updateNetworkStatusUI(status, details = {}) {
+        const container = document.getElementById('networkStatusBannerContainer');
+        if (!container) return;
+
+        if (recoveredHideTimeout) {
+            clearTimeout(recoveredHideTimeout);
+            recoveredHideTimeout = null;
+        }
+
+        currentNetworkState = status;
+
+        if (status === 'normal') {
+            container.classList.add('hidden');
+            container.innerHTML = '';
+            return;
+        }
+
+        container.classList.remove('hidden');
+
+        if (status === 'offline') {
+            const pending = getTotalPendingSaves();
+            const pendingBadge = pending > 0
+                ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-200/80 text-rose-800 text-[10px] font-bold shrink-0 self-start sm:self-center">
+                       <i class="fa-solid fa-rotate fa-spin text-[9px]"></i> ${pending} skor antre
+                   </span>`
+                : `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-semibold shrink-0 self-start sm:self-center">
+                       <i class="fa-solid fa-floppy-disk text-[10px]"></i> Tersimpan lokal
+                   </span>`;
+
+            container.innerHTML = `
+                <div class="p-3.5 mb-3 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start sm:items-center justify-between gap-3 shadow-xs transition-all duration-200">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-9 h-9 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0 text-rose-600">
+                            <i class="fa-solid fa-wifi-slash text-base animate-pulse"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-xs sm:text-sm text-rose-950 flex items-center gap-1.5 flex-wrap">
+                                <span>Koneksi Terputus (Mode Offline)</span>
+                                <span class="inline-block w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                            </div>
+                            <p class="text-[11px] sm:text-xs text-rose-700 mt-0.5 leading-snug">
+                                Skor tetap dicatat di layar dan tersimpan aman di perangkat lokal Anda. Sistem akan otomatis menyinkronkan ke server segera setelah internet pulih.
+                            </p>
+                        </div>
+                    </div>
+                    ${pendingBadge}
+                </div>
+            `;
+        } else if (status === 'slow') {
+            const latencyMs = details.latencyMs || 0;
+            const latencySec = latencyMs > 0 ? (latencyMs / 1000).toFixed(1) + 's' : '>2.5s';
+            const latencyBadge = latencyMs > 0 ? `~${latencySec}` : 'Lambat';
+
+            container.innerHTML = `
+                <div class="p-3.5 mb-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 flex items-start sm:items-center justify-between gap-3 shadow-xs transition-all duration-200">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0 text-amber-700">
+                            <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-xs sm:text-sm text-amber-950 flex items-center gap-1.5 flex-wrap">
+                                <span>Koneksi Jaringan Lambat</span>
+                                <span class="text-[11px] font-semibold text-amber-700">(${latencyBadge})</span>
+                            </div>
+                            <p class="text-[11px] sm:text-xs text-amber-800 mt-0.5 leading-snug">
+                                Respon server memakan waktu ${latencySec}. Input skor Anda tetap berjalan lancar di layar dan antrean sedang disinkronkan ke server.
+                            </p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-200/80 text-amber-900 text-[10px] font-bold shrink-0 self-start sm:self-center">
+                        <i class="fa-solid fa-gauge-high text-[10px]"></i> ${latencyBadge}
+                    </span>
+                </div>
+            `;
+        } else if (status === 'recovered') {
+            container.innerHTML = `
+                <div class="p-3.5 mb-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 flex items-start sm:items-center justify-between gap-3 shadow-xs transition-all duration-200">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-9 h-9 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 text-emerald-600">
+                            <i class="fa-solid fa-circle-check text-base"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-xs sm:text-sm text-emerald-950 flex items-center gap-1.5 flex-wrap">
+                                <span>Koneksi Normal Kembali</span>
+                            </div>
+                            <p class="text-[11px] sm:text-xs text-emerald-800 mt-0.5 leading-snug">
+                                Jaringan internet kembali stabil dan seluruh skor tersinkronkan ke server secara aman.
+                            </p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0 self-start sm:self-center">
+                        <i class="fa-solid fa-check text-[10px]"></i> Terhubung
+                    </span>
+                </div>
+            `;
+
+            recoveredHideTimeout = setTimeout(() => {
+                if (currentNetworkState === 'recovered') {
+                    updateNetworkStatusUI('normal');
+                }
+            }, 3500);
+        }
+    }
+
+    // Initial check for offline state on load
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        updateNetworkStatusUI('offline');
     }
 
     // ── Court Tab Switching ──────────────────────────────────────────────────
@@ -2033,6 +2163,10 @@
                 localStorage.setItem(`matcha_seq_${GAME_ID}_${st.matchKey}`, String(cSeq));
                 localStorage.setItem(`matcha_queue_${GAME_ID}_${st.matchKey}`, JSON.stringify([...st.inFlightQueue, ...st.saveQueue]));
             } catch(e) {}
+
+            if (currentNetworkState === 'offline') {
+                updateNetworkStatusUI('offline');
+            }
         }
 
         const isCompletionSave = status === 'completed' || action === 'completion';
@@ -2150,6 +2284,7 @@
         st.activeSaveIsCompletion = isCompletionSave;
 
         let isRetryableError = false;
+        const saveFetchStart = performance.now();
 
         try {
             const res = await fetch(UPDATE_URL, {
@@ -2239,9 +2374,20 @@
                     }
                 }
 
+                const saveRoundtripMs = performance.now() - saveFetchStart;
                 if (latestTClick) {
                     const roundtripMs = performance.now() - latestTClick;
                     console.log(`[Network Roundtrip] Court ${st.courtNum} save batch (${batchEvents.length} events) roundtrip: ${roundtripMs.toFixed(2)}ms (serverVersion=${st.serverVersion})`);
+                }
+
+                if (saveRoundtripMs > 2500) {
+                    updateNetworkStatusUI('slow', { latencyMs: saveRoundtripMs });
+                } else if (currentNetworkState === 'slow' || currentNetworkState === 'offline') {
+                    if (getTotalPendingSaves() === 0) {
+                        updateNetworkStatusUI('recovered');
+                    } else if (currentNetworkState === 'offline') {
+                        updateNetworkStatusUI('offline');
+                    }
                 }
             } else if (res.status === 422) {
                 const errData = await res.json().catch(() => ({}));
@@ -2283,6 +2429,13 @@
                 try {
                     localStorage.setItem(`matcha_queue_${GAME_ID}_${st.matchKey}`, JSON.stringify(st.saveQueue));
                 } catch(e) {}
+
+                const elapsed = performance.now() - saveFetchStart;
+                if (!navigator.onLine) {
+                    updateNetworkStatusUI('offline');
+                } else {
+                    updateNetworkStatusUI('slow', { latencyMs: elapsed });
+                }
                 
                 // Jadwalkan retry otomatis 2 detik kemudian
                 setTimeout(() => {
@@ -2306,6 +2459,12 @@
                 
                 if (st.pendingSaves === 0) {
                     st.localVersion = Math.max(st.localVersion || 0, st.serverVersion || 0);
+                }
+
+                if (getTotalPendingSaves() === 0 && (currentNetworkState === 'slow' || currentNetworkState === 'offline')) {
+                    updateNetworkStatusUI('recovered');
+                } else if (currentNetworkState === 'offline') {
+                    updateNetworkStatusUI('offline');
                 }
             }
         }
@@ -2642,6 +2801,7 @@
         const executePoll = async (isReconnect = false) => {
             if (isPolling) return;
             isPolling = true;
+            const pollStart = performance.now();
             try {
                 let pollUrlWithTs = `${POLL_URL}&_t=${Date.now()}`;
                 if (isReconnect) {
@@ -2651,15 +2811,39 @@
                     cache: 'no-store',
                     headers: { 'Accept': 'application/json' }
                 });
-                if (!res.ok) return;
+                const pollDuration = performance.now() - pollStart;
+                if (!res.ok) {
+                    consecutivePollFailures++;
+                    if (consecutivePollFailures >= 2 && currentNetworkState !== 'offline') {
+                        if (!navigator.onLine) {
+                            updateNetworkStatusUI('offline');
+                        } else {
+                            updateNetworkStatusUI('slow', { latencyMs: pollDuration });
+                        }
+                    }
+                    return;
+                }
+                consecutivePollFailures = 0;
                 const data = await res.json();
                 data.court = cIdx;
                 data.match_key = st.matchKey;
 
+                if (pollDuration > 2500) {
+                    updateNetworkStatusUI('slow', { latencyMs: pollDuration });
+                } else if ((currentNetworkState === 'slow' || currentNetworkState === 'offline') && getTotalPendingSaves() === 0) {
+                    updateNetworkStatusUI('recovered');
+                }
+
                 // Salurkan seluruh response polling melalui handler monotonic yang sama (Requirement 6)
                 handleIncomingScoreEvent(data, isReconnect ? 'Polling Reconnect' : 'Polling 0.8s');
             } catch (err) {
-                // Ignore network polling error
+                consecutivePollFailures++;
+                const pollDuration = performance.now() - pollStart;
+                if (!navigator.onLine) {
+                    updateNetworkStatusUI('offline');
+                } else if (consecutivePollFailures >= 2) {
+                    updateNetworkStatusUI('slow', { latencyMs: pollDuration });
+                }
             } finally {
                 isPolling = false;
                 nextPollTime = Date.now() + POLL_INTERVAL_MS;
@@ -2684,8 +2868,21 @@
         }
     });
 
+    window.addEventListener('offline', () => {
+        console.warn('[Network] Offline event detected.');
+        updateNetworkStatusUI('offline');
+    });
+
     window.addEventListener('online', () => {
+        console.log('[Network] Online event detected. Checking connection & triggering poll/queue drain...');
         triggerAllCourtsPoll(true);
+        if (IS_HOST) {
+            Object.keys(courtsState).forEach(cIdx => {
+                if (courtsState[cIdx].saveQueue?.length > 0 && !courtsState[cIdx].saveWorker) {
+                    queueScoreSave(cIdx, null, null, null, 'retry_drain');
+                }
+            });
+        }
     });
 
     // ── End Match Modal & Controller Functions ──────────────────────────────
