@@ -601,29 +601,16 @@
         if (status === 'offline') {
             container.innerHTML = `
                 <div class="p-3.5 mb-3 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start sm:items-center justify-between gap-3 shadow-xs transition-all duration-200">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-9 h-9 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0 text-rose-600">
-                            <svg class="w-5 h-5 animate-pulse" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="2" y1="2" x2="22" y2="22"></line>
-                                <path d="M8.5 16.5a5 5 0 0 1 7 0"></path>
-                                <path d="M2 8.82a15 15 0 0 1 4.17-2.65"></path>
-                                <path d="M10.66 5c4.01-.36 8.14.9 11.34 3.82"></path>
-                                <path d="M5 12.86a10 10 0 0 1 4.31-2.52"></path>
-                                <path d="M14 10.35a10 10 0 0 1 5 2.5"></path>
-                                <line x1="12" y1="20" x2="12.01" y2="20"></line>
-                            </svg>
+                    <div class="min-w-0">
+                        <div class="font-bold text-xs sm:text-sm text-rose-950 flex items-center gap-1.5 flex-wrap">
+                            <span>Koneksi Terputus (Mode Offline)</span>
+                            <span class="inline-block w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
                         </div>
-                        <div class="min-w-0">
-                            <div class="font-bold text-xs sm:text-sm text-rose-950 flex items-center gap-1.5 flex-wrap">
-                                <span>Koneksi Terputus (Mode Offline)</span>
-                                <span class="inline-block w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
-                            </div>
-                            <p class="text-[11px] sm:text-xs text-rose-700 mt-0.5 leading-snug">
-                                Jadwal pertandingan ditampilkan dari data lokal. Pembaruan akan otomatis disinkronkan segera setelah internet pulih.
-                            </p>
-                        </div>
+                        <p class="text-[11px] sm:text-xs text-rose-700 mt-0.5 leading-snug">
+                            Jadwal pertandingan ditampilkan dari data lokal. Pembaruan akan otomatis disinkronkan segera setelah internet pulih.
+                        </p>
                     </div>
-                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-semibold shrink-0 self-start sm:self-center">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-semibold shrink-0 self-start sm:self-center">
                         <i class="fa-solid fa-floppy-disk text-[10px]"></i> Data lokal
                     </span>
                 </div>
@@ -635,19 +622,14 @@
 
             container.innerHTML = `
                 <div class="p-3.5 mb-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 flex items-start sm:items-center justify-between gap-3 shadow-xs transition-all duration-200">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0 text-amber-700">
-                            <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+                    <div class="min-w-0">
+                        <div class="font-bold text-xs sm:text-sm text-amber-950 flex items-center gap-1.5 flex-wrap">
+                            <span>Koneksi Jaringan Lambat</span>
+                            <span class="text-[11px] font-semibold text-amber-700">(${latencyBadge})</span>
                         </div>
-                        <div class="min-w-0">
-                            <div class="font-bold text-xs sm:text-sm text-amber-950 flex items-center gap-1.5 flex-wrap">
-                                <span>Koneksi Jaringan Lambat</span>
-                                <span class="text-[11px] font-semibold text-amber-700">(${latencyBadge})</span>
-                            </div>
-                            <p class="text-[11px] sm:text-xs text-amber-800 mt-0.5 leading-snug">
-                                Respon server memakan waktu ${latencySec}. Pembaruan jadwal atau pengacakan mungkin memerlukan beberapa saat.
-                            </p>
-                        </div>
+                        <p class="text-[11px] sm:text-xs text-amber-800 mt-0.5 leading-snug">
+                            Respon server memakan waktu ${latencySec}. Pembaruan jadwal atau pengacakan mungkin memerlukan beberapa saat.
+                        </p>
                     </div>
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-200/80 text-amber-900 text-[10px] font-bold shrink-0 self-start sm:self-center">
                         <i class="fa-solid fa-gauge-high text-[10px]"></i> ${latencyBadge}
@@ -657,18 +639,13 @@
         } else if (status === 'recovered') {
             container.innerHTML = `
                 <div class="p-3.5 mb-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 flex items-start sm:items-center justify-between gap-3 shadow-xs transition-all duration-200">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-9 h-9 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 text-emerald-600">
-                            <i class="fa-solid fa-circle-check text-base"></i>
+                    <div class="min-w-0">
+                        <div class="font-bold text-xs sm:text-sm text-emerald-950 flex items-center gap-1.5 flex-wrap">
+                            <span>Koneksi Normal Kembali</span>
                         </div>
-                        <div class="min-w-0">
-                            <div class="font-bold text-xs sm:text-sm text-emerald-950 flex items-center gap-1.5 flex-wrap">
-                                <span>Koneksi Normal Kembali</span>
-                            </div>
-                            <p class="text-[11px] sm:text-xs text-emerald-800 mt-0.5 leading-snug">
-                                Jaringan internet kembali stabil.
-                            </p>
-                        </div>
+                        <p class="text-[11px] sm:text-xs text-emerald-800 mt-0.5 leading-snug">
+                            Jaringan internet kembali stabil.
+                        </p>
                     </div>
                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0 self-start sm:self-center">
                         <i class="fa-solid fa-check text-[10px]"></i> Terhubung
