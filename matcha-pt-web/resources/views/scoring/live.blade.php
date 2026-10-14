@@ -728,6 +728,7 @@
                             Alasan Penghentian <span class="text-rose-500">*</span>
                         </label>
                         <textarea id="stopReasonA" rows="2" placeholder="Contoh: Waktu sewa lapangan habis, court basah karena hujan, dll."
+                            oninput="hideStopMatchError()"
                             class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00]"></textarea>
                     </div>
                     <div class="space-y-1">
@@ -854,6 +855,15 @@
                 foreach ($tGrp['list'] as $pItem) {
                     $pName = is_array($pItem) ? ($pItem['name'] ?? $pItem['nama'] ?? '') : (is_object($pItem) ? ($pItem->name ?? $pItem->nama ?? '') : (string) $pItem);
                     $pId = is_array($pItem) ? ($pItem['id'] ?? $pItem['user_id'] ?? null) : (is_object($pItem) ? ($pItem->id ?? $pItem->user_id ?? null) : null);
+                    if ($pId === null && !empty($game['participants'])) {
+                        $cleanPName = \App\Services\Scoring\ScoringService::cleanPlayerName($pName);
+                        foreach ($game['participants'] as $gp) {
+                            if (\App\Services\Scoring\ScoringService::cleanPlayerName($gp['name'] ?? '') === $cleanPName) {
+                                $pId = $gp['id'] ?? null;
+                                break;
+                            }
+                        }
+                    }
                     if ($pName) {
                         $mParticipants[] = [
                             'name' => $pName,
@@ -957,7 +967,9 @@
         }
 
         const firstEvent = batchEvents[0];
-        const courtNum = firstEvent.courtNum || 1;
+        const targetRound = firstEvent.roundKey || firstEvent.round || (matchKey.includes('_court_') ? matchKey.split('_court_')[0] : matchKey);
+        const courtNum = firstEvent.courtNum || (matchKey.includes('_court_') ? parseInt(matchKey.split('_court_')[1], 10) : 1);
+        const targetMatchId = firstEvent.matchId || null;
         let isCompletionSave = false;
         let lastClientSeq = 1;
         let lastBaseVersion = 0;
@@ -986,13 +998,13 @@
         }
 
         const currentStatus = isCompletionSave ? 'completed' : 'in_progress';
-        const originalRound = matchKey.split('_court_')[0];
         const isWalkoverSave = batchEvents.some(e => e.action === 'walkover');
         
         const body = {
             game_id         : GAME_ID,
-            round           : originalRound,
+            round           : targetRound,
             match_key       : matchKey,
+            match_id        : targetMatchId,
             court           : courtNum,
             scoring_type    : SCORING_TYPE,
             action          : 'batch_events',
@@ -2160,7 +2172,7 @@
             };
 
             st.saveQueue.push({
-                cIdx, matchKey: st.matchKey, courtNum: st.courtNum, status, clientSeq: cSeq, tClick, eventId, action, team, baseVersion, snapshot
+                cIdx, matchKey: st.matchKey, courtNum: st.courtNum, roundKey: ACTIVE_ROUND, matchId: st.matchId, sessionId: GAME_ID, status, clientSeq: cSeq, tClick, eventId, action, team, baseVersion, snapshot
             });
             st.pendingSaves = st.saveQueue.length + (st.inFlightQueue ? st.inFlightQueue.length : 0);
             
@@ -2690,8 +2702,16 @@
     let realtimeChannel = null;
 
     function initSupabaseRealtime() {
-        if (!window.supabase || !SUPABASE_URL || !SUPABASE_KEY) {
-            console.warn('[Supabase Realtime] Supabase credentials or SDK missing. Using Polling Fallback.');
+        const hasSdk = typeof window.supabase !== 'undefined';
+        const hasUrl = Boolean(SUPABASE_URL && SUPABASE_URL.trim() !== '');
+        const hasKey = Boolean(SUPABASE_KEY && SUPABASE_KEY.trim() !== '');
+
+        if (!hasSdk || !hasUrl || !hasKey) {
+            console.warn('[Supabase Realtime] Supabase credentials or SDK missing. Using Polling Fallback.', {
+                hasSdk: hasSdk,
+                hasUrl: hasUrl,
+                hasKey: hasKey
+            });
             const badge = document.getElementById('realtimeSyncBadge');
             if (badge) {
                 badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Polling Fallback';
@@ -2728,7 +2748,8 @@
                 .on('broadcast', { event: 'session_finished' }, ({ payload }) => {
                     console.log('[Supabase Realtime] session_finished broadcast received:', payload);
                     handleSessionFinishedEvent(payload, 'Realtime Broadcast');
-                })
+                });
+
             const activeMatchIds = Object.values(courtsState)
                 .map(s => Number(s.matchId))
                 .filter(id => id > 0);
@@ -2751,8 +2772,8 @@
                 });
             }
 
-            realtimeChannel.subscribe((status) => {
-                console.log('[Supabase Realtime] Status:', status);
+            realtimeChannel.subscribe((status, err) => {
+                console.log('[Supabase Realtime] Status:', status, err || '');
                 const badge = document.getElementById('realtimeSyncBadge');
                 if (badge) {
                     if (status === 'SUBSCRIBED') {
@@ -2760,6 +2781,7 @@
                         badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold';
                         triggerAllCourtsPoll(true);
                     } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                        console.warn('[Supabase Realtime] Channel disconnected or errored:', status, err);
                         badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Polling Fallback';
                         badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold';
                     }
@@ -2943,7 +2965,7 @@
             condBPlayersList.innerHTML = participants.map((p, pIdx) => `
                 <div class="p-2.5 rounded-2xl border border-slate-200 bg-slate-50 space-y-2">
                     <label class="flex items-center gap-2 cursor-pointer select-none">
-                        <input type="checkbox" name="withdrawn_players[]" value="${p.id || p.name}" data-idx="${pIdx}" data-name="${p.name}" onchange="onWithdrawnPlayerToggle(${pIdx})"
+                        <input type="checkbox" name="withdrawn_players[]" value="${p.id || p.name}" data-player-id="${p.id || ''}" data-idx="${pIdx}" data-name="${p.name}" onchange="hideStopMatchError(); onWithdrawnPlayerToggle(${pIdx})"
                             class="rounded text-rose-600 focus:ring-rose-500 w-4 h-4">
                         <span class="font-bold text-xs text-slate-800">${p.name}</span>
                         <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-600">${p.team}</span>
@@ -2951,6 +2973,7 @@
                     <div id="playerReasonBox_${pIdx}" class="hidden pl-6 space-y-1">
                         <label class="block text-[10px] font-bold text-slate-600">Alasan/Kendala Pemain Ini Keluar <span class="text-rose-500">*</span></label>
                         <input type="text" id="playerNote_${pIdx}" placeholder="Contoh: Cedera hamstring, ada keperluan mendadak"
+                            oninput="hideStopMatchError(); updateConditionBImpact();"
                             class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-rose-500 focus:border-rose-500">
                     </div>
                 </div>
@@ -2964,12 +2987,19 @@
         if (reasonA) reasonA.value = '';
 
         onStopConditionChange();
+        hideStopMatchError();
         if (modal) modal.classList.remove('hidden');
+    }
+
+    function hideStopMatchError() {
+        const errorEl = document.getElementById('modalStopError');
+        if (errorEl) errorEl.classList.add('hidden');
     }
 
     function closeStopMatchModal() {
         const modal = document.getElementById('stopMatchModal');
         if (modal) modal.classList.add('hidden');
+        hideStopMatchError();
         currentStoppingCourtIdx = null;
     }
 
@@ -3078,18 +3108,22 @@
                 return;
             }
             for (const chk of withChecks) {
-                const pVal = chk.value;
                 const pIdx = chk.getAttribute('data-idx');
+                const pId = chk.getAttribute('data-player-id');
+                const pName = chk.getAttribute('data-name') || 'Pemain';
+                const pVal = pId || chk.value;
                 const note = (document.getElementById('playerNote_' + pIdx)?.value || '').trim();
                 if (!note) {
-                    const pName = chk.getAttribute('data-name') || 'Pemain';
                     showError(`Wajib mencatat alasan/kendala untuk ${pName}.`);
                     return;
                 }
                 withdrawnPlayerIds.push(pVal);
                 playerNotes[pVal] = note;
+                if (pName && pName !== pVal) {
+                    playerNotes[pName] = note;
+                }
             }
-            stopReason = Object.values(playerNotes).join('; ');
+            stopReason = Object.values(playerNotes).filter((v, i, a) => a.indexOf(v) === i).join('; ');
         }
 
         const btnConfirm = document.getElementById('btnConfirmStopMatch');
@@ -3098,13 +3132,21 @@
             btnConfirm.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan penghentian...';
         }
 
-        // Host Requirement 5: Tunggu penyelesaian antrean skor yang sudah dikirim sebelum penghentian
+        // Host Requirement: Tunggu pengosongan antrean skor lokal sebelum penghentian
         if ((st.saveQueue && st.saveQueue.length > 0) || (st.inFlightQueue && st.inFlightQueue.length > 0) || (st.pendingSaves || 0) > 0) {
             console.log('[Stop Match] Menunggu pengosongan antrean skor lokal...');
             let waitAttempts = 0;
-            while (((st.saveQueue && st.saveQueue.length > 0) || (st.inFlightQueue && st.inFlightQueue.length > 0)) && waitAttempts < 15) {
+            while (((st.saveQueue && st.saveQueue.length > 0) || (st.inFlightQueue && st.inFlightQueue.length > 0)) && waitAttempts < 25) {
                 await new Promise(r => setTimeout(r, 200));
                 waitAttempts++;
+            }
+            if ((st.saveQueue && st.saveQueue.length > 0) || (st.inFlightQueue && st.inFlightQueue.length > 0)) {
+                showError('Masih terdapat antrean skor yang belum selesai tersimpan ke server. Mohon tunggu sesaat dan pastikan koneksi stabil.');
+                if (btnConfirm) {
+                    btnConfirm.disabled = false;
+                    btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
+                }
+                return;
             }
         }
 
@@ -3114,12 +3156,17 @@
             match_id: st.matchId,
             match_key: st.matchKey,
             court_number: st.courtNum,
+            court: st.courtNum,
             round_key: ACTIVE_ROUND,
+            round: ACTIVE_ROUND,
             stop_type: selectedCondition,
+            reason: stopReason,
             stop_reason: stopReason,
             related_player_ids: relatedPlayerIds,
             withdrawn_player_ids: withdrawnPlayerIds,
+            withdrawn_players: withdrawnPlayerIds,
             player_notes: playerNotes,
+            player_reasons: playerNotes,
             current_games_a: st.gamesA,
             current_games_b: st.gamesB,
             point_a: displays.a,

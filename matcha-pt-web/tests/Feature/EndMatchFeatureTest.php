@@ -684,8 +684,14 @@ class EndMatchFeatureTest extends TestCase
         $host = $env['host'];
         $targetMatch = $env['matches']['round_1'][0]['match'];
 
-        // Keluarkan 5 pemain sehingga tersisa hanya 3 pemain (kurang dari 4 untuk double)
-        $withdrawnPlayers = array_slice($env['players'], 0, 5);
+        // 2 pemain (Eva & Frank) sudah keluar sebelumnya dari sesi
+        DB::table('tb_session_player')
+            ->where('session_id', $session->session_id)
+            ->whereIn('player_id', [$env['players'][4]->player_id, $env['players'][5]->player_id])
+            ->update(['status' => 'withdrawn', 'withdrawn_reason' => 'Pulang duluan']);
+
+        // Keluarkan 3 pemain peserta match (Alice, Bob, Charlie) sehingga total tersisa hanya 3 pemain (< 4 untuk double)
+        $withdrawnPlayers = array_slice($env['players'], 0, 3);
         $withdrawnIds = array_map(fn ($p) => $p->player_id, $withdrawnPlayers);
         $notes = [];
         foreach ($withdrawnIds as $id) {
@@ -995,4 +1001,163 @@ class EndMatchFeatureTest extends TestCase
         $this->assertTrue(ScoringService::isMatchCompleted(8, 6, $firstTo8));
         $this->assertSame('Team A', ScoringService::determineMatchWinner(8, 6, $firstTo8));
     }
+
+    /**
+     * Test 16: Mode B dengan nama pemain (string seperti 'Alice') berhasil teresolusi dan tersimpan.
+     */
+    public function test_16_withdrawn_player_by_name_resolves_and_succeeds()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+        $host = $env['host'];
+        $targetMatch = $env['matches']['round_1'][0]['match'];
+        $alice = $env['players'][0]; // Alice
+
+        $this->actingAs($host);
+
+        $response = $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $targetMatch->match_id,
+            'match_key' => 'round_1_court_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'withdraw_players',
+            'withdrawn_player_ids' => ['Alice'], // string name
+            'player_notes' => [
+                'Alice' => 'Cedera engkel',
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        // Verifikasi Alice ditandai withdrawn di DB dengan reason yang sesuai
+        $aliceRecord = DB::table('tb_session_player')
+            ->where('session_id', $session->session_id)
+            ->where('player_id', $alice->player_id)
+            ->first();
+        $this->assertSame('withdrawn', $aliceRecord->status);
+        $this->assertSame('Cedera engkel', $aliceRecord->withdrawn_reason);
+    }
+
+    /**
+     * Test 17: Pemain di luar match ditolak oleh backend dengan HTTP 422.
+     */
+    public function test_17_withdrawn_player_outside_match_rejected()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+        $host = $env['host'];
+        $targetMatch = $env['matches']['round_1'][0]['match']; // Court 1: Alice, Bob, Charlie, David
+        $eva = $env['players'][4]; // Eva di Court 2
+
+        $this->actingAs($host);
+
+        $response = $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $targetMatch->match_id,
+            'match_key' => 'round_1_court_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'withdraw_players',
+            'withdrawn_player_ids' => [$eva->player_id],
+            'player_notes' => [
+                $eva->player_id => 'Cedera',
+            ],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertFalse($response->json('success'));
+        $this->assertStringContainsStringIgnoringCase('bukan merupakan peserta', $response->json('message'));
+    }
+
+    /**
+     * Test 18: Mode B dengan pilihan kosong atau alasan kosong ditolak dengan HTTP 422.
+     */
+    public function test_18_empty_selection_or_empty_reason_rejected()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+        $host = $env['host'];
+        $targetMatch = $env['matches']['round_1'][0]['match'];
+        $alice = $env['players'][0];
+
+        $this->actingAs($host);
+
+        // 1. Pilihan kosong ditolak
+        $emptyResp = $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $targetMatch->match_id,
+            'match_key' => 'round_1_court_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'withdraw_players',
+            'withdrawn_player_ids' => [],
+            'player_notes' => [],
+        ]);
+        $emptyResp->assertStatus(422);
+        $this->assertStringContainsStringIgnoringCase('Pilih minimal satu pemain', $emptyResp->json('message'));
+
+        // 2. Alasan kosong untuk pemain terpilih ditolak
+        $noReasonResp = $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $targetMatch->match_id,
+            'match_key' => 'round_1_court_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'withdraw_players',
+            'withdrawn_player_ids' => [$alice->player_id],
+            'player_notes' => [$alice->player_id => ''],
+            'reason' => '',
+        ]);
+        $noReasonResp->assertStatus(422);
+        $this->assertStringContainsStringIgnoringCase('Wajib mencatat alasan', $noReasonResp->json('message'));
+    }
+
+    /**
+     * Test 19: Mode B dengan dua pemain terpilih dan masing-masing alasan terpetakan benar.
+     */
+    public function test_19_two_players_with_distinct_reasons_mapped_correctly()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+        $host = $env['host'];
+        $targetMatch = $env['matches']['round_1'][0]['match'];
+        $alice = $env['players'][0]; // Tim A
+        $bob = $env['players'][1];   // Tim A
+
+        $this->actingAs($host);
+
+        $response = $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $targetMatch->match_id,
+            'match_key' => 'round_1_court_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'withdraw_players',
+            'withdrawn_player_ids' => [$alice->player_id, $bob->player_id],
+            'player_notes' => [
+                $alice->player_id => 'Cedera bahu kanan',
+                $bob->player_id => 'Urusan mendesak',
+            ],
+        ]);
+
+        $response->assertStatus(200);
+
+        // Verifikasi kedua pemain tercatat withdrawn dengan alasan masing-masing
+        $aliceRecord = DB::table('tb_session_player')
+            ->where('session_id', $session->session_id)
+            ->where('player_id', $alice->player_id)
+            ->first();
+        $this->assertSame('withdrawn', $aliceRecord->status);
+        $this->assertSame('Cedera bahu kanan', $aliceRecord->withdrawn_reason);
+
+        $bobRecord = DB::table('tb_session_player')
+            ->where('session_id', $session->session_id)
+            ->where('player_id', $bob->player_id)
+            ->first();
+        $this->assertSame('withdrawn', $bobRecord->status);
+        $this->assertSame('Urusan mendesak', $bobRecord->withdrawn_reason);
+    }
 }
+

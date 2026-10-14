@@ -38,10 +38,10 @@ return [
     'supabase' => [
         'url' => env('SUPABASE_URL', 'https://xkyneehswdqkdgzodwdc.supabase.co'),
         // Public key strictly for browser/client-side usage.
-        // MUST NEVER fallback to SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY.
-        'public_key' => env('SUPABASE_ANON_KEY'),
-        // Backward-compatible alias for frontend templates (strictly anon key only):
-        'key' => env('SUPABASE_ANON_KEY'),
+        // MUST NEVER fallback to SUPABASE_SERVICE_ROLE_KEY or backend secrets.
+        'public_key' => env('SUPABASE_PUBLIC_KEY', env('SUPABASE_ANON_KEY')),
+        // Backward-compatible alias for frontend templates (strictly public/anon key only):
+        'key' => env('SUPABASE_PUBLIC_KEY', env('SUPABASE_ANON_KEY')),
         // Backend service key for server-to-server broadcast and storage:
         'service_key' => env('SUPABASE_SERVICE_ROLE_KEY', env('SUPABASE_KEY')),
         'bucket' => env('SUPABASE_BUCKET', 'venues'),

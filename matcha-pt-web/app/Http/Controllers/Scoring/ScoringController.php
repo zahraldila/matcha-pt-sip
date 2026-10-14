@@ -413,6 +413,8 @@ class ScoringController extends Controller
      */
     public function updateScore(Request $request)
     {
+        $tStart = microtime(true);
+
         // Auth check: HANYA Host yang dapat mencatat atau mengubah skor
         if (! Auth::check()) {
             return response()->json([
@@ -642,8 +644,11 @@ class ScoringController extends Controller
         }
 
         // Serialize cache read/compare/write so concurrent requests cannot overwrite a newer snapshot.
+        $tLockStart = microtime(true);
         $scoreLock = Cache::lock("scoring.update.{$gameId}.{$matchKey}", 10);
         $scoreLock->block(5);
+        $tLockAcquired = microtime(true);
+        $lockWaitMs = round(($tLockAcquired - $tLockStart) * 1000, 2);
 
         try {
             $scores = Cache::get($cacheKey, []);
@@ -1117,6 +1122,8 @@ class ScoringController extends Controller
                         }
                     }
                 });
+                $tDbDone = microtime(true);
+                $dbMs = round(($tDbDone - $tLockAcquired) * 1000, 2);
             } catch (\Throwable $e) {
                 Log::error('Failed to persist live score to database: '.$e->getMessage());
 
@@ -1156,13 +1163,28 @@ class ScoringController extends Controller
             } finally {
                 $sessionLock->release();
             }
+            $tCacheDone = microtime(true);
+            $cacheMs = round(($tCacheDone - $tDbDone) * 1000, 2);
         } finally {
             // 3. Lepas scoreLock SEGERA setelah persistensi (DB + Cache) selesai
             $scoreLock->release();
         }
 
-        // 4. Broadcast Realtime dijalankan DI LUAR LOCK (tidak menahan lock mutasi)
-        $this->broadcastScoreUpdateRealtime($gameId, $matchKey, $scorePayload);
+        $totalMs = round((microtime(true) - $tStart) * 1000, 2);
+
+        // 4. Broadcast Realtime dijalankan DI LUAR LOCK secara non-blocking agar tidak menahan response client
+        $broadcastTask = function () use ($gameId, $matchKey, $scorePayload) {
+            $this->broadcastScoreUpdateRealtime($gameId, $matchKey, $scorePayload);
+        };
+
+        if (app()->runningUnitTests()) {
+            $broadcastTask();
+        } else {
+            app()->terminating($broadcastTask);
+            if (function_exists('fastcgi_finish_request')) {
+                register_shutdown_function('fastcgi_finish_request');
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -1187,7 +1209,15 @@ class ScoringController extends Controller
             'server_time_ms' => $serverTimeMs,
             'client_seq' => $clientSeq,
             'stale_ignored' => false,
-        ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+            '_timings' => [
+                'lock_wait_ms' => $lockWaitMs ?? 0,
+                'db_ms' => $dbMs ?? 0,
+                'cache_ms' => $cacheMs ?? 0,
+                'total_ms' => $totalMs,
+            ],
+        ])->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('X-Correlation-Id', (string) ($eventId ?: Str::uuid()))
+            ->header('X-Scoring-Time-Ms', (string) $totalMs);
     }
 
     /**
@@ -1277,18 +1307,112 @@ class ScoringController extends Controller
 
         $stopType = (string) $request->input('stop_type');
         $isWithdraw = in_array($stopType, ['withdraw', 'withdraw_players'], true);
-        $reason = trim((string) $request->input('reason'));
-        $withdrawnPlayerIds = $request->input('withdrawn_player_ids', []);
-        if (! is_array($withdrawnPlayerIds)) {
-            $withdrawnPlayerIds = [];
+        $reason = trim((string) $request->input('reason', $request->input('stop_reason', '')));
+
+        $rawWithdrawn = $request->input('withdrawn_player_ids', $request->input('withdrawn_players', []));
+        if (! is_array($rawWithdrawn)) {
+            $rawWithdrawn = [$rawWithdrawn];
         }
-        $withdrawnPlayerIds = array_values(array_unique(array_filter(array_map('intval', $withdrawnPlayerIds))));
-        $playerReasons = $request->input('player_reasons', $request->input('player_notes', []));
-        if (! is_array($playerReasons)) {
-            $playerReasons = [];
+        $rawWithdrawn = array_values(array_filter($rawWithdrawn, fn ($v) => $v !== null && trim((string) $v) !== ''));
+
+        $rawReasons = $request->input('player_reasons', $request->input('player_notes', []));
+        if (! is_array($rawReasons)) {
+            $rawReasons = [];
         }
 
-        if ($isWithdraw && empty($withdrawnPlayerIds)) {
+        if ($isWithdraw && empty($rawWithdrawn)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pilih minimal satu pemain yang keluar dari sesi.',
+            ], 422);
+        }
+
+        // Resolusi pemain sesi dan peserta match terkait
+        $sessionPlayers = $session->players;
+        $sessionPlayerMapById = $sessionPlayers->keyBy('player_id');
+        $sessionPlayerMapByName = $sessionPlayers->keyBy(fn ($p) => ScoringService::cleanPlayerName($p->nama));
+
+        $gameData = $this->getGameData($gameId);
+        $matchContext = ScoringService::buildMatchContext($gameData, $round, $courtIndex);
+        $targetMatch = $matchContext['matches'][$courtIndex] ?? ($matchContext['matches'][0] ?? null);
+        $matchParticipantCleanNames = [];
+        if ($targetMatch) {
+            $matchParticipantCleanNames = array_map(
+                fn ($n) => ScoringService::cleanPlayerName(is_array($n) ? ($n['name'] ?? $n['nama'] ?? '') : (string) $n),
+                array_merge($targetMatch['team_a_names'] ?? [], $targetMatch['team_b_names'] ?? [])
+            );
+        }
+
+        $withdrawnPlayerIds = [];
+        $withdrawnPlayerNames = [];
+        $playerReasons = [];
+
+        foreach ($rawWithdrawn as $item) {
+            $itemStr = trim((string) $item);
+            $cleanName = ScoringService::cleanPlayerName($itemStr);
+            $foundPlayer = null;
+
+            if (is_numeric($itemStr) && (int) $itemStr > 0) {
+                $foundPlayer = $sessionPlayerMapById->get((int) $itemStr);
+            }
+            if (! $foundPlayer) {
+                $foundPlayer = $sessionPlayerMapByName->get($cleanName);
+            }
+            if (! $foundPlayer && is_numeric($itemStr) && (int) $itemStr > 0) {
+                $foundPlayer = Player::find((int) $itemStr);
+            }
+            if (! $foundPlayer) {
+                $foundPlayer = Player::where('nama', $itemStr)->first();
+            }
+
+            if ($foundPlayer) {
+                $pId = (int) $foundPlayer->player_id;
+                $pName = (string) $foundPlayer->nama;
+            } else {
+                $pId = is_numeric($itemStr) && (int) $itemStr > 0 ? (int) $itemStr : null;
+                $pName = $itemStr;
+            }
+
+            // Validasi peserta: pastikan pemain merupakan peserta match ini jika match participants terdefinisi
+            if (! empty($matchParticipantCleanNames)) {
+                $isMatchPart = in_array(ScoringService::cleanPlayerName($pName), $matchParticipantCleanNames, true);
+                if (! $isMatchPart && $foundPlayer) {
+                    $isMatchPart = in_array(ScoringService::cleanPlayerName($foundPlayer->nama), $matchParticipantCleanNames, true);
+                }
+                if (! $isMatchPart) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Pemain {$pName} bukan merupakan peserta pada pertandingan ini.",
+                    ], 422);
+                }
+            }
+
+            $note = trim((string) ($rawReasons[$item] ?? ($rawReasons[$itemStr] ?? ($rawReasons[$pId] ?? ($rawReasons[$pName] ?? '')))));
+            if ($note === '' && ! empty($rawReason) && $rawReason !== 'Pemain keluar dari sesi pertandingan') {
+                $note = $rawReason;
+            }
+
+            // Validasi alasan per pemain keluar wajib diisi
+            if ($isWithdraw && $note === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Wajib mencatat alasan/kendala untuk {$pName}.",
+                ], 422);
+            }
+
+            if ($pId !== null) {
+                $withdrawnPlayerIds[] = $pId;
+                $withdrawnPlayerNames[$pId] = $pName;
+                $playerReasons[$pId] = $note;
+            } else {
+                $withdrawnPlayerNames[$pName] = $pName;
+                $playerReasons[$pName] = $note;
+            }
+        }
+
+        $withdrawnPlayerIds = array_values(array_unique($withdrawnPlayerIds));
+
+        if ($isWithdraw && empty($withdrawnPlayerIds) && empty($withdrawnPlayerNames)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Pilih minimal satu pemain yang keluar dari sesi.',
@@ -1337,9 +1461,8 @@ class ScoringController extends Controller
             $serverTimeMs = (int) round(microtime(true) * 1000);
             $eventId = 'stop_'.$newVersion.'_'.Str::random(8);
 
-            // Dapatkan nama pemain yang keluar
-            $withdrawnPlayerNames = [];
-            if (! empty($withdrawnPlayerIds)) {
+            // Dapatkan nama pemain yang keluar jika belum terisi
+            if (empty($withdrawnPlayerNames) && ! empty($withdrawnPlayerIds)) {
                 $withdrawnPlayerNames = $session->players
                     ->whereIn('player_id', $withdrawnPlayerIds)
                     ->pluck('nama', 'player_id')
