@@ -582,13 +582,8 @@
             </div>
         </div>
 
-        <!-- Action Buttons -->
+        <!-- Action Buttons (Khusus Host) -->
         <div class="flex items-center gap-3 flex-wrap justify-end">
-            <a href="{{ route('scoring.recap', $game['id']) }}"
-               class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-2xs transition-colors flex items-center gap-1.5 justify-center">
-                <i class="fa-solid fa-ranking-star text-[11px] text-amber-500"></i> Klasemen Sementara
-            </a>
-
             @if($nextRoundKey)
                 @if($isHost)
                     @php
