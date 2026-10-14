@@ -1221,6 +1221,10 @@ class DrawingAndScoringLogicTest extends TestCase
             Schema::create('tb_session_player', function ($table) {
                 $table->unsignedBigInteger('session_id');
                 $table->unsignedBigInteger('player_id');
+                $table->string('status')->default('active');
+                $table->dateTime('withdrawn_at')->nullable();
+                $table->text('withdrawn_reason')->nullable();
+                $table->unsignedBigInteger('withdrawn_match_id')->nullable();
             });
         }
         if (! Schema::hasTable('tb_match_format')) {
@@ -1251,6 +1255,12 @@ class DrawingAndScoringLogicTest extends TestCase
                 $table->dateTime('waktu_selesai')->nullable();
                 $table->string('hasil_pertandingan')->nullable();
                 $table->string('winner_team')->nullable();
+                $table->string('stop_type')->nullable();
+                $table->text('stop_reason')->nullable();
+                $table->unsignedBigInteger('stopped_by_user_id')->nullable();
+                $table->dateTime('stopped_at')->nullable();
+                $table->text('withdrawn_player_ids')->nullable();
+                $table->text('player_notes')->nullable();
                 $table->integer('version')->nullable();
                 $table->string('last_event_id')->nullable();
                 $table->timestamps();

@@ -12,6 +12,7 @@ use App\Services\Drawing\AmericanoService;
 use App\Services\Drawing\TeamAmericanoService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
@@ -512,6 +513,22 @@ class ScoringService
 
                 if ($matchedScore !== null) {
                     $effective[$matchKey] = $matchedScore;
+                }
+
+                $isStoppedMatch = isset($effective[$matchKey]) && (($effective[$matchKey]['status'] ?? '') === 'stopped');
+
+                if ($isStoppedMatch) {
+                    $effective[$matchKey]['status'] = 'stopped';
+                    if (empty($effective[$matchKey]['team_a'])) {
+                        $effective[$matchKey]['team_a'] = $matches[$i]['team_a'] ?? ($round['team_a'] ?? []);
+                    }
+                    if (empty($effective[$matchKey]['team_b'])) {
+                        $effective[$matchKey]['team_b'] = $matches[$i]['team_b'] ?? ($round['team_b'] ?? []);
+                    }
+                    $effective[$matchKey]['round_title'] = ucfirst(str_replace('_', ' ', $roundKey));
+                    $effective[$matchKey]['scoring_type'] = $system['type'];
+
+                    continue;
                 }
 
                 $isCompleted = isset($effective[$matchKey]) && (
@@ -1500,4 +1517,290 @@ class ScoringService
             'total_rounds' => count($rounds),
         ];
     }
+
+    /**
+     * Dapatkan daftar ID pemain yang telah keluar/withdrawn dari suatu sesi.
+     * Menggabungkan informasi persisten dari tb_session_player, tb_match, dan Cache.
+     *
+     * @param  SessionModel|int  $session
+     * @return array<int>
+     */
+    public static function getWithdrawnPlayerIds($session): array
+    {
+        $sessionId = ($session instanceof SessionModel) ? $session->session_id : (int) $session;
+        $withdrawnIds = [];
+
+        // 1. Dari basis data tb_session_player jika kolom status tersedia
+        try {
+            if (Schema::hasTable('tb_session_player') && Schema::hasColumn('tb_session_player', 'status')) {
+                $dbIds = DB::table('tb_session_player')
+                    ->where('session_id', $sessionId)
+                    ->where('status', 'withdrawn')
+                    ->pluck('player_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+                $withdrawnIds = array_merge($withdrawnIds, $dbIds);
+            }
+        } catch (\Throwable $e) {
+            // Ignore DB check error in tests with partial schemas
+        }
+
+        // 2. Dari tb_match yang berstatus Stopped dengan withdrawn_player_ids
+        try {
+            if (Schema::hasTable('tb_match') && Schema::hasTable('tb_drawing') && Schema::hasColumn('tb_match', 'withdrawn_player_ids')) {
+                $drawingIds = DB::table('tb_drawing')->where('session_id', $sessionId)->pluck('drawing_id');
+                if ($drawingIds->isNotEmpty()) {
+                    $matchWithdrawnRaw = DB::table('tb_match')
+                        ->whereIn('drawing_id', $drawingIds)
+                        ->where('status_match', 'Stopped')
+                        ->whereNotNull('withdrawn_player_ids')
+                        ->pluck('withdrawn_player_ids');
+
+                    foreach ($matchWithdrawnRaw as $raw) {
+                        $decoded = json_decode($raw, true);
+                        if (is_array($decoded)) {
+                            foreach ($decoded as $dId) {
+                                $withdrawnIds[] = (int) $dId;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
+        // 3. Dari Cache
+        $cacheMeta = Cache::get("scoring.game_{$sessionId}", []);
+        $cachedWithdrawn = $cacheMeta['_meta']['withdrawn_players'] ?? [];
+        if (is_array($cachedWithdrawn)) {
+            foreach ($cachedWithdrawn as $cId) {
+                $withdrawnIds[] = (int) $cId;
+            }
+        }
+
+        return array_values(array_unique($withdrawnIds));
+    }
+
+    /**
+     * Sesuaikan jadwal ronde mendatang (r > currentRound) saat ada pemain yang keluar dari sesi.
+     * Mempertahankan seluruh ronde lalu dan match yang sudah berjalan (termasuk skor & peserta).
+     * Mempertahankan total jumlah ronde (tanpa menambah/mengurangi jumlah ronde).
+     */
+    public static function adjustFutureScheduleOnWithdrawal(SessionModel $session, array $newlyWithdrawnPlayerIds, int $currentRoundNumber): array
+    {
+        $sessionId = $session->session_id;
+        $lock = Cache::lock("drawing.lock_{$sessionId}", 5);
+        $lock->block(3);
+
+        try {
+            $allWithdrawnIds = array_values(array_unique(array_merge(
+                self::getWithdrawnPlayerIds($session),
+                array_map('intval', $newlyWithdrawnPlayerIds)
+            )));
+
+            $session->loadMissing(['players', 'courts']);
+            $allPlayers = $session->players;
+            $activePlayers = $allPlayers->filter(fn ($p) => ! in_array((int) $p->player_id, $allWithdrawnIds, true))->values();
+
+            $scheduleCacheKey = "drawing.schedule_{$sessionId}";
+            $cachedSchedule = Cache::get($scheduleCacheKey);
+
+            $format = strtolower($session->match_format ?? 'americano');
+            $isTeamFormat = str_contains($format, 'team');
+            $drawingMode = $session->jenis_permainan ?? 'Double';
+            $isSingle = strtolower($drawingMode) === 'single';
+            $courtCount = max(1, $session->courts->count());
+
+            $currentRounds = [];
+            if (is_array($cachedSchedule)) {
+                if (isset($cachedSchedule['rounds']) && is_array($cachedSchedule['rounds'])) {
+                    $currentRounds = $cachedSchedule['rounds'];
+                } else {
+                    foreach ($cachedSchedule as $k => $val) {
+                        if (preg_match('/round_?(\d+)/i', (string) $k, $m)) {
+                            $currentRounds[(int) $m[1]] = $val;
+                        } elseif (is_numeric($k)) {
+                            $currentRounds[(int) $k] = $val;
+                        }
+                    }
+                }
+            }
+
+            // Jika belum ada jadwal di cache, generate terlebih dahulu dari data awal
+            if (empty($currentRounds)) {
+                $scoringSystem = self::detectScoringSystem($session->scoring_system ?? 'Total of 3');
+                $roundCount = self::determineSessionRoundCount(
+                    $scoringSystem,
+                    count($allPlayers),
+                    $isTeamFormat,
+                    $isSingle,
+                    $session->waktu_session,
+                    $courtCount
+                );
+
+                if ($isTeamFormat && count($allPlayers) >= 4 && count($allPlayers) % 2 === 0) {
+                    $teamService = new TeamAmericanoService;
+                    $drawingData = $teamService->generateTeamRounds($allPlayers->toArray(), $courtCount, null, $roundCount);
+                    $rounds = $drawingData['rounds'] ?? [];
+                } else {
+                    $americanoService = new AmericanoService;
+                    $rounds = $americanoService->generateRounds($allPlayers->toArray(), $courtCount, $roundCount, $drawingMode);
+                }
+                $currentRounds = $rounds;
+                $cachedSchedule = [
+                    'rounds' => $rounds,
+                    'court_count' => $courtCount,
+                    'schedule_version' => 1,
+                ];
+            }
+
+            $totalRounds = count($currentRounds);
+
+            $updatedRounds = [];
+            // 1. Pertahankan ronde 1 sampai currentRoundNumber secara utuh
+            for ($r = 1; $r <= $currentRoundNumber; $r++) {
+                if (isset($currentRounds[$r])) {
+                    $updatedRounds[$r] = $currentRounds[$r];
+                } elseif (isset($currentRounds["round_{$r}"])) {
+                    $updatedRounds[$r] = $currentRounds["round_{$r}"];
+                }
+            }
+
+            $remainingRoundCount = max(0, $totalRounds - $currentRoundNumber);
+            $minRequiredPlayers = $isSingle ? 2 : 4;
+
+            // 2. Format Team Americano dengan pasangan tetap:
+            if ($isTeamFormat) {
+                // Jangan memasangkan partner dengan orang lain secara diam-diam.
+                // Jika tim tidak lengkap karena partner keluar, tandai tim dan match tersebut sebagai invalid/incomplete.
+                for ($r = $currentRoundNumber + 1; $r <= $totalRounds; $r++) {
+                    $origRound = $currentRounds[$r] ?? ($currentRounds["round_{$r}"] ?? []);
+                    $matches = $origRound['matches'] ?? [];
+                    $adjustedMatches = [];
+
+                    foreach ($matches as $m) {
+                        $mCopy = $m;
+                        $teamAPlayerIds = array_column($m['team_a'] ?? ($m['teamA'] ?? []), 'id');
+                        $teamBPlayerIds = array_column($m['team_b'] ?? ($m['teamB'] ?? []), 'id');
+
+                        $teamAHasWithdrawn = ! empty(array_intersect($teamAPlayerIds, $allWithdrawnIds));
+                        $teamBHasWithdrawn = ! empty(array_intersect($teamBPlayerIds, $allWithdrawnIds));
+
+                        if ($teamAHasWithdrawn || $teamBHasWithdrawn) {
+                            $mCopy['can_activate'] = false;
+                            $mCopy['is_valid'] = false;
+                            $mCopy['incomplete_team'] = true;
+                            $mCopy['invalidation_reason'] = 'Pasangan tim tidak lengkap karena ada anggota tim yang keluar. Memerlukan penataan tim oleh Host.';
+                        }
+                        $adjustedMatches[] = $mCopy;
+                    }
+
+                    $origRound['matches'] = $adjustedMatches;
+                    $updatedRounds[$r] = $origRound;
+                }
+            } else {
+                // Americano Individu:
+                if ($activePlayers->count() < $minRequiredPlayers) {
+                    // Pemain aktif tidak mencukupi: Jangan membuat dummy atau match tidak valid.
+                    for ($r = $currentRoundNumber + 1; $r <= $totalRounds; $r++) {
+                        $updatedRounds[$r] = [
+                            'round' => $r,
+                            'matches' => [],
+                            'resting' => $activePlayers->pluck('nama')->toArray(),
+                            'teamA' => [],
+                            'teamB' => [],
+                            'teamA_names' => [],
+                            'teamB_names' => [],
+                            'has_insufficient_players' => true,
+                            'insufficient_reason' => "Jumlah pemain aktif tidak mencukupi (tersisa {$activePlayers->count()} pemain, minimal {$minRequiredPlayers} pemain). Ronde berikutnya belum dapat dimulai tanpa penyesuaian oleh Host.",
+                        ];
+                    }
+                } else {
+                    // Pemain aktif mencukupi: Regenerasi sisa jadwal dari pemain aktif
+                    $normalizedActive = $activePlayers->map(fn ($p) => [
+                        'id' => $p->player_id,
+                        'name' => $p->nama,
+                        'gender' => $p->gender ?? 'Male',
+                        'level' => $p->level ?? 'Intermediate',
+                    ])->toArray();
+
+                    $americanoService = new AmericanoService;
+                    $generatedFuture = $americanoService->generateRounds($normalizedActive, $courtCount, $remainingRoundCount, $drawingMode);
+
+                    $genIdx = 1;
+                    for ($r = $currentRoundNumber + 1; $r <= $totalRounds; $r++) {
+                        if (isset($generatedFuture[$genIdx])) {
+                            $rData = $generatedFuture[$genIdx];
+                            $rData['round'] = $r;
+                            $updatedRounds[$r] = $rData;
+                        } else {
+                            $updatedRounds[$r] = [
+                                'round' => $r,
+                                'matches' => [],
+                                'resting' => $activePlayers->pluck('nama')->toArray(),
+                                'teamA' => [],
+                                'teamB' => [],
+                                'teamA_names' => [],
+                                'teamB_names' => [],
+                            ];
+                        }
+                        $genIdx++;
+                    }
+                }
+            }
+
+            $newScheduleVersion = ((int) ($cachedSchedule['schedule_version'] ?? 1)) + 1;
+            if (! is_array($cachedSchedule)) {
+                $cachedSchedule = [];
+            }
+            $cachedSchedule['rounds'] = $updatedRounds;
+            $cachedSchedule['schedule_version'] = $newScheduleVersion;
+            $cachedSchedule['court_count'] = $courtCount;
+            $cachedSchedule['withdrawn_player_ids'] = $allWithdrawnIds;
+            $cachedSchedule['last_adjusted_at'] = now()->toDateTimeString();
+
+            foreach ($updatedRounds as $rNum => $rData) {
+                $cachedSchedule["round_{$rNum}"] = $rData;
+                $cachedSchedule['rounds'][$rNum] = $rData;
+                $cachedSchedule['rounds']["round_{$rNum}"] = $rData;
+            }
+
+            Cache::put($scheduleCacheKey, $cachedSchedule, now()->addHours(12));
+
+            // Sync database untuk match masa depan yang belum dimainkan (unstarted)
+            try {
+                $drawing = Drawing::where('session_id', $sessionId)->first();
+                if ($drawing) {
+                    $futureMatches = GameMatch::where('drawing_id', $drawing->drawing_id)
+                        ->whereNotIn('status_match', ['Completed', 'Stopped'])
+                        ->get();
+
+                    foreach ($futureMatches as $fMatch) {
+                        $fRoundNum = intdiv(max(0, (int) $fMatch->nomor_match - 1), $courtCount) + 1;
+                        if ($fRoundNum > $currentRoundNumber) {
+                            MatchParticipant::where('match_id', $fMatch->match_id)->delete();
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Ignore DB sync error
+            }
+
+            return [
+                'success' => true,
+                'schedule_version' => $newScheduleVersion,
+                'rounds' => $updatedRounds,
+                'active_players_count' => $activePlayers->count(),
+                'summary' => [
+                    'active_players' => $activePlayers->pluck('nama')->toArray(),
+                    'withdrawn_players' => $allWithdrawnIds,
+                    'insufficient' => $activePlayers->count() < $minRequiredPlayers,
+                ],
+            ];
+        } finally {
+            $lock->release();
+        }
+    }
 }
+

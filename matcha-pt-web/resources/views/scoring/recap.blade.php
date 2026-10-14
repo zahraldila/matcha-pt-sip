@@ -108,6 +108,21 @@
         </div>
     </div>
 
+    @if($hasStoppedMatches ?? false)
+    <!-- Banner Peringatan: Terdapat Pertandingan yang Dihentikan -->
+    <div class="glass-card rounded-2xl p-4.5 border border-amber-300 bg-amber-50/90 text-amber-900 shadow-2xs space-y-1.5">
+        <div class="flex items-center gap-2">
+            <div class="w-6 h-6 rounded-lg bg-amber-200 text-amber-800 flex items-center justify-center text-xs font-black shrink-0">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h4 class="font-extrabold text-xs sm:text-sm text-amber-950">Klasemen Sementara &bull; Terdapat Pertandingan yang Dihentikan Lebih Awal</h4>
+        </div>
+        <p class="text-[11px] text-amber-800/90 leading-relaxed pl-8">
+            Satu atau beberapa pertandingan dalam sesi ini dihentikan lebih awal oleh Host (End Match). Skor parsial dan catatan kendala tersimpan utuh di riwayat pertandingan di bawah. Sesuai regulasi sistem kompetisi MATCHA, penentuan pemenang sepihak, penetapan kekalahan/kemenangan otomatis, atau pembagian poin untuk match yang dihentikan belum difinalkan secara otomatis agar tidak mendistorsi klasemen normal.
+        </p>
+    </div>
+    @endif
+
     {{-- 📋 Riwayat Pertandingan Seluruh Ronde --}}
     @if(!empty($game['drawing']))
     <div class="glass-card rounded-3xl p-6 border border-white space-y-4">
@@ -156,6 +171,7 @@
                         : ($effectiveScores[$mKey] ?? $roundScore);
                 }
                 $isDone = ($mScore['status'] ?? '') === 'completed';
+                $isStopped = ($mScore['status'] ?? '') === 'stopped';
                 $mSetsHist = \App\Services\Scoring\ScoringService::sanitizeSetHistory($mScore['set_history'] ?? []);
                 $mLastSet = !empty($mSetsHist) ? $mSetsHist[array_key_last($mSetsHist)] : [];
                 $mPrimaryScoreA = (count($mSetsHist) === 1 && isset($mLastSet['score_a']))
@@ -167,7 +183,9 @@
                 $mWinner = $mScore['winner_team'] ?? null;
                 if ($mWinner === 'A') $mWinner = 'Team A';
                 if ($mWinner === 'B') $mWinner = 'Team B';
-                if ($isDone) {
+                if ($isStopped) {
+                    $mWinner = null; // Tidak ada penetapan sepihak pemenang untuk match yang dihentikan
+                } elseif ($isDone) {
                     $sa = (int) ($mScore['sets_a'] ?? 0);
                     $sb = (int) ($mScore['sets_b'] ?? 0);
                     $ga = (int) ($mPrimaryScoreA);
@@ -191,7 +209,11 @@
                             <span class="text-[10px] text-slate-500 font-semibold">({{ $mCourtName }})</span>
                         @endif
                     </span>
-                    @if($isDone)
+                    @if($isStopped)
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                            Dihentikan
+                        </span>
+                    @elseif($isDone)
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#EBF8D8] text-[#063B00] border border-[#063B00]/20">
                             Selesai
                         </span>
@@ -213,7 +235,7 @@
                             @endif
                         </div>
                         <span class="font-black text-sm {{ $isDone && $mWinner === 'Team A' ? 'text-[#063B00]' : 'text-slate-600' }} shrink-0">
-                            @if($isDone)
+                            @if($isDone || $isStopped)
                                 {{ $mPrimaryScoreA }}
                             @else
                                 -
@@ -231,7 +253,7 @@
                             @endif
                         </div>
                         <span class="font-black text-sm {{ $isDone && $mWinner === 'Team B' ? 'text-[#063B00]' : 'text-slate-600' }} shrink-0">
-                            @if($isDone)
+                            @if($isDone || $isStopped)
                                 {{ $mPrimaryScoreB }}
                             @else
                                 -
@@ -239,6 +261,24 @@
                         </span>
                     </div>
                 </div>
+
+                @if($isStopped)
+                <div class="mt-2 p-2.5 bg-amber-50/80 rounded-xl border border-amber-200/80 text-[11px] text-amber-900 space-y-1">
+                    <p class="font-semibold flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+                        <span>Pertandingan Dihentikan Lebih Awal</span>
+                    </p>
+                    <p class="text-[10px] text-amber-800">
+                        Alasan: <strong>{{ $mScore['stop_reason'] ?? 'Dihentikan oleh Host' }}</strong>
+                    </p>
+                    @if(!empty($mScore['withdrawn_player_names']))
+                    <p class="text-[10px] text-rose-700 font-semibold flex items-center gap-1">
+                        <i class="fa-solid fa-user-slash"></i>
+                        <span>Pemain Keluar: {{ implode(', ', $mScore['withdrawn_player_names']) }}</span>
+                    </p>
+                    @endif
+                </div>
+                @endif
 
                 @if($isDone && $isSets && !empty($mSetsHist))
                 <div class="pt-2 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">

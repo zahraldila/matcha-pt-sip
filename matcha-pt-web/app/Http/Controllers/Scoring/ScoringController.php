@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class ScoringController extends Controller
 {
@@ -395,6 +397,11 @@ class ScoringController extends Controller
             'scoring_type' => $score['scoring_type'] ?? 'total_of_sets',
             'status' => $score['status'] ?? 'in_progress',
             'winner_team' => $score['winner_team'] ?? null,
+            'stop_type' => $score['stop_type'] ?? null,
+            'stop_reason' => $score['stop_reason'] ?? null,
+            'stopped_at' => $score['stopped_at'] ?? null,
+            'withdrawn_player_ids' => $score['withdrawn_player_ids'] ?? [],
+            'withdrawn_player_names' => $score['withdrawn_player_names'] ?? [],
         ])->header('Cache-Control', 'no-cache, no-store, must-revalidate')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');
@@ -444,12 +451,43 @@ class ScoringController extends Controller
             }
         }
 
+        // Tolak penambahan skor jika match sudah berstatus Stopped (sebelum validasi field skor)
+        $checkGameId = (int) $request->input('game_id');
+        $checkMatchKey = (string) $request->input('match_key', '');
+        if (! empty($checkGameId) && ! empty($checkMatchKey)) {
+            $cachedScores = Cache::get("scoring.game_{$checkGameId}", []);
+            $isStopped = ($cachedScores[$checkMatchKey]['status'] ?? '') === 'stopped';
+            if (! $isStopped) {
+                $mId = $request->input('match_id');
+                if ($mId) {
+                    $mObj = GameMatch::find($mId);
+                    if ($mObj && $mObj->status_match === 'Stopped') {
+                        $isStopped = true;
+                    }
+                }
+            }
+            if ($isStopped) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 'stopped',
+                    'message' => 'Pertandingan ini telah dihentikan. Penambahan poin ditolak.',
+                ], 422);
+            }
+        }
+
         // score_a / score_b are only required for snapshot-based saves (fallback).
         // When action=add_point with point_won_by provided, server computes the score.
         $actionField = $request->input('action', 'add_point');
         $hasEventAction = ($actionField === 'add_point' && $request->has('point_won_by')) ||
             ($actionField === 'completion') ||
             ($actionField === 'batch_events');
+
+        // Normalisasi round dari match_key jika belum ada
+        if (! $request->has('round') && $request->has('match_key')) {
+            if (preg_match('/(round_\d+)/', (string) $request->input('match_key'), $rm)) {
+                $request->merge(['round' => $rm[1]]);
+            }
+        }
 
         $request->validate([
             'game_id' => 'required|integer',
@@ -506,12 +544,23 @@ class ScoringController extends Controller
             }
         }
 
-        // Guard 1: Jika ronde atau sesi sudah berstatus selesai, tolak pembaruan yang terlambat datang (late in-flight AJAX)
-        if (($scores['_meta']['status'] ?? '') === 'finished' || (($scores[$matchKey]['status'] ?? '') === 'completed')) {
+        // Guard 1: Jika match dihentikan, tolak penambahan poin dengan status 422
+        $mStatus = $scores[$matchKey]['status'] ?? '';
+        if ($mStatus === 'stopped') {
+            return response()->json([
+                'success' => false,
+                'status' => 'stopped',
+                'message' => 'Pertandingan ini telah dihentikan. Penambahan poin ditolak.',
+            ], 422);
+        }
+
+        // Jika ronde atau sesi sudah berstatus selesai, tolak pembaruan yang terlambat datang (late in-flight AJAX)
+        if (($scores['_meta']['status'] ?? '') === 'finished' || $mStatus === 'completed') {
             return response()->json([
                 'success' => true,
                 'duplicate' => true,
                 'already_completed' => true,
+                'status' => $mStatus,
                 'message' => 'Pertandingan sudah selesai. Pembaruan skor diabaikan.',
                 'score_a' => (int) ($scores[$matchKey]['games_a'] ?? ($scores[$matchKey]['score_a'] ?? 0)),
                 'score_b' => (int) ($scores[$matchKey]['games_b'] ?? ($scores[$matchKey]['score_b'] ?? 0)),
@@ -768,7 +817,26 @@ class ScoringController extends Controller
                     'server_version' => (int) ($officialCompletedState['version'] ?? $prevVersion),
                     'status' => $officialCompletedState['status'] ?? 'completed',
                     'winner_team' => $officialCompletedState['winner_team'] ?? null,
-                ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+                ]);
+            }
+
+            if (($currentState['status'] ?? '') === 'stopped') {
+                return response()->json([
+                    'success' => false,
+                    'already_stopped' => true,
+                    'status' => 'stopped',
+                    'message' => 'Pertandingan telah dihentikan. Penambahan skor ditolak.',
+                    'score_a' => (int) ($currentState['games_a'] ?? ($currentState['score_a'] ?? 0)),
+                    'score_b' => (int) ($currentState['games_b'] ?? ($currentState['score_b'] ?? 0)),
+                    'games_a' => (int) ($currentState['games_a'] ?? ($currentState['score_a'] ?? 0)),
+                    'games_b' => (int) ($currentState['games_b'] ?? ($currentState['score_b'] ?? 0)),
+                    'point_display_a' => (string) ($currentState['point_display_a'] ?? '0'),
+                    'point_display_b' => (string) ($currentState['point_display_b'] ?? '0'),
+                    'saved' => $currentState,
+                    'match_key' => $matchKey,
+                    'version' => (int) ($currentState['version'] ?? $prevVersion),
+                    'server_version' => (int) ($currentState['version'] ?? $prevVersion),
+                ], 422)->header('Cache-Control', 'no-cache, no-store, must-revalidate');
             }
 
             $isMerged = false;
@@ -1123,6 +1191,340 @@ class ScoringController extends Controller
     }
 
     /**
+     * Akhiri Pertandingan (End Match) pada match/court tertentu yang sedang berlangsung.
+     * Khusus Host/Pengelola yang berwenang.
+     * Mengakhiri match yang dipilih tanpa otomatis mengakhiri court lain, ronde, atau seluruh sesi.
+     */
+    public function stopMatch(Request $request)
+    {
+        if (! Auth::check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. Silakan login terlebih dahulu.',
+            ], 403);
+        }
+
+        $gameId = (int) ($request->input('game_id') ?: $request->input('session_id'));
+        if (! $gameId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ID Sesi diperlukan.',
+            ], 422);
+        }
+
+        $session = SessionModel::with(['players.user', 'courts', 'sport', 'host'])->find($gameId);
+        if (! $session) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesi tidak ditemukan.',
+            ], 404);
+        }
+
+        if (! $this->isHostForSession($session)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. Hanya Host yang dapat mengakhiri pertandingan.',
+            ], 403);
+        }
+
+        // Normalisasi alias input sebelum validasi
+        if (! $request->has('round') && $request->has('round_key')) {
+            $request->merge(['round' => $request->input('round_key')]);
+        }
+        if (! $request->has('court') && $request->has('court_number')) {
+            $request->merge(['court' => $request->input('court_number')]);
+        }
+        if (! $request->has('reason') && $request->has('stop_reason')) {
+            $request->merge(['reason' => $request->input('stop_reason')]);
+        }
+        if (! $request->has('player_reasons') && $request->has('player_notes')) {
+            $request->merge(['player_reasons' => $request->input('player_notes')]);
+        }
+
+        $rawReason = trim((string) $request->input('reason', ''));
+        if (empty($rawReason)) {
+            $pNotes = $request->input('player_reasons', $request->input('player_notes', []));
+            if (! empty($pNotes) && is_array($pNotes)) {
+                $joined = implode('; ', array_filter($pNotes));
+                if (! empty($joined)) {
+                    $request->merge(['reason' => 'Pemain keluar: '.$joined]);
+                }
+            }
+        }
+        if (! $request->has('reason') || empty(trim((string) $request->input('reason', '')))) {
+            $rawStopType = $request->input('stop_type');
+            if (in_array($rawStopType, ['withdraw', 'withdraw_players'], true)) {
+                $request->merge(['reason' => 'Pemain keluar dari sesi pertandingan']);
+            }
+        }
+
+        $request->validate([
+            'game_id' => 'required|integer',
+            'round' => 'required|string',
+            'court' => 'nullable|integer',
+            'match_key' => 'nullable|string',
+            'stop_type' => 'required|in:keep_active,withdraw,keep_in_session,withdraw_players',
+            'reason' => 'required|string|min:3',
+            'withdrawn_player_ids' => 'nullable|array',
+            'player_reasons' => 'nullable|array',
+            'affected_player_id' => 'nullable|integer',
+        ]);
+
+        $round = $request->string('round')->toString();
+        $courtIndex = max(0, $request->integer('court', 1) - 1);
+        $courtCount = max(1, $session->courts->count());
+        $matchKey = $request->input('match_key') ?: ScoringService::buildMatchKey($round, $courtIndex + 1, $courtCount);
+
+        $stopType = (string) $request->input('stop_type');
+        $isWithdraw = in_array($stopType, ['withdraw', 'withdraw_players'], true);
+        $reason = trim((string) $request->input('reason'));
+        $withdrawnPlayerIds = $request->input('withdrawn_player_ids', []);
+        if (! is_array($withdrawnPlayerIds)) {
+            $withdrawnPlayerIds = [];
+        }
+        $withdrawnPlayerIds = array_values(array_unique(array_filter(array_map('intval', $withdrawnPlayerIds))));
+        $playerReasons = $request->input('player_reasons', $request->input('player_notes', []));
+        if (! is_array($playerReasons)) {
+            $playerReasons = [];
+        }
+
+        if ($isWithdraw && empty($withdrawnPlayerIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pilih minimal satu pemain yang keluar dari sesi.',
+            ], 422);
+        }
+
+        // Penguncian kompatibel dengan updateScore
+        $scoreLock = Cache::lock("scoring.lock.{$gameId}.{$matchKey}", 5);
+        $scoreLock->block(3);
+        try {
+            $cacheKey = "scoring.game_{$gameId}";
+            $scores = Cache::get($cacheKey, []);
+            $currentState = $scores[$matchKey] ?? $this->getScoreFromDatabase($gameId, $round, $courtIndex);
+            if (empty($currentState)) {
+                $game = $this->getGameData($gameId);
+                $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? '');
+                $currentState = $this->getDefaultMatchState($game, $matchKey, $round, $scoringSystem);
+            }
+
+            // Jika ada skor parsial yang dikirim dalam request penghentian, pertahankan skor tersebut
+            $incGamesA = $request->input('current_games_a', $request->input('games_a'));
+            $incGamesB = $request->input('current_games_b', $request->input('games_b'));
+            if ($incGamesA !== null) {
+                $currentState['games_a'] = (int) $incGamesA;
+                $currentState['score_a'] = (int) $incGamesA;
+            }
+            if ($incGamesB !== null) {
+                $currentState['games_b'] = (int) $incGamesB;
+                $currentState['score_b'] = (int) $incGamesB;
+            }
+
+            // Idempotency: Jika sudah stopped, kembalikan response sukses secara idempoten
+            if (($currentState['status'] ?? '') === 'stopped') {
+                return response()->json([
+                    'success' => true,
+                    'already_stopped' => true,
+                    'message' => 'Pertandingan ini telah dihentikan sebelumnya.',
+                    'match_key' => $matchKey,
+                    'status' => 'stopped',
+                    'saved' => $currentState,
+                ]);
+            }
+
+            $prevVersion = (int) ($currentState['version'] ?? 0);
+            $newVersion = $prevVersion + 1;
+            $serverTimeMs = (int) round(microtime(true) * 1000);
+            $eventId = 'stop_'.$newVersion.'_'.Str::random(8);
+
+            // Dapatkan nama pemain yang keluar
+            $withdrawnPlayerNames = [];
+            if (! empty($withdrawnPlayerIds)) {
+                $withdrawnPlayerNames = $session->players
+                    ->whereIn('player_id', $withdrawnPlayerIds)
+                    ->pluck('nama', 'player_id')
+                    ->toArray();
+            }
+
+            $scorePayload = array_merge($currentState, [
+                'status' => 'stopped',
+                'stop_type' => $stopType,
+                'stop_reason' => $reason,
+                'stopped_by_user_id' => Auth::id(),
+                'stopped_by_name' => Auth::user()->nama ?? Auth::user()->name ?? 'Host',
+                'stopped_at' => now()->toDateTimeString(),
+                'withdrawn_player_ids' => $withdrawnPlayerIds,
+                'withdrawn_player_names' => array_values($withdrawnPlayerNames),
+                'player_reasons' => $playerReasons,
+                'affected_player_id' => $request->input('affected_player_id'),
+                'winner_team' => null, // Requirement 8: Jangan memutuskan pemenang sepihak!
+                'version' => $newVersion,
+                'server_version' => $newVersion,
+                'last_event_id' => $eventId,
+                'updated_at_ms' => $serverTimeMs,
+                'updated_at' => now()->toDateTimeString(),
+            ]);
+
+            // 1. Simpan perubahan secara ATOMIK ke database
+            DB::transaction(function () use ($session, $round, $courtIndex, $scorePayload, $newVersion, $eventId, $stopType, $isWithdraw, $reason, $withdrawnPlayerIds, $playerReasons) {
+                $match = ScoringService::ensureMatchAndParticipants($session, $round, $courtIndex);
+                if ($match) {
+                    $matchSummary = "Dihentikan: {$scorePayload['games_a']} - {$scorePayload['games_b']} ({$reason})";
+                    $match->status_match = 'Stopped';
+                    $match->hasil_pertandingan = $matchSummary;
+                    $match->winner_team = null;
+                    $match->waktu_selesai = now();
+                    if (Schema::hasColumn('tb_match', 'version')) {
+                        $match->version = $newVersion;
+                    }
+                    if (Schema::hasColumn('tb_match', 'last_event_id')) {
+                        $match->last_event_id = $eventId;
+                    }
+
+                    if (Schema::hasColumn('tb_match', 'stop_type')) {
+                        $match->stop_type = $stopType;
+                    }
+                    if (Schema::hasColumn('tb_match', 'stop_reason')) {
+                        $match->stop_reason = $reason;
+                    }
+                    if (Schema::hasColumn('tb_match', 'stopped_by_user_id')) {
+                        $match->stopped_by_user_id = Auth::id();
+                    }
+                    if (Schema::hasColumn('tb_match', 'stopped_at')) {
+                        $match->stopped_at = now();
+                    }
+                    if (Schema::hasColumn('tb_match', 'withdrawn_player_ids')) {
+                        $match->withdrawn_player_ids = json_encode($withdrawnPlayerIds);
+                    }
+                    if (Schema::hasColumn('tb_match', 'player_notes')) {
+                        $match->player_notes = json_encode($playerReasons);
+                    }
+                    $match->save();
+
+                    // Simpan baris set aktif di tb_score dengan status_score 'Stopped'
+                    $setNumber = $scorePayload['set_number'] ?? 1;
+                    Score::updateOrCreate(
+                        [
+                            'match_id' => $match->match_id,
+                            'set_number' => $setNumber,
+                        ],
+                        [
+                            'game_number' => 1,
+                            'point_score_a' => (string) ($scorePayload['point_display_a'] ?? '0'),
+                            'point_score_b' => (string) ($scorePayload['point_display_b'] ?? '0'),
+                            'game_score_a' => (int) ($scorePayload['games_a'] ?? 0),
+                            'game_score_b' => (int) ($scorePayload['games_b'] ?? 0),
+                            'set_score_a' => (int) ($scorePayload['sets_a'] ?? 0),
+                            'set_score_b' => (int) ($scorePayload['sets_b'] ?? 0),
+                            'score_side_a' => (int) ($scorePayload['games_a'] ?? 0),
+                            'score_side_b' => (int) ($scorePayload['games_b'] ?? 0),
+                            'scoring_system' => (string) ($scorePayload['scoring_type'] ?? 'total_of_sets'),
+                            'status_score' => 'Stopped',
+                            'version' => $newVersion,
+                            'last_event_id' => $eventId,
+                        ]
+                    );
+
+                    // Catat EventLog persisten di tb_score
+                    Score::create([
+                        'match_id' => $match->match_id,
+                        'set_number' => $setNumber,
+                        'game_number' => $newVersion + 1000,
+                        'point_score_a' => (string) ($scorePayload['point_display_a'] ?? '0'),
+                        'point_score_b' => (string) ($scorePayload['point_display_b'] ?? '0'),
+                        'game_score_a' => (int) ($scorePayload['games_a'] ?? 0),
+                        'game_score_b' => (int) ($scorePayload['games_b'] ?? 0),
+                        'set_score_a' => (int) ($scorePayload['sets_a'] ?? 0),
+                        'set_score_b' => (int) ($scorePayload['sets_b'] ?? 0),
+                        'score_side_a' => (int) ($scorePayload['games_a'] ?? 0),
+                        'score_side_b' => (int) ($scorePayload['games_b'] ?? 0),
+                        'scoring_system' => (string) ($scorePayload['scoring_type'] ?? 'total_of_sets'),
+                        'status_score' => 'EventLog',
+                        'version' => $newVersion,
+                        'last_event_id' => $eventId,
+                    ]);
+
+                    // Perbarui status partisipasi pemain di tb_session_player jika kolom tersedia
+                    if ($isWithdraw && ! empty($withdrawnPlayerIds) && Schema::hasTable('tb_session_player')) {
+                        foreach ($withdrawnPlayerIds as $wPlayerId) {
+                            $updateData = [];
+                            if (Schema::hasColumn('tb_session_player', 'status')) {
+                                $updateData['status'] = 'withdrawn';
+                            }
+                            if (Schema::hasColumn('tb_session_player', 'withdrawn_at')) {
+                                $updateData['withdrawn_at'] = now();
+                            }
+                            if (Schema::hasColumn('tb_session_player', 'withdrawn_reason')) {
+                                $updateData['withdrawn_reason'] = $playerReasons[$wPlayerId] ?? $reason;
+                            }
+                            if (Schema::hasColumn('tb_session_player', 'withdrawn_match_id')) {
+                                $updateData['withdrawn_match_id'] = $match->match_id;
+                            }
+                            if (! empty($updateData)) {
+                                DB::table('tb_session_player')
+                                    ->where('session_id', $session->session_id)
+                                    ->where('player_id', $wPlayerId)
+                                    ->update($updateData);
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. Jika pemain keluar, sesuaikan sisa jadwal mendatang (Kondisi B)
+            $scheduleAdjusted = false;
+            $adjustedScheduleSummary = null;
+            if ($isWithdraw && ! empty($withdrawnPlayerIds)) {
+                preg_match('/(\d+)/', $round, $rM);
+                $currRoundNum = isset($rM[1]) ? (int) $rM[1] : 1;
+                $adjustedSchedule = ScoringService::adjustFutureScheduleOnWithdrawal($session, $withdrawnPlayerIds, $currRoundNum);
+                $scheduleAdjusted = true;
+                $adjustedScheduleSummary = $adjustedSchedule['summary'] ?? null;
+            }
+
+            // 3. Simpan ke Cache setelah DB commit berhasil
+            $sessionLock = Cache::lock("scoring.session.{$gameId}", 5);
+            $sessionLock->block(3);
+            try {
+                $scores = Cache::get($cacheKey, []);
+                $scores[$matchKey] = $scorePayload;
+                if ($courtCount === 1) {
+                    $scores[$round] = $scorePayload;
+                    $scores["{$round}_court_1"] = $scorePayload;
+                }
+                if ($isWithdraw) {
+                    $existingWithdrawn = $scores['_meta']['withdrawn_players'] ?? [];
+                    $scores['_meta']['withdrawn_players'] = array_values(array_unique(array_merge($existingWithdrawn, $withdrawnPlayerIds)));
+                }
+                Cache::put($cacheKey, $scores, now()->addHours(4));
+                Cache::put("scoring.game_{$gameId}.{$matchKey}", $scorePayload, now()->addHours(4));
+            } finally {
+                $sessionLock->release();
+            }
+        } finally {
+            $scoreLock->release();
+        }
+
+        // 4. Broadcast Realtime di luar lock
+        $this->broadcastScoreUpdateRealtime($gameId, $matchKey, $scorePayload);
+
+        $hasInsufficient = ! empty($adjustedScheduleSummary['insufficient']);
+        $insufficientWarning = $hasInsufficient ? 'Jumlah pemain aktif tidak mencukupi untuk melanjutkan ronde berikutnya.' : null;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pertandingan berhasil dihentikan.',
+            'match_key' => $matchKey,
+            'status' => 'stopped',
+            'saved' => $scorePayload,
+            'schedule_adjusted' => $scheduleAdjusted,
+            'schedule_summary' => $adjustedScheduleSummary,
+            'has_insufficient_players' => $hasInsufficient,
+            'warning' => $insufficientWarning,
+        ]);
+    }
+
+    /**
      * Lanjut ke set/ronde berikutnya (khusus Host).
      * Memvalidasi bahwa semua court pada ronde aktif saat ini telah selesai sebelum membuka ronde berikutnya.
      */
@@ -1130,6 +1532,21 @@ class ScoringController extends Controller
     {
         if (! Auth::check()) {
             abort(403, 'Akses ditolak. Silakan login terlebih dahulu.');
+        }
+
+        if (! $request->has('game_id')) {
+            $routeId = $request->route('id') ?: $request->route('session_id') ?: $request->query('game_id') ?: $request->route('game_id');
+            if (! $routeId) {
+                foreach ($request->query() as $qKey => $qVal) {
+                    if (is_numeric($qKey) && empty($qVal)) {
+                        $routeId = (int) $qKey;
+                        break;
+                    }
+                }
+            }
+            if ($routeId) {
+                $request->merge(['game_id' => (int) $routeId]);
+            }
         }
 
         $request->validate([
@@ -1163,7 +1580,8 @@ class ScoringController extends Controller
                 'format' => request('format', $game['match_format'] ?? 'Americano'),
                 'round' => $currentRound,
                 'court' => (int) $request->input('court', 0),
-            ])->with('warning', 'Set/Ronde saat ini belum selesai. Selesaikan seluruh pertandingan terlebih dahulu.');
+            ])->with('error', 'Set/Ronde saat ini belum selesai. Selesaikan seluruh pertandingan terlebih dahulu.')
+              ->with('warning', 'Set/Ronde saat ini belum selesai. Selesaikan seluruh pertandingan terlebih dahulu.');
         }
 
         // 2. Validasi: Ronde tujuan harus unlocked secara berurutan
@@ -1174,7 +1592,41 @@ class ScoringController extends Controller
                 'format' => request('format', $game['match_format'] ?? 'Americano'),
                 'round' => $currentRound,
                 'court' => (int) $request->input('court', 0),
-            ])->with('warning', 'Set/Ronde saat ini belum selesai. Selesaikan seluruh pertandingan terlebih dahulu.');
+            ])->with('error', 'Set/Ronde saat ini belum selesai. Selesaikan seluruh pertandingan terlebih dahulu.')
+              ->with('warning', 'Set/Ronde saat ini belum selesai. Selesaikan seluruh pertandingan terlebih dahulu.');
+        }
+
+        // 2b. Validasi: Ronde tujuan tidak memiliki kendala pemain tidak mencukupi atau tim tidak lengkap
+        $cachedSchedule = Cache::get("drawing.schedule_{$gameId}", []);
+        $nextRoundData = $cachedSchedule[$nextRound]
+            ?? ($cachedSchedule['rounds'][$nextRound]
+            ?? ($cachedSchedule['rounds'][(int) $nextNum]
+            ?? ($game['drawing'][$nextRound] ?? [])));
+
+        if (! empty($nextRoundData['has_insufficient_players'])) {
+            $reason = $nextRoundData['insufficient_reason'] ?? 'Pemain aktif tidak mencukupi untuk memulai ronde ini.';
+
+            return redirect()->route('scoring.live', [
+                'id' => $gameId,
+                'format' => request('format', $game['match_format'] ?? 'Americano'),
+                'round' => $currentRound,
+                'court' => (int) $request->input('court', 0),
+            ])->with('error', "Ronde berikutnya belum dapat dimulai: {$reason}")
+              ->with('warning', "Ronde berikutnya belum dapat dimulai: {$reason}");
+        }
+
+        foreach (($nextRoundData['matches'] ?? []) as $nm) {
+            if (! empty($nm['incomplete_team']) || (isset($nm['can_activate']) && $nm['can_activate'] === false)) {
+                $reason = $nm['invalidation_reason'] ?? 'Terdapat pasangan tim yang tidak lengkap karena pemain keluar. Perlu penataan tim oleh Host.';
+
+                return redirect()->route('scoring.live', [
+                    'id' => $gameId,
+                    'format' => request('format', $game['match_format'] ?? 'Americano'),
+                    'round' => $currentRound,
+                    'court' => (int) $request->input('court', 0),
+                ])->with('error', "Ronde berikutnya belum dapat dimulai: {$reason}")
+                  ->with('warning', "Ronde berikutnya belum dapat dimulai: {$reason}");
+            }
         }
 
         // 3. Update active_round pada metadata Cache
@@ -1620,12 +2072,15 @@ class ScoringController extends Controller
                         ];
                     }
 
-                    if ($authScores->isNotEmpty() || $match->status_match === 'Completed') {
+                    $isStopped = ($match->status_match === 'Stopped');
+                    if ($authScores->isNotEmpty() || $match->status_match === 'Completed' || $isStopped) {
                         $dbScoresRecovered = true;
 
-                        // Tentukan pemenang secara objektif (hindari badge WIN sepihak jika hasil seri)
+                        // Tentukan pemenang secara objektif (hindari badge WIN sepihak jika hasil seri atau dihentikan)
                         $winnerTeam = $match->winner_team;
-                        if (empty($winnerTeam)) {
+                        if ($isStopped) {
+                            $winnerTeam = null; // Status dihentikan tidak menentukan pemenang sepihak
+                        } elseif (empty($winnerTeam)) {
                             if ($scoringSystem['is_sets'] && $mSetsA !== $mSetsB) {
                                 $winnerTeam = $mSetsA > $mSetsB ? 'Team A' : 'Team B';
                             } elseif ($mGamesA !== $mGamesB) {
@@ -1649,14 +2104,22 @@ class ScoringController extends Controller
                             'scoring_type' => $scoringSystem['type'],
                             'scoring_system' => $scoringSystem['type'],
                             'winner_team' => $winnerTeam,
-                            'status' => 'completed',
+                            'status' => $isStopped ? 'stopped' : (($match->status_match === 'Completed') ? 'completed' : 'in_progress'),
+                            'stop_type' => $match->stop_type,
+                            'stop_reason' => $match->stop_reason,
+                            'stopped_by_user_id' => $match->stopped_by_user_id,
+                            'stopped_at' => $match->stopped_at ? $match->stopped_at->toDateTimeString() : null,
+                            'withdrawn_player_ids' => $match->withdrawn_player_ids ?? [],
+                            'player_notes' => $match->player_notes ?? [],
                             'updated_at' => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
                         ];
-                        $savedScores['_meta'] = [
-                            'finished_at' => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
-                            'last_round_key' => $rKey,
-                            'status' => 'finished',
-                        ];
+                        if (! $isStopped && $match->status_match === 'Completed') {
+                            $savedScores['_meta'] = [
+                                'finished_at' => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
+                                'last_round_key' => $rKey,
+                                'status' => 'finished',
+                            ];
+                        }
                     }
                 }
 
@@ -1684,14 +2147,14 @@ class ScoringController extends Controller
         if ($drawingRecord) {
             $dbMatches = GameMatch::where('drawing_id', $drawingRecord->drawing_id)->get();
             $totalMatchesCount = $dbMatches->count();
-            $completedMatchesCount = $dbMatches->where('status_match', 'Completed')->count();
+            $completedMatchesCount = $dbMatches->whereIn('status_match', ['Completed', 'Stopped'])->count();
         }
 
         // Cek apakah ada skor yang selesai dicatat
         $hasScores = $completedMatchesCount > 0;
         if (! $hasScores) {
             foreach ($savedScores as $k => $v) {
-                if ($k !== '_meta' && is_array($v) && ($v['status'] ?? '') === 'completed') {
+                if ($k !== '_meta' && is_array($v) && in_array(($v['status'] ?? ''), ['completed', 'stopped'])) {
                     $hasScores = true;
                     $completedMatchesCount++;
                 }
@@ -1767,6 +2230,22 @@ class ScoringController extends Controller
             }
         }
 
+        $hasStoppedMatches = false;
+        foreach ($effectiveScores as $k => $v) {
+            if (is_array($v) && ($v['status'] ?? '') === 'stopped') {
+                $hasStoppedMatches = true;
+                break;
+            }
+        }
+        if (! $hasStoppedMatches) {
+            foreach ($savedScores as $k => $v) {
+                if ($k !== '_meta' && is_array($v) && ($v['status'] ?? '') === 'stopped') {
+                    $hasStoppedMatches = true;
+                    break;
+                }
+            }
+        }
+
         return view('scoring.recap', compact(
             'game',
             'scoringSystem',
@@ -1781,7 +2260,8 @@ class ScoringController extends Controller
             'completedMatchesCount',
             'totalMatchesCount',
             'savedKudos',
-            'userGivenKudos'
+            'userGivenKudos',
+            'hasStoppedMatches'
         ));
     }
 
@@ -2276,7 +2756,7 @@ class ScoringController extends Controller
     }
 
     /**
-     * Cek apakah seluruh match dan court pada round tertentu sudah selesai (status === 'completed').
+     * Cek apakah seluruh match dan court pada round tertentu sudah terminal (status === 'completed' atau 'stopped').
      * Memvalidasi data dari cache dan database secara komprehensif.
      */
     private function isRoundFullyCompleted(array $game, string $roundKey, array $savedScores): bool
@@ -2285,17 +2765,21 @@ class ScoringController extends Controller
         $matches = $round['matches'] ?? [];
         $matchCount = count($matches);
 
+        $isTerminal = function ($status) {
+            return in_array(strtolower((string) $status), ['completed', 'stopped', 'finished'], true);
+        };
+
         // Jika matches kosong di drawing data, periksa fallback single-court
         if ($matchCount === 0) {
             $score = $savedScores[$roundKey] ?? ($savedScores["{$roundKey}_court_1"] ?? null);
-            if (! $score || ($score['status'] ?? '') !== 'completed') {
+            if (! $score || ! $isTerminal($score['status'] ?? '')) {
                 $dbScore = $this->getScoreFromDatabase($game['id'], $roundKey, 0);
-                if ($dbScore && ($dbScore['status'] ?? '') === 'completed') {
+                if ($dbScore && $isTerminal($dbScore['status'] ?? '')) {
                     $score = $dbScore;
                 }
             }
 
-            return ($score['status'] ?? '') === 'completed';
+            return $isTerminal($score['status'] ?? '');
         }
 
         foreach ($matches as $matchIndex => $match) {
@@ -2308,15 +2792,15 @@ class ScoringController extends Controller
                 $score = $savedScores["{$roundKey}_court_1"];
             }
 
-            // Cross-check ke database jika score belum ada di cache atau statusnya belum completed
-            if (! $score || ($score['status'] ?? '') !== 'completed') {
+            // Cross-check ke database jika score belum ada di cache atau statusnya belum terminal
+            if (! $score || ! $isTerminal($score['status'] ?? '')) {
                 $dbScore = $this->getScoreFromDatabase($game['id'], $roundKey, $matchIndex);
-                if ($dbScore && ($dbScore['status'] ?? '') === 'completed') {
+                if ($dbScore && $isTerminal($dbScore['status'] ?? '')) {
                     $score = $dbScore;
                 }
             }
 
-            if (($score['status'] ?? '') !== 'completed') {
+            if (! $isTerminal($score['status'] ?? '')) {
                 return false;
             }
         }
@@ -2385,14 +2869,15 @@ class ScoringController extends Controller
                 ->get();
 
             $activeScores = $scores->filter(fn ($sc) => strtolower((string) ($sc->status_score ?? '')) !== 'eventlog');
-            if ($activeScores->isEmpty() && strtolower($match->status_match) !== 'completed') {
+            $isCompleted = strtolower((string) ($match->status_match ?? '')) === 'completed';
+            $isStopped = strtolower((string) ($match->status_match ?? '')) === 'stopped';
+            if ($activeScores->isEmpty() && ! $isCompleted && ! $isStopped) {
                 return null;
             }
 
-            $isCompleted = strtolower((string) ($match->status_match ?? '')) === 'completed';
-            if ($isCompleted) {
+            if ($isCompleted || $isStopped) {
                 $officialScore = $activeScores
-                    ->filter(fn ($sc) => in_array(strtolower((string) ($sc->status_score ?? '')), ['final', 'completed'], true))
+                    ->filter(fn ($sc) => in_array(strtolower((string) ($sc->status_score ?? '')), ['final', 'completed', 'stopped'], true))
                     ->sortByDesc('version')
                     ->sortByDesc('score_id')
                     ->first();
@@ -2430,7 +2915,7 @@ class ScoringController extends Controller
                 $setsB = max($setsB, (int) $lastScore->set_score_b);
             }
 
-            $status = $isCompleted ? 'completed' : 'in_progress';
+            $status = $isStopped ? 'stopped' : ($isCompleted ? 'completed' : 'in_progress');
 
             $tennisPoints = ['0', '15', '30', '40'];
             $ptA = (string) ($lastScore->point_score_a ?? '0');
@@ -2466,7 +2951,13 @@ class ScoringController extends Controller
                 'advantage' => $advantage,
                 'scoring_type' => $lastScore->scoring_system ?? 'total_of_sets',
                 'status' => $status,
-                'winner_team' => $match->winner_team,
+                'winner_team' => $isStopped ? null : $match->winner_team,
+                'stop_type' => $match->stop_type ?? null,
+                'stop_reason' => $match->stop_reason ?? null,
+                'stopped_by_user_id' => $match->stopped_by_user_id ?? null,
+                'stopped_at' => $match->stopped_at ? (is_string($match->stopped_at) ? $match->stopped_at : $match->stopped_at->toDateTimeString()) : null,
+                'withdrawn_player_ids' => ! empty($match->withdrawn_player_ids) ? (is_array($match->withdrawn_player_ids) ? $match->withdrawn_player_ids : json_decode($match->withdrawn_player_ids, true)) : [],
+                'player_notes' => ! empty($match->player_notes) ? (is_array($match->player_notes) ? $match->player_notes : json_decode($match->player_notes, true)) : [],
                 'last_event_id' => (string) ($lastScore->last_event_id ?? ($match->last_event_id ?? '')),
                 'persistent_event_ids' => $persistentEventIds,
             ];

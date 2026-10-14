@@ -21,8 +21,21 @@ class GameMatch extends Model
         'waktu_selesai',
         'hasil_pertandingan',
         'winner_team',
+        'stop_type',
+        'stop_reason',
+        'stopped_by_user_id',
+        'stopped_at',
+        'withdrawn_player_ids',
+        'player_notes',
         'version',
         'last_event_id',
+    ];
+
+    protected $casts = [
+        'stopped_at' => 'datetime',
+        'waktu_mulai' => 'datetime',
+        'waktu_selesai' => 'datetime',
+        'version' => 'integer',
     ];
 
     public function drawing()

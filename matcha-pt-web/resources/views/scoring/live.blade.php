@@ -170,7 +170,7 @@
         foreach ($matchContext['matches'] ?? [] as $checkIdx => $checkMatch) {
             $checkKey = \App\Services\Scoring\ScoringService::buildMatchKey($activeRound, $checkIdx + 1, $courtCount);
             $checkScore = $savedScores[$checkKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? ($savedScores["{$activeRound}_court_1"] ?? [])));
-            if (($checkScore['status'] ?? '') !== 'completed') {
+            if (!in_array(($checkScore['status'] ?? ''), ['completed', 'stopped'])) {
                 $uncompletedCourtNames[$checkIdx] = $checkMatch['court_name'] ?? ('Court ' . ($checkIdx + 1));
             }
         }
@@ -199,6 +199,7 @@
                 @php
                     $tabKey = \App\Services\Scoring\ScoringService::buildMatchKey($activeRound, $tabIdx + 1, $courtCount);
                     $tabScore = $savedScores[$tabKey] ?? [];
+                    $isTabStopped = (($tabScore['status'] ?? '') === 'stopped');
                     $isTabDone = (($tabScore['status'] ?? '') === 'completed');
                     $tabGamesA = $tabScore['games_a'] ?? ($tabScore['score_a'] ?? 0);
                     $tabGamesB = $tabScore['games_b'] ?? ($tabScore['score_b'] ?? 0);
@@ -210,8 +211,10 @@
                            {{ $isCurrentTabActive ? 'bg-[#063B00] text-white border-[#063B00] shadow-xs ring-2 ring-[#063B00]/20' : 'bg-white text-slate-700 border-slate-200 hover:border-[#063B00]/50 hover:bg-slate-50' }}">
                     <i class="fa-solid fa-table-tennis-paddle-ball text-[10px] {{ $isCurrentTabActive ? 'text-[#A8E63A]' : 'text-slate-400' }}"></i>
                     <span>{{ $cTabName }}</span>
-                    <span id="tabMiniBadge_{{ $tabIdx }}" class="text-[10px] px-2 py-0.5 rounded-md font-extrabold {{ $isTabDone ? ($isCurrentTabActive ? 'bg-white/20 text-[#A8E63A]' : 'bg-emerald-50 text-emerald-700 border border-emerald-200') : ($isCurrentTabActive ? 'bg-black/20 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200') }}">
-                        @if($isTabDone)
+                    <span id="tabMiniBadge_{{ $tabIdx }}" class="text-[10px] px-2 py-0.5 rounded-md font-extrabold {{ $isTabStopped ? ($isCurrentTabActive ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-900 border border-amber-300') : ($isTabDone ? ($isCurrentTabActive ? 'bg-white/20 text-[#A8E63A]' : 'bg-emerald-50 text-emerald-700 border border-emerald-200') : ($isCurrentTabActive ? 'bg-black/20 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200')) }}">
+                        @if($isTabStopped)
+                            ⚠️ Dihentikan ({{ $tabGamesA }} - {{ $tabGamesB }})
+                        @elseif($isTabDone)
                             ✓ Selesai ({{ $tabGamesA }} - {{ $tabGamesB }})
                         @else
                             {{ $tabGamesA }} - {{ $tabGamesB }}
@@ -229,6 +232,7 @@
                 $mKey = \App\Services\Scoring\ScoringService::buildMatchKey($activeRound, $mIdx + 1, $courtCount);
                 $currentScore = $savedScores[$mKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
                 $isMCompleted = (($currentScore['status'] ?? '') === 'completed');
+                $isMStopped = (($currentScore['status'] ?? '') === 'stopped');
                 $isCourtVisible = ($courtCount <= 1 || $mIdx === (int) request('court', 0));
 
                 $tAPlayers = !empty($matchData['team_a_names']) 
@@ -276,6 +280,15 @@
                 <span id="lockedBadgeText_{{ $mIdx }}">Skor {{ $unitTabLabel }} {{ $activeRoundNum }} pada {{ $matchData['court_name'] ?? ('Court ' . ($mIdx + 1)) }} sudah selesai dan terkunci.</span>
             </span>
             <span class="text-[10px] bg-amber-200/80 px-2 py-0.5 rounded-full uppercase tracking-wider font-extrabold text-amber-800">Final Score</span>
+        </div>
+
+        <!-- Stopped Badge Notification if this match was stopped -->
+        <div id="stoppedBadge_{{ $mIdx }}" class="{{ $isMStopped ? '' : 'hidden' }} p-3 bg-rose-50 border border-rose-200 rounded-2xl text-rose-900 text-xs font-bold flex items-center justify-between shadow-2xs">
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-hand text-rose-600 text-sm"></i>
+                <span id="stoppedBadgeText_{{ $mIdx }}">Pertandingan pada {{ $matchData['court_name'] ?? ('Court ' . ($mIdx + 1)) }} telah dihentikan oleh Host.</span>
+            </span>
+            <span class="text-[10px] bg-rose-200/80 px-2 py-0.5 rounded-full uppercase tracking-wider font-extrabold text-rose-800">Dihentikan</span>
         </div>
 
         <!-- Match Info Header -->
@@ -334,7 +347,7 @@
 
             <div id="setHistoryContainer_{{ $mIdx }}" class="flex items-center justify-center gap-2 flex-wrap pt-1 text-[11px]">
                 <span class="text-slate-400 font-semibold" id="currentSetLabel_{{ $mIdx }}">
-                    Status: <strong>{{ $isMCompleted ? ($unitTabLabel . ' Selesai & Terkunci') : 'Sedang Berlangsung' }}</strong> &bull; Progres: {{ $unitTabLabel }} {{ $activeRoundNum }} dari {{ $scoringSystem['is_sets'] ? ($scoringSystem['max_sets'] ?? count($allRoundsList)) : count($allRoundsList) }}
+                    Status: <strong>{{ $isMStopped ? ($unitTabLabel . ' Dihentikan') : ($isMCompleted ? ($unitTabLabel . ' Selesai & Terkunci') : 'Sedang Berlangsung') }}</strong> &bull; Progres: {{ $unitTabLabel }} {{ $activeRoundNum }} dari {{ $scoringSystem['is_sets'] ? ($scoringSystem['max_sets'] ?? count($allRoundsList)) : count($allRoundsList) }}
                 </span>
                 <span id="currentSetGamesBadge_{{ $mIdx }}" class="px-2.5 py-0.5 rounded-md bg-white/10 text-[#A8E63A] font-bold border border-white/10">
                     Game Score: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}
@@ -448,7 +461,9 @@
 
         <!-- Score Status Notice -->
         <div id="matchNotice_{{ $mIdx }}" class="p-3.5 bg-white/90 rounded-xl border border-slate-200/70 text-center text-xs font-semibold text-slate-700 shadow-2xs">
-            @if($isMCompleted)
+            @if($isMStopped)
+                ⚠️ <strong>{{ $unitTabLabel }} {{ $activeRoundNum }} Dihentikan</strong> &bull; Skor: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}
+            @elseif($isMCompleted)
                 🔒 <strong>{{ $unitTabLabel }} {{ $activeRoundNum }} Selesai & Terkunci</strong> &bull; Skor: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}
             @else
                 Point: <strong>0 &mdash; 0</strong> &bull; <em>Game sedang berlangsung</em>
@@ -466,13 +481,31 @@
             </p>
         </div>
 
-        <!-- Controls: Kunci & Selesaikan Court Ini — hanya untuk Host -->
+        <!-- Match Stopped Banner -->
+        <div id="matchStoppedBanner_{{ $mIdx }}" class="{{ $isMStopped ? '' : 'hidden' }} p-5 rounded-2xl bg-amber-50 border border-amber-300 text-center space-y-2 shadow-sm">
+            <div class="text-3xl">⚠️</div>
+            <p class="text-base font-black text-amber-900" id="stoppedMsg_{{ $mIdx }}">
+                {{ $matchData['court_name'] ?? ('Court ' . ($mIdx + 1)) }} Dihentikan Lebih Awal pada {{ $unitTabLabel }} {{ $activeRoundNum }}
+            </p>
+            <p class="text-xs text-amber-800 font-medium" id="stoppedSubMsg_{{ $mIdx }}">
+                Alasan: <strong id="stoppedReasonText_{{ $mIdx }}">{{ $currentScore['stop_reason'] ?? 'Dihentikan oleh Host' }}</strong> &bull; Skor Terakhir: <strong>{{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }} Games</strong>
+            </p>
+            <p class="text-[11px] text-rose-700 font-semibold {{ !empty($currentScore['withdrawn_player_names']) ? '' : 'hidden' }}" id="stoppedWithdrawnNotice_{{ $mIdx }}">
+                Pemain Keluar: {{ is_array($currentScore['withdrawn_player_names'] ?? null) ? implode(', ', $currentScore['withdrawn_player_names']) : '' }}
+            </p>
+        </div>
+
+        <!-- Controls: Kunci & Selesaikan / Akhiri Pertandingan Court Ini — hanya untuk Host -->
         @if($isHost)
         <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-200/50">
             <div class="flex items-center gap-2">
                 <button type="button" id="btnManualComplete_{{ $mIdx }}" onclick="manualCompleteSet({{ $mIdx }})"
-                   class="{{ $isMCompleted ? 'hidden' : '' }} px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 shadow-2xs transition-colors flex items-center gap-1.5 justify-center cursor-pointer">
+                   class="{{ ($isMCompleted || $isMStopped) ? 'hidden' : '' }} px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 shadow-2xs transition-colors flex items-center gap-1.5 justify-center cursor-pointer">
                     <i class="fa-solid fa-lock text-amber-600"></i> Kunci &amp; Selesaikan
+                </button>
+                <button type="button" id="btnStopMatch_{{ $mIdx }}" onclick="openStopMatchModal({{ $mIdx }})"
+                   class="{{ ($isMCompleted || $isMStopped) ? 'hidden' : '' }} px-4 py-2.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 text-xs font-bold hover:bg-rose-100 shadow-2xs transition-colors flex items-center gap-1.5 justify-center cursor-pointer">
+                    <i class="fa-solid fa-stop text-rose-600"></i> Akhiri Pertandingan
                 </button>
             </div>
             <div class="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1 ml-auto">
@@ -610,6 +643,141 @@
         <span class="text-[11px] text-slate-400 font-medium">Rotasi bermain pada {{ $unitTabLabel }} berikutnya</span>
     </div>
     @endif
+    <!-- End Match Modal (Dua Kondisi: Tetap Ikut / Keluar Sesi) -->
+    <div id="stopMatchModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div class="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in duration-200">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-gradient-to-r from-rose-50 to-amber-50 border-b border-rose-100/80 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center text-sm shadow-xs">
+                        <i class="fa-solid fa-hand"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-black text-slate-800">Akhiri Pertandingan (End Match)</h3>
+                        <p class="text-[11px] text-slate-500 font-medium">Hentikan match aktif ini tanpa menyelesaikan seluruh sesi</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeStopMatchModal()" class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-white/80 flex items-center justify-center text-xs transition-colors cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content (Scrollable) -->
+            <div class="p-6 overflow-y-auto space-y-4 text-xs text-slate-700">
+                <!-- Match Snapshot Box -->
+                <div class="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
+                    <div class="flex items-center justify-between border-b border-slate-200/60 pb-1.5">
+                        <span class="font-bold text-slate-800 flex items-center gap-1.5" id="modalMatchTitle">
+                            <i class="fa-solid fa-table-tennis-paddle-ball text-[#063B00]"></i>
+                            <span id="modalMatchRoundCourt">Round 1 &bull; Court 1</span>
+                        </span>
+                        <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200" id="modalMatchScoreSnapshot">
+                            Skor: 0 — 0
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="font-medium text-slate-600 truncate max-w-[45%]" id="modalTeamANames">Tim A</span>
+                        <span class="font-bold text-slate-400 text-xs">VS</span>
+                        <span class="font-medium text-slate-600 truncate max-w-[45%] text-right" id="modalTeamBNames">Tim B</span>
+                    </div>
+                </div>
+
+                <!-- Condition Selector (Tabs / Radio Cards) -->
+                <div class="space-y-1.5">
+                    <label class="block font-bold text-slate-800 text-xs">Pilih Kondisi Penghentian <span class="text-rose-500">*</span></label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <!-- Option A -->
+                        <label class="relative flex flex-col p-3 rounded-2xl border-2 border-emerald-600 bg-emerald-50/40 cursor-pointer transition-all select-none" id="labelConditionA">
+                            <input type="radio" name="stopCondition" value="keep_in_session" checked onchange="onStopConditionChange()" class="sr-only">
+                            <div class="flex items-center gap-2">
+                                <span class="w-4 h-4 rounded-full border-2 border-emerald-600 flex items-center justify-center shrink-0" id="radioCircleA">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+                                </span>
+                                <span class="font-extrabold text-xs text-slate-800">A. Tetap Ikut Sesi</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 font-medium mt-1 leading-snug">
+                                Pertandingan berhenti (waktu habis, dll). Seluruh pemain tetap aktif untuk ronde berikutnya.
+                            </p>
+                        </label>
+
+                        <!-- Option B -->
+                        <label class="relative flex flex-col p-3 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300" id="labelConditionB">
+                            <input type="radio" name="stopCondition" value="withdraw_players" onchange="onStopConditionChange()" class="sr-only">
+                            <div class="flex items-center gap-2">
+                                <span class="w-4 h-4 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0" id="radioCircleB">
+                                    <span class="w-2 h-2 rounded-full bg-rose-600 hidden"></span>
+                                </span>
+                                <span class="font-extrabold text-xs text-slate-800">B. Pemain Keluar</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 font-medium mt-1 leading-snug">
+                                Pemain cedera/izin dan keluar dari sisa sesi. Jadwal ronde mendatang disesuaikan tanpa pemain ini.
+                            </p>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Condition A Inputs -->
+                <div id="sectionConditionA" class="space-y-3">
+                    <div class="space-y-1">
+                        <label for="stopReasonA" class="block font-bold text-slate-800 text-xs">
+                            Alasan Penghentian <span class="text-rose-500">*</span>
+                        </label>
+                        <textarea id="stopReasonA" rows="2" placeholder="Contoh: Waktu sewa lapangan habis, court basah karena hujan, dll."
+                            class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00]"></textarea>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block font-medium text-slate-600 text-[11px]">
+                            Pemain Terkait (Opsional, jika alasan spesifik ke pemain tertentu)
+                        </label>
+                        <div id="condAPlayersList" class="flex flex-wrap gap-2 pt-0.5"></div>
+                    </div>
+                </div>
+
+                <!-- Condition B Inputs -->
+                <div id="sectionConditionB" class="hidden space-y-3">
+                    <div class="space-y-1">
+                        <label class="block font-bold text-slate-800 text-xs">
+                            Pilih Pemain yang Keluar dari Sesi <span class="text-rose-500">*</span>
+                        </label>
+                        <p class="text-[10px] text-slate-500">Pilih satu atau lebih peserta match ini yang tidak dapat melanjutkan sesi:</p>
+                        <div id="condBPlayersList" class="space-y-2 pt-1"></div>
+                    </div>
+                </div>
+
+                <!-- Impact Summary Box -->
+                <div class="p-3 bg-amber-50/70 border border-amber-200/90 rounded-2xl space-y-1 text-[11px] text-amber-900">
+                    <div class="flex items-center gap-1.5 font-bold">
+                        <i class="fa-solid fa-circle-info text-amber-600"></i>
+                        <span>Dampak terhadap Pertandingan &amp; Jadwal:</span>
+                    </div>
+                    <ul class="list-disc list-inside space-y-0.5 text-[10px] text-amber-800/90 pl-1" id="impactBulletList">
+                        <li>Match court ini akan ditandai <strong>Dihentikan</strong> dengan skor parsial terakhir yang sah.</li>
+                        <li>Ronde berikutnya dapat dimulai setelah semua court aktif mencapai status terminal.</li>
+                        <li>Drawing dan seluruh pemain tetap berpartisipasi pada ronde mendatang.</li>
+                    </ul>
+                </div>
+
+                <!-- Error Container -->
+                <div id="modalStopError" class="hidden p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation text-rose-600"></i>
+                    <span id="modalStopErrorMsg"></span>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="closeStopMatchModal()"
+                    class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-100 transition-colors cursor-pointer">
+                    Batal
+                </button>
+                <button type="button" id="btnConfirmStopMatch" onclick="confirmStopMatch()"
+                    class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-check"></i>
+                    <span>Konfirmasi Akhiri Pertandingan</span>
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -632,6 +800,7 @@
     const UPDATE_URL     = '{{ route('scoring.update-score') }}';
     const IS_HOST        = {{ $isHost ? 'true' : 'false' }};
     const RECAP_URL      = '{{ route('scoring.recap', $game['id']) }}';
+    const STOP_MATCH_URL = '{{ route('scoring.stop-match') }}';
     
     // OFFLINE QUEUE: Persist CLIENT_ID to prevent client_seq reset on refresh
     const lsClientIdKey  = `matcha_client_id_${GAME_ID}`;
@@ -672,6 +841,27 @@
             } catch(e) {}
         }
 
+        @php
+            $mParticipants = [];
+            $mTeamAPlayers = !empty($m['team_a_names']) ? $m['team_a_names'] : (!empty($m['teamA_names']) ? $m['teamA_names'] : ($m['team_a'] ?? []));
+            $mTeamBPlayers = !empty($m['team_b_names']) ? $m['team_b_names'] : (!empty($m['teamB_names']) ? $m['teamB_names'] : ($m['team_b'] ?? []));
+            foreach ([['team' => 'Tim A', 'list' => is_array($mTeamAPlayers) ? $mTeamAPlayers : [$mTeamAPlayers]], ['team' => 'Tim B', 'list' => is_array($mTeamBPlayers) ? $mTeamBPlayers : [$mTeamBPlayers]]] as $tGrp) {
+                foreach ($tGrp['list'] as $pItem) {
+                    $pName = is_array($pItem) ? ($pItem['name'] ?? $pItem['nama'] ?? '') : (is_object($pItem) ? ($pItem->name ?? $pItem->nama ?? '') : (string) $pItem);
+                    $pId = is_array($pItem) ? ($pItem['id'] ?? $pItem['user_id'] ?? null) : (is_object($pItem) ? ($pItem->id ?? $pItem->user_id ?? null) : null);
+                    if ($pName) {
+                        $mParticipants[] = [
+                            'name' => $pName,
+                            'id' => $pId,
+                            'team' => $tGrp['team']
+                        ];
+                    }
+                }
+            }
+            $isMStoppedInitial = (($mScore['status'] ?? '') === 'stopped');
+            $isMCompletedInitial = (($mScore['status'] ?? '') === 'completed');
+            $isMDoneInitial = $isMCompletedInitial || $isMStoppedInitial;
+        @endphp
         courtsState[{{ $mIdx }}] = {
             matchId: {{ (int) ($m['match_id'] ?? 0) }},
             idxA: {{ (int) ($mScore['idx_a'] ?? 0) }},
@@ -684,9 +874,14 @@
             setsA: {{ (int) ($mScore['sets_a'] ?? 0) }},
             setsB: {{ (int) ($mScore['sets_b'] ?? 0) }},
             setHistory: {!! json_encode($mScore['set_history'] ?? []) !!} || [],
-            matchDone: {{ (($mScore['status'] ?? '') === 'completed') ? 'true' : 'false' }},
+            matchDone: {{ $isMDoneInitial ? 'true' : 'false' }},
+            isStopped: {{ $isMStoppedInitial ? 'true' : 'false' }},
+            stopType: {!! json_encode($mScore['stop_type'] ?? null) !!},
+            stopReason: {!! json_encode($mScore['stop_reason'] ?? null) !!},
+            withdrawnPlayerNames: {!! json_encode($mScore['withdrawn_player_names'] ?? []) !!},
+            participants: {!! json_encode($mParticipants) !!},
             completionSavePending: false,
-            completionSaveSucceeded: {{ (($mScore['status'] ?? '') === 'completed') ? 'true' : 'false' }},
+            completionSaveSucceeded: {{ $isMDoneInitial ? 'true' : 'false' }},
             winnerTeam: {!! json_encode($mScore['winner_team'] ?? null) !!},
             isFinishing: false,
             courtNum: {{ $mIdx + 1 }},
@@ -1177,11 +1372,13 @@
         }
 
         if (setLbl) {
-            setLbl.innerHTML = `Status: <strong>${st.matchDone ? (UNIT_TAB_LABEL + ' Selesai & Terkunci') : 'Sedang Berlangsung'}</strong>`;
+            setLbl.innerHTML = `Status: <strong>${st.isStopped ? (UNIT_TAB_LABEL + ' Dihentikan') : (st.matchDone ? (UNIT_TAB_LABEL + ' Selesai & Terkunci') : 'Sedang Berlangsung')}</strong>`;
         }
 
         if (notice) {
-            if (st.matchDone) {
+            if (st.isStopped) {
+                notice.innerHTML = `⚠️ <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Dihentikan</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB} Games</strong>`;
+            } else if (st.matchDone) {
                 notice.innerHTML = `🔒 <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Selesai & Terkunci</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB} Games</strong> (${st.winnerTeam || 'Selesai'})`;
             } else if (st.isDeuce) {
                 if (st.advantage === 'A') {
@@ -1198,8 +1395,16 @@
 
         const bA = document.getElementById('btnAddA_' + cIdx);
         const bB = document.getElementById('btnAddB_' + cIdx);
+        const btnStop = document.getElementById('btnStopMatch_' + cIdx);
+        const stoppedBadge = document.getElementById('stoppedBadge_' + cIdx);
+        const matchStoppedBanner = document.getElementById('matchStoppedBanner_' + cIdx);
 
-        if (st.matchDone) {
+        if (st.isStopped) {
+            showStoppedBanner(cIdx);
+        } else if (st.matchDone) {
+            if (stoppedBadge) stoppedBadge.classList.add('hidden');
+            if (matchStoppedBanner) matchStoppedBanner.classList.add('hidden');
+            if (btnStop) btnStop.classList.add('hidden');
             if (lockedBadge) {
                 lockedBadge.classList.remove('hidden');
                 if (lockedBadgeText) {
@@ -1221,6 +1426,9 @@
                 bB.innerHTML = `<i class="fa-solid fa-lock text-xs"></i> Skor Terkunci (${UNIT_TAB_LABEL} Selesai)`;
             }
         } else if (st.isGameSyncing) {
+            if (stoppedBadge) stoppedBadge.classList.add('hidden');
+            if (matchStoppedBanner) matchStoppedBanner.classList.add('hidden');
+            if (btnStop) btnStop.classList.add('hidden');
             if (lockedBadge) {
                 lockedBadge.classList.add('hidden');
             }
@@ -1242,6 +1450,9 @@
                 bB.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs text-amber-700"></i> Menyinkronkan ${IS_SETS ? 'Game ' + (st.gamesA + st.gamesB) : 'Poin'}...`;
             }
         } else {
+            if (stoppedBadge) stoppedBadge.classList.add('hidden');
+            if (matchStoppedBanner) matchStoppedBanner.classList.add('hidden');
+            if (btnStop) btnStop.classList.remove('hidden');
             if (lockedBadge) {
                 lockedBadge.classList.add('hidden');
             }
@@ -1270,7 +1481,10 @@
         const tabMiniBadge = document.getElementById('tabMiniBadge_' + cIdx);
         if (tabMiniBadge) {
             const isTabActive = !document.getElementById('courtBoardContainer_' + cIdx)?.classList.contains('hidden');
-            if (st.matchDone) {
+            if (st.isStopped) {
+                tabMiniBadge.innerText = `⚠️ Dihentikan (${st.gamesA} - ${st.gamesB})`;
+                tabMiniBadge.className = `text-[10px] px-2 py-0.5 rounded-md font-extrabold ${isTabActive ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-900 border border-amber-300'}`;
+            } else if (st.matchDone) {
                 tabMiniBadge.innerText = `✓ Selesai (${st.gamesA} - ${st.gamesB})`;
                 tabMiniBadge.className = `text-[10px] px-2 py-0.5 rounded-md font-extrabold ${isTabActive ? 'bg-white/20 text-[#A8E63A]' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`;
             } else {
@@ -1280,6 +1494,73 @@
         }
 
         syncRoundCompletionStatus();
+    }
+
+    function showStoppedBanner(cIdx) {
+        let st = courtsState[cIdx];
+        try {
+            if (st && st.matchKey) {
+                localStorage.removeItem('matcha_queue_' + GAME_ID + '_' + st.matchKey);
+                localStorage.removeItem('matcha_seq_' + GAME_ID + '_' + st.matchKey);
+            }
+        } catch(e) {}
+        
+        const compBanner = document.getElementById('matchCompletedBanner_' + cIdx);
+        if (compBanner) compBanner.classList.add('hidden');
+
+        const banner = document.getElementById('matchStoppedBanner_' + cIdx);
+        const msg = document.getElementById('stoppedMsg_' + cIdx);
+        const subMsg = document.getElementById('stoppedSubMsg_' + cIdx);
+        const reasonText = document.getElementById('stoppedReasonText_' + cIdx);
+        const courtLabel = st.courtName || ('Court ' + st.courtNum);
+        const scoreUnit = IS_SETS ? 'Games' : 'Poin';
+
+        if (msg) msg.textContent = `⚠️ ${courtLabel} Dihentikan Lebih Awal pada ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM}`;
+        if (reasonText) reasonText.textContent = st.stopReason || 'Dihentikan oleh Host';
+        if (subMsg) subMsg.innerHTML = `Alasan: <strong>${st.stopReason || 'Dihentikan oleh Host'}</strong> &bull; Skor Terakhir: <strong>${st.gamesA} &mdash; ${st.gamesB} ${scoreUnit}</strong>`;
+        
+        const withdrawnNotice = document.getElementById('stoppedWithdrawnNotice_' + cIdx);
+        if (withdrawnNotice) {
+            if (st.withdrawnPlayerNames && st.withdrawnPlayerNames.length > 0) {
+                withdrawnNotice.textContent = `Pemain Keluar: ${st.withdrawnPlayerNames.join(', ')}`;
+                withdrawnNotice.classList.remove('hidden');
+            } else {
+                withdrawnNotice.classList.add('hidden');
+            }
+        }
+
+        if (banner) banner.classList.remove('hidden');
+
+        const bA = document.getElementById('btnAddA_' + cIdx);
+        const bB = document.getElementById('btnAddB_' + cIdx);
+        if (bA) {
+            bA.disabled = true;
+            bA.className = 'w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2';
+            bA.innerHTML = `<i class="fa-solid fa-ban text-xs"></i> Pertandingan Dihentikan`;
+        }
+        if (bB) {
+            bB.disabled = true;
+            bB.className = 'w-full py-3.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-sm border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2';
+            bB.innerHTML = `<i class="fa-solid fa-ban text-xs"></i> Pertandingan Dihentikan`;
+        }
+
+        const lockedBadge = document.getElementById('lockedBadge_' + cIdx);
+        if (lockedBadge) lockedBadge.classList.add('hidden');
+
+        const stoppedBadge = document.getElementById('stoppedBadge_' + cIdx);
+        const stoppedBadgeText = document.getElementById('stoppedBadgeText_' + cIdx);
+        if (stoppedBadge) {
+            stoppedBadge.classList.remove('hidden');
+            if (stoppedBadgeText) {
+                stoppedBadgeText.textContent = `Pertandingan pada ${courtLabel} telah dihentikan oleh Host.`;
+            }
+        }
+
+        const btnManual = document.getElementById('btnManualComplete_' + cIdx);
+        if (btnManual) btnManual.classList.add('hidden');
+
+        const btnStop = document.getElementById('btnStopMatch_' + cIdx);
+        if (btnStop) btnStop.classList.add('hidden');
     }
 
     function showCompletedBanner(winner, cIdx) {
@@ -1349,7 +1630,10 @@
             if (tabMiniBadge) {
                 const isTabActive = !document.getElementById('courtBoardContainer_' + k)?.classList.contains('hidden');
                 const stK = courtsState[k];
-                if (stK.matchDone) {
+                if (stK.isStopped) {
+                    tabMiniBadge.innerText = `⚠️ Dihentikan (${stK.gamesA} - ${stK.gamesB})`;
+                    tabMiniBadge.className = `text-[10px] px-2 py-0.5 rounded-md font-extrabold ${isTabActive ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-900 border border-amber-300'}`;
+                } else if (stK.matchDone) {
                     tabMiniBadge.innerText = `✓ Selesai (${stK.gamesA} - ${stK.gamesB})`;
                     tabMiniBadge.className = `text-[10px] px-2 py-0.5 rounded-md font-extrabold ${isTabActive ? 'bg-white/20 text-[#A8E63A]' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`;
                 } else {
@@ -1440,8 +1724,12 @@
         const newGamesB = data.games_b ?? (data.score_b ?? 0);
         const newSetsA = data.sets_a ?? 0;
         const newSetsB = data.sets_b ?? 0;
-        const newMatchDone = (data.status === 'completed');
-        const newWinner = data.winner_team ?? null;
+        const newMatchDone = (data.status === 'completed' || data.status === 'stopped');
+        const newIsStopped = (data.status === 'stopped');
+        const newStopType = data.stop_type ?? null;
+        const newStopReason = data.stop_reason ?? null;
+        const newWithdrawnPlayerNames = data.withdrawn_player_names ?? [];
+        const newWinner = newIsStopped ? null : (data.winner_team ?? null);
 
         const hasChanged = (
             st.idxA !== newIdxA ||
@@ -1453,6 +1741,7 @@
             st.setsA !== newSetsA ||
             st.setsB !== newSetsB ||
             st.matchDone !== newMatchDone ||
+            st.isStopped !== newIsStopped ||
             st.winnerTeam !== newWinner ||
             incomingVer > (st.serverVersion || 0)
         );
@@ -1469,6 +1758,10 @@
             st.setNumber   = (data.set_number ?? 1);
             st.setHistory  = data.set_history ?? [];
             st.matchDone   = newMatchDone;
+            st.isStopped   = newIsStopped;
+            st.stopType    = newStopType;
+            st.stopReason  = newStopReason;
+            st.withdrawnPlayerNames = newWithdrawnPlayerNames;
             st.winnerTeam  = newWinner;
             if (incomingVer > (st.serverVersion || 0)) {
                 st.serverVersion = incomingVer;
@@ -2394,6 +2687,286 @@
     window.addEventListener('online', () => {
         triggerAllCourtsPoll(true);
     });
+
+    // ── End Match Modal & Controller Functions ──────────────────────────────
+    let currentStoppingCourtIdx = null;
+
+    function openStopMatchModal(cIdx) {
+        if (!IS_HOST) return;
+        currentStoppingCourtIdx = cIdx;
+        const st = courtsState[cIdx];
+        if (!st || st.matchDone) {
+            showToast('Pertandingan ini sudah selesai atau dihentikan.');
+            return;
+        }
+
+        const modal = document.getElementById('stopMatchModal');
+        const roundCourtEl = document.getElementById('modalMatchRoundCourt');
+        const scoreSnapshotEl = document.getElementById('modalMatchScoreSnapshot');
+        const teamAEl = document.getElementById('modalTeamANames');
+        const teamBEl = document.getElementById('modalTeamBNames');
+        const errorEl = document.getElementById('modalStopError');
+        if (errorEl) errorEl.classList.add('hidden');
+
+        const courtLabel = st.courtName || ('Court ' + st.courtNum);
+        if (roundCourtEl) roundCourtEl.textContent = `${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} • ${courtLabel}`;
+        
+        const ptDisplays = getPointDisplays(cIdx);
+        const scoreUnit = IS_SETS ? 'Games' : 'Poin';
+        if (scoreSnapshotEl) {
+            scoreSnapshotEl.textContent = `Skor Terakhir: ${st.gamesA} — ${st.gamesB} ${scoreUnit} (Point: ${ptDisplays.a} : ${ptDisplays.b})`;
+        }
+
+        const participants = st.participants || [];
+        const teamAParticipants = participants.filter(p => p.team === 'Tim A');
+        const teamBParticipants = participants.filter(p => p.team === 'Tim B');
+        if (teamAEl) teamAEl.textContent = 'Tim A: ' + (teamAParticipants.map(p => p.name).join(' & ') || 'Tim A');
+        if (teamBEl) teamBEl.textContent = 'Tim B: ' + (teamBParticipants.map(p => p.name).join(' & ') || 'Tim B');
+
+        // Render Condition A Players (optional checkbox list)
+        const condAPlayersList = document.getElementById('condAPlayersList');
+        if (condAPlayersList) {
+            condAPlayersList.innerHTML = participants.map((p, pIdx) => `
+                <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-200 text-slate-700 text-xs cursor-pointer transition-colors">
+                    <input type="checkbox" name="related_players[]" value="${p.id || p.name}" class="rounded text-[#063B00] focus:ring-[#063B00]">
+                    <span>${p.name} <span class="text-[10px] text-slate-400">(${p.team})</span></span>
+                </label>
+            `).join('');
+        }
+
+        // Render Condition B Players (required player selection with individual reason inputs)
+        const condBPlayersList = document.getElementById('condBPlayersList');
+        if (condBPlayersList) {
+            condBPlayersList.innerHTML = participants.map((p, pIdx) => `
+                <div class="p-2.5 rounded-2xl border border-slate-200 bg-slate-50 space-y-2">
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <input type="checkbox" name="withdrawn_players[]" value="${p.id || p.name}" data-idx="${pIdx}" data-name="${p.name}" onchange="onWithdrawnPlayerToggle(${pIdx})"
+                            class="rounded text-rose-600 focus:ring-rose-500 w-4 h-4">
+                        <span class="font-bold text-xs text-slate-800">${p.name}</span>
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-600">${p.team}</span>
+                    </label>
+                    <div id="playerReasonBox_${pIdx}" class="hidden pl-6 space-y-1">
+                        <label class="block text-[10px] font-bold text-slate-600">Alasan/Kendala Pemain Ini Keluar <span class="text-rose-500">*</span></label>
+                        <input type="text" id="playerNote_${pIdx}" placeholder="Contoh: Cedera hamstring, ada keperluan mendadak"
+                            class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-rose-500 focus:border-rose-500">
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Reset radio
+        const radioA = document.querySelector('input[name="stopCondition"][value="keep_in_session"]');
+        if (radioA) radioA.checked = true;
+        const reasonA = document.getElementById('stopReasonA');
+        if (reasonA) reasonA.value = '';
+
+        onStopConditionChange();
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeStopMatchModal() {
+        const modal = document.getElementById('stopMatchModal');
+        if (modal) modal.classList.add('hidden');
+        currentStoppingCourtIdx = null;
+    }
+
+    function onStopConditionChange() {
+        const selected = document.querySelector('input[name="stopCondition"]:checked')?.value || 'keep_in_session';
+        const secA = document.getElementById('sectionConditionA');
+        const secB = document.getElementById('sectionConditionB');
+        const cardA = document.getElementById('labelConditionA');
+        const cardB = document.getElementById('labelConditionB');
+        const radioDotA = document.querySelector('#radioCircleA span');
+        const radioDotB = document.querySelector('#radioCircleB span');
+        const impactList = document.getElementById('impactBulletList');
+
+        if (selected === 'keep_in_session') {
+            if (secA) secA.classList.remove('hidden');
+            if (secB) secB.classList.add('hidden');
+            if (cardA) cardA.className = 'relative flex flex-col p-3 rounded-2xl border-2 border-emerald-600 bg-emerald-50/40 cursor-pointer transition-all select-none';
+            if (cardB) cardB.className = 'relative flex flex-col p-3 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300';
+            if (radioDotA) radioDotA.classList.remove('hidden');
+            if (radioDotB) radioDotB.classList.add('hidden');
+
+            if (impactList) {
+                impactList.innerHTML = `
+                    <li>Match court ini akan ditandai <strong>Dihentikan</strong> dengan skor parsial terakhir yang sah.</li>
+                    <li>Ronde berikutnya dapat dimulai setelah semua court aktif mencapai status terminal.</li>
+                    <li>Drawing dan seluruh pemain <strong>tetap aktif berpartisipasi</strong> pada ronde mendatang.</li>
+                `;
+            }
+        } else {
+            if (secA) secA.classList.add('hidden');
+            if (secB) secB.classList.remove('hidden');
+            if (cardA) cardA.className = 'relative flex flex-col p-3 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300';
+            if (cardB) cardB.className = 'relative flex flex-col p-3 rounded-2xl border-2 border-rose-600 bg-rose-50/40 cursor-pointer transition-all select-none';
+            if (radioDotA) radioDotA.classList.add('hidden');
+            if (radioDotB) radioDotB.classList.remove('hidden');
+
+            updateConditionBImpact();
+        }
+    }
+
+    function onWithdrawnPlayerToggle(pIdx) {
+        const box = document.getElementById('playerReasonBox_' + pIdx);
+        const chk = document.querySelector(`input[name="withdrawn_players[]"][data-idx="${pIdx}"]`);
+        if (box && chk) {
+            box.classList.toggle('hidden', !chk.checked);
+            if (chk.checked) {
+                const noteInput = document.getElementById('playerNote_' + pIdx);
+                if (noteInput) noteInput.focus();
+            }
+        }
+        updateConditionBImpact();
+    }
+
+    function updateConditionBImpact() {
+        const impactList = document.getElementById('impactBulletList');
+        if (!impactList) return;
+
+        const checkedBoxes = Array.from(document.querySelectorAll('input[name="withdrawn_players[]"]:checked'));
+        const playerNames = checkedBoxes.map(cb => cb.getAttribute('data-name')).filter(Boolean);
+
+        const namesText = playerNames.length > 0 ? playerNames.join(', ') : '(Belum ada pemain dipilih)';
+        impactList.innerHTML = `
+            <li>Match court ini akan ditandai <strong>Dihentikan</strong> dengan skor parsial terakhir yang sah.</li>
+            <li>Pemain yang keluar: <strong>${namesText}</strong> akan ditandai tidak aktif untuk sesi ini (riwayat ronde lampau tetap tersimpan).</li>
+            <li>Jadwal sisa ronde mendatang akan disesuaikan otomatis untuk pemain yang masih aktif.</li>
+            <li>Partner dan lawan yang tidak keluar tetap aktif di sesi ini.</li>
+        `;
+    }
+
+    async function confirmStopMatch() {
+        if (!IS_HOST || currentStoppingCourtIdx === null) return;
+        const cIdx = currentStoppingCourtIdx;
+        const st = courtsState[cIdx];
+        if (!st) return;
+
+        const errorEl = document.getElementById('modalStopError');
+        const errorMsgEl = document.getElementById('modalStopErrorMsg');
+        const showError = (msg) => {
+            if (errorEl && errorMsgEl) {
+                errorMsgEl.textContent = msg;
+                errorEl.classList.remove('hidden');
+            } else {
+                showToast(msg);
+            }
+        };
+        if (errorEl) errorEl.classList.add('hidden');
+
+        const selectedCondition = document.querySelector('input[name="stopCondition"]:checked')?.value || 'keep_in_session';
+        let stopReason = '';
+        let relatedPlayerIds = [];
+        let withdrawnPlayerIds = [];
+        let playerNotes = {};
+
+        if (selectedCondition === 'keep_in_session') {
+            stopReason = (document.getElementById('stopReasonA')?.value || '').trim();
+            if (!stopReason) {
+                showError('Wajib mengisi alasan penghentian pertandingan.');
+                return;
+            }
+            const relChecks = document.querySelectorAll('input[name="related_players[]"]:checked');
+            relatedPlayerIds = Array.from(relChecks).map(c => c.value);
+        } else {
+            const withChecks = Array.from(document.querySelectorAll('input[name="withdrawn_players[]"]:checked'));
+            if (withChecks.length === 0) {
+                showError('Pilih minimal satu pemain yang keluar dari sesi.');
+                return;
+            }
+            for (const chk of withChecks) {
+                const pVal = chk.value;
+                const pIdx = chk.getAttribute('data-idx');
+                const note = (document.getElementById('playerNote_' + pIdx)?.value || '').trim();
+                if (!note) {
+                    const pName = chk.getAttribute('data-name') || 'Pemain';
+                    showError(`Wajib mencatat alasan/kendala untuk ${pName}.`);
+                    return;
+                }
+                withdrawnPlayerIds.push(pVal);
+                playerNotes[pVal] = note;
+            }
+            stopReason = Object.values(playerNotes).join('; ');
+        }
+
+        const btnConfirm = document.getElementById('btnConfirmStopMatch');
+        if (btnConfirm) {
+            btnConfirm.disabled = true;
+            btnConfirm.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan penghentian...';
+        }
+
+        // Host Requirement 5: Tunggu penyelesaian antrean skor yang sudah dikirim sebelum penghentian
+        if ((st.saveQueue && st.saveQueue.length > 0) || (st.inFlightQueue && st.inFlightQueue.length > 0) || (st.pendingSaves || 0) > 0) {
+            console.log('[Stop Match] Menunggu pengosongan antrean skor lokal...');
+            let waitAttempts = 0;
+            while (((st.saveQueue && st.saveQueue.length > 0) || (st.inFlightQueue && st.inFlightQueue.length > 0)) && waitAttempts < 15) {
+                await new Promise(r => setTimeout(r, 200));
+                waitAttempts++;
+            }
+        }
+
+        const displays = getPointDisplays(cIdx);
+        const payload = {
+            game_id: GAME_ID,
+            match_id: st.matchId,
+            match_key: st.matchKey,
+            court_number: st.courtNum,
+            round_key: ACTIVE_ROUND,
+            stop_type: selectedCondition,
+            stop_reason: stopReason,
+            related_player_ids: relatedPlayerIds,
+            withdrawn_player_ids: withdrawnPlayerIds,
+            player_notes: playerNotes,
+            current_games_a: st.gamesA,
+            current_games_b: st.gamesB,
+            point_a: displays.a,
+            point_b: displays.b
+        };
+
+        try {
+            const resp = await fetch(STOP_MATCH_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': CSRF_TOKEN
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const resData = await resp.json();
+
+            if (!resp.ok || !resData.success) {
+                throw new Error(resData.message || 'Gagal mengakhiri pertandingan.');
+            }
+
+            st.matchDone = true;
+            st.isStopped = true;
+            st.stopType = selectedCondition;
+            st.stopReason = stopReason;
+            st.withdrawnPlayerNames = resData.withdrawn_player_names || [];
+            st.winnerTeam = null;
+            st.completionSavePending = false;
+            st.completionSaveSucceeded = true;
+
+            closeStopMatchModal();
+            updateDisplay(cIdx);
+            syncRoundCompletionStatus();
+
+            showToast(`Pertandingan ${st.courtName || ('Court ' + st.courtNum)} berhasil dihentikan.`);
+
+            if (resData.warning) {
+                alert(`Perhatian: ${resData.warning}`);
+            }
+        } catch (err) {
+            console.error('[Stop Match Error]:', err);
+            showError(err.message || 'Terjadi kesalahan sistem saat mengakhiri pertandingan.');
+            if (btnConfirm) {
+                btnConfirm.disabled = false;
+                btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
+            }
+        }
+    }
 
     // Helper Toast
     if (typeof showToast !== 'function') {
