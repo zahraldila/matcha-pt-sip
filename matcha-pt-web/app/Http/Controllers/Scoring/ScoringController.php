@@ -134,17 +134,17 @@ class ScoringController extends Controller
             $dbIsNewer = $dbScore && $cachedScore
                 && (int) ($dbScore['updated_at_ms'] ?? 0) > (int) ($cachedScore['updated_at_ms'] ?? 0)
                 && $dbVersion >= $cachedVersion;
-            $dbCompleted = $dbScore && ($dbScore['status'] ?? '') === 'completed';
-            $cachedCompleted = $cachedScore && ($cachedScore['status'] ?? '') === 'completed';
+            $dbTerminal = $dbScore && ScoringService::isMatchTerminal($dbScore['status'] ?? '');
+            $cachedTerminal = $cachedScore && ScoringService::isMatchTerminal($cachedScore['status'] ?? '');
 
             $cachedTotalGames = (int) ($cachedScore['games_a'] ?? ($cachedScore['score_a'] ?? 0)) + (int) ($cachedScore['games_b'] ?? ($cachedScore['score_b'] ?? 0));
             $dbTotalGames = (int) ($dbScore['games_a'] ?? ($dbScore['score_a'] ?? 0)) + (int) ($dbScore['games_b'] ?? ($dbScore['score_b'] ?? 0));
 
-            // Authoritative Completed DB Score Protection:
-            // Jika DB sudah resmi Completed/Final, skor DB tidak boleh kalah oleh stale cache dengan skor lebih rendah.
+            // Authoritative Completed/Stopped DB Score Protection:
+            // Jika DB sudah resmi Completed/Stopped, skor DB tidak boleh kalah oleh stale cache dengan skor lebih rendah.
             $shouldUseDb = $dbScore && (
                 ! $cachedScore
-                || ($dbCompleted && (! $cachedCompleted || $dbTotalGames >= $cachedTotalGames))
+                || ($dbTerminal && (! $cachedTerminal || $dbTotalGames >= $cachedTotalGames))
                 || $dbIsNewer
             );
 
@@ -455,24 +455,48 @@ class ScoringController extends Controller
 
         // Tolak penambahan skor jika match sudah berstatus Stopped (sebelum validasi field skor)
         $checkGameId = (int) $request->input('game_id');
+        $checkRound = (string) $request->input('round', '');
+        $checkCourt = (int) $request->input('court', 0);
         $checkMatchKey = (string) $request->input('match_key', '');
-        if (! empty($checkGameId) && ! empty($checkMatchKey)) {
+        if (empty($checkMatchKey) && ! empty($checkRound)) {
+            $checkCourtNum = max(1, $checkCourt + 1);
+            $checkSession = SessionModel::with('courts')->find($checkGameId);
+            $checkCourtCount = $checkSession ? max(1, $checkSession->courts->count()) : 1;
+            $checkMatchKey = ScoringService::buildMatchKey($checkRound, $checkCourtNum, $checkCourtCount);
+        }
+
+        if (! empty($checkGameId)) {
             $cachedScores = Cache::get("scoring.game_{$checkGameId}", []);
-            $isStopped = ($cachedScores[$checkMatchKey]['status'] ?? '') === 'stopped';
+            $stoppedReason = null;
+            $isStopped = false;
+            if (! empty($checkMatchKey) && ($cachedScores[$checkMatchKey]['status'] ?? '') === 'stopped') {
+                $isStopped = true;
+                $stoppedReason = $cachedScores[$checkMatchKey]['stop_reason'] ?? null;
+            }
             if (! $isStopped) {
                 $mId = $request->input('match_id');
                 if ($mId) {
                     $mObj = GameMatch::find($mId);
-                    if ($mObj && $mObj->status_match === 'Stopped') {
+                    if ($mObj && strtolower($mObj->status_match ?? '') === 'stopped') {
                         $isStopped = true;
+                        $stoppedReason = $mObj->stop_reason ?? null;
+                    }
+                } elseif (! empty($checkRound)) {
+                    $dbOfficial = $this->getOfficialCompletedScoreFromDatabase($checkGameId, $checkRound, $checkCourt);
+                    if ($dbOfficial && ($dbOfficial['status'] ?? '') === 'stopped') {
+                        $isStopped = true;
+                        $stoppedReason = $dbOfficial['stop_reason'] ?? null;
                     }
                 }
             }
             if ($isStopped) {
                 return response()->json([
                     'success' => false,
+                    'already_stopped' => true,
                     'status' => 'stopped',
                     'message' => 'Pertandingan ini telah dihentikan. Penambahan poin ditolak.',
+                    'winner_team' => null,
+                    'stop_reason' => $stoppedReason,
                 ], 422);
             }
         }
@@ -778,18 +802,37 @@ class ScoringController extends Controller
             // Final resmi bersifat monotonic: snapshot stale dari client lama tidak boleh menurunkan
             // skor yang sudah selesai di cache atau database. Jaga skor 6-4 tetap 6-4 meski request lama 5-4 datang.
             $officialCompletedState = $currentState;
-            if (($officialCompletedState['status'] ?? '') !== 'completed') {
+            if (! ScoringService::isMatchTerminal($officialCompletedState['status'] ?? '')) {
                 $dbScore = $this->getScoreFromDatabase($gameId, $round, $courtIndex);
-                if ($dbScore && ($dbScore['status'] ?? '') === 'completed') {
+                if ($dbScore && ScoringService::isMatchTerminal($dbScore['status'] ?? '')) {
                     $officialCompletedState = $dbScore;
                 }
             }
 
-            if (($officialCompletedState['status'] ?? '') !== 'completed') {
+            if (! ScoringService::isMatchTerminal($officialCompletedState['status'] ?? '')) {
                 $rawFinalScore = $this->getOfficialCompletedScoreFromDatabase($gameId, $round, $courtIndex);
                 if ($rawFinalScore) {
                     $officialCompletedState = $rawFinalScore;
                 }
+            }
+
+            if (($currentState['status'] ?? '') === 'stopped' || ($officialCompletedState['status'] ?? '') === 'stopped') {
+                $stoppedSource = (($officialCompletedState['status'] ?? '') === 'stopped') ? $officialCompletedState : $currentState;
+
+                return response()->json([
+                    'success' => false,
+                    'already_stopped' => true,
+                    'status' => 'stopped',
+                    'message' => 'Pertandingan telah dihentikan. Penambahan skor ditolak.',
+                    'score_a' => (int) ($stoppedSource['games_a'] ?? ($stoppedSource['score_a'] ?? 0)),
+                    'score_b' => (int) ($stoppedSource['games_b'] ?? ($stoppedSource['score_b'] ?? 0)),
+                    'games_a' => (int) ($stoppedSource['games_a'] ?? ($stoppedSource['score_a'] ?? 0)),
+                    'games_b' => (int) ($stoppedSource['games_b'] ?? ($stoppedSource['score_b'] ?? 0)),
+                    'stop_type' => $stoppedSource['stop_type'] ?? null,
+                    'stop_reason' => $stoppedSource['stop_reason'] ?? null,
+                    'stopped_at' => $stoppedSource['stopped_at'] ?? null,
+                    'winner_team' => null,
+                ], 422);
             }
 
             $incomingGamesA = (int) $request->input('games_a', $currentState['games_a'] ?? ($currentState['score_a'] ?? 0));
@@ -823,25 +866,6 @@ class ScoringController extends Controller
                     'status' => $officialCompletedState['status'] ?? 'completed',
                     'winner_team' => $officialCompletedState['winner_team'] ?? null,
                 ]);
-            }
-
-            if (($currentState['status'] ?? '') === 'stopped') {
-                return response()->json([
-                    'success' => false,
-                    'already_stopped' => true,
-                    'status' => 'stopped',
-                    'message' => 'Pertandingan telah dihentikan. Penambahan skor ditolak.',
-                    'score_a' => (int) ($currentState['games_a'] ?? ($currentState['score_a'] ?? 0)),
-                    'score_b' => (int) ($currentState['games_b'] ?? ($currentState['score_b'] ?? 0)),
-                    'games_a' => (int) ($currentState['games_a'] ?? ($currentState['score_a'] ?? 0)),
-                    'games_b' => (int) ($currentState['games_b'] ?? ($currentState['score_b'] ?? 0)),
-                    'point_display_a' => (string) ($currentState['point_display_a'] ?? '0'),
-                    'point_display_b' => (string) ($currentState['point_display_b'] ?? '0'),
-                    'saved' => $currentState,
-                    'match_key' => $matchKey,
-                    'version' => (int) ($currentState['version'] ?? $prevVersion),
-                    'server_version' => (int) ($currentState['version'] ?? $prevVersion),
-                ], 422)->header('Cache-Control', 'no-cache, no-store, must-revalidate');
             }
 
             $isMerged = false;
@@ -1728,6 +1752,51 @@ class ScoringController extends Controller
         $cacheKey = "scoring.game_{$gameId}";
         $savedScores = Cache::get($cacheKey, []);
 
+        $isTeamFormat = str_contains(strtolower($game['match_format'] ?? ''), 'team');
+        $unitLabel = $isTeamFormat ? 'Set' : 'Ronde';
+
+        // 0a. Validasi batas akhir sesi: jika sudah pada ronde terakhir, jangan buat ronde N+1 atau fallback
+        $totalRounds = ! empty($game['drawing']) ? count($game['drawing']) : 1;
+        if ((int) $currNum >= $totalRounds || (int) $nextNum > $totalRounds) {
+            return redirect()->route('scoring.live', [
+                'id' => $gameId,
+                'format' => request('format', $game['match_format'] ?? 'Americano'),
+                'round' => $currentRound,
+                'court' => (int) $request->input('court', 0),
+            ])->with('warning', 'Seluruh set/ronde telah selesai. Silakan selesaikan sesi.');
+        }
+
+        // 0b. Validasi urutan linier: hanya boleh lanjut ke tepat 1 ronde berikutnya (cegah loncat ronde)
+        if ((int) $nextNum !== ((int) $currNum + 1)) {
+            return redirect()->route('scoring.live', [
+                'id' => $gameId,
+                'format' => request('format', $game['match_format'] ?? 'Americano'),
+                'round' => $currentRound,
+                'court' => (int) $request->input('court', 0),
+            ])->with('error', 'Perpindahan ronde harus dilakukan secara berurutan.');
+        }
+
+        // 0c. Idempotency / Retry guard: jika transisi ronde ini sudah berhasil dieksekusi sebelumnya
+        if (($savedScores['_meta']['active_round'] ?? '') === $nextRound) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Membuka susunan pertandingan {$unitLabel} {$nextNum}...",
+                    'redirect' => route('games.drawing', [
+                        'id' => $gameId,
+                        'round' => $nextNum,
+                    ]),
+                    'next_round' => $nextRound,
+                    'next_round_num' => (int) $nextNum,
+                ]);
+            }
+
+            return redirect()->route('games.drawing', [
+                'id' => $gameId,
+                'round' => $nextNum,
+            ])->with('success', "{$unitLabel} {$currNum} selesai! Silakan periksa susunan pemain & jadwal {$unitLabel} {$nextNum}.");
+        }
+
         // 1. Validasi: Ronde aktif saat ini harus benar-benar selesai di SELURUH court
         if (! $this->isRoundFullyCompleted($game, $currentRound, $savedScores)) {
             return redirect()->route('scoring.live', [
@@ -1791,11 +1860,19 @@ class ScoringController extends Controller
         ]);
         Cache::put($cacheKey, $savedScores, now()->addHours(4));
 
+        // 3b. Simpan transisi ke database jika kolom persisten tersedia
+        if (Schema::hasColumn('tb_session', 'active_round')) {
+            try {
+                DB::table('tb_session')
+                    ->where('session_id', $gameId)
+                    ->update(['active_round' => $nextRound]);
+            } catch (\Throwable $e) {
+                Log::warning("[nextRound] Could not persist active_round to tb_session: {$e->getMessage()}");
+            }
+        }
+
         // 4. Broadcast perpindahan ronde ke seluruh penonton/player via Supabase Realtime
         $this->broadcastRoundAdvancedRealtime($gameId, $currentRound, $nextRound);
-
-        $isTeamFormat = str_contains(strtolower($game['match_format'] ?? ''), 'team');
-        $unitLabel = $isTeamFormat ? 'Set' : 'Ronde';
 
         if ($request->input('redirect_to') === 'live') {
             return redirect()->route('scoring.live', [
@@ -2920,21 +2997,17 @@ class ScoringController extends Controller
         $matches = $round['matches'] ?? [];
         $matchCount = count($matches);
 
-        $isTerminal = function ($status) {
-            return in_array(strtolower((string) $status), ['completed', 'stopped', 'finished'], true);
-        };
-
         // Jika matches kosong di drawing data, periksa fallback single-court
         if ($matchCount === 0) {
             $score = $savedScores[$roundKey] ?? ($savedScores["{$roundKey}_court_1"] ?? null);
-            if (! $score || ! $isTerminal($score['status'] ?? '')) {
+            if (! $score || ! ScoringService::isMatchTerminal($score['status'] ?? '')) {
                 $dbScore = $this->getScoreFromDatabase($game['id'], $roundKey, 0);
-                if ($dbScore && $isTerminal($dbScore['status'] ?? '')) {
+                if ($dbScore && ScoringService::isMatchTerminal($dbScore['status'] ?? '')) {
                     $score = $dbScore;
                 }
             }
 
-            return $isTerminal($score['status'] ?? '');
+            return ScoringService::isMatchTerminal($score['status'] ?? '');
         }
 
         foreach ($matches as $matchIndex => $match) {
@@ -2948,14 +3021,14 @@ class ScoringController extends Controller
             }
 
             // Cross-check ke database jika score belum ada di cache atau statusnya belum terminal
-            if (! $score || ! $isTerminal($score['status'] ?? '')) {
+            if (! $score || ! ScoringService::isMatchTerminal($score['status'] ?? '')) {
                 $dbScore = $this->getScoreFromDatabase($game['id'], $roundKey, $matchIndex);
-                if ($dbScore && $isTerminal($dbScore['status'] ?? '')) {
+                if ($dbScore && ScoringService::isMatchTerminal($dbScore['status'] ?? '')) {
                     $score = $dbScore;
                 }
             }
 
-            if (! $isTerminal($score['status'] ?? '')) {
+            if (! ScoringService::isMatchTerminal($score['status'] ?? '')) {
                 return false;
             }
         }
@@ -3226,14 +3299,17 @@ class ScoringController extends Controller
             ->orderByDesc('score_id')
             ->first();
 
-        if (! $row && strtolower((string) ($match->status_match ?? '')) !== 'completed') {
+        if (! $row && ! ScoringService::isMatchTerminal($match->status_match ?? '')) {
             return null;
         }
 
         $row = $row ?: DB::table('tb_score')->where('match_id', $match->match_id)->orderByDesc('version')->orderByDesc('score_id')->first();
-        if (! $row) {
+        if (! $row && ! ScoringService::isMatchTerminal($match->status_match ?? '')) {
             return null;
         }
+
+        $isStopped = strtolower((string) ($match->status_match ?? '')) === 'stopped';
+        $status = $isStopped ? 'stopped' : (strtolower((string) ($match->status_match ?? '')) === 'completed' || in_array(strtolower((string) ($row->status_score ?? '')), ['final', 'completed'], true) ? 'completed' : 'in_progress');
 
         return [
             'match_id' => (int) $match->match_id,
@@ -3258,8 +3334,14 @@ class ScoringController extends Controller
             'is_deuce' => false,
             'advantage' => null,
             'scoring_type' => (string) ($row->scoring_system ?? 'total_of_sets'),
-            'status' => strtolower((string) ($match->status_match ?? '')) === 'completed' || in_array(strtolower((string) ($row->status_score ?? '')), ['final', 'completed'], true) ? 'completed' : 'in_progress',
-            'winner_team' => $match->winner_team,
+            'status' => $status,
+            'winner_team' => $isStopped ? null : ($match->winner_team ?? null),
+            'stop_type' => $match->stop_type ?? null,
+            'stop_reason' => $match->stop_reason ?? null,
+            'stopped_by_user_id' => $match->stopped_by_user_id ?? null,
+            'stopped_at' => isset($match->stopped_at) && $match->stopped_at ? (is_string($match->stopped_at) ? $match->stopped_at : (method_exists($match->stopped_at, 'toDateTimeString') ? $match->stopped_at->toDateTimeString() : (string) $match->stopped_at)) : null,
+            'withdrawn_player_ids' => ! empty($match->withdrawn_player_ids) ? (is_array($match->withdrawn_player_ids) ? $match->withdrawn_player_ids : json_decode($match->withdrawn_player_ids, true)) : [],
+            'player_notes' => ! empty($match->player_notes) ? (is_array($match->player_notes) ? $match->player_notes : json_decode($match->player_notes, true)) : [],
             'last_event_id' => (string) ($row->last_event_id ?? ($match->last_event_id ?? '')),
         ];
     }
@@ -3592,41 +3674,105 @@ class ScoringController extends Controller
     }
 
     /**
-     * Cari ronde yang sedang aktif dari database (tb_match) jika cache metadata belum ada.
+     * Cari ronde yang sedang aktif dari database jika cache metadata belum ada.
+     * Mengelompokkan pertandingan per ronde dan memverifikasi kelengkapan seluruh court secara berurutan.
      */
     protected function resolveActiveRoundFromDatabase(int $gameId): string
     {
         try {
+            $session = SessionModel::with('courts')->find($gameId);
+            if (! $session) {
+                return 'round_1';
+            }
+
+            // Jika skema database memiliki kolom active_round dan sudah terisi, utamakan nilai persisten ini
+            if (Schema::hasColumn('tb_session', 'active_round')) {
+                $persistedActiveRound = DB::table('tb_session')->where('session_id', $gameId)->value('active_round') ?? $session->active_round;
+                if (! empty($persistedActiveRound)) {
+                    return (string) $persistedActiveRound;
+                }
+            }
+
             $drawing = Drawing::where('session_id', $gameId)->first();
             if (! $drawing) {
                 return 'round_1';
             }
 
-            $session = SessionModel::with('courts')->find($gameId);
-            $courtCount = $session ? max(1, $session->courts->count()) : 1;
-
+            $courtCount = max(1, $session->courts->count());
             $matches = GameMatch::where('drawing_id', $drawing->drawing_id)
                 ->orderBy('nomor_match', 'asc')
-                ->get();
+                ->get()
+                ->keyBy('nomor_match');
 
             if ($matches->isEmpty()) {
                 return 'round_1';
             }
 
-            // Cari match pertama yang berstatus 'In Progress'
-            $inProgressMatch = $matches->first(fn ($m) => strtolower((string) ($m->status_match ?? '')) === 'in progress');
-            if ($inProgressMatch) {
-                $rNum = intdiv(max(0, ((int) $inProgressMatch->nomor_match) - 1), $courtCount) + 1;
-
-                return "round_{$rNum}";
+            // Dapatkan jumlah ronde yang valid dari drawing atau cache schedule
+            $gameData = $this->getGameData($gameId);
+            $drawingRounds = $gameData['drawing'] ?? [];
+            if (empty($drawingRounds)) {
+                $cachedSchedule = Cache::get("drawing.schedule_{$gameId}");
+                $drawingRounds = $cachedSchedule['rounds'] ?? [];
             }
 
-            // Jika semua match yang tercatat sudah selesai, ambil ronde match terakhir
-            $lastCompletedMatch = $matches->filter(fn ($m) => strtolower((string) ($m->status_match ?? '')) === 'completed')->last();
-            if ($lastCompletedMatch) {
-                $rNum = intdiv(max(0, ((int) $lastCompletedMatch->nomor_match) - 1), $courtCount) + 1;
+            $totalRounds = count($drawingRounds);
+            if ($totalRounds === 0) {
+                $maxNomor = (int) $matches->keys()->max();
+                $totalRounds = max(1, intdiv(max(0, $maxNomor - 1), $courtCount) + 1);
+            }
 
-                return "round_{$rNum}";
+            // Fallback ketika kolom active_round belum tersedia di tb_session:
+            // Periksa ronde secara berurutan.
+            // 1. Jika ada ronde yang memiliki match dan belum selesai di seluruh court, ronde tersebut adalah ronde aktif.
+            // 2. Jika seluruh court pada ronde r sudah selesai, tetapi ronde r+1 belum memiliki match tercatat di DB:
+            //    Pertahankan ronde r agar antarmuka tetap menampilkan ronde r dan tombol lanjut ronde berikutnya tersedia.
+            $lastCompletedRound = 0;
+
+            for ($r = 1; $r <= $totalRounds; $r++) {
+                $matchesInThisRound = [];
+                if (! empty($drawingRounds)) {
+                    $rData = $drawingRounds["round_{$r}"] ?? ($drawingRounds[$r] ?? ($drawingRounds[$r - 1] ?? null));
+                    $matchesInThisRound = $rData['matches'] ?? [];
+                }
+                $roundMatchCount = max(1, count($matchesInThisRound) > 0 ? count($matchesInThisRound) : $courtCount);
+
+                $roundAllTerminal = true;
+                $hasRecordedMatch = false;
+
+                for ($mIdx = 0; $mIdx < $roundMatchCount; $mIdx++) {
+                    $nomorMatch = ($r - 1) * $courtCount + ($mIdx + 1);
+                    $dbMatch = $matches->get($nomorMatch);
+
+                    if ($dbMatch) {
+                        $hasRecordedMatch = true;
+                        if (! ScoringService::isMatchTerminal($dbMatch->status_match ?? '')) {
+                            $roundAllTerminal = false;
+                        }
+                    } else {
+                        // Jika match belum terdaftar di database, ronde ini belum terminal
+                        $roundAllTerminal = false;
+                    }
+                }
+
+                if ($hasRecordedMatch && ! $roundAllTerminal) {
+                    return "round_{$r}";
+                }
+
+                if ($hasRecordedMatch && $roundAllTerminal) {
+                    $lastCompletedRound = $r;
+                } else {
+                    // Belum ada match tercatat untuk ronde ini
+                    if ($lastCompletedRound > 0) {
+                        return "round_{$lastCompletedRound}";
+                    }
+
+                    return "round_{$r}";
+                }
+            }
+
+            if ($lastCompletedRound > 0) {
+                return "round_{$lastCompletedRound}";
             }
 
             return 'round_1';

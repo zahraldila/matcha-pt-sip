@@ -698,14 +698,13 @@
 
     function getActiveUnlockedRound() {
         const allKeys = Object.keys(roundsData).map(Number).sort((a, b) => a - b);
-        let activeUnlocked = allKeys[0] || 1;
+        if (allKeys.length === 0) return 1;
         for (const k of allKeys) {
             if (roundAccessData[k] !== false && roundStatusData[k] !== 'completed') {
-                activeUnlocked = k;
-                break;
+                return k;
             }
         }
-        return activeUnlocked;
+        return allKeys[allKeys.length - 1];
     }
 
     function updateCtaButton(targetRound, isAccessible, activeUnlocked) {

@@ -137,7 +137,22 @@
                         $isRoundAccessible = false;
                     }
                     $rScore = $savedScores[$rKey] ?? ($savedScores["{$rKey}_court_1"] ?? []);
-                    $isRCompleted = (($rScore['status'] ?? '') === 'completed');
+                    $isRCompleted = \App\Services\Scoring\ScoringService::isMatchTerminal($rScore['status'] ?? '');
+                    if (! $isRCompleted && isset($game['drawing'][$rKey]['matches'])) {
+                        $roundMatches = $game['drawing'][$rKey]['matches'];
+                        if (! empty($roundMatches)) {
+                            $allMTerminal = true;
+                            foreach ($roundMatches as $mSubIdx => $mSub) {
+                                $subKey = count($roundMatches) > 1 ? "{$rKey}_court_".($mSubIdx + 1) : $rKey;
+                                $subScore = $savedScores[$subKey] ?? ($savedScores["{$rKey}_court_1"] ?? []);
+                                if (! \App\Services\Scoring\ScoringService::isMatchTerminal($subScore['status'] ?? '')) {
+                                    $allMTerminal = false;
+                                    break;
+                                }
+                            }
+                            $isRCompleted = $allMTerminal;
+                        }
+                    }
                 @endphp
                 @if($isRoundAccessible)
                     <a href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => $rKey, 'court' => $courtIndex]) }}"
@@ -175,7 +190,7 @@
         foreach ($matchContext['matches'] ?? [] as $checkIdx => $checkMatch) {
             $checkKey = \App\Services\Scoring\ScoringService::buildMatchKey($activeRound, $checkIdx + 1, $courtCount);
             $checkScore = $savedScores[$checkKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? ($savedScores["{$activeRound}_court_1"] ?? [])));
-            if (!in_array(($checkScore['status'] ?? ''), ['completed', 'stopped'])) {
+            if (! \App\Services\Scoring\ScoringService::isMatchTerminal($checkScore['status'] ?? '')) {
                 $uncompletedCourtNames[$checkIdx] = $checkMatch['court_name'] ?? ('Court ' . ($checkIdx + 1));
             }
         }

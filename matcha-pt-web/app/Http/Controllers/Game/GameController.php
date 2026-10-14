@@ -1447,7 +1447,7 @@ class GameController extends Controller
                     $drawingModel = Drawing::where('session_id', $game['id'])->first();
                     if ($drawingModel) {
                         $unstartedMatchIds = GameMatch::where('drawing_id', $drawingModel->drawing_id)
-                            ->where('status_match', '!=', 'Completed')
+                            ->whereNotIn('status_match', ['Completed', 'Stopped'])
                             ->pluck('match_id')
                             ->all();
                         if (! empty($unstartedMatchIds)) {

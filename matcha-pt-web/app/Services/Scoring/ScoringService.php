@@ -19,6 +19,20 @@ use Illuminate\Support\Facades\Schema;
 class ScoringService
 {
     /**
+     * Helper bersama: cek apakah status pertandingan terminal (memenuhi syarat progres ronde).
+     * Status yang didukung aplikasi: 'completed', 'finished', 'stopped'.
+     *
+     * @param string|null $status
+     * @return bool
+     */
+    public static function isMatchTerminal(?string $status): bool
+    {
+        $normalized = strtolower(trim((string) $status));
+
+        return in_array($normalized, ['completed', 'finished', 'stopped'], true);
+    }
+
+    /**
      * Parse scoring system string dari game data.
      * Sistem scoring yang tersedia HANYA:
      * 1. Total of 3 (Target 2 Set)
@@ -1431,10 +1445,10 @@ class ScoringService
                 $dbMatch = $dbMatches->get($nomorMatch);
 
                 $isMatchDone = false;
-                if ($score && in_array(strtolower($score['status'] ?? ''), ['completed', 'finished'], true)) {
+                if ($score && self::isMatchTerminal($score['status'] ?? '')) {
                     $isMatchDone = true;
                     $hasAnyActivity = true;
-                } elseif ($dbMatch && in_array(strtolower($dbMatch->status_match ?? ''), ['completed', 'finished'], true)) {
+                } elseif ($dbMatch && self::isMatchTerminal($dbMatch->status_match ?? '')) {
                     $isMatchDone = true;
                     $hasAnyActivity = true;
                 } else {
@@ -1453,15 +1467,15 @@ class ScoringService
             }
 
             if ($allMatchesDone) {
-                // Ensure there is actually a completed match recorded (not just empty scores)
+                // Pastikan seluruh match wajib pada ronde ini benar-benar terminal (bukan sekadar skor kosong)
                 $hasRecordedCompletion = false;
                 for ($mIdx = 0; $mIdx < $matchCount; $mIdx++) {
                     $matchKey = $matchCount > 1 ? "round_{$rNum}_court_".($mIdx + 1) : "round_{$rNum}";
                     $score = $savedScores[$matchKey] ?? ($savedScores["round_{$rNum}_court_1"] ?? null);
                     $nomorMatch = ($rNum - 1) * $courtCount + ($mIdx + 1);
                     $dbMatch = $dbMatches->get($nomorMatch);
-                    if (($score && in_array(strtolower($score['status'] ?? ''), ['completed', 'finished'], true)) ||
-                        ($dbMatch && in_array(strtolower($dbMatch->status_match ?? ''), ['completed', 'finished'], true))) {
+                    if (($score && self::isMatchTerminal($score['status'] ?? '')) ||
+                        ($dbMatch && self::isMatchTerminal($dbMatch->status_match ?? ''))) {
                         $hasRecordedCompletion = true;
                     } else {
                         $hasRecordedCompletion = false;
@@ -1492,6 +1506,9 @@ class ScoringService
         // Tentukan ronde aktif default
         $activeRoundNum = 1;
         $metaActive = $savedScores['_meta']['active_round'] ?? null;
+        if (! $metaActive && Schema::hasColumn('tb_session', 'active_round')) {
+            $metaActive = DB::table('tb_session')->where('session_id', $gameId)->value('active_round');
+        }
         if ($metaActive) {
             $parsedNum = (int) preg_replace('/[^0-9]/', '', $metaActive);
             if ($parsedNum > 0 && ($roundAccess[$parsedNum] ?? false)) {
@@ -1499,14 +1516,22 @@ class ScoringService
             }
         }
 
-        if ($activeRoundNum === 1) {
+        if ($activeRoundNum === 1 && ($roundStatus[1] ?? '') === 'completed') {
+            $lastActiveOrCompleted = 1;
             foreach ($rounds as $rIdx => $rData) {
                 $rNum = (int) ($rData['round'] ?? ($rData['round_number'] ?? $rIdx));
-                if (($roundAccess[$rNum] ?? false) && ($roundStatus[$rNum] ?? '') !== 'completed') {
-                    $activeRoundNum = $rNum;
+                if (($roundStatus[$rNum] ?? '') === 'completed') {
+                    $lastActiveOrCompleted = $rNum;
+                } elseif (($roundStatus[$rNum] ?? '') === 'in_progress') {
+                    $lastActiveOrCompleted = $rNum;
+                    break;
+                } else {
+                    // Ronde berikutnya berstatus 'ready' (sudah boleh diakses, tetapi belum diaktifkan host).
+                    // Tetap di ronde sebelumnya agar tombol Lanjut tetap tampil bagi host.
                     break;
                 }
             }
+            $activeRoundNum = $lastActiveOrCompleted;
         }
 
         return [

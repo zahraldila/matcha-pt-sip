@@ -24,6 +24,7 @@ class SessionModel extends Model
         'jumlah_pemain',
         'jenis_permainan',
         'share_token',
+        'active_round',
     ];
 
     public function ensureShareToken(): string
