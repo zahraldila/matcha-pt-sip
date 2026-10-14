@@ -52,7 +52,7 @@
 
     {{-- Flash Notifications (Warning, Error, Success) --}}
     @if(session('warning') || session('error') || session('success'))
-        <div class="space-y-2">
+        <div id="flashNotificationContainer" class="space-y-2">
             @if(session('warning'))
                 <div class="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-3 shadow-xs">
                     <i class="fa-solid fa-triangle-exclamation text-amber-600 text-base shrink-0"></i>
@@ -66,9 +66,14 @@
                 </div>
             @endif
             @if(session('success'))
-                <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-[#063B00] text-xs font-bold flex items-center gap-3 shadow-xs">
-                    <i class="fa-solid fa-circle-check text-emerald-600 text-base shrink-0"></i>
-                    <span>{{ session('success') }}</span>
+                <div id="flashSuccessBanner" class="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-[#063B00] text-xs font-bold flex items-center justify-between gap-3 shadow-xs transition-all duration-500 ease-in-out overflow-hidden">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <i class="fa-solid fa-circle-check text-emerald-600 text-base shrink-0"></i>
+                        <span class="truncate">{{ session('success') }}</span>
+                    </div>
+                    <button type="button" onclick="dismissFlashSuccessBanner()" class="text-emerald-700 hover:text-emerald-950 p-1 rounded-lg hover:bg-emerald-100 transition-colors shrink-0 cursor-pointer" aria-label="Tutup pemberitahuan">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
                 </div>
             @endif
         </div>
@@ -3249,5 +3254,31 @@
     });
     syncRoundCompletionStatus();
     initSupabaseRealtime();
+
+    // Auto-dismiss Flash Success Banner
+    function dismissFlashSuccessBanner() {
+        const banner = document.getElementById('flashSuccessBanner');
+        if (!banner) return;
+        banner.style.transition = 'all 0.5s ease-in-out';
+        banner.style.opacity = '0';
+        banner.style.transform = 'translateY(-8px)';
+        banner.style.maxHeight = '0px';
+        banner.style.paddingTop = '0px';
+        banner.style.paddingBottom = '0px';
+        banner.style.marginTop = '0px';
+        banner.style.marginBottom = '0px';
+        banner.style.borderWidth = '0px';
+        setTimeout(() => {
+            banner.remove();
+            const container = document.getElementById('flashNotificationContainer');
+            if (container && container.children.length === 0) {
+                container.remove();
+            }
+        }, 500);
+    }
+
+    if (document.getElementById('flashSuccessBanner')) {
+        setTimeout(dismissFlashSuccessBanner, 3500);
+    }
 </script>
 @endpush
