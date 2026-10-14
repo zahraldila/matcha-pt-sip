@@ -21,9 +21,6 @@ class ScoringService
     /**
      * Helper bersama: cek apakah status pertandingan terminal (memenuhi syarat progres ronde).
      * Status yang didukung aplikasi: 'completed', 'finished', 'stopped'.
-     *
-     * @param string|null $status
-     * @return bool
      */
     public static function isMatchTerminal(?string $status): bool
     {
@@ -1517,21 +1514,13 @@ class ScoringService
         }
 
         if ($activeRoundNum === 1 && ($roundStatus[1] ?? '') === 'completed') {
-            $lastActiveOrCompleted = 1;
             foreach ($rounds as $rIdx => $rData) {
                 $rNum = (int) ($rData['round'] ?? ($rData['round_number'] ?? $rIdx));
-                if (($roundStatus[$rNum] ?? '') === 'completed') {
-                    $lastActiveOrCompleted = $rNum;
-                } elseif (($roundStatus[$rNum] ?? '') === 'in_progress') {
-                    $lastActiveOrCompleted = $rNum;
-                    break;
-                } else {
-                    // Ronde berikutnya berstatus 'ready' (sudah boleh diakses, tetapi belum diaktifkan host).
-                    // Tetap di ronde sebelumnya agar tombol Lanjut tetap tampil bagi host.
+                if (($roundAccess[$rNum] ?? false) && ($roundStatus[$rNum] ?? '') !== 'completed') {
+                    $activeRoundNum = $rNum;
                     break;
                 }
             }
-            $activeRoundNum = $lastActiveOrCompleted;
         }
 
         return [
@@ -1828,4 +1817,3 @@ class ScoringService
         }
     }
 }
-

@@ -113,6 +113,18 @@ class ScoringController extends Controller
             $this->broadcastRoundAdvancedRealtime((int) $game['id'], $sessionActiveRound, $activeRound);
         }
 
+        // Tandai bahwa scoring untuk ronde ini telah resmi dibuka oleh Host & broadcast ke pemain di Drawing
+        if ($isHost) {
+            if (empty($savedScores['_meta']["opened_{$activeRound}"])) {
+                $savedScores['_meta'] = array_merge($savedScores['_meta'] ?? [], [
+                    "opened_{$activeRound}" => true,
+                    'updated_at' => now()->toDateTimeString(),
+                ]);
+                Cache::put($cacheKey, $savedScores, now()->addHours(4));
+            }
+            $this->broadcastScoringOpenedRealtime((int) $game['id'], $activeRound);
+        }
+
         // Bangun konteks match (tim A, tim B, istirahat, court_name, matches) untuk round aktif & court
         $matchContext = ScoringService::buildMatchContext($game, $activeRound, $courtIndex);
         $courtCount = $matchContext['court_count'] ?? 1;
@@ -1756,8 +1768,10 @@ class ScoringController extends Controller
         $unitLabel = $isTeamFormat ? 'Set' : 'Ronde';
 
         // 0a. Validasi batas akhir sesi: jika sudah pada ronde terakhir, jangan buat ronde N+1 atau fallback
-        $totalRounds = ! empty($game['drawing']) ? count($game['drawing']) : 1;
-        if ((int) $currNum >= $totalRounds || (int) $nextNum > $totalRounds) {
+        $cachedSchedule = Cache::get("drawing.schedule_{$gameId}", []);
+        $drawingRounds = ! empty($game['drawing']) ? $game['drawing'] : ($cachedSchedule['rounds'] ?? []);
+        $totalRounds = ! empty($drawingRounds) ? count($drawingRounds) : 0;
+        if ($totalRounds > 0 && ((int) $currNum >= $totalRounds || (int) $nextNum > $totalRounds)) {
             return redirect()->route('scoring.live', [
                 'id' => $gameId,
                 'format' => request('format', $game['match_format'] ?? 'Americano'),
@@ -1778,6 +1792,15 @@ class ScoringController extends Controller
 
         // 0c. Idempotency / Retry guard: jika transisi ronde ini sudah berhasil dieksekusi sebelumnya
         if (($savedScores['_meta']['active_round'] ?? '') === $nextRound) {
+            if ($request->input('redirect_to') === 'live') {
+                return redirect()->route('scoring.live', [
+                    'id' => $gameId,
+                    'format' => request('format', $game['match_format'] ?? 'Americano'),
+                    'round' => $nextRound,
+                    'court' => (int) $request->input('court', 0),
+                ])->with('success', "Berhasil lanjut ke {$unitLabel} {$nextNum}!");
+            }
+
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
@@ -1805,7 +1828,7 @@ class ScoringController extends Controller
                 'round' => $currentRound,
                 'court' => (int) $request->input('court', 0),
             ])->with('error', 'Set/Ronde saat ini belum selesai. Selesaikan seluruh pertandingan terlebih dahulu.')
-              ->with('warning', 'Set/Ronde saat ini belum selesai. Selesaikan seluruh pertandingan terlebih dahulu.');
+                ->with('warning', 'Set/Ronde saat ini belum selesai. Selesaikan seluruh pertandingan terlebih dahulu.');
         }
 
         // 2. Validasi: Ronde tujuan harus unlocked secara berurutan
@@ -1817,7 +1840,7 @@ class ScoringController extends Controller
                 'round' => $currentRound,
                 'court' => (int) $request->input('court', 0),
             ])->with('error', 'Set/Ronde saat ini belum selesai. Selesaikan seluruh pertandingan terlebih dahulu.')
-              ->with('warning', 'Set/Ronde saat ini belum selesai. Selesaikan seluruh pertandingan terlebih dahulu.');
+                ->with('warning', 'Set/Ronde saat ini belum selesai. Selesaikan seluruh pertandingan terlebih dahulu.');
         }
 
         // 2b. Validasi: Ronde tujuan tidak memiliki kendala pemain tidak mencukupi atau tim tidak lengkap
@@ -1836,7 +1859,7 @@ class ScoringController extends Controller
                 'round' => $currentRound,
                 'court' => (int) $request->input('court', 0),
             ])->with('error', "Ronde berikutnya belum dapat dimulai: {$reason}")
-              ->with('warning', "Ronde berikutnya belum dapat dimulai: {$reason}");
+                ->with('warning', "Ronde berikutnya belum dapat dimulai: {$reason}");
         }
 
         foreach (($nextRoundData['matches'] ?? []) as $nm) {
@@ -1849,7 +1872,7 @@ class ScoringController extends Controller
                     'round' => $currentRound,
                     'court' => (int) $request->input('court', 0),
                 ])->with('error', "Ronde berikutnya belum dapat dimulai: {$reason}")
-                  ->with('warning', "Ronde berikutnya belum dapat dimulai: {$reason}");
+                    ->with('warning', "Ronde berikutnya belum dapat dimulai: {$reason}");
             }
         }
 
@@ -3042,13 +3065,20 @@ class ScoringController extends Controller
     private function getRoundAccess(array $game, array $scoringSystem, array $savedScores): array
     {
         $drawingRounds = ! empty($game['drawing']) ? array_keys($game['drawing']) : [];
+        if (empty($drawingRounds) && ! empty($game['id'])) {
+            $cachedSchedule = Cache::get("drawing.schedule_{$game['id']}", []);
+            if (! empty($cachedSchedule['rounds'])) {
+                $drawingRounds = array_map(fn ($k) => str_starts_with((string) $k, 'round_') ? (string) $k : "round_{$k}", array_keys($cachedSchedule['rounds']));
+            }
+        }
+
         if (! empty($drawingRounds)) {
             $roundKeys = $drawingRounds;
         } elseif ($scoringSystem['is_sets']) {
             $numSets = (int) ($scoringSystem['max_sets'] ?? 1);
             $roundKeys = array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, max(1, $numSets)));
         } else {
-            $roundKeys = ['round_1'];
+            $roundKeys = array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, 10));
         }
         $roundAccess = [];
         $previousRoundCompleted = true;
@@ -3069,12 +3099,6 @@ class ScoringController extends Controller
      * Membentuk canonical match state awal atau memulihkan dari database jika cache kosong.
      * Menggunakan sumber kebenaran database dan aturan scoring system aplikasi.
      * State default hanya digunakan jika pertandingan memang belum memiliki skor di DB.
-     *
-     * @param  array  $game
-     * @param  string  $matchKey
-     * @param  string  $round
-     * @param  array  $scoringSystem
-     * @return array
      */
     public function getDefaultMatchState(array $game, string $matchKey, string $round, array $scoringSystem): array
     {
@@ -3622,6 +3646,58 @@ class ScoringController extends Controller
             }
         } catch (\Throwable $e) {
             Log::warning("Supabase realtime round advanced broadcast failed: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Broadcast pembukaan scoring live ronde tertentu ke Supabase Realtime Channel.
+     */
+    protected function broadcastScoringOpenedRealtime(int $gameId, string $round): void
+    {
+        try {
+            $url = rtrim(config('services.supabase.url', ''), '/').'/realtime/v1/api/broadcast';
+            $key = config('services.supabase.service_key', config('services.supabase.key'));
+            if (empty($url) || empty($key)) {
+                return;
+            }
+
+            $headers = [
+                'apikey' => $key,
+                'Content-Type' => 'application/json',
+            ];
+            if (str_starts_with($key, 'ey')) {
+                $headers['Authorization'] = 'Bearer '.$key;
+            }
+
+            $roundNum = (int) preg_replace('/[^0-9]/', '', $round);
+
+            $response = Http::withOptions(['verify' => $this->resolveCaBundle()])
+                ->withHeaders($headers)
+                ->timeout(2)
+                ->post($url, [
+                    'messages' => [
+                        [
+                            'topic' => "session_{$gameId}",
+                            'event' => 'scoring_opened',
+                            'payload' => [
+                                'session_id' => $gameId,
+                                'round' => $round,
+                                'round_num' => $roundNum,
+                                'redirect_url' => route('scoring.live', [
+                                    'id' => $gameId,
+                                    'round' => $round,
+                                ]),
+                                'timestamp' => now()->toIso8601String(),
+                            ],
+                        ],
+                    ],
+                ]);
+
+            if (! $response->successful()) {
+                Log::warning("Supabase realtime scoring opened broadcast response HTTP {$response->status()}");
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Supabase realtime scoring opened broadcast failed: {$e->getMessage()}");
         }
     }
 

@@ -1498,12 +1498,17 @@ class GameController extends Controller
 
         // Jika request via AJAX / Fetch JSON
         if ($request->wantsJson() || $request->ajax() || $request->query('json')) {
+            $isScoringOpened = ! empty($savedScores['_meta']["opened_round_{$activeRoundNum}"])
+                || ! empty($savedScores['_meta']["opened_{$activeRoundNum}"])
+                || ($roundStatus[$activeRoundNum] ?? '') === 'in_progress';
+
             return response()->json([
                 'success' => true,
                 'isLocked' => $isLocked,
                 'active_round_num' => $activeRoundNum,
                 'round_access' => $roundAccess,
                 'round_status' => $roundStatus,
+                'scoring_opened' => $isScoringOpened,
                 'drawingData' => $drawingData,
                 'rounds' => $rounds,
                 'participantsMap' => $participantsMap,
