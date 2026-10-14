@@ -58,6 +58,9 @@
     <!-- Navbar Component -->
     @include('components.navbar')
 
+    <!-- Global Network Quality & Offline Status Banner -->
+    @include('components.network-status-banner')
+
     <!-- Main Content Area -->
     <main class="flex-grow pb-24 md:pb-8 w-full max-w-full overflow-x-hidden">
         @yield('content')
