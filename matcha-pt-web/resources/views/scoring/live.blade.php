@@ -2017,6 +2017,13 @@
 
     function handleRoundAdvancedEvent(payload, sourceName = 'Realtime') {
         if (!payload || isTransitioningRound) return;
+
+        // Host tidak boleh di-hijack oleh Realtime/polling background karena navigasi Host dikendalikan penuh oleh submit form ke Drawing
+        if (IS_HOST) {
+            console.log(`[${sourceName}] Host ignore auto-transition event (Host advances via bottom button form)`);
+            return;
+        }
+
         const newRound = payload.next_round || payload.active_round || payload.session_active_round;
         if (!newRound || newRound === ACTIVE_ROUND) return;
 
@@ -2025,14 +2032,13 @@
 
         if (nextRoundNum > currentRoundNum) {
             isTransitioningRound = true;
-            console.log(`[${sourceName}] Host advanced round (${ACTIVE_ROUND} -> ${newRound})! Auto-transitioning...`);
+            console.log(`[${sourceName}] Host advanced round (${ACTIVE_ROUND} -> ${newRound})! Auto-transitioning Player to Drawing...`);
             if (typeof showToast === 'function') {
-                showToast(`🏆 Host telah memulai ${UNIT_TAB_LABEL} ${nextRoundNum}! Membuka pertandingan...`);
+                showToast(`🏆 Host telah memulai ${UNIT_TAB_LABEL} ${nextRoundNum}! Membuka jadwal & drawing...`);
             }
             setTimeout(() => {
-                const targetUrl = new URL(window.location.href);
-                targetUrl.searchParams.set('round', newRound);
-                window.location.href = targetUrl.toString();
+                const drawingTargetUrl = payload.drawing_url || (`{{ url('games') }}/${GAME_ID}/drawing?round=${nextRoundNum}`);
+                window.location.href = drawingTargetUrl;
             }, 300);
         }
     }
