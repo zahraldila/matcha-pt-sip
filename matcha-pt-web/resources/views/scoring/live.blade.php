@@ -1104,7 +1104,15 @@
                 <div class="p-3.5 mb-3 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start sm:items-center justify-between gap-3 shadow-xs transition-all duration-200">
                     <div class="flex items-center gap-3 min-w-0">
                         <div class="w-9 h-9 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0 text-rose-600">
-                            <i class="fa-solid fa-wifi-slash text-base animate-pulse"></i>
+                            <svg class="w-5 h-5 animate-pulse" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="2" y1="2" x2="22" y2="22"></line>
+                                <path d="M8.5 16.5a5 5 0 0 1 7 0"></path>
+                                <path d="M2 8.82a15 15 0 0 1 4.17-2.65"></path>
+                                <path d="M10.66 5c4.01-.36 8.14.9 11.34 3.82"></path>
+                                <path d="M5 12.86a10 10 0 0 1 4.31-2.52"></path>
+                                <path d="M14 10.35a10 10 0 0 1 5 2.5"></path>
+                                <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                            </svg>
                         </div>
                         <div class="min-w-0">
                             <div class="font-bold text-xs sm:text-sm text-rose-950 flex items-center gap-1.5 flex-wrap">
