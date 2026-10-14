@@ -3222,6 +3222,164 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertEqualsCanonicalizing(['Hilmy', 'Ahmad'], $resolvedRounds[4]['resting']);
     }
 
+    public function test_scoring_service_resolves_rounds_progress_correctly_locking_future_rounds()
+    {
+        $rounds = [
+            1 => [
+                'round' => 1,
+                'matches' => [
+                    ['court' => 1, 'team_a_names' => ['Marcello'], 'team_b_names' => ['Hilmy']],
+                ],
+            ],
+            2 => [
+                'round' => 2,
+                'matches' => [
+                    ['court' => 1, 'team_a_names' => ['Ahmad'], 'team_b_names' => ['Jeong']],
+                ],
+            ],
+            3 => [
+                'round' => 3,
+                'matches' => [
+                    ['court' => 1, 'team_a_names' => ['Marcello'], 'team_b_names' => ['Ahmad']],
+                ],
+            ],
+        ];
+
+        // 1. Kondisi Awal: Belum ada skor sama sekali
+        $initialProgress = ScoringService::resolveRoundsProgress(99991, $rounds, []);
+        $this->assertTrue($initialProgress['access'][1]);
+        $this->assertFalse($initialProgress['access'][2]);
+        $this->assertFalse($initialProgress['access'][3]);
+        $this->assertSame('ready', $initialProgress['status'][1]);
+        $this->assertSame('locked', $initialProgress['status'][2]);
+        $this->assertSame('locked', $initialProgress['status'][3]);
+        $this->assertSame(1, $initialProgress['active_round_num']);
+        $this->assertSame(0, $initialProgress['completed_count']);
+
+        // 2. Ronde 1 Selesai dimainkan
+        $scoresR1Done = [
+            'round_1' => [
+                'status' => 'completed',
+                'games_a' => 4,
+                'games_b' => 1,
+            ],
+        ];
+        $progressAfterR1 = ScoringService::resolveRoundsProgress(99991, $rounds, $scoresR1Done);
+        $this->assertTrue($progressAfterR1['access'][1]);
+        $this->assertTrue($progressAfterR1['access'][2]); // Ronde 2 terbuka!
+        $this->assertFalse($progressAfterR1['access'][3]); // Ronde 3 tetap terkunci
+        $this->assertSame('completed', $progressAfterR1['status'][1]);
+        $this->assertSame('ready', $progressAfterR1['status'][2]);
+        $this->assertSame('locked', $progressAfterR1['status'][3]);
+        $this->assertSame(2, $progressAfterR1['active_round_num']);
+        $this->assertSame(1, $progressAfterR1['completed_count']);
+
+        // 3. Ronde 2 Selesai dimainkan
+        $scoresR2Done = [
+            'round_1' => [
+                'status' => 'completed',
+                'games_a' => 4,
+                'games_b' => 1,
+            ],
+            'round_2' => [
+                'status' => 'completed',
+                'games_a' => 2,
+                'games_b' => 4,
+            ],
+        ];
+        $progressAfterR2 = ScoringService::resolveRoundsProgress(99991, $rounds, $scoresR2Done);
+        $this->assertTrue($progressAfterR2['access'][1]);
+        $this->assertTrue($progressAfterR2['access'][2]);
+        $this->assertTrue($progressAfterR2['access'][3]); // Ronde 3 terbuka!
+        $this->assertSame('completed', $progressAfterR2['status'][1]);
+        $this->assertSame('completed', $progressAfterR2['status'][2]);
+        $this->assertSame('ready', $progressAfterR2['status'][3]);
+        $this->assertSame(3, $progressAfterR2['active_round_num']);
+        $this->assertSame(2, $progressAfterR2['completed_count']);
+    }
+
+    public function test_game_controller_drawing_returns_progressive_round_access_and_honors_query_parameter()
+    {
+        $this->setupTestDatabaseSchema();
+
+        $session = SessionModel::create([
+            'host_user_id' => 1,
+            'sport_id' => 1,
+            'venue_id' => 1,
+            'nama_session' => 'Mabar Tahap 2 Test',
+            'scoring_system' => 'Total of 3',
+            'waktu_session' => '08:00 WIB (2 Jam)',
+            'datetime' => '2026-09-17 08:00:00',
+            'status_session' => 'Open',
+            'jumlah_pemain' => '4',
+            'jenis_permainan' => 'Single',
+        ]);
+
+        $players = [];
+        for ($i = 1; $i <= 4; $i++) {
+            $user = User::create([
+                'nama' => "Player {$i}",
+                'email' => "player{$i}_{$session->session_id}@matcha.test",
+                'password' => bcrypt('password'),
+                'role' => 'member',
+            ]);
+            $player = Player::create([
+                'user_id' => $user->user_id,
+                'nama' => "Player {$i}",
+                'usia' => 25,
+                'gender' => 'Male',
+                'level' => 'Intermediate',
+            ]);
+            $session->players()->attach($player->player_id);
+            $players[] = $player;
+        }
+
+        Auth::loginUsingId(1);
+        $controller = new GameController;
+
+        // Test drawing awal: Ronde 1 aktif & ready, Ronde 2 dan 3 terkunci
+        $requestInit = Request::create("/games/{$session->session_id}/drawing", 'GET', ['json' => 1]);
+        $responseInit = $controller->drawing($session->session_id, $requestInit);
+        $dataInit = $responseInit->getData(true);
+
+        $this->assertTrue($dataInit['success']);
+        $this->assertTrue($dataInit['round_access'][1]);
+        $this->assertFalse($dataInit['round_access'][2]);
+        $this->assertSame(1, $dataInit['active_round_num']);
+
+        // Simpan skor Ronde 1 selesai
+        Cache::put("scoring.game_{$session->session_id}", [
+            'round_1' => [
+                'status' => 'completed',
+                'games_a' => 4,
+                'games_b' => 2,
+            ],
+            '_meta' => [
+                'active_round' => 'round_2',
+            ],
+        ]);
+
+        // Request drawing tanpa query round: otomatis default ke Ronde 2
+        $requestR2Default = Request::create("/games/{$session->session_id}/drawing", 'GET', ['json' => 1]);
+        $responseR2Default = $controller->drawing($session->session_id, $requestR2Default);
+        $dataR2Default = $responseR2Default->getData(true);
+
+        $this->assertTrue($dataR2Default['round_access'][2]);
+        $this->assertSame(2, $dataR2Default['active_round_num']);
+
+        // Request drawing dengan query ?round=2 yang sudah terbuka
+        $requestR2Explicit = Request::create("/games/{$session->session_id}/drawing", 'GET', ['json' => 1, 'round' => 2]);
+        $responseR2Explicit = $controller->drawing($session->session_id, $requestR2Explicit);
+        $dataR2Explicit = $responseR2Explicit->getData(true);
+        $this->assertSame(2, $dataR2Explicit['active_round_num']);
+
+        // Request drawing dengan query ?round=3 yang masih terkunci: harus fallback ke round aktif (2)
+        $requestR3Locked = Request::create("/games/{$session->session_id}/drawing", 'GET', ['json' => 1, 'round' => 3]);
+        $responseR3Locked = $controller->drawing($session->session_id, $requestR3Locked);
+        $dataR3Locked = $responseR3Locked->getData(true);
+        $this->assertSame(2, $dataR3Locked['active_round_num']);
+    }
+
     protected function invokeMethod(&$object, $methodName, array $parameters = [])
     {
         $reflection = new \ReflectionClass(get_class($object));

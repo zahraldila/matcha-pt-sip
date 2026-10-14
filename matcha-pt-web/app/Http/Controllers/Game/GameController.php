@@ -1474,12 +1474,26 @@ class GameController extends Controller
 
         $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
         $isSingleMode = strtolower($drawingMode) === 'single';
+        $savedScores = Cache::get("scoring.game_{$game['id']}", []);
         if ($isSingleMode && count($participants) === 4 && $courtCount === 1) {
-            $savedScores = Cache::get("scoring.game_{$game['id']}", []);
             $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
             $americanoService = new AmericanoService;
             $rounds = $americanoService->resolveDynamicSingleRounds($rounds, $savedScores, $scoringSystem, (int) $game['id']);
             $drawingData['rounds'] = $rounds;
+        }
+
+        // Tentukan progres, aksesibilitas, dan status setiap ronde (Tahap 2)
+        $roundsProgress = ScoringService::resolveRoundsProgress((int) $game['id'], $rounds, $savedScores, $courtCount);
+        $roundAccess = $roundsProgress['access'];
+        $roundStatus = $roundsProgress['status'];
+
+        // Tentukan ronde yang aktif / dipilih
+        $requestedRound = (string) $request->query('round', '');
+        $requestedRoundNum = (int) preg_replace('/[^0-9]/', '', $requestedRound);
+        if ($requestedRoundNum > 0 && ($roundAccess[$requestedRoundNum] ?? false)) {
+            $activeRoundNum = $requestedRoundNum;
+        } else {
+            $activeRoundNum = $roundsProgress['active_round_num'];
         }
 
         // Jika request via AJAX / Fetch JSON
@@ -1487,14 +1501,31 @@ class GameController extends Controller
             return response()->json([
                 'success' => true,
                 'isLocked' => $isLocked,
+                'active_round_num' => $activeRoundNum,
+                'round_access' => $roundAccess,
+                'round_status' => $roundStatus,
                 'drawingData' => $drawingData,
                 'rounds' => $rounds,
                 'participantsMap' => $participantsMap,
-                'redirect_url' => route('scoring.live', ['id' => $dbSession->session_id, 'format' => $game['match_format'] ?? 'Americano']),
+                'redirect_url' => route('scoring.live', [
+                    'id' => $dbSession->session_id,
+                    'format' => $game['match_format'] ?? 'Americano',
+                    'round' => "round_{$activeRoundNum}",
+                ]),
             ]);
         }
 
-        return view('games.drawing', compact('game', 'drawingData', 'rounds', 'participantsMap', 'isLocked', 'isHost'));
+        return view('games.drawing', compact(
+            'game',
+            'drawingData',
+            'rounds',
+            'participantsMap',
+            'isLocked',
+            'isHost',
+            'roundAccess',
+            'roundStatus',
+            'activeRoundNum'
+        ));
     }
 
     public function lockDrawing($id, Request $request)
@@ -1510,6 +1541,10 @@ class GameController extends Controller
         }
 
         $format = $request->input('format', 'Americano');
+        $redirectParams = ['id' => $id, 'format' => $format];
+        if ($request->filled('round')) {
+            $redirectParams['round'] = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $request->input('round')) ?: 'round_1';
+        }
 
         // Kunci status drawing di cache
         Cache::put("drawing.locked_{$id}", true, now()->addHours(12));
@@ -1542,11 +1577,11 @@ class GameController extends Controller
                 'success' => true,
                 'isLocked' => true,
                 'message' => 'Jadwal pertandingan berhasil dikunci. Membuka Live Scoring...',
-                'redirect' => route('scoring.live', ['id' => $id, 'format' => $format]),
+                'redirect' => route('scoring.live', $redirectParams),
             ]);
         }
 
-        return redirect()->route('scoring.live', ['id' => $id, 'format' => $format])
+        return redirect()->route('scoring.live', $redirectParams)
             ->with('success', 'Jadwal pertandingan berhasil dikunci!');
     }
 

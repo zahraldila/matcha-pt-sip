@@ -4,14 +4,20 @@
 @php
     $rounds = $drawingData['rounds'] ?? ($rounds ?? []);
     $firstRoundKey = !empty($rounds) ? array_key_first($rounds) : 1;
-    $activeRound = (!empty($rounds) && isset($rounds[$firstRoundKey])) ? $rounds[$firstRoundKey] : [
-        'teamA' => [],
-        'teamB' => [],
-        'resting' => [],
-        'team_a' => ['name' => 'Tim A'],
-        'team_b' => ['name' => 'Tim B'],
-        'matches' => [],
-    ];
+    $roundAccess = $roundAccess ?? [];
+    $roundStatus = $roundStatus ?? [];
+    $activeRoundNum = $activeRoundNum ?? ($firstRoundKey ?? 1);
+    $activeRoundKey = $activeRoundNum;
+    $activeRound = (!empty($rounds) && isset($rounds[$activeRoundKey])) ? $rounds[$activeRoundKey] : (
+        (!empty($rounds) && isset($rounds[$firstRoundKey])) ? $rounds[$firstRoundKey] : [
+            'teamA' => [],
+            'teamB' => [],
+            'resting' => [],
+            'team_a' => ['name' => 'Tim A'],
+            'team_b' => ['name' => 'Tim B'],
+            'matches' => [],
+        ]
+    );
     $isSetBased = str_contains(strtolower($game['scoring_system'] ?? ''), 'total of') || str_contains(strtolower($game['scoring_system'] ?? ''), 'best of');
     $isTeamFormat = str_contains(strtolower($game['match_format'] ?? ''), 'team');
     // Team Americano menggunakan istilah 'Set' (pasangan tetap), sedangkan Americano menggunakan 'Ronde' (pasangan berganti)
@@ -119,15 +125,38 @@
             @php
                 $baseNum = $rData['round'] ?? $rData['round_number'] ?? $rNum;
                 $cleanTitle = "{$unitLabel} {$baseNum}";
+                $isRoundAccessible = $roundAccess[$rNum] ?? ($loop->first);
+                $roundStat = $roundStatus[$rNum] ?? ($isRoundAccessible ? 'ready' : 'locked');
+                $isCurrentlyActive = ($rNum == $activeRoundNum);
             @endphp
-            <button onclick="switchRound({{ $rNum }})" id="tabRound{{ $rNum }}" class="px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 {{ $loop->first ? 'bg-[#063B00] text-white shadow-xs' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
-                {{ $cleanTitle }}
-                @if($loop->first && count($rounds) > 1)
-                    <span class="text-[10px] opacity-80 font-normal ml-1">(Pembuka)</span>
+            <button 
+                type="button"
+                onclick="switchRound({{ $rNum }})" 
+                id="tabRound{{ $rNum }}" 
+                class="px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer
+                    {{ $isCurrentlyActive ? 'bg-[#063B00] text-white shadow-xs' : 'glass-card text-slate-600 hover:text-[#050608]' }}
+                    {{ !$isRoundAccessible ? 'opacity-70 bg-slate-100/60' : '' }}"
+                data-accessible="{{ $isRoundAccessible ? '1' : '0' }}"
+                data-status="{{ $roundStat }}"
+            >
+                @if(!$isRoundAccessible)
+                    <i class="fa-solid fa-lock text-[10px] {{ $isCurrentlyActive ? 'text-white/80' : 'text-slate-400' }}"></i>
+                @elseif($roundStat === 'completed')
+                    <i class="fa-solid fa-circle-check text-[11px] {{ $isCurrentlyActive ? 'text-[#A8E63A]' : 'text-emerald-600' }}"></i>
+                @elseif($roundStat === 'in_progress')
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                @endif
+
+                <span>{{ $cleanTitle }}</span>
+
+                @if(!$isRoundAccessible)
+                    <span class="text-[9px] font-normal px-1.5 py-0.5 rounded {{ $isCurrentlyActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-500' }}">Terkunci</span>
+                @elseif($roundStat === 'completed')
+                    <span class="text-[9px] font-normal px-1.5 py-0.5 rounded {{ $isCurrentlyActive ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800' }}">Selesai</span>
+                @elseif($loop->first && count($rounds) > 1)
+                    <span class="text-[10px] opacity-80 font-normal ml-0.5">(Pembuka)</span>
                 @elseif($loop->last && count($rounds) > 1)
-                    <span class="text-[10px] opacity-80 font-normal ml-1">(Final)</span>
-                @elseif(count($rounds) > 2)
-                    <span class="text-[10px] opacity-80 font-normal ml-1">({{ $isSetBased ? 'Lanjutan' : 'Rotasi' }})</span>
+                    <span class="text-[10px] opacity-80 font-normal ml-0.5">(Final)</span>
                 @endif
             </button>
         @endforeach
@@ -480,19 +509,20 @@
 
                 <!-- CTA Button to Live Scoring / Lock Drawing -->
                 @if($isLocked ?? false)
-                    <a href="{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano']) }}" class="block text-center py-3.5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
-                        <i class="fa-solid fa-lock mr-1.5"></i> <span>Buka Scoring Live (Match Sedang Berjalan)</span> <i class="fa-solid fa-arrow-right text-[10px] ml-1"></i>
+                    <a id="ctaLiveBtn" href="{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano', 'round' => 'round_'.$activeRoundNum]) }}" class="block text-center py-3.5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95">
+                        <i class="fa-solid fa-lock mr-1.5"></i> <span id="ctaLiveText">Buka Scoring Live (Match Sedang Berjalan)</span> <i class="fa-solid fa-arrow-right text-[10px] ml-1"></i>
                     </a>
                 @elseif($isHost ?? false)
-                    <form method="POST" action="{{ route('games.lock', $game['id']) }}" class="block">
+                    <form method="POST" action="{{ route('games.lock', $game['id']) }}" class="block" id="formLockDrawing">
                         @csrf
                         <input type="hidden" name="format" value="{{ $game['match_format'] ?? 'Americano' }}">
-                        <button type="submit" class="w-full text-center py-3.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer">
-                            <span>Kunci Tim & Buka Scoring Live</span> <i class="fa-solid fa-arrow-right text-[10px] text-[#A8E63A] ml-1"></i>
+                        <input type="hidden" name="round" id="lockRoundInput" value="round_{{ $activeRoundNum }}">
+                        <button type="submit" id="btnLockSubmit" class="w-full text-center py-3.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer">
+                            <span id="lockSubmitText">Kunci Tim &amp; Buka Scoring Live</span> <i class="fa-solid fa-arrow-right text-[10px] text-[#A8E63A] ml-1"></i>
                         </button>
                     </form>
                 @else
-                    <div class="w-full text-center py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-500 font-semibold text-xs">
+                    <div class="w-full text-center py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-500 font-semibold text-xs" id="ctaSpectatorText">
                         <i class="fa-solid fa-eye mr-1"></i> Mode Penonton: drawing hanya dapat dilihat
                     </div>
                 @endif
@@ -505,16 +535,66 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
     let roundsData = @json($drawingData['rounds'] ?? []);
+    let roundAccessData = @json($roundAccess ?? []);
+    let roundStatusData = @json($roundStatus ?? []);
     let participantsMap = @json($participantsMap ?? []);
     let allParticipants = @json($game['participants'] ?? []);
     const unitLabel = @json($unitLabel ?? 'Round');
-    let currentRoundKey = {{ $firstRoundKey }};
+    let currentRoundKey = {{ $activeRoundNum }};
     const isSessionLocked = @json($isLocked ?? false);
     const isHostUser = @json($isHost ?? false);
     const gameSessionId = {{ (int) $game['id'] }};
-    const liveScoringUrl = '{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano']) }}';
+    const baseLiveScoringUrl = '{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano']) }}';
+    const liveScoringUrl = '{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano', 'round' => 'round_'.$activeRoundNum]) }}';
+    const isSingle4Player = @json($isSingleMode && count($game['participants'] ?? []) === 4);
     const SUPABASE_URL = '{{ config('services.supabase.url') }}';
     const SUPABASE_KEY = '{{ config('services.supabase.public_key') }}';
+
+    function getActiveUnlockedRound() {
+        const allKeys = Object.keys(roundsData).map(Number).sort((a, b) => a - b);
+        let activeUnlocked = allKeys[0] || 1;
+        for (const k of allKeys) {
+            if (roundAccessData[k] !== false && roundStatusData[k] !== 'completed') {
+                activeUnlocked = k;
+                break;
+            }
+        }
+        return activeUnlocked;
+    }
+
+    function updateCtaButton(targetRound, isAccessible, activeUnlocked) {
+        const roundToUse = isAccessible ? targetRound : activeUnlocked;
+        const targetStat = roundStatusData[roundToUse] || 'ready';
+
+        const ctaLiveBtn = document.getElementById('ctaLiveBtn');
+        const ctaLiveText = document.getElementById('ctaLiveText');
+        if (ctaLiveBtn) {
+            const separator = baseLiveScoringUrl.includes('?') ? '&' : '?';
+            ctaLiveBtn.href = `${baseLiveScoringUrl}${separator}round=round_${roundToUse}`;
+            if (ctaLiveText) {
+                if (!isAccessible) {
+                    ctaLiveText.innerText = `Buka Scoring ${unitLabel} ${activeUnlocked} (Aktif)`;
+                } else if (targetStat === 'completed') {
+                    ctaLiveText.innerText = `Buka Rekap / Skor ${unitLabel} ${roundToUse}`;
+                } else {
+                    ctaLiveText.innerText = `Buka Scoring Live ${unitLabel} ${roundToUse}`;
+                }
+            }
+        }
+
+        const lockRoundInput = document.getElementById('lockRoundInput');
+        const lockSubmitText = document.getElementById('lockSubmitText');
+        if (lockRoundInput) {
+            lockRoundInput.value = `round_${roundToUse}`;
+        }
+        if (lockSubmitText) {
+            if (!isAccessible) {
+                lockSubmitText.innerText = `Buka Scoring ${unitLabel} ${activeUnlocked} (Aktif)`;
+            } else {
+                lockSubmitText.innerText = `Kunci Tim & Buka Scoring Live (${unitLabel} ${roundToUse})`;
+            }
+        }
+    }
 
     // ── Realtime Drawing Sync & Lock Detector (Untuk Penonton / Player) ──────
     function applyRemoteDrawingUpdate(newRounds, newParticipantsMap, message = 'Jadwal & susunan tim diacak ulang oleh Host! 🎲') {
@@ -616,6 +696,8 @@
                         return;
                     }
                     if (data && (data.rounds || data.drawingData?.rounds)) {
+                        if (data.round_access) roundAccessData = data.round_access;
+                        if (data.round_status) roundStatusData = data.round_status;
                         const newRounds = data.rounds || data.drawingData?.rounds;
                         applyRemoteDrawingUpdate(newRounds, data.participantsMap, '🎲 Jadwal diperbarui otomatis.');
                     }
@@ -776,29 +858,123 @@
 
     function switchRound(roundNum, notify = true) {
         currentRoundKey = roundNum;
+        const isAccessible = roundAccessData[roundNum] !== false;
+        const activeUnlocked = getActiveUnlockedRound();
 
-        // Update tabs styling
+        // 1. Update Tabs Visual
         Object.keys(roundsData).forEach(n => {
             const tab = document.getElementById(`tabRound${n}`);
             if (tab) {
-                if (parseInt(n) === roundNum) {
-                    tab.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 bg-[#063B00] text-white shadow-xs';
+                const isAcc = roundAccessData[n] !== false;
+                const isSelected = parseInt(n) === roundNum;
+                let classes = 'px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ';
+                if (isSelected) {
+                    classes += 'bg-[#063B00] text-white shadow-xs';
+                } else if (!isAcc) {
+                    classes += 'glass-card text-slate-400 hover:text-slate-700 opacity-80';
                 } else {
-                    tab.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 glass-card text-slate-600 hover:text-[#050608]';
+                    classes += 'glass-card text-slate-600 hover:text-[#050608]';
                 }
+                tab.className = classes;
             }
         });
 
-        const roundData = roundsData[roundNum];
-        if (!roundData) return;
-
-        // Update label in visualizer
+        // 2. Update Label Header
         const roundTitleElem = document.getElementById('labelCurrentRoundTitle');
         if (roundTitleElem) {
             roundTitleElem.innerText = `${unitLabel} ${roundNum}`;
         }
+        const labelTotalMatches = document.getElementById('labelTotalMatches');
 
-        // Ambil data matches (Court 1, Court 2, dst)
+        const roundData = roundsData[roundNum];
+
+        // 3. JIKA RONDE TERKUNCI (Tahap 2): Tampilkan Locked State UI yang elegan
+        if (!isAccessible) {
+            if (labelTotalMatches) {
+                labelTotalMatches.innerText = 'Terkunci';
+            }
+
+            const courtsMultiContainer = document.getElementById('courtsMultiContainer');
+            if (courtsMultiContainer) {
+                courtsMultiContainer.className = 'w-full max-w-2xl mx-auto';
+                courtsMultiContainer.innerHTML = `
+                    <div class="rounded-3xl glass-card p-6 sm:p-10 shadow-sm border border-slate-200/80 text-center space-y-4 max-w-2xl mx-auto my-2">
+                        <div class="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-2xl text-amber-700 shadow-inner">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <div class="space-y-1.5">
+                            <span class="text-[11px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/70 border border-amber-200 px-3 py-1 rounded-full">
+                                ${unitLabel} Terkunci
+                            </span>
+                            <h4 class="text-lg sm:text-xl font-black text-slate-900 tracking-tight pt-1">
+                                ${unitLabel} ${roundNum} Belum Dimulai
+                            </h4>
+                            <p class="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+                                Bagan drawing dan susunan pemain untuk <strong>${unitLabel} ${roundNum}</strong> akan terbuka secara otomatis setelah <strong>${unitLabel} ${roundNum - 1}</strong> selesai dimainkan.
+                            </p>
+                            ${isSingle4Player && roundNum >= 3 ? `
+                                <p class="text-[11px] text-[#063B00] font-semibold bg-[#063B00]/5 border border-[#063B00]/15 rounded-xl p-2.5 max-w-md mx-auto mt-2">
+                                    <i class="fa-solid fa-circle-info mr-1"></i> Pada ronde ini, pertandingan akan mempertemukan pemain secara adil berdasarkan hasil ronde sebelumnya.
+                                </p>
+                            ` : ''}
+                        </div>
+                        <div class="pt-2">
+                            <button type="button" onclick="switchRound(${activeUnlocked})" class="px-4 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white text-xs font-bold transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-arrow-left"></i> Buka ${unitLabel} ${activeUnlocked} (Aktif)
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Bench Container di Bawah Lapangan
+            const benchListContainer = document.getElementById('benchListContainer');
+            const labelBenchCount = document.getElementById('labelBenchCount');
+            if (labelBenchCount) labelBenchCount.innerText = '0 Pemain';
+            if (benchListContainer) {
+                benchListContainer.innerHTML = `<p class="text-xs text-slate-400 py-1"><i class="fa-solid fa-lock text-slate-300 mr-1.5"></i>Bangku cadangan akan dirilis setelah ${unitLabel} ${roundNum - 1} selesai dimainkan.</p>`;
+            }
+
+            // Bench Roster Sidebar
+            const rosterResting = document.getElementById('rosterResting');
+            const labelRestingCount = document.getElementById('labelRestingCount');
+            if (labelRestingCount) labelRestingCount.innerText = '0 Pemain';
+            if (rosterResting) {
+                rosterResting.innerHTML = `<div class="text-center py-2 text-slate-400 text-xs"><i class="fa-solid fa-lock text-slate-300 mr-1.5"></i>Terkunci</div>`;
+            }
+
+            // Match Schedule Summary
+            const matchesContainer = document.getElementById('courtMatchesContainer');
+            if (matchesContainer) {
+                matchesContainer.innerHTML = `
+                    <div class="col-span-1 sm:col-span-2 text-center py-4 text-slate-400 text-xs">
+                        <i class="fa-solid fa-lock text-slate-300 mr-1.5"></i> Alokasi lapangan terkunci sampai ${unitLabel} ${roundNum - 1} selesai dimainkan.
+                    </div>
+                `;
+            }
+
+            // Roster Sidebar Kanan
+            const rosterCourtsContainer = document.getElementById('courtsRosterContainer');
+            if (rosterCourtsContainer) {
+                rosterCourtsContainer.innerHTML = `
+                    <div class="p-4 text-center text-xs text-slate-400">
+                        <i class="fa-solid fa-lock text-slate-300 mr-1.5"></i> Susunan roster pemain terkunci sampai ${unitLabel} ${roundNum - 1} selesai dimainkan.
+                    </div>
+                `;
+            }
+
+            // CTA Action Button / Form
+            updateCtaButton(roundNum, false, activeUnlocked);
+
+            if (notify && typeof showToast === 'function') {
+                showToast(`${unitLabel} ${roundNum} terkunci. Selesaikan ${unitLabel} ${roundNum - 1} terlebih dahulu.`);
+            }
+            return;
+        }
+
+        // 4. JIKA RONDE TERBUKA (ACCESSIBLE): Render Normal
+        if (!roundData) return;
+
         let matches = roundData.matches || [];
         if (matches.length === 0) {
             matches = [{
@@ -812,13 +988,11 @@
             }];
         }
 
-        // Update Total Matches label
-        const labelTotalMatches = document.getElementById('labelTotalMatches');
         if (labelTotalMatches) {
             labelTotalMatches.innerText = `${matches.length} Lapangan Berjalan`;
         }
 
-        // 1. RENDER SEMUA LAPANGAN SEKALIGUS (Court 1 & Court 2 preview)
+        // Render Courts 2D Multi Visualizer
         const courtsMultiContainer = document.getElementById('courtsMultiContainer');
         if (courtsMultiContainer) {
             if (matches.length > 1) {
@@ -829,8 +1003,7 @@
             courtsMultiContainer.innerHTML = matches.map((m, idx) => buildCourtCardHtml(m, idx, matches.length)).join('');
         }
 
-        // 2. HITUNG & RENDER BANGKU ISTIRAHAT SECARA REAKTIF
-        // Rumus: Total peserta - semua pemain yang bertanding di semua court pada ronde ini
+        // Hitung & Render Resting Bench
         const activePlayerNames = new Set();
         matches.forEach(m => {
             const pA = extractMatchPlayers(m.team_a, m.team_a_names);
@@ -885,7 +1058,7 @@
             }
         }
 
-        // 3. Render Match Schedule Summary List di Bawah Bench
+        // Render Match Summary List
         const matchesContainer = document.getElementById('courtMatchesContainer');
         if (matchesContainer) {
             matchesContainer.innerHTML = matches.map((m, idx) => {
@@ -921,91 +1094,86 @@
             }).join('');
         }
 
-        // 4. Update Roster Sidebar Kanan per Court untuk Ronde ini
+        // Render Roster Sidebar Kanan
         const rosterCourtsContainer = document.getElementById('courtsRosterContainer');
         if (rosterCourtsContainer) {
-            if (matches.length === 0) {
-                rosterCourtsContainer.innerHTML = `
-                    <div class="p-4 text-center text-xs text-slate-400">
-                        Belum ada alokasi court pada ronde ini.
+            rosterCourtsContainer.innerHTML = matches.map((m, mIdx) => {
+                const courtLabel = m.court_name || `Court ${m.court || (m.court_number || (mIdx + 1))}`;
+                const slotBadge = m.slot_number ? `<span class="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">Slot ${m.slot_number}</span>` : '';
+                const statusLabel = m.status || 'Scheduled';
+
+                const pA = extractMatchPlayers(m.team_a, m.team_a_names);
+                const pB = extractMatchPlayers(m.team_b, m.team_b_names);
+
+                let tAName = 'Tim A';
+                if (m.team_a && typeof m.team_a === 'object' && !Array.isArray(m.team_a) && m.team_a.name) {
+                    tAName = m.team_a.name;
+                } else if (m.team_a_name) {
+                    tAName = m.team_a_name;
+                }
+
+                let tBName = 'Tim B';
+                if (m.team_b && typeof m.team_b === 'object' && !Array.isArray(m.team_b) && m.team_b.name) {
+                    tBName = m.team_b.name;
+                } else if (m.team_b_name) {
+                    tBName = m.team_b_name;
+                }
+
+                const pAHtml = pA.length > 0 ? pA.map((name, pIdx) => `
+                    <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                        <span class="font-semibold text-slate-800">${pIdx + 1}. ${name}</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player ${pIdx + 1}</span>
+                    </div>
+                `).join('') : '<p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>';
+
+                const pBHtml = pB.length > 0 ? pB.map((name, pIdx) => `
+                    <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
+                        <span class="font-semibold text-slate-800">${pIdx + 1}. ${name}</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player ${pIdx + 1}</span>
+                    </div>
+                `).join('') : '<p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>';
+
+                return `
+                    <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2.5 shadow-2xs">
+                        <div class="flex items-center justify-between border-b border-slate-200/50 pb-2">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                                <span class="text-xs font-black uppercase tracking-wider text-[#063B00]">${courtLabel}</span>
+                                ${slotBadge}
+                            </div>
+                            <span class="text-[10px] font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200/60 shadow-2xs">
+                                ${statusLabel}
+                            </span>
+                        </div>
+
+                        <!-- Team A -->
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-extrabold text-[#063B00]">${tAName}</span>
+                                <span class="text-[10px] font-semibold text-slate-400">Sisi Kiri</span>
+                            </div>
+                            <div class="space-y-1">
+                                ${pAHtml}
+                            </div>
+                        </div>
+
+                        <!-- Team B -->
+                        <div class="space-y-1.5 pt-2 border-t border-slate-100">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-extrabold text-slate-800">${tBName}</span>
+                                <span class="text-[10px] font-semibold text-slate-400">Sisi Kanan</span>
+                            </div>
+                            <div class="space-y-1">
+                                ${pBHtml}
+                            </div>
+                        </div>
                     </div>
                 `;
-            } else {
-                rosterCourtsContainer.innerHTML = matches.map((m, mIdx) => {
-                    const courtLabel = m.court_name || `Court ${m.court || (m.court_number || (mIdx + 1))}`;
-                    const slotBadge = m.slot_number ? `<span class="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">Slot ${m.slot_number}</span>` : '';
-                    const statusLabel = m.status || 'Scheduled';
-
-                    const pA = extractMatchPlayers(m.team_a, m.team_a_names);
-                    const pB = extractMatchPlayers(m.team_b, m.team_b_names);
-
-                    let tAName = 'Tim A';
-                    if (m.team_a && typeof m.team_a === 'object' && !Array.isArray(m.team_a) && m.team_a.name) {
-                        tAName = m.team_a.name;
-                    } else if (m.team_a_name) {
-                        tAName = m.team_a_name;
-                    }
-
-                    let tBName = 'Tim B';
-                    if (m.team_b && typeof m.team_b === 'object' && !Array.isArray(m.team_b) && m.team_b.name) {
-                        tBName = m.team_b.name;
-                    } else if (m.team_b_name) {
-                        tBName = m.team_b_name;
-                    }
-
-                    const pAHtml = pA.length > 0 ? pA.map((name, pIdx) => `
-                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                            <span class="font-semibold text-slate-800">${pIdx + 1}. ${name}</span>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player ${pIdx + 1}</span>
-                        </div>
-                    `).join('') : '<p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>';
-
-                    const pBHtml = pB.length > 0 ? pB.map((name, pIdx) => `
-                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                            <span class="font-semibold text-slate-800">${pIdx + 1}. ${name}</span>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player ${pIdx + 1}</span>
-                        </div>
-                    `).join('') : '<p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>';
-
-                    return `
-                        <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2.5 shadow-2xs">
-                            <div class="flex items-center justify-between border-b border-slate-200/50 pb-2">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
-                                    <span class="text-xs font-black uppercase tracking-wider text-[#063B00]">${courtLabel}</span>
-                                    ${slotBadge}
-                                </div>
-                                <span class="text-[10px] font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200/60 shadow-2xs">
-                                    ${statusLabel}
-                                </span>
-                            </div>
-
-                            <!-- Team A -->
-                            <div class="space-y-1.5">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs font-extrabold text-[#063B00]">${tAName}</span>
-                                    <span class="text-[10px] font-semibold text-slate-400">Sisi Kiri</span>
-                                </div>
-                                <div class="space-y-1">
-                                    ${pAHtml}
-                                </div>
-                            </div>
-
-                            <!-- Team B -->
-                            <div class="space-y-1.5 pt-2 border-t border-slate-100">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs font-extrabold text-slate-800">${tBName}</span>
-                                    <span class="text-[10px] font-semibold text-slate-400">Sisi Kanan</span>
-                                </div>
-                                <div class="space-y-1">
-                                    ${pBHtml}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
+            }).join('');
         }
+
+        // Update CTA Button
+        updateCtaButton(roundNum, true, activeUnlocked);
 
         if (notify && typeof showToast === 'function') {
             showToast(`Beralih ke ${unitLabel} ${roundNum}`);
@@ -1049,6 +1217,8 @@
         .then(data => {
             if (data && (data.rounds || (data.drawingData && data.drawingData.rounds))) {
                 roundsData = data.rounds || data.drawingData.rounds;
+                if (data.round_access) roundAccessData = data.round_access;
+                if (data.round_status) roundStatusData = data.round_status;
                 if (data.participantsMap) {
                     participantsMap = data.participantsMap;
                 }
@@ -1093,11 +1263,11 @@
         });
     }
 
-    // Sinkronisasi otomatis data ronde pertama saat halaman dimuat
+    // Sinkronisasi otomatis data ronde saat halaman dimuat
     document.addEventListener('DOMContentLoaded', () => {
-        const firstKey = {{ $firstRoundKey }};
+        const initialRoundKey = {{ $activeRoundNum }};
         if (typeof switchRound === 'function') {
-            switchRound(firstKey, false);
+            switchRound(initialRoundKey, false);
         }
     });
 </script>

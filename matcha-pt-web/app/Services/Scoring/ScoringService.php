@@ -10,8 +10,10 @@ use App\Models\Player;
 use App\Models\SessionModel;
 use App\Services\Drawing\AmericanoService;
 use App\Services\Drawing\TeamAmericanoService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class ScoringService
 {
@@ -328,9 +330,9 @@ class ScoringService
      * Mengeliminasi EventLog atau duplikasi snapshot progres, memprioritaskan
      * status Final/Completed dan versi tertinggi.
      */
-    public static function getAuthoritativeScoresForMatch($scores): \Illuminate\Support\Collection
+    public static function getAuthoritativeScoresForMatch($scores): Collection
     {
-        if ($scores instanceof \Illuminate\Database\Eloquent\Collection || $scores instanceof \Illuminate\Support\Collection) {
+        if ($scores instanceof \Illuminate\Database\Eloquent\Collection || $scores instanceof Collection) {
             $scoresColl = $scores;
         } else {
             $scoresColl = collect($scores);
@@ -354,6 +356,7 @@ class ScoringService
             // 2. Prioritaskan status 'Final' atau 'Completed'
             $finals = $candidates->filter(function ($sc) {
                 $st = strtolower($sc->status_score ?? '');
+
                 return in_array($st, ['final', 'completed']);
             });
 
@@ -368,6 +371,7 @@ class ScoringService
                 }
                 $idA = (int) ($a->score_id ?? ($a->id ?? 0));
                 $idB = (int) ($b->score_id ?? ($b->id ?? 0));
+
                 return $idB <=> $idA;
             })->first();
         })->sortBy(function ($sc) {
@@ -1355,5 +1359,145 @@ class ScoringService
 
             return null;
         }
+    }
+
+    /**
+     * Tentukan status dan aksesibilitas setiap ronde untuk drawing bertahap.
+     * Ronde 1 selalu terbuka (accessible).
+     * Ronde N (N > 1) terbuka hanya jika Ronde N - 1 telah tuntas dimainkan (completed).
+     *
+     * @return array{
+     *     access: array<int, bool>,
+     *     status: array<int, string>,
+     *     active_round_num: int,
+     *     completed_count: int,
+     *     total_rounds: int
+     * }
+     */
+    public static function resolveRoundsProgress(int $gameId, array $rounds, array $savedScores = [], int $courtCount = 1): array
+    {
+        $roundAccess = [];
+        $roundStatus = [];
+        $prevRoundCompleted = true;
+        $completedCount = 0;
+
+        $dbMatches = collect();
+        if (Schema::hasTable('tb_drawing') && Schema::hasTable('tb_match')) {
+            try {
+                $drawing = Drawing::where('session_id', $gameId)->first();
+                if ($drawing) {
+                    $dbMatches = GameMatch::where('drawing_id', $drawing->drawing_id)->get()->keyBy('nomor_match');
+                }
+            } catch (\Throwable $e) {
+                // Fallback to cache without error
+            }
+        }
+
+        foreach ($rounds as $rIdx => $rData) {
+            $rNum = (int) ($rData['round'] ?? ($rData['round_number'] ?? $rIdx));
+            $isAccessible = $prevRoundCompleted;
+            $roundAccess[$rNum] = $isAccessible;
+
+            $matches = $rData['matches'] ?? [];
+            $matchCount = max(1, count($matches));
+            $allMatchesDone = true;
+            $hasAnyActivity = false;
+
+            for ($mIdx = 0; $mIdx < $matchCount; $mIdx++) {
+                $matchKey = $matchCount > 1 ? "round_{$rNum}_court_".($mIdx + 1) : "round_{$rNum}";
+                $score = $savedScores[$matchKey] ?? null;
+                if (! $score && $matchCount === 1 && isset($savedScores["round_{$rNum}_court_1"])) {
+                    $score = $savedScores["round_{$rNum}_court_1"];
+                }
+
+                $nomorMatch = ($rNum - 1) * $courtCount + ($mIdx + 1);
+                $dbMatch = $dbMatches->get($nomorMatch);
+
+                $isMatchDone = false;
+                if ($score && in_array(strtolower($score['status'] ?? ''), ['completed', 'finished'], true)) {
+                    $isMatchDone = true;
+                    $hasAnyActivity = true;
+                } elseif ($dbMatch && in_array(strtolower($dbMatch->status_match ?? ''), ['completed', 'finished'], true)) {
+                    $isMatchDone = true;
+                    $hasAnyActivity = true;
+                } else {
+                    $allMatchesDone = false;
+                    if ($score && (
+                        ($score['status'] ?? '') === 'in_progress' ||
+                        ($score['games_a'] ?? 0) > 0 || ($score['games_b'] ?? 0) > 0 ||
+                        ($score['score_a'] ?? 0) > 0 || ($score['score_b'] ?? 0) > 0 ||
+                        ($score['sets_a'] ?? 0) > 0 || ($score['sets_b'] ?? 0) > 0
+                    )) {
+                        $hasAnyActivity = true;
+                    } elseif ($dbMatch && strtolower($dbMatch->status_match ?? '') === 'in progress') {
+                        $hasAnyActivity = true;
+                    }
+                }
+            }
+
+            if ($allMatchesDone) {
+                // Ensure there is actually a completed match recorded (not just empty scores)
+                $hasRecordedCompletion = false;
+                for ($mIdx = 0; $mIdx < $matchCount; $mIdx++) {
+                    $matchKey = $matchCount > 1 ? "round_{$rNum}_court_".($mIdx + 1) : "round_{$rNum}";
+                    $score = $savedScores[$matchKey] ?? ($savedScores["round_{$rNum}_court_1"] ?? null);
+                    $nomorMatch = ($rNum - 1) * $courtCount + ($mIdx + 1);
+                    $dbMatch = $dbMatches->get($nomorMatch);
+                    if (($score && in_array(strtolower($score['status'] ?? ''), ['completed', 'finished'], true)) ||
+                        ($dbMatch && in_array(strtolower($dbMatch->status_match ?? ''), ['completed', 'finished'], true))) {
+                        $hasRecordedCompletion = true;
+                    } else {
+                        $hasRecordedCompletion = false;
+                        break;
+                    }
+                }
+
+                if ($hasRecordedCompletion) {
+                    $roundStatus[$rNum] = 'completed';
+                    $completedCount++;
+                    $prevRoundCompleted = true;
+
+                    continue;
+                }
+            }
+
+            $prevRoundCompleted = false;
+
+            if (! $isAccessible) {
+                $roundStatus[$rNum] = 'locked';
+            } elseif ($hasAnyActivity) {
+                $roundStatus[$rNum] = 'in_progress';
+            } else {
+                $roundStatus[$rNum] = 'ready';
+            }
+        }
+
+        // Tentukan ronde aktif default
+        $activeRoundNum = 1;
+        $metaActive = $savedScores['_meta']['active_round'] ?? null;
+        if ($metaActive) {
+            $parsedNum = (int) preg_replace('/[^0-9]/', '', $metaActive);
+            if ($parsedNum > 0 && ($roundAccess[$parsedNum] ?? false)) {
+                $activeRoundNum = $parsedNum;
+            }
+        }
+
+        if ($activeRoundNum === 1) {
+            foreach ($rounds as $rIdx => $rData) {
+                $rNum = (int) ($rData['round'] ?? ($rData['round_number'] ?? $rIdx));
+                if (($roundAccess[$rNum] ?? false) && ($roundStatus[$rNum] ?? '') !== 'completed') {
+                    $activeRoundNum = $rNum;
+                    break;
+                }
+            }
+        }
+
+        return [
+            'access' => $roundAccess,
+            'status' => $roundStatus,
+            'active_round_num' => $activeRoundNum,
+            'completed_count' => $completedCount,
+            'total_rounds' => count($rounds),
+        ];
     }
 }
