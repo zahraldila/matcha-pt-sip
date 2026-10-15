@@ -1247,7 +1247,7 @@ class ScoringController extends Controller
 
                 // Jika format Single 4 pemain 1 court, update cache schedule dengan pasangan dinamis
                 if (($scorePayload['status'] ?? '') === 'completed') {
-                    $cachedScheduleKey = "drawing_schedule_{$gameId}";
+                    $cachedScheduleKey = "drawing.schedule_{$gameId}";
                     $cachedSchedule = Cache::get($cachedScheduleKey);
                     if ($cachedSchedule && ! empty($cachedSchedule['rounds'])) {
                         $americanoService = new AmericanoService;

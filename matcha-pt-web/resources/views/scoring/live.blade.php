@@ -807,42 +807,48 @@
         <span class="text-[11px] text-slate-400 font-medium">Rotasi bermain pada {{ $unitTabLabel }} berikutnya</span>
     </div>
     @endif
-    <!-- End Match Modal (Tiga Kondisi: Tetap Main / Masuk Bench / Keluar Sesi) -->
-    <div id="stopMatchModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-        <div class="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in duration-200">
+    <!-- End Match Modal (Dua Kondisi: Tetap di Sesi / Keluar Sesi Permanen) -->
+    <div id="stopMatchModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
+        <div class="relative w-full bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col my-auto transition-all" style="max-width: 580px; width: 100%; box-sizing: border-box; max-height: min(90vh, 850px);">
             <!-- Modal Header -->
-            <div class="px-6 py-4 bg-gradient-to-r from-rose-50 to-amber-50 border-b border-rose-100/80 flex items-center justify-between">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center text-sm shadow-xs">
+            <div class="px-5 py-3.5 sm:px-6 sm:py-4 bg-gradient-to-r from-rose-50/90 via-white to-amber-50/60 border-b border-rose-100/70 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-600 flex items-center justify-center text-base shadow-2xs shrink-0">
                         <i class="fa-solid fa-hand"></i>
                     </div>
                     <div>
-                        <h3 class="text-sm font-black text-slate-800">Akhiri Pertandingan (End Match)</h3>
+                        <h3 class="text-sm sm:text-base font-black text-slate-900 tracking-tight">Akhiri Pertandingan (End Match)</h3>
                         <p class="text-[11px] text-slate-500 font-medium">Hentikan match aktif ini tanpa menyelesaikan seluruh sesi</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeStopMatchModal()" class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-white/80 flex items-center justify-center text-xs transition-colors cursor-pointer">
+                <button type="button" onclick="closeStopMatchModal()" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center text-xs transition-colors cursor-pointer">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
             <!-- Modal Content (Scrollable) -->
-            <div class="p-6 overflow-y-auto space-y-4 text-xs text-slate-700">
+            <div class="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs text-slate-700">
                 <!-- Match Snapshot Box -->
-                <div class="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
-                    <div class="flex items-center justify-between border-b border-slate-200/60 pb-1.5">
-                        <span class="font-bold text-slate-800 flex items-center gap-1.5" id="modalMatchTitle">
-                            <i class="fa-solid fa-table-tennis-paddle-ball text-[#063B00]"></i>
+                <div class="p-3.5 bg-gradient-to-br from-slate-50 to-slate-100/70 border border-slate-200/80 rounded-2xl space-y-2.5 shadow-2xs">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <span class="font-extrabold text-slate-800 text-xs flex items-center gap-1.5" id="modalMatchTitle">
+                            <span class="w-2 h-2 rounded-full bg-[#A8E63A] ring-2 ring-[#063B00]/20"></span>
                             <span id="modalMatchRoundCourt">Round 1 &bull; Court 1</span>
                         </span>
-                        <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200" id="modalMatchScoreSnapshot">
+                        <span class="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-white shadow-2xs text-amber-900 border border-amber-200/90" id="modalMatchScoreSnapshot">
                             Skor: 0 — 0
                         </span>
                     </div>
-                    <div class="flex items-center justify-between text-[11px]">
-                        <span class="font-medium text-slate-600 truncate max-w-[45%]" id="modalTeamANames">Tim A</span>
-                        <span class="font-bold text-slate-400 text-xs">VS</span>
-                        <span class="font-medium text-slate-600 truncate max-w-[45%] text-right" id="modalTeamBNames">Tim B</span>
+                    <div class="grid grid-cols-5 items-center gap-2 pt-1 border-t border-slate-200/60 text-xs">
+                        <div class="col-span-2 p-2 rounded-xl bg-white border border-slate-200/70 text-center font-bold text-slate-800 truncate shadow-2xs" id="modalTeamANames">
+                            Tim A
+                        </div>
+                        <div class="col-span-1 text-center font-black text-[11px] text-slate-400">
+                            VS
+                        </div>
+                        <div class="col-span-2 p-2 rounded-xl bg-white border border-slate-200/70 text-center font-bold text-slate-800 truncate shadow-2xs" id="modalTeamBNames">
+                            Tim B
+                        </div>
                     </div>
                 </div>
 
@@ -851,30 +857,30 @@
                     <label class="block font-bold text-slate-800 text-xs">Pilih Kondisi Penghentian <span class="text-rose-500">*</span></label>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <!-- Option 1: Tetap di Sesi -->
-                        <label class="relative flex flex-col p-3 rounded-2xl border-2 border-emerald-600 bg-emerald-50/40 cursor-pointer transition-all select-none" id="labelConditionA">
+                        <label class="relative flex flex-col p-3 rounded-2xl border-2 border-emerald-600 bg-emerald-50/50 cursor-pointer transition-all select-none shadow-2xs hover:shadow-xs" id="labelConditionA">
                             <input type="radio" name="stopCondition" value="keep_in_session" checked onchange="onStopConditionChange()" class="sr-only">
                             <div class="flex items-center gap-2">
                                 <span class="w-4 h-4 rounded-full border-2 border-emerald-600 flex items-center justify-center shrink-0" id="radioCircleA">
                                     <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
                                 </span>
-                                <span class="font-extrabold text-xs text-slate-800">1. Tetap di Sesi (Semua Pemain Lanjut)</span>
+                                <span class="font-extrabold text-xs text-slate-800">1. Tetap di Sesi (Pemain Lanjut)</span>
                             </div>
-                            <p class="text-[10px] text-slate-500 font-medium mt-1 leading-snug">
-                                Match berhenti karena waktu sewa habis/hujan, atau pemain istirahat sejenak ke bench cadangan.
+                            <p class="text-[10px] text-slate-500 font-medium mt-1.5 leading-snug">
+                                Match berhenti, semua pemain lanjut ke ronde berikutnya atau istirahat sejenak ke bench.
                             </p>
                         </label>
 
                         <!-- Option 2: Keluar Sesi Permanen -->
-                        <label class="relative flex flex-col p-3 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300" id="labelConditionC">
+                        <label class="relative flex flex-col p-3 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300 hover:bg-slate-50/50" id="labelConditionC">
                             <input type="radio" name="stopCondition" value="withdraw_players" onchange="onStopConditionChange()" class="sr-only">
                             <div class="flex items-center gap-2">
                                 <span class="w-4 h-4 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0" id="radioCircleC">
                                     <span class="w-2 h-2 rounded-full bg-rose-600 hidden"></span>
                                 </span>
-                                <span class="font-extrabold text-xs text-slate-800">2. Pemain Keluar dari Sesi (Permanen)</span>
+                                <span class="font-extrabold text-xs text-slate-800">2. Keluar Sesi (Permanen)</span>
                             </div>
-                            <p class="text-[10px] text-slate-500 font-medium mt-1 leading-snug">
-                                Pemain cedera parah atau harus pulang. Sisa jadwal otomatis disesuaikan tanpa pemain ini.
+                            <p class="text-[10px] text-slate-500 font-medium mt-1.5 leading-snug">
+                                Pemain cedera berat atau harus pulang. Ditarik permanen dari seluruh sisa ronde.
                             </p>
                         </label>
                     </div>
@@ -888,13 +894,13 @@
                         </label>
                         <textarea id="stopReasonA" rows="2" placeholder="Contoh: Waktu sewa lapangan habis, court basah karena hujan, dll."
                             oninput="hideStopMatchError()"
-                            class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00]"></textarea>
+                            class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00] transition-all placeholder:text-slate-400"></textarea>
                     </div>
 
                     <!-- Optional Bench / Pause Checkbox Section -->
-                    <div class="p-3 bg-amber-50/70 rounded-2xl border border-amber-200/90 space-y-2.5">
+                    <div class="p-3.5 bg-amber-50/70 rounded-2xl border border-amber-200/90 space-y-2.5 shadow-2xs">
                         <label class="flex items-start gap-2.5 cursor-pointer select-none">
-                            <input type="checkbox" id="chkPausePlayersToggle" onchange="onTogglePausePlayersCheckbox()" class="rounded text-amber-600 focus:ring-amber-500 w-4 h-4 mt-0.5">
+                            <input type="checkbox" id="chkPausePlayersToggle" onchange="onTogglePausePlayersCheckbox()" class="rounded text-amber-600 focus:ring-amber-500 w-4 h-4 mt-0.5 shrink-0">
                             <div>
                                 <span class="font-extrabold text-xs text-amber-950 block">
                                     Istirahatkan pemain tertentu sementara ke Bangku Cadangan (Bench)
@@ -907,16 +913,16 @@
 
                         <div id="wrapperPausePlayersSection" class="hidden pl-6 space-y-2.5 pt-2 border-t border-amber-200/60">
                             <p class="text-[11px] text-slate-700 font-medium leading-snug">
-                                Pilih pemain yang butuh jeda istirahat (pemain akan masuk cadangan sampai Host menekan tombol <strong>Siap Main</strong>):
+                                Pilih pemain yang butuh jeda istirahat (pemain masuk cadangan sampai Host menekan tombol <strong>Siap Main</strong>):
                             </p>
-                            <div id="condPausePlayersList" class="space-y-1.5"></div>
-                            <div class="space-y-1">
+                            <div id="condPausePlayersList" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                            <div class="space-y-1 pt-1">
                                 <label for="stopReasonPause" class="block font-bold text-slate-700 text-[11px]">
                                     Keterangan Istirahat (Opsional)
                                 </label>
                                 <input type="text" id="stopReasonPause" placeholder="Contoh: Ke toilet sebentar, kram ringan, istirahat sejenak"
                                     oninput="hideStopMatchError()"
-                                    class="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+                                    class="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all placeholder:text-slate-400">
                             </div>
                         </div>
                     </div>
@@ -934,12 +940,12 @@
                 </div>
 
                 <!-- Impact Summary Box -->
-                <div class="p-3 bg-amber-50/70 border border-amber-200/90 rounded-2xl space-y-1 text-[11px] text-amber-900">
+                <div class="p-3.5 bg-amber-50/70 border border-amber-200/90 rounded-2xl space-y-1.5 text-[11px] text-amber-900 shadow-2xs">
                     <div class="flex items-center gap-1.5 font-bold">
                         <i class="fa-solid fa-circle-info text-amber-600"></i>
                         <span>Dampak terhadap Pertandingan &amp; Jadwal:</span>
                     </div>
-                    <ul class="list-disc list-inside space-y-0.5 text-[10px] text-amber-800/90 pl-1" id="impactBulletList">
+                    <ul class="list-disc list-inside space-y-1 text-[10px] text-amber-800/90 pl-1" id="impactBulletList">
                         <li>Match court ini akan ditandai <strong>Dihentikan</strong> dengan skor parsial terakhir yang sah.</li>
                         <li>Ronde berikutnya dapat dimulai setelah semua court aktif mencapai status terminal.</li>
                         <li>Drawing dan seluruh pemain tetap berpartisipasi pada ronde mendatang.</li>
@@ -947,20 +953,20 @@
                 </div>
 
                 <!-- Error Container -->
-                <div id="modalStopError" class="hidden p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
-                    <i class="fa-solid fa-circle-exclamation text-rose-600"></i>
+                <div id="modalStopError" class="hidden p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation text-rose-600 shrink-0"></i>
                     <span id="modalStopErrorMsg"></span>
                 </div>
             </div>
 
             <!-- Modal Footer -->
-            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <div class="px-5 py-3.5 sm:px-6 bg-slate-50/80 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0">
                 <button type="button" onclick="closeStopMatchModal()"
                     class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-100 transition-colors cursor-pointer">
                     Batal
                 </button>
                 <button type="button" id="btnConfirmStopMatch" onclick="confirmStopMatch()"
-                    class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                    class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01]">
                     <i class="fa-solid fa-check"></i>
                     <span>Konfirmasi Akhiri Pertandingan</span>
                 </button>
@@ -1009,6 +1015,44 @@
         </div>
     </div>
 </div>
+
+<!-- MODAL PERINGATAN PEMAIN AKTIF KURANG DI LIVE SCORING -->
+<div id="insufficientPlayersWarningModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeInsufficientPlayersWarningModal();">
+    <div class="bg-white rounded-3xl p-6 shadow-2xl space-y-4 my-8 border border-slate-100 flex flex-col" style="max-width: 460px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">
+        <div class="flex items-start gap-3.5">
+            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl border border-amber-200/80 shadow-2xs shrink-0 mt-0.5">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="space-y-1">
+                <h3 class="text-sm font-black text-slate-900">Pemain Aktif Kurang dari Kuota</h3>
+                <p id="insufficientPlayersWarningMessage" class="text-xs text-slate-600 leading-relaxed">
+                    Jumlah pemain aktif tidak mencukupi untuk melanjutkan ronde berikutnya.
+                </p>
+            </div>
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/90 text-amber-900 text-xs space-y-2">
+            <div class="font-bold flex items-center gap-1.5 text-amber-950">
+                <i class="fa-solid fa-circle-info text-amber-600"></i>
+                <span>Petunjuk untuk Host:</span>
+            </div>
+            <p class="leading-relaxed text-[11px] text-amber-800">
+                Pertandingan ini telah berhasil dihentikan. Jadwal ronde berikutnya akan ditunda sementara hingga Host mengaktifkan kembali pemain istirahat melalui tombol <strong class="font-extrabold text-[#063B00]">[Siap Main]</strong> di Bangku Cadangan.
+            </p>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-end">
+            <button
+                type="button"
+                onclick="closeInsufficientPlayersWarningModal()"
+                class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md shadow-[#063B00]/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
+            >
+                <i class="fa-solid fa-check text-[11px]"></i>
+                <span>Saya Mengerti</span>
+            </button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -1031,6 +1075,9 @@
     const IS_HOST        = {{ $isHost ? 'true' : 'false' }};
     const RECAP_URL      = '{{ route('scoring.recap', $game['id']) }}';
     const STOP_MATCH_URL = '{{ route('scoring.stop-match') }}';
+    const TOTAL_PLAYERS_COUNT = {{ count($game['participants'] ?? ($session->players ?? [])) }};
+    const IS_SINGLE_MODE      = {{ strtolower($game['jenis_permainan'] ?? ($session->jenis_permainan ?? 'Double')) === 'single' ? 'true' : 'false' }};
+    const MIN_REQUIRED_PLAYERS = IS_SINGLE_MODE ? 2 : 4;
     
     // OFFLINE QUEUE: Persist CLIENT_ID to prevent client_seq reset on refresh
     const lsClientIdKey  = `matcha_client_id_${GAME_ID}`;
@@ -3201,11 +3248,13 @@
         const condPausePlayersList = document.getElementById('condPausePlayersList');
         if (condPausePlayersList) {
             condPausePlayersList.innerHTML = participants.map((p, pIdx) => `
-                <label class="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200 hover:bg-amber-50/50 hover:border-amber-200 cursor-pointer transition-colors select-none">
+                <label class="flex items-center gap-2 p-2 rounded-xl bg-white border border-slate-200/90 hover:border-amber-400 hover:bg-amber-50/40 cursor-pointer transition-all select-none shadow-2xs">
                     <input type="checkbox" name="paused_players[]" value="${p.id || p.name}" data-player-id="${p.id || ''}" data-idx="${pIdx}" data-name="${p.name}" onchange="hideStopMatchError(); updateConditionPauseImpact();"
-                        class="rounded text-amber-600 focus:ring-amber-500 w-4 h-4">
-                    <span class="font-bold text-xs text-slate-800">${p.name}</span>
-                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-600">${p.team}</span>
+                        class="rounded text-amber-600 focus:ring-amber-500 w-4 h-4 shrink-0">
+                    <div class="min-w-0 flex-1 flex items-center justify-between gap-1.5">
+                        <span class="font-bold text-xs text-slate-800 truncate">${p.name}</span>
+                        <span class="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 shrink-0">${p.team}</span>
+                    </div>
                 </label>
             `).join('');
         }
@@ -3214,18 +3263,20 @@
         const condBPlayersList = document.getElementById('condBPlayersList');
         if (condBPlayersList) {
             condBPlayersList.innerHTML = participants.map((p, pIdx) => `
-                <div class="p-2.5 rounded-2xl border border-slate-200 bg-slate-50 space-y-2">
-                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                <div class="p-2.5 rounded-2xl border border-slate-200/90 bg-white space-y-2 shadow-2xs">
+                    <label class="flex items-center gap-2.5 cursor-pointer select-none">
                         <input type="checkbox" name="withdrawn_players[]" value="${p.id || p.name}" data-player-id="${p.id || ''}" data-idx="${pIdx}" data-name="${p.name}" onchange="hideStopMatchError(); onWithdrawnPlayerToggle(${pIdx})"
-                            class="rounded text-rose-600 focus:ring-rose-500 w-4 h-4">
-                        <span class="font-bold text-xs text-slate-800">${p.name}</span>
-                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-600">${p.team}</span>
+                            class="rounded text-rose-600 focus:ring-rose-500 w-4 h-4 shrink-0">
+                        <div class="min-w-0 flex-1 flex items-center justify-between gap-1.5">
+                            <span class="font-bold text-xs text-slate-800 truncate">${p.name}</span>
+                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 shrink-0">${p.team}</span>
+                        </div>
                     </label>
                     <div id="playerReasonBox_${pIdx}" class="hidden pl-6 space-y-1">
                         <label class="block text-[10px] font-bold text-slate-600">Alasan/Kendala Pemain Ini Keluar <span class="text-rose-500">*</span></label>
                         <input type="text" id="playerNote_${pIdx}" placeholder="Contoh: Cedera hamstring, ada keperluan mendadak"
                             oninput="hideStopMatchError(); updateConditionBImpact();"
-                            class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-rose-500 focus:border-rose-500">
+                            class="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all">
                     </div>
                 </div>
             `).join('');
@@ -3290,8 +3341,8 @@
         if (selected === 'keep_in_session') {
             if (secA) secA.classList.remove('hidden');
             if (secC) secC.classList.add('hidden');
-            if (cardA) cardA.className = 'relative flex flex-col p-3 rounded-2xl border-2 border-emerald-600 bg-emerald-50/40 cursor-pointer transition-all select-none';
-            if (cardC) cardC.className = 'relative flex flex-col p-3 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300';
+            if (cardA) cardA.className = 'relative flex flex-col p-3 rounded-2xl border-2 border-emerald-600 bg-emerald-50/50 cursor-pointer transition-all select-none shadow-2xs hover:shadow-xs';
+            if (cardC) cardC.className = 'relative flex flex-col p-3 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300 hover:bg-slate-50/50';
             if (radioDotA) radioDotA.classList.remove('hidden');
             if (radioDotC) radioDotC.classList.add('hidden');
 
@@ -3299,8 +3350,8 @@
         } else {
             if (secA) secA.classList.add('hidden');
             if (secC) secC.classList.remove('hidden');
-            if (cardA) cardA.className = 'relative flex flex-col p-3 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300';
-            if (cardC) cardC.className = 'relative flex flex-col p-3 rounded-2xl border-2 border-rose-600 bg-rose-50/40 cursor-pointer transition-all select-none';
+            if (cardA) cardA.className = 'relative flex flex-col p-3 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300 hover:bg-slate-50/50';
+            if (cardC) cardC.className = 'relative flex flex-col p-3 rounded-2xl border-2 border-rose-600 bg-rose-50/50 cursor-pointer transition-all select-none shadow-2xs hover:shadow-xs';
             if (radioDotA) radioDotA.classList.add('hidden');
             if (radioDotC) radioDotC.classList.remove('hidden');
 
@@ -3330,11 +3381,25 @@
             const checkedBoxes = Array.from(document.querySelectorAll('input[name="paused_players[]"]:checked'));
             const playerNames = checkedBoxes.map(cb => cb.getAttribute('data-name')).filter(Boolean);
             const namesText = playerNames.length > 0 ? playerNames.join(', ') : '(Belum ada pemain dipilih)';
+            const newlyPausedCount = checkedBoxes.length;
+            const remainingActive = Math.max(0, TOTAL_PLAYERS_COUNT - newlyPausedCount);
+            const isInsufficient = remainingActive < MIN_REQUIRED_PLAYERS;
+
+            let quotaWarningHtml = '';
+            if (isInsufficient && newlyPausedCount > 0) {
+                quotaWarningHtml = `
+                    <li class="!text-amber-950 font-bold bg-amber-100/90 p-2 rounded-xl border border-amber-300 list-none mt-1 text-xs shadow-2xs">
+                        ⚠️ <strong>Perhatian Kuota:</strong> Sisa pemain aktif akan menjadi ${remainingActive} orang (kurang dari syarat minimal ${MIN_REQUIRED_PLAYERS} orang). Jadwal ronde berikutnya akan ditunda sementara sampai Host mengaktifkan kembali pemain di Bangku Cadangan.
+                    </li>
+                `;
+            }
+
             impactList.innerHTML = `
                 <li>Match court ini akan ditandai <strong>Dihentikan</strong> dengan skor parsial terakhir yang sah.</li>
                 <li>Pemain yang butuh istirahat: <strong>${namesText}</strong> akan otomatis ditempatkan di <strong>Bangku Cadangan (Bench)</strong> pada ronde berikutnya.</li>
                 <li>Pemain lain tetap aktif bertanding seperti biasa di lapangan.</li>
                 <li>Saat pemain sudah selesai istirahat, Host cukup klik tombol <strong>[ Siap Main ]</strong> di Bangku Cadangan untuk memasukkannya kembali ke rotasi jadwal ronde mendatang.</li>
+                ${quotaWarningHtml}
             `;
         } else {
             impactList.innerHTML = `
@@ -3355,6 +3420,18 @@
 
         const checkedBoxes = Array.from(document.querySelectorAll('input[name="withdrawn_players[]"]:checked'));
         const playerNames = checkedBoxes.map(cb => cb.getAttribute('data-name')).filter(Boolean);
+        const newlyWithdrawnCount = checkedBoxes.length;
+        const remainingActive = Math.max(0, TOTAL_PLAYERS_COUNT - newlyWithdrawnCount);
+        const isInsufficient = remainingActive < MIN_REQUIRED_PLAYERS;
+
+        let quotaWarningHtml = '';
+        if (isInsufficient && newlyWithdrawnCount > 0) {
+            quotaWarningHtml = `
+                <li class="!text-rose-950 font-bold bg-rose-100/90 p-2 rounded-xl border border-rose-300 list-none mt-1 text-xs shadow-2xs">
+                    ⚠️ <strong>Perhatian Kuota:</strong> Sisa pemain aktif akan menjadi ${remainingActive} orang (kurang dari syarat minimal ${MIN_REQUIRED_PLAYERS} orang). Sesi tidak dapat melanjutkan ronde berikutnya tanpa jumlah pemain yang mencukupi.
+                </li>
+            `;
+        }
 
         const namesText = playerNames.length > 0 ? playerNames.join(', ') : '(Belum ada pemain dipilih)';
         impactList.innerHTML = `
@@ -3362,6 +3439,7 @@
             <li>Pemain yang keluar: <strong>${namesText}</strong> akan ditandai tidak aktif untuk sesi ini (riwayat ronde lampau tetap tersimpan).</li>
             <li>Jadwal sisa ronde mendatang akan disesuaikan otomatis untuk pemain yang masih aktif.</li>
             <li>Partner dan lawan yang tidak keluar tetap aktif di sesi ini.</li>
+            ${quotaWarningHtml}
         `;
     }
 
@@ -3552,7 +3630,7 @@
             showToast(`Pertandingan ${st.courtName || ('Court ' + st.courtNum)} berhasil dihentikan.`);
 
             if (resData.warning) {
-                alert(`Perhatian: ${resData.warning}`);
+                showInsufficientPlayersWarningModal(resData.warning);
             }
         } catch (err) {
             clearTimeout(timeoutId);
@@ -3580,6 +3658,27 @@
                     btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
                 }
             }
+        }
+    }
+
+    /**
+     * Tampilkan modal dialog estetis bergaya Matcha saat pemain aktif tidak mencukupi
+     */
+    function showInsufficientPlayersWarningModal(message) {
+        const modal = document.getElementById('insufficientPlayersWarningModal');
+        const msgEl = document.getElementById('insufficientPlayersWarningMessage');
+        if (msgEl && message) {
+            msgEl.textContent = message;
+        }
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    }
+
+    function closeInsufficientPlayersWarningModal() {
+        const modal = document.getElementById('insufficientPlayersWarningModal');
+        if (modal) {
+            modal.style.display = 'none';
         }
     }
 

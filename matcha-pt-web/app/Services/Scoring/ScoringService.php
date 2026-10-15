@@ -1598,7 +1598,7 @@ class ScoringService
                     if (Schema::hasColumn('tb_match', 'stop_type')) {
                         $query->where(function ($q) {
                             $q->whereNull('stop_type')
-                                ->orWhereNotIn('stop_type', ['temporary_pause', 'pause_players']);
+                                ->orWhereNotIn('stop_type', ['temporary_pause', 'pause_players', 'keep_in_session']);
                         });
                     }
 
