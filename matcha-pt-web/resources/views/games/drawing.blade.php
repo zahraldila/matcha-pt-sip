@@ -339,12 +339,29 @@
 
                 <div id="benchListContainer" class="flex flex-wrap gap-2.5 pt-1">
                     @forelse($activeRound['resting'] ?? [] as $rName)
-                        <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white text-slate-800 text-xs border border-slate-200 font-medium shadow-2xs">
-                            <span class="w-5 h-5 rounded-full bg-amber-100 text-amber-800 text-[10px] flex items-center justify-center font-bold">
-                                <i class="fa-solid fa-mug-hot text-[9px]"></i>
+                        @php
+                            $rId = null;
+                            foreach($game['participants'] ?? [] as $part) {
+                                if (($part['name'] ?? '') === $rName) {
+                                    $rId = $part['id'] ?? null;
+                                    break;
+                                }
+                            }
+                            $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
+                        @endphp
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl {{ $isPaused ? 'bg-amber-50/80 text-slate-800 border border-amber-200' : 'bg-white text-slate-800 border border-slate-200' }} text-xs font-medium shadow-2xs">
+                            <span class="w-5 h-5 rounded-full {{ $isPaused ? 'bg-amber-200 text-amber-800' : 'bg-amber-100 text-amber-800' }} text-[10px] flex items-center justify-center font-bold">
+                                <i class="fa-solid {{ $isPaused ? 'fa-bed' : 'fa-mug-hot' }} text-[9px]"></i>
                             </span>
                             {{ $rName }}
-                            <span class="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">Bench</span>
+                            <span class="text-[9px] font-bold {{ $isPaused ? 'text-amber-800 bg-amber-100 border border-amber-300' : 'text-amber-700 bg-amber-50 border border-amber-200' }} px-1.5 py-0.5 rounded border">
+                                {{ $isPaused ? 'Istirahat' : 'Bench' }}
+                            </span>
+                            @if($isPaused && ($isHost ?? false))
+                                <button type="button" onclick="reactivatePlayer({{ $rId }}, '{{ addslashes($rName) }}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs transition-colors cursor-pointer ml-1">
+                                    <i class="fa-solid fa-play text-[8px]"></i> Siap Main
+                                </button>
+                            @endif
                         </span>
                     @empty
                         <p class="text-xs text-slate-400 py-1">Semua pemain aktif bertanding di ronde/set ini.</p>
@@ -513,9 +530,28 @@
                     </div>
                     <div class="space-y-1.5" id="rosterResting">
                         @forelse($activeRound['resting'] ?? [] as $idx => $pName)
-                            <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
-                                <span class="text-slate-700">{{ $idx + 1 }}. {{ $pName }}</span>
-                                <span class="text-[10px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Bench</span>
+                            @php
+                                $rId = null;
+                                foreach($game['participants'] ?? [] as $part) {
+                                    if (($part['name'] ?? '') === $pName) {
+                                        $rId = $part['id'] ?? null;
+                                        break;
+                                    }
+                                }
+                                $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
+                            @endphp
+                            <div class="flex items-center justify-between bg-white p-2 rounded-xl border {{ $isPaused ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/70' }} text-xs">
+                                <span class="text-slate-700 truncate max-w-[50%]">{{ $idx + 1 }}. {{ $pName }}</span>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-[10px] font-semibold {{ $isPaused ? 'text-amber-800 bg-amber-100 border border-amber-300' : 'text-amber-600 bg-amber-50 border border-amber-200' }} px-2 py-0.5 rounded">
+                                        {{ $isPaused ? 'Istirahat' : 'Bench' }}
+                                    </span>
+                                    @if($isPaused && ($isHost ?? false))
+                                        <button type="button" onclick="reactivatePlayer({{ $rId }}, '{{ addslashes($pName) }}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs transition-colors cursor-pointer">
+                                            <i class="fa-solid fa-play text-[8px]"></i> Siap
+                                        </button>
+                                    @endif
+                                </div>
                             </div>
                         @empty
                             <div class="text-center py-2 text-slate-400 text-xs">
@@ -563,6 +599,7 @@
     let roundStatusData = @json($roundStatus ?? []);
     let participantsMap = @json($participantsMap ?? []);
     let allParticipants = @json($game['participants'] ?? []);
+    let pausedPlayerIds = @json($pausedPlayerIds ?? []);
     const unitLabel = @json($unitLabel ?? 'Round');
     let currentRoundKey = {{ $activeRoundNum }};
     const isSessionLocked = @json($isLocked ?? false);
@@ -824,9 +861,10 @@
                     })
                     .on('broadcast', { event: 'drawing_shuffled' }, ({ payload }) => {
                         console.log('[Drawing Realtime] Drawing shuffled event received:', payload);
+                        if (payload?.paused_player_ids) pausedPlayerIds = payload.paused_player_ids;
                         const newRounds = payload?.rounds || payload?.drawingData?.rounds;
                         const newMap = payload?.participantsMap;
-                        applyRemoteDrawingUpdate(newRounds, newMap, '🎲 Host telah mengacak ulang jadwal pertandingan!');
+                        applyRemoteDrawingUpdate(newRounds, newMap, '🎲 Jadwal pertandingan telah diperbarui oleh Host!');
                     })
                     .subscribe((status) => {
                         console.log('[Drawing Realtime] Status:', status);
@@ -887,6 +925,7 @@
                 if (data && (data.rounds || data.drawingData?.rounds)) {
                     if (data.round_access) roundAccessData = data.round_access;
                     if (data.round_status) roundStatusData = data.round_status;
+                    if (data.paused_player_ids) pausedPlayerIds = data.paused_player_ids;
                     const newRounds = data.rounds || data.drawingData?.rounds;
                     applyRemoteDrawingUpdate(newRounds, data.participantsMap, '🎲 Jadwal diperbarui otomatis.');
                 }
@@ -1221,15 +1260,33 @@
         }
         if (benchListContainer) {
             if (restingPlayers.length > 0) {
-                benchListContainer.innerHTML = restingPlayers.map(p => `
-                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white text-slate-800 text-xs border border-slate-200 font-medium shadow-2xs">
-                        <span class="w-5 h-5 rounded-full bg-amber-100 text-amber-800 text-[10px] flex items-center justify-center font-bold">
-                            <i class="fa-solid fa-mug-hot text-[9px]"></i>
+                benchListContainer.innerHTML = restingPlayers.map(p => {
+                    const pName = typeof p === 'object' && p !== null ? (p.name || p.nama || '') : String(p);
+                    let pId = typeof p === 'object' && p !== null ? (p.id || p.player_id) : null;
+                    if (!pId && Array.isArray(allParticipants)) {
+                        const found = allParticipants.find(x => cleanPlayerName(x.name || x) === cleanPlayerName(pName));
+                        if (found) pId = found.id;
+                    }
+                    const isPaused = pId && Array.isArray(pausedPlayerIds) && pausedPlayerIds.map(Number).includes(Number(pId));
+                    const safeName = pName.replace(/'/g, "\\'");
+
+                    return `
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${isPaused ? 'bg-amber-50/80 text-slate-800 border border-amber-200' : 'bg-white text-slate-800 border border-slate-200'} text-xs font-medium shadow-2xs">
+                            <span class="w-5 h-5 rounded-full ${isPaused ? 'bg-amber-200 text-amber-800' : 'bg-amber-100 text-amber-800'} text-[10px] flex items-center justify-center font-bold">
+                                <i class="fa-solid ${isPaused ? 'fa-bed' : 'fa-mug-hot'} text-[9px]"></i>
+                            </span>
+                            ${pName}
+                            <span class="text-[9px] font-bold ${isPaused ? 'text-amber-800 bg-amber-100 border border-amber-300' : 'text-amber-700 bg-amber-50 border border-amber-200'} px-1.5 py-0.5 rounded border">
+                                ${isPaused ? 'Istirahat' : 'Bench'}
+                            </span>
+                            ${isPaused && isHostUser ? `
+                                <button type="button" onclick="reactivatePlayer(${pId}, '${safeName}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs transition-colors cursor-pointer ml-1">
+                                    <i class="fa-solid fa-play text-[8px]"></i> Siap Main
+                                </button>
+                            ` : ''}
                         </span>
-                        ${p.name || p}
-                        <span class="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">Bench</span>
-                    </span>
-                `).join('');
+                    `;
+                }).join('');
             } else {
                 benchListContainer.innerHTML = `<p class="text-xs text-slate-400 py-1">Semua pemain aktif bertanding di ronde/set ini.</p>`;
             }
@@ -1241,12 +1298,32 @@
         if (labelRestingCount) labelRestingCount.innerText = `${restingPlayers.length} Pemain`;
         if (rosterResting) {
             if (restingPlayers.length > 0) {
-                rosterResting.innerHTML = restingPlayers.map((p, idx) => `
-                    <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
-                        <span class="text-slate-700">${idx + 1}. ${p.name || p}</span>
-                        <span class="text-[10px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Bench</span>
-                    </div>
-                `).join('');
+                rosterResting.innerHTML = restingPlayers.map((p, idx) => {
+                    const pName = typeof p === 'object' && p !== null ? (p.name || p.nama || '') : String(p);
+                    let pId = typeof p === 'object' && p !== null ? (p.id || p.player_id) : null;
+                    if (!pId && Array.isArray(allParticipants)) {
+                        const found = allParticipants.find(x => cleanPlayerName(x.name || x) === cleanPlayerName(pName));
+                        if (found) pId = found.id;
+                    }
+                    const isPaused = pId && Array.isArray(pausedPlayerIds) && pausedPlayerIds.map(Number).includes(Number(pId));
+                    const safeName = pName.replace(/'/g, "\\'");
+
+                    return `
+                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border ${isPaused ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/70'} text-xs">
+                            <span class="text-slate-700 truncate max-w-[50%]">${idx + 1}. ${pName}</span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[10px] font-semibold ${isPaused ? 'text-amber-800 bg-amber-100 border border-amber-300' : 'text-amber-600 bg-amber-50 border border-amber-200'} px-2 py-0.5 rounded">
+                                    ${isPaused ? 'Istirahat' : 'Bench'}
+                                </span>
+                                ${isPaused && isHostUser ? `
+                                    <button type="button" onclick="reactivatePlayer(${pId}, '${safeName}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs transition-colors cursor-pointer">
+                                        <i class="fa-solid fa-play text-[8px]"></i> Siap
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
             } else {
                 rosterResting.innerHTML = `<div class="text-center py-2 text-slate-400 text-xs">Semua pemain aktif bertanding di ronde ini.</div>`;
             }
@@ -1455,6 +1532,70 @@
                 }
             }, 300);
         });
+    }
+
+    /**
+     * Aktifkan kembali pemain yang sedang istirahat sementara (paused / resting) ke rotasi ronde mendatang.
+     */
+    async function reactivatePlayer(playerId, playerName) {
+        if (!isHostUser) return;
+        if (!confirm(`Aktifkan kembali ${playerName} untuk ikut dalam jadwal pertandingan ronde berikutnya?`)) {
+            return;
+        }
+
+        try {
+            const resp = await fetch('{{ route('scoring.reactivate-player') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    game_id: gameSessionId,
+                    player_id: playerId,
+                    round: 'round_' + currentRoundKey
+                })
+            });
+
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+                alert(data.message || 'Gagal mengaktifkan kembali pemain.');
+                return;
+            }
+
+            if (typeof showToast === 'function') {
+                showToast(data.message || `Pemain ${playerName} telah siap dan dimasukkan kembali ke jadwal!`);
+            }
+
+            // Hapus dari local pausedPlayerIds
+            pausedPlayerIds = pausedPlayerIds.filter(id => Number(id) !== Number(playerId));
+
+            // Jika response menyertakan data ronde terbaru, langsung terapkan
+            if (data.rounds && Object.keys(data.rounds).length > 0) {
+                applyRemoteDrawingUpdate(data.rounds, participantsMap, data.message);
+            } else {
+                // Trigger smart polling update untuk sinkronisasi
+                try {
+                    const pollRes = await fetch(`{{ route('games.drawing', $game['id']) }}?json=1&round=${currentRoundKey}&_t=${Date.now()}`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (pollRes.ok) {
+                        const pollData = await pollRes.json();
+                        if (pollData.rounds) {
+                            if (pollData.paused_player_ids) pausedPlayerIds = pollData.paused_player_ids;
+                            applyRemoteDrawingUpdate(pollData.rounds, pollData.participantsMap, data.message);
+                        }
+                    }
+                } catch (e) {
+                    // Fallback re-render
+                    switchRound(currentRoundKey, false);
+                }
+            }
+        } catch (err) {
+            console.error('[reactivatePlayer] Error:', err);
+            alert('Terjadi kesalahan koneksi saat mengaktifkan pemain.');
+        }
     }
 
     // Sinkronisasi otomatis data ronde saat halaman dimuat
