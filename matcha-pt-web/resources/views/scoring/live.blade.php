@@ -906,6 +906,44 @@
         </div>
     </div>
 </div>
+
+<!-- MODAL PERINGATAN PEMAIN AKTIF KURANG DI LIVE SCORING -->
+<div id="insufficientPlayersWarningModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeInsufficientPlayersWarningModal();">
+    <div class="bg-white rounded-3xl p-6 shadow-2xl space-y-4 my-8 border border-slate-100 flex flex-col" style="max-width: 460px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">
+        <div class="flex items-start gap-3.5">
+            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl border border-amber-200/80 shadow-2xs shrink-0 mt-0.5">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="space-y-1">
+                <h3 class="text-sm font-black text-slate-900">Pemain Aktif Kurang dari Kuota</h3>
+                <p id="insufficientPlayersWarningMessage" class="text-xs text-slate-600 leading-relaxed">
+                    Jumlah pemain aktif tidak mencukupi untuk melanjutkan ronde berikutnya.
+                </p>
+            </div>
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/90 text-amber-900 text-xs space-y-2">
+            <div class="font-bold flex items-center gap-1.5 text-amber-950">
+                <i class="fa-solid fa-circle-info text-amber-600"></i>
+                <span>Petunjuk untuk Host:</span>
+            </div>
+            <p class="leading-relaxed text-[11px] text-amber-800">
+                Pertandingan ini telah berhasil dihentikan. Jadwal ronde berikutnya akan ditunda sementara hingga Host mengaktifkan kembali pemain istirahat melalui tombol <strong class="font-extrabold text-[#063B00]">[Siap Main]</strong> di Bangku Cadangan.
+            </p>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-end">
+            <button
+                type="button"
+                onclick="closeInsufficientPlayersWarningModal()"
+                class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md shadow-[#063B00]/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
+            >
+                <i class="fa-solid fa-check text-[11px]"></i>
+                <span>Saya Mengerti</span>
+            </button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -928,6 +966,9 @@
     const IS_HOST        = {{ $isHost ? 'true' : 'false' }};
     const RECAP_URL      = '{{ route('scoring.recap', $game['id']) }}';
     const STOP_MATCH_URL = '{{ route('scoring.stop-match') }}';
+    const TOTAL_PLAYERS_COUNT = {{ count($game['participants'] ?? ($session->players ?? [])) }};
+    const IS_SINGLE_MODE      = {{ strtolower($game['jenis_permainan'] ?? ($session->jenis_permainan ?? 'Double')) === 'single' ? 'true' : 'false' }};
+    const MIN_REQUIRED_PLAYERS = IS_SINGLE_MODE ? 2 : 4;
     
     // OFFLINE QUEUE: Persist CLIENT_ID to prevent client_seq reset on refresh
     const lsClientIdKey  = `matcha_client_id_${GAME_ID}`;
@@ -3211,11 +3252,25 @@
             const checkedBoxes = Array.from(document.querySelectorAll('input[name="paused_players[]"]:checked'));
             const playerNames = checkedBoxes.map(cb => cb.getAttribute('data-name')).filter(Boolean);
             const namesText = playerNames.length > 0 ? playerNames.join(', ') : '(Belum ada pemain dipilih)';
+            const newlyPausedCount = checkedBoxes.length;
+            const remainingActive = Math.max(0, TOTAL_PLAYERS_COUNT - newlyPausedCount);
+            const isInsufficient = remainingActive < MIN_REQUIRED_PLAYERS;
+
+            let quotaWarningHtml = '';
+            if (isInsufficient && newlyPausedCount > 0) {
+                quotaWarningHtml = `
+                    <li class="!text-amber-950 font-bold bg-amber-100/90 p-2 rounded-xl border border-amber-300 list-none mt-1 text-xs shadow-2xs">
+                        ⚠️ <strong>Perhatian Kuota:</strong> Sisa pemain aktif akan menjadi ${remainingActive} orang (kurang dari syarat minimal ${MIN_REQUIRED_PLAYERS} orang). Jadwal ronde berikutnya akan ditunda sementara sampai Host mengaktifkan kembali pemain di Bangku Cadangan.
+                    </li>
+                `;
+            }
+
             impactList.innerHTML = `
                 <li>Match court ini akan ditandai <strong>Dihentikan</strong> dengan skor parsial terakhir yang sah.</li>
                 <li>Pemain yang butuh istirahat: <strong>${namesText}</strong> akan otomatis ditempatkan di <strong>Bangku Cadangan (Bench)</strong> pada ronde berikutnya.</li>
                 <li>Pemain lain tetap aktif bertanding seperti biasa di lapangan.</li>
                 <li>Saat pemain sudah selesai istirahat, Host cukup klik tombol <strong>[ Siap Main ]</strong> di Bangku Cadangan untuk memasukkannya kembali ke rotasi jadwal ronde mendatang.</li>
+                ${quotaWarningHtml}
             `;
         } else {
             impactList.innerHTML = `
@@ -3236,6 +3291,18 @@
 
         const checkedBoxes = Array.from(document.querySelectorAll('input[name="withdrawn_players[]"]:checked'));
         const playerNames = checkedBoxes.map(cb => cb.getAttribute('data-name')).filter(Boolean);
+        const newlyWithdrawnCount = checkedBoxes.length;
+        const remainingActive = Math.max(0, TOTAL_PLAYERS_COUNT - newlyWithdrawnCount);
+        const isInsufficient = remainingActive < MIN_REQUIRED_PLAYERS;
+
+        let quotaWarningHtml = '';
+        if (isInsufficient && newlyWithdrawnCount > 0) {
+            quotaWarningHtml = `
+                <li class="!text-rose-950 font-bold bg-rose-100/90 p-2 rounded-xl border border-rose-300 list-none mt-1 text-xs shadow-2xs">
+                    ⚠️ <strong>Perhatian Kuota:</strong> Sisa pemain aktif akan menjadi ${remainingActive} orang (kurang dari syarat minimal ${MIN_REQUIRED_PLAYERS} orang). Sesi tidak dapat melanjutkan ronde berikutnya tanpa jumlah pemain yang mencukupi.
+                </li>
+            `;
+        }
 
         const namesText = playerNames.length > 0 ? playerNames.join(', ') : '(Belum ada pemain dipilih)';
         impactList.innerHTML = `
@@ -3243,6 +3310,7 @@
             <li>Pemain yang keluar: <strong>${namesText}</strong> akan ditandai tidak aktif untuk sesi ini (riwayat ronde lampau tetap tersimpan).</li>
             <li>Jadwal sisa ronde mendatang akan disesuaikan otomatis untuk pemain yang masih aktif.</li>
             <li>Partner dan lawan yang tidak keluar tetap aktif di sesi ini.</li>
+            ${quotaWarningHtml}
         `;
     }
 
@@ -3412,7 +3480,7 @@
             showToast(`Pertandingan ${st.courtName || ('Court ' + st.courtNum)} berhasil dihentikan.`);
 
             if (resData.warning) {
-                alert(`Perhatian: ${resData.warning}`);
+                showInsufficientPlayersWarningModal(resData.warning);
             }
         } catch (err) {
             console.error('[Stop Match Error]:', err);
@@ -3422,6 +3490,27 @@
                 btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
             }
             // PENTING: Jangan tutup modal dan jangan reset input agar pengguna bisa retry langsung
+        }
+    }
+
+    /**
+     * Tampilkan modal dialog estetis bergaya Matcha saat pemain aktif tidak mencukupi
+     */
+    function showInsufficientPlayersWarningModal(message) {
+        const modal = document.getElementById('insufficientPlayersWarningModal');
+        const msgEl = document.getElementById('insufficientPlayersWarningMessage');
+        if (msgEl && message) {
+            msgEl.textContent = message;
+        }
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    }
+
+    function closeInsufficientPlayersWarningModal() {
+        const modal = document.getElementById('insufficientPlayersWarningModal');
+        if (modal) {
+            modal.style.display = 'none';
         }
     }
 
