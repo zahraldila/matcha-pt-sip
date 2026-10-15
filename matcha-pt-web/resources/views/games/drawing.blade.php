@@ -591,6 +591,47 @@
     </div>
 </div>
 
+<!-- MODAL REAKTIVASI PEMAIN (SIAP MAIN) -->
+<div id="reactivateConfirmModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closeReactivateModal();">
+    <div class="bg-white rounded-3xl p-6 shadow-2xl space-y-4 my-8 border border-slate-100 flex flex-col" style="max-width: 440px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">
+        <div class="flex items-start gap-3.5">
+            <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-[#063B00] flex items-center justify-center text-lg border border-emerald-100/80 shadow-2xs shrink-0 mt-0.5">
+                <i class="fa-solid fa-user-check"></i>
+            </div>
+            <div class="space-y-1">
+                <h3 class="text-sm font-black text-slate-900">Aktifkan Kembali Pemain</h3>
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    Aktifkan kembali <strong id="reactivatePlayerNameDisplay" class="text-slate-800 font-extrabold">-</strong> untuk ikut dalam jadwal pertandingan ronde berikutnya? Status istirahat akan dihentikan dan pemain kembali ke rotasi jadwal.
+                </p>
+            </div>
+        </div>
+
+        <div id="reactivateModalError" class="hidden p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+            <i class="fa-solid fa-circle-exclamation text-rose-600"></i>
+            <span id="reactivateModalErrorMsg"></span>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <button
+                type="button"
+                onclick="closeReactivateModal()"
+                class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+            >
+                Batal
+            </button>
+            <button
+                type="button"
+                id="btnConfirmReactivate"
+                onclick="executeReactivatePlayer()"
+                class="px-5 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md shadow-[#063B00]/20 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
+            >
+                <i class="fa-solid fa-play text-[10px]"></i>
+                <span id="btnConfirmReactivateText">Ya, Siap Main</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -1534,14 +1575,43 @@
         });
     }
 
+    let pendingReactivate = { playerId: null, playerName: '' };
+
     /**
-     * Aktifkan kembali pemain yang sedang istirahat sementara (paused / resting) ke rotasi ronde mendatang.
+     * Buka modal konfirmasi untuk mengaktifkan kembali pemain yang sedang istirahat.
      */
-    async function reactivatePlayer(playerId, playerName) {
+    function reactivatePlayer(playerId, playerName) {
         if (!isHostUser) return;
-        if (!confirm(`Aktifkan kembali ${playerName} untuk ikut dalam jadwal pertandingan ronde berikutnya?`)) {
-            return;
-        }
+        pendingReactivate = { playerId, playerName };
+        const nameEl = document.getElementById('reactivatePlayerNameDisplay');
+        if (nameEl) nameEl.textContent = playerName;
+        const errEl = document.getElementById('reactivateModalError');
+        if (errEl) errEl.classList.add('hidden');
+        const modal = document.getElementById('reactivateConfirmModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closeReactivateModal() {
+        const modal = document.getElementById('reactivateConfirmModal');
+        if (modal) modal.style.display = 'none';
+        pendingReactivate = { playerId: null, playerName: '' };
+    }
+
+    /**
+     * Eksekusi reaktivasi pemain ke backend setelah dikonfirmasi pada modal.
+     */
+    async function executeReactivatePlayer() {
+        if (!isHostUser || !pendingReactivate.playerId) return;
+        const { playerId, playerName } = pendingReactivate;
+
+        const btn = document.getElementById('btnConfirmReactivate');
+        const btnText = document.getElementById('btnConfirmReactivateText');
+        const errEl = document.getElementById('reactivateModalError');
+        const errMsgEl = document.getElementById('reactivateModalErrorMsg');
+
+        if (btn) btn.disabled = true;
+        if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
+        if (errEl) errEl.classList.add('hidden');
 
         try {
             const resp = await fetch('{{ route('scoring.reactivate-player') }}', {
@@ -1560,9 +1630,19 @@
 
             const data = await resp.json();
             if (!resp.ok || !data.success) {
-                alert(data.message || 'Gagal mengaktifkan kembali pemain.');
+                const msg = data.message || 'Gagal mengaktifkan kembali pemain.';
+                if (errEl && errMsgEl) {
+                    errMsgEl.textContent = msg;
+                    errEl.classList.remove('hidden');
+                } else if (typeof showToast === 'function') {
+                    showToast(msg, 'error');
+                }
+                if (btn) btn.disabled = false;
+                if (btnText) btnText.textContent = 'Ya, Siap Main';
                 return;
             }
+
+            closeReactivateModal();
 
             if (typeof showToast === 'function') {
                 showToast(data.message || `Pemain ${playerName} telah siap dan dimasukkan kembali ke jadwal!`);
@@ -1588,13 +1668,20 @@
                         }
                     }
                 } catch (e) {
-                    // Fallback re-render
                     switchRound(currentRoundKey, false);
                 }
             }
         } catch (err) {
             console.error('[reactivatePlayer] Error:', err);
-            alert('Terjadi kesalahan koneksi saat mengaktifkan pemain.');
+            if (errEl && errMsgEl) {
+                errMsgEl.textContent = 'Terjadi kesalahan koneksi saat mengaktifkan pemain.';
+                errEl.classList.remove('hidden');
+            } else if (typeof showToast === 'function') {
+                showToast('Terjadi kesalahan koneksi saat mengaktifkan pemain.', 'error');
+            }
+        } finally {
+            if (btn) btn.disabled = false;
+            if (btnText) btnText.textContent = 'Ya, Siap Main';
         }
     }
 
