@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Scoring\ScoringController;
 use App\Models\Court;
 use App\Models\Drawing;
 use App\Models\GameMatch;
@@ -12,7 +13,6 @@ use App\Models\Sport;
 use App\Models\User;
 use App\Models\Venue;
 use App\Services\Scoring\ScoringService;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -1303,7 +1303,7 @@ class EndMatchFeatureTest extends TestCase
         // Kita simulasikan dengan menyabotase sementara agar stopMatch gagal di dalam transaksi
         // Misalnya dengan menghapus foreign match record atau passing ID yang tidak dapat diproses
         // Atau uji response header X-Correlation-Id pada exception
-        $controller = app(\App\Http\Controllers\Scoring\ScoringController::class);
+        $controller = app(ScoringController::class);
 
         // Verifikasi bahwa pemanggilan getDefaultMatchState secara langsung menghasilkan canonical state
         $gameData = [
@@ -1316,6 +1316,113 @@ class EndMatchFeatureTest extends TestCase
         $this->assertSame(0, $defaultState['games_a']);
         $this->assertSame(0, $defaultState['games_b']);
     }
+
+    /**
+     * Test 23: Penghentian match kondisi B (temporary_pause) memindahkan pemain ke bangku istirahat (resting).
+     */
+    public function test_23_temporary_pause_moves_player_to_resting_and_preserves_in_bench()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+        $host = $env['host'];
+        $targetMatch = $env['matches']['round_1'][0]['match'];
+        $alice = $env['players'][0];
+
+        $this->actingAs($host);
+
+        $response = $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $targetMatch->match_id,
+            'match_key' => 'round_1_court_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'temporary_pause',
+            'withdrawn_player_ids' => [$alice->player_id],
+            'reason' => 'Ke toilet sebentar',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertTrue($response->json('success'));
+        $this->assertSame('stopped', $response->json('status'));
+
+        // Cek database tb_match
+        $targetMatch->refresh();
+        $this->assertSame('temporary_pause', $targetMatch->stop_type);
+        $this->assertSame('Ke toilet sebentar', $targetMatch->stop_reason);
+
+        // Cek tb_session_player: status harus 'resting', BUKAN 'withdrawn'
+        $aliceRecord = DB::table('tb_session_player')
+            ->where('session_id', $session->session_id)
+            ->where('player_id', $alice->player_id)
+            ->first();
+        $this->assertSame('resting', $aliceRecord->status);
+
+        // Cek drawing schedule cache jika ada, pemain harus ada di resting
+        $cachedSchedule = Cache::get("drawing.schedule_{$session->session_id}");
+        if ($cachedSchedule && isset($cachedSchedule['paused_player_ids'])) {
+            $this->assertContains($alice->player_id, $cachedSchedule['paused_player_ids']);
+        }
+    }
+
+    /**
+     * Test 24: Reactivate player mengembalikan pemain yang istirahat (resting) menjadi aktif kembali ke jadwal.
+     */
+    public function test_24_reactivate_player_returns_resting_player_to_active()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+        $host = $env['host'];
+        $alice = $env['players'][0];
+
+        // Set Alice ke status resting
+        DB::table('tb_session_player')
+            ->where('session_id', $session->session_id)
+            ->where('player_id', $alice->player_id)
+            ->update(['status' => 'resting']);
+
+        // Set cache paused players
+        Cache::put("drawing.schedule_{$session->session_id}", [
+            'paused_player_ids' => [$alice->player_id],
+            'rounds' => [],
+        ], 3600);
+
+        $this->actingAs($host);
+
+        $response = $this->postJson(route('scoring.reactivate-player'), [
+            'game_id' => $session->session_id,
+            'player_id' => $alice->player_id,
+            'round' => 'round_2',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertTrue($response->json('success'));
+        $this->assertSame($alice->player_id, $response->json('player_id'));
+
+        // Verifikasi status di DB kembali jadi active
+        $aliceRecord = DB::table('tb_session_player')
+            ->where('session_id', $session->session_id)
+            ->where('player_id', $alice->player_id)
+            ->first();
+        $this->assertSame('active', $aliceRecord->status);
+    }
+
+    /**
+     * Test 25: Non-host tidak memiliki hak akses untuk mengaktifkan kembali pemain istirahat.
+     */
+    public function test_25_non_host_cannot_reactivate_player()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+        $nonHostUser = User::find($env['players'][1]->user_id);
+        $alice = $env['players'][0];
+
+        $this->actingAs($nonHostUser);
+
+        $response = $this->postJson(route('scoring.reactivate-player'), [
+            'game_id' => $session->session_id,
+            'player_id' => $alice->player_id,
+        ]);
+
+        $response->assertStatus(403);
+    }
 }
-
-
