@@ -59,7 +59,7 @@
                     <span>{{ session('warning') }}</span>
                 </div>
             @endif
-            @if(session('error'))
+            @if(session('error') && session('error') !== session('warning'))
                 <div class="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs font-bold flex items-center gap-3 shadow-xs">
                     <i class="fa-solid fa-circle-exclamation text-rose-600 text-base shrink-0"></i>
                     <span>{{ session('error') }}</span>
@@ -3189,16 +3189,30 @@
 
     // ── End Match Modal & Controller Functions ──────────────────────────────
     let currentStoppingCourtIdx = null;
-    let stopMatchInFlightByCourt = {}; // Track in-flight request per court index
+    let currentStoppingTarget = null; // { sessionId, matchId, matchKey, round, courtIdx, requestKey, operationId }
+    let stopMatchInFlight = {}; // Track in-flight request keyed by ${sessionId}_${round}_${matchId}_${matchKey}
 
     function openStopMatchModal(cIdx) {
         if (!IS_HOST) return;
-        currentStoppingCourtIdx = cIdx;
         const st = courtsState[cIdx];
         if (!st || st.matchDone) {
             showToast('Pertandingan ini sudah selesai atau dihentikan.');
             return;
         }
+
+        const matchId = st.matchId || 0;
+        const matchKey = st.matchKey || `round_${ACTIVE_ROUND}_court_${cIdx + 1}`;
+        const requestKey = `${GAME_ID}_${ACTIVE_ROUND}_${matchId}_${matchKey}`;
+        currentStoppingCourtIdx = cIdx;
+        currentStoppingTarget = {
+            sessionId: GAME_ID,
+            matchId: matchId,
+            matchKey: matchKey,
+            round: ACTIVE_ROUND,
+            courtIdx: cIdx,
+            requestKey: requestKey,
+            operationId: null
+        };
 
         const modal = document.getElementById('stopMatchModal');
         const roundCourtEl = document.getElementById('modalMatchRoundCourt');
@@ -3208,12 +3222,12 @@
         const errorEl = document.getElementById('modalStopError');
         if (errorEl) errorEl.classList.add('hidden');
 
-        // Reset status tombol modal sesuai kondisi request target court ini
+        // Reset status tombol modal sesuai kondisi request target match/court ini
         const btnConfirm = document.getElementById('btnConfirmStopMatch');
-        const isThisCourtInFlight = !!stopMatchInFlightByCourt[cIdx];
+        const isThisTargetInFlight = !!stopMatchInFlight[requestKey];
         if (btnConfirm) {
-            btnConfirm.disabled = isThisCourtInFlight;
-            btnConfirm.innerHTML = isThisCourtInFlight
+            btnConfirm.disabled = isThisTargetInFlight;
+            btnConfirm.innerHTML = isThisTargetInFlight
                 ? '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan penghentian...'
                 : '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
         }
@@ -3314,6 +3328,7 @@
             btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
         }
         currentStoppingCourtIdx = null;
+        currentStoppingTarget = null;
     }
 
     function onTogglePausePlayersCheckbox() {
@@ -3444,18 +3459,21 @@
     }
 
     async function confirmStopMatch() {
-        if (!IS_HOST || currentStoppingCourtIdx === null) return;
-        const cIdx = currentStoppingCourtIdx;
+        if (!IS_HOST || !currentStoppingTarget) return;
+        const target = currentStoppingTarget;
+        const cIdx = target.courtIdx;
+        const requestKey = target.requestKey;
         const st = courtsState[cIdx];
         if (!st) return;
 
-        if (stopMatchInFlightByCourt[cIdx]) {
-            console.log(`[Stop Match] Court ${cIdx + 1} sedang memproses penghentian.`);
+        if (stopMatchInFlight[requestKey]) {
+            console.log(`[Stop Match] Pertandingan ${requestKey} sedang memproses penghentian.`);
             return;
         }
 
-        const operationId = 'stop_' + cIdx + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-        stopMatchInFlightByCourt[cIdx] = { operationId, timestamp: Date.now() };
+        const operationId = 'stop_' + requestKey + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        target.operationId = operationId;
+        stopMatchInFlight[requestKey] = { operationId, timestamp: Date.now() };
 
         const errorEl = document.getElementById('modalStopError');
         const errorMsgEl = document.getElementById('modalStopErrorMsg');
@@ -3483,7 +3501,7 @@
                 const pauseChecks = Array.from(document.querySelectorAll('input[name="paused_players[]"]:checked'));
                 if (pauseChecks.length === 0) {
                     showError('Pilih minimal satu pemain yang butuh istirahat sementara ke bangku cadangan.');
-                    delete stopMatchInFlightByCourt[cIdx];
+                    delete stopMatchInFlight[requestKey];
                     return;
                 }
                 withdrawnPlayerIds = pauseChecks.map(cb => cb.getAttribute('data-player-id') || cb.value);
@@ -3495,7 +3513,7 @@
                 stopReason = (document.getElementById('stopReasonA')?.value || '').trim();
                 if (!stopReason) {
                     showError('Wajib mengisi alasan penghentian pertandingan.');
-                    delete stopMatchInFlightByCourt[cIdx];
+                    delete stopMatchInFlight[requestKey];
                     return;
                 }
                 const relChecks = document.querySelectorAll('input[name="related_players[]"]:checked');
@@ -3506,7 +3524,7 @@
             const withChecks = Array.from(document.querySelectorAll('input[name="withdrawn_players[]"]:checked'));
             if (withChecks.length === 0) {
                 showError('Pilih minimal satu pemain yang keluar dari sesi.');
-                delete stopMatchInFlightByCourt[cIdx];
+                delete stopMatchInFlight[requestKey];
                 return;
             }
             for (const chk of withChecks) {
@@ -3517,7 +3535,7 @@
                 const note = (document.getElementById('playerNote_' + pIdx)?.value || '').trim();
                 if (!note) {
                     showError(`Wajib mencatat alasan/kendala untuk ${pName}.`);
-                    delete stopMatchInFlightByCourt[cIdx];
+                    delete stopMatchInFlight[requestKey];
                     return;
                 }
                 withdrawnPlayerIds.push(pVal);
@@ -3545,7 +3563,7 @@
             }
             if ((st.saveQueue && st.saveQueue.length > 0) || (st.inFlightQueue && st.inFlightQueue.length > 0)) {
                 showError('Masih terdapat antrean skor yang belum selesai tersimpan ke server. Mohon tunggu sesaat dan pastikan koneksi stabil.');
-                delete stopMatchInFlightByCourt[cIdx];
+                delete stopMatchInFlight[requestKey];
                 if (btnConfirm) {
                     btnConfirm.disabled = false;
                     btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
@@ -3557,6 +3575,8 @@
         const displays = getPointDisplays(cIdx);
         const payload = {
             game_id: GAME_ID,
+            session_id: GAME_ID,
+            operation_id: operationId,
             match_id: st.matchId,
             match_key: st.matchKey,
             court_number: st.courtNum,
@@ -3620,8 +3640,15 @@
             st.completionSavePending = false;
             st.completionSaveSucceeded = true;
 
-            // Jika modal saat ini masih membuka court yang sama, tutup modal
-            if (currentStoppingCourtIdx === cIdx) {
+            const isTargetStillActive = currentStoppingTarget &&
+                currentStoppingTarget.sessionId === target.sessionId &&
+                currentStoppingTarget.matchId === target.matchId &&
+                currentStoppingTarget.round === target.round &&
+                currentStoppingTarget.courtIdx === target.courtIdx &&
+                currentStoppingTarget.operationId === operationId;
+
+            // Hanya tutup modal jika modal saat ini masih menargetkan pertandingan dan operasi yang sama
+            if (isTargetStillActive) {
                 closeStopMatchModal();
             }
             updateDisplay(cIdx);
@@ -3640,7 +3667,14 @@
                 ? 'Koneksi ke server timeout saat menyimpan penghentian. Silakan periksa koneksi lalu coba lagi.' 
                 : (err.message || 'Terjadi kesalahan sistem saat mengakhiri pertandingan.');
 
-            if (currentStoppingCourtIdx === cIdx) {
+            const isTargetStillActive = currentStoppingTarget &&
+                currentStoppingTarget.sessionId === target.sessionId &&
+                currentStoppingTarget.matchId === target.matchId &&
+                currentStoppingTarget.round === target.round &&
+                currentStoppingTarget.courtIdx === target.courtIdx &&
+                currentStoppingTarget.operationId === operationId;
+
+            if (isTargetStillActive) {
                 showError(msg);
                 if (btnConfirm) {
                     btnConfirm.disabled = false;
@@ -3650,8 +3684,15 @@
                 showToast(`Court ${cIdx + 1}: ${msg}`);
             }
         } finally {
-            delete stopMatchInFlightByCourt[cIdx];
-            if (currentStoppingCourtIdx === cIdx) {
+            delete stopMatchInFlight[requestKey];
+            const isTargetStillActive = currentStoppingTarget &&
+                currentStoppingTarget.sessionId === target.sessionId &&
+                currentStoppingTarget.matchId === target.matchId &&
+                currentStoppingTarget.round === target.round &&
+                currentStoppingTarget.courtIdx === target.courtIdx &&
+                currentStoppingTarget.operationId === operationId;
+
+            if (isTargetStillActive) {
                 const btn = document.getElementById('btnConfirmStopMatch');
                 if (btn && !st.isStopped) {
                     btn.disabled = false;

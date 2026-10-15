@@ -1776,8 +1776,19 @@ class ScoringService
             return true;
         }
 
+        // Match In Progress atau Live dilindungi meskipun skor masih 0-0 dan waktu_mulai kosong
+        if (in_array($status, ['in progress', 'in_progress', 'live'])) {
+            return true;
+        }
+
+        // Match yang memiliki tanda event / waktu mulai aktif dilindungi
+        if (! empty($match->waktu_mulai) || ! empty($match->last_event_id)) {
+            return true;
+        }
+
+        // Match yang pernah memiliki event skor juga tetap dilindungi meskipun skor saat ini kembali 0-0
         if (Schema::hasTable('tb_score')) {
-            $hasScore = Score::where('match_id', $match->match_id)
+            $hasScoreOrEvent = Score::where('match_id', $match->match_id)
                 ->where(function ($q) {
                     $q->where('game_score_a', '>', 0)
                         ->orWhere('game_score_b', '>', 0)
@@ -1791,26 +1802,103 @@ class ScoringService
                             $sq->whereNotNull('point_score_b')
                                 ->whereNotIn('point_score_b', ['0', '', '0-0']);
                         })
-                        ->orWhereNotNull('last_event_id');
+                        ->orWhereNotNull('last_event_id')
+                        ->orWhere('status_score', 'EventLog')
+                        ->orWhere('version', '>', 1);
                 })
                 ->exists();
-            if ($hasScore) {
+            if ($hasScoreOrEvent) {
                 return true;
             }
-        }
-
-        if (in_array($status, ['in progress', 'live'])) {
-            if (! empty($match->waktu_mulai) || ! empty($match->last_event_id)) {
-                return true;
-            }
-            if ($matchRound !== null && $lockedRound !== null) {
-                return $matchRound <= $lockedRound;
-            }
-
-            return false;
         }
 
         return false;
+    }
+
+    /**
+     * Ambil metadata versi jadwal dan status konfirmasi dari penyimpanan persisten (tb_match.player_notes).
+     */
+    public static function getPersistentScheduleMeta($session): array
+    {
+        $sessionId = ($session instanceof SessionModel) ? $session->session_id : (int) $session;
+
+        // 1. Coba baca dari match pertama pada drawing sesi ini di basis data
+        if (Schema::hasTable('tb_match') && Schema::hasTable('tb_drawing') && Schema::hasColumn('tb_match', 'player_notes')) {
+            try {
+                $drawingIds = DB::table('tb_drawing')->where('session_id', $sessionId)->pluck('drawing_id');
+                if ($drawingIds->isNotEmpty()) {
+                    $firstMatch = GameMatch::whereIn('drawing_id', $drawingIds)->orderBy('nomor_match')->first();
+                    if ($firstMatch && ! empty($firstMatch->player_notes)) {
+                        $notes = is_array($firstMatch->player_notes) ? $firstMatch->player_notes : json_decode($firstMatch->player_notes, true);
+                        if (is_array($notes) && isset($notes['_schedule_meta']) && is_array($notes['_schedule_meta'])) {
+                            return $notes['_schedule_meta'];
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Fallback to cache
+            }
+        }
+
+        // 2. Fallback ke Cache
+        $cachedSchedule = Cache::get("drawing.schedule_{$sessionId}", []);
+        $version = (int) ($cachedSchedule['schedule_version'] ?? 1);
+        $needsAdjustment = (bool) Cache::get("scoring.needs_adjustment_{$sessionId}", $cachedSchedule['needs_schedule_adjustment'] ?? false);
+        $confirmedAt = $cachedSchedule['confirmed_at'] ?? null;
+
+        return [
+            'version' => max(1, $version),
+            'needs_adjustment' => $needsAdjustment,
+            'confirmed_at' => $confirmedAt,
+        ];
+    }
+
+    /**
+     * Simpan metadata versi jadwal dan status konfirmasi ke penyimpanan persisten (tb_match.player_notes) dan Cache.
+     */
+    public static function setPersistentScheduleMeta($session, array $meta): void
+    {
+        $sessionId = ($session instanceof SessionModel) ? $session->session_id : (int) $session;
+
+        // 1. Simpan ke database persisten tb_match
+        if (Schema::hasTable('tb_match') && Schema::hasTable('tb_drawing') && Schema::hasColumn('tb_match', 'player_notes')) {
+            try {
+                $drawingIds = DB::table('tb_drawing')->where('session_id', $sessionId)->pluck('drawing_id');
+                if ($drawingIds->isNotEmpty()) {
+                    $firstMatch = GameMatch::whereIn('drawing_id', $drawingIds)->orderBy('nomor_match')->first();
+                    if ($firstMatch) {
+                        $notes = [];
+                        if (! empty($firstMatch->player_notes)) {
+                            $decoded = is_array($firstMatch->player_notes) ? $firstMatch->player_notes : json_decode($firstMatch->player_notes, true);
+                            $notes = is_array($decoded) ? $decoded : [];
+                        }
+                        $notes['_schedule_meta'] = array_merge($notes['_schedule_meta'] ?? [], $meta);
+                        $firstMatch->player_notes = json_encode($notes);
+                        $firstMatch->save();
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Ignore DB write errors
+            }
+        }
+
+        // 2. Sinkronkan ke Cache
+        $cachedSchedule = Cache::get("drawing.schedule_{$sessionId}", []);
+        if (isset($meta['version'])) {
+            $cachedSchedule['schedule_version'] = (int) $meta['version'];
+        }
+        if (isset($meta['needs_adjustment'])) {
+            $cachedSchedule['needs_schedule_adjustment'] = (bool) $meta['needs_adjustment'];
+            if ($meta['needs_adjustment']) {
+                Cache::put("scoring.needs_adjustment_{$sessionId}", true, now()->addHours(6));
+            } else {
+                Cache::forget("scoring.needs_adjustment_{$sessionId}");
+            }
+        }
+        if (isset($meta['confirmed_at'])) {
+            $cachedSchedule['confirmed_at'] = $meta['confirmed_at'];
+        }
+        Cache::put("drawing.schedule_{$sessionId}", $cachedSchedule, now()->addHours(12));
     }
 
     /**
@@ -1862,7 +1950,8 @@ class ScoringService
     public static function sessionNeedsScheduleAdjustment($session): bool
     {
         $sessionId = ($session instanceof SessionModel) ? $session->session_id : (int) $session;
-        return (bool) Cache::get("scoring.needs_adjustment_{$sessionId}", false);
+        $persistent = self::getPersistentScheduleMeta($sessionId);
+        return (bool) ($persistent['needs_adjustment'] ?? Cache::get("scoring.needs_adjustment_{$sessionId}", false));
     }
 
     /**
@@ -1876,6 +1965,9 @@ class ScoringService
         } else {
             Cache::forget("scoring.needs_adjustment_{$sessionId}");
         }
+
+        // Persist ke database tb_match jika tersedia
+        self::setPersistentScheduleMeta($sessionId, ['needs_adjustment' => $needed]);
     }
 
     /**
@@ -2030,7 +2122,78 @@ class ScoringService
                 $courtCount
             );
 
-            // Jika belum ada jadwal di cache, generate terlebih dahulu dari data awal
+            $authoritativeDrawing = self::getAuthoritativeDrawing($session);
+
+            // 1. Jika belum ada jadwal di cache, rekonstruksi dari basis data persisten (tb_match & tb_match_participant)
+            if (empty($currentRounds) && $authoritativeDrawing && Schema::hasTable('tb_match') && Schema::hasTable('tb_match_participant')) {
+                $dbMatches = GameMatch::where('drawing_id', $authoritativeDrawing->drawing_id)
+                    ->with(['participants.player'])
+                    ->orderBy('nomor_match')
+                    ->get();
+                if ($dbMatches->isNotEmpty()) {
+                    $sessionCourts = $session->courts;
+                    $sCourtCount = max(1, $sessionCourts->count());
+                    $groupedRounds = [];
+                    foreach ($dbMatches as $dm) {
+                        $rNum = intdiv(max(0, (int) $dm->nomor_match - 1), $sCourtCount) + 1;
+                        if (! isset($groupedRounds[$rNum])) {
+                            $snapshot = self::extractRoundSnapshot($dm);
+                            $groupedRounds[$rNum] = [
+                                'round' => $rNum,
+                                'matches' => [],
+                                'rotation_bench' => [],
+                                'paused_players' => [],
+                                'resting' => [],
+                            ];
+                            if ($snapshot) {
+                                $snapPausedIds = $snapshot['paused_player_ids'] ?? [];
+                                $snapBenchIds = $snapshot['rotation_bench_ids'] ?? [];
+                                $groupedRounds[$rNum]['paused_players'] = $allPlayers->whereIn('player_id', $snapPausedIds)->pluck('nama')->toArray();
+                                $groupedRounds[$rNum]['rotation_bench'] = $allPlayers->whereIn('player_id', $snapBenchIds)->pluck('nama')->toArray();
+                                $groupedRounds[$rNum]['resting'] = array_values(array_unique(array_merge(
+                                    $groupedRounds[$rNum]['rotation_bench'],
+                                    $groupedRounds[$rNum]['paused_players']
+                                )));
+                            }
+                        }
+
+                        $teamA = [];
+                        $teamB = [];
+                        foreach ($dm->participants as $part) {
+                            $pInfo = [
+                                'id' => (int) $part->player_id,
+                                'player_id' => (int) $part->player_id,
+                                'name' => $part->player->nama ?? ($part->player->name ?? "Player {$part->player_id}"),
+                            ];
+                            if ($part->team === 'Tim A' || $part->team === 'team_a' || $part->team === 'A') {
+                                $teamA[] = $pInfo;
+                            } else {
+                                $teamB[] = $pInfo;
+                            }
+                        }
+                        $courtNum = ($dm->nomor_match - 1) % $sCourtCount + 1;
+                        $groupedRounds[$rNum]['matches'][] = [
+                            'court' => $courtNum,
+                            'court_id' => $dm->court_id,
+                            'match_id' => $dm->match_id,
+                            'team_a' => $teamA,
+                            'team_b' => $teamB,
+                            'status' => $dm->status_match,
+                        ];
+                    }
+                    if (! empty($groupedRounds)) {
+                        $currentRounds = $groupedRounds;
+                        $persistentMeta = self::getPersistentScheduleMeta($session);
+                        $cachedSchedule = [
+                            'rounds' => $currentRounds,
+                            'court_count' => $sCourtCount,
+                            'schedule_version' => (int) ($persistentMeta['version'] ?? 1),
+                        ];
+                    }
+                }
+            }
+
+            // 2. Jika belum ada jadwal di cache maupun di database, generate terlebih dahulu dari data awal
             if (empty($currentRounds)) {
                 $roundCount = $sessionRoundCount;
 
@@ -2057,14 +2220,13 @@ class ScoringService
                 ];
             }
 
-            $totalRounds = $sessionRoundCount ? min(count($currentRounds), $sessionRoundCount) : count($currentRounds);
+            $totalRounds = $sessionRoundCount ? max(count($currentRounds), $sessionRoundCount) : count($currentRounds);
             if ($totalRounds < $currentRoundNumber) {
                 $totalRounds = $currentRoundNumber;
             }
 
             // Cari ronde terakhir yang terkunci (memiliki match Completed/Stopped, atau skor/event)
             $lastLockedRoundNumber = 0;
-            $authoritativeDrawing = self::getAuthoritativeDrawing($session);
             if ($authoritativeDrawing && Schema::hasTable('tb_match')) {
                 $sessionCourts = $session->courts;
                 $sessionCourtCount = max(1, $sessionCourts->count());
@@ -2163,11 +2325,12 @@ class ScoringService
 
                     $americanoService = new AmericanoService;
                     $generatedFuture = $americanoService->generateRounds($normalizedActive, $courtCount, $remainingRoundCount, $drawingMode);
+                    $futureList = array_values($generatedFuture);
 
-                    $genIdx = 1;
+                    $genIdx = 0;
                     for ($r = $freezeUpToRound + 1; $r <= $totalRounds; $r++) {
-                        if (isset($generatedFuture[$genIdx])) {
-                            $rData = $generatedFuture[$genIdx];
+                        if (isset($futureList[$genIdx])) {
+                            $rData = $futureList[$genIdx];
                             $rData['round'] = $r;
                             $curResting = $rData['resting'] ?? [];
                             $rData['rotation_bench'] = $curResting;
@@ -2228,6 +2391,11 @@ class ScoringService
             ];
 
             Cache::put($scheduleCacheKey, $cachedSchedule, now()->addHours(12));
+            self::setPersistentScheduleMeta($session, [
+                'version' => $newScheduleVersion,
+                'needs_adjustment' => true,
+                'last_adjusted_at' => now()->toDateTimeString(),
+            ]);
 
             // Sync database untuk match masa depan (tb_match dan tb_match_participant)
             try {

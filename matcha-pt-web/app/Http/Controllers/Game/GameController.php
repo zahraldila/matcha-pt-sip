@@ -1387,7 +1387,6 @@ class GameController extends Controller
         $hasScheduleAdjusted = ScoringService::hasScheduleBeenAdjusted($dbSession);
         $needsGeneration = false;
         if (! $savedSchedule || empty($savedSchedule['rounds']) || $isCacheStale) {
-            // 1. Baca langsung jadwal persisten dari basis data (READ-ONLY) jika jumlah ronde di DB sudah lengkap
             $dbSchedule = ScoringService::buildScheduleFromDatabase($dbSession);
             $hasCompleteDbRounds = $dbSchedule && ! empty($dbSchedule['rounds']) && ($expectedRounds === null || count($dbSchedule['rounds']) >= $expectedRounds);
             if ($hasCompleteDbRounds) {

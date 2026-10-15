@@ -1632,6 +1632,34 @@ class ScoringController extends Controller
                         'message' => 'Match ID tidak valid atau tidak sesuai dengan drawing aktif sesi ini.',
                     ], 422);
                 }
+                if ($validatedMatch->status_match === 'Stopped') {
+                    // Idempotency: match sudah dihentikan sebelumnya, hindari duplikasi penyimpanan
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Pertandingan telah dihentikan sebelumnya.',
+                        'match_key' => $matchKey,
+                        'status' => 'stopped',
+                        'stop_type' => $validatedMatch->stop_type ?? $stopType,
+                        'saved' => $savedScores[$matchKey] ?? $scorePayload,
+                        'needs_schedule_adjustment' => false,
+                        'schedule_adjusted' => false,
+                        'has_insufficient_players' => false,
+                        'correlation_id' => $correlationId,
+                    ])->header('X-Correlation-Id', $correlationId);
+                }
+            } elseif (isset($savedScores[$matchKey]) && ($savedScores[$matchKey]['status'] ?? '') === 'stopped') {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Pertandingan telah dihentikan sebelumnya.',
+                    'match_key' => $matchKey,
+                    'status' => 'stopped',
+                    'stop_type' => $savedScores[$matchKey]['stop_type'] ?? $stopType,
+                    'saved' => $savedScores[$matchKey],
+                    'needs_schedule_adjustment' => false,
+                    'schedule_adjusted' => false,
+                    'has_insufficient_players' => false,
+                    'correlation_id' => $correlationId,
+                ])->header('X-Correlation-Id', $correlationId);
             }
 
             // 1. Simpan perubahan secara ATOMIK ke database
@@ -2044,7 +2072,15 @@ class ScoringController extends Controller
         }
 
         $gameId = (int) ($request->input('game_id') ?: $request->input('session_id'));
-        $expectedVersion = (int) $request->input('expected_schedule_version', 0);
+        $rawExpected = $request->input('expected_schedule_version');
+        if ($rawExpected === null || $rawExpected === '' || ! is_numeric($rawExpected) || (int) $rawExpected <= 0) {
+            return response()->json([
+                'success' => false,
+                'conflict' => true,
+                'message' => 'Parameter expected_schedule_version wajib disertakan dan bernilai valid (> 0). Nilai kosong atau 0 tidak diperkenankan melewati verifikasi konflik.',
+            ], 422);
+        }
+        $expectedVersion = (int) $rawExpected;
 
         $session = SessionModel::find($gameId);
         if (! $session) {
@@ -2058,26 +2094,28 @@ class ScoringController extends Controller
         $lock = Cache::lock("drawing.lock_{$gameId}", 5);
         $lock->block(3);
         try {
-            $cachedSchedule = Cache::get("drawing.schedule_{$gameId}", []);
-            $currentVersion = (int) ($cachedSchedule['schedule_version'] ?? 1);
+            $persistentMeta = ScoringService::getPersistentScheduleMeta($session);
+            $currentVersion = (int) ($persistentMeta['version'] ?? 1);
 
-            // Verifikasi versi jadwal secara ATOMIK
-            if ($expectedVersion > 0 && $expectedVersion !== $currentVersion) {
+            // Verifikasi versi jadwal secara ATOMIK terhadap data persisten
+            if ($expectedVersion !== $currentVersion) {
                 return response()->json([
                     'success' => false,
                     'conflict' => true,
                     'message' => 'Versi jadwal telah diperbarui oleh perubahan lain. Silakan periksa kembali preview jadwal terbaru.',
                     'current_version' => $currentVersion,
+                    'expected_version' => $expectedVersion,
                 ], 409);
             }
 
-            // Hapus flag penyesuaian jadwal yang tertunda
-            ScoringService::setSessionNeedsScheduleAdjustment($gameId, false);
+            // Simpan status konfirmasi dan versi baru ke basis data persisten
             $newVersion = $currentVersion + 1;
-            $cachedSchedule['schedule_version'] = $newVersion;
-            $cachedSchedule['needs_schedule_adjustment'] = false;
-            $cachedSchedule['confirmed_at'] = now()->toDateTimeString();
-            Cache::put("drawing.schedule_{$gameId}", $cachedSchedule, now()->addHours(12));
+            ScoringService::setPersistentScheduleMeta($session, [
+                'version' => $newVersion,
+                'needs_adjustment' => false,
+                'confirmed_at' => now()->toDateTimeString(),
+                'confirmed_by' => Auth::id(),
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -2414,8 +2452,7 @@ class ScoringController extends Controller
                 'format' => request('format', $game['match_format'] ?? 'Americano'),
                 'round' => $currentRound,
                 'court' => (int) $request->input('court', 0),
-            ])->with('error', "Ronde berikutnya belum dapat dimulai: {$reason}")
-                ->with('warning', "Ronde berikutnya belum dapat dimulai: {$reason}");
+            ])->with('error', "Ronde berikutnya belum dapat dimulai: {$reason} Silakan gunakan panel Kesiapan Pemain untuk mengaktifkan pemain.");
         }
 
         foreach (($nextRoundData['matches'] ?? []) as $nm) {
@@ -2427,8 +2464,7 @@ class ScoringController extends Controller
                     'format' => request('format', $game['match_format'] ?? 'Americano'),
                     'round' => $currentRound,
                     'court' => (int) $request->input('court', 0),
-                ])->with('error', "Ronde berikutnya belum dapat dimulai: {$reason}")
-                    ->with('warning', "Ronde berikutnya belum dapat dimulai: {$reason}");
+                ])->with('error', "Ronde berikutnya belum dapat dimulai: {$reason}");
             }
         }
 
