@@ -76,6 +76,7 @@ Route::prefix('scoring')->name('scoring.')->group(function () {
     Route::get('/get-score/{gameId}/{round?}', [ScoringController::class, 'getScore'])->name('get-score'); // JSON polling
     Route::post('/update-score', [ScoringController::class, 'updateScore'])->name('update-score'); // AJAX endpoint
     Route::post('/stop-match', [ScoringController::class, 'stopMatch'])->name('stop-match');       // Akhiri pertandingan (End Match)
+    Route::post('/reactivate-player', [ScoringController::class, 'reactivatePlayer'])->name('reactivate-player'); // Aktifkan kembali pemain dari istirahat
     Route::post('/next-round', [ScoringController::class, 'nextRound'])->name('next-round');       // Lanjut ke set/ronde berikutnya
     Route::post('/finish', [ScoringController::class, 'finishSession'])->name('finish');           // Selesaikan sesi
     Route::post('/kudos/toggle', [ScoringController::class, 'toggleKudos'])->name('kudos.toggle'); // Simpan / Cabut Kudos permanen ke DB

@@ -1496,6 +1496,8 @@ class GameController extends Controller
             $activeRoundNum = $roundsProgress['active_round_num'];
         }
 
+        $pausedPlayerIds = ScoringService::getPausedPlayerIds($dbSession);
+
         // Jika request via AJAX / Fetch JSON
         if ($request->wantsJson() || $request->ajax() || $request->query('json')) {
             $isScoringOpened = ! empty($savedScores['_meta']["opened_round_{$activeRoundNum}"])
@@ -1512,6 +1514,7 @@ class GameController extends Controller
                 'drawingData' => $drawingData,
                 'rounds' => $rounds,
                 'participantsMap' => $participantsMap,
+                'paused_player_ids' => $pausedPlayerIds,
                 'redirect_url' => route('scoring.live', [
                     'id' => $dbSession->session_id,
                     'format' => $game['match_format'] ?? 'Americano',
@@ -1529,7 +1532,8 @@ class GameController extends Controller
             'isHost',
             'roundAccess',
             'roundStatus',
-            'activeRoundNum'
+            'activeRoundNum',
+            'pausedPlayerIds'
         ));
     }
 

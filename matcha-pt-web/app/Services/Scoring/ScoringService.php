@@ -1597,25 +1597,112 @@ class ScoringService
     }
 
     /**
+     * Dapatkan daftar ID pemain yang sedang istirahat sementara (paused / bench) dalam sesi.
+     *
+     * @param  SessionModel|int  $session
+     * @return array<int>
+     */
+    public static function getPausedPlayerIds($session): array
+    {
+        $sessionId = ($session instanceof SessionModel) ? $session->session_id : (int) $session;
+        $pausedIds = [];
+
+        // 1. Dari basis data tb_session_player jika kolom status tersedia
+        try {
+            if (Schema::hasTable('tb_session_player') && Schema::hasColumn('tb_session_player', 'status')) {
+                $dbIds = DB::table('tb_session_player')
+                    ->where('session_id', $sessionId)
+                    ->where('status', 'resting')
+                    ->pluck('player_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+                $pausedIds = array_merge($pausedIds, $dbIds);
+            }
+        } catch (\Throwable $e) {
+            // Ignore DB check error in tests with partial schemas
+        }
+
+        // 2. Dari Cache scoring.game_{sessionId}
+        $cacheMeta = Cache::get("scoring.game_{$sessionId}", []);
+        $cachedPaused = $cacheMeta['_meta']['paused_players'] ?? [];
+        if (is_array($cachedPaused)) {
+            foreach ($cachedPaused as $cId) {
+                $pausedIds[] = (int) $cId;
+            }
+        }
+
+        // 3. Dari Cache drawing.schedule_{sessionId}
+        $scheduleCache = Cache::get("drawing.schedule_{$sessionId}", []);
+        $schedPaused = $scheduleCache['paused_player_ids'] ?? [];
+        if (is_array($schedPaused)) {
+            foreach ($schedPaused as $sId) {
+                $pausedIds[] = (int) $sId;
+            }
+        }
+
+        return array_values(array_unique(array_filter($pausedIds, fn ($id) => (int) $id > 0)));
+    }
+
+    /**
      * Sesuaikan jadwal ronde mendatang (r > currentRound) saat ada pemain yang keluar dari sesi.
      * Mempertahankan seluruh ronde lalu dan match yang sudah berjalan (termasuk skor & peserta).
      * Mempertahankan total jumlah ronde (tanpa menambah/mengurangi jumlah ronde).
      */
     public static function adjustFutureScheduleOnWithdrawal(SessionModel $session, array $newlyWithdrawnPlayerIds, int $currentRoundNumber): array
     {
+        $allWithdrawnIds = array_values(array_unique(array_merge(
+            self::getWithdrawnPlayerIds($session),
+            array_map('intval', $newlyWithdrawnPlayerIds)
+        )));
+        $allPausedIds = self::getPausedPlayerIds($session);
+
+        return self::adjustFutureScheduleCore($session, $allWithdrawnIds, $allPausedIds, $currentRoundNumber);
+    }
+
+    /**
+     * Sesuaikan jadwal ronde mendatang saat ada pemain yang istirahat sementara (masuk bangku cadangan / toilet).
+     */
+    public static function adjustFutureScheduleOnPause(SessionModel $session, array $newlyPausedPlayerIds, int $currentRoundNumber): array
+    {
+        $allWithdrawnIds = self::getWithdrawnPlayerIds($session);
+        $allPausedIds = array_values(array_unique(array_merge(
+            self::getPausedPlayerIds($session),
+            array_map('intval', $newlyPausedPlayerIds)
+        )));
+
+        return self::adjustFutureScheduleCore($session, $allWithdrawnIds, $allPausedIds, $currentRoundNumber);
+    }
+
+    /**
+     * Sesuaikan jadwal ronde mendatang saat pemain yang sebelumnya istirahat sementara telah siap main lagi.
+     */
+    public static function adjustFutureScheduleOnReactivation(SessionModel $session, int $reactivatedPlayerId, int $currentRoundNumber): array
+    {
+        $allWithdrawnIds = self::getWithdrawnPlayerIds($session);
+        $allPausedIds = array_values(array_diff(self::getPausedPlayerIds($session), [(int) $reactivatedPlayerId]));
+
+        return self::adjustFutureScheduleCore($session, $allWithdrawnIds, $allPausedIds, $currentRoundNumber);
+    }
+
+    /**
+     * Logika inti penyesuaian jadwal ronde mendatang berdasarkan status pemain aktif, withdrawn, dan resting/paused.
+     */
+    public static function adjustFutureScheduleCore(SessionModel $session, array $allWithdrawnIds, array $allPausedIds, int $currentRoundNumber): array
+    {
         $sessionId = $session->session_id;
         $lock = Cache::lock("drawing.lock_{$sessionId}", 5);
         $lock->block(3);
 
         try {
-            $allWithdrawnIds = array_values(array_unique(array_merge(
-                self::getWithdrawnPlayerIds($session),
-                array_map('intval', $newlyWithdrawnPlayerIds)
-            )));
+            $allWithdrawnIds = array_values(array_unique(array_map('intval', $allWithdrawnIds)));
+            $allPausedIds = array_values(array_unique(array_map('intval', $allPausedIds)));
+            $allExcludedIds = array_values(array_unique(array_merge($allWithdrawnIds, $allPausedIds)));
 
             $session->loadMissing(['players', 'courts']);
             $allPlayers = $session->players;
-            $activePlayers = $allPlayers->filter(fn ($p) => ! in_array((int) $p->player_id, $allWithdrawnIds, true))->values();
+            $activePlayers = $allPlayers->filter(fn ($p) => ! in_array((int) $p->player_id, $allExcludedIds, true))->values();
+            $pausedPlayers = $allPlayers->filter(fn ($p) => in_array((int) $p->player_id, $allPausedIds, true))->values();
+            $pausedPlayerNames = $pausedPlayers->pluck('nama')->toArray();
 
             $scheduleCacheKey = "drawing.schedule_{$sessionId}";
             $cachedSchedule = Cache::get($scheduleCacheKey);
@@ -1687,7 +1774,7 @@ class ScoringService
             // 2. Format Team Americano dengan pasangan tetap:
             if ($isTeamFormat) {
                 // Jangan memasangkan partner dengan orang lain secara diam-diam.
-                // Jika tim tidak lengkap karena partner keluar, tandai tim dan match tersebut sebagai invalid/incomplete.
+                // Jika tim tidak lengkap karena partner keluar/istirahat, tandai tim dan match tersebut sebagai invalid/incomplete.
                 for ($r = $currentRoundNumber + 1; $r <= $totalRounds; $r++) {
                     $origRound = $currentRounds[$r] ?? ($currentRounds["round_{$r}"] ?? []);
                     $matches = $origRound['matches'] ?? [];
@@ -1698,19 +1785,26 @@ class ScoringService
                         $teamAPlayerIds = array_column($m['team_a'] ?? ($m['teamA'] ?? []), 'id');
                         $teamBPlayerIds = array_column($m['team_b'] ?? ($m['teamB'] ?? []), 'id');
 
-                        $teamAHasWithdrawn = ! empty(array_intersect($teamAPlayerIds, $allWithdrawnIds));
-                        $teamBHasWithdrawn = ! empty(array_intersect($teamBPlayerIds, $allWithdrawnIds));
+                        $teamAHasExcluded = ! empty(array_intersect($teamAPlayerIds, $allExcludedIds));
+                        $teamBHasExcluded = ! empty(array_intersect($teamBPlayerIds, $allExcludedIds));
 
-                        if ($teamAHasWithdrawn || $teamBHasWithdrawn) {
+                        if ($teamAHasExcluded || $teamBHasExcluded) {
                             $mCopy['can_activate'] = false;
                             $mCopy['is_valid'] = false;
                             $mCopy['incomplete_team'] = true;
-                            $mCopy['invalidation_reason'] = 'Pasangan tim tidak lengkap karena ada anggota tim yang keluar. Memerlukan penataan tim oleh Host.';
+                            $mCopy['invalidation_reason'] = 'Pasangan tim tidak lengkap karena ada anggota tim yang keluar/istirahat. Memerlukan penataan tim oleh Host.';
+                        } else {
+                            $mCopy['can_activate'] = true;
+                            $mCopy['is_valid'] = true;
+                            $mCopy['incomplete_team'] = false;
+                            unset($mCopy['invalidation_reason']);
                         }
                         $adjustedMatches[] = $mCopy;
                     }
 
                     $origRound['matches'] = $adjustedMatches;
+                    $origResting = $origRound['resting'] ?? [];
+                    $origRound['resting'] = array_values(array_unique(array_merge($origResting, $pausedPlayerNames)));
                     $updatedRounds[$r] = $origRound;
                 }
             } else {
@@ -1718,10 +1812,14 @@ class ScoringService
                 if ($activePlayers->count() < $minRequiredPlayers) {
                     // Pemain aktif tidak mencukupi: Jangan membuat dummy atau match tidak valid.
                     for ($r = $currentRoundNumber + 1; $r <= $totalRounds; $r++) {
+                        $allRestingNames = array_values(array_unique(array_merge(
+                            $activePlayers->pluck('nama')->toArray(),
+                            $pausedPlayerNames
+                        )));
                         $updatedRounds[$r] = [
                             'round' => $r,
                             'matches' => [],
-                            'resting' => $activePlayers->pluck('nama')->toArray(),
+                            'resting' => $allRestingNames,
                             'teamA' => [],
                             'teamB' => [],
                             'teamA_names' => [],
@@ -1747,12 +1845,17 @@ class ScoringService
                         if (isset($generatedFuture[$genIdx])) {
                             $rData = $generatedFuture[$genIdx];
                             $rData['round'] = $r;
+                            $curResting = $rData['resting'] ?? [];
+                            $rData['resting'] = array_values(array_unique(array_merge($curResting, $pausedPlayerNames)));
                             $updatedRounds[$r] = $rData;
                         } else {
                             $updatedRounds[$r] = [
                                 'round' => $r,
                                 'matches' => [],
-                                'resting' => $activePlayers->pluck('nama')->toArray(),
+                                'resting' => array_values(array_unique(array_merge(
+                                    $activePlayers->pluck('nama')->toArray(),
+                                    $pausedPlayerNames
+                                ))),
                                 'teamA' => [],
                                 'teamB' => [],
                                 'teamA_names' => [],
@@ -1772,6 +1875,7 @@ class ScoringService
             $cachedSchedule['schedule_version'] = $newScheduleVersion;
             $cachedSchedule['court_count'] = $courtCount;
             $cachedSchedule['withdrawn_player_ids'] = $allWithdrawnIds;
+            $cachedSchedule['paused_player_ids'] = $allPausedIds;
             $cachedSchedule['last_adjusted_at'] = now()->toDateTimeString();
 
             foreach ($updatedRounds as $rNum => $rData) {
@@ -1806,9 +1910,11 @@ class ScoringService
                 'schedule_version' => $newScheduleVersion,
                 'rounds' => $updatedRounds,
                 'active_players_count' => $activePlayers->count(),
+                'drawingData' => ['rounds' => $updatedRounds],
                 'summary' => [
                     'active_players' => $activePlayers->pluck('nama')->toArray(),
                     'withdrawn_players' => $allWithdrawnIds,
+                    'paused_players' => $allPausedIds,
                     'insufficient' => $activePlayers->count() < $minRequiredPlayers,
                 ],
             ];

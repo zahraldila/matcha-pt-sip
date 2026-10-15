@@ -193,6 +193,7 @@ class ScoringController extends Controller
         // Multi-court NEVER falls back to $savedScores[$activeRound]
         $matchScore = $savedScores[$matchKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
         $currentScore = array_merge($defaultScore, $matchScore);
+        $pausedPlayerIds = ScoringService::getPausedPlayerIds($session);
 
         return view('scoring.live', compact(
             'game',
@@ -208,7 +209,8 @@ class ScoringController extends Controller
             'userPlayerId',
             'isPlayer',
             'cacheKey',
-            'roundAccess'
+            'roundAccess',
+            'pausedPlayerIds'
         ));
     }
 
@@ -1317,10 +1319,12 @@ class ScoringController extends Controller
                 }
             }
         }
+        $rawStopType = $request->input('stop_type');
         if (! $request->has('reason') || empty(trim((string) $request->input('reason', '')))) {
-            $rawStopType = $request->input('stop_type');
             if (in_array($rawStopType, ['withdraw', 'withdraw_players'], true)) {
                 $request->merge(['reason' => 'Pemain keluar dari sesi pertandingan']);
+            } elseif (in_array($rawStopType, ['temporary_pause', 'pause_players'], true)) {
+                $request->merge(['reason' => 'Istirahat sementara (masuk bangku cadangan)']);
             }
         }
 
@@ -1329,7 +1333,7 @@ class ScoringController extends Controller
             'round' => 'required|string',
             'court' => 'nullable|integer',
             'match_key' => 'nullable|string',
-            'stop_type' => 'required|in:keep_active,withdraw,keep_in_session,withdraw_players',
+            'stop_type' => 'required|in:keep_active,withdraw,keep_in_session,withdraw_players,temporary_pause,pause_players',
             'reason' => 'required|string|min:3',
             'withdrawn_player_ids' => 'nullable|array',
             'player_reasons' => 'nullable|array',
@@ -1343,7 +1347,11 @@ class ScoringController extends Controller
 
         $stopType = (string) $request->input('stop_type');
         $isWithdraw = in_array($stopType, ['withdraw', 'withdraw_players'], true);
+        $isPause = in_array($stopType, ['temporary_pause', 'pause_players'], true);
         $reason = trim((string) $request->input('reason', $request->input('stop_reason', '')));
+        if ($isPause && empty($reason)) {
+            $reason = 'Istirahat sementara (masuk bangku cadangan)';
+        }
 
         $rawWithdrawn = $request->input('withdrawn_player_ids', $request->input('withdrawn_players', []));
         if (! is_array($rawWithdrawn)) {
@@ -1356,10 +1364,10 @@ class ScoringController extends Controller
             $rawReasons = [];
         }
 
-        if ($isWithdraw && empty($rawWithdrawn)) {
+        if (($isWithdraw || $isPause) && empty($rawWithdrawn)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Pilih minimal satu pemain yang keluar dari sesi.',
+                'message' => $isPause ? 'Pilih minimal satu pemain yang istirahat sementara.' : 'Pilih minimal satu pemain yang keluar dari sesi.',
             ], 422);
         }
 
@@ -1424,11 +1432,14 @@ class ScoringController extends Controller
             }
 
             $note = trim((string) ($rawReasons[$item] ?? ($rawReasons[$itemStr] ?? ($rawReasons[$pId] ?? ($rawReasons[$pName] ?? '')))));
-            if ($note === '' && ! empty($rawReason) && $rawReason !== 'Pemain keluar dari sesi pertandingan') {
+            if ($note === '' && ! empty($rawReason) && ! in_array($rawReason, ['Pemain keluar dari sesi pertandingan', 'Istirahat sementara (masuk bangku cadangan)'], true)) {
                 $note = $rawReason;
             }
+            if ($isPause && $note === '') {
+                $note = $reason ?: 'Istirahat sementara (masuk bangku cadangan)';
+            }
 
-            // Validasi alasan per pemain keluar wajib diisi
+            // Validasi alasan per pemain keluar wajib diisi untuk withdrawal permanen
             if ($isWithdraw && $note === '') {
                 return response()->json([
                     'success' => false,
@@ -1448,10 +1459,10 @@ class ScoringController extends Controller
 
         $withdrawnPlayerIds = array_values(array_unique($withdrawnPlayerIds));
 
-        if ($isWithdraw && empty($withdrawnPlayerIds) && empty($withdrawnPlayerNames)) {
+        if (($isWithdraw || $isPause) && empty($withdrawnPlayerIds) && empty($withdrawnPlayerNames)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Pilih minimal satu pemain yang keluar dari sesi.',
+                'message' => $isPause ? 'Pilih minimal satu pemain yang istirahat sementara.' : 'Pilih minimal satu pemain yang keluar dari sesi.',
             ], 422);
         }
 
@@ -1539,7 +1550,7 @@ class ScoringController extends Controller
             ]);
 
             // 1. Simpan perubahan secara ATOMIK ke database
-            DB::transaction(function () use ($session, $round, $courtIndex, $scorePayload, $newVersion, $eventId, $stopType, $isWithdraw, $reason, $withdrawnPlayerIds, $playerReasons) {
+            DB::transaction(function () use ($session, $round, $courtIndex, $scorePayload, $newVersion, $eventId, $stopType, $isWithdraw, $isPause, $reason, $withdrawnPlayerIds, $playerReasons) {
                 $match = ScoringService::ensureMatchAndParticipants($session, $round, $courtIndex);
                 if ($match) {
                     $matchSummary = "Dihentikan: {$scorePayload['games_a']} - {$scorePayload['games_b']} ({$reason})";
@@ -1618,11 +1629,11 @@ class ScoringController extends Controller
                     ]);
 
                     // Perbarui status partisipasi pemain di tb_session_player jika kolom tersedia
-                    if ($isWithdraw && ! empty($withdrawnPlayerIds) && Schema::hasTable('tb_session_player')) {
+                    if (($isWithdraw || $isPause) && ! empty($withdrawnPlayerIds) && Schema::hasTable('tb_session_player')) {
                         foreach ($withdrawnPlayerIds as $wPlayerId) {
                             $updateData = [];
                             if (Schema::hasColumn('tb_session_player', 'status')) {
-                                $updateData['status'] = 'withdrawn';
+                                $updateData['status'] = $isPause ? 'resting' : 'withdrawn';
                             }
                             if (Schema::hasColumn('tb_session_player', 'withdrawn_at')) {
                                 $updateData['withdrawn_at'] = now();
@@ -1644,9 +1655,10 @@ class ScoringController extends Controller
                 }
             });
 
-            // 2. Jika pemain keluar, sesuaikan sisa jadwal mendatang (Kondisi B)
+            // 2. Sesuaikan sisa jadwal mendatang jika pemain keluar atau istirahat
             $scheduleAdjusted = false;
             $adjustedScheduleSummary = null;
+            $adjustedSchedule = null;
             if ($isWithdraw && ! empty($withdrawnPlayerIds)) {
                 try {
                     preg_match('/(\d+)/', $round, $rM);
@@ -1656,6 +1668,16 @@ class ScoringController extends Controller
                     $adjustedScheduleSummary = $adjustedSchedule['summary'] ?? null;
                 } catch (\Throwable $e) {
                     Log::error("[stopMatch] [{$correlationId}] Schedule adjustment error: {$e->getMessage()}");
+                }
+            } elseif ($isPause && ! empty($withdrawnPlayerIds)) {
+                try {
+                    preg_match('/(\d+)/', $round, $rM);
+                    $currRoundNum = isset($rM[1]) ? (int) $rM[1] : 1;
+                    $adjustedSchedule = ScoringService::adjustFutureScheduleOnPause($session, $withdrawnPlayerIds, $currRoundNum);
+                    $scheduleAdjusted = true;
+                    $adjustedScheduleSummary = $adjustedSchedule['summary'] ?? null;
+                } catch (\Throwable $e) {
+                    Log::error("[stopMatch] [{$correlationId}] Pause schedule adjustment error: {$e->getMessage()}");
                 }
             }
 
@@ -1672,6 +1694,9 @@ class ScoringController extends Controller
                 if ($isWithdraw) {
                     $existingWithdrawn = $scores['_meta']['withdrawn_players'] ?? [];
                     $scores['_meta']['withdrawn_players'] = array_values(array_unique(array_merge($existingWithdrawn, $withdrawnPlayerIds)));
+                } elseif ($isPause) {
+                    $existingPaused = $scores['_meta']['paused_players'] ?? [];
+                    $scores['_meta']['paused_players'] = array_values(array_unique(array_merge($existingPaused, $withdrawnPlayerIds)));
                 }
                 Cache::put($cacheKey, $scores, now()->addHours(4));
                 Cache::put("scoring.game_{$gameId}.{$matchKey}", $scorePayload, now()->addHours(4));
@@ -1697,15 +1722,22 @@ class ScoringController extends Controller
 
         // 4. Broadcast Realtime di luar lock
         $this->broadcastScoreUpdateRealtime($gameId, $matchKey, $scorePayload);
+        if ($scheduleAdjusted && isset($adjustedSchedule['rounds'])) {
+            $this->broadcastDrawingShuffledRealtime($gameId, $adjustedSchedule['drawingData'] ?? [], $adjustedSchedule['rounds']);
+        }
 
         $hasInsufficient = ! empty($adjustedScheduleSummary['insufficient']);
         $insufficientWarning = $hasInsufficient ? 'Jumlah pemain aktif tidak mencukupi untuk melanjutkan ronde berikutnya.' : null;
+        $stoppedMsg = $isPause
+            ? 'Pertandingan berhasil dihentikan. Pemain dipindahkan ke bangku cadangan untuk ronde berikutnya.'
+            : 'Pertandingan berhasil dihentikan.';
 
         return response()->json([
             'success' => true,
-            'message' => 'Pertandingan berhasil dihentikan.',
+            'message' => $stoppedMsg,
             'match_key' => $matchKey,
             'status' => 'stopped',
+            'stop_type' => $stopType,
             'saved' => $scorePayload,
             'schedule_adjusted' => $scheduleAdjusted,
             'schedule_summary' => $adjustedScheduleSummary,
@@ -1713,6 +1745,149 @@ class ScoringController extends Controller
             'warning' => $insufficientWarning,
             'correlation_id' => $correlationId,
         ])->header('X-Correlation-Id', $correlationId);
+    }
+
+    /**
+     * Mengaktifkan kembali pemain yang sebelumnya istirahat sementara (paused / resting di bench) (khusus Host).
+     */
+    public function reactivatePlayer(Request $request)
+    {
+        if (! Auth::check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. Silakan login terlebih dahulu.',
+            ], 403);
+        }
+
+        $gameId = (int) ($request->input('game_id') ?: $request->input('session_id'));
+        if (! $gameId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ID Sesi diperlukan.',
+            ], 422);
+        }
+
+        $session = SessionModel::with(['players.user', 'courts', 'sport', 'host'])->find($gameId);
+        if (! $session) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesi tidak ditemukan.',
+            ], 404);
+        }
+
+        if (! $this->isHostForSession($session)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. Hanya Host yang dapat mengaktifkan kembali pemain.',
+            ], 403);
+        }
+
+        $request->validate([
+            'player_id' => 'required|integer',
+            'round' => 'nullable|string',
+        ]);
+
+        $playerId = (int) $request->input('player_id');
+        $player = Player::find($playerId);
+        $playerName = $player ? $player->nama : "Pemain #{$playerId}";
+
+        // 1. Update tb_session_player: status = 'active'
+        if (Schema::hasTable('tb_session_player')) {
+            $updateData = [];
+            if (Schema::hasColumn('tb_session_player', 'status')) {
+                $updateData['status'] = 'active';
+            }
+            if (Schema::hasColumn('tb_session_player', 'withdrawn_at')) {
+                $updateData['withdrawn_at'] = null;
+            }
+            if (Schema::hasColumn('tb_session_player', 'withdrawn_reason')) {
+                $updateData['withdrawn_reason'] = null;
+            }
+            if (Schema::hasColumn('tb_session_player', 'withdrawn_match_id')) {
+                $updateData['withdrawn_match_id'] = null;
+            }
+            if (! empty($updateData)) {
+                DB::table('tb_session_player')
+                    ->where('session_id', $session->session_id)
+                    ->where('player_id', $playerId)
+                    ->update($updateData);
+            }
+        }
+
+        // 2. Update Cache scoring.game_{id}: hapus dari paused_players
+        $cacheKey = "scoring.game_{$gameId}";
+        $scores = Cache::get($cacheKey, []);
+        $existingPaused = $scores['_meta']['paused_players'] ?? [];
+        if (is_array($existingPaused)) {
+            $scores['_meta']['paused_players'] = array_values(array_filter($existingPaused, fn ($id) => (int) $id !== $playerId));
+            Cache::put($cacheKey, $scores, now()->addHours(4));
+        }
+
+        // 3. Tentukan ronde aktif
+        $roundStr = (string) ($request->input('round') ?: ($scores['_meta']['active_round'] ?? 'round_1'));
+        preg_match('/(\d+)/', $roundStr, $rM);
+        $currRoundNum = isset($rM[1]) ? (int) $rM[1] : 1;
+
+        // 4. Sesuaikan jadwal ronde mendatang dengan memasukkan kembali pemain ini
+        $adjusted = ScoringService::adjustFutureScheduleOnReactivation($session, $playerId, $currRoundNum);
+
+        // 5. Broadcast perubahan drawing ke seluruh client
+        if (isset($adjusted['rounds'])) {
+            $this->broadcastDrawingShuffledRealtime($gameId, $adjusted['drawingData'] ?? [], $adjusted['rounds']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Pemain {$playerName} telah siap dan dimasukkan kembali ke rotasi pertandingan!",
+            'player_id' => $playerId,
+            'player_name' => $playerName,
+            'schedule_version' => $adjusted['schedule_version'] ?? 1,
+            'active_players_count' => $adjusted['active_players_count'] ?? null,
+            'rounds' => $adjusted['rounds'] ?? [],
+        ]);
+    }
+
+    /**
+     * Broadcast update drawing yang diacak/disesuaikan ke channel Supabase Realtime.
+     */
+    protected function broadcastDrawingShuffledRealtime(int $gameId, array $drawingData, array $rounds, array $participantsMap = []): void
+    {
+        try {
+            $url = rtrim(config('services.supabase.url', ''), '/').'/realtime/v1/api/broadcast';
+            $key = config('services.supabase.service_key', config('services.supabase.key'));
+            if (empty($url) || empty($key)) {
+                return;
+            }
+
+            $headers = [
+                'apikey' => $key,
+                'Content-Type' => 'application/json',
+            ];
+            if (str_starts_with($key, 'ey')) {
+                $headers['Authorization'] = 'Bearer '.$key;
+            }
+
+            Http::withOptions(['verify' => $this->resolveCaBundle()])
+                ->withHeaders($headers)
+                ->timeout(2)
+                ->post($url, [
+                    'messages' => [
+                        [
+                            'topic' => "session_{$gameId}",
+                            'event' => 'drawing_shuffled',
+                            'payload' => [
+                                'session_id' => $gameId,
+                                'drawingData' => $drawingData,
+                                'rounds' => $rounds,
+                                'participantsMap' => $participantsMap,
+                                'timestamp' => now()->toIso8601String(),
+                            ],
+                        ],
+                    ],
+                ]);
+        } catch (\Throwable $e) {
+            Log::debug("Supabase realtime drawing shuffled broadcast skipped: {$e->getMessage()}");
+        }
     }
 
     /**
