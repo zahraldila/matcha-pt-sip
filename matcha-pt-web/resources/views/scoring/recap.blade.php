@@ -493,20 +493,20 @@
             @endphp
             @foreach($allKudosPlayers as $player)
             <div class="p-3.5 rounded-2xl bg-white border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs hover:border-[#063B00]/20 transition-all">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 shrink-0 sm:w-44 lg:w-48">
                     @if(!empty($player['avatar']))
                         <img src="{{ $player['avatar'] }}" class="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0" alt="{{ $player['name'] }}">
                     @else
                         <div class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-600 text-xs font-bold">{{ mb_substr($player['name'] ?? 'P', 0, 1) }}</div>
                     @endif
-                    <div>
+                    <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-1.5">
-                            <h4 class="text-xs font-bold text-slate-900">{{ $player['name'] }}</h4>
+                            <h4 class="text-xs font-bold text-slate-900 truncate" title="{{ $player['name'] }}">{{ $player['name'] }}</h4>
                             @if(!empty($player['rank']) && $player['rank'] <= 3)
-                                <span class="text-[10px]">{{ $player['medal']['emoji'] ?? '' }}</span>
+                                <span class="text-[10px] shrink-0">{{ $player['medal']['emoji'] ?? '' }}</span>
                             @endif
                         </div>
-                        <p class="text-[10px] text-slate-400">
+                        <p class="text-[10px] text-slate-400 truncate">
                             @if(!empty($player['medal']['label']))
                                 {{ $player['medal']['label'] }} &bull; 
                             @endif
@@ -515,7 +515,7 @@
                     </div>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-1.5">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 flex-1 max-w-xl">
                     @foreach($kudosBadges as $badge)
                     @php
                         $kKey = "{$player['name']}:{$badge}";
@@ -526,7 +526,7 @@
                         onclick="toggleKudos(this, '{{ addslashes($player['name']) }}', '{{ addslashes($badge) }}', {{ $player['id'] ?? ($player['player_id'] ?? 'null') }})"
                         data-player-name="{{ $player['name'] }}"
                         data-badge="{{ $badge }}"
-                        class="kudos-btn px-2.5 py-1 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer inline-flex items-center gap-1.5 {{ $isGiven ? 'bg-[#063B00] text-white border-[#063B00] shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00]' }}">
+                        class="kudos-btn px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 w-full text-center whitespace-nowrap {{ $isGiven ? 'bg-[#063B00] text-white border-[#063B00] shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00]' }}">
                         <span>{{ $badge }}</span>
                         <span class="kudos-badge-count text-[9px] px-1.5 py-0.2 rounded-full {{ $isGiven ? 'bg-[#A8E63A] text-[#063B00] font-black' : ($kCount > 0 ? 'bg-slate-200 text-slate-700 font-bold' : 'hidden') }}">
                             {{ $kCount > 0 ? $kCount : '' }}
