@@ -1818,7 +1818,14 @@ class EndMatchFeatureTest extends TestCase
     }
 
     /**
-     * Test 31: Cache fixture kosong setelah pause/resume: status pemain, susunan, bench, dan kapasitas court tetap benar saat dibaca ulang.
+     * Test 31: Cache fixture kosong setelah pause/resume: verifikasi snapshot persis antara sebelum dan sesudah cache dihapus.
+     * Menguji konsistensi drawing & live scoring:
+     * - Pemain per court dan sisi
+     * - Match ID yang sudah tersimpan
+     * - Bench rotasi
+     * - Pemain istirahat per ronde
+     * - Status/skor match yang sudah berjalan atau terminal
+     * - Ronde aktif dan jumlah ronde
      */
     public function test_31_empty_cache_reconstructs_adjusted_schedule_with_correct_court_capacity()
     {
@@ -1827,10 +1834,11 @@ class EndMatchFeatureTest extends TestCase
         $host = $env['host'];
         $hilmy = $env['players'][0];
         $matchC1 = $env['matches'][1][0]['match'];
+        $matchC2 = $env['matches'][1][1]['match'];
 
         $this->actingAs($host);
 
-        // Pause Hilmy
+        // 1. Simulasikan Court 1 dihentikan dan Hilmy diistirahatkan (skor 1-1 saat dihentikan)
         $this->postJson(route('scoring.stop-match'), [
             'game_id' => $session->session_id,
             'match_id' => $matchC1->match_id,
@@ -1838,23 +1846,133 @@ class EndMatchFeatureTest extends TestCase
             'court_number' => 1,
             'round_key' => 'round_1',
             'stop_type' => 'temporary_pause',
+            'stop_reason' => 'Hilmy kram otot',
             'withdrawn_player_ids' => [$hilmy->player_id],
+            'current_games_a' => 1,
+            'current_games_b' => 1,
         ])->assertStatus(200);
 
-        // SIMULASIKAN CACHE KOSONG
+        $respUpdate = $this->postJson(route('scoring.update-score'), [
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
+            'match_key' => 'round_1_court_2',
+            'score_a' => 2,
+            'score_b' => 0,
+            'games_a' => 2,
+            'games_b' => 0,
+            'status' => 'completed',
+            'winner_team' => 'team_a',
+        ]);
+        $respUpdate->assertStatus(200);
+
+        // 2. Hilmy kembali aktif (Siap Main)
+        $this->postJson(route('scoring.reactivate-player'), [
+            'game_id' => $session->session_id,
+            'player_id' => $hilmy->player_id,
+            'round' => 'round_1',
+        ])->assertStatus(200);
+
+        // 3. Ambil SNAPSHOT LENGKAP sebelum cache dihapus
+        $respDrawingBefore = $this->getJson(route('games.drawing', ['id' => $session->session_id, 'json' => 1]));
+        $respDrawingBefore->assertStatus(200);
+        $snapshotDrawingBefore = $respDrawingBefore->json();
+
+        $respLiveBefore = $this->get(route('scoring.live', ['id' => $session->session_id]));
+        $respLiveBefore->assertStatus(200);
+
+        // 4. KOSONGKAN HANYA CACHE FIXTURE TERISOLASI
         Cache::forget("drawing.schedule_{$session->session_id}");
+        Cache::forget("scoring.game_{$session->session_id}");
 
-        // Request drawing JSON
-        $respDrawing = $this->getJson(route('games.drawing', ['id' => $session->session_id, 'json' => 1]));
-        $respDrawing->assertStatus(200);
+        // 5. BACA ULANG DARI ENDPOINT DRAWING (JSON & HTML) DAN LIVE SCORING
+        $respDrawingAfter = $this->getJson(route('games.drawing', ['id' => $session->session_id, 'json' => 1]));
+        $respDrawingAfter->assertStatus(200);
+        $snapshotDrawingAfter = $respDrawingAfter->json();
 
-        // Jadwal terekonstruksi dengan benar dari database
-        $rData = $respDrawing->json('rounds');
-        $this->assertNotEmpty($rData);
-        // Hilmy tetap tercatat di resting
-        $this->assertContains('Hilmy', $rData[2]['resting'] ?? []);
-        // Court count round 2 hanya 1 karena pemain aktif 3
-        $this->assertCount(1, $rData[2]['matches'] ?? []);
+        $respLiveAfter = $this->get(route('scoring.live', ['id' => $session->session_id]));
+        $respLiveAfter->assertStatus(200);
+
+        // 6. VALIDASI KESAMAAN PERSIS:
+        // A. Ronde aktif dan jumlah ronde
+        $this->assertSame(
+            $snapshotDrawingBefore['active_round_num'],
+            $snapshotDrawingAfter['active_round_num'],
+            'Ronde aktif harus persis sama setelah cache dibersihkan'
+        );
+        $this->assertCount(
+            count($snapshotDrawingBefore['rounds']),
+            $snapshotDrawingAfter['rounds'],
+            'Jumlah ronde harus persis sama'
+        );
+
+        $roundsBefore = $snapshotDrawingBefore['rounds'];
+        $roundsAfter = $snapshotDrawingAfter['rounds'];
+
+        foreach ($roundsBefore as $rNum => $rBefore) {
+            $rAfter = $roundsAfter[$rNum] ?? null;
+            $this->assertNotNull($rAfter, "Ronde {$rNum} harus ada pada hasil rekonstruksi cache kosong");
+
+            // B. Bench rotasi per ronde
+            $benchBefore = $rBefore['rotation_bench'] ?? ($rBefore['resting'] ?? []);
+            $benchAfter = $rAfter['rotation_bench'] ?? ($rAfter['resting'] ?? []);
+            sort($benchBefore);
+            sort($benchAfter);
+            $this->assertEquals($benchBefore, $benchAfter, "Bench rotasi ronde {$rNum} harus persis sama");
+
+            // C. Pemain istirahat per ronde
+            $pausedBefore = $rBefore['paused_players'] ?? [];
+            $pausedAfter = $rAfter['paused_players'] ?? [];
+            sort($pausedBefore);
+            sort($pausedAfter);
+            $this->assertEquals($pausedBefore, $pausedAfter, "Daftar istirahat ronde {$rNum} harus persis sama");
+
+            // D. Pemain per court dan sisi serta Match ID
+            $this->assertCount(count($rBefore['matches']), $rAfter['matches'], "Jumlah court pertandingan ronde {$rNum} harus persis sama");
+            foreach ($rBefore['matches'] as $mIdx => $mBefore) {
+                $mAfter = $rAfter['matches'][$mIdx] ?? null;
+                $this->assertNotNull($mAfter, "Match court index {$mIdx} ronde {$rNum} harus ada");
+
+                // Match ID persisten sama
+                if (! empty($mBefore['match_id']) && ! empty($mAfter['match_id'])) {
+                    $this->assertSame($mBefore['match_id'], $mAfter['match_id'], "Match ID court index {$mIdx} ronde {$rNum} harus persis sama");
+                }
+
+                // Court sama
+                if (isset($mBefore['court_id']) && isset($mAfter['court_id'])) {
+                    $this->assertSame($mBefore['court_id'], $mAfter['court_id'], "Court ID ronde {$rNum} court {$mIdx} harus persis sama");
+                }
+                $this->assertSame($mBefore['court'] ?? ($mIdx + 1), $mAfter['court'] ?? ($mIdx + 1), "Court number ronde {$rNum} court {$mIdx} harus persis sama");
+
+                // Pemain Sisi A
+                $sideABefore = array_column($mBefore['team_a'] ?? [], 'name');
+                $sideAAfter = array_column($mAfter['team_a'] ?? [], 'name');
+                sort($sideABefore);
+                sort($sideAAfter);
+                $this->assertEquals($sideABefore, $sideAAfter, "Peserta Sisi A ronde {$rNum} court {$mIdx} harus persis sama");
+
+                // Pemain Sisi B
+                $sideBBefore = array_column($mBefore['team_b'] ?? [], 'name');
+                $sideBAfter = array_column($mAfter['team_b'] ?? [], 'name');
+                sort($sideBBefore);
+                sort($sideBAfter);
+                $this->assertEquals($sideBBefore, $sideBAfter, "Peserta Sisi B ronde {$rNum} court {$mIdx} harus persis sama");
+            }
+        }
+
+        // E. Status & skor match yang sudah berjalan atau terminal di database
+        $freshMatchC1 = GameMatch::find($matchC1->match_id);
+        $this->assertSame('Stopped', $freshMatchC1->status_match, 'Status match 1 harus tetap Stopped');
+        $this->assertStringContainsString('Dihentikan: 1 - 1', $freshMatchC1->hasil_pertandingan);
+        $this->assertSame('Hilmy kram otot', $freshMatchC1->stop_reason);
+        $this->assertSame('temporary_pause', $freshMatchC1->stop_type);
+
+        $freshMatchC2 = GameMatch::find($matchC2->match_id);
+        $this->assertSame('Completed', $freshMatchC2->status_match, 'Status match 2 harus tetap Completed');
+        $this->assertSame('team_a', $freshMatchC2->winner_team);
+
+        // F. Pemulihan kapasitas court konfigurasi sesi: Ronde 3 memiliki 2 match (2 court aktif)
+        $r3Matches = $roundsAfter[3]['matches'] ?? [];
+        $this->assertCount(2, $r3Matches, 'Ronde 3 harus menggunakan kembali 2 court setelah Hilmy kembali aktif');
     }
 }
 

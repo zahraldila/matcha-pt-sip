@@ -1372,11 +1372,31 @@ class GameController extends Controller
             }
         }
 
+        $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
+        $isSingleMode = strtolower($drawingMode) === 'single';
+        $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
+        $expectedRounds = ScoringService::determineSessionRoundCount(
+            $scoringSystem,
+            count($participants),
+            $isTeam,
+            $isSingleMode,
+            $dbSession->waktu_session ?? null,
+            $courtCount
+        );
+
         $hasScheduleAdjusted = ScoringService::hasScheduleBeenAdjusted($dbSession);
         $needsGeneration = false;
         if (! $savedSchedule || empty($savedSchedule['rounds']) || $isCacheStale) {
-            if ($hasScheduleAdjusted) {
-                // Pulihkan jadwal teradjust dari database state, bukan mengulang bracket acak dari awal
+            // 1. Baca langsung jadwal persisten dari basis data (READ-ONLY) jika jumlah ronde di DB sudah lengkap
+            $dbSchedule = ScoringService::buildScheduleFromDatabase($dbSession);
+            $hasCompleteDbRounds = $dbSchedule && ! empty($dbSchedule['rounds']) && ($expectedRounds === null || count($dbSchedule['rounds']) >= $expectedRounds);
+            if ($hasCompleteDbRounds) {
+                $savedSchedule = $dbSchedule;
+                $rounds = $savedSchedule['rounds'];
+                $drawingData = $savedSchedule['drawingData'];
+                Cache::put($scheduleCacheKey, $savedSchedule, now()->addHours(12));
+            } elseif ($hasScheduleAdjusted) {
+                // Fallback rekonstruksi jika match masa depan belum lengkap di tb_match
                 $effectiveRound = 1;
                 try {
                     if (Schema::hasTable('tb_drawing') && Schema::hasTable('tb_match')) {

@@ -7,6 +7,7 @@ use App\Http\Controllers\Game\GameController;
 use App\Models\Drawing;
 use App\Models\GameMatch;
 use App\Models\Kudos;
+use App\Models\MatchParticipant;
 use App\Models\Player;
 use App\Models\PlayingHistory;
 use App\Models\Score;
@@ -472,6 +473,9 @@ class ScoringController extends Controller
         $checkRound = (string) $request->input('round', '');
         $checkCourt = (int) $request->input('court', 0);
         $checkMatchKey = (string) $request->input('match_key', '');
+        if (! empty($checkMatchKey) && preg_match('/court_(\d+)/', $checkMatchKey, $cm)) {
+            $checkCourt = max(0, ((int) $cm[1]) - 1);
+        }
         if (empty($checkMatchKey) && ! empty($checkRound)) {
             $checkCourtNum = max(1, $checkCourt + 1);
             $checkSession = SessionModel::with('courts')->find($checkGameId);
@@ -488,10 +492,16 @@ class ScoringController extends Controller
                 $stoppedReason = $cachedScores[$checkMatchKey]['stop_reason'] ?? null;
             }
             if (! $isStopped) {
-                $mId = $request->input('match_id');
-                if ($mId) {
-                    $mObj = GameMatch::find($mId);
-                    if ($mObj && strtolower($mObj->status_match ?? '') === 'stopped') {
+                $mId = (int) $request->input('match_id', 0);
+                if ($mId > 0) {
+                    $mObj = ScoringService::validateMatchSession($mId, $checkGameId);
+                    if (! $mObj) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Match ID tidak valid atau tidak sesuai dengan drawing aktif sesi ini.',
+                        ], 422);
+                    }
+                    if (strtolower($mObj->status_match ?? '') === 'stopped') {
                         $isStopped = true;
                         $stoppedReason = $mObj->stop_reason ?? null;
                     }
@@ -512,6 +522,53 @@ class ScoringController extends Controller
                     'winner_team' => null,
                     'stop_reason' => $stoppedReason,
                 ], 422);
+            }
+
+            // Periksa apakah status pemain telah berubah dan jadwal membutuhkan konfirmasi host sebelum match yang tidak valid dimulai
+            if (ScoringService::sessionNeedsScheduleAdjustment($checkGameId)) {
+                $targetRoundNum = 1;
+                if (preg_match('/(\d+)/', $checkRound, $rm)) {
+                    $targetRoundNum = (int) $rm[1];
+                }
+                $activeRoundNum = (int) preg_replace('/[^0-9]/', '', $this->resolveActiveRoundFromDatabase($checkGameId) ?? '1');
+                
+                $isFutureRound = $targetRoundNum > $activeRoundNum;
+                $hasInactivePlayer = false;
+
+                $targetDbMatch = null;
+                if (! empty($mObj)) {
+                    $targetDbMatch = $mObj;
+                } else {
+                    $sessionObj = SessionModel::find($checkGameId);
+                    $authDrawing = $sessionObj ? ScoringService::getAuthoritativeDrawing($sessionObj) : null;
+                    if ($authDrawing) {
+                        $courtCount = $sessionObj->courts()->count() ?: 1;
+                        $nomorMatch = ($targetRoundNum - 1) * $courtCount + ($checkCourt + 1);
+                        $targetDbMatch = GameMatch::where('drawing_id', $authDrawing->drawing_id)
+                            ->where('nomor_match', $nomorMatch)
+                            ->first();
+                    }
+                }
+
+                if ($targetDbMatch) {
+                    $inactiveIds = array_merge(
+                        ScoringService::getWithdrawnPlayerIds($checkGameId),
+                        ScoringService::getPausedPlayerIds($checkGameId)
+                    );
+                    if (! empty($inactiveIds)) {
+                        $hasInactivePlayer = MatchParticipant::where('match_id', $targetDbMatch->match_id)
+                            ->whereIn('player_id', $inactiveIds)
+                            ->exists();
+                    }
+                }
+
+                if ($isFutureRound || $hasInactivePlayer) {
+                    return response()->json([
+                        'success' => false,
+                        'needs_schedule_adjustment' => true,
+                        'message' => 'Terdapat perubahan status pemain. Jadwal pertandingan perlu disesuaikan dan dikonfirmasi oleh Host sebelum pertandingan ini dapat dimulai.',
+                    ], 422);
+                }
             }
         }
 
@@ -568,8 +625,12 @@ class ScoringController extends Controller
             $matchKey = ScoringService::buildMatchKey($round, $courtNum, max(1, $courtCount));
         }
         $status = $request->input('status', 'in_progress');
-        $requestedCourt = $request->integer('court', 0);
-        $courtIndex = $requestedCourt > 0 ? max(0, $requestedCourt - 1) : 0;
+        $courtIndex = 0;
+        if (preg_match('/court_(\d+)/', (string) $matchKey, $cm)) {
+            $courtIndex = max(0, ((int) $cm[1]) - 1);
+        } elseif ($request->has('court')) {
+            $courtIndex = max(0, $request->integer('court', 1) - 1);
+        }
         $isWalkover = $request->boolean('is_walkover', false);
 
         // Simpan ke Cache (TTL 4 jam) agar bisa dibaca semua user
@@ -1376,6 +1437,19 @@ class ScoringController extends Controller
         $sessionPlayerMapById = $sessionPlayers->keyBy('player_id');
         $sessionPlayerMapByName = $sessionPlayers->keyBy(fn ($p) => ScoringService::cleanPlayerName($p->nama));
 
+        // State server authoritative: Jika match_id diberikan, turunkan ronde dan court riil dari database server
+        if ($request->has('match_id') && (int) $request->input('match_id') > 0) {
+            $dbTargetMatch = GameMatch::where('match_id', (int) $request->input('match_id'))->first();
+            if ($dbTargetMatch) {
+                $sessionCourtsCount = max(1, $session->courts->count());
+                $serverRoundNum = intdiv((int) $dbTargetMatch->nomor_match - 1, $sessionCourtsCount) + 1;
+                $serverCourtIdx = ((int) $dbTargetMatch->nomor_match - 1) % $sessionCourtsCount;
+                $round = "round_{$serverRoundNum}";
+                $courtIndex = $serverCourtIdx;
+                $matchKey = ($sessionCourtsCount > 1) ? "{$round}_court_".($courtIndex + 1) : $round;
+            }
+        }
+
         $gameData = $this->getGameData($gameId);
         $matchContext = ScoringService::buildMatchContext($gameData, $round, $courtIndex);
         $targetMatch = $matchContext['matches'][$courtIndex] ?? ($matchContext['matches'][0] ?? null);
@@ -1549,9 +1623,26 @@ class ScoringController extends Controller
                 'updated_at' => now()->toDateTimeString(),
             ]);
 
+            $matchId = (int) $request->input('match_id', 0);
+            if ($matchId > 0) {
+                $validatedMatch = ScoringService::validateMatchSession($matchId, $session->session_id);
+                if (! $validatedMatch) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Match ID tidak valid atau tidak sesuai dengan drawing aktif sesi ini.',
+                    ], 422);
+                }
+            }
+
             // 1. Simpan perubahan secara ATOMIK ke database
-            DB::transaction(function () use ($session, $round, $courtIndex, $scorePayload, $newVersion, $eventId, $stopType, $isWithdraw, $isPause, $reason, $withdrawnPlayerIds, $playerReasons) {
-                $match = ScoringService::ensureMatchAndParticipants($session, $round, $courtIndex);
+            DB::transaction(function () use ($session, $round, $courtIndex, $scorePayload, $newVersion, $eventId, $stopType, $isWithdraw, $isPause, $reason, $withdrawnPlayerIds, $playerReasons, $matchId) {
+                $match = null;
+                if ($matchId > 0) {
+                    $match = ScoringService::validateMatchSession($matchId, $session->session_id);
+                }
+                if (! $match) {
+                    $match = ScoringService::ensureMatchAndParticipants($session, $round, $courtIndex);
+                }
                 if ($match) {
                     $matchSummary = "Dihentikan: {$scorePayload['games_a']} - {$scorePayload['games_b']} ({$reason})";
                     $match->status_match = 'Stopped';
@@ -1581,7 +1672,52 @@ class ScoringController extends Controller
                         $match->withdrawn_player_ids = json_encode($withdrawnPlayerIds);
                     }
                     if (Schema::hasColumn('tb_match', 'player_notes')) {
-                        $match->player_notes = json_encode($playerReasons);
+                        $roundNum = 1;
+                        if (preg_match('/(\d+)/', $round, $rm)) {
+                            $roundNum = (int) $rm[1];
+                        }
+                        $allPaused = ScoringService::getPausedPlayerIds($session);
+                        $allWithdrawn = ScoringService::getWithdrawnPlayerIds($session);
+                        if ($isPause && ! empty($withdrawnPlayerIds)) {
+                            $allPaused = array_values(array_unique(array_merge($allPaused, $withdrawnPlayerIds)));
+                        } elseif ($isWithdraw && ! empty($withdrawnPlayerIds)) {
+                            $allWithdrawn = array_values(array_unique(array_merge($allWithdrawn, $withdrawnPlayerIds)));
+                        }
+
+                        $allSessionPlayers = $session->players;
+                        $courtCountForRound = max(1, $session->courts->count());
+                        $roundPlayingIds = [];
+                        if ($match->drawing_id) {
+                            $rMatches = GameMatch::where('drawing_id', $match->drawing_id)
+                                ->whereBetween('nomor_match', [($roundNum - 1) * $courtCountForRound + 1, $roundNum * $courtCountForRound])
+                                ->get();
+                            if ($rMatches->isNotEmpty()) {
+                                $roundPlayingIds = MatchParticipant::whereIn('match_id', $rMatches->pluck('match_id'))
+                                    ->pluck('player_id')->map('intval')->toArray();
+                            }
+                        }
+
+                        $rotationBenchIds = [];
+                        foreach ($allSessionPlayers as $sp) {
+                            $spId = (int) $sp->player_id;
+                            if (! in_array($spId, $allPaused, true) && ! in_array($spId, $allWithdrawn, true)) {
+                                if (! in_array($spId, $roundPlayingIds, true)) {
+                                    $rotationBenchIds[] = $spId;
+                                }
+                            }
+                        }
+
+                        $notesData = is_array($playerReasons) ? $playerReasons : [];
+                        $notesData['round_snapshot'] = [
+                            'round' => $roundNum,
+                            'paused_player_ids' => array_values(array_diff($allPaused, $roundPlayingIds)),
+                            'rotation_bench_ids' => $rotationBenchIds,
+                            'withdrawn_player_ids' => array_values(array_diff($allWithdrawn, $roundPlayingIds)),
+                            'court_count' => $courtCountForRound,
+                            'version' => $newVersion,
+                            'updated_at' => now()->toIso8601String(),
+                        ];
+                        $match->player_notes = json_encode($notesData);
                     }
                     $match->save();
 
@@ -1727,7 +1863,15 @@ class ScoringController extends Controller
         }
 
         $hasInsufficient = ! empty($adjustedScheduleSummary['insufficient']);
-        $insufficientWarning = $hasInsufficient ? 'Jumlah pemain aktif tidak mencukupi untuk melanjutkan ronde berikutnya.' : null;
+        $activePlayersCount = $adjustedSchedule['active_players_count'] ?? count($session->players);
+        $insufficientWarning = $hasInsufficient 
+            ? "Jumlah pemain aktif tersisa {$activePlayersCount} (minimal 4 untuk Double). Silakan gunakan panel Kesiapan Pemain untuk mengaktifkan pemain dari istirahat sebelum memulai ronde berikutnya." 
+            : null;
+
+        if ($scheduleAdjusted && ($isPause || $isWithdraw)) {
+            ScoringService::setSessionNeedsScheduleAdjustment($gameId, true);
+        }
+
         $stoppedMsg = $isPause
             ? 'Pertandingan berhasil dihentikan. Pemain dipindahkan ke bangku cadangan untuk ronde berikutnya.'
             : 'Pertandingan berhasil dihentikan.';
@@ -1739,6 +1883,7 @@ class ScoringController extends Controller
             'status' => 'stopped',
             'stop_type' => $stopType,
             'saved' => $scorePayload,
+            'needs_schedule_adjustment' => $scheduleAdjusted && ($isPause || $isWithdraw),
             'schedule_adjusted' => $scheduleAdjusted,
             'schedule_summary' => $adjustedScheduleSummary,
             'has_insufficient_players' => $hasInsufficient,
@@ -1868,6 +2013,7 @@ class ScoringController extends Controller
 
         // 4. Sesuaikan jadwal ronde mendatang dengan memasukkan kembali pemain ini
         $adjusted = ScoringService::adjustFutureScheduleOnReactivation($session, $playerId, $currRoundNum);
+        ScoringService::setSessionNeedsScheduleAdjustment($gameId, false);
 
         // 5. Broadcast perubahan drawing ke seluruh client
         if (isset($adjusted['rounds'])) {
@@ -1882,6 +2028,203 @@ class ScoringController extends Controller
             'schedule_version' => $adjusted['schedule_version'] ?? 1,
             'active_players_count' => $adjusted['active_players_count'] ?? null,
             'rounds' => $adjusted['rounds'] ?? [],
+        ]);
+    }
+
+    /**
+     * Konfirmasi penyesuaian jadwal locked drawing secara atomik dengan verifikasi versi.
+     */
+    public function confirmAdjustedSchedule(Request $request)
+    {
+        if (! Auth::check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. Silakan login terlebih dahulu.',
+            ], 403);
+        }
+
+        $gameId = (int) ($request->input('game_id') ?: $request->input('session_id'));
+        $expectedVersion = (int) $request->input('expected_schedule_version', 0);
+
+        $session = SessionModel::find($gameId);
+        if (! $session) {
+            return response()->json(['success' => false, 'message' => 'Sesi tidak ditemukan.'], 404);
+        }
+
+        if (! $this->isHostForSession($session)) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak. Hanya Host yang dapat mengonfirmasi jadwal.'], 403);
+        }
+
+        $lock = Cache::lock("drawing.lock_{$gameId}", 5);
+        $lock->block(3);
+        try {
+            $cachedSchedule = Cache::get("drawing.schedule_{$gameId}", []);
+            $currentVersion = (int) ($cachedSchedule['schedule_version'] ?? 1);
+
+            // Verifikasi versi jadwal secara ATOMIK
+            if ($expectedVersion > 0 && $expectedVersion !== $currentVersion) {
+                return response()->json([
+                    'success' => false,
+                    'conflict' => true,
+                    'message' => 'Versi jadwal telah diperbarui oleh perubahan lain. Silakan periksa kembali preview jadwal terbaru.',
+                    'current_version' => $currentVersion,
+                ], 409);
+            }
+
+            // Hapus flag penyesuaian jadwal yang tertunda
+            ScoringService::setSessionNeedsScheduleAdjustment($gameId, false);
+            $newVersion = $currentVersion + 1;
+            $cachedSchedule['schedule_version'] = $newVersion;
+            $cachedSchedule['needs_schedule_adjustment'] = false;
+            $cachedSchedule['confirmed_at'] = now()->toDateTimeString();
+            Cache::put("drawing.schedule_{$gameId}", $cachedSchedule, now()->addHours(12));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Jadwal pertandingan berhasil dikonfirmasi dan diterapkan.',
+                'schedule_version' => $newVersion,
+            ]);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Kelola status pemain dari halaman drawing (Istirahatkan, Siap Main, Keluarkan)
+     * Menggunakan backend validation & otorisasi host yang sama dengan End Match.
+     */
+    public function managePlayerStatus(Request $request)
+    {
+        if (! Auth::check()) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak. Silakan login terlebih dahulu.'], 403);
+        }
+
+        $gameId = (int) ($request->input('game_id') ?: $request->input('session_id'));
+        $session = SessionModel::with(['players', 'courts'])->find($gameId);
+        if (! $session) {
+            return response()->json(['success' => false, 'message' => 'Sesi tidak ditemukan.'], 404);
+        }
+
+        if (! $this->isHostForSession($session)) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak. Hanya Host yang dapat mengelola status pemain.'], 403);
+        }
+
+        $playerId = (int) $request->input('player_id');
+        $action = strtolower(trim((string) $request->input('action', '')));
+        $reason = trim((string) $request->input('reason', ''));
+
+        if (! in_array($action, ['pause', 'reactivate', 'withdraw'])) {
+            return response()->json(['success' => false, 'message' => 'Aksi tidak valid.'], 422);
+        }
+
+        if (in_array($action, ['pause', 'withdraw']) && empty($reason)) {
+            return response()->json(['success' => false, 'message' => 'Wajib mengisi alasan/kendala pemain.'], 422);
+        }
+
+        // Cek keanggotaan sesi
+        $isParticipant = DB::table('tb_session_player')
+            ->where('session_id', $gameId)
+            ->where('player_id', $playerId)
+            ->exists();
+        if (! $isParticipant) {
+            return response()->json(['success' => false, 'message' => 'Pemain tidak terdaftar dalam sesi ini.'], 422);
+        }
+
+        $currStatus = DB::table('tb_session_player')
+            ->where('session_id', $gameId)
+            ->where('player_id', $playerId)
+            ->value('status');
+
+        if ($action === 'reactivate' && $currStatus === 'withdrawn') {
+            return response()->json(['success' => false, 'message' => 'Pemain yang telah keluar secara permanen tidak dapat diaktifkan kembali.'], 422);
+        }
+
+        // Cek apakah pemain sedang bertanding di match In Progress pada ronde aktif
+        $activeRoundStr = $this->resolveActiveRoundFromDatabase($gameId) ?: 'round_1';
+        $drawing = ScoringService::getAuthoritativeDrawing($session);
+        if ($drawing && in_array($action, ['pause', 'withdraw'])) {
+            $sessionCourts = $session->courts;
+            $courtCount = max(1, $sessionCourts->count());
+            $activeRoundNum = 1;
+            if (preg_match('/(\d+)/', $activeRoundStr, $rm)) {
+                $activeRoundNum = (int) $rm[1];
+            }
+
+            $currentMatches = GameMatch::where('drawing_id', $drawing->drawing_id)
+                ->whereBetween('nomor_match', [($activeRoundNum - 1) * $courtCount + 1, $activeRoundNum * $courtCount])
+                ->get();
+
+            foreach ($currentMatches as $cm) {
+                $status = strtolower($cm->status_match ?? '');
+                if (! in_array($status, ['completed', 'stopped'])) {
+                    $hasPlayer = MatchParticipant::where('match_id', $cm->match_id)->where('player_id', $playerId)->exists();
+                    if ($hasPlayer) {
+                        $courtNum = ($cm->nomor_match - 1) % $courtCount + 1;
+                        return response()->json([
+                            'success' => false,
+                            'is_playing' => true,
+                            'court' => $courtNum,
+                            'match_id' => $cm->match_id,
+                            'message' => "Pemain sedang bertanding di Court {$courtNum}. Silakan gunakan End Match pada court terkait untuk menghentikan pertandingan.",
+                        ], 422);
+                    }
+                }
+            }
+        }
+
+        // Terapkan perubahan status
+        $currRoundNum = 1;
+        if (preg_match('/(\d+)/', $activeRoundStr, $rm)) {
+            $currRoundNum = (int) $rm[1];
+        }
+
+        $adjusted = [];
+        if ($action === 'pause') {
+            DB::table('tb_session_player')
+                ->where('session_id', $gameId)
+                ->where('player_id', $playerId)
+                ->update([
+                    'status' => 'resting',
+                    'withdrawn_reason' => $reason,
+                ]);
+            $adjusted = ScoringService::adjustFutureScheduleOnPause($session, [$playerId], $currRoundNum);
+            ScoringService::setSessionNeedsScheduleAdjustment($gameId, true);
+        } elseif ($action === 'withdraw') {
+            DB::table('tb_session_player')
+                ->where('session_id', $gameId)
+                ->where('player_id', $playerId)
+                ->update([
+                    'status' => 'withdrawn',
+                    'withdrawn_reason' => $reason,
+                    'withdrawn_at' => now(),
+                ]);
+            $adjusted = ScoringService::adjustFutureScheduleOnWithdrawal($session, [$playerId], $currRoundNum);
+            ScoringService::setSessionNeedsScheduleAdjustment($gameId, true);
+        } elseif ($action === 'reactivate') {
+            DB::table('tb_session_player')
+                ->where('session_id', $gameId)
+                ->where('player_id', $playerId)
+                ->update([
+                    'status' => 'active',
+                    'withdrawn_reason' => null,
+                    'withdrawn_at' => null,
+                ]);
+            $adjusted = ScoringService::adjustFutureScheduleOnReactivation($session, $playerId, $currRoundNum);
+            ScoringService::setSessionNeedsScheduleAdjustment($gameId, false);
+        }
+
+        // Broadcast Realtime ke drawing
+        if (isset($adjusted['rounds'])) {
+            $this->broadcastDrawingShuffledRealtime($gameId, $adjusted['drawingData'] ?? [], $adjusted['rounds']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'action' => $action,
+            'message' => 'Status pemain berhasil diperbarui.',
+            'needs_schedule_adjustment' => in_array($action, ['pause', 'withdraw']),
+            'schedule_version' => $adjusted['schedule_version'] ?? 1,
+            'summary' => $adjusted['summary'] ?? null,
         ]);
     }
 
@@ -3073,9 +3416,23 @@ class ScoringController extends Controller
 
             $cachedSchedule = Cache::get("drawing.schedule_{$dbSession->session_id}");
             $isCacheStale = false;
-            if ($cachedSchedule && ! empty($cachedSchedule['rounds'])) {
+            $cachedRounds = [];
+            if ($cachedSchedule && is_array($cachedSchedule)) {
+                if (! empty($cachedSchedule['rounds']) && is_array($cachedSchedule['rounds'])) {
+                    $cachedRounds = $cachedSchedule['rounds'];
+                } else {
+                    foreach ($cachedSchedule as $k => $v) {
+                        if (str_starts_with((string) $k, 'round_') && is_array($v)) {
+                            $rNum = (int) str_replace('round_', '', $k);
+                            $cachedRounds[$rNum] = $v;
+                        }
+                    }
+                }
+            }
+
+            if (! empty($cachedRounds)) {
                 $cachedPlayers = [];
-                foreach ($cachedSchedule['rounds'] as $r) {
+                foreach ($cachedRounds as $r) {
                     if (! empty($r['matches'])) {
                         foreach ($r['matches'] as $m) {
                             foreach (($m['team_a_names'] ?? []) as $name) {
@@ -3112,48 +3469,69 @@ class ScoringController extends Controller
                 );
 
                 $hasSessionStatusChanges = ! empty($cachedSchedule['withdrawn_player_ids']) || ! empty($cachedSchedule['paused_player_ids']);
-                if (! $isLocked && ! $hasSessionStatusChanges && ($currentParticipantNames !== $cachedPlayerNames || ($expectedRounds !== null && count($cachedSchedule['rounds']) !== $expectedRounds))) {
+                if (! $isLocked && ! $hasSessionStatusChanges && ($currentParticipantNames !== $cachedPlayerNames || ($expectedRounds !== null && count($cachedRounds) !== $expectedRounds))) {
                     $isCacheStale = true;
                 }
             }
 
+            $isTeam = str_contains($format, 'team');
+            $isSingle = strtolower($sessionJenisPermainan ?? '') === 'single';
+            $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
+            $expectedRounds = ScoringService::determineSessionRoundCount(
+                $scoringSystem,
+                count($participants),
+                $isTeam,
+                $isSingle,
+                $dbSession->waktu_session ?? null,
+                $courtCount
+            );
+
             $hasScheduleAdjusted = ScoringService::hasScheduleBeenAdjusted($dbSession);
-            if ($cachedSchedule && ! empty($cachedSchedule['rounds']) && ! $isCacheStale) {
-                $rounds = $cachedSchedule['rounds'];
+            if ($cachedSchedule && ! empty($cachedRounds) && ! $isCacheStale) {
+                $rounds = $cachedRounds;
                 $courtCount = $cachedSchedule['court_count'] ?? $courtCount;
-            } elseif ($hasScheduleAdjusted) {
-                $effectiveRound = 1;
-                try {
-                    if (Schema::hasTable('tb_drawing') && Schema::hasTable('tb_match')) {
-                        $drawingRecord = Drawing::where('session_id', $dbSession->session_id)->first();
-                        if ($drawingRecord) {
-                            $maxNomor = GameMatch::where('drawing_id', $drawingRecord->drawing_id)
-                                ->where(function ($q) {
-                                    $q->whereIn('status_match', ['Completed', 'Stopped'])
-                                        ->orWhereNotNull('stop_type');
-                                })
-                                ->max('nomor_match');
-                            if ($maxNomor && $courtCount > 0) {
-                                $effectiveRound = max(1, intdiv((int) $maxNomor - 1, $courtCount) + 1);
+            } else {
+                // 1. Coba baca dari database persisten terlebih dahulu (READ-ONLY) jika jadwal di DB lengkap
+                $dbSchedule = ScoringService::buildScheduleFromDatabase($dbSession);
+                $hasCompleteDbRounds = $dbSchedule && ! empty($dbSchedule['rounds']) && ($expectedRounds === null || count($dbSchedule['rounds']) >= $expectedRounds);
+                if ($hasCompleteDbRounds) {
+                    $cachedSchedule = $dbSchedule;
+                    $rounds = $cachedSchedule['rounds'];
+                    $courtCount = $cachedSchedule['court_count'] ?? $courtCount;
+                    Cache::put("drawing.schedule_{$dbSession->session_id}", $cachedSchedule, now()->addHours(12));
+                } elseif ($hasScheduleAdjusted) {
+                    $effectiveRound = 1;
+                    try {
+                        if (Schema::hasTable('tb_drawing') && Schema::hasTable('tb_match')) {
+                            $drawingRecord = Drawing::where('session_id', $dbSession->session_id)->first();
+                            if ($drawingRecord) {
+                                $maxNomor = GameMatch::where('drawing_id', $drawingRecord->drawing_id)
+                                    ->where(function ($q) {
+                                        $q->whereIn('status_match', ['Completed', 'Stopped'])
+                                            ->orWhereNotNull('stop_type');
+                                    })
+                                    ->max('nomor_match');
+                                if ($maxNomor && $courtCount > 0) {
+                                    $effectiveRound = max(1, intdiv((int) $maxNomor - 1, $courtCount) + 1);
+                                }
                             }
                         }
-                    }
-                    if (Schema::hasColumn('tb_session', 'active_round') && ! empty($dbSession->active_round)) {
-                        $sessRound = (int) preg_replace('/[^0-9]/', '', (string) $dbSession->active_round);
-                        if ($sessRound > 0) {
-                            $effectiveRound = max($effectiveRound, $sessRound);
+                        if (Schema::hasColumn('tb_session', 'active_round') && ! empty($dbSession->active_round)) {
+                            $sessRound = (int) preg_replace('/[^0-9]/', '', (string) $dbSession->active_round);
+                            if ($sessRound > 0) {
+                                $effectiveRound = max($effectiveRound, $sessRound);
+                            }
                         }
+                    } catch (\Throwable $e) {
                     }
-                } catch (\Throwable $e) {
-                }
 
-                $withdrawnIds = ScoringService::getWithdrawnPlayerIds($dbSession);
-                $pausedIds = ScoringService::getPausedPlayerIds($dbSession);
-                $adjusted = ScoringService::adjustFutureScheduleCore($dbSession, $withdrawnIds, $pausedIds, $effectiveRound);
-                $cachedSchedule = Cache::get("drawing.schedule_{$dbSession->session_id}");
-                $rounds = $cachedSchedule['rounds'] ?? ($adjusted['rounds'] ?? []);
-                $courtCount = $cachedSchedule['court_count'] ?? ($adjusted['drawingData']['court_count'] ?? $courtCount);
-            } else {
+                    $withdrawnIds = ScoringService::getWithdrawnPlayerIds($dbSession);
+                    $pausedIds = ScoringService::getPausedPlayerIds($dbSession);
+                    $adjusted = ScoringService::adjustFutureScheduleCore($dbSession, $withdrawnIds, $pausedIds, $effectiveRound);
+                    $cachedSchedule = Cache::get("drawing.schedule_{$dbSession->session_id}");
+                    $rounds = $cachedSchedule['rounds'] ?? ($adjusted['rounds'] ?? []);
+                    $courtCount = $cachedSchedule['court_count'] ?? ($adjusted['drawingData']['court_count'] ?? $courtCount);
+                } else {
                 try {
                     $isTeam = str_contains($format, 'team');
                     $isSingle = strtolower($sessionJenisPermainan ?? '') === 'single';
@@ -3189,7 +3567,8 @@ class ScoringController extends Controller
                         $courtCount
                     );
                     $americanoService = new AmericanoService;
-                    $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan ?? 'Double');
+                        $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan ?? 'Double');
+                    }
                 }
             }
 
@@ -3450,12 +3829,12 @@ class ScoringController extends Controller
     protected function getScoreFromDatabase($gameId, $round, $courtIndex = 0, bool $throwOnFailure = false)
     {
         try {
-            $drawing = Drawing::where('session_id', (int) $gameId)->first();
+            $session = SessionModel::with('courts')->find((int) $gameId);
+            $drawing = $session ? ScoringService::getAuthoritativeDrawing($session) : null;
             if (! $drawing) {
                 return null;
             }
 
-            $session = SessionModel::with('courts')->find((int) $gameId);
             $courtCount = $session ? max(1, $session->courts->count()) : 1;
             preg_match('/(\d+)/', $round, $rMatch);
             $rNum = isset($rMatch[1]) ? (int) $rMatch[1] : 1;
@@ -4101,6 +4480,8 @@ class ScoringController extends Controller
 
                 $roundAllTerminal = true;
                 $hasRecordedMatch = false;
+                $hasInProgressMatch = false;
+                $hasStartedMatch = false;
 
                 for ($mIdx = 0; $mIdx < $roundMatchCount; $mIdx++) {
                     $nomorMatch = ($r - 1) * $courtCount + ($mIdx + 1);
@@ -4108,8 +4489,15 @@ class ScoringController extends Controller
 
                     if ($dbMatch) {
                         $hasRecordedMatch = true;
-                        if (! ScoringService::isMatchTerminal($dbMatch->status_match ?? '')) {
+                        $st = strtolower($dbMatch->status_match ?? '');
+                        if (! ScoringService::isMatchTerminal($st)) {
                             $roundAllTerminal = false;
+                        }
+                        if ($st === 'in progress' || $st === 'in_progress' || ! empty($dbMatch->waktu_mulai)) {
+                            $hasInProgressMatch = true;
+                            $hasStartedMatch = true;
+                        } elseif (ScoringService::isMatchTerminal($st)) {
+                            $hasStartedMatch = true;
                         }
                     } else {
                         // Jika match belum terdaftar di database, ronde ini belum terminal
@@ -4117,14 +4505,13 @@ class ScoringController extends Controller
                     }
                 }
 
-                if ($hasRecordedMatch && ! $roundAllTerminal) {
+                if ($hasStartedMatch && ! $roundAllTerminal) {
                     return "round_{$r}";
                 }
 
                 if ($hasRecordedMatch && $roundAllTerminal) {
                     $lastCompletedRound = $r;
                 } else {
-                    // Belum ada match tercatat untuk ronde ini
                     if ($lastCompletedRound > 0) {
                         return "round_{$lastCompletedRound}";
                     }

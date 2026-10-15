@@ -529,6 +529,56 @@
                     @endforelse
                 </div>
 
+                <!-- Kesiapan & Pengelolaan Pemain Sesi Ini -->
+                <div class="p-3.5 rounded-2xl bg-white/90 border border-slate-200/80 space-y-2.5 shadow-2xs">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                        <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-check text-[#063B00]"></i> Kesiapan Pemain Sesi
+                        </span>
+                        <span class="text-[10px] text-slate-500 font-semibold bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">
+                            {{ count($game['participants'] ?? []) }} Pemain
+                        </span>
+                    </div>
+                    <div class="space-y-1.5" id="drawingReadinessRoster">
+                        @foreach($game['participants'] ?? [] as $part)
+                            @php
+                                $pId = (int) ($part['id'] ?? 0);
+                                $pName = $part['name'] ?? 'Pemain';
+                                $isPartWithdrawn = in_array($pId, $withdrawnPlayerIds ?? [], true);
+                                $isPartPaused = in_array($pId, $pausedPlayerIds ?? [], true);
+                            @endphp
+                            <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50/70 border border-slate-200/60 text-xs">
+                                <div class="flex items-center gap-2 truncate max-w-[55%]">
+                                    <span class="w-2 h-2 rounded-full shrink-0 {{ $isPartWithdrawn ? 'bg-rose-500' : ($isPartPaused ? 'bg-amber-500' : 'bg-emerald-500') }}"></span>
+                                    <span class="font-bold text-slate-800 truncate {{ $isPartWithdrawn ? 'line-through opacity-70' : '' }}">{{ $pName }}</span>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    @if($isPartWithdrawn)
+                                        <span class="text-[9px] font-bold text-rose-800 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">Keluar</span>
+                                    @elseif($isPartPaused)
+                                        <span class="text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">Istirahat</span>
+                                        @if($isHost ?? false)
+                                            <button type="button" onclick="reactivatePlayer({{ $pId }}, '{{ addslashes($pName) }}')" class="px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1">
+                                                Siap Main
+                                            </button>
+                                        @endif
+                                    @else
+                                        <span class="text-[9px] font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Siap</span>
+                                        @if($isHost ?? false)
+                                            <button type="button" onclick="openPlayerManageModal({{ $pId }}, '{{ addslashes($pName) }}', 'pause')" class="px-1.5 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-[9px] border border-amber-300 cursor-pointer" title="Istirahatkan sementara">
+                                                Istirahat
+                                            </button>
+                                            <button type="button" onclick="openPlayerManageModal({{ $pId }}, '{{ addslashes($pName) }}', 'withdraw')" class="px-1.5 py-0.5 rounded bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold text-[9px] border border-rose-300 cursor-pointer" title="Keluarkan dari sesi">
+                                                Keluar
+                                            </button>
+                                        @endif
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
                 <!-- Resting Bench Card in Sidebar -->
                 <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2 shadow-2xs">
                     <div class="flex items-center justify-between">
@@ -641,6 +691,61 @@
             >
                 <i class="fa-solid fa-play text-[10px]"></i>
                 <span id="btnConfirmReactivateText">Ya, Siap Main</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL KELOLA STATUS PEMAIN (ISTIRAHAT / KELUAR) -->
+<div id="playerManageActionModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closePlayerManageModal();">
+    <div class="bg-white rounded-3xl p-6 shadow-2xl space-y-4 my-8 border border-slate-100 flex flex-col" style="max-width: 440px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">
+        <div class="flex items-start gap-3.5">
+            <div id="playerManageModalIconContainer" class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center text-lg border border-amber-100/80 shadow-2xs shrink-0 mt-0.5">
+                <i id="playerManageModalIcon" class="fa-solid fa-pause"></i>
+            </div>
+            <div class="space-y-1">
+                <h3 id="playerManageModalTitle" class="text-sm font-black text-slate-900">Istirahatkan Pemain</h3>
+                <p id="playerManageModalDesc" class="text-xs text-slate-500 leading-relaxed">
+                    Istirahatkan sementara <strong id="playerManageModalPlayerName" class="text-slate-800 font-extrabold">-</strong> dari jadwal pertandingan ronde mendatang?
+                </p>
+            </div>
+        </div>
+
+        <div class="space-y-1.5">
+            <label for="playerManageReason" class="block text-xs font-bold text-slate-700">
+                Alasan <span class="text-rose-500">* (Wajib diisi)</span>
+            </label>
+            <input
+                type="text"
+                id="playerManageReason"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#063B00]/30 focus:border-[#063B00] placeholder:text-slate-400"
+                placeholder="Contoh: Cedera ringan, toilet break, urusan mendadak"
+                maxlength="150"
+            />
+            <p class="text-[10px] text-slate-400">Alasan diperlukan untuk transparansi dan catatan sesi pertandingan.</p>
+        </div>
+
+        <div id="playerManageModalError" class="hidden p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+            <i class="fa-solid fa-circle-exclamation text-rose-600"></i>
+            <span id="playerManageModalErrorMsg"></span>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <button
+                type="button"
+                onclick="closePlayerManageModal()"
+                class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+            >
+                Batal
+            </button>
+            <button
+                type="button"
+                id="btnConfirmPlayerManage"
+                onclick="executePlayerManageAction()"
+                class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
+            >
+                <i id="btnConfirmPlayerManageIcon" class="fa-solid fa-check text-[10px]"></i>
+                <span id="btnConfirmPlayerManageText">Konfirmasi</span>
             </button>
         </div>
     </div>
@@ -1705,6 +1810,141 @@
         } finally {
             if (btn) btn.disabled = false;
             if (btnText) btnText.textContent = 'Ya, Siap Main';
+        }
+    }
+
+    let pendingPlayerManage = { playerId: null, playerName: '', action: 'pause' };
+
+    function openPlayerManageModal(playerId, playerName, action = 'pause') {
+        if (!isHostUser) return;
+        pendingPlayerManage = { playerId, playerName, action };
+
+        const modal = document.getElementById('playerManageActionModal');
+        const titleEl = document.getElementById('playerManageModalTitle');
+        const descEl = document.getElementById('playerManageModalDesc');
+        const nameEl = document.getElementById('playerManageModalPlayerName');
+        const iconEl = document.getElementById('playerManageModalIcon');
+        const iconContainer = document.getElementById('playerManageModalIconContainer');
+        const reasonInput = document.getElementById('playerManageReason');
+        const errEl = document.getElementById('playerManageModalError');
+        const btn = document.getElementById('btnConfirmPlayerManage');
+        const btnText = document.getElementById('btnConfirmPlayerManageText');
+
+        if (nameEl) nameEl.textContent = playerName;
+        if (reasonInput) reasonInput.value = '';
+        if (errEl) errEl.classList.add('hidden');
+
+        if (action === 'withdraw') {
+            if (titleEl) titleEl.textContent = 'Keluarkan Pemain dari Sesi';
+            if (descEl) descEl.innerHTML = `Keluarkan <strong class="text-slate-800 font-extrabold">${playerName}</strong> secara permanen dari sesi ini? Pemain tidak akan dijadwalkan pada seluruh ronde mendatang.`;
+            if (iconEl) iconEl.className = 'fa-solid fa-user-xmark';
+            if (iconContainer) iconContainer.className = 'w-11 h-11 rounded-2xl bg-rose-50 text-rose-700 flex items-center justify-center text-lg border border-rose-100/80 shadow-2xs shrink-0 mt-0.5';
+            if (btn) btn.className = 'px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]';
+            if (btnText) btnText.textContent = 'Ya, Keluarkan Pemain';
+        } else {
+            if (titleEl) titleEl.textContent = 'Istirahatkan Pemain Sementara';
+            if (descEl) descEl.innerHTML = `Istirahatkan sementara <strong class="text-slate-800 font-extrabold">${playerName}</strong> dari ronde mendatang? Pemain dapat diaktifkan kembali nanti saat sudah siap main.`;
+            if (iconEl) iconEl.className = 'fa-solid fa-pause';
+            if (iconContainer) iconContainer.className = 'w-11 h-11 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center text-lg border border-amber-100/80 shadow-2xs shrink-0 mt-0.5';
+            if (btn) btn.className = 'px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]';
+            if (btnText) btnText.textContent = 'Ya, Istirahatkan Pemain';
+        }
+
+        if (modal) modal.style.display = 'flex';
+        if (reasonInput) setTimeout(() => reasonInput.focus(), 50);
+    }
+
+    function closePlayerManageModal() {
+        const modal = document.getElementById('playerManageActionModal');
+        if (modal) modal.style.display = 'none';
+        pendingPlayerManage = { playerId: null, playerName: '', action: 'pause' };
+    }
+
+    async function executePlayerManageAction() {
+        if (!isHostUser || !pendingPlayerManage.playerId) return;
+        const { playerId, playerName, action } = pendingPlayerManage;
+
+        const reasonInput = document.getElementById('playerManageReason');
+        const reason = (reasonInput?.value || '').trim();
+        const errEl = document.getElementById('playerManageModalError');
+        const errMsgEl = document.getElementById('playerManageModalErrorMsg');
+        const btn = document.getElementById('btnConfirmPlayerManage');
+        const btnText = document.getElementById('btnConfirmPlayerManageText');
+
+        if (!reason) {
+            if (errEl && errMsgEl) {
+                errMsgEl.textContent = 'Alasan wajib diisi sebelum menyimpan perubahan.';
+                errEl.classList.remove('hidden');
+            }
+            if (reasonInput) reasonInput.focus();
+            return;
+        }
+
+        if (btn) btn.disabled = true;
+        const origText = btnText ? btnText.textContent : 'Konfirmasi';
+        if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
+        if (errEl) errEl.classList.add('hidden');
+
+        try {
+            const resp = await fetch('{{ route('scoring.manage-player-status') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    game_id: gameSessionId,
+                    player_id: playerId,
+                    action: action,
+                    reason: reason,
+                    round: 'round_' + currentRoundKey
+                })
+            });
+
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+                if (data.is_playing) {
+                    const courtNum = data.court || 1;
+                    const ctaLiveUrl = `${baseLiveScoringUrl}&round=round_${currentRoundKey}&court=${courtNum - 1}`;
+                    const msg = `${data.message} Apakah Anda ingin membuka halaman scoring Court ${courtNum} sekarang?`;
+                    closePlayerManageModal();
+                    if (confirm(msg)) {
+                        window.location.href = ctaLiveUrl;
+                    }
+                    return;
+                }
+
+                const msg = data.message || 'Gagal memperbarui status pemain.';
+                if (errEl && errMsgEl) {
+                    errMsgEl.textContent = msg;
+                    errEl.classList.remove('hidden');
+                } else if (typeof showToast === 'function') {
+                    showToast(msg, 'error');
+                }
+                if (btn) btn.disabled = false;
+                if (btnText) btnText.textContent = origText;
+                return;
+            }
+
+            closePlayerManageModal();
+            if (typeof showToast === 'function') {
+                showToast(data.message || 'Status pemain berhasil diperbarui.');
+            }
+            setTimeout(() => {
+                window.location.reload();
+            }, 600);
+        } catch (err) {
+            console.error('[executePlayerManageAction] Error:', err);
+            if (errEl && errMsgEl) {
+                errMsgEl.textContent = 'Terjadi kesalahan koneksi saat memperbarui status pemain.';
+                errEl.classList.remove('hidden');
+            } else if (typeof showToast === 'function') {
+                showToast('Terjadi kesalahan koneksi saat memperbarui status pemain.', 'error');
+            }
+        } finally {
+            if (btn) btn.disabled = false;
+            if (btnText) btnText.textContent = origText;
         }
     }
 

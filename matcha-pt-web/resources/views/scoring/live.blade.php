@@ -646,6 +646,109 @@
             @endif
         </div>
     </div>
+    {{-- Panel Kesiapan Pemain Saat Ini (Persistent Session Membership) --}}
+    @php
+        $sessionAllParticipants = $game['participants'] ?? [];
+        $activeMembers = [];
+        $restingMembers = [];
+        $withdrawnMembers = [];
+
+        foreach ($sessionAllParticipants as $part) {
+            $pId = (int) ($part['id'] ?? 0);
+            if (in_array($pId, $withdrawnPlayerIds ?? [], true)) {
+                $withdrawnMembers[] = $part;
+            } elseif (in_array($pId, $pausedPlayerIds ?? [], true)) {
+                $restingMembers[] = $part;
+            } else {
+                $activeMembers[] = $part;
+            }
+        }
+
+        $minReq = ($isSingleMode ?? false) ? 2 : 4;
+        $isShortOnPlayers = count($activeMembers) < $minReq;
+    @endphp
+
+    <div class="glass-card rounded-2xl px-5 py-4 border border-white/90 space-y-3 shadow-2xs">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center text-xs shrink-0 shadow-2xs">
+                    <i class="fa-solid fa-user-check"></i>
+                </div>
+                <div>
+                    <h3 class="text-xs font-bold text-slate-800 flex items-center gap-2">
+                        Kesiapan Pemain Saat Ini
+                        <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                            {{ count($activeMembers) }} Siap / Aktif
+                        </span>
+                        @if(count($restingMembers) > 0)
+                            <span class="text-[10px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+                                {{ count($restingMembers) }} Istirahat
+                            </span>
+                        @endif
+                        @if(count($withdrawnMembers) > 0)
+                            <span class="text-[10px] font-semibold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full border border-rose-200">
+                                {{ count($withdrawnMembers) }} Keluar
+                            </span>
+                        @endif
+                    </h3>
+                    <p class="text-[10px] text-slate-400 font-medium">Status partisipasi aktual seluruh pemain dalam sesi</p>
+                </div>
+            </div>
+
+            @if($isShortOnPlayers)
+                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-bold">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+                    <span>Tersisa {{ count($activeMembers) }} pemain (minimal {{ $minReq }}). Aktifkan pemain dari istirahat untuk melanjutkan.</span>
+                </div>
+            @endif
+        </div>
+
+        <div class="flex flex-wrap gap-2 pt-0.5">
+            {{-- Pemain Aktif / Rotasi --}}
+            @foreach($activeMembers as $part)
+                @php
+                    $pName = $part['name'] ?? 'Pemain';
+                    $pId = (int) ($part['id'] ?? 0);
+                @endphp
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white text-slate-700 border border-slate-200 text-xs font-medium shadow-2xs">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>{{ $pName }}</span>
+                    <span class="text-[9px] font-semibold text-slate-400">Siap</span>
+                </span>
+            @endforeach
+
+            {{-- Pemain Istirahat (Resting) --}}
+            @foreach($restingMembers as $part)
+                @php
+                    $pName = $part['name'] ?? 'Pemain';
+                    $pId = (int) ($part['id'] ?? 0);
+                @endphp
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-slate-800 border border-amber-300 text-xs font-medium shadow-2xs">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span class="font-bold">{{ $pName }}</span>
+                    <span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>
+                    @if($isHost)
+                        <button type="button" onclick="reactivatePlayerLive({{ $pId }}, '{{ addslashes($pName) }}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1 transition-all">
+                            <i class="fa-solid fa-play text-[7px]"></i> Siap Main
+                        </button>
+                    @endif
+                </span>
+            @endforeach
+
+            {{-- Pemain Keluar (Withdrawn) --}}
+            @foreach($withdrawnMembers as $part)
+                @php
+                    $pName = $part['name'] ?? 'Pemain';
+                @endphp
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-50 text-slate-800 border border-rose-300 text-xs font-medium shadow-2xs opacity-80">
+                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span class="line-through text-slate-500">{{ $pName }}</span>
+                    <span class="text-[9px] font-bold text-rose-800 bg-rose-100 px-1.5 py-0.5 rounded border border-rose-300">Keluar</span>
+                </span>
+            @endforeach
+        </div>
+    </div>
+
     {{-- Tim Istirahat Set Ini --}}
     @if(!empty($matchContext['resting']))
     <div class="glass-card rounded-2xl px-5 py-4 border border-white/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
@@ -3039,6 +3142,7 @@
 
     // ── End Match Modal & Controller Functions ──────────────────────────────
     let currentStoppingCourtIdx = null;
+    let stopMatchInFlightByCourt = {}; // Track in-flight request per court index
 
     function openStopMatchModal(cIdx) {
         if (!IS_HOST) return;
@@ -3056,6 +3160,16 @@
         const teamBEl = document.getElementById('modalTeamBNames');
         const errorEl = document.getElementById('modalStopError');
         if (errorEl) errorEl.classList.add('hidden');
+
+        // Reset status tombol modal sesuai kondisi request target court ini
+        const btnConfirm = document.getElementById('btnConfirmStopMatch');
+        const isThisCourtInFlight = !!stopMatchInFlightByCourt[cIdx];
+        if (btnConfirm) {
+            btnConfirm.disabled = isThisCourtInFlight;
+            btnConfirm.innerHTML = isThisCourtInFlight
+                ? '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan penghentian...'
+                : '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
+        }
 
         const courtLabel = st.courtName || ('Court ' + st.courtNum);
         if (roundCourtEl) roundCourtEl.textContent = `${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} • ${courtLabel}`;
@@ -3143,6 +3257,11 @@
         const modal = document.getElementById('stopMatchModal');
         if (modal) modal.classList.add('hidden');
         hideStopMatchError();
+        const btnConfirm = document.getElementById('btnConfirmStopMatch');
+        if (btnConfirm) {
+            btnConfirm.disabled = false;
+            btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
+        }
         currentStoppingCourtIdx = null;
     }
 
@@ -3252,6 +3371,14 @@
         const st = courtsState[cIdx];
         if (!st) return;
 
+        if (stopMatchInFlightByCourt[cIdx]) {
+            console.log(`[Stop Match] Court ${cIdx + 1} sedang memproses penghentian.`);
+            return;
+        }
+
+        const operationId = 'stop_' + cIdx + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        stopMatchInFlightByCourt[cIdx] = { operationId, timestamp: Date.now() };
+
         const errorEl = document.getElementById('modalStopError');
         const errorMsgEl = document.getElementById('modalStopErrorMsg');
         const showError = (msg) => {
@@ -3278,6 +3405,7 @@
                 const pauseChecks = Array.from(document.querySelectorAll('input[name="paused_players[]"]:checked'));
                 if (pauseChecks.length === 0) {
                     showError('Pilih minimal satu pemain yang butuh istirahat sementara ke bangku cadangan.');
+                    delete stopMatchInFlightByCourt[cIdx];
                     return;
                 }
                 withdrawnPlayerIds = pauseChecks.map(cb => cb.getAttribute('data-player-id') || cb.value);
@@ -3289,6 +3417,7 @@
                 stopReason = (document.getElementById('stopReasonA')?.value || '').trim();
                 if (!stopReason) {
                     showError('Wajib mengisi alasan penghentian pertandingan.');
+                    delete stopMatchInFlightByCourt[cIdx];
                     return;
                 }
                 const relChecks = document.querySelectorAll('input[name="related_players[]"]:checked');
@@ -3299,6 +3428,7 @@
             const withChecks = Array.from(document.querySelectorAll('input[name="withdrawn_players[]"]:checked'));
             if (withChecks.length === 0) {
                 showError('Pilih minimal satu pemain yang keluar dari sesi.');
+                delete stopMatchInFlightByCourt[cIdx];
                 return;
             }
             for (const chk of withChecks) {
@@ -3309,6 +3439,7 @@
                 const note = (document.getElementById('playerNote_' + pIdx)?.value || '').trim();
                 if (!note) {
                     showError(`Wajib mencatat alasan/kendala untuk ${pName}.`);
+                    delete stopMatchInFlightByCourt[cIdx];
                     return;
                 }
                 withdrawnPlayerIds.push(pVal);
@@ -3336,6 +3467,7 @@
             }
             if ((st.saveQueue && st.saveQueue.length > 0) || (st.inFlightQueue && st.inFlightQueue.length > 0)) {
                 showError('Masih terdapat antrean skor yang belum selesai tersimpan ke server. Mohon tunggu sesaat dan pastikan koneksi stabil.');
+                delete stopMatchInFlightByCourt[cIdx];
                 if (btnConfirm) {
                     btnConfirm.disabled = false;
                     btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
@@ -3367,6 +3499,9 @@
             point_b: displays.b
         };
 
+        const abortCtrl = new AbortController();
+        const timeoutId = setTimeout(() => abortCtrl.abort(), 15000);
+
         try {
             const resp = await fetch(STOP_MATCH_URL, {
                 method: 'POST',
@@ -3375,8 +3510,10 @@
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': CSRF_TOKEN
                 },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
+                signal: abortCtrl.signal
             });
+            clearTimeout(timeoutId);
 
             let resData = {};
             try {
@@ -3405,7 +3542,10 @@
             st.completionSavePending = false;
             st.completionSaveSucceeded = true;
 
-            closeStopMatchModal();
+            // Jika modal saat ini masih membuka court yang sama, tutup modal
+            if (currentStoppingCourtIdx === cIdx) {
+                closeStopMatchModal();
+            }
             updateDisplay(cIdx);
             syncRoundCompletionStatus();
 
@@ -3415,13 +3555,31 @@
                 alert(`Perhatian: ${resData.warning}`);
             }
         } catch (err) {
+            clearTimeout(timeoutId);
             console.error('[Stop Match Error]:', err);
-            showError(err.message || 'Terjadi kesalahan sistem saat mengakhiri pertandingan.');
-            if (btnConfirm) {
-                btnConfirm.disabled = false;
-                btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
+            const isTimeout = err.name === 'AbortError';
+            const msg = isTimeout 
+                ? 'Koneksi ke server timeout saat menyimpan penghentian. Silakan periksa koneksi lalu coba lagi.' 
+                : (err.message || 'Terjadi kesalahan sistem saat mengakhiri pertandingan.');
+
+            if (currentStoppingCourtIdx === cIdx) {
+                showError(msg);
+                if (btnConfirm) {
+                    btnConfirm.disabled = false;
+                    btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
+                }
+            } else {
+                showToast(`Court ${cIdx + 1}: ${msg}`);
             }
-            // PENTING: Jangan tutup modal dan jangan reset input agar pengguna bisa retry langsung
+        } finally {
+            delete stopMatchInFlightByCourt[cIdx];
+            if (currentStoppingCourtIdx === cIdx) {
+                const btn = document.getElementById('btnConfirmStopMatch');
+                if (btn && !st.isStopped) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Konfirmasi Akhiri Pertandingan</span>';
+                }
+            }
         }
     }
 
