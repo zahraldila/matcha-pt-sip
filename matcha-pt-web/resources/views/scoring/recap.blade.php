@@ -515,7 +515,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-3 sm:gap-x-4 gap-y-2.5">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" style="row-gap: 10px; column-gap: 14px;">
                     @foreach($kudosBadges as $badge)
                     @php
                         $kKey = "{$player['name']}:{$badge}";
