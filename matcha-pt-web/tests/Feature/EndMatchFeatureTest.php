@@ -12,6 +12,7 @@ use App\Models\SessionModel;
 use App\Models\Sport;
 use App\Models\User;
 use App\Models\Venue;
+use App\Services\Drawing\AmericanoService;
 use App\Services\Scoring\ScoringService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -1536,7 +1537,7 @@ class EndMatchFeatureTest extends TestCase
             'status_drawing' => 'Locked',
         ]);
 
-        $americanoService = new \App\Services\Drawing\AmericanoService;
+        $americanoService = new AmericanoService;
         $normalized = array_map(fn ($p) => [
             'id' => $p->player_id,
             'name' => $p->nama,
@@ -1856,5 +1857,68 @@ class EndMatchFeatureTest extends TestCase
         // Court count round 2 hanya 1 karena pemain aktif 3
         $this->assertCount(1, $rData[2]['matches'] ?? []);
     }
-}
 
+    /**
+     * Test 32: Pemain yang di-pause lalu diaktifkan kembali (Siap Main) tidak dianggap withdrawn dan kembali dijadwalkan di ronde berikutnya.
+     */
+    public function test_32_reactivated_player_is_not_withdrawn_and_scheduled_in_future_rounds()
+    {
+        $env = $this->createSingleEnvironment(1, ['Hilmy', 'Haechan', 'Jaehyun', 'Ocean'], 'Total of 3');
+        $session = $env['session'];
+        $host = $env['host'];
+        $hilmy = $env['players'][0];
+        $matchC1 = $env['matches'][1][0]['match'];
+
+        $this->actingAs($host);
+
+        // 1. Pause Hilmy (peserta match 1) di ronde 1
+        $stopResp = $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $matchC1->match_id,
+            'match_key' => 'round_1_court_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'temporary_pause',
+            'withdrawn_player_ids' => [$hilmy->player_id],
+        ]);
+        $stopResp->assertStatus(200);
+
+        // Pastikan Hilmy TIDAK masuk ke getWithdrawnPlayerIds
+        $withdrawnIds = ScoringService::getWithdrawnPlayerIds($session);
+        $this->assertNotContains((int) $hilmy->player_id, $withdrawnIds, 'Pemain temporary_pause tidak boleh dianggap withdrawn permanen.');
+
+        // 2. Host mengaktifkan kembali Hilmy (Siap Main) di ronde 2
+        $reactivateResp = $this->postJson(route('scoring.reactivate-player'), [
+            'game_id' => $session->session_id,
+            'player_id' => $hilmy->player_id,
+            'round' => 'round_2',
+        ]);
+        $reactivateResp->assertStatus(200);
+        $reactivateResp->assertJsonFragment(['success' => true]);
+
+        // Status di DB harus active
+        $this->assertSame('active', DB::table('tb_session_player')->where('session_id', $session->session_id)->where('player_id', $hilmy->player_id)->value('status'));
+
+        // Cek getWithdrawnPlayerIds sekali lagi
+        $withdrawnIdsAfter = ScoringService::getWithdrawnPlayerIds($session);
+        $this->assertNotContains((int) $hilmy->player_id, $withdrawnIdsAfter);
+
+        // Cek jadwal ronde 3: Hilmy harus ada di jadwal drawing
+        $cachedSchedule = Cache::get("drawing.schedule_{$session->session_id}");
+        $this->assertNotEmpty($cachedSchedule);
+        $r3 = $cachedSchedule['rounds'][3] ?? null;
+        $this->assertNotNull($r3, 'Ronde 3 harus ada dalam jadwal.');
+
+        // Kumpulkan seluruh nama pemain di ronde 3 (baik yang main maupun istirahat giliran biasa)
+        $allNamesInR3 = [];
+        if (! empty($r3['matches'])) {
+            foreach ($r3['matches'] as $m) {
+                $allNamesInR3 = array_merge($allNamesInR3, $m['team_a_names'] ?? [], $m['team_b_names'] ?? []);
+            }
+        }
+        $allNamesInR3 = array_merge($allNamesInR3, $r3['resting'] ?? []);
+
+        // Hilmy harus termasuk dalam rotasi ronde 3
+        $this->assertContains('Hilmy', $allNamesInR3, 'Hilmy harus kembali masuk ke dalam jadwal ronde berikutnya setelah diaktifkan.');
+    }
+}
