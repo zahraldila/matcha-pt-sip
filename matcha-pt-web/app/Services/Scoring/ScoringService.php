@@ -1421,6 +1421,20 @@ class ScoringService
             }
         }
 
+        // Normalisasi $rounds agar setiap nomor ronde unik bertipe integer 1..N
+        $normalizedRounds = [];
+        foreach ($rounds as $k => $rData) {
+            if (! is_array($rData)) {
+                continue;
+            }
+            $rNum = (int) ($rData['round'] ?? ($rData['round_number'] ?? (preg_match('/(\d+)/', (string) $k, $m) ? $m[1] : $k)));
+            if ($rNum > 0 && ! isset($normalizedRounds[$rNum])) {
+                $normalizedRounds[$rNum] = $rData;
+            }
+        }
+        ksort($normalizedRounds);
+        $rounds = $normalizedRounds;
+
         foreach ($rounds as $rIdx => $rData) {
             $rNum = (int) ($rData['round'] ?? ($rData['round_number'] ?? $rIdx));
             $isAccessible = $prevRoundCompleted;
@@ -1715,30 +1729,35 @@ class ScoringService
 
             $currentRounds = [];
             if (is_array($cachedSchedule)) {
-                if (isset($cachedSchedule['rounds']) && is_array($cachedSchedule['rounds'])) {
-                    $currentRounds = $cachedSchedule['rounds'];
-                } else {
-                    foreach ($cachedSchedule as $k => $val) {
-                        if (preg_match('/round_?(\d+)/i', (string) $k, $m)) {
-                            $currentRounds[(int) $m[1]] = $val;
-                        } elseif (is_numeric($k)) {
-                            $currentRounds[(int) $k] = $val;
-                        }
+                $rawRounds = (isset($cachedSchedule['rounds']) && is_array($cachedSchedule['rounds']))
+                    ? $cachedSchedule['rounds']
+                    : $cachedSchedule;
+
+                foreach ($rawRounds as $k => $val) {
+                    if (! is_array($val)) {
+                        continue;
+                    }
+                    $rNum = (int) ($val['round'] ?? ($val['round_number'] ?? (preg_match('/(\d+)/', (string) $k, $m) ? $m[1] : $k)));
+                    if ($rNum > 0 && ! isset($currentRounds[$rNum])) {
+                        $currentRounds[$rNum] = $val;
                     }
                 }
+                ksort($currentRounds);
             }
+
+            $scoringSystem = self::detectScoringSystem($session->scoring_system ?? 'Total of 3');
+            $sessionRoundCount = self::determineSessionRoundCount(
+                $scoringSystem,
+                count($allPlayers),
+                $isTeamFormat,
+                $isSingle,
+                $session->waktu_session,
+                $courtCount
+            );
 
             // Jika belum ada jadwal di cache, generate terlebih dahulu dari data awal
             if (empty($currentRounds)) {
-                $scoringSystem = self::detectScoringSystem($session->scoring_system ?? 'Total of 3');
-                $roundCount = self::determineSessionRoundCount(
-                    $scoringSystem,
-                    count($allPlayers),
-                    $isTeamFormat,
-                    $isSingle,
-                    $session->waktu_session,
-                    $courtCount
-                );
+                $roundCount = $sessionRoundCount;
 
                 if ($isTeamFormat && count($allPlayers) >= 4 && count($allPlayers) % 2 === 0) {
                     $teamService = new TeamAmericanoService;
@@ -1748,15 +1767,25 @@ class ScoringService
                     $americanoService = new AmericanoService;
                     $rounds = $americanoService->generateRounds($allPlayers->toArray(), $courtCount, $roundCount, $drawingMode);
                 }
-                $currentRounds = $rounds;
+                $currentRounds = [];
+                foreach ($rounds as $k => $val) {
+                    $rNum = (int) ($val['round'] ?? ($val['round_number'] ?? (preg_match('/(\d+)/', (string) $k, $m) ? $m[1] : $k)));
+                    if ($rNum > 0 && ! isset($currentRounds[$rNum])) {
+                        $currentRounds[$rNum] = $val;
+                    }
+                }
+                ksort($currentRounds);
                 $cachedSchedule = [
-                    'rounds' => $rounds,
+                    'rounds' => $currentRounds,
                     'court_count' => $courtCount,
                     'schedule_version' => 1,
                 ];
             }
 
-            $totalRounds = count($currentRounds);
+            $totalRounds = $sessionRoundCount ? min(count($currentRounds), $sessionRoundCount) : count($currentRounds);
+            if ($totalRounds < $currentRoundNumber) {
+                $totalRounds = $currentRoundNumber;
+            }
 
             $updatedRounds = [];
             // 1. Pertahankan ronde 1 sampai currentRoundNumber secara utuh
@@ -1878,10 +1907,9 @@ class ScoringService
             $cachedSchedule['paused_player_ids'] = $allPausedIds;
             $cachedSchedule['last_adjusted_at'] = now()->toDateTimeString();
 
+            $cachedSchedule['rounds'] = $updatedRounds;
             foreach ($updatedRounds as $rNum => $rData) {
                 $cachedSchedule["round_{$rNum}"] = $rData;
-                $cachedSchedule['rounds'][$rNum] = $rData;
-                $cachedSchedule['rounds']["round_{$rNum}"] = $rData;
             }
 
             Cache::put($scheduleCacheKey, $cachedSchedule, now()->addHours(12));

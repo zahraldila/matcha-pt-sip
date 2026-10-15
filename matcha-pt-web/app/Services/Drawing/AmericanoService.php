@@ -5,6 +5,7 @@ namespace App\Services\Drawing;
 use App\Models\Drawing;
 use App\Models\GameMatch;
 use App\Models\Score;
+use App\Services\Scoring\ScoringService;
 
 class AmericanoService
 {
@@ -898,6 +899,14 @@ class AmericanoService
      */
     public function resolveDynamicSingleRounds(array $rounds, array $savedScores, ?array $scoringSystem = null, ?int $sessionId = null): array
     {
+        if ($sessionId) {
+            $pausedIds = ScoringService::getPausedPlayerIds($sessionId);
+            $withdrawnIds = ScoringService::getWithdrawnPlayerIds($sessionId);
+            if (! empty($pausedIds) || ! empty($withdrawnIds)) {
+                return $rounds;
+            }
+        }
+
         if (! isset($rounds[1], $rounds[2], $rounds[3])) {
             return $rounds;
         }

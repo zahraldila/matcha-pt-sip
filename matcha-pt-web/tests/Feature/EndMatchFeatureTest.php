@@ -1425,4 +1425,56 @@ class EndMatchFeatureTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    /**
+     * Test 26: Sisa jadwal tidak mengalami duplikasi eksponensial (3 -> 6 -> 12 -> 24) saat adjustFutureSchedule dipanggil berulang kali.
+     */
+    public function test_26_schedule_rounds_do_not_exponentially_duplicate_when_adjusted_repeatedly()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+        $alice = $env['players'][0];
+        $bob = $env['players'][1];
+
+        // Penyesuaian 1: Alice istirahat di ronde 1
+        ScoringService::adjustFutureScheduleOnPause($session, [$alice->player_id], 1);
+        $cached1 = Cache::get("drawing.schedule_{$session->session_id}");
+        $this->assertCount(3, $cached1['rounds']);
+        $this->assertArrayNotHasKey('round_1', $cached1['rounds']);
+
+        // Penyesuaian 2: Bob keluar di ronde 2
+        ScoringService::adjustFutureScheduleOnWithdrawal($session, [$bob->player_id], 2);
+        $cached2 = Cache::get("drawing.schedule_{$session->session_id}");
+        $this->assertCount(3, $cached2['rounds']);
+        $this->assertArrayNotHasKey('round_1', $cached2['rounds']);
+
+        // Penyesuaian 3: Alice diaktifkan kembali
+        ScoringService::adjustFutureScheduleOnReactivation($session, $alice->player_id, 2);
+        $cached3 = Cache::get("drawing.schedule_{$session->session_id}");
+        $this->assertCount(3, $cached3['rounds']);
+    }
+
+    /**
+     * Test 27: resolveRoundsProgress tidak mengunci ronde 1 akibat duplikasi entri ronde.
+     */
+    public function test_27_resolve_rounds_progress_does_not_lock_round_1_due_to_duplicate_keys()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+
+        // Simulasi array ronde yang memiliki duplikasi key integer dan string
+        $roundsWithDups = [
+            1 => ['round' => 1, 'matches' => [['court' => 1]]],
+            2 => ['round' => 2, 'matches' => [['court' => 1]]],
+            3 => ['round' => 3, 'matches' => [['court' => 1]]],
+            'round_1' => ['round' => 1, 'matches' => [['court' => 1]]],
+            'round_2' => ['round' => 2, 'matches' => [['court' => 1]]],
+            'round_3' => ['round' => 3, 'matches' => [['court' => 1]]],
+        ];
+
+        $progress = ScoringService::resolveRoundsProgress((int) $session->session_id, $roundsWithDups);
+
+        $this->assertTrue($progress['access'][1]);
+        $this->assertSame(3, $progress['total_rounds']);
+    }
 }
