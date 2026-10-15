@@ -493,7 +493,7 @@
             @endphp
             @foreach($allKudosPlayers as $player)
             <div class="p-3.5 rounded-2xl bg-white border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-start gap-4 sm:gap-6 shadow-2xs hover:border-[#063B00]/20 transition-all">
-                <div class="flex items-center gap-3 shrink-0 sm:w-44 lg:w-48">
+                <div class="flex items-center gap-3 shrink-0 sm:w-56">
                     @if(!empty($player['avatar']))
                         <img src="{{ $player['avatar'] }}" class="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0" alt="{{ $player['name'] }}">
                     @else
