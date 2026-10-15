@@ -492,7 +492,7 @@
                 $kudosBadges = ['🎾 Super Forehand', '🛡️ Solid Defense', '🤝 Fun Partner', '💥 Killer Smash', '⭐ MVP Play', '✨ Fair Play'];
             @endphp
             @foreach($allKudosPlayers as $player)
-            <div class="p-3.5 rounded-2xl bg-white border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs hover:border-[#063B00]/20 transition-all">
+            <div class="p-3.5 rounded-2xl bg-white border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-start gap-4 sm:gap-6 shadow-2xs hover:border-[#063B00]/20 transition-all">
                 <div class="flex items-center gap-3 shrink-0 sm:w-44 lg:w-48">
                     @if(!empty($player['avatar']))
                         <img src="{{ $player['avatar'] }}" class="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0" alt="{{ $player['name'] }}">
@@ -515,7 +515,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-2.5 gap-y-1.5 sm:w-auto">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-3 sm:gap-x-4 gap-y-2.5">
                     @foreach($kudosBadges as $badge)
                     @php
                         $kKey = "{$player['name']}:{$badge}";
@@ -526,7 +526,7 @@
                         onclick="toggleKudos(this, '{{ addslashes($player['name']) }}', '{{ addslashes($badge) }}', {{ $player['id'] ?? ($player['player_id'] ?? 'null') }})"
                         data-player-name="{{ $player['name'] }}"
                         data-badge="{{ $badge }}"
-                        class="kudos-btn w-fit inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer whitespace-nowrap {{ $isGiven ? 'bg-[#063B00] text-white border-[#063B00] shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00]' }}">
+                        class="kudos-btn w-fit inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer whitespace-nowrap {{ $isGiven ? 'bg-[#063B00] text-white border-[#063B00] shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-[#EBF8D8] hover:border-[#063B00]/30 hover:text-[#063B00]' }}">
                         <span>{{ $badge }}</span>
                         <span class="kudos-badge-count text-[9px] px-1.5 py-0.2 rounded-full {{ $isGiven ? 'bg-[#A8E63A] text-[#063B00] font-black' : ($kCount > 0 ? 'bg-slate-200 text-slate-700 font-bold' : 'hidden') }}">
                             {{ $kCount > 0 ? $kCount : '' }}
