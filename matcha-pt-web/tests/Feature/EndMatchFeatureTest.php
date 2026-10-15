@@ -1477,4 +1477,384 @@ class EndMatchFeatureTest extends TestCase
         $this->assertTrue($progress['access'][1]);
         $this->assertSame(3, $progress['total_rounds']);
     }
+
+    protected function createSingleEnvironment(int $courtCount = 1, array $playerNames = ['P1', 'P2', 'P3', 'P4'], string $scoringSystem = 'First To 2')
+    {
+        $unique = uniqid('s_test_', true);
+        $host = User::create([
+            'nama' => 'Host '.$unique,
+            'email' => 'host_'.$unique.'@test.com',
+            'role' => 'host',
+        ]);
+
+        $sport = Sport::create(['nama_sport' => 'Tennis']);
+        $venue = Venue::create(['nama_venue' => 'Matcha Arena '.$unique, 'owner_user_id' => $host->user_id]);
+
+        $session = SessionModel::create([
+            'host_user_id' => $host->user_id,
+            'sport_id' => $sport->sport_id,
+            'venue_id' => $venue->venue_id,
+            'nama_session' => 'Single Session '.$unique,
+            'scoring_system' => $scoringSystem,
+            'status_session' => 'In Progress',
+            'jenis_permainan' => 'Single',
+            'jumlah_pemain' => count($playerNames),
+            'match_format' => 'Americano',
+        ]);
+
+        $courts = [];
+        for ($i = 1; $i <= $courtCount; $i++) {
+            $court = Court::create(['nama_court' => "Court {$i}"]);
+            DB::table('tb_session_court')->insert([
+                'session_id' => $session->session_id,
+                'court_id' => $court->court_id,
+            ]);
+            $courts[] = $court;
+        }
+
+        $players = [];
+        foreach ($playerNames as $pName) {
+            $user = User::create([
+                'nama' => $pName,
+                'email' => strtolower(str_replace(' ', '', $pName)).'_'.$unique.'@test.com',
+                'role' => 'member',
+            ]);
+            $pl = Player::create([
+                'user_id' => $user->user_id,
+                'nama' => $pName,
+            ]);
+            DB::table('tb_session_player')->insert([
+                'session_id' => $session->session_id,
+                'player_id' => $pl->player_id,
+                'status' => 'active',
+            ]);
+            $players[] = $pl;
+        }
+
+        $drawingRecord = Drawing::create([
+            'session_id' => $session->session_id,
+            'status_drawing' => 'Locked',
+        ]);
+
+        $americanoService = new \App\Services\Drawing\AmericanoService;
+        $normalized = array_map(fn ($p) => [
+            'id' => $p->player_id,
+            'name' => $p->nama,
+            'gender' => 'Male',
+            'level' => 'Intermediate',
+        ], $players);
+        $rounds = $americanoService->generateRounds($normalized, $courtCount, 3, 'Single');
+
+        $cachedSchedule = [
+            'rounds' => $rounds,
+            'court_count' => $courtCount,
+            'schedule_version' => 1,
+            'drawingData' => [
+                'rounds' => $rounds,
+                'court_count' => $courtCount,
+            ],
+        ];
+        foreach ($rounds as $rNum => $rData) {
+            $cachedSchedule["round_{$rNum}"] = $rData;
+        }
+        Cache::put("drawing.schedule_{$session->session_id}", $cachedSchedule, 3600);
+
+        $matchNumber = 1;
+        $matches = [];
+        foreach ($rounds as $rKey => $rData) {
+            $rNum = (int) ($rData['round'] ?? $rKey);
+            $matches[$rNum] = [];
+            foreach ($rData['matches'] ?? [] as $mIdx => $mData) {
+                $cId = $courts[$mIdx]->court_id ?? $courts[0]->court_id;
+                $m = GameMatch::create([
+                    'drawing_id' => $drawingRecord->drawing_id,
+                    'court_id' => $cId,
+                    'nomor_match' => $matchNumber++,
+                    'status_match' => $rNum === 1 ? 'In Progress' : 'Scheduled',
+                ]);
+                $score = Score::create([
+                    'match_id' => $m->match_id,
+                    'set_number' => 1,
+                    'game_number' => 1,
+                    'game_score_a' => 0,
+                    'game_score_b' => 0,
+                    'scoring_system' => $scoringSystem,
+                    'status_score' => 'In Progress',
+                ]);
+                foreach ($mData['team_a'] ?? [] as $pA) {
+                    $pId = is_array($pA) ? ($pA['id'] ?? null) : null;
+                    if ($pId) {
+                        DB::table('tb_match_participant')->insert([
+                            'match_id' => $m->match_id,
+                            'player_id' => $pId,
+                            'side' => 'A',
+                        ]);
+                    }
+                }
+                foreach ($mData['team_b'] ?? [] as $pB) {
+                    $pId = is_array($pB) ? ($pB['id'] ?? null) : null;
+                    if ($pId) {
+                        DB::table('tb_match_participant')->insert([
+                            'match_id' => $m->match_id,
+                            'player_id' => $pId,
+                            'side' => 'B',
+                        ]);
+                    }
+                }
+                $matches[$rNum][$mIdx] = ['match' => $m, 'score' => $score];
+            }
+        }
+
+        return [
+            'host' => $host,
+            'session' => $session,
+            'courts' => $courts,
+            'players' => $players,
+            'drawing' => $drawingRecord,
+            'rounds' => $rounds,
+            'matches' => $matches,
+        ];
+    }
+
+    /**
+     * Test 28: Skenario A — P1 pause -> P2 pause -> P1 resume: P1 tidak hilang di ronde 3 dan riwayat ronde 1 tidak bocor.
+     */
+    public function test_28_scenario_a_reactivated_player_never_missing_and_no_historical_bench_bleed()
+    {
+        $env = $this->createSingleEnvironment(1, ['P1', 'P2', 'P3', 'P4'], 'First To 2');
+        $session = $env['session'];
+        $host = $env['host'];
+        $p1 = $env['players'][0];
+        $p2 = $env['players'][1];
+        $matchR1 = $env['matches'][1][0]['match'];
+        $matchR2 = $env['matches'][2][0]['match'];
+
+        $this->actingAs($host);
+
+        // 1. Ronde 1 dihentikan, P1 diistirahatkan (temporary_pause)
+        $respStopR1 = $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $matchR1->match_id,
+            'match_key' => 'round_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'temporary_pause',
+            'stop_reason' => 'P1 istirahat kram',
+            'withdrawn_player_ids' => [$p1->player_id],
+        ]);
+        $respStopR1->assertStatus(200);
+
+        // Status P1 di tb_session_player harus resting, BUKAN withdrawn
+        $p1Status = DB::table('tb_session_player')->where('session_id', $session->session_id)->where('player_id', $p1->player_id)->value('status');
+        $this->assertSame('resting', $p1Status);
+
+        // 2. Ronde 2 dihentikan, P2 diistirahatkan (temporary_pause)
+        $respStopR2 = $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $matchR2->match_id,
+            'match_key' => 'round_2',
+            'court_number' => 1,
+            'round_key' => 'round_2',
+            'stop_type' => 'temporary_pause',
+            'stop_reason' => 'P2 istirahat',
+            'withdrawn_player_ids' => [$p2->player_id],
+        ]);
+        $respStopR2->assertStatus(200);
+
+        $p2Status = DB::table('tb_session_player')->where('session_id', $session->session_id)->where('player_id', $p2->player_id)->value('status');
+        $this->assertSame('resting', $p2Status);
+
+        // 3. Host menekan Siap Main untuk P1
+        $respReactivate = $this->postJson(route('scoring.reactivate-player'), [
+            'game_id' => $session->session_id,
+            'player_id' => $p1->player_id,
+            'round' => 'round_2',
+        ]);
+        $respReactivate->assertStatus(200);
+
+        // Status P1 kembali active, P2 tetap resting
+        $p1StatusAfter = DB::table('tb_session_player')->where('session_id', $session->session_id)->where('player_id', $p1->player_id)->value('status');
+        $p2StatusAfter = DB::table('tb_session_player')->where('session_id', $session->session_id)->where('player_id', $p2->player_id)->value('status');
+        $this->assertSame('active', $p1StatusAfter);
+        $this->assertSame('resting', $p2StatusAfter);
+
+        // 4. Verifikasi jadwal Ronde 3: P1 HARUS MUNCUL (tidak hilang!)
+        $cachedSchedule = Cache::get("drawing.schedule_{$session->session_id}");
+        $r3 = $cachedSchedule['rounds'][3] ?? $cachedSchedule['rounds']['round_3'];
+
+        $r3PlayingNames = [];
+        foreach ($r3['matches'] ?? [] as $m) {
+            $r3PlayingNames = array_merge($r3PlayingNames, $m['team_a_names'] ?? [], $m['team_b_names'] ?? []);
+        }
+        $r3Resting = $r3['resting'] ?? [];
+        $allR3People = array_merge($r3PlayingNames, $r3Resting);
+
+        // P1 HARUS ada di Ronde 3
+        $this->assertContains('P1', $allR3People, 'P1 yang sudah reaktif harus muncul di pertandingan atau bench Ronde 3!');
+        // P2 tetap istirahat di resting
+        $this->assertContains('P2', $r3Resting, 'P2 harus berada di resting bench Ronde 3');
+        // Total 4 pemain tercatat lengkap di Ronde 3
+        $this->assertCount(4, array_unique($allR3People));
+
+        // 5. Verifikasi riwayat Ronde 1: P2 tidak boleh bocor menjadi 'Istirahat' di ronde 1
+        $drawingResp = $this->get(route('games.drawing', ['id' => $session->session_id, 'round' => 1]));
+        $drawingResp->assertStatus(200);
+        $r1View = $drawingResp->viewData('rounds')[1] ?? [];
+        $r1PausedPlayers = $r1View['paused_players'] ?? [];
+        $this->assertNotContains('P2', $r1PausedPlayers, 'P2 yang baru istirahat di ronde 2 tidak boleh tercatat sebagai istirahat di snapshot ronde 1');
+    }
+
+    /**
+     * Test 29: Skenario B — Americano Single 4 pemain 2 court, 1 pemain pause -> 1 court aktif -> resume -> kapasitas 2 court pulih.
+     */
+    public function test_29_scenario_b_temporary_pause_and_reactivation_restores_two_courts()
+    {
+        $env = $this->createSingleEnvironment(2, ['Hilmy', 'Haechan', 'Player3', 'Player4'], 'First To 2');
+        $session = $env['session'];
+        $host = $env['host'];
+        $hilmy = $env['players'][0];
+        $haechan = $env['players'][1];
+        $matchC1 = $env['matches'][1][0]['match'];
+        $matchC2 = $env['matches'][1][1]['match'];
+
+        $this->actingAs($host);
+
+        // 1. Court 1 dihentikan, hanya Hilmy diistirahatkan (temporary_pause)
+        $respStopC1 = $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $matchC1->match_id,
+            'match_key' => 'round_1_court_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'temporary_pause',
+            'stop_reason' => 'Hilmy kram',
+            'withdrawn_player_ids' => [$hilmy->player_id],
+        ]);
+        $respStopC1->assertStatus(200);
+
+        // Court 2 diselesaikan normal
+        $matchC2->status_match = 'Completed';
+        $matchC2->save();
+        $c2Score = Score::where('match_id', $matchC2->match_id)->first();
+        if ($c2Score) {
+            $c2Score->status_score = 'Final';
+            $c2Score->save();
+        }
+
+        // Hilmy berstatus resting, Haechan tetap active
+        $this->assertSame('resting', DB::table('tb_session_player')->where('session_id', $session->session_id)->where('player_id', $hilmy->player_id)->value('status'));
+        $this->assertSame('active', DB::table('tb_session_player')->where('session_id', $session->session_id)->where('player_id', $haechan->player_id)->value('status'));
+
+        // 2. Ronde 2 dengan 3 pemain aktif: Single mode memakai 1 court (2 pemain) dan 1 pemain bench rotasi, Hilmy istirahat
+        $scheduleR2 = Cache::get("drawing.schedule_{$session->session_id}");
+        $r2 = $scheduleR2['rounds'][2];
+        $this->assertCount(1, $r2['matches'], 'Ronde 2 harus menggunakan 1 court karena pemain aktif hanya 3 orang');
+        $this->assertContains('Hilmy', $r2['resting']);
+
+        // 3. Host mengaktifkan kembali Hilmy
+        $respReactivate = $this->postJson(route('scoring.reactivate-player'), [
+            'game_id' => $session->session_id,
+            'player_id' => $hilmy->player_id,
+            'round' => 'round_2',
+        ]);
+        $respReactivate->assertStatus(200);
+
+        // Seluruh 4 pemain kini berstatus active
+        $activeCount = DB::table('tb_session_player')->where('session_id', $session->session_id)->where('status', 'active')->count();
+        $this->assertSame(4, $activeCount);
+
+        // 4. Ronde 3 yang belum dimulai HARUS MEMULIHKAN 2 COURT sesuai konfigurasi awal
+        $scheduleR3 = Cache::get("drawing.schedule_{$session->session_id}");
+        $r3 = $scheduleR3['rounds'][3];
+        $this->assertCount(2, $r3['matches'], 'Ronde 3 harus kembali menggunakan 2 court karena seluruh 4 pemain telah aktif');
+
+        $r3Participants = [];
+        foreach ($r3['matches'] as $m) {
+            $r3Participants = array_merge($r3Participants, $m['team_a_names'] ?? [], $m['team_b_names'] ?? []);
+        }
+        $this->assertContains('Hilmy', $r3Participants, 'Hilmy harus bertanding di salah satu court Ronde 3');
+        $this->assertContains('Haechan', $r3Participants, 'Haechan harus bertanding di salah satu court Ronde 3');
+        $this->assertCount(4, $r3Participants);
+    }
+
+    /**
+     * Test 30: Withdrawn player (keluar permanen) TIDAK DAPAT diaktifkan melalui endpoint reactivatePlayer.
+     */
+    public function test_30_withdrawn_player_cannot_be_resumed_via_reactivate_endpoint()
+    {
+        $env = $this->createSingleEnvironment(1, ['P1', 'P2', 'P3', 'P4'], 'First To 2');
+        $session = $env['session'];
+        $host = $env['host'];
+        $p1 = $env['players'][0];
+        $match = $env['matches'][1][0]['match'];
+
+        $this->actingAs($host);
+
+        // P1 keluar permanen (withdraw_players)
+        $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $match->match_id,
+            'match_key' => 'round_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'withdraw_players',
+            'stop_reason' => 'Cedera parah',
+            'withdrawn_player_ids' => [$p1->player_id],
+        ])->assertStatus(200);
+
+        $this->assertSame('withdrawn', DB::table('tb_session_player')->where('session_id', $session->session_id)->where('player_id', $p1->player_id)->value('status'));
+
+        // Coba aktifkan kembali via endpoint resume -> HARUS DITOLAK (422)
+        $resp = $this->postJson(route('scoring.reactivate-player'), [
+            'game_id' => $session->session_id,
+            'player_id' => $p1->player_id,
+            'round' => 'round_1',
+        ]);
+        $resp->assertStatus(422);
+        $resp->assertJsonFragment(['success' => false]);
+
+        // Status tetap withdrawn
+        $this->assertSame('withdrawn', DB::table('tb_session_player')->where('session_id', $session->session_id)->where('player_id', $p1->player_id)->value('status'));
+    }
+
+    /**
+     * Test 31: Cache fixture kosong setelah pause/resume: status pemain, susunan, bench, dan kapasitas court tetap benar saat dibaca ulang.
+     */
+    public function test_31_empty_cache_reconstructs_adjusted_schedule_with_correct_court_capacity()
+    {
+        $env = $this->createSingleEnvironment(2, ['Hilmy', 'Haechan', 'Player3', 'Player4'], 'First To 2');
+        $session = $env['session'];
+        $host = $env['host'];
+        $hilmy = $env['players'][0];
+        $matchC1 = $env['matches'][1][0]['match'];
+
+        $this->actingAs($host);
+
+        // Pause Hilmy
+        $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $matchC1->match_id,
+            'match_key' => 'round_1_court_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'temporary_pause',
+            'withdrawn_player_ids' => [$hilmy->player_id],
+        ])->assertStatus(200);
+
+        // SIMULASIKAN CACHE KOSONG
+        Cache::forget("drawing.schedule_{$session->session_id}");
+
+        // Request drawing JSON
+        $respDrawing = $this->getJson(route('games.drawing', ['id' => $session->session_id, 'json' => 1]));
+        $respDrawing->assertStatus(200);
+
+        // Jadwal terekonstruksi dengan benar dari database
+        $rData = $respDrawing->json('rounds');
+        $this->assertNotEmpty($rData);
+        // Hilmy tetap tercatat di resting
+        $this->assertContains('Hilmy', $rData[2]['resting'] ?? []);
+        // Court count round 2 hanya 1 karena pemain aktif 3
+        $this->assertCount(1, $rData[2]['matches'] ?? []);
+    }
 }
+

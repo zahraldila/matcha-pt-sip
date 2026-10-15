@@ -673,14 +673,24 @@
                                     }
                                 }
                             }
-                            $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
+                            $currActiveNum = (int) preg_replace('/[^0-9]/', '', $savedScores['_meta']['active_round'] ?? '1');
+                            $thisRoundNum = (int) preg_replace('/[^0-9]/', '', $activeRound ?? '1');
+                            $isPastRound = $thisRoundNum < $currActiveNum;
+                            $roundData = $game['drawing'][$activeRound] ?? [];
+                            $roundPausedPlayers = $roundData['paused_players'] ?? [];
+                            $roundPausedIds = $roundData['paused_player_ids'] ?? [];
+                            if ($isPastRound) {
+                                $isPaused = in_array($rName, $roundPausedPlayers, true) || ($rId && in_array((int)$rId, $roundPausedIds, true));
+                            } else {
+                                $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
+                            }
                         @endphp
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg {{ $isPaused ? 'bg-amber-50 text-slate-800 border border-amber-300' : 'bg-white text-slate-700 border border-slate-200' }} text-xs font-medium shadow-2xs">
                             <span class="w-1.5 h-1.5 rounded-full {{ $isPaused ? 'bg-amber-600' : 'bg-amber-500' }}"></span>
                             {{ $rName }}
                             @if($isPaused)
                                 <span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>
-                                @if($isHost)
+                                @if(! $isPastRound && $isHost)
                                     <button type="button" onclick="reactivatePlayerLive({{ $rId }}, '{{ addslashes($rName) }}')" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1">
                                         <i class="fa-solid fa-play text-[7px]"></i> Siap Main
                                     </button>

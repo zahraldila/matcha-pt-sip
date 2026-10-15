@@ -1365,15 +1365,52 @@ class GameController extends Controller
                 $courtCount
             );
 
-            $hasSessionStatusChanges = ! empty($savedSchedule['withdrawn_player_ids']) || ! empty($savedSchedule['paused_player_ids']);
+            $hasScheduleAdjusted = ScoringService::hasScheduleBeenAdjusted($dbSession);
+            $hasSessionStatusChanges = ! empty($savedSchedule['withdrawn_player_ids']) || ! empty($savedSchedule['paused_player_ids']) || $hasScheduleAdjusted;
             if (! $isLocked && ! $hasSessionStatusChanges && ($currentParticipantNames !== $cachedPlayerNames || ($expectedRounds !== null && count($savedSchedule['rounds']) !== $expectedRounds))) {
                 $isCacheStale = true;
             }
         }
 
+        $hasScheduleAdjusted = ScoringService::hasScheduleBeenAdjusted($dbSession);
         $needsGeneration = false;
         if (! $savedSchedule || empty($savedSchedule['rounds']) || $isCacheStale) {
-            $needsGeneration = true;
+            if ($hasScheduleAdjusted) {
+                // Pulihkan jadwal teradjust dari database state, bukan mengulang bracket acak dari awal
+                $effectiveRound = 1;
+                try {
+                    if (Schema::hasTable('tb_drawing') && Schema::hasTable('tb_match')) {
+                        $drawingRecord = Drawing::where('session_id', $dbSession->session_id)->first();
+                        if ($drawingRecord) {
+                            $maxNomor = GameMatch::where('drawing_id', $drawingRecord->drawing_id)
+                                ->where(function ($q) {
+                                    $q->whereIn('status_match', ['Completed', 'Stopped'])
+                                        ->orWhereNotNull('stop_type');
+                                })
+                                ->max('nomor_match');
+                            if ($maxNomor && $courtCount > 0) {
+                                $effectiveRound = max(1, intdiv((int) $maxNomor - 1, $courtCount) + 1);
+                            }
+                        }
+                    }
+                    if (Schema::hasColumn('tb_session', 'active_round') && ! empty($dbSession->active_round)) {
+                        $sessRound = (int) preg_replace('/[^0-9]/', '', (string) $dbSession->active_round);
+                        if ($sessRound > 0) {
+                            $effectiveRound = max($effectiveRound, $sessRound);
+                        }
+                    }
+                } catch (\Throwable $e) {
+                }
+
+                $withdrawnIds = ScoringService::getWithdrawnPlayerIds($dbSession);
+                $pausedIds = ScoringService::getPausedPlayerIds($dbSession);
+                $adjusted = ScoringService::adjustFutureScheduleCore($dbSession, $withdrawnIds, $pausedIds, $effectiveRound);
+                $savedSchedule = Cache::get($scheduleCacheKey);
+                $rounds = $savedSchedule['rounds'] ?? ($adjusted['rounds'] ?? []);
+                $drawingData = $savedSchedule['drawingData'] ?? ($adjusted['drawingData'] ?? []);
+            } else {
+                $needsGeneration = true;
+            }
         } elseif (! $isLocked && ($request->has('shuffle') || $request->has('seed'))) {
             $needsGeneration = true;
         }
@@ -1473,6 +1510,9 @@ class GameController extends Controller
         } else {
             $drawingData = $savedSchedule['drawingData'] ?? [];
             $rounds = $savedSchedule['rounds'] ?? [];
+            if (! empty($rounds)) {
+                $drawingData['rounds'] = $rounds;
+            }
         }
 
         $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
@@ -1480,7 +1520,7 @@ class GameController extends Controller
         $savedScores = Cache::get("scoring.game_{$game['id']}", []);
         $pausedPlayerIds = ScoringService::getPausedPlayerIds($dbSession);
         $withdrawnPlayerIds = ScoringService::getWithdrawnPlayerIds($dbSession);
-        if (empty($pausedPlayerIds) && empty($withdrawnPlayerIds) && $isSingleMode && count($participants) === 4 && $courtCount === 1) {
+        if (! $hasScheduleAdjusted && empty($pausedPlayerIds) && empty($withdrawnPlayerIds) && $isSingleMode && count($participants) === 4 && $courtCount === 1) {
             $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
             $americanoService = new AmericanoService;
             $rounds = $americanoService->resolveDynamicSingleRounds($rounds, $savedScores, $scoringSystem, (int) $game['id']);

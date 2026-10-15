@@ -900,6 +900,9 @@ class AmericanoService
     public function resolveDynamicSingleRounds(array $rounds, array $savedScores, ?array $scoringSystem = null, ?int $sessionId = null): array
     {
         if ($sessionId) {
+            if (ScoringService::hasScheduleBeenAdjusted($sessionId)) {
+                return $rounds;
+            }
             $pausedIds = ScoringService::getPausedPlayerIds($sessionId);
             $withdrawnIds = ScoringService::getWithdrawnPlayerIds($sessionId);
             if (! empty($pausedIds) || ! empty($withdrawnIds)) {
@@ -926,7 +929,10 @@ class AmericanoService
                         $match = GameMatch::where('drawing_id', $drawing->drawing_id)
                             ->where('nomor_match', $roundNum)
                             ->first();
-                        if ($match && $match->status_match === 'Completed') {
+                        if ($match && in_array($match->status_match, ['Completed', 'Stopped'])) {
+                            if ($match->status_match === 'Stopped') {
+                                return ['status' => 'stopped'];
+                            }
                             $sc = Score::where('match_id', $match->match_id)->first();
                             $score = [
                                 'status' => 'completed',
@@ -946,6 +952,10 @@ class AmericanoService
 
         $scoreR1 = $getRoundScore(1);
         $scoreR2 = $getRoundScore(2);
+
+        if (($scoreR1['status'] ?? '') === 'stopped' || ($scoreR2['status'] ?? '') === 'stopped') {
+            return $rounds;
+        }
 
         $isR1Completed = $scoreR1 && (($scoreR1['status'] ?? '') === 'completed');
         $isR2Completed = $scoreR2 && (($scoreR2['status'] ?? '') === 'completed');

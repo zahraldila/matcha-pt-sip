@@ -1791,6 +1791,21 @@ class ScoringController extends Controller
         $player = Player::find($playerId);
         $playerName = $player ? $player->nama : "Pemain #{$playerId}";
 
+        // 0. Withdrawn tidak dapat diaktifkan melalui endpoint resume
+        if (Schema::hasTable('tb_session_player')) {
+            $sessionPlayer = DB::table('tb_session_player')
+                ->where('session_id', $session->session_id)
+                ->where('player_id', $playerId)
+                ->first();
+
+            if ($sessionPlayer && ($sessionPlayer->status ?? '') === 'withdrawn') {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Pemain {$playerName} telah keluar secara permanen dan tidak dapat diaktifkan kembali.",
+                ], 422);
+            }
+        }
+
         // 1. Update tb_session_player: status = 'active'
         if (Schema::hasTable('tb_session_player')) {
             $updateData = [];
@@ -1823,10 +1838,33 @@ class ScoringController extends Controller
             Cache::put($cacheKey, $scores, now()->addHours(4));
         }
 
-        // 3. Tentukan ronde aktif
-        $roundStr = (string) ($request->input('round') ?: ($scores['_meta']['active_round'] ?? 'round_1'));
-        preg_match('/(\d+)/', $roundStr, $rM);
-        $currRoundNum = isset($rM[1]) ? (int) $rM[1] : 1;
+        // 3. Tentukan ronde aktif dari state server, bukan hanya round dari frontend
+        $currRoundNum = 1;
+        $savedMetaRound = $scores['_meta']['active_round'] ?? null;
+        if ($savedMetaRound && preg_match('/(\d+)/', $savedMetaRound, $m)) {
+            $currRoundNum = max($currRoundNum, (int) $m[1]);
+        }
+        try {
+            $drawing = Drawing::where('session_id', $session->session_id)->first();
+            if ($drawing) {
+                $courtCount = max(1, $session->courts->count());
+                $maxTerminalMatchNum = GameMatch::where('drawing_id', $drawing->drawing_id)
+                    ->whereIn('status_match', ['Completed', 'Stopped'])
+                    ->max('nomor_match');
+                if ($maxTerminalMatchNum) {
+                    $terminalRoundNum = intdiv(max(0, (int) $maxTerminalMatchNum - 1), $courtCount) + 1;
+                    $currRoundNum = max($currRoundNum, $terminalRoundNum);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+        if ($request->filled('round') && preg_match('/(\d+)/', (string) $request->input('round'), $reqM)) {
+            $reqRoundNum = (int) $reqM[1];
+            if ($reqRoundNum >= $currRoundNum) {
+                $currRoundNum = $reqRoundNum;
+            }
+        }
 
         // 4. Sesuaikan jadwal ronde mendatang dengan memasukkan kembali pemain ini
         $adjusted = ScoringService::adjustFutureScheduleOnReactivation($session, $playerId, $currRoundNum);
@@ -3079,9 +3117,42 @@ class ScoringController extends Controller
                 }
             }
 
+            $hasScheduleAdjusted = ScoringService::hasScheduleBeenAdjusted($dbSession);
             if ($cachedSchedule && ! empty($cachedSchedule['rounds']) && ! $isCacheStale) {
                 $rounds = $cachedSchedule['rounds'];
                 $courtCount = $cachedSchedule['court_count'] ?? $courtCount;
+            } elseif ($hasScheduleAdjusted) {
+                $effectiveRound = 1;
+                try {
+                    if (Schema::hasTable('tb_drawing') && Schema::hasTable('tb_match')) {
+                        $drawingRecord = Drawing::where('session_id', $dbSession->session_id)->first();
+                        if ($drawingRecord) {
+                            $maxNomor = GameMatch::where('drawing_id', $drawingRecord->drawing_id)
+                                ->where(function ($q) {
+                                    $q->whereIn('status_match', ['Completed', 'Stopped'])
+                                        ->orWhereNotNull('stop_type');
+                                })
+                                ->max('nomor_match');
+                            if ($maxNomor && $courtCount > 0) {
+                                $effectiveRound = max(1, intdiv((int) $maxNomor - 1, $courtCount) + 1);
+                            }
+                        }
+                    }
+                    if (Schema::hasColumn('tb_session', 'active_round') && ! empty($dbSession->active_round)) {
+                        $sessRound = (int) preg_replace('/[^0-9]/', '', (string) $dbSession->active_round);
+                        if ($sessRound > 0) {
+                            $effectiveRound = max($effectiveRound, $sessRound);
+                        }
+                    }
+                } catch (\Throwable $e) {
+                }
+
+                $withdrawnIds = ScoringService::getWithdrawnPlayerIds($dbSession);
+                $pausedIds = ScoringService::getPausedPlayerIds($dbSession);
+                $adjusted = ScoringService::adjustFutureScheduleCore($dbSession, $withdrawnIds, $pausedIds, $effectiveRound);
+                $cachedSchedule = Cache::get("drawing.schedule_{$dbSession->session_id}");
+                $rounds = $cachedSchedule['rounds'] ?? ($adjusted['rounds'] ?? []);
+                $courtCount = $cachedSchedule['court_count'] ?? ($adjusted['drawingData']['court_count'] ?? $courtCount);
             } else {
                 try {
                     $isTeam = str_contains($format, 'team');
@@ -3142,7 +3213,7 @@ class ScoringController extends Controller
             $isSingle = strtolower($sessionJenisPermainan ?? '') === 'single';
             $pausedIds = ScoringService::getPausedPlayerIds($dbSession);
             $withdrawnIds = ScoringService::getWithdrawnPlayerIds($dbSession);
-            if (empty($pausedIds) && empty($withdrawnIds) && $isSingle && count($participants) === 4 && $courtCount === 1) {
+            if (! $hasScheduleAdjusted && empty($pausedIds) && empty($withdrawnIds) && $isSingle && count($participants) === 4 && $courtCount === 1) {
                 $cacheKey = "scoring.game_{$dbSession->session_id}";
                 $savedScores = Cache::get($cacheKey, []);
                 $americanoService = new AmericanoService;

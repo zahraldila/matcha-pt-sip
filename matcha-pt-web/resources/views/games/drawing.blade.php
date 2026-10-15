@@ -2,7 +2,7 @@
 
 @section('content')
 @php
-    $rounds = $drawingData['rounds'] ?? ($rounds ?? []);
+    $rounds = !empty($rounds) ? $rounds : ($drawingData['rounds'] ?? []);
     $firstRoundKey = !empty($rounds) ? array_key_first($rounds) : 1;
     $roundAccess = $roundAccess ?? [];
     $roundStatus = $roundStatus ?? [];
@@ -347,7 +347,14 @@
                                     break;
                                 }
                             }
-                            $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
+                            $isPastRound = (($roundStatus[$activeRoundNum] ?? '') === 'completed') || ((int)$activeRoundNum < (int)($roundsProgress['active_round_num'] ?? $activeRoundNum));
+                            if ($isPastRound) {
+                                $roundPausedPlayers = $activeRound['paused_players'] ?? [];
+                                $roundPausedIds = $activeRound['paused_player_ids'] ?? [];
+                                $isPaused = in_array($rName, $roundPausedPlayers, true) || ($rId && in_array((int)$rId, $roundPausedIds, true));
+                            } else {
+                                $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
+                            }
                         @endphp
                         <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl {{ $isPaused ? 'bg-amber-50/80 text-slate-800 border border-amber-200' : 'bg-white text-slate-800 border border-slate-200' }} text-xs font-medium shadow-2xs">
                             <span class="w-5 h-5 rounded-full {{ $isPaused ? 'bg-amber-200 text-amber-800' : 'bg-amber-100 text-amber-800' }} text-[10px] flex items-center justify-center font-bold">
@@ -357,7 +364,7 @@
                             <span class="text-[9px] font-bold {{ $isPaused ? 'text-amber-800 bg-amber-100 border border-amber-300' : 'text-amber-700 bg-amber-50 border border-amber-200' }} px-1.5 py-0.5 rounded border">
                                 {{ $isPaused ? 'Istirahat' : 'Bench' }}
                             </span>
-                            @if($isPaused && ($isHost ?? false))
+                            @if(! $isPastRound && $isPaused && ($isHost ?? false))
                                 <button type="button" onclick="reactivatePlayer({{ $rId }}, '{{ addslashes($rName) }}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs transition-colors cursor-pointer ml-1">
                                     <i class="fa-solid fa-play text-[8px]"></i> Siap Main
                                 </button>
@@ -538,7 +545,14 @@
                                         break;
                                     }
                                 }
-                                $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
+                                $isPastRound = (($roundStatus[$activeRoundNum] ?? '') === 'completed') || ((int)$activeRoundNum < (int)($roundsProgress['active_round_num'] ?? $activeRoundNum));
+                                if ($isPastRound) {
+                                    $roundPausedPlayers = $activeRound['paused_players'] ?? [];
+                                    $roundPausedIds = $activeRound['paused_player_ids'] ?? [];
+                                    $isPaused = in_array($pName, $roundPausedPlayers, true) || ($rId && in_array((int)$rId, $roundPausedIds, true));
+                                } else {
+                                    $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
+                                }
                             @endphp
                             <div class="flex items-center justify-between bg-white p-2 rounded-xl border {{ $isPaused ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/70' }} text-xs">
                                 <span class="text-slate-700 truncate max-w-[50%]">{{ $idx + 1 }}. {{ $pName }}</span>
@@ -546,7 +560,7 @@
                                     <span class="text-[10px] font-semibold {{ $isPaused ? 'text-amber-800 bg-amber-100 border border-amber-300' : 'text-amber-600 bg-amber-50 border border-amber-200' }} px-2 py-0.5 rounded">
                                         {{ $isPaused ? 'Istirahat' : 'Bench' }}
                                     </span>
-                                    @if($isPaused && ($isHost ?? false))
+                                    @if(! $isPastRound && $isPaused && ($isHost ?? false))
                                         <button type="button" onclick="reactivatePlayer({{ $rId }}, '{{ addslashes($pName) }}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs transition-colors cursor-pointer">
                                             <i class="fa-solid fa-play text-[8px]"></i> Siap
                                         </button>
@@ -635,7 +649,7 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-    let roundsData = @json($drawingData['rounds'] ?? []);
+    let roundsData = @json(!empty($rounds) ? $rounds : ($drawingData['rounds'] ?? []));
     let roundAccessData = @json($roundAccess ?? []);
     let roundStatusData = @json($roundStatus ?? []);
     let participantsMap = @json($participantsMap ?? []);
@@ -643,6 +657,7 @@
     let pausedPlayerIds = @json($pausedPlayerIds ?? []);
     const unitLabel = @json($unitLabel ?? 'Round');
     let currentRoundKey = {{ $activeRoundNum }};
+    const serverActiveRoundNum = {{ $activeRoundNum }};
     const isSessionLocked = @json($isLocked ?? false);
     const isHostUser = @json($isHost ?? false);
     const gameSessionId = {{ (int) $game['id'] }};
@@ -1293,6 +1308,10 @@
             restingPlayers = roundData.resting.map(name => ({ name }));
         }
 
+        const tabEl = document.getElementById(`tabRound${roundNum}`);
+        const roundStatusVal = tabEl ? tabEl.dataset.status : (roundStatusData[roundNum] || '');
+        const isPastRound = (roundStatusVal === 'completed') || (Number(roundNum) < Number(serverActiveRoundNum));
+
         // Render Bench di Bawah Lapangan
         const benchListContainer = document.getElementById('benchListContainer');
         const labelBenchCount = document.getElementById('labelBenchCount');
@@ -1308,7 +1327,9 @@
                         const found = allParticipants.find(x => cleanPlayerName(x.name || x) === cleanPlayerName(pName));
                         if (found) pId = found.id;
                     }
-                    const isPaused = pId && Array.isArray(pausedPlayerIds) && pausedPlayerIds.map(Number).includes(Number(pId));
+                    const isPaused = isPastRound
+                        ? ((Array.isArray(roundData.paused_players) && roundData.paused_players.includes(pName)) || (pId && Array.isArray(roundData.paused_player_ids) && roundData.paused_player_ids.map(Number).includes(Number(pId))))
+                        : (pId && Array.isArray(pausedPlayerIds) && pausedPlayerIds.map(Number).includes(Number(pId)));
                     const safeName = pName.replace(/'/g, "\\'");
 
                     return `
@@ -1320,7 +1341,7 @@
                             <span class="text-[9px] font-bold ${isPaused ? 'text-amber-800 bg-amber-100 border border-amber-300' : 'text-amber-700 bg-amber-50 border border-amber-200'} px-1.5 py-0.5 rounded border">
                                 ${isPaused ? 'Istirahat' : 'Bench'}
                             </span>
-                            ${isPaused && isHostUser ? `
+                            ${!isPastRound && isPaused && isHostUser ? `
                                 <button type="button" onclick="reactivatePlayer(${pId}, '${safeName}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs transition-colors cursor-pointer ml-1">
                                     <i class="fa-solid fa-play text-[8px]"></i> Siap Main
                                 </button>
@@ -1346,7 +1367,9 @@
                         const found = allParticipants.find(x => cleanPlayerName(x.name || x) === cleanPlayerName(pName));
                         if (found) pId = found.id;
                     }
-                    const isPaused = pId && Array.isArray(pausedPlayerIds) && pausedPlayerIds.map(Number).includes(Number(pId));
+                    const isPaused = isPastRound
+                        ? ((Array.isArray(roundData.paused_players) && roundData.paused_players.includes(pName)) || (pId && Array.isArray(roundData.paused_player_ids) && roundData.paused_player_ids.map(Number).includes(Number(pId))))
+                        : (pId && Array.isArray(pausedPlayerIds) && pausedPlayerIds.map(Number).includes(Number(pId)));
                     const safeName = pName.replace(/'/g, "\\'");
 
                     return `
@@ -1356,7 +1379,7 @@
                                 <span class="text-[10px] font-semibold ${isPaused ? 'text-amber-800 bg-amber-100 border border-amber-300' : 'text-amber-600 bg-amber-50 border border-amber-200'} px-2 py-0.5 rounded">
                                     ${isPaused ? 'Istirahat' : 'Bench'}
                                 </span>
-                                ${isPaused && isHostUser ? `
+                                ${!isPastRound && isPaused && isHostUser ? `
                                     <button type="button" onclick="reactivatePlayer(${pId}, '${safeName}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs transition-colors cursor-pointer">
                                         <i class="fa-solid fa-play text-[8px]"></i> Siap
                                     </button>

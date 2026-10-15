@@ -1528,13 +1528,21 @@ class ScoringService
         }
 
         if ($activeRoundNum === 1 && ($roundStatus[1] ?? '') === 'completed') {
+            $lastActiveOrCompleted = 1;
             foreach ($rounds as $rIdx => $rData) {
                 $rNum = (int) ($rData['round'] ?? ($rData['round_number'] ?? $rIdx));
-                if (($roundAccess[$rNum] ?? false) && ($roundStatus[$rNum] ?? '') !== 'completed') {
-                    $activeRoundNum = $rNum;
+                if (($roundStatus[$rNum] ?? '') === 'completed') {
+                    $lastActiveOrCompleted = $rNum;
+                } elseif (($roundStatus[$rNum] ?? '') === 'in_progress') {
+                    $lastActiveOrCompleted = $rNum;
+                    break;
+                } else {
+                    // Ronde berikutnya berstatus 'ready' (sudah boleh diakses, tetapi belum diaktifkan host).
+                    // Tetap di ronde sebelumnya agar tombol Lanjut tetap tampil bagi host.
                     break;
                 }
             }
+            $activeRoundNum = $lastActiveOrCompleted;
         }
 
         return [
@@ -1578,11 +1586,19 @@ class ScoringService
             if (Schema::hasTable('tb_match') && Schema::hasTable('tb_drawing') && Schema::hasColumn('tb_match', 'withdrawn_player_ids')) {
                 $drawingIds = DB::table('tb_drawing')->where('session_id', $sessionId)->pluck('drawing_id');
                 if ($drawingIds->isNotEmpty()) {
-                    $matchWithdrawnRaw = DB::table('tb_match')
+                    $query = DB::table('tb_match')
                         ->whereIn('drawing_id', $drawingIds)
                         ->where('status_match', 'Stopped')
-                        ->whereNotNull('withdrawn_player_ids')
-                        ->pluck('withdrawn_player_ids');
+                        ->whereNotNull('withdrawn_player_ids');
+
+                    if (Schema::hasColumn('tb_match', 'stop_type')) {
+                        $query->where(function ($q) {
+                            $q->whereNull('stop_type')
+                                ->orWhereNotIn('stop_type', ['temporary_pause', 'pause_players']);
+                        });
+                    }
+
+                    $matchWithdrawnRaw = $query->pluck('withdrawn_player_ids');
 
                     foreach ($matchWithdrawnRaw as $raw) {
                         $decoded = json_decode($raw, true);
@@ -1607,7 +1623,23 @@ class ScoringService
             }
         }
 
-        return array_values(array_unique($withdrawnIds));
+        // Pemain yang berstatus active atau resting di tb_session_player secara mutlak TIDAK BOLEH dianggap withdrawn
+        try {
+            if (Schema::hasTable('tb_session_player') && Schema::hasColumn('tb_session_player', 'status')) {
+                $activeOrRestingIds = DB::table('tb_session_player')
+                    ->where('session_id', $sessionId)
+                    ->whereIn('status', ['active', 'resting'])
+                    ->pluck('player_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                $withdrawnIds = array_values(array_diff($withdrawnIds, $activeOrRestingIds));
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
+        return array_values(array_unique(array_filter($withdrawnIds, fn ($id) => (int) $id > 0)));
     }
 
     /**
@@ -1654,7 +1686,77 @@ class ScoringService
             }
         }
 
+        // Pemain yang sudah kembali active atau keluar di tb_session_player tidak boleh dianggap resting
+        try {
+            if (Schema::hasTable('tb_session_player') && Schema::hasColumn('tb_session_player', 'status')) {
+                $nonRestingIds = DB::table('tb_session_player')
+                    ->where('session_id', $sessionId)
+                    ->whereIn('status', ['active', 'withdrawn'])
+                    ->pluck('player_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                $pausedIds = array_values(array_diff($pausedIds, $nonRestingIds));
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
         return array_values(array_unique(array_filter($pausedIds, fn ($id) => (int) $id > 0)));
+    }
+
+    /**
+     * Periksa apakah sesi pernah mengalami penghentian pertandingan atau penyesuaian jadwal.
+     */
+    public static function hasScheduleBeenAdjusted($session): bool
+    {
+        $sessionId = ($session instanceof SessionModel) ? $session->session_id : (int) $session;
+
+        // 1. Cek dari cache
+        $cachedSchedule = Cache::get("drawing.schedule_{$sessionId}", []);
+        if (! empty($cachedSchedule['is_adjusted']) || ! empty($cachedSchedule['last_adjusted_at'])) {
+            return true;
+        }
+
+        // 2. Cek dari database tb_match (apakah ada match yang dihentikan)
+        try {
+            if (Schema::hasTable('tb_match') && Schema::hasTable('tb_drawing')) {
+                $drawingIds = DB::table('tb_drawing')->where('session_id', $sessionId)->pluck('drawing_id');
+                if ($drawingIds->isNotEmpty()) {
+                    $hasStoppedMatch = DB::table('tb_match')
+                        ->whereIn('drawing_id', $drawingIds)
+                        ->where(function ($q) {
+                            $q->where('status_match', 'Stopped')
+                                ->orWhereNotNull('stop_type');
+                        })
+                        ->exists();
+
+                    if ($hasStoppedMatch) {
+                        return true;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
+        // 3. Cek tb_session_player (apakah ada pemain resting atau withdrawn)
+        try {
+            if (Schema::hasTable('tb_session_player') && Schema::hasColumn('tb_session_player', 'status')) {
+                $hasRestingOrWithdrawn = DB::table('tb_session_player')
+                    ->where('session_id', $sessionId)
+                    ->whereIn('status', ['resting', 'withdrawn'])
+                    ->exists();
+
+                if ($hasRestingOrWithdrawn) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
+        return false;
     }
 
     /**
@@ -1833,6 +1935,10 @@ class ScoringService
 
                     $origRound['matches'] = $adjustedMatches;
                     $origResting = $origRound['resting'] ?? [];
+                    $origRound['rotation_bench'] = $origResting;
+                    $origRound['paused_players'] = $pausedPlayerNames;
+                    $origRound['paused_player_ids'] = $allPausedIds;
+                    $origRound['withdrawn_players'] = $allWithdrawnIds;
                     $origRound['resting'] = array_values(array_unique(array_merge($origResting, $pausedPlayerNames)));
                     $updatedRounds[$r] = $origRound;
                 }
@@ -1875,16 +1981,25 @@ class ScoringService
                             $rData = $generatedFuture[$genIdx];
                             $rData['round'] = $r;
                             $curResting = $rData['resting'] ?? [];
+                            $rData['rotation_bench'] = $curResting;
+                            $rData['paused_players'] = $pausedPlayerNames;
+                            $rData['paused_player_ids'] = $allPausedIds;
+                            $rData['withdrawn_players'] = $allWithdrawnIds;
                             $rData['resting'] = array_values(array_unique(array_merge($curResting, $pausedPlayerNames)));
                             $updatedRounds[$r] = $rData;
                         } else {
+                            $allRestingNames = array_values(array_unique(array_merge(
+                                $activePlayers->pluck('nama')->toArray(),
+                                $pausedPlayerNames
+                            )));
                             $updatedRounds[$r] = [
                                 'round' => $r,
                                 'matches' => [],
-                                'resting' => array_values(array_unique(array_merge(
-                                    $activePlayers->pluck('nama')->toArray(),
-                                    $pausedPlayerNames
-                                ))),
+                                'rotation_bench' => $activePlayers->pluck('nama')->toArray(),
+                                'paused_players' => $pausedPlayerNames,
+                                'paused_player_ids' => $allPausedIds,
+                                'withdrawn_players' => $allWithdrawnIds,
+                                'resting' => $allRestingNames,
                                 'teamA' => [],
                                 'teamB' => [],
                                 'teamA_names' => [],
@@ -1905,12 +2020,23 @@ class ScoringService
             $cachedSchedule['court_count'] = $courtCount;
             $cachedSchedule['withdrawn_player_ids'] = $allWithdrawnIds;
             $cachedSchedule['paused_player_ids'] = $allPausedIds;
+            $cachedSchedule['is_adjusted'] = true;
             $cachedSchedule['last_adjusted_at'] = now()->toDateTimeString();
 
-            $cachedSchedule['rounds'] = $updatedRounds;
+            $drawingDataRounds = [];
             foreach ($updatedRounds as $rNum => $rData) {
                 $cachedSchedule["round_{$rNum}"] = $rData;
+                $drawingDataRounds["round_{$rNum}"] = $rData;
             }
+            $cachedSchedule['drawingData'] = [
+                'format' => $format,
+                'mode' => $drawingMode,
+                'total_teams' => count($allPlayers),
+                'total_rounds' => count($updatedRounds),
+                'total_matches' => array_sum(array_map(fn ($r) => count($r['matches'] ?? []), $updatedRounds)),
+                'rounds' => $drawingDataRounds,
+                'court_count' => $courtCount,
+            ];
 
             Cache::put($scheduleCacheKey, $cachedSchedule, now()->addHours(12));
 
@@ -1938,7 +2064,10 @@ class ScoringService
                 'schedule_version' => $newScheduleVersion,
                 'rounds' => $updatedRounds,
                 'active_players_count' => $activePlayers->count(),
-                'drawingData' => ['rounds' => $updatedRounds],
+                'drawingData' => [
+                    'rounds' => $drawingDataRounds,
+                    'court_count' => $courtCount,
+                ],
                 'summary' => [
                     'active_players' => $activePlayers->pluck('nama')->toArray(),
                     'withdrawn_players' => $allWithdrawnIds,
