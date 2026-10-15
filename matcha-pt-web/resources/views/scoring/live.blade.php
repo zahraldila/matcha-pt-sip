@@ -98,6 +98,24 @@
         } else {
             $allRoundsList = ['round_1'];
         }
+
+        // Deduplikasi dan batasi sesuai scoring system jika total_of / is_sets
+        $dedupRounds = [];
+        foreach ($allRoundsList as $rk) {
+            $rNum = (int) (preg_replace('/[^0-9]/', '', (string) $rk) ?: 1);
+            if ($rNum > 0 && !isset($dedupRounds[$rNum])) {
+                $dedupRounds[$rNum] = "round_{$rNum}";
+            }
+        }
+        ksort($dedupRounds);
+        if (!empty($scoringSystem['is_total_of']) || ($scoringSystem['category'] ?? '') === 'total_of' || !empty($scoringSystem['is_sets'])) {
+            $maxSets = (int) ($scoringSystem['max_sets'] ?? 3);
+            if ($maxSets > 0) {
+                $dedupRounds = array_slice($dedupRounds, 0, $maxSets, true);
+            }
+        }
+        $allRoundsList = array_values($dedupRounds);
+
         $currentRIndex = array_search($activeRound, $allRoundsList);
         $nextRoundKey = ($currentRIndex !== false && isset($allRoundsList[$currentRIndex + 1])) ? $allRoundsList[$currentRIndex + 1] : null;
         $isCurrentSetCompleted = (($currentScore['status'] ?? '') === 'completed');
@@ -715,57 +733,43 @@
                     </div>
                 </div>
 
-                <!-- Condition Selector (Tabs / Radio Cards) -->
+                <!-- Condition Selector (2 Main Options) -->
                 <div class="space-y-1.5">
                     <label class="block font-bold text-slate-800 text-xs">Pilih Kondisi Penghentian <span class="text-rose-500">*</span></label>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <!-- Option A -->
-                        <label class="relative flex flex-col p-2.5 rounded-2xl border-2 border-emerald-600 bg-emerald-50/40 cursor-pointer transition-all select-none" id="labelConditionA">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <!-- Option 1: Tetap di Sesi -->
+                        <label class="relative flex flex-col p-3 rounded-2xl border-2 border-emerald-600 bg-emerald-50/40 cursor-pointer transition-all select-none" id="labelConditionA">
                             <input type="radio" name="stopCondition" value="keep_in_session" checked onchange="onStopConditionChange()" class="sr-only">
-                            <div class="flex items-center gap-1.5">
+                            <div class="flex items-center gap-2">
                                 <span class="w-4 h-4 rounded-full border-2 border-emerald-600 flex items-center justify-center shrink-0" id="radioCircleA">
                                     <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
                                 </span>
-                                <span class="font-extrabold text-[11px] text-slate-800">A. Tetap Main</span>
+                                <span class="font-extrabold text-xs text-slate-800">1. Tetap di Sesi (Semua Pemain Lanjut)</span>
                             </div>
                             <p class="text-[10px] text-slate-500 font-medium mt-1 leading-snug">
-                                Match berhenti (waktu sewa habis/hujan). Semua pemain tetap aktif di ronde berikutnya.
+                                Match berhenti karena waktu sewa habis/hujan, atau pemain istirahat sejenak ke bench cadangan.
                             </p>
                         </label>
 
-                        <!-- Option B -->
-                        <label class="relative flex flex-col p-2.5 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300" id="labelConditionB">
-                            <input type="radio" name="stopCondition" value="temporary_pause" onchange="onStopConditionChange()" class="sr-only">
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-4 h-4 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0" id="radioCircleB">
-                                    <span class="w-2 h-2 rounded-full bg-amber-600 hidden"></span>
-                                </span>
-                                <span class="font-extrabold text-[11px] text-slate-800">B. Masuk Bench</span>
-                            </div>
-                            <p class="text-[10px] text-slate-500 font-medium mt-1 leading-snug">
-                                Pemain butuh jeda (ke toilet / ee / kram ringan). Masuk cadangan sampai siap main lagi.
-                            </p>
-                        </label>
-
-                        <!-- Option C -->
-                        <label class="relative flex flex-col p-2.5 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300" id="labelConditionC">
+                        <!-- Option 2: Keluar Sesi Permanen -->
+                        <label class="relative flex flex-col p-3 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300" id="labelConditionC">
                             <input type="radio" name="stopCondition" value="withdraw_players" onchange="onStopConditionChange()" class="sr-only">
-                            <div class="flex items-center gap-1.5">
+                            <div class="flex items-center gap-2">
                                 <span class="w-4 h-4 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0" id="radioCircleC">
                                     <span class="w-2 h-2 rounded-full bg-rose-600 hidden"></span>
                                 </span>
-                                <span class="font-extrabold text-[11px] text-slate-800">C. Keluar Sesi</span>
+                                <span class="font-extrabold text-xs text-slate-800">2. Pemain Keluar dari Sesi (Permanen)</span>
                             </div>
                             <p class="text-[10px] text-slate-500 font-medium mt-1 leading-snug">
-                                Pemain cedera parah / pulang keluar sesi permanen. Sisa jadwal disesuaikan tanpa pemain ini.
+                                Pemain cedera parah atau harus pulang. Sisa jadwal otomatis disesuaikan tanpa pemain ini.
                             </p>
                         </label>
                     </div>
                 </div>
 
-                <!-- Condition A Inputs -->
+                <!-- Condition 1 Inputs (Tetap di Sesi & Opsi Bench) -->
                 <div id="sectionConditionA" class="space-y-3">
-                    <div class="space-y-1">
+                    <div class="space-y-1" id="containerStopReasonA">
                         <label for="stopReasonA" class="block font-bold text-slate-800 text-xs">
                             Alasan Penghentian <span class="text-rose-500">*</span>
                         </label>
@@ -773,34 +777,39 @@
                             oninput="hideStopMatchError()"
                             class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#063B00]/20 focus:border-[#063B00]"></textarea>
                     </div>
-                    <div class="space-y-1">
-                        <label class="block font-medium text-slate-600 text-[11px]">
-                            Pemain Terkait (Opsional, jika alasan spesifik ke pemain tertentu)
+
+                    <!-- Optional Bench / Pause Checkbox Section -->
+                    <div class="p-3 bg-amber-50/70 rounded-2xl border border-amber-200/90 space-y-2.5">
+                        <label class="flex items-start gap-2.5 cursor-pointer select-none">
+                            <input type="checkbox" id="chkPausePlayersToggle" onchange="onTogglePausePlayersCheckbox()" class="rounded text-amber-600 focus:ring-amber-500 w-4 h-4 mt-0.5">
+                            <div>
+                                <span class="font-extrabold text-xs text-amber-950 block">
+                                    Istirahatkan pemain tertentu sementara ke Bangku Cadangan (Bench)
+                                </span>
+                                <span class="text-[10px] text-amber-800/80 font-medium block mt-0.5">
+                                    Centang opsi ini jika ada pemain yang butuh istirahat sejenak (ke toilet / kram ringan).
+                                </span>
+                            </div>
                         </label>
-                        <div id="condAPlayersList" class="flex flex-wrap gap-2 pt-0.5"></div>
+
+                        <div id="wrapperPausePlayersSection" class="hidden pl-6 space-y-2.5 pt-2 border-t border-amber-200/60">
+                            <p class="text-[11px] text-slate-700 font-medium leading-snug">
+                                Pilih pemain yang butuh jeda istirahat (pemain akan masuk cadangan sampai Host menekan tombol <strong>Siap Main</strong>):
+                            </p>
+                            <div id="condPausePlayersList" class="space-y-1.5"></div>
+                            <div class="space-y-1">
+                                <label for="stopReasonPause" class="block font-bold text-slate-700 text-[11px]">
+                                    Keterangan Istirahat (Opsional)
+                                </label>
+                                <input type="text" id="stopReasonPause" placeholder="Contoh: Ke toilet sebentar, kram ringan, istirahat sejenak"
+                                    oninput="hideStopMatchError()"
+                                    class="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Condition B Inputs (Temporary Pause / Bench) -->
-                <div id="sectionConditionB" class="hidden space-y-3">
-                    <div class="space-y-1">
-                        <label class="block font-bold text-slate-800 text-xs">
-                            Pilih Pemain yang Masuk Bangku Cadangan (Istirahat Sementara) <span class="text-amber-600">*</span>
-                        </label>
-                        <p class="text-[10px] text-slate-500">Pemain yang dipilih tidak akan dipasangkan di court pada ronde mendatang sampai Host menekan tombol <strong>Siap Main</strong>:</p>
-                        <div id="condPausePlayersList" class="space-y-1.5 pt-1"></div>
-                    </div>
-                    <div class="space-y-1">
-                        <label for="stopReasonPause" class="block font-bold text-slate-800 text-xs">
-                            Keterangan Istirahat (Opsional)
-                        </label>
-                        <input type="text" id="stopReasonPause" placeholder="Contoh: Ke toilet sebentar, kram ringan, istirahat sejenak"
-                            oninput="hideStopMatchError()"
-                            class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
-                    </div>
-                </div>
-
-                <!-- Condition C Inputs (Permanent Withdrawal) -->
+                <!-- Condition 2 Inputs (Permanent Withdrawal) -->
                 <div id="sectionConditionC" class="hidden space-y-3">
                     <div class="space-y-1">
                         <label class="block font-bold text-slate-800 text-xs">
@@ -3101,6 +3110,10 @@
         // Reset radio
         const radioA = document.querySelector('input[name="stopCondition"][value="keep_in_session"]');
         if (radioA) radioA.checked = true;
+        const chkPause = document.getElementById('chkPausePlayersToggle');
+        if (chkPause) chkPause.checked = false;
+        const wrapPause = document.getElementById('wrapperPausePlayersSection');
+        if (wrapPause) wrapPause.classList.add('hidden');
         const reasonA = document.getElementById('stopReasonA');
         if (reasonA) reasonA.value = '';
         const reasonPause = document.getElementById('stopReasonPause');
@@ -3123,58 +3136,43 @@
         currentStoppingCourtIdx = null;
     }
 
+    function onTogglePausePlayersCheckbox() {
+        const chk = document.getElementById('chkPausePlayersToggle');
+        const wrap = document.getElementById('wrapperPausePlayersSection');
+        if (chk && wrap) {
+            wrap.classList.toggle('hidden', !chk.checked);
+            if (!chk.checked) {
+                document.querySelectorAll('input[name="paused_players[]"]').forEach(cb => cb.checked = false);
+            }
+        }
+        hideStopMatchError();
+        updateConditionAOrPauseImpact();
+    }
+
     function onStopConditionChange() {
         const selected = document.querySelector('input[name="stopCondition"]:checked')?.value || 'keep_in_session';
         const secA = document.getElementById('sectionConditionA');
-        const secB = document.getElementById('sectionConditionB');
         const secC = document.getElementById('sectionConditionC');
         const cardA = document.getElementById('labelConditionA');
-        const cardB = document.getElementById('labelConditionB');
         const cardC = document.getElementById('labelConditionC');
         const radioDotA = document.querySelector('#radioCircleA span');
-        const radioDotB = document.querySelector('#radioCircleB span');
         const radioDotC = document.querySelector('#radioCircleC span');
-        const impactList = document.getElementById('impactBulletList');
 
         if (selected === 'keep_in_session') {
             if (secA) secA.classList.remove('hidden');
-            if (secB) secB.classList.add('hidden');
             if (secC) secC.classList.add('hidden');
-            if (cardA) cardA.className = 'relative flex flex-col p-2.5 rounded-2xl border-2 border-emerald-600 bg-emerald-50/40 cursor-pointer transition-all select-none';
-            if (cardB) cardB.className = 'relative flex flex-col p-2.5 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300';
-            if (cardC) cardC.className = 'relative flex flex-col p-2.5 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300';
+            if (cardA) cardA.className = 'relative flex flex-col p-3 rounded-2xl border-2 border-emerald-600 bg-emerald-50/40 cursor-pointer transition-all select-none';
+            if (cardC) cardC.className = 'relative flex flex-col p-3 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300';
             if (radioDotA) radioDotA.classList.remove('hidden');
-            if (radioDotB) radioDotB.classList.add('hidden');
             if (radioDotC) radioDotC.classList.add('hidden');
 
-            if (impactList) {
-                impactList.innerHTML = `
-                    <li>Match court ini akan ditandai <strong>Dihentikan</strong> dengan skor parsial terakhir yang sah.</li>
-                    <li>Ronde berikutnya dapat dimulai setelah semua court aktif mencapai status terminal.</li>
-                    <li>Drawing dan seluruh pemain <strong>tetap aktif berpartisipasi</strong> pada ronde mendatang.</li>
-                `;
-            }
-        } else if (selected === 'temporary_pause') {
-            if (secA) secA.classList.add('hidden');
-            if (secB) secB.classList.remove('hidden');
-            if (secC) secC.classList.add('hidden');
-            if (cardA) cardA.className = 'relative flex flex-col p-2.5 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300';
-            if (cardB) cardB.className = 'relative flex flex-col p-2.5 rounded-2xl border-2 border-amber-600 bg-amber-50/40 cursor-pointer transition-all select-none';
-            if (cardC) cardC.className = 'relative flex flex-col p-2.5 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300';
-            if (radioDotA) radioDotA.classList.add('hidden');
-            if (radioDotB) radioDotB.classList.remove('hidden');
-            if (radioDotC) radioDotC.classList.add('hidden');
-
-            updateConditionPauseImpact();
+            updateConditionAOrPauseImpact();
         } else {
             if (secA) secA.classList.add('hidden');
-            if (secB) secB.classList.add('hidden');
             if (secC) secC.classList.remove('hidden');
-            if (cardA) cardA.className = 'relative flex flex-col p-2.5 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300';
-            if (cardB) cardB.className = 'relative flex flex-col p-2.5 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300';
-            if (cardC) cardC.className = 'relative flex flex-col p-2.5 rounded-2xl border-2 border-rose-600 bg-rose-50/40 cursor-pointer transition-all select-none';
+            if (cardA) cardA.className = 'relative flex flex-col p-3 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all select-none hover:border-slate-300';
+            if (cardC) cardC.className = 'relative flex flex-col p-3 rounded-2xl border-2 border-rose-600 bg-rose-50/40 cursor-pointer transition-all select-none';
             if (radioDotA) radioDotA.classList.add('hidden');
-            if (radioDotB) radioDotB.classList.add('hidden');
             if (radioDotC) radioDotC.classList.remove('hidden');
 
             updateConditionBImpact();
@@ -3194,20 +3192,32 @@
         updateConditionBImpact();
     }
 
-    function updateConditionPauseImpact() {
+    function updateConditionAOrPauseImpact() {
         const impactList = document.getElementById('impactBulletList');
         if (!impactList) return;
 
-        const checkedBoxes = Array.from(document.querySelectorAll('input[name="paused_players[]"]:checked'));
-        const playerNames = checkedBoxes.map(cb => cb.getAttribute('data-name')).filter(Boolean);
+        const isPauseChecked = document.getElementById('chkPausePlayersToggle')?.checked || false;
+        if (isPauseChecked) {
+            const checkedBoxes = Array.from(document.querySelectorAll('input[name="paused_players[]"]:checked'));
+            const playerNames = checkedBoxes.map(cb => cb.getAttribute('data-name')).filter(Boolean);
+            const namesText = playerNames.length > 0 ? playerNames.join(', ') : '(Belum ada pemain dipilih)';
+            impactList.innerHTML = `
+                <li>Match court ini akan ditandai <strong>Dihentikan</strong> dengan skor parsial terakhir yang sah.</li>
+                <li>Pemain yang butuh istirahat: <strong>${namesText}</strong> akan otomatis ditempatkan di <strong>Bangku Cadangan (Bench)</strong> pada ronde berikutnya.</li>
+                <li>Pemain lain tetap aktif bertanding seperti biasa di lapangan.</li>
+                <li>Saat pemain sudah selesai istirahat, Host cukup klik tombol <strong>[ Siap Main ]</strong> di Bangku Cadangan untuk memasukkannya kembali ke rotasi jadwal ronde mendatang.</li>
+            `;
+        } else {
+            impactList.innerHTML = `
+                <li>Match court ini akan ditandai <strong>Dihentikan</strong> dengan skor parsial terakhir yang sah.</li>
+                <li>Ronde berikutnya dapat dimulai setelah semua court aktif mencapai status terminal.</li>
+                <li>Drawing dan seluruh pemain <strong>tetap aktif berpartisipasi</strong> pada ronde mendatang.</li>
+            `;
+        }
+    }
 
-        const namesText = playerNames.length > 0 ? playerNames.join(', ') : '(Belum ada pemain dipilih)';
-        impactList.innerHTML = `
-            <li>Match court ini akan ditandai <strong>Dihentikan</strong> dengan skor parsial terakhir yang sah.</li>
-            <li>Pemain yang butuh istirahat: <strong>${namesText}</strong> akan otomatis ditempatkan di <strong>Bangku Cadangan (Bench)</strong> pada ronde berikutnya.</li>
-            <li>Pemain lain tetap aktif bertanding seperti biasa di lapangan.</li>
-            <li>Saat pemain sudah selesai istirahat, Host cukup klik tombol <strong>[ Siap Main ]</strong> di Bangku Cadangan untuk memasukkannya kembali ke rotasi jadwal ronde mendatang.</li>
-        `;
+    function updateConditionPauseImpact() {
+        updateConditionAOrPauseImpact();
     }
 
     function updateConditionBImpact() {
@@ -3244,29 +3254,38 @@
         };
         if (errorEl) errorEl.classList.add('hidden');
 
-        const selectedCondition = document.querySelector('input[name="stopCondition"]:checked')?.value || 'keep_in_session';
+        const mainCondition = document.querySelector('input[name="stopCondition"]:checked')?.value || 'keep_in_session';
+        const isPauseChecked = document.getElementById('chkPausePlayersToggle')?.checked || false;
+        let selectedCondition = mainCondition;
         let stopReason = '';
         let relatedPlayerIds = [];
         let withdrawnPlayerIds = [];
         let playerNotes = {};
 
-        if (selectedCondition === 'keep_in_session') {
-            stopReason = (document.getElementById('stopReasonA')?.value || '').trim();
-            if (!stopReason) {
-                showError('Wajib mengisi alasan penghentian pertandingan.');
-                return;
+        if (mainCondition === 'keep_in_session') {
+            if (isPauseChecked) {
+                selectedCondition = 'temporary_pause';
+                const pauseChecks = Array.from(document.querySelectorAll('input[name="paused_players[]"]:checked'));
+                if (pauseChecks.length === 0) {
+                    showError('Pilih minimal satu pemain yang butuh istirahat sementara ke bangku cadangan.');
+                    return;
+                }
+                withdrawnPlayerIds = pauseChecks.map(cb => cb.getAttribute('data-player-id') || cb.value);
+                const pauseReasonVal = (document.getElementById('stopReasonPause')?.value || '').trim();
+                const reasonAVal = (document.getElementById('stopReasonA')?.value || '').trim();
+                stopReason = pauseReasonVal || reasonAVal || 'Istirahat sementara (Bench)';
+            } else {
+                selectedCondition = 'keep_in_session';
+                stopReason = (document.getElementById('stopReasonA')?.value || '').trim();
+                if (!stopReason) {
+                    showError('Wajib mengisi alasan penghentian pertandingan.');
+                    return;
+                }
+                const relChecks = document.querySelectorAll('input[name="related_players[]"]:checked');
+                relatedPlayerIds = Array.from(relChecks).map(c => c.value);
             }
-            const relChecks = document.querySelectorAll('input[name="related_players[]"]:checked');
-            relatedPlayerIds = Array.from(relChecks).map(c => c.value);
-        } else if (selectedCondition === 'temporary_pause') {
-            const pauseChecks = Array.from(document.querySelectorAll('input[name="paused_players[]"]:checked'));
-            if (pauseChecks.length === 0) {
-                showError('Pilih minimal satu pemain yang butuh istirahat sementara.');
-                return;
-            }
-            withdrawnPlayerIds = pauseChecks.map(cb => cb.getAttribute('data-player-id') || cb.value);
-            stopReason = (document.getElementById('stopReasonPause')?.value || '').trim() || 'Istirahat sementara (Bench)';
         } else {
+            selectedCondition = 'withdraw_players';
             const withChecks = Array.from(document.querySelectorAll('input[name="withdrawn_players[]"]:checked'));
             if (withChecks.length === 0) {
                 showError('Pilih minimal satu pemain yang keluar dari sesi.');
