@@ -3012,8 +3012,7 @@ class ScoringController extends Controller
             if (! empty($savedScores) && is_array($savedScores)) {
                 foreach ($savedScores as $k => $v) {
                     if ($k !== '_meta' && is_array($v) && (
-                        ($v['status'] ?? '') === 'in_progress' ||
-                        ($v['status'] ?? '') === 'completed' ||
+                        in_array(strtolower($v['status'] ?? ''), ['in_progress', 'completed', 'stopped']) ||
                         ($v['games_a'] ?? 0) > 0 || ($v['games_b'] ?? 0) > 0 ||
                         ($v['score_a'] ?? 0) > 0 || ($v['score_b'] ?? 0) > 0 ||
                         ($v['sets_a'] ?? 0) > 0 || ($v['sets_b'] ?? 0) > 0
@@ -3022,6 +3021,9 @@ class ScoringController extends Controller
                         break;
                     }
                 }
+            }
+            if (! empty(ScoringService::getPausedPlayerIds($dbSession)) || ! empty(ScoringService::getWithdrawnPlayerIds($dbSession))) {
+                $isLocked = true;
             }
 
             $currentParticipantNames = array_values(array_filter(array_map(function ($p) {
@@ -3071,7 +3073,8 @@ class ScoringController extends Controller
                     $courtCount
                 );
 
-                if (! $isLocked && ($currentParticipantNames !== $cachedPlayerNames || ($expectedRounds !== null && count($cachedSchedule['rounds']) !== $expectedRounds))) {
+                $hasSessionStatusChanges = ! empty($cachedSchedule['withdrawn_player_ids']) || ! empty($cachedSchedule['paused_player_ids']);
+                if (! $isLocked && ! $hasSessionStatusChanges && ($currentParticipantNames !== $cachedPlayerNames || ($expectedRounds !== null && count($cachedSchedule['rounds']) !== $expectedRounds))) {
                     $isCacheStale = true;
                 }
             }
@@ -3119,8 +3122,27 @@ class ScoringController extends Controller
                 }
             }
 
+            // Normalisasi $rounds agar setiap nomor ronde strictly integer 1..N dan dibatasi expectedRounds
+            $normalizedRounds = [];
+            foreach ($rounds as $k => $val) {
+                if (! is_array($val)) {
+                    continue;
+                }
+                $rNum = (int) ($val['round'] ?? ($val['round_number'] ?? (preg_match('/(\d+)/', (string) $k, $m) ? $m[1] : $k)));
+                if ($rNum > 0 && ! isset($normalizedRounds[$rNum])) {
+                    $normalizedRounds[$rNum] = $val;
+                }
+            }
+            ksort($normalizedRounds);
+            if (! empty($expectedRounds) && $expectedRounds > 0) {
+                $normalizedRounds = array_slice($normalizedRounds, 0, $expectedRounds, true);
+            }
+            $rounds = $normalizedRounds;
+
             $isSingle = strtolower($sessionJenisPermainan ?? '') === 'single';
-            if ($isSingle && count($participants) === 4 && $courtCount === 1) {
+            $pausedIds = ScoringService::getPausedPlayerIds($dbSession);
+            $withdrawnIds = ScoringService::getWithdrawnPlayerIds($dbSession);
+            if (empty($pausedIds) && empty($withdrawnIds) && $isSingle && count($participants) === 4 && $courtCount === 1) {
                 $cacheKey = "scoring.game_{$dbSession->session_id}";
                 $savedScores = Cache::get($cacheKey, []);
                 $americanoService = new AmericanoService;
@@ -3255,6 +3277,24 @@ class ScoringController extends Controller
         } else {
             $roundKeys = array_map(fn ($roundNumber) => "round_{$roundNumber}", range(1, 10));
         }
+
+        // Deduplikasi dan batasi sesuai scoring system jika total_of / is_sets
+        $dedupKeys = [];
+        foreach ($roundKeys as $rk) {
+            $rNum = (int) (preg_replace('/[^0-9]/', '', (string) $rk) ?: 1);
+            if ($rNum > 0 && ! isset($dedupKeys[$rNum])) {
+                $dedupKeys[$rNum] = "round_{$rNum}";
+            }
+        }
+        ksort($dedupKeys);
+        if (! empty($scoringSystem['is_total_of']) || ($scoringSystem['category'] ?? '') === 'total_of' || ! empty($scoringSystem['is_sets'])) {
+            $maxSets = (int) ($scoringSystem['max_sets'] ?? 3);
+            if ($maxSets > 0) {
+                $dedupKeys = array_slice($dedupKeys, 0, $maxSets, true);
+            }
+        }
+        $roundKeys = array_values($dedupKeys);
+
         $roundAccess = [];
         $previousRoundCompleted = true;
 

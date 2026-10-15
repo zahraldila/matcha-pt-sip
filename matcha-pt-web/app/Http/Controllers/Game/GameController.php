@@ -1286,8 +1286,7 @@ class GameController extends Controller
         if (! empty($savedScores) && is_array($savedScores)) {
             foreach ($savedScores as $k => $v) {
                 if ($k !== '_meta' && is_array($v) && (
-                    ($v['status'] ?? '') === 'in_progress' ||
-                    ($v['status'] ?? '') === 'completed' ||
+                    in_array(strtolower($v['status'] ?? ''), ['in_progress', 'completed', 'stopped']) ||
                     ($v['games_a'] ?? 0) > 0 || ($v['games_b'] ?? 0) > 0 ||
                     ($v['score_a'] ?? 0) > 0 || ($v['score_b'] ?? 0) > 0 ||
                     ($v['sets_a'] ?? 0) > 0 || ($v['sets_b'] ?? 0) > 0
@@ -1296,6 +1295,9 @@ class GameController extends Controller
                     break;
                 }
             }
+        }
+        if (! empty(ScoringService::getPausedPlayerIds($dbSession)) || ! empty(ScoringService::getWithdrawnPlayerIds($dbSession))) {
+            $isLocked = true;
         }
 
         // Cegah pengacakan ulang jika match sudah terkunci
@@ -1363,7 +1365,8 @@ class GameController extends Controller
                 $courtCount
             );
 
-            if (! $isLocked && ($currentParticipantNames !== $cachedPlayerNames || ($expectedRounds !== null && count($savedSchedule['rounds']) !== $expectedRounds))) {
+            $hasSessionStatusChanges = ! empty($savedSchedule['withdrawn_player_ids']) || ! empty($savedSchedule['paused_player_ids']);
+            if (! $isLocked && ! $hasSessionStatusChanges && ($currentParticipantNames !== $cachedPlayerNames || ($expectedRounds !== null && count($savedSchedule['rounds']) !== $expectedRounds))) {
                 $isCacheStale = true;
             }
         }
@@ -1475,7 +1478,9 @@ class GameController extends Controller
         $drawingMode = isset($jenisPermainan) ? $jenisPermainan : ($dbSession->jenis_permainan ?? 'Double');
         $isSingleMode = strtolower($drawingMode) === 'single';
         $savedScores = Cache::get("scoring.game_{$game['id']}", []);
-        if ($isSingleMode && count($participants) === 4 && $courtCount === 1) {
+        $pausedPlayerIds = ScoringService::getPausedPlayerIds($dbSession);
+        $withdrawnPlayerIds = ScoringService::getWithdrawnPlayerIds($dbSession);
+        if (empty($pausedPlayerIds) && empty($withdrawnPlayerIds) && $isSingleMode && count($participants) === 4 && $courtCount === 1) {
             $scoringSystem = ScoringService::detectScoringSystem($game['scoring_system'] ?? 'Total of 3');
             $americanoService = new AmericanoService;
             $rounds = $americanoService->resolveDynamicSingleRounds($rounds, $savedScores, $scoringSystem, (int) $game['id']);
