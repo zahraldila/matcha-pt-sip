@@ -110,16 +110,18 @@
 
     @if($hasStoppedMatches ?? false)
     <!-- Banner Peringatan: Terdapat Pertandingan yang Dihentikan -->
-    <div class="glass-card rounded-2xl p-4.5 border border-amber-300 bg-amber-50/90 text-amber-900 shadow-2xs space-y-1.5">
-        <div class="flex items-center gap-2">
-            <div class="w-6 h-6 rounded-lg bg-amber-200 text-amber-800 flex items-center justify-center text-xs font-black shrink-0">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-            </div>
-            <h4 class="font-extrabold text-xs sm:text-sm text-amber-950">Klasemen Sementara &bull; Terdapat Pertandingan yang Dihentikan Lebih Awal</h4>
+    <div class="glass-card rounded-2xl p-3.5 sm:p-4 border border-amber-200/80 bg-amber-50/70 text-amber-900 shadow-2xs flex items-start gap-3">
+        <div class="w-7 h-7 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xs shrink-0 mt-0.5">
+            <i class="fa-solid fa-triangle-exclamation"></i>
         </div>
-        <p class="text-[11px] text-amber-800/90 leading-relaxed pl-8">
-            Satu atau beberapa pertandingan dalam sesi ini dihentikan lebih awal oleh Host (End Match). Skor parsial dan catatan kendala tersimpan utuh di riwayat pertandingan di bawah. Sesuai regulasi sistem kompetisi MATCHA, penentuan pemenang sepihak, penetapan kekalahan/kemenangan otomatis, atau pembagian poin untuk match yang dihentikan belum difinalkan secara otomatis agar tidak mendistorsi klasemen normal.
-        </p>
+        <div class="space-y-0.5 flex-1 min-w-0">
+            <h4 class="font-bold text-xs sm:text-sm text-amber-950">
+                {{ ($isFinished ?? false) ? 'Catatan Rekap' : 'Klasemen Sementara' }} &bull; Terdapat Pertandingan yang Dihentikan Lebih Awal
+            </h4>
+            <p class="text-[11px] text-amber-800/90 leading-relaxed">
+                Sesi ini memiliki pertandingan yang dihentikan lebih awal oleh Host. Skor parsial tetap tercatat di riwayat bawah dan tidak memengaruhi kalkulasi poin klasemen.
+            </p>
+        </div>
     </div>
     @endif
 
