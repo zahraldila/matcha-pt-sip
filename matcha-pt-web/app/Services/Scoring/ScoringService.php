@@ -1787,28 +1787,27 @@ class ScoringService
     }
 
     /**
-     * Cek apakah pertandingan dilindungi dari penyesuaian jadwal / pergantian peserta:
-     * - Status In Progress atau Terminal (Completed / Stopped)
-     * - ATAU sudah memiliki rekaman skor di tb_score (poin/game/event)
+     * Cek apakah pertandingan sedang aktif bertanding secara live:
+     * - Match tidak dalam status terminal (Completed, Stopped, Finished, Cancelled)
+     * - Match tidak dalam status Scheduled
+     * - Memiliki pencatatan skor di tb_score (game_score_a/b > 0, score_side_a/b > 0, poin aktif, event log, version > 1)
+     * - ATAU memiliki skor live aktif di Cache (games > 0, points > 0, history point > 0, version > 1)
      */
-    public static function isMatchProtectedFromAdjustment(GameMatch $match, ?int $matchRound = null, ?int $lockedRound = null): bool
+    public static function isMatchActivelyPlaying(GameMatch $match, array $savedScores = []): bool
     {
-        $status = strtolower($match->status_match ?? '');
-        if (in_array($status, ['completed', 'stopped'])) {
+        $status = strtolower(trim((string) ($match->status_match ?? '')));
+
+        // 1. Status terminal atau scheduled bukan pertandingan yang sedang aktif bermain di lapangan
+        if (in_array($status, ['completed', 'stopped', 'finished', 'cancelled', 'scheduled', ''], true)) {
+            return false;
+        }
+
+        // 2. Jika ada last_event_id pada match, berarti pertandingan sudah memiliki rekaman event scoring
+        if (! empty($match->last_event_id)) {
             return true;
         }
 
-        // Match In Progress atau Live dilindungi meskipun skor masih 0-0 dan waktu_mulai kosong
-        if (in_array($status, ['in progress', 'in_progress', 'live'])) {
-            return true;
-        }
-
-        // Match yang memiliki tanda event / waktu mulai aktif dilindungi
-        if (! empty($match->waktu_mulai) || ! empty($match->last_event_id)) {
-            return true;
-        }
-
-        // Match yang pernah memiliki event skor juga tetap dilindungi meskipun skor saat ini kembali 0-0
+        // 3. Cek rekaman tb_score
         if (Schema::hasTable('tb_score')) {
             $hasScoreOrEvent = Score::where('match_id', $match->match_id)
                 ->where(function ($q) {
@@ -1829,12 +1828,71 @@ class ScoringService
                         ->orWhere('version', '>', 1);
                 })
                 ->exists();
+
             if ($hasScoreOrEvent) {
                 return true;
             }
         }
 
+        // 4. Cek skor live di Cache (jika sesi memiliki cache scoring)
+        try {
+            $drawing = $match->drawing ?? Drawing::find($match->drawing_id);
+            $sessionId = $drawing?->session_id;
+            if ($sessionId) {
+                $session = SessionModel::with('courts')->find($sessionId);
+                $courtCount = $session ? max(1, $session->courts->count()) : 1;
+                $nomorMatch = (int) $match->nomor_match;
+                $rNum = intdiv(max(0, $nomorMatch - 1), $courtCount) + 1;
+                $courtIdx = ($nomorMatch - 1) % $courtCount;
+                $matchKey = "round_{$rNum}_court_{$courtIdx}";
+
+                $cachedMatchScore = Cache::get("scoring.game_{$sessionId}.{$matchKey}");
+                if (! $cachedMatchScore && ! empty($savedScores[$matchKey])) {
+                    $cachedMatchScore = $savedScores[$matchKey];
+                }
+
+                if (is_array($cachedMatchScore)) {
+                    $cachedStatus = strtolower($cachedMatchScore['status'] ?? '');
+                    if (! in_array($cachedStatus, ['completed', 'stopped'], true)) {
+                        $gamesA = (int) ($cachedMatchScore['games_a'] ?? 0);
+                        $gamesB = (int) ($cachedMatchScore['games_b'] ?? 0);
+                        $ptsA = $cachedMatchScore['points_a'] ?? 0;
+                        $ptsB = $cachedMatchScore['points_b'] ?? 0;
+                        $ptsAActive = is_numeric($ptsA) ? ((int) $ptsA > 0) : (! empty($ptsA) && ! in_array($ptsA, ['0', '0-0', 'Love', '0 - 0'], true));
+                        $ptsBActive = is_numeric($ptsB) ? ((int) $ptsB > 0) : (! empty($ptsB) && ! in_array($ptsB, ['0', '0-0', 'Love', '0 - 0'], true));
+                        $hasHistory = ! empty($cachedMatchScore['history']) && is_array($cachedMatchScore['history']) && count($cachedMatchScore['history']) > 0;
+                        $version = (int) ($cachedMatchScore['version'] ?? 1);
+
+                        if ($gamesA > 0 || $gamesB > 0 || $ptsAActive || $ptsBActive || $hasHistory || $version > 1) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Abaikan jika info sesi tidak lengkap
+        }
+
         return false;
+    }
+
+    /**
+     * Cek apakah pertandingan dilindungi dari penyesuaian jadwal / pergantian peserta:
+     * - Status Terminal (Completed / Stopped)
+     * - ATAU sedang aktif bertanding secara live (isMatchActivelyPlaying)
+     */
+    public static function isMatchProtectedFromAdjustment(GameMatch $match, ?int $matchRound = null, ?int $lockedRound = null): bool
+    {
+        $status = strtolower($match->status_match ?? '');
+        if (in_array($status, ['completed', 'stopped'], true)) {
+            return true;
+        }
+
+        if (in_array($status, ['scheduled', 'cancelled'], true)) {
+            return false;
+        }
+
+        return self::isMatchActivelyPlaying($match);
     }
 
     /**

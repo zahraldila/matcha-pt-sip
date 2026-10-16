@@ -2199,9 +2199,10 @@ class ScoringController extends Controller
                 ->whereBetween('nomor_match', [($activeRoundNum - 1) * $courtCount + 1, $activeRoundNum * $courtCount])
                 ->get();
 
+            $savedScores = Cache::get("scoring.game_{$gameId}", []);
+
             foreach ($currentMatches as $cm) {
-                $status = strtolower($cm->status_match ?? '');
-                if (! in_array($status, ['completed', 'stopped'])) {
+                if (ScoringService::isMatchActivelyPlaying($cm, $savedScores)) {
                     $hasPlayer = MatchParticipant::where('match_id', $cm->match_id)->where('player_id', $playerId)->exists();
                     if ($hasPlayer) {
                         $courtNum = ($cm->nomor_match - 1) % $courtCount + 1;
@@ -2264,13 +2265,22 @@ class ScoringController extends Controller
             $this->broadcastDrawingShuffledRealtime($gameId, $adjusted['drawingData'] ?? [], $adjusted['rounds']);
         }
 
+        $actionMessage = match ($action) {
+            'pause' => 'Pemain berhasil diistirahatkan ke bangku cadangan.',
+            'withdraw' => 'Pemain berhasil dikeluarkan dari sesi.',
+            'reactivate' => 'Pemain berhasil diaktifkan kembali.',
+            default => 'Status pemain berhasil diperbarui.',
+        };
+
         return response()->json([
             'success' => true,
             'action' => $action,
-            'message' => 'Status pemain berhasil diperbarui.',
+            'message' => $actionMessage,
             'needs_schedule_adjustment' => in_array($action, ['pause', 'withdraw']),
             'schedule_version' => $adjusted['schedule_version'] ?? 1,
             'summary' => $adjusted['summary'] ?? null,
+            'rounds' => $adjusted['rounds'] ?? [],
+            'drawingData' => $adjusted['drawingData'] ?? [],
         ]);
     }
 

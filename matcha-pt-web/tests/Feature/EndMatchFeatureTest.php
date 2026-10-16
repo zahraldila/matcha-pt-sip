@@ -2330,4 +2330,223 @@ class EndMatchFeatureTest extends TestCase
         $response->assertSessionHasErrors('score');
         $this->assertSame('In Progress', $session->fresh()->status_session);
     }
+
+    public function test_court_player_can_be_paused_from_drawing_when_match_is_not_actively_playing()
+    {
+        $unique = uniqid('manage_pause_', true);
+        $host = User::create([
+            'nama' => 'Host '.$unique,
+            'email' => 'host_'.$unique.'@test.com',
+            'role' => 'host',
+        ]);
+
+        $sport = Sport::create(['nama_sport' => 'Padel']);
+        $venue = Venue::create(['nama_venue' => 'Venue '.$unique, 'owner_user_id' => $host->user_id]);
+
+        $session = SessionModel::create([
+            'host_user_id' => $host->user_id,
+            'sport_id' => $sport->sport_id,
+            'venue_id' => $venue->venue_id,
+            'nama_session' => 'Session '.$unique,
+            'scoring_system' => 'Total of 3',
+            'status_session' => 'In Progress',
+            'jenis_permainan' => 'Double',
+            'jumlah_pemain' => 5,
+        ]);
+
+        $court = Court::create(['nama_court' => 'Court 1']);
+        DB::table('tb_session_court')->insert([
+            'session_id' => $session->session_id,
+            'court_id' => $court->court_id,
+        ]);
+
+        $playerNames = ['P1', 'P2', 'P3', 'P4', 'P5'];
+        $players = [];
+        foreach ($playerNames as $pName) {
+            $user = User::create([
+                'nama' => $pName,
+                'email' => strtolower($pName).'_'.$unique.'@test.com',
+                'role' => 'member',
+            ]);
+            $pl = Player::create([
+                'user_id' => $user->user_id,
+                'nama' => $pName,
+            ]);
+            DB::table('tb_session_player')->insert([
+                'session_id' => $session->session_id,
+                'player_id' => $pl->player_id,
+                'status' => 'active',
+            ]);
+            $players[] = $pl;
+        }
+
+        $drawingRecord = Drawing::create([
+            'session_id' => $session->session_id,
+            'status_drawing' => 'Locked',
+        ]);
+
+        // P1, P2, P3, P4 di Court 1. P5 di bench (resting).
+        $match = GameMatch::create([
+            'drawing_id' => $drawingRecord->drawing_id,
+            'court_id' => $court->court_id,
+            'nomor_match' => 1,
+            'status_match' => 'Scheduled',
+        ]);
+
+        DB::table('tb_match_participant')->insert([
+            ['match_id' => $match->match_id, 'player_id' => $players[0]->player_id, 'side' => 'A'],
+            ['match_id' => $match->match_id, 'player_id' => $players[1]->player_id, 'side' => 'A'],
+            ['match_id' => $match->match_id, 'player_id' => $players[2]->player_id, 'side' => 'B'],
+            ['match_id' => $match->match_id, 'player_id' => $players[3]->player_id, 'side' => 'B'],
+        ]);
+
+        $schedule = [
+            'round_1' => [
+                'matches' => [
+                    [
+                        'court' => 1,
+                        'court_name' => 'Court 1',
+                        'team_a' => [['id' => $players[0]->player_id, 'name' => 'P1'], ['id' => $players[1]->player_id, 'name' => 'P2']],
+                        'team_b' => [['id' => $players[2]->player_id, 'name' => 'P3'], ['id' => $players[3]->player_id, 'name' => 'P4']],
+                        'team_a_names' => ['P1', 'P2'],
+                        'team_b_names' => ['P3', 'P4'],
+                    ],
+                ],
+                'resting' => ['P5'],
+            ],
+        ];
+        Cache::put("drawing.schedule_{$session->session_id}", $schedule, 3600);
+
+        // Host mengistirahatkan P1 yang ada di Court 1
+        $this->actingAs($host);
+        $response = $this->postJson(route('scoring.manage-player-status'), [
+            'game_id' => $session->session_id,
+            'player_id' => $players[0]->player_id,
+            'action' => 'pause',
+            'reason' => 'Cedera ringan',
+            'round' => 'round_1',
+        ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'action' => 'pause',
+            'message' => 'Pemain berhasil diistirahatkan ke bangku cadangan.',
+        ]);
+
+        // P1 berstatus resting di tb_session_player
+        $this->assertDatabaseHas('tb_session_player', [
+            'session_id' => $session->session_id,
+            'player_id' => $players[0]->player_id,
+            'status' => 'resting',
+            'withdrawn_reason' => 'Cedera ringan',
+        ]);
+
+        // P1 digantikan di court 1 oleh P5
+        $courtPlayerIds = DB::table('tb_match_participant')
+            ->where('match_id', $match->match_id)
+            ->pluck('player_id')
+            ->all();
+
+        $this->assertNotContains($players[0]->player_id, $courtPlayerIds);
+        $this->assertContains($players[4]->player_id, $courtPlayerIds);
+    }
+
+    public function test_court_player_cannot_be_paused_directly_when_match_is_actively_playing_with_scores()
+    {
+        $unique = uniqid('manage_block_', true);
+        $host = User::create([
+            'nama' => 'Host '.$unique,
+            'email' => 'host_'.$unique.'@test.com',
+            'role' => 'host',
+        ]);
+
+        $sport = Sport::create(['nama_sport' => 'Padel']);
+        $venue = Venue::create(['nama_venue' => 'Venue '.$unique, 'owner_user_id' => $host->user_id]);
+
+        $session = SessionModel::create([
+            'host_user_id' => $host->user_id,
+            'sport_id' => $sport->sport_id,
+            'venue_id' => $venue->venue_id,
+            'nama_session' => 'Session '.$unique,
+            'scoring_system' => 'Total of 3',
+            'status_session' => 'In Progress',
+            'jenis_permainan' => 'Double',
+            'jumlah_pemain' => 5,
+        ]);
+
+        $court = Court::create(['nama_court' => 'Court 1']);
+        DB::table('tb_session_court')->insert([
+            'session_id' => $session->session_id,
+            'court_id' => $court->court_id,
+        ]);
+
+        $playerNames = ['P1', 'P2', 'P3', 'P4', 'P5'];
+        $players = [];
+        foreach ($playerNames as $pName) {
+            $user = User::create([
+                'nama' => $pName,
+                'email' => strtolower($pName).'_'.$unique.'@test.com',
+                'role' => 'member',
+            ]);
+            $pl = Player::create([
+                'user_id' => $user->user_id,
+                'nama' => $pName,
+            ]);
+            DB::table('tb_session_player')->insert([
+                'session_id' => $session->session_id,
+                'player_id' => $pl->player_id,
+                'status' => 'active',
+            ]);
+            $players[] = $pl;
+        }
+
+        $drawingRecord = Drawing::create([
+            'session_id' => $session->session_id,
+            'status_drawing' => 'Locked',
+        ]);
+
+        $match = GameMatch::create([
+            'drawing_id' => $drawingRecord->drawing_id,
+            'court_id' => $court->court_id,
+            'nomor_match' => 1,
+            'status_match' => 'In Progress',
+            'waktu_mulai' => now(),
+        ]);
+
+        DB::table('tb_match_participant')->insert([
+            ['match_id' => $match->match_id, 'player_id' => $players[0]->player_id, 'side' => 'A'],
+            ['match_id' => $match->match_id, 'player_id' => $players[1]->player_id, 'side' => 'A'],
+            ['match_id' => $match->match_id, 'player_id' => $players[2]->player_id, 'side' => 'B'],
+            ['match_id' => $match->match_id, 'player_id' => $players[3]->player_id, 'side' => 'B'],
+        ]);
+
+        // Buat skor aktif di tb_score
+        Score::create([
+            'match_id' => $match->match_id,
+            'set_number' => 1,
+            'game_number' => 1,
+            'game_score_a' => 2,
+            'game_score_b' => 1,
+            'scoring_system' => 'Total of 3',
+            'status_score' => 'In Progress',
+        ]);
+
+        $this->actingAs($host);
+        $response = $this->postJson(route('scoring.manage-player-status'), [
+            'game_id' => $session->session_id,
+            'player_id' => $players[0]->player_id,
+            'action' => 'pause',
+            'reason' => 'Cedera ringan',
+            'round' => 'round_1',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJson([
+            'success' => false,
+            'is_playing' => true,
+            'court' => 1,
+            'match_id' => $match->match_id,
+        ]);
+    }
 }
