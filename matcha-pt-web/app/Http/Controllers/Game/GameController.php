@@ -1579,6 +1579,7 @@ class GameController extends Controller
                 'rounds' => $rounds,
                 'participantsMap' => $participantsMap,
                 'paused_player_ids' => $pausedPlayerIds,
+                'withdrawn_player_ids' => $withdrawnPlayerIds,
                 'redirect_url' => route('scoring.live', [
                     'id' => $dbSession->session_id,
                     'format' => $game['match_format'] ?? 'Americano',
@@ -1597,7 +1598,8 @@ class GameController extends Controller
             'roundAccess',
             'roundStatus',
             'activeRoundNum',
-            'pausedPlayerIds'
+            'pausedPlayerIds',
+            'withdrawnPlayerIds'
         ));
     }
 

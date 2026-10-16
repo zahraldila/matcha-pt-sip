@@ -320,6 +320,17 @@
 
             <!-- Bangku Istirahat (Bench) - Tepat di Bawah Preview Lapangan 2D -->
             <div id="benchContainer" class="glass-card rounded-2xl p-4 sm:p-5 border border-white/90 shadow-sm space-y-3">
+                @php
+                    $activeRoundIsPast = (($roundStatus[$activeRoundNum] ?? '') === 'completed') || ((int) $activeRoundNum < (int) ($roundsProgress['active_round_num'] ?? $activeRoundNum));
+                    $withdrawnNames = collect($game['participants'] ?? [])
+                        ->filter(fn ($participant) => in_array((int) ($participant['id'] ?? 0), $withdrawnPlayerIds ?? [], true))
+                        ->pluck('name')
+                        ->all();
+                    $initialBenchNames = $activeRound['resting'] ?? [];
+                    if (! $activeRoundIsPast) {
+                        $initialBenchNames = array_values(array_filter($initialBenchNames, fn ($name) => ! in_array($name, $withdrawnNames, true)));
+                    }
+                @endphp
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2.5">
                         <span class="w-7 h-7 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center text-xs shadow-2xs">
@@ -333,12 +344,12 @@
                         </div>
                     </div>
                     <span id="labelBenchCount" class="text-xs font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
-                        {{ count($activeRound['resting'] ?? []) }} Pemain
+                        {{ count($initialBenchNames) }} Pemain
                     </span>
                 </div>
 
                 <div id="benchListContainer" class="flex flex-wrap gap-2.5 pt-1">
-                    @forelse($activeRound['resting'] ?? [] as $rName)
+                    @forelse($initialBenchNames as $rName)
                         @php
                             $rId = null;
                             foreach($game['participants'] ?? [] as $part) {
@@ -347,7 +358,7 @@
                                     break;
                                 }
                             }
-                            $isPastRound = (($roundStatus[$activeRoundNum] ?? '') === 'completed') || ((int)$activeRoundNum < (int)($roundsProgress['active_round_num'] ?? $activeRoundNum));
+                            $isPastRound = $activeRoundIsPast;
                             if ($isPastRound) {
                                 $roundPausedPlayers = $activeRound['paused_players'] ?? [];
                                 $roundPausedIds = $activeRound['paused_player_ids'] ?? [];
@@ -760,6 +771,7 @@
     let participantsMap = @json($participantsMap ?? []);
     let allParticipants = @json($game['participants'] ?? []);
     let pausedPlayerIds = @json($pausedPlayerIds ?? []);
+    let withdrawnPlayerIds = @json($withdrawnPlayerIds ?? []);
     const unitLabel = @json($unitLabel ?? 'Round');
     let currentRoundKey = {{ $activeRoundNum }};
     const serverActiveRoundNum = {{ $activeRoundNum }};
@@ -919,6 +931,13 @@
     // ── Realtime Drawing Sync & Lock Detector (Untuk Penonton / Player) ──────
     function applyRemoteDrawingUpdate(newRounds, newParticipantsMap, message = 'Jadwal & susunan tim diacak ulang oleh Host! 🎲') {
         if (!newRounds || Object.keys(newRounds).length === 0) return;
+
+        const roundWithdrawnIds = Object.values(newRounds)
+            .flatMap(round => Array.isArray(round?.withdrawn_player_ids) ? round.withdrawn_player_ids : [])
+            .map(Number);
+        if (roundWithdrawnIds.length > 0) {
+            withdrawnPlayerIds = [...new Set([...withdrawnPlayerIds.map(Number), ...roundWithdrawnIds])];
+        }
 
         const oldJson = JSON.stringify(roundsData);
         const newJson = JSON.stringify(newRounds);
@@ -1087,6 +1106,7 @@
                     if (data.round_access) roundAccessData = data.round_access;
                     if (data.round_status) roundStatusData = data.round_status;
                     if (data.paused_player_ids) pausedPlayerIds = data.paused_player_ids;
+                    if (Array.isArray(data.withdrawn_player_ids)) withdrawnPlayerIds = data.withdrawn_player_ids;
                     const newRounds = data.rounds || data.drawingData?.rounds;
                     applyRemoteDrawingUpdate(newRounds, data.participantsMap, '🎲 Jadwal diperbarui otomatis.');
                 }
@@ -1406,16 +1426,25 @@
             pB.forEach(n => activePlayerNames.add(cleanPlayerName(n)));
         });
 
-        let restingPlayers = [];
-        if (allParticipants && allParticipants.length > 0) {
-            restingPlayers = allParticipants.filter(p => !activePlayerNames.has(cleanPlayerName(p.name)));
-        } else if (roundData.resting && roundData.resting.length > 0) {
-            restingPlayers = roundData.resting.map(name => ({ name }));
-        }
-
         const tabEl = document.getElementById(`tabRound${roundNum}`);
         const roundStatusVal = tabEl ? tabEl.dataset.status : (roundStatusData[roundNum] || '');
         const isPastRound = (roundStatusVal === 'completed') || (Number(roundNum) < Number(serverActiveRoundNum));
+        const withdrawnIds = new Set((withdrawnPlayerIds || []).map(Number));
+        const withdrawnNames = new Set((allParticipants || [])
+            .filter(p => withdrawnIds.has(Number(p.id || p.player_id)))
+            .map(p => cleanPlayerName(p.name || p.nama || '')));
+
+        let restingPlayers = [];
+        if (allParticipants && allParticipants.length > 0) {
+            restingPlayers = allParticipants.filter(p =>
+                !activePlayerNames.has(cleanPlayerName(p.name)) &&
+                (isPastRound || !withdrawnIds.has(Number(p.id || p.player_id)))
+            );
+        } else if (roundData.resting && roundData.resting.length > 0) {
+            restingPlayers = roundData.resting
+                .filter(name => isPastRound || !withdrawnNames.has(cleanPlayerName(name)))
+                .map(name => ({ name }));
+        }
 
         // Render Bench di Bawah Lapangan
         const benchListContainer = document.getElementById('benchListContainer');
