@@ -525,8 +525,21 @@
             <p class="text-xs text-amber-800 font-medium" id="stoppedSubMsg_{{ $mIdx }}">
                 Alasan: <strong id="stoppedReasonText_{{ $mIdx }}">{{ $currentScore['stop_reason'] ?? 'Dihentikan oleh Host' }}</strong> &bull; Skor Terakhir: <strong>{{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }} Games</strong>
             </p>
-            <p class="text-[11px] text-rose-700 font-semibold {{ !empty($currentScore['withdrawn_player_names']) ? '' : 'hidden' }}" id="stoppedWithdrawnNotice_{{ $mIdx }}">
-                Pemain Keluar: {{ is_array($currentScore['withdrawn_player_names'] ?? null) ? implode(', ', $currentScore['withdrawn_player_names']) : '' }}
+            @php
+                $stoppedPlayerNames = is_array($currentScore['withdrawn_player_names'] ?? null) ? $currentScore['withdrawn_player_names'] : [];
+                $stoppedPlayerReasons = is_array($currentScore['player_reasons'] ?? null) ? $currentScore['player_reasons'] : [];
+                $stoppedPlayerDetails = [];
+                foreach ($stoppedPlayerNames as $stoppedPlayerName) {
+                    $stoppedPlayer = collect($game['participants'] ?? [])->first(fn ($participant) => \App\Services\Scoring\ScoringService::cleanPlayerName($participant['name'] ?? '') === \App\Services\Scoring\ScoringService::cleanPlayerName((string) $stoppedPlayerName));
+                    $stoppedPlayerId = $stoppedPlayer['id'] ?? null;
+                    $stoppedPlayerReason = $stoppedPlayerId !== null ? ($stoppedPlayerReasons[$stoppedPlayerId] ?? null) : null;
+                    $stoppedPlayerReason = $stoppedPlayerReason ?: ($stoppedPlayerReasons[$stoppedPlayerName] ?? ($currentScore['stop_reason'] ?? 'Alasan tidak dicatat'));
+                    $stoppedPlayerDetails[] = $stoppedPlayerName.': '.$stoppedPlayerReason;
+                }
+                $stoppedPlayerLabel = in_array($currentScore['stop_type'] ?? '', ['temporary_pause', 'pause_players'], true) ? 'Pemain di Bench' : 'Pemain Keluar';
+            @endphp
+            <p class="text-[11px] text-rose-700 font-semibold {{ !empty($stoppedPlayerDetails) ? '' : 'hidden' }}" id="stoppedWithdrawnNotice_{{ $mIdx }}">
+                {{ $stoppedPlayerLabel }}: {{ implode('; ', $stoppedPlayerDetails) }}
             </p>
         </div>
 
@@ -1165,6 +1178,7 @@
             stopType: {!! json_encode($mScore['stop_type'] ?? null) !!},
             stopReason: {!! json_encode($mScore['stop_reason'] ?? null) !!},
             withdrawnPlayerNames: {!! json_encode($mScore['withdrawn_player_names'] ?? []) !!},
+            playerReasons: {!! json_encode($mScore['player_reasons'] ?? []) !!},
             participants: {!! json_encode($mParticipants) !!},
             completionSavePending: false,
             completionSaveSucceeded: {{ $isMDoneInitial ? 'true' : 'false' }},
@@ -1922,7 +1936,17 @@
         const withdrawnNotice = document.getElementById('stoppedWithdrawnNotice_' + cIdx);
         if (withdrawnNotice) {
             if (st.withdrawnPlayerNames && st.withdrawnPlayerNames.length > 0) {
-                withdrawnNotice.textContent = `Pemain Keluar: ${st.withdrawnPlayerNames.join(', ')}`;
+                const isBenchStop = ['temporary_pause', 'pause_players'].includes(st.stopType);
+                const playerDetails = st.withdrawnPlayerNames.map(playerName => {
+                    const participant = (st.participants || []).find(item => cleanPlayerName(item.name || '') === cleanPlayerName(playerName));
+                    const playerReason = (participant && st.playerReasons?.[participant.id])
+                        || st.playerReasons?.[playerName]
+                        || st.stopReason
+                        || 'Alasan tidak dicatat';
+
+                    return `${playerName}: ${playerReason}`;
+                });
+                withdrawnNotice.textContent = `${isBenchStop ? 'Pemain di Bench' : 'Pemain Keluar'}: ${playerDetails.join('; ')}`;
                 withdrawnNotice.classList.remove('hidden');
             } else {
                 withdrawnNotice.classList.add('hidden');
@@ -2129,6 +2153,7 @@
         const newStopType = data.stop_type ?? null;
         const newStopReason = data.stop_reason ?? null;
         const newWithdrawnPlayerNames = data.withdrawn_player_names ?? [];
+        const newPlayerReasons = data.player_reasons ?? {};
         const newWinner = newIsStopped ? null : (data.winner_team ?? null);
 
         const hasChanged = (
@@ -2162,6 +2187,7 @@
             st.stopType    = newStopType;
             st.stopReason  = newStopReason;
             st.withdrawnPlayerNames = newWithdrawnPlayerNames;
+            st.playerReasons = newPlayerReasons;
             st.winnerTeam  = newWinner;
             if (incomingVer > (st.serverVersion || 0)) {
                 st.serverVersion = incomingVer;
@@ -3635,7 +3661,8 @@
             st.isStopped = true;
             st.stopType = selectedCondition;
             st.stopReason = stopReason;
-            st.withdrawnPlayerNames = resData.withdrawn_player_names || [];
+            st.withdrawnPlayerNames = resData.withdrawn_player_names || resData.saved?.withdrawn_player_names || [];
+            st.playerReasons = resData.player_reasons || resData.saved?.player_reasons || {};
             st.winnerTeam = null;
             st.completionSavePending = false;
             st.completionSaveSucceeded = true;

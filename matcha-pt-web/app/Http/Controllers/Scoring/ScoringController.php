@@ -417,6 +417,7 @@ class ScoringController extends Controller
             'stopped_at' => $score['stopped_at'] ?? null,
             'withdrawn_player_ids' => $score['withdrawn_player_ids'] ?? [],
             'withdrawn_player_names' => $score['withdrawn_player_names'] ?? [],
+            'player_reasons' => $score['player_reasons'] ?? [],
         ])->header('Cache-Control', 'no-cache, no-store, must-revalidate')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');
@@ -1910,6 +1911,8 @@ class ScoringController extends Controller
             'match_key' => $matchKey,
             'status' => 'stopped',
             'stop_type' => $stopType,
+            'withdrawn_player_names' => array_values($withdrawnPlayerNames),
+            'player_reasons' => $playerReasons,
             'saved' => $scorePayload,
             'needs_schedule_adjustment' => $scheduleAdjusted && ($isPause || $isWithdraw),
             'schedule_adjusted' => $scheduleAdjusted,
