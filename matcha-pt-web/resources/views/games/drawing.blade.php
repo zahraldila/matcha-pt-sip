@@ -778,6 +778,11 @@
             <p class="text-[10px] text-slate-400">Alasan diperlukan untuk transparansi dan catatan sesi pertandingan.</p>
         </div>
 
+        <div id="playerManageQuotaWarning" class="hidden p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-[11px] leading-relaxed">
+            <i class="fa-solid fa-triangle-exclamation text-amber-600 mr-1"></i>
+            <span id="playerManageQuotaWarningText"></span>
+        </div>
+
         <div id="playerManageModalError" class="hidden p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
             <i class="fa-solid fa-circle-exclamation text-rose-600"></i>
             <span id="playerManageModalErrorMsg"></span>
@@ -2014,16 +2019,33 @@
         const iconEl = document.getElementById('playerManageModalIcon');
         const iconContainer = document.getElementById('playerManageModalIconContainer');
         const reasonInput = document.getElementById('playerManageReason');
+        const quotaWarning = document.getElementById('playerManageQuotaWarning');
+        const quotaWarningText = document.getElementById('playerManageQuotaWarningText');
         const errEl = document.getElementById('playerManageModalError');
         const btn = document.getElementById('btnConfirmPlayerManage');
         const btnText = document.getElementById('btnConfirmPlayerManageText');
 
         if (nameEl) nameEl.textContent = playerName;
         if (reasonInput) reasonInput.value = '';
+        if (quotaWarning) quotaWarning.classList.add('hidden');
         if (errEl) errEl.classList.add('hidden');
         if (btn) btn.disabled = false;
 
         if (action === 'withdraw') {
+            const minimumPlayers = isSingleMode ? 2 : 4;
+            const withdrawnIds = new Set((withdrawnPlayerIds || []).map(Number));
+            const availableBefore = allParticipants.filter(participant => {
+                const participantId = Number(participant.id || participant.player_id);
+                return participantId > 0 && !withdrawnIds.has(participantId);
+            }).length;
+            const isNewWithdrawal = !withdrawnIds.has(Number(playerId));
+            if (isNewWithdrawal && availableBefore >= minimumPlayers && availableBefore - 1 < minimumPlayers) {
+                if (quotaWarningText) {
+                    const formatLabel = isSingleMode ? 'Single' : 'Double';
+                    quotaWarningText.textContent = `Peringatan: jika ${playerName} dikeluarkan, hanya ${availableBefore - 1} pemain yang tersisa dari kuota minimal ${minimumPlayers} untuk ${formatLabel}. Setelah pertandingan yang sedang berjalan dihentikan, sesi tidak dapat lanjut ke ronde berikutnya dan akan berakhir di recap/leaderboard.`;
+                }
+                if (quotaWarning) quotaWarning.classList.remove('hidden');
+            }
             if (titleEl) titleEl.textContent = 'Keluarkan Pemain dari Sesi';
             if (descEl) descEl.innerHTML = `Keluarkan <strong class="text-slate-800 font-extrabold">${playerName}</strong> secara permanen dari sesi ini? Pemain tidak akan dijadwalkan pada seluruh ronde mendatang.`;
             if (iconEl) iconEl.className = 'fa-solid fa-user-xmark';
