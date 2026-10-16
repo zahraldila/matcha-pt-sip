@@ -2039,4 +2039,66 @@ class EndMatchFeatureTest extends TestCase
         // Hilmy harus termasuk dalam rotasi ronde 3
         $this->assertContains('Hilmy', $allNamesInR3, 'Hilmy harus kembali masuk ke dalam jadwal ronde berikutnya setelah diaktifkan.');
     }
+
+    public function test_rescheduled_single_round_does_not_repeat_opponents_from_frozen_rounds()
+    {
+        $env = $this->createSingleEnvironment(2, ['P1', 'P2', 'P3', 'P4'], 'Total of 3');
+        $session = $env['session'];
+        $players = $env['players'];
+        $schedule = Cache::get("drawing.schedule_{$session->session_id}");
+        $playerData = fn (int $index): array => [
+            'id' => $players[$index]->player_id,
+            'name' => $players[$index]->nama,
+        ];
+        $roundOneMatches = [
+            [
+                'court' => 1,
+                'court_name' => 'Court 1',
+                'team_a' => [$playerData(0)],
+                'team_b' => [$playerData(2)],
+                'team_a_names' => ['P1'],
+                'team_b_names' => ['P3'],
+            ],
+            [
+                'court' => 2,
+                'court_name' => 'Court 2',
+                'team_a' => [$playerData(1)],
+                'team_b' => [$playerData(3)],
+                'team_a_names' => ['P2'],
+                'team_b_names' => ['P4'],
+            ],
+        ];
+        $schedule['rounds'][1]['matches'] = $roundOneMatches;
+        $schedule['round_1'] = $schedule['rounds'][1];
+        Cache::put("drawing.schedule_{$session->session_id}", $schedule, 3600);
+
+        $matchCourtOne = $env['matches'][1][0]['match'];
+        $matchCourtOne->update(['status_match' => 'Stopped']);
+        $env['matches'][1][1]['match']->update(['status_match' => 'Completed']);
+
+        ScoringService::adjustFutureScheduleOnPause($session, [$players[0]->player_id], 1);
+        DB::table('tb_session_player')
+            ->where('session_id', $session->session_id)
+            ->where('player_id', $players[0]->player_id)
+            ->update(['status' => 'active']);
+        ScoringService::adjustFutureScheduleOnReactivation($session, $players[0]->player_id, 2);
+
+        $rescheduled = Cache::get("drawing.schedule_{$session->session_id}");
+        $roundThreeMatches = $rescheduled['rounds'][3]['matches'] ?? [];
+        $playedPairs = ['P1|P3', 'P2|P4'];
+
+        foreach ($roundThreeMatches as $match) {
+            $pair = [
+                $match['team_a_names'][0] ?? '',
+                $match['team_b_names'][0] ?? '',
+            ];
+            sort($pair);
+
+            $this->assertNotContains(
+                implode('|', $pair),
+                $playedPairs,
+                'Ronde 3 tidak boleh mengulang pasangan lawan dari ronde 1.'
+            );
+        }
+    }
 }

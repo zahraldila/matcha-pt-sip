@@ -18,11 +18,12 @@ class AmericanoService
      * @param  int  $courtCount  Number of available courts
      * @param  int|null  $roundCount  Optional number of rounds (defaults to 3, max N-1)
      * @param  string  $mode  'Double' (default) or 'Single'
+     * @param  array<string, int>  $previousOpponentHistory  Previously played opponent pairs for Single mode
      */
-    public function generateRounds(array $players, int $courtCount, ?int $roundCount = null, string $mode = 'Double'): array
+    public function generateRounds(array $players, int $courtCount, ?int $roundCount = null, string $mode = 'Double', array $previousOpponentHistory = []): array
     {
         if (strtolower($mode) === 'single') {
-            return $this->generateSingleRounds($players, $courtCount, $roundCount);
+            return $this->generateSingleRounds($players, $courtCount, $roundCount, $previousOpponentHistory);
         }
 
         return $this->generateDoubleRounds($players, $courtCount, $roundCount);
@@ -226,7 +227,7 @@ class AmericanoService
      * @param  int  $courtCount  Number of available courts
      * @param  int|null  $roundCount  Optional number of rounds
      */
-    private function generateSingleRounds(array $players, int $courtCount, ?int $roundCount = null): array
+    private function generateSingleRounds(array $players, int $courtCount, ?int $roundCount = null, array $previousOpponentHistory = []): array
     {
         $playerCount = count($players);
 
@@ -259,7 +260,7 @@ class AmericanoService
         }
 
         // Tracking structures
-        $opponentHistory = []; // "minId-maxId" => count (how many times these two have faced each other)
+        $opponentHistory = $previousOpponentHistory; // "minId-maxId" => count (how many times these two have faced each other)
         $playCounts = array_fill_keys(array_keys($normalizedPlayers), 0);
         $restCounts = array_fill_keys(array_keys($normalizedPlayers), 0);
         $lastRestedRound = array_fill_keys(array_keys($normalizedPlayers), -1);

@@ -1951,6 +1951,7 @@ class ScoringService
     {
         $sessionId = ($session instanceof SessionModel) ? $session->session_id : (int) $session;
         $persistent = self::getPersistentScheduleMeta($sessionId);
+
         return (bool) ($persistent['needs_adjustment'] ?? Cache::get("scoring.needs_adjustment_{$sessionId}", false));
     }
 
@@ -2324,7 +2325,59 @@ class ScoringService
                     ])->toArray();
 
                     $americanoService = new AmericanoService;
-                    $generatedFuture = $americanoService->generateRounds($normalizedActive, $courtCount, $remainingRoundCount, $drawingMode);
+                    $previousOpponentHistory = [];
+                    $resolvePlayerId = static function ($player, string $fallbackName) use ($allPlayers): ?int {
+                        $playerId = is_array($player)
+                            ? ($player['id'] ?? $player['player_id'] ?? null)
+                            : (is_object($player) ? ($player->id ?? $player->player_id ?? null) : null);
+                        if (is_numeric($playerId) && (int) $playerId > 0) {
+                            return (int) $playerId;
+                        }
+
+                        $playerName = is_array($player)
+                            ? ($player['name'] ?? $player['nama'] ?? $fallbackName)
+                            : (is_object($player) ? ($player->name ?? $player->nama ?? $fallbackName) : $fallbackName);
+                        $cleanName = self::cleanPlayerName((string) $playerName);
+                        $matchedPlayer = $allPlayers->first(fn ($candidate) => self::cleanPlayerName((string) $candidate->nama) === $cleanName);
+
+                        return $matchedPlayer ? (int) $matchedPlayer->player_id : null;
+                    };
+
+                    foreach ($updatedRounds as $historyRoundNumber => $historyRound) {
+                        if ((int) $historyRoundNumber > $freezeUpToRound) {
+                            continue;
+                        }
+
+                        foreach ($historyRound['matches'] ?? [] as $historyMatch) {
+                            $teamAPlayers = $historyMatch['team_a'] ?? ($historyMatch['teamA'] ?? []);
+                            $teamBPlayers = $historyMatch['team_b'] ?? ($historyMatch['teamB'] ?? []);
+                            $teamANames = $historyMatch['team_a_names'] ?? ($historyMatch['teamA_names'] ?? []);
+                            $teamBNames = $historyMatch['team_b_names'] ?? ($historyMatch['teamB_names'] ?? []);
+                            $teamAPlayer = is_array($teamAPlayers) ? ($teamAPlayers[0] ?? null) : $teamAPlayers;
+                            $teamBPlayer = is_array($teamBPlayers) ? ($teamBPlayers[0] ?? null) : $teamBPlayers;
+                            $teamAName = is_array($teamANames) ? (string) ($teamANames[0] ?? '') : (string) $teamANames;
+                            $teamBName = is_array($teamBNames) ? (string) ($teamBNames[0] ?? '') : (string) $teamBNames;
+                            $teamAPlayerId = $resolvePlayerId($teamAPlayer, $teamAName);
+                            $teamBPlayerId = $resolvePlayerId($teamBPlayer, $teamBName);
+
+                            if ($teamAPlayerId === null || $teamBPlayerId === null || $teamAPlayerId === $teamBPlayerId) {
+                                continue;
+                            }
+
+                            $firstId = min($teamAPlayerId, $teamBPlayerId);
+                            $secondId = max($teamAPlayerId, $teamBPlayerId);
+                            $pairKey = "{$firstId}-{$secondId}";
+                            $previousOpponentHistory[$pairKey] = ($previousOpponentHistory[$pairKey] ?? 0) + 1;
+                        }
+                    }
+
+                    $generatedFuture = $americanoService->generateRounds(
+                        $normalizedActive,
+                        $courtCount,
+                        $remainingRoundCount,
+                        $drawingMode,
+                        $previousOpponentHistory
+                    );
                     $futureList = array_values($generatedFuture);
 
                     $genIdx = 0;
@@ -2401,7 +2454,7 @@ class ScoringService
             try {
                 $drawing = self::getAuthoritativeDrawing($session);
                 if ($drawing && Schema::hasTable('tb_match') && Schema::hasTable('tb_match_participant')) {
-                    DB::transaction(function () use ($drawing, $session, $updatedRounds, $freezeUpToRound, $currentRoundNumber, $newScheduleVersion, $allPausedIds, $allWithdrawnIds, $allPlayers) {
+                    DB::transaction(function () use ($drawing, $session, $updatedRounds, $freezeUpToRound, $newScheduleVersion, $allPausedIds, $allWithdrawnIds, $allPlayers) {
                         $sessionCourts = $session->courts;
                         $sessionCourtCount = max(1, $sessionCourts->count());
 
@@ -2442,6 +2495,7 @@ class ScoringService
                                         self::saveRoundSnapshotToMatch($existingMatch, $snapshotPayload);
                                     }
                                 }
+
                                 continue;
                             }
 
@@ -2457,6 +2511,7 @@ class ScoringService
                                 // Jika match dilindungi (In Progress, Terminal, atau memiliki skor/event), jangan utak-atik pesertanya!
                                 if ($dbMatch && self::isMatchProtectedFromAdjustment($dbMatch, $rNum, $freezeUpToRound)) {
                                     self::saveRoundSnapshotToMatch($dbMatch, $snapshotPayload);
+
                                     continue;
                                 }
 
@@ -2552,7 +2607,6 @@ class ScoringService
      * Metode ini bersifat READ-ONLY (tidak memanggil generator acak dan tidak melakukan mutasi database).
      *
      * @param  SessionModel|int  $session
-     * @return array|null
      */
     public static function buildScheduleFromDatabase($session): ?array
     {
@@ -2646,7 +2700,7 @@ class ScoringService
                     $roundMatches[] = [
                         'match_id' => $m->match_id,
                         'court_id' => $m->court_id,
-                        'court_name' => $court?->nama_court ?? "Court ".($cIdx + 1),
+                        'court_name' => $court?->nama_court ?? 'Court '.($cIdx + 1),
                         'court' => $cIdx + 1,
                         'nomor_match' => $m->nomor_match,
                         'status' => $m->status_match,
