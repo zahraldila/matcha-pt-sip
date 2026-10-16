@@ -2581,8 +2581,11 @@ class ScoringController extends Controller
         $gamesB = $request->integer('games_b', $prev['games_b'] ?? 0);
         $winnerTeam = $request->input('winner_team', $prev['winner_team'] ?? null);
         $isWalkover = $request->boolean('is_walkover', false);
+        $isStopped = ($prev['status'] ?? '') === 'stopped'
+            || $request->input('status') === 'stopped'
+            || $request->boolean('is_stopped', false);
 
-        if (! $isWalkover && ! ScoringService::isMatchCompleted($gamesA, $gamesB, $system)) {
+        if (! $isWalkover && ! $isStopped && ! ScoringService::isMatchCompleted($gamesA, $gamesB, $system)) {
             return redirect()->back()->withErrors([
                 'score' => "Pertandingan belum memenuhi syarat selesai untuk sistem skor {$system['label']} (skor saat ini: {$gamesA}–{$gamesB}).",
             ]);
@@ -2641,11 +2644,11 @@ class ScoringController extends Controller
                 }
             }
 
-            if (! $winnerTeam) {
+            if (! $winnerTeam && ! $isStopped) {
                 $winnerTeam = $setsA >= $setsB ? 'Team A' : 'Team B';
             }
         } else {
-            if (! $winnerTeam) {
+            if (! $winnerTeam && ! $isStopped) {
                 $winnerTeam = $gamesA >= $gamesB ? 'Team A' : 'Team B';
             }
         }
@@ -2655,7 +2658,7 @@ class ScoringController extends Controller
         $newVersion = $prevVersion + 1;
         $serverTimeMs = (int) round(microtime(true) * 1000);
 
-        $scorePayload = [
+        $scorePayload = array_merge($prev, [
             'version' => $newVersion,
             'updated_at_ms' => $serverTimeMs,
             'score_a' => $system['is_sets'] ? $setsA : $gamesA,
@@ -2671,9 +2674,9 @@ class ScoringController extends Controller
             'scoring_type' => $system['type'],
             'scoring_system' => $system['type'],
             'winner_team' => $winnerTeam,
-            'status' => 'completed',
+            'status' => $isStopped ? 'stopped' : 'completed',
             'updated_at' => now()->toDateTimeString(),
-        ];
+        ]);
 
         $isMultiCourt = str_contains($matchKey, '_court_');
         $scores[$matchKey] = $scorePayload;
@@ -2716,9 +2719,20 @@ class ScoringController extends Controller
                 // Reuse tb_match & participants deterministically (tidak membuat duplikat)
                 $match = ScoringService::ensureMatchAndParticipants($session, $round, $courtIndex);
                 if ($match) {
-                    $match->status_match = 'Completed';
+                    if ($isStopped) {
+                        $match->status_match = 'Stopped';
+                        $match->hasil_pertandingan = "Dihentikan: {$gamesA} - {$gamesB}".(! empty($prev['stop_reason']) ? " ({$prev['stop_reason']})" : '');
+                        if (! empty($prev['stop_reason']) && Schema::hasColumn('tb_match', 'stop_reason')) {
+                            $match->stop_reason = $prev['stop_reason'];
+                        }
+                        if (! empty($prev['stop_type']) && Schema::hasColumn('tb_match', 'stop_type')) {
+                            $match->stop_type = $prev['stop_type'];
+                        }
+                    } else {
+                        $match->status_match = 'Completed';
+                        $match->hasil_pertandingan = $matchSummary;
+                    }
                     $match->waktu_selesai = now();
-                    $match->hasil_pertandingan = $matchSummary;
                     $match->winner_team = $winnerTeam;
                     $match->save();
                 }
@@ -2813,7 +2827,9 @@ class ScoringController extends Controller
                             [
                                 'jumlah_permainan' => max(1, $totalGamesPlayed),
                                 'waktu_permainan' => now(),
-                                'status_permainan' => $isTeamAWinner ? 'Menang' : 'Kalah',
+                                'status_permainan' => $winnerTeam
+                                    ? ($isTeamAWinner ? 'Menang' : 'Kalah')
+                                    : ($isStopped ? 'Dihentikan' : 'Seri'),
                                 'partner_player_id' => $partnerPlayerId,
                                 'opponent_player_id' => $opponentPlayerId,
                             ]
@@ -2849,7 +2865,9 @@ class ScoringController extends Controller
                             [
                                 'jumlah_permainan' => max(1, $totalGamesPlayed),
                                 'waktu_permainan' => now(),
-                                'status_permainan' => ! $isTeamAWinner ? 'Menang' : 'Kalah',
+                                'status_permainan' => $winnerTeam
+                                    ? (! $isTeamAWinner ? 'Menang' : 'Kalah')
+                                    : ($isStopped ? 'Dihentikan' : 'Seri'),
                                 'partner_player_id' => $partnerPlayerId,
                                 'opponent_player_id' => $opponentPlayerId,
                             ]
