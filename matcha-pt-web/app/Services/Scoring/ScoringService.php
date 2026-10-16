@@ -682,6 +682,25 @@ class ScoringService
         // Check if format is team-based
         $format = strtolower(trim($game['match_format'] ?? $game['format'] ?? ''));
         $isPerTeam = in_array($format, ['team americano', 'team mexicano', 'mixicano']);
+        $teamAvatarFor = static function (array $teamMembers) use ($players): ?string {
+            foreach ($teamMembers as $teamMember) {
+                $memberName = is_array($teamMember)
+                    ? ($teamMember['name'] ?? $teamMember['nama'] ?? '')
+                    : (is_object($teamMember) ? ($teamMember->name ?? $teamMember->nama ?? '') : $teamMember);
+                $cleanMemberName = self::cleanPlayerName((string) $memberName);
+                if ($cleanMemberName === '') {
+                    continue;
+                }
+
+                foreach ($players as $player) {
+                    if (self::cleanPlayerName($player['name'] ?? '') === $cleanMemberName && ! empty($player['avatar'])) {
+                        return $player['avatar'];
+                    }
+                }
+            }
+
+            return null;
+        };
 
         // Init stats
         $stats = [];
@@ -698,6 +717,7 @@ class ScoringService
                             if (is_array($team) && isset($team['name'])) {
                                 $name = $team['display_name'] ?? $team['name'] ?? 'Tim';
                                 $teamIdentity = $team['name'] ?? null;
+                                $teamMembers = $m["team_{$side}_names"] ?? ($m['team'.strtoupper($side).'_names'] ?? ($team['player_names'] ?? ($team['players'] ?? [])));
                             } else {
                                 $mTeam = $m["team_{$side}_names"] ?? ($m['team'.strtoupper($side).'_names'] ?? $team);
                                 $name = implode(' & ', is_array($mTeam) ? $mTeam : [$mTeam]);
@@ -705,12 +725,13 @@ class ScoringService
                                     $name = "Tim {$side}";
                                 }
                                 $teamIdentity = $name;
+                                $teamMembers = $mTeam;
                             }
                             if (! isset($stats[$name])) {
                                 $stats[$name] = [
                                     'name' => $name,
                                     'team_identity' => $teamIdentity,
-                                    'avatar' => null,
+                                    'avatar' => $teamAvatarFor(is_array($teamMembers) ? $teamMembers : [$teamMembers]),
                                     'level' => '-',
                                     'is_member' => false,
                                     'matches' => 0,
