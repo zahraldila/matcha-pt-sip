@@ -757,7 +757,22 @@
     </div>
 
     {{-- Tim Istirahat Set Ini --}}
-    <div id="liveRoundBenchPanel" class="glass-card rounded-2xl px-5 py-4 border border-white/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs {{ count($matchContext['resting'] ?? []) > 0 ? '' : 'hidden' }}">
+    @php
+        $visibleRoundBench = [];
+        foreach ($matchContext['resting'] ?? [] as $benchPlayer) {
+            $benchName = is_array($benchPlayer) ? ($benchPlayer['name'] ?? $benchPlayer['nama'] ?? '') : (string) $benchPlayer;
+            $benchPlayerId = is_array($benchPlayer) ? ($benchPlayer['id'] ?? $benchPlayer['player_id'] ?? null) : null;
+            if (! $benchPlayerId && $benchName !== '') {
+                $matchedParticipant = collect($game['participants'] ?? [])->first(fn ($participant) => \App\Services\Scoring\ScoringService::cleanPlayerName($participant['name'] ?? '') === \App\Services\Scoring\ScoringService::cleanPlayerName($benchName));
+                $benchPlayerId = $matchedParticipant['id'] ?? null;
+            }
+            if ($benchPlayerId && (in_array((int) $benchPlayerId, $pausedPlayerIds ?? [], true) || in_array((int) $benchPlayerId, $withdrawnPlayerIds ?? [], true))) {
+                continue;
+            }
+            $visibleRoundBench[] = $benchPlayer;
+        }
+    @endphp
+    <div id="liveRoundBenchPanel" class="glass-card rounded-2xl px-5 py-4 border border-white/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs {{ count($visibleRoundBench) > 0 ? '' : 'hidden' }}">
         <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center text-xs shrink-0 shadow-2xs">
                 <i class="fa-solid fa-mug-hot"></i>
@@ -766,11 +781,11 @@
                 <p class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                     Bangku Istirahat (Bench) {{ $unitTabLabel }} Ini
                     <span id="liveRoundBenchCount" class="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                        {{ count($matchContext['resting'] ?? []) }} Pemain
+                        {{ count($visibleRoundBench) }} Pemain
                     </span>
                 </p>
                 <div id="liveRoundBenchList" class="flex flex-wrap gap-1.5 pt-1">
-                    @foreach($matchContext['resting'] ?? [] as $rPlayer)
+                    @foreach($visibleRoundBench as $rPlayer)
                         @php
                             $rName = is_array($rPlayer) ? ($rPlayer['name'] ?? $rPlayer['nama'] ?? '') : $rPlayer;
                             $rId = is_array($rPlayer) ? ($rPlayer['id'] ?? null) : null;
@@ -1084,7 +1099,7 @@
     const IS_SINGLE_MODE      = {{ strtolower($game['jenis_permainan'] ?? ($session->jenis_permainan ?? 'Double')) === 'single' ? 'true' : 'false' }};
     const MIN_REQUIRED_PLAYERS = IS_SINGLE_MODE ? 2 : 4;
     const SESSION_PARTICIPANTS = @json($game['participants'] ?? []);
-    const INITIAL_LIVE_BENCH = @json($matchContext['resting'] ?? []);
+    const INITIAL_LIVE_BENCH = @json($visibleRoundBench);
     let sessionPausedPlayerIds = new Set(@json($pausedPlayerIds ?? []).map(Number));
     let sessionWithdrawnPlayerIds = new Set(@json($withdrawnPlayerIds ?? []).map(Number));
     let sessionPlayerReasons = {};
@@ -1167,10 +1182,6 @@
             const playerName = typeof entry === 'object' && entry !== null ? (entry.name || entry.nama || '') : String(entry);
             const playerId = typeof entry === 'object' && entry !== null ? (entry.id || entry.player_id) : null;
             const player = playerId ? getSessionPlayerById(playerId) : SESSION_PARTICIPANTS.find(item => cleanPlayerName(item.name || item.nama || '') === cleanPlayerName(playerName));
-            if (player) benchMembers.set(Number(player.id || player.player_id), player);
-        });
-        sessionPausedPlayerIds.forEach(playerId => {
-            const player = getSessionPlayerById(playerId);
             if (player) benchMembers.set(Number(player.id || player.player_id), player);
         });
         sessionWithdrawnPlayerIds.forEach(playerId => benchMembers.delete(Number(playerId)));
