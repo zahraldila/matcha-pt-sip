@@ -196,7 +196,8 @@ class ScoringController extends Controller
         $currentScore = array_merge($defaultScore, $matchScore);
         $pausedPlayerIds = ScoringService::getPausedPlayerIds($session);
         $withdrawnPlayerIds = ScoringService::getWithdrawnPlayerIds($session);
-        $canFinishSessionEarly = $this->canFinishEarlyAfterWithdrawal($game, $activeRound, $withdrawnPlayerIds);
+        $inactivePlayerIds = array_values(array_unique(array_merge($withdrawnPlayerIds, $pausedPlayerIds)));
+        $canFinishSessionEarly = $this->canFinishEarlyAfterWithdrawal($game, $activeRound, $inactivePlayerIds);
 
         return view('scoring.live', compact(
             'game',
@@ -2571,7 +2572,9 @@ class ScoringController extends Controller
         $allRoundKeys = array_keys($game['drawing'] ?? []);
         $lastRoundKey = ! empty($allRoundKeys) ? end($allRoundKeys) : $round;
         $withdrawnPlayerIds = ScoringService::getWithdrawnPlayerIds($gameId);
-        $canFinishEarly = $this->canFinishEarlyAfterWithdrawal($game, $round, $withdrawnPlayerIds);
+        $pausedPlayerIds = ScoringService::getPausedPlayerIds($gameId);
+        $inactivePlayerIds = array_values(array_unique(array_merge($withdrawnPlayerIds, $pausedPlayerIds)));
+        $canFinishEarly = $this->canFinishEarlyAfterWithdrawal($game, $round, $inactivePlayerIds);
         if (! empty($allRoundKeys) && $round !== $lastRoundKey && ! $canFinishEarly) {
             return redirect()->back()->withErrors([
                 'score' => 'Sesi belum mencapai ronde terakhir. Selesaikan seluruh ronde pertandingan terlebih dahulu.',
@@ -3785,9 +3788,9 @@ class ScoringController extends Controller
         return true;
     }
 
-    private function canFinishEarlyAfterWithdrawal(array $game, string $currentRound, array $withdrawnPlayerIds): bool
+    private function canFinishEarlyAfterWithdrawal(array $game, string $currentRound, array $inactivePlayerIds): bool
     {
-        if (empty($withdrawnPlayerIds)) {
+        if (empty($inactivePlayerIds)) {
             return false;
         }
 
@@ -3797,11 +3800,11 @@ class ScoringController extends Controller
             return false;
         }
 
-        $withdrawnIds = array_fill_keys(array_map('intval', $withdrawnPlayerIds), true);
+        $inactiveIds = array_fill_keys(array_map('intval', $inactivePlayerIds), true);
         $activePlayerCount = 0;
         foreach ($game['participants'] ?? [] as $participant) {
             $playerId = (int) ($participant['id'] ?? $participant['player_id'] ?? 0);
-            if ($playerId > 0 && ! isset($withdrawnIds[$playerId])) {
+            if ($playerId > 0 && ! isset($inactiveIds[$playerId])) {
                 $activePlayerCount++;
             }
         }

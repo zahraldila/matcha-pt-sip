@@ -50,6 +50,27 @@
         </div>
     </div>
 
+    @php
+        $sessionAllParticipants = $game['participants'] ?? [];
+        $activeMembers = [];
+        $restingMembers = [];
+        $withdrawnMembers = [];
+
+        foreach ($sessionAllParticipants as $part) {
+            $pId = (int) ($part['id'] ?? 0);
+            if (in_array($pId, $withdrawnPlayerIds ?? [], true)) {
+                $withdrawnMembers[] = $part;
+            } elseif (in_array($pId, $pausedPlayerIds ?? [], true)) {
+                $restingMembers[] = $part;
+            } else {
+                $activeMembers[] = $part;
+            }
+        }
+
+        $minReq = ($isSingleMode ?? false) ? 2 : 4;
+        $isShortOnPlayers = count($activeMembers) < $minReq;
+    @endphp
+
     {{-- Flash Notifications (Warning, Error, Success, Validation Errors) --}}
     @if(session('warning') || session('error') || session('success') || $errors->any())
         <div id="flashNotificationContainer" class="space-y-2">
@@ -64,15 +85,57 @@
                 </div>
             @endif
             @if(session('warning'))
-                <div class="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-3 shadow-xs">
-                    <i class="fa-solid fa-triangle-exclamation text-amber-600 text-base shrink-0"></i>
-                    <span>{{ session('warning') }}</span>
+                <div class="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold space-y-2.5 shadow-xs">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-600 text-base shrink-0"></i>
+                        <span>{{ session('warning') }}</span>
+                    </div>
+                    @if($isHost && count($restingMembers) > 0)
+                        <div class="pt-2 border-t border-amber-200/80 flex flex-wrap items-center gap-2">
+                            <span class="text-[11px] text-amber-800 font-semibold">Tindakan Cepat:</span>
+                            @foreach($restingMembers as $rPart)
+                                @php
+                                    $rPId = (int) ($rPart['id'] ?? 0);
+                                    $rPName = $rPart['name'] ?? 'Pemain';
+                                @endphp
+                                <button type="button" onclick="reactivatePlayerLive({{ $rPId }}, '{{ addslashes($rPName) }}')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all active:scale-95">
+                                    <i class="fa-solid fa-play text-[8px]"></i> Aktifkan {{ $rPName }} (Siap Main)
+                                </button>
+                            @endforeach
+                            @if($allCourtsCompleted ?? false)
+                                <button type="button" onclick="submitGlobalFinish(event)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs shadow-xs cursor-pointer transition-all active:scale-95">
+                                    <i class="fa-solid fa-trophy text-[9px] text-[#A8E63A]"></i> Selesaikan Sesi Lebih Awal
+                                </button>
+                            @endif
+                        </div>
+                    @endif
                 </div>
             @endif
-            @if(session('error') && session('error') !== session('warning'))
-                <div class="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs font-bold flex items-center gap-3 shadow-xs">
-                    <i class="fa-solid fa-circle-exclamation text-rose-600 text-base shrink-0"></i>
-                    <span>{{ session('error') }}</span>
+            @if(session('error') && session('error') !== session('warning') && (!session('warning') || !str_contains((string) session('error'), (string) session('warning'))))
+                <div class="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs font-bold space-y-2.5 shadow-xs">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-circle-exclamation text-rose-600 text-base shrink-0"></i>
+                        <span>{{ session('error') }}</span>
+                    </div>
+                    @if($isHost && count($restingMembers) > 0)
+                        <div class="pt-2 border-t border-rose-200/80 flex flex-wrap items-center gap-2">
+                            <span class="text-[11px] text-rose-800 font-semibold">Tindakan Cepat:</span>
+                            @foreach($restingMembers as $rPart)
+                                @php
+                                    $rPId = (int) ($rPart['id'] ?? 0);
+                                    $rPName = $rPart['name'] ?? 'Pemain';
+                                @endphp
+                                <button type="button" onclick="reactivatePlayerLive({{ $rPId }}, '{{ addslashes($rPName) }}')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all active:scale-95">
+                                    <i class="fa-solid fa-play text-[8px]"></i> Aktifkan {{ $rPName }} (Siap Main)
+                                </button>
+                            @endforeach
+                            @if($allCourtsCompleted ?? false)
+                                <button type="button" onclick="submitGlobalFinish(event)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs shadow-xs cursor-pointer transition-all active:scale-95">
+                                    <i class="fa-solid fa-trophy text-[9px] text-[#A8E63A]"></i> Selesaikan Sesi Lebih Awal
+                                </button>
+                            @endif
+                        </div>
+                    @endif
                 </div>
             @endif
             @if(session('success'))
@@ -646,7 +709,7 @@
                         </button>
                     </form>
                 @endif
-                <form id="globalFinishForm" action="{{ route('scoring.finish') }}" method="POST" class="{{ (($allCourtsCompleted ?? false) && ! $nextRoundKey) ? '' : 'hidden' }} m-0">
+                <form id="globalFinishForm" action="{{ route('scoring.finish') }}" method="POST" class="{{ (($allCourtsCompleted ?? false) && (! $nextRoundKey || ($canFinishSessionEarly ?? false))) ? '' : 'hidden' }} m-0">
                     @csrf
                     <input type="hidden" name="game_id"         value="{{ $game['id'] }}">
                     <input type="hidden" name="round"           value="{{ $activeRound }}">
@@ -776,6 +839,9 @@
         {{-- Tim Istirahat Set Ini --}}
         @php
             $visibleRoundBench = [];
+            $visibleRoundBenchIds = [];
+
+            // 1. Masukkan pemain rotasi bench normal dari drawing
             foreach ($matchContext['resting'] ?? [] as $benchPlayer) {
                 $benchName = is_array($benchPlayer) ? ($benchPlayer['name'] ?? $benchPlayer['nama'] ?? '') : (string) $benchPlayer;
                 $benchPlayerId = is_array($benchPlayer) ? ($benchPlayer['id'] ?? $benchPlayer['player_id'] ?? null) : null;
@@ -783,10 +849,22 @@
                     $matchedParticipant = collect($game['participants'] ?? [])->first(fn ($participant) => \App\Services\Scoring\ScoringService::cleanPlayerName($participant['name'] ?? '') === \App\Services\Scoring\ScoringService::cleanPlayerName($benchName));
                     $benchPlayerId = $matchedParticipant['id'] ?? null;
                 }
-                if ($benchPlayerId && (in_array((int) $benchPlayerId, $pausedPlayerIds ?? [], true) || in_array((int) $benchPlayerId, $withdrawnPlayerIds ?? [], true))) {
+                if ($benchPlayerId && in_array((int) $benchPlayerId, $withdrawnPlayerIds ?? [], true)) {
                     continue;
                 }
                 $visibleRoundBench[] = $benchPlayer;
+                if ($benchPlayerId) {
+                    $visibleRoundBenchIds[] = (int) $benchPlayerId;
+                }
+            }
+
+            // 2. Sertakan juga seluruh pemain yang sedang istirahat sementara (resting / paused)
+            foreach ($restingMembers as $rMember) {
+                $rMemId = (int) ($rMember['id'] ?? 0);
+                if ($rMemId && ! in_array($rMemId, $visibleRoundBenchIds, true)) {
+                    $visibleRoundBench[] = $rMember;
+                    $visibleRoundBenchIds[] = $rMemId;
+                }
             }
         @endphp
         <div id="liveRoundBenchPanel" class="pt-3 border-t border-slate-100 space-y-2 {{ count($visibleRoundBench) > 0 ? '' : 'hidden' }}">
@@ -1075,6 +1153,7 @@
             <p class="leading-relaxed text-[11px] text-amber-800">
                 Pertandingan ini telah berhasil dihentikan. Jadwal ronde berikutnya akan ditunda sementara hingga Host mengaktifkan kembali pemain istirahat melalui tombol <strong class="font-extrabold text-[#063B00]">[Siap Main]</strong> di Bangku Cadangan.
             </p>
+            <div id="insufficientPlayersActionContainer" class="hidden"></div>
         </div>
 
         <div class="pt-3 border-t border-slate-100 flex items-center justify-end">
@@ -1207,6 +1286,15 @@
             const player = playerId ? getSessionPlayerById(playerId) : SESSION_PARTICIPANTS.find(item => cleanPlayerName(item.name || item.nama || '') === cleanPlayerName(playerName));
             if (player) benchMembers.set(Number(player.id || player.player_id), player);
         });
+
+        // Sertakan juga seluruh pemain yang sedang istirahat sementara
+        sessionPausedPlayerIds.forEach(playerId => {
+            const player = getSessionPlayerById(playerId);
+            if (player && !sessionWithdrawnPlayerIds.has(Number(playerId))) {
+                benchMembers.set(Number(player.id || player.player_id), player);
+            }
+        });
+
         sessionWithdrawnPlayerIds.forEach(playerId => benchMembers.delete(Number(playerId)));
 
         const players = [...benchMembers.values()];
@@ -3953,8 +4041,37 @@
     function showInsufficientPlayersWarningModal(message) {
         const modal = document.getElementById('insufficientPlayersWarningModal');
         const msgEl = document.getElementById('insufficientPlayersWarningMessage');
+        const actionBox = document.getElementById('insufficientPlayersActionContainer');
         if (msgEl && message) {
             msgEl.textContent = message;
+        }
+        if (actionBox && IS_HOST) {
+            const pausedList = [];
+            sessionPausedPlayerIds.forEach(pId => {
+                const player = getSessionPlayerById(pId);
+                if (player && !sessionWithdrawnPlayerIds.has(Number(pId))) {
+                    pausedList.push(player);
+                }
+            });
+            if (pausedList.length > 0) {
+                actionBox.innerHTML = `
+                    <div class="space-y-1.5 pt-2 border-t border-amber-200/60">
+                        <span class="text-[11px] font-bold text-amber-950 block">Aktifkan kembali pemain untuk lanjut ke ronde berikutnya:</span>
+                        <div class="flex flex-wrap gap-2">
+                            ${pausedList.map(p => {
+                                const id = Number(p.id || p.player_id);
+                                const name = escapeLiveStatusText(p.name || p.nama || 'Pemain');
+                                const safeName = (p.name || p.nama || 'Pemain').replace(/'/g, "\\'");
+                                return `<button type="button" onclick="closeInsufficientPlayersWarningModal(); reactivatePlayerLive(${id}, '${safeName}')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all active:scale-95"><i class="fa-solid fa-play text-[8px]"></i> Aktifkan ${name} (Siap Main)</button>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+                actionBox.classList.remove('hidden');
+            } else {
+                actionBox.innerHTML = '';
+                actionBox.classList.add('hidden');
+            }
         }
         if (modal) {
             modal.style.display = 'flex';

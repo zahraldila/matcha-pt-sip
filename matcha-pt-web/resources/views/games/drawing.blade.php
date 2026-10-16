@@ -329,6 +329,11 @@
                     $initialBenchNames = $activeRound['resting'] ?? [];
                     if (! $activeRoundIsPast) {
                         $initialBenchNames = array_values(array_filter($initialBenchNames, fn ($name) => ! in_array($name, $withdrawnNames, true)));
+                        $pausedNames = collect($game['participants'] ?? [])
+                            ->filter(fn ($participant) => in_array((int) ($participant['id'] ?? 0), $pausedPlayerIds ?? [], true))
+                            ->pluck('name')
+                            ->all();
+                        $initialBenchNames = array_values(array_unique(array_merge($initialBenchNames, $pausedNames)));
                     }
                 @endphp
                 <div class="flex items-center justify-between">
@@ -596,10 +601,10 @@
                 <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2 shadow-2xs">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-semibold text-slate-700">Bangku Cadangan / Istirahat</span>
-                        <span class="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200" id="labelRestingCount">{{ count($activeRound['resting'] ?? []) }} Pemain</span>
+                        <span class="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200" id="labelRestingCount">{{ count($initialBenchNames) }} Pemain</span>
                     </div>
                     <div class="space-y-1.5" id="rosterResting">
-                        @forelse($activeRound['resting'] ?? [] as $idx => $pName)
+                        @forelse($initialBenchNames as $idx => $pName)
                             @php
                                 $rId = null;
                                 if (!empty($participantsMap[$pName]['id'])) {
@@ -1536,10 +1541,11 @@
             .filter(p => withdrawnIds.has(Number(p.id || p.player_id)))
             .map(p => cleanPlayerName(p.name || p.nama || '')));
 
+        const pausedIds = new Set((pausedPlayerIds || []).map(Number));
         let restingPlayers = [];
         if (allParticipants && allParticipants.length > 0) {
             restingPlayers = allParticipants.filter(p =>
-                !activePlayerNames.has(cleanPlayerName(p.name)) &&
+                (!activePlayerNames.has(cleanPlayerName(p.name)) || pausedIds.has(Number(p.id || p.player_id))) &&
                 (isPastRound || !withdrawnIds.has(Number(p.id || p.player_id)))
             );
         } else if (roundData.resting && roundData.resting.length > 0) {
