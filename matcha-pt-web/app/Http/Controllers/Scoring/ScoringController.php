@@ -532,7 +532,7 @@ class ScoringController extends Controller
                     $targetRoundNum = (int) $rm[1];
                 }
                 $activeRoundNum = (int) preg_replace('/[^0-9]/', '', $this->resolveActiveRoundFromDatabase($checkGameId) ?? '1');
-                
+
                 $isFutureRound = $targetRoundNum > $activeRoundNum;
                 $hasInactivePlayer = false;
 
@@ -1893,8 +1893,8 @@ class ScoringController extends Controller
 
         $hasInsufficient = ! empty($adjustedScheduleSummary['insufficient']);
         $activePlayersCount = $adjustedSchedule['active_players_count'] ?? count($session->players);
-        $insufficientWarning = $hasInsufficient 
-            ? "Jumlah pemain aktif tersisa {$activePlayersCount} (minimal 4 untuk Double). Silakan gunakan panel Kesiapan Pemain untuk mengaktifkan pemain dari istirahat sebelum memulai ronde berikutnya." 
+        $insufficientWarning = $hasInsufficient
+            ? "Jumlah pemain aktif tersisa {$activePlayersCount} (minimal 4 untuk Double). Silakan gunakan panel Kesiapan Pemain untuk mengaktifkan pemain dari istirahat sebelum memulai ronde berikutnya."
             : null;
 
         if ($scheduleAdjusted && ($isPause || $isWithdraw)) {
@@ -2201,6 +2201,7 @@ class ScoringController extends Controller
                     $hasPlayer = MatchParticipant::where('match_id', $cm->match_id)->where('player_id', $playerId)->exists();
                     if ($hasPlayer) {
                         $courtNum = ($cm->nomor_match - 1) % $courtCount + 1;
+
                         return response()->json([
                             'success' => false,
                             'is_playing' => true,
@@ -3571,41 +3572,41 @@ class ScoringController extends Controller
                     $rounds = $cachedSchedule['rounds'] ?? ($adjusted['rounds'] ?? []);
                     $courtCount = $cachedSchedule['court_count'] ?? ($adjusted['drawingData']['court_count'] ?? $courtCount);
                 } else {
-                try {
-                    $isTeam = str_contains($format, 'team');
-                    $isSingle = strtolower($sessionJenisPermainan ?? '') === 'single';
-                    $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
-                    $roundCount = ScoringService::determineSessionRoundCount(
-                        $scoringSystem,
-                        count($participants),
-                        $isTeam,
-                        $isSingle,
-                        $dbSession->waktu_session ?? null,
-                        $courtCount
-                    );
+                    try {
+                        $isTeam = str_contains($format, 'team');
+                        $isSingle = strtolower($sessionJenisPermainan ?? '') === 'single';
+                        $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
+                        $roundCount = ScoringService::determineSessionRoundCount(
+                            $scoringSystem,
+                            count($participants),
+                            $isTeam,
+                            $isSingle,
+                            $dbSession->waktu_session ?? null,
+                            $courtCount
+                        );
 
-                    if ($isTeam && count($participants) >= 4 && count($participants) % 2 === 0) {
-                        $teamService = new TeamAmericanoService;
-                        $drawingData = $teamService->generateTeamRounds($participants, $courtCount, null, $roundCount);
-                        $rounds = $drawingData['rounds'] ?? [];
-                    } else {
-                        // Gunakan jenis_permainan dari session agar Single/Double benar
+                        if ($isTeam && count($participants) >= 4 && count($participants) % 2 === 0) {
+                            $teamService = new TeamAmericanoService;
+                            $drawingData = $teamService->generateTeamRounds($participants, $courtCount, null, $roundCount);
+                            $rounds = $drawingData['rounds'] ?? [];
+                        } else {
+                            // Gunakan jenis_permainan dari session agar Single/Double benar
+                            $americanoService = new AmericanoService;
+                            $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan ?? 'Double');
+                        }
+                    } catch (\Throwable $e) {
+                        $isTeam = str_contains($format, 'team');
+                        $isSingle = strtolower($sessionJenisPermainan ?? '') === 'single';
+                        $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
+                        $roundCount = ScoringService::determineSessionRoundCount(
+                            $scoringSystem,
+                            count($participants),
+                            $isTeam,
+                            $isSingle,
+                            $dbSession->waktu_session ?? null,
+                            $courtCount
+                        );
                         $americanoService = new AmericanoService;
-                        $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan ?? 'Double');
-                    }
-                } catch (\Throwable $e) {
-                    $isTeam = str_contains($format, 'team');
-                    $isSingle = strtolower($sessionJenisPermainan ?? '') === 'single';
-                    $scoringSystem = ScoringService::detectScoringSystem($dbSession->scoring_system ?? 'Total of 3');
-                    $roundCount = ScoringService::determineSessionRoundCount(
-                        $scoringSystem,
-                        count($participants),
-                        $isTeam,
-                        $isSingle,
-                        $dbSession->waktu_session ?? null,
-                        $courtCount
-                    );
-                    $americanoService = new AmericanoService;
                         $rounds = $americanoService->generateRounds($participants, $courtCount, $roundCount, $sessionJenisPermainan ?? 'Double');
                     }
                 }
@@ -3941,6 +3942,13 @@ class ScoringController extends Controller
             }
 
             $status = $isStopped ? 'stopped' : ($isCompleted ? 'completed' : 'in_progress');
+            $stoppedPlayerDetails = $isStopped
+                ? $this->resolveStoppedPlayerDetails(
+                    (int) $session->session_id,
+                    $match->withdrawn_player_ids ?? [],
+                    $match->player_notes ?? []
+                )
+                : [];
 
             $tennisPoints = ['0', '15', '30', '40'];
             $ptA = (string) ($lastScore->point_score_a ?? '0');
@@ -3981,7 +3989,9 @@ class ScoringController extends Controller
                 'stop_reason' => $match->stop_reason ?? null,
                 'stopped_by_user_id' => $match->stopped_by_user_id ?? null,
                 'stopped_at' => $match->stopped_at ? (is_string($match->stopped_at) ? $match->stopped_at : $match->stopped_at->toDateTimeString()) : null,
-                'withdrawn_player_ids' => ! empty($match->withdrawn_player_ids) ? (is_array($match->withdrawn_player_ids) ? $match->withdrawn_player_ids : json_decode($match->withdrawn_player_ids, true)) : [],
+                'withdrawn_player_ids' => $stoppedPlayerDetails['withdrawn_player_ids'] ?? [],
+                'withdrawn_player_names' => $stoppedPlayerDetails['withdrawn_player_names'] ?? [],
+                'player_reasons' => $stoppedPlayerDetails['player_reasons'] ?? [],
                 'player_notes' => ! empty($match->player_notes) ? (is_array($match->player_notes) ? $match->player_notes : json_decode($match->player_notes, true)) : [],
                 'last_event_id' => (string) ($lastScore->last_event_id ?? ($match->last_event_id ?? '')),
                 'persistent_event_ids' => $persistentEventIds,
@@ -4038,6 +4048,13 @@ class ScoringController extends Controller
 
         $isStopped = strtolower((string) ($match->status_match ?? '')) === 'stopped';
         $status = $isStopped ? 'stopped' : (strtolower((string) ($match->status_match ?? '')) === 'completed' || in_array(strtolower((string) ($row->status_score ?? '')), ['final', 'completed'], true) ? 'completed' : 'in_progress');
+        $stoppedPlayerDetails = $isStopped
+            ? $this->resolveStoppedPlayerDetails(
+                (int) $session->session_id,
+                $match->withdrawn_player_ids ?? [],
+                $match->player_notes ?? []
+            )
+            : [];
 
         return [
             'match_id' => (int) $match->match_id,
@@ -4068,9 +4085,60 @@ class ScoringController extends Controller
             'stop_reason' => $match->stop_reason ?? null,
             'stopped_by_user_id' => $match->stopped_by_user_id ?? null,
             'stopped_at' => isset($match->stopped_at) && $match->stopped_at ? (is_string($match->stopped_at) ? $match->stopped_at : (method_exists($match->stopped_at, 'toDateTimeString') ? $match->stopped_at->toDateTimeString() : (string) $match->stopped_at)) : null,
-            'withdrawn_player_ids' => ! empty($match->withdrawn_player_ids) ? (is_array($match->withdrawn_player_ids) ? $match->withdrawn_player_ids : json_decode($match->withdrawn_player_ids, true)) : [],
+            'withdrawn_player_ids' => $stoppedPlayerDetails['withdrawn_player_ids'] ?? [],
+            'withdrawn_player_names' => $stoppedPlayerDetails['withdrawn_player_names'] ?? [],
+            'player_reasons' => $stoppedPlayerDetails['player_reasons'] ?? [],
             'player_notes' => ! empty($match->player_notes) ? (is_array($match->player_notes) ? $match->player_notes : json_decode($match->player_notes, true)) : [],
             'last_event_id' => (string) ($row->last_event_id ?? ($match->last_event_id ?? '')),
+        ];
+    }
+
+    /**
+     * Rebuild stopped-player labels and reasons from persistent match and session data.
+     */
+    private function resolveStoppedPlayerDetails(int $sessionId, mixed $rawPlayerIds, mixed $rawPlayerNotes): array
+    {
+        $playerIds = is_array($rawPlayerIds) ? $rawPlayerIds : (json_decode((string) $rawPlayerIds, true) ?: []);
+        $playerIds = array_values(array_unique(array_filter(array_map('intval', $playerIds), fn ($playerId) => $playerId > 0)));
+        if (empty($playerIds)) {
+            return [
+                'withdrawn_player_ids' => [],
+                'withdrawn_player_names' => [],
+                'player_reasons' => [],
+            ];
+        }
+
+        $playerNotes = is_array($rawPlayerNotes) ? $rawPlayerNotes : (json_decode((string) $rawPlayerNotes, true) ?: []);
+        $playersById = Player::whereIn('player_id', $playerIds)->get(['player_id', 'nama'])->keyBy('player_id');
+        $sessionReasons = [];
+        if (Schema::hasTable('tb_session_player') && Schema::hasColumn('tb_session_player', 'withdrawn_reason')) {
+            $sessionReasons = DB::table('tb_session_player')
+                ->where('session_id', $sessionId)
+                ->whereIn('player_id', $playerIds)
+                ->pluck('withdrawn_reason', 'player_id')
+                ->all();
+        }
+
+        $playerNames = [];
+        $playerReasons = [];
+        foreach ($playerIds as $playerId) {
+            $player = $playersById->get($playerId);
+            if ($player) {
+                $playerNames[] = (string) $player->nama;
+            }
+
+            $playerName = $player?->nama;
+            $reason = $playerNotes[$playerId] ?? ($playerName ? ($playerNotes[$playerName] ?? null) : null);
+            $reason = $reason ?: ($sessionReasons[$playerId] ?? null);
+            if (is_scalar($reason) && trim((string) $reason) !== '') {
+                $playerReasons[$playerId] = (string) $reason;
+            }
+        }
+
+        return [
+            'withdrawn_player_ids' => $playerIds,
+            'withdrawn_player_names' => $playerNames,
+            'player_reasons' => $playerReasons,
         ];
     }
 

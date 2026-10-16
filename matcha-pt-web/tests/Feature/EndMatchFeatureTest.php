@@ -940,6 +940,51 @@ class EndMatchFeatureTest extends TestCase
         ]);
     }
 
+    public function test_permanent_withdrawal_details_survive_score_cache_recovery()
+    {
+        $env = $this->createIsolatedEnvironment();
+        $session = $env['session'];
+        $host = $env['host'];
+        $targetMatch = $env['matches']['round_1'][0]['match'];
+        $withdrawnPlayer = $env['players'][0];
+        $playerReason = 'Cedera pergelangan kaki';
+
+        $this->actingAs($host);
+
+        $this->postJson(route('scoring.stop-match'), [
+            'game_id' => $session->session_id,
+            'match_id' => $targetMatch->match_id,
+            'match_key' => 'round_1_court_1',
+            'court_number' => 1,
+            'round_key' => 'round_1',
+            'stop_type' => 'withdraw_players',
+            'stop_reason' => $playerReason,
+            'withdrawn_player_ids' => [$withdrawnPlayer->player_id],
+            'player_reasons' => [$withdrawnPlayer->player_id => $playerReason],
+        ])->assertStatus(200);
+
+        Cache::forget("scoring.game_{$session->session_id}.round_1_court_1");
+        Cache::forget("scoring.game_{$session->session_id}");
+
+        $pollResp = $this->getJson(url("scoring/get-score/{$session->session_id}/round_1?court=0&match_key=round_1_court_1"));
+        $pollResp->assertStatus(200);
+        $pollResp->assertJson([
+            'status' => 'stopped',
+            'stop_type' => 'withdraw_players',
+            'withdrawn_player_names' => [$withdrawnPlayer->nama],
+            'player_reasons' => [$withdrawnPlayer->player_id => $playerReason],
+        ]);
+
+        Cache::forget("scoring.game_{$session->session_id}.round_1_court_1");
+        Cache::forget("scoring.game_{$session->session_id}");
+        $liveResp = $this->get(route('scoring.live', [
+            'id' => $session->session_id,
+            'round' => 'round_1',
+        ]));
+        $liveResp->assertOk();
+        $liveResp->assertSee('Pemain Keluar: '.$withdrawnPlayer->nama.': '.$playerReason, false);
+    }
+
     /**
      * Test 14: Rekap membedakan dihentikan, selesai normal, dan seri.
      */
