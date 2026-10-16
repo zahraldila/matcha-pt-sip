@@ -762,6 +762,51 @@
     </div>
 </div>
 
+<!-- MODAL PERINGATAN PEMAIN SEDANG BERTANDING -->
+<div id="playerActiveMatchPromptModal" class="fixed inset-0 items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150" style="display: none; z-index: 99999;" onclick="if(event.target === this) closePlayerActiveMatchPromptModal();">
+    <div class="bg-white rounded-3xl p-6 shadow-2xl space-y-4 my-8 border border-slate-100 flex flex-col" style="max-width: 440px; width: 100%; box-sizing: border-box;" onclick="event.stopPropagation();">
+        <div class="flex items-start gap-3.5">
+            <div class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center text-lg border border-amber-200/80 shadow-2xs shrink-0 mt-0.5">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="space-y-1">
+                <h3 class="text-sm font-black text-slate-900">Pemain Sedang Bertanding</h3>
+                <p id="playerActiveMatchPromptDesc" class="text-xs text-slate-600 leading-relaxed">
+                    Pemain ini sedang aktif bertanding di lapangan.
+                </p>
+            </div>
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
+            <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                <i class="fa-solid fa-circle-info text-[#063B00]"></i>
+                <span>Petunjuk Penghentian:</span>
+            </div>
+            <p class="text-[11px] text-slate-600 leading-relaxed">
+                Untuk menghentikan pemain dan mencatat skor parsial secara sah, silakan gunakan fitur <strong class="text-rose-700 font-extrabold">End Match</strong> langsung pada court terkait di halaman scoring.
+            </p>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <button
+                type="button"
+                onclick="closePlayerActiveMatchPromptModal()"
+                class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+            >
+                Nanti Saja
+            </button>
+            <a
+                href="#"
+                id="btnGoToCourtScoring"
+                class="px-5 py-2 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md shadow-[#063B00]/20 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01]"
+            >
+                <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                <span id="btnGoToCourtScoringText">Buka Scoring Court</span>
+            </a>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -1862,6 +1907,7 @@
         if (nameEl) nameEl.textContent = playerName;
         if (reasonInput) reasonInput.value = '';
         if (errEl) errEl.classList.add('hidden');
+        if (btn) btn.disabled = false;
 
         if (action === 'withdraw') {
             if (titleEl) titleEl.textContent = 'Keluarkan Pemain dari Sesi';
@@ -1886,7 +1932,47 @@
     function closePlayerManageModal() {
         const modal = document.getElementById('playerManageActionModal');
         if (modal) modal.style.display = 'none';
+        const btn = document.getElementById('btnConfirmPlayerManage');
+        const btnText = document.getElementById('btnConfirmPlayerManageText');
+        if (btn) btn.disabled = false;
+        if (btnText) {
+            btnText.textContent = (pendingPlayerManage && pendingPlayerManage.action === 'withdraw')
+                ? 'Ya, Keluarkan Pemain'
+                : 'Ya, Istirahatkan Pemain';
+        }
         pendingPlayerManage = { playerId: null, playerName: '', action: 'pause' };
+    }
+
+    function openPlayerActiveMatchPromptModal({ courtNum, message, targetUrl, playerName }) {
+        const modal = document.getElementById('playerActiveMatchPromptModal');
+        const descEl = document.getElementById('playerActiveMatchPromptDesc');
+        const btnLink = document.getElementById('btnGoToCourtScoring');
+        const btnText = document.getElementById('btnGoToCourtScoringText');
+
+        if (descEl) {
+            if (playerName) {
+                descEl.innerHTML = `<strong class="text-slate-800 font-extrabold">${playerName}</strong> sedang aktif bertanding di <strong>Court ${courtNum}</strong>. Pertandingan yang sedang berjalan harus dihentikan melalui court tersebut.`;
+            } else if (message) {
+                descEl.textContent = message;
+            } else {
+                descEl.textContent = `Pemain sedang bertanding di Court ${courtNum}. Silakan gunakan End Match pada court terkait untuk menghentikan pertandingan.`;
+            }
+        }
+
+        if (btnText) {
+            btnText.textContent = `Buka Scoring Court ${courtNum}`;
+        }
+
+        if (btnLink) {
+            btnLink.href = targetUrl;
+        }
+
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closePlayerActiveMatchPromptModal() {
+        const modal = document.getElementById('playerActiveMatchPromptModal');
+        if (modal) modal.style.display = 'none';
     }
 
     async function executePlayerManageAction() {
@@ -1935,12 +2021,16 @@
             if (!resp.ok || !data.success) {
                 if (data.is_playing) {
                     const courtNum = data.court || 1;
-                    const ctaLiveUrl = `${baseLiveScoringUrl}&round=round_${currentRoundKey}&court=${courtNum - 1}`;
-                    const msg = `${data.message} Apakah Anda ingin membuka halaman scoring Court ${courtNum} sekarang?`;
+                    const separator = baseLiveScoringUrl.includes('?') ? '&' : '?';
+                    const ctaLiveUrl = `${baseLiveScoringUrl}${separator}round=round_${currentRoundKey}&court=${courtNum - 1}`;
+                    const targetPlayerName = playerName;
                     closePlayerManageModal();
-                    if (confirm(msg)) {
-                        window.location.href = ctaLiveUrl;
-                    }
+                    openPlayerActiveMatchPromptModal({
+                        courtNum: courtNum,
+                        message: data.message,
+                        targetUrl: ctaLiveUrl,
+                        playerName: targetPlayerName
+                    });
                     return;
                 }
 
