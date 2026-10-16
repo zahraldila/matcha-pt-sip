@@ -2150,10 +2150,14 @@
         const newSetsB = data.sets_b ?? 0;
         const newMatchDone = (data.status === 'completed' || data.status === 'stopped');
         const newIsStopped = (data.status === 'stopped');
-        const newStopType = data.stop_type ?? null;
-        const newStopReason = data.stop_reason ?? null;
-        const newWithdrawnPlayerNames = data.withdrawn_player_names ?? [];
-        const newPlayerReasons = data.player_reasons ?? {};
+        const newStopType = data.stop_type ?? st.stopType ?? null;
+        const newStopReason = data.stop_reason ?? st.stopReason ?? null;
+        const newWithdrawnPlayerNames = Array.isArray(data.withdrawn_player_names)
+            ? data.withdrawn_player_names
+            : (st.withdrawnPlayerNames ?? []);
+        const newPlayerReasons = data.player_reasons && typeof data.player_reasons === 'object'
+            ? data.player_reasons
+            : (st.playerReasons ?? {});
         const newWinner = newIsStopped ? null : (data.winner_team ?? null);
 
         const hasChanged = (
@@ -2167,6 +2171,10 @@
             st.setsB !== newSetsB ||
             st.matchDone !== newMatchDone ||
             st.isStopped !== newIsStopped ||
+            st.stopType !== newStopType ||
+            st.stopReason !== newStopReason ||
+            JSON.stringify(st.withdrawnPlayerNames ?? []) !== JSON.stringify(newWithdrawnPlayerNames) ||
+            JSON.stringify(st.playerReasons ?? {}) !== JSON.stringify(newPlayerReasons) ||
             st.winnerTeam !== newWinner ||
             incomingVer > (st.serverVersion || 0)
         );
@@ -2342,6 +2350,10 @@
     function handleIncomingScoreEvent(payload, sourceName = 'Realtime') {
         if (!payload) return;
 
+        if (payload.saved && typeof payload.saved === 'object') {
+            payload = { ...payload, ...payload.saved };
+        }
+
         // Auto-Transition ke ronde/set baru jika Host sudah memajukan sesi
         const remoteRound = payload.session_active_round || payload.next_round || payload.active_round;
         if (remoteRound && remoteRound !== ACTIVE_ROUND) {
@@ -2359,12 +2371,21 @@
         let st = courtsState[cIdx];
         const incomingVer = Number(payload.server_version ?? payload.version ?? 0);
         const effectiveLocalVer = Math.max(Number(st.localVersion || 0), Number(st.serverVersion || 0));
+        const stopDetailsChanged = payload.status === 'stopped' && (
+            (payload.stop_type != null && payload.stop_type !== st.stopType) ||
+            (payload.stop_reason != null && payload.stop_reason !== st.stopReason) ||
+            (Array.isArray(payload.withdrawn_player_names) && JSON.stringify(payload.withdrawn_player_names) !== JSON.stringify(st.withdrawnPlayerNames ?? [])) ||
+            (payload.player_reasons && typeof payload.player_reasons === 'object' && JSON.stringify(payload.player_reasons) !== JSON.stringify(st.playerReasons ?? {}))
+        );
 
         // 1. HOST SPECIFIC LOGIC (Master Scorer Protection):
         if (IS_HOST) {
             // Jika payload berasal dari perangkat Host ini sendiri atau versinya <= versi aksi lokal Host:
             // Cukup update serverVersion di background. DILARANG memanggil applyServerScore agar poin tidak rollback!
             if (incomingVer <= effectiveLocalVer || (payload.client_id && payload.client_id === CLIENT_ID)) {
+                if (stopDetailsChanged) {
+                    applyServerScore(cIdx, payload, incomingVer);
+                }
                 if (incomingVer > (st.serverVersion || 0)) {
                     st.serverVersion = incomingVer;
                 }
@@ -2418,6 +2439,9 @@
 
         // b. incoming server_version == effectiveLocalVer -> IGNORE (idempotent, data sudah sinkron)
         if (incomingVer === effectiveLocalVer) {
+            if (stopDetailsChanged) {
+                applyServerScore(cIdx, payload, incomingVer);
+            }
             if (payload.status === 'completed' && !st.matchDone) {
                 st.matchDone = true;
                 st.completionSaveSucceeded = true;
