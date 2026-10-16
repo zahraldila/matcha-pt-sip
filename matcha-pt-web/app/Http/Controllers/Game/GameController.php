@@ -1560,6 +1560,39 @@ class GameController extends Controller
             $activeRoundNum = $roundsProgress['active_round_num'];
         }
 
+        $participantIds = array_values(array_unique(array_filter(array_map(
+            fn ($participant) => (int) ($participant['id'] ?? $participant['player_id'] ?? 0),
+            $participants
+        ))));
+        $withdrawnParticipantIds = array_values(array_intersect($participantIds, array_map('intval', $withdrawnPlayerIds)));
+        $eligiblePlayerCount = count(array_diff($participantIds, $withdrawnParticipantIds));
+        $minimumPlayers = $isSingleMode ? 2 : 4;
+        $activeRoundStatus = $roundStatus[$activeRoundNum] ?? 'ready';
+        $canAutoFinishForInsufficientPlayers = $isHost
+            && ! empty($withdrawnParticipantIds)
+            && $eligiblePlayerCount < $minimumPlayers
+            && ($roundAccess[$activeRoundNum] ?? false)
+            && in_array($activeRoundStatus, ['ready', 'completed'], true);
+
+        if ($canAutoFinishForInsufficientPlayers && ! ($request->wantsJson() || $request->ajax() || $request->query('json'))) {
+            $completedRoundNumbers = array_keys(array_filter($roundStatus, fn ($status) => $status === 'completed'));
+            $finishMetadata = [
+                'finished_at' => now()->toDateTimeString(),
+                'status' => 'finished',
+            ];
+            if (! empty($completedRoundNumbers)) {
+                $finishMetadata['last_round_key'] = 'round_'.max($completedRoundNumbers);
+            }
+
+            $savedScores['_meta'] = array_merge($savedScores['_meta'] ?? [], $finishMetadata);
+            Cache::put("scoring.game_{$game['id']}", $savedScores, now()->addHours(4));
+            $dbSession->status_session = 'Finished';
+            $dbSession->save();
+
+            return redirect()->route('scoring.recap', $game['id'])
+                ->with('success', 'Pemain aktif tidak mencukupi. Sesi diakhiri dan hasil akhir ditampilkan.');
+        }
+
         $pausedPlayerIds = ScoringService::getPausedPlayerIds($dbSession);
 
         // Jika request via AJAX / Fetch JSON

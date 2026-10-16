@@ -2331,6 +2331,47 @@ class EndMatchFeatureTest extends TestCase
         $this->assertSame('In Progress', $session->fresh()->status_session);
     }
 
+    public function test_drawing_redirects_to_recap_when_withdrawals_leave_too_few_players()
+    {
+        $env = $this->createIsolatedEnvironment(1, 'Americano', 'Total of 3');
+        $session = $env['session'];
+        $cacheKey = "scoring.game_{$session->session_id}";
+
+        DB::table('tb_session_player')
+            ->where('session_id', $session->session_id)
+            ->update(['status' => 'withdrawn', 'withdrawn_reason' => 'Keluar permanen']);
+        foreach ($env['matches'] as $roundKey => $roundMatches) {
+            if ($roundKey === 'round_1') {
+                continue;
+            }
+            foreach ($roundMatches as $roundMatch) {
+                $roundMatch['match']->update(['status_match' => 'Scheduled']);
+            }
+        }
+        $env['matches']['round_1'][0]['match']->update([
+            'status_match' => 'Stopped',
+            'stop_type' => 'withdraw_players',
+        ]);
+        Cache::put($cacheKey, [
+            'round_1' => [
+                'status' => 'stopped',
+                'games_a' => 2,
+                'games_b' => 1,
+                'stop_type' => 'withdraw_players',
+            ],
+        ], 3600);
+
+        $this->actingAs($env['host']);
+        $response = $this->get(route('games.drawing', [
+            'id' => $session->session_id,
+            'round' => 2,
+        ]));
+
+        $response->assertRedirect(route('scoring.recap', $session->session_id));
+        $this->assertSame('Finished', $session->fresh()->status_session);
+        $this->assertSame('finished', Cache::get($cacheKey)['_meta']['status']);
+    }
+
     public function test_court_player_can_be_paused_from_drawing_when_match_is_not_actively_playing()
     {
         $unique = uniqid('manage_pause_', true);
