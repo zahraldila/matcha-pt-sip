@@ -2172,4 +2172,72 @@ class EndMatchFeatureTest extends TestCase
             );
         }
     }
+
+    /**
+     * Test: Stopped match di ronde terakhir berhasil menyelesaikan sesi dan redirect ke recap.
+     */
+    public function test_stopped_match_in_final_round_finishes_session_and_redirects_to_recap()
+    {
+        $env = $this->createIsolatedEnvironment(1, 'Americano', 'Total of 3');
+        $session = $env['session'];
+        $host = $env['host'];
+
+        // Tandai round 1 dan 2 selesai
+        $cacheKey = "scoring.game_{$session->session_id}";
+        $scores = [
+            'round_1' => [
+                'score_a' => 2, 'score_b' => 1, 'games_a' => 2, 'games_b' => 1,
+                'sets_a' => 1, 'sets_b' => 0, 'status' => 'completed',
+            ],
+            'round_2' => [
+                'score_a' => 1, 'score_b' => 2, 'games_a' => 1, 'games_b' => 2,
+                'sets_a' => 0, 'sets_b' => 1, 'status' => 'completed',
+            ],
+            'round_3_court_1' => [
+                'score_a' => 0, 'score_b' => 0, 'games_a' => 0, 'games_b' => 0,
+                'sets_a' => 0, 'sets_b' => 0, 'status' => 'stopped',
+                'stop_reason' => 'Cedera otot pemain',
+                'stop_type' => 'withdraw',
+            ],
+        ];
+        Cache::put($cacheKey, $scores, 3600);
+
+        // Hentikan match di DB untuk round 3
+        $matchRound3 = $env['matches']['round_3'][0]['match'];
+        $matchRound3->update([
+            'status_match' => 'Stopped',
+            'stop_reason' => 'Cedera otot pemain',
+            'stop_type' => 'withdraw',
+        ]);
+
+        $this->actingAs($host);
+
+        $response = $this->post(route('scoring.finish'), [
+            'game_id' => $session->session_id,
+            'round' => 'round_3',
+            'match_key' => 'round_3_court_1',
+            'score_a' => 0,
+            'score_b' => 0,
+            'games_a' => 0,
+            'games_b' => 0,
+            'sets_a' => 0,
+            'sets_b' => 0,
+            'status' => 'stopped',
+            'is_stopped' => 1,
+        ]);
+
+        $response->assertRedirect(route('scoring.recap', $session->session_id));
+        $response->assertSessionHasNoErrors();
+
+        // Verifikasi session di DB berstatus Finished
+        $this->assertEquals('Finished', $session->fresh()->status_session);
+
+        // Verifikasi match di DB tetap berstatus Stopped (tidak tertimpa menjadi Completed)
+        $this->assertEquals('Stopped', $matchRound3->fresh()->status_match);
+
+        // Verifikasi cache skor tetap stopped
+        $cachedScores = Cache::get($cacheKey);
+        $this->assertEquals('stopped', $cachedScores['round_3_court_1']['status']);
+        $this->assertEquals('finished', $cachedScores['_meta']['status']);
+    }
 }

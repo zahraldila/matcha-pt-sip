@@ -50,9 +50,19 @@
         </div>
     </div>
 
-    {{-- Flash Notifications (Warning, Error, Success) --}}
-    @if(session('warning') || session('error') || session('success'))
+    {{-- Flash Notifications (Warning, Error, Success, Validation Errors) --}}
+    @if(session('warning') || session('error') || session('success') || $errors->any())
         <div id="flashNotificationContainer" class="space-y-2">
+            @if($errors->any())
+                <div class="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs font-bold flex items-center gap-3 shadow-xs">
+                    <i class="fa-solid fa-circle-exclamation text-rose-600 text-base shrink-0"></i>
+                    <div class="space-y-0.5">
+                        @foreach($errors->all() as $err)
+                            <p>{{ $err }}</p>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
             @if(session('warning'))
                 <div class="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-3 shadow-xs">
                     <i class="fa-solid fa-triangle-exclamation text-amber-600 text-base shrink-0"></i>
@@ -640,6 +650,8 @@
                         <input type="hidden" name="round"           value="{{ $activeRound }}">
                         <input type="hidden" name="scoring_system"  value="{{ $scoringSystem['label'] }}">
                         <input type="hidden" name="match_key"       id="globalFinishMatchKey" value="">
+                        <input type="hidden" name="status"          id="globalFinishStatus" value="">
+                        <input type="hidden" name="is_stopped"      id="globalFinishIsStopped" value="0">
                         <!-- Frontend tidak lagi mengirim set_number secara eksplisit -->
                         <input type="hidden" name="score_a"         id="globalFinishScoreA" value="0">
                         <input type="hidden" name="score_b"         id="globalFinishScoreB" value="0">
@@ -704,9 +716,9 @@
                 </div>
             </div>
 
-            <div id="readinessWarning" class="items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-bold shadow-2xs shrink-0 {{ $isShortOnPlayers ? 'flex' : 'hidden' }}">
+            <div id="readinessWarning" class="items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-bold shadow-2xs shrink-0 max-w-full {{ $isShortOnPlayers ? 'flex' : 'hidden' }}">
                 <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
-                <span id="readinessWarningText">Tersisa {{ count($activeMembers) }} pemain (minimal {{ $minReq }}). Aktifkan pemain dari istirahat untuk melanjutkan.</span>
+                <span id="readinessWarningText">Tersisa {{ count($activeMembers) }} pemain (min. {{ $minReq }}). Aktifkan pemain istirahat.</span>
             </div>
         </div>
 
@@ -1154,7 +1166,7 @@
             const isShort = activeMembers.length < MIN_REQUIRED_PLAYERS;
             warning.classList.toggle('hidden', !isShort);
             warning.classList.toggle('flex', isShort);
-            warningText.textContent = `Tersisa ${activeMembers.length} pemain (minimal ${MIN_REQUIRED_PLAYERS}). Aktifkan pemain dari istirahat untuk melanjutkan.`;
+            warningText.textContent = `Tersisa ${activeMembers.length} pemain (min. ${MIN_REQUIRED_PLAYERS}). Aktifkan pemain istirahat.`;
         }
         if (!roster) return;
 
@@ -3070,6 +3082,15 @@
         const finHistory = document.getElementById('globalFinishSetHistory');
         const finWinner  = document.getElementById('globalFinishWinnerTeam');
         const finMatchKey = document.getElementById('globalFinishMatchKey');
+        const finStatus = document.getElementById('globalFinishStatus');
+        const finIsStopped = document.getElementById('globalFinishIsStopped');
+
+        if (finStatus) {
+            finStatus.value = st.isStopped ? 'stopped' : (st.status || 'completed');
+        }
+        if (finIsStopped) {
+            finIsStopped.value = st.isStopped ? '1' : '0';
+        }
 
         // Score final harus mengambil state TERBARU
         if (finA) {
@@ -3088,10 +3109,10 @@
             finGamesB.value = gamesB;
         }
 
-        // Tentukan winner berdasarkan score final
-        const winner =
-            st.winnerTeam ||
-            (gamesA >= gamesB ? 'Team A' : 'Team B');
+        // Tentukan winner berdasarkan score final (jika dihentikan, jangan putuskan sepihak)
+        const winner = st.isStopped
+            ? (st.winnerTeam || '')
+            : (st.winnerTeam || (gamesA >= gamesB ? 'Team A' : 'Team B'));
 
         if (finWinner) {
             finWinner.value = winner;
