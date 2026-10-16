@@ -1117,6 +1117,12 @@
         })[character]);
     }
 
+    function cleanPlayerName(name) {
+        if (!name) return '';
+        if (typeof name === 'object') name = name.name || name.nama || '';
+        return String(name).trim().toLowerCase();
+    }
+
     function getSessionPlayerById(playerId) {
         return SESSION_PARTICIPANTS.find(player => Number(player.id || player.player_id) === Number(playerId));
     }
