@@ -443,7 +443,7 @@ class EndMatchFeatureTest extends TestCase
 
         $this->actingAs($host);
 
-        $this->postJson(route('scoring.stop-match'), [
+        $stopResponse = $this->postJson(route('scoring.stop-match'), [
             'game_id' => $session->session_id,
             'match_id' => $targetMatch->match_id,
             'match_key' => 'round_1_court_1',
@@ -997,7 +997,7 @@ class EndMatchFeatureTest extends TestCase
 
         $this->actingAs($host);
 
-        $this->postJson(route('scoring.stop-match'), [
+        $stopResponse = $this->postJson(route('scoring.stop-match'), [
             'game_id' => $session->session_id,
             'match_id' => $targetMatch->match_id,
             'match_key' => 'round_1_court_1',
@@ -1007,7 +1007,16 @@ class EndMatchFeatureTest extends TestCase
             'stop_reason' => 'Hujan lebat',
             'current_games_a' => 5,
             'current_games_b' => 2,
-        ])->assertStatus(200);
+        ]);
+        $stopResponse->assertStatus(200);
+        $stopResponse->assertStatus(200);
+        $stopResponse->assertJsonPath('saved.games_a', 5);
+        $stopResponse->assertJsonPath('saved.games_b', 2);
+        $stoppedScore = Score::where('match_id', $targetMatch->match_id)
+            ->where('status_score', 'Stopped')
+            ->first();
+        $this->assertSame(5, (int) $stoppedScore->game_score_a);
+        $this->assertSame(2, (int) $stoppedScore->game_score_b);
 
         // Buka halaman recap
         $recapResp = $this->get(route('scoring.recap', $session->session_id));
@@ -1016,9 +1025,26 @@ class EndMatchFeatureTest extends TestCase
 
         // Verifikasi bahwa match dihentikan tidak dianggap menang sepihak untuk Alice/Bob
         $ranked = $recapResp->viewData('rankedPlayers');
+        $effectiveScores = $recapResp->viewData('effectiveScores');
+        $resolvedDrawing = $recapResp->viewData('game')['drawing'];
+        $this->assertSame(['Alice', 'Bob'], $resolvedDrawing['round_1']['matches'][0]['team_a_names']);
+        $this->assertSame(5, $effectiveScores['round_1_court_1']['games_a'] ?? null);
+        $this->assertSame(2, $effectiveScores['round_1_court_1']['games_b'] ?? null);
+        $this->assertSame([['set' => 1, 'score_a' => 5, 'score_b' => 2]], $effectiveScores['round_1_court_1']['set_history'] ?? null);
         $aliceStat = collect($ranked)->firstWhere('name', 'Alice');
+        $bobStat = collect($ranked)->firstWhere('name', 'Bob');
         // Match yang dihentikan dipisahkan dari agregasi kemenangan normal
         $this->assertSame(0, $aliceStat['wins'] ?? 0);
+        $stoppedMatchPoints = collect($ranked)
+            ->whereIn('name', ['Alice', 'Bob', 'Charlie', 'David'])
+            ->mapWithKeys(fn ($player) => [$player['name'] => $player['points_for']])
+            ->all();
+        $this->assertSame([
+            'Alice' => 5,
+            'Bob' => 5,
+            'Charlie' => 2,
+            'David' => 2,
+        ], $stoppedMatchPoints);
     }
 
     /**

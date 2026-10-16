@@ -1033,6 +1033,52 @@ class DrawingAndScoringLogicTest extends TestCase
         $this->assertEquals(6, $recapByName['Bob']['games_lost']);
     }
 
+    public function test_stopped_match_partial_games_count_toward_recap_without_awarding_win_or_loss()
+    {
+        $game = [
+            'match_format' => 'Americano',
+            'scoring_system' => 'First to 2',
+            'participants' => array_map(fn ($name) => ['name' => $name], ['Hilmy', 'Ocean', 'Abel', 'Haechan', 'Haikal']),
+            'drawing' => [
+                'round_1' => ['matches' => [['court' => 1, 'team_a_names' => ['Hilmy'], 'team_b_names' => ['Abel']]]],
+                'round_2' => ['matches' => [['court' => 1, 'team_a_names' => ['Ocean'], 'team_b_names' => ['Hilmy']]]],
+                'round_3' => ['matches' => [['court' => 1, 'team_a_names' => ['Hilmy'], 'team_b_names' => ['Haikal']]]],
+            ],
+        ];
+        $sessionScores = [
+            'round_1' => ['status' => 'stopped', 'games_a' => 2, 'games_b' => 0, 'score_a' => 2, 'score_b' => 0],
+            'round_2' => ['status' => 'stopped', 'games_a' => 2, 'games_b' => 1, 'score_a' => 2, 'score_b' => 1],
+            'round_3' => ['status' => 'completed', 'games_a' => 6, 'games_b' => 0, 'score_a' => 6, 'score_b' => 0],
+        ];
+
+        $recap = ScoringService::calculateRecap($game, $sessionScores);
+        $recapByName = collect($recap)->keyBy('name');
+
+        $this->assertSame('Hilmy', $recap[0]['name']);
+        $this->assertSame('Ocean', $recap[1]['name']);
+        $this->assertSame(9, $recapByName['Hilmy']['games_won']);
+        $this->assertSame(9, $recapByName['Hilmy']['points_for']);
+        $this->assertSame(2, $recapByName['Ocean']['games_won']);
+        $this->assertSame(1, $recapByName['Hilmy']['wins']);
+        $this->assertSame(0, $recapByName['Hilmy']['losses']);
+        $this->assertSame(0, $recapByName['Ocean']['wins']);
+        $this->assertSame(0, $recapByName['Ocean']['losses']);
+
+        $game['scoring_system'] = 'Total of 3';
+        $totalOfScores = [
+            'round_1' => ['status' => 'stopped', 'games_a' => 2, 'games_b' => 0, 'sets_a' => 0, 'sets_b' => 0, 'set_history' => [['set' => 1, 'score_a' => 2, 'score_b' => 0]]],
+            'round_2' => ['status' => 'stopped', 'games_a' => 2, 'games_b' => 1, 'sets_a' => 0, 'sets_b' => 0, 'set_history' => [['set' => 1, 'score_a' => 2, 'score_b' => 1]]],
+            'round_3' => ['status' => 'completed', 'games_a' => 6, 'games_b' => 0, 'sets_a' => 1, 'sets_b' => 0, 'set_history' => [['set' => 1, 'score_a' => 6, 'score_b' => 0]]],
+        ];
+        $totalOfRecap = ScoringService::calculateRecap($game, $totalOfScores);
+        $totalOfByName = collect($totalOfRecap)->keyBy('name');
+
+        $this->assertSame('Hilmy', $totalOfRecap[0]['name']);
+        $this->assertSame(9, $totalOfByName['Hilmy']['points_for']);
+        $this->assertSame(1, $totalOfByName['Hilmy']['sets_won']);
+        $this->assertSame(1, $totalOfByName['Hilmy']['wins']);
+    }
+
     /**
      * Test 13: Americano Single — Playing history: partner_player_id null, opponent valid.
      * Untuk mode Single, setiap match menghasilkan struktur dengan:

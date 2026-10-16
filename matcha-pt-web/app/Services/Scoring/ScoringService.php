@@ -797,9 +797,10 @@ class ScoringService
                 }
 
                 $status = $matchScore['status'] ?? ($effectiveScores[$roundKey]['status'] ?? 'pending');
+                $isStopped = $status === 'stopped';
 
-                // Hanya hitung match yang sudah selesai
-                if ($status !== 'completed') {
+                // Skor parsial stopped tetap masuk akumulasi; status ini tidak menentukan pemenang.
+                if ($status !== 'completed' && ! $isStopped) {
                     continue;
                 }
 
@@ -828,7 +829,7 @@ class ScoringService
                                 $shSetsB++;
                             }
                         }
-                        if ($setsA === 0 && $setsB === 0) {
+                        if (! $isStopped && $setsA === 0 && $setsB === 0) {
                             $setsA = $shSetsA;
                             $setsB = $shSetsB;
                         }
@@ -838,12 +839,12 @@ class ScoringService
                             $gamesB = $shGamesB;
                         }
                     }
-                    if ($setsA === 0 && $setsB === 0 && ($gamesA > 0 || $gamesB > 0)) {
+                    if (! $isStopped && $setsA === 0 && $setsB === 0 && ($gamesA > 0 || $gamesB > 0)) {
                         $setsA = $gamesA > $gamesB ? 1 : 0;
                         $setsB = $gamesB > $gamesA ? 1 : 0;
                     }
 
-                    $winnerSide = $setsA > $setsB ? 'A' : ($setsB > $setsA ? 'B' : ($gamesA > $gamesB ? 'A' : ($gamesB > $gamesA ? 'B' : ($scoreA > $scoreB ? 'A' : ($scoreB > $scoreA ? 'B' : null)))));
+                    $winnerSide = $isStopped ? null : ($setsA > $setsB ? 'A' : ($setsB > $setsA ? 'B' : ($gamesA > $gamesB ? 'A' : ($gamesB > $gamesA ? 'B' : ($scoreA > $scoreB ? 'A' : ($scoreB > $scoreA ? 'B' : null))))));
                     $ptsForA = $gamesA > 0 ? $gamesA : ($scoreA > 0 ? $scoreA : $setsA);
                     $ptsForB = $gamesB > 0 ? $gamesB : ($scoreB > 0 ? $scoreB : $setsB);
                 } else {
@@ -860,7 +861,7 @@ class ScoringService
                             $gamesB = $shGamesB;
                         }
                     }
-                    $winnerSide = $gamesA > $gamesB ? 'A' : ($gamesB > $gamesA ? 'B' : ($scoreA > $scoreB ? 'A' : ($scoreB > $scoreA ? 'B' : null)));
+                    $winnerSide = $isStopped ? null : ($gamesA > $gamesB ? 'A' : ($gamesB > $gamesA ? 'B' : ($scoreA > $scoreB ? 'A' : ($scoreB > $scoreA ? 'B' : null))));
                     $ptsForA = $gamesA > 0 ? $gamesA : $scoreA;
                     $ptsForB = $gamesB > 0 ? $gamesB : $scoreB;
                 }

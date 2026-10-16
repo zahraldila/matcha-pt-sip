@@ -119,7 +119,7 @@
                 {{ ($isFinished ?? false) ? 'Catatan Rekap' : 'Klasemen Sementara' }} &bull; Terdapat Pertandingan yang Dihentikan Lebih Awal
             </h4>
             <p class="text-[11px] text-amber-800/90 leading-relaxed">
-                Sesi ini memiliki pertandingan yang dihentikan lebih awal oleh Host. Skor parsial tetap tercatat di riwayat bawah dan tidak memengaruhi kalkulasi poin klasemen.
+                Skor parsial pertandingan yang dihentikan tetap dihitung dalam akumulasi game dan selisih. Match yang dihentikan tidak otomatis memberikan win atau loss.
             </p>
         </div>
     </div>
@@ -308,11 +308,7 @@
             <div>
                 <h2 class="text-sm font-bold text-slate-900">Podium &amp; Klasemen Akhir</h2>
                 <p class="text-[11px] text-slate-500">
-                    @if($isSets)
-                        Diurutkan: Match Menang &rarr; Total Set &rarr; Total Game &rarr; Selisih Game
-                    @else
-                        Diurutkan: Match Menang &rarr; Total Game Menang &rarr; Selisih Game
-                    @endif
+                    Diurutkan: Total Poin/Game &rarr; Selisih &rarr; Match Menang &rarr; Nama
                 </p>
             </div>
         </div>
