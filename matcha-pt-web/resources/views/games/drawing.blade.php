@@ -505,9 +505,35 @@
                                 </div>
                                 <div class="space-y-1">
                                     @forelse($teamAPlayers as $pIdx => $pName)
-                                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                                            <span class="font-semibold text-[#050608]">{{ $pIdx + 1 }}. {{ $pName }}</span>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player {{ $pIdx + 1 }}</span>
+                                        @php
+                                            $pId = null;
+                                            if (!empty($participantsMap[$pName]['id'])) {
+                                                $pId = $participantsMap[$pName]['id'];
+                                            } elseif (!empty($participantsMap[strtolower(trim($pName))]['id'])) {
+                                                $pId = $participantsMap[strtolower(trim($pName))]['id'];
+                                            } else {
+                                                foreach ($game['participants'] ?? [] as $part) {
+                                                    if (($part['name'] ?? '') === $pName) {
+                                                        $pId = $part['id'] ?? null;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            $isPastRoundPhp = (($roundStatus[$activeRoundNum] ?? '') === 'completed') || ((int)$activeRoundNum < (int)($roundsProgress['active_round_num'] ?? $activeRoundNum));
+                                        @endphp
+                                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs gap-2">
+                                            <span class="font-semibold text-slate-800 truncate min-w-0 flex-1">{{ $pIdx + 1 }}. {{ $pName }}</span>
+                                            <div class="flex items-center gap-1.5 shrink-0">
+                                                @if(! $isPastRoundPhp && ($isHost ?? false) && $pId)
+                                                    <button type="button" onclick="openPlayerManageModal({{ $pId }}, '{{ addslashes($pName) }}', 'pause')" class="px-1.5 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300/80 transition-all cursor-pointer shadow-2xs" title="Istirahatkan sementara">
+                                                        Istirahat
+                                                    </button>
+                                                    <button type="button" onclick="openPlayerManageModal({{ $pId }}, '{{ addslashes($pName) }}', 'withdraw')" class="px-1.5 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-[9px] border border-rose-300/80 transition-all cursor-pointer shadow-2xs" title="Keluarkan dari sesi">
+                                                        Keluar
+                                                    </button>
+                                                @endif
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player {{ $pIdx + 1 }}</span>
+                                            </div>
                                         </div>
                                     @empty
                                         <p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>
@@ -523,9 +549,35 @@
                                 </div>
                                 <div class="space-y-1">
                                     @forelse($teamBPlayers as $pIdx => $pName)
-                                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                                            <span class="font-semibold text-[#050608]">{{ $pIdx + 1 }}. {{ $pName }}</span>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player {{ $pIdx + 1 }}</span>
+                                        @php
+                                            $pId = null;
+                                            if (!empty($participantsMap[$pName]['id'])) {
+                                                $pId = $participantsMap[$pName]['id'];
+                                            } elseif (!empty($participantsMap[strtolower(trim($pName))]['id'])) {
+                                                $pId = $participantsMap[strtolower(trim($pName))]['id'];
+                                            } else {
+                                                foreach ($game['participants'] ?? [] as $part) {
+                                                    if (($part['name'] ?? '') === $pName) {
+                                                        $pId = $part['id'] ?? null;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            $isPastRoundPhp = (($roundStatus[$activeRoundNum] ?? '') === 'completed') || ((int)$activeRoundNum < (int)($roundsProgress['active_round_num'] ?? $activeRoundNum));
+                                        @endphp
+                                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs gap-2">
+                                            <span class="font-semibold text-slate-800 truncate min-w-0 flex-1">{{ $pIdx + 1 }}. {{ $pName }}</span>
+                                            <div class="flex items-center gap-1.5 shrink-0">
+                                                @if(! $isPastRoundPhp && ($isHost ?? false) && $pId)
+                                                    <button type="button" onclick="openPlayerManageModal({{ $pId }}, '{{ addslashes($pName) }}', 'pause')" class="px-1.5 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300/80 transition-all cursor-pointer shadow-2xs" title="Istirahatkan sementara">
+                                                        Istirahat
+                                                    </button>
+                                                    <button type="button" onclick="openPlayerManageModal({{ $pId }}, '{{ addslashes($pName) }}', 'withdraw')" class="px-1.5 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-[9px] border border-rose-300/80 transition-all cursor-pointer shadow-2xs" title="Keluarkan dari sesi">
+                                                        Keluar
+                                                    </button>
+                                                @endif
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player {{ $pIdx + 1 }}</span>
+                                            </div>
                                         </div>
                                     @empty
                                         <p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>
@@ -540,56 +592,6 @@
                     @endforelse
                 </div>
 
-                <!-- Kesiapan & Pengelolaan Pemain Sesi Ini -->
-                <div class="p-3.5 rounded-2xl bg-white/90 border border-slate-200/80 space-y-2.5 shadow-2xs">
-                    <div class="flex items-center justify-between border-b border-slate-100 pb-1.5">
-                        <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                            <i class="fa-solid fa-user-check text-[#063B00]"></i> Kesiapan Pemain Sesi
-                        </span>
-                        <span class="text-[10px] text-slate-500 font-semibold bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">
-                            {{ count($game['participants'] ?? []) }} Pemain
-                        </span>
-                    </div>
-                    <div class="space-y-1.5" id="drawingReadinessRoster">
-                        @foreach($game['participants'] ?? [] as $part)
-                            @php
-                                $pId = (int) ($part['id'] ?? 0);
-                                $pName = $part['name'] ?? 'Pemain';
-                                $isPartWithdrawn = in_array($pId, $withdrawnPlayerIds ?? [], true);
-                                $isPartPaused = in_array($pId, $pausedPlayerIds ?? [], true);
-                            @endphp
-                            <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50/70 border border-slate-200/60 text-xs">
-                                <div class="flex items-center gap-2 truncate max-w-[55%]">
-                                    <span class="w-2 h-2 rounded-full shrink-0 {{ $isPartWithdrawn ? 'bg-rose-500' : ($isPartPaused ? 'bg-amber-500' : 'bg-emerald-500') }}"></span>
-                                    <span class="font-bold text-slate-800 truncate {{ $isPartWithdrawn ? 'line-through opacity-70' : '' }}">{{ $pName }}</span>
-                                </div>
-                                <div class="flex items-center gap-1 shrink-0">
-                                    @if($isPartWithdrawn)
-                                        <span class="text-[9px] font-bold text-rose-800 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">Keluar</span>
-                                    @elseif($isPartPaused)
-                                        <span class="text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">Istirahat</span>
-                                        @if($isHost ?? false)
-                                            <button type="button" onclick="reactivatePlayer({{ $pId }}, '{{ addslashes($pName) }}')" class="px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1">
-                                                Siap Main
-                                            </button>
-                                        @endif
-                                    @else
-                                        <span class="text-[9px] font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Siap</span>
-                                        @if($isHost ?? false)
-                                            <button type="button" onclick="openPlayerManageModal({{ $pId }}, '{{ addslashes($pName) }}', 'pause')" class="px-1.5 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-[9px] border border-amber-300 cursor-pointer" title="Istirahatkan sementara">
-                                                Istirahat
-                                            </button>
-                                            <button type="button" onclick="openPlayerManageModal({{ $pId }}, '{{ addslashes($pName) }}', 'withdraw')" class="px-1.5 py-0.5 rounded bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold text-[9px] border border-rose-300 cursor-pointer" title="Keluarkan dari sesi">
-                                                Keluar
-                                            </button>
-                                        @endif
-                                    @endif
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-
                 <!-- Resting Bench Card in Sidebar -->
                 <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2 shadow-2xs">
                     <div class="flex items-center justify-between">
@@ -600,10 +602,16 @@
                         @forelse($activeRound['resting'] ?? [] as $idx => $pName)
                             @php
                                 $rId = null;
-                                foreach($game['participants'] ?? [] as $part) {
-                                    if (($part['name'] ?? '') === $pName) {
-                                        $rId = $part['id'] ?? null;
-                                        break;
+                                if (!empty($participantsMap[$pName]['id'])) {
+                                    $rId = $participantsMap[$pName]['id'];
+                                } elseif (!empty($participantsMap[strtolower(trim($pName))]['id'])) {
+                                    $rId = $participantsMap[strtolower(trim($pName))]['id'];
+                                } else {
+                                    foreach($game['participants'] ?? [] as $part) {
+                                        if (($part['name'] ?? '') === $pName) {
+                                            $rId = $part['id'] ?? null;
+                                            break;
+                                        }
                                     }
                                 }
                                 $isPastRound = (($roundStatus[$activeRoundNum] ?? '') === 'completed') || ((int)$activeRoundNum < (int)($roundsProgress['active_round_num'] ?? $activeRoundNum));
@@ -615,16 +623,25 @@
                                     $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
                                 }
                             @endphp
-                            <div class="flex items-center justify-between bg-white p-2 rounded-xl border {{ $isPaused ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/70' }} text-xs">
-                                <span class="text-slate-700 truncate max-w-[50%]">{{ $idx + 1 }}. {{ $pName }}</span>
-                                <div class="flex items-center gap-1.5">
+                            <div class="flex items-center justify-between bg-white p-2 rounded-xl border {{ $isPaused ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/70' }} text-xs gap-2">
+                                <span class="text-slate-700 truncate min-w-0 flex-1">{{ $idx + 1 }}. {{ $pName }}</span>
+                                <div class="flex items-center gap-1.5 shrink-0">
                                     <span class="text-[10px] font-semibold {{ $isPaused ? 'text-amber-800 bg-amber-100 border border-amber-300' : 'text-amber-600 bg-amber-50 border border-amber-200' }} px-2 py-0.5 rounded">
                                         {{ $isPaused ? 'Istirahat' : 'Bench' }}
                                     </span>
-                                    @if(! $isPastRound && $isPaused && ($isHost ?? false))
-                                        <button type="button" onclick="reactivatePlayer({{ $rId }}, '{{ addslashes($pName) }}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs transition-colors cursor-pointer">
-                                            <i class="fa-solid fa-play text-[8px]"></i> Siap
-                                        </button>
+                                    @if(! $isPastRound && ($isHost ?? false) && $rId)
+                                        @if($isPaused)
+                                            <button type="button" onclick="reactivatePlayer({{ $rId }}, '{{ addslashes($pName) }}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs transition-all cursor-pointer">
+                                                <i class="fa-solid fa-play text-[8px]"></i> Siap Main
+                                            </button>
+                                        @else
+                                            <button type="button" onclick="openPlayerManageModal({{ $rId }}, '{{ addslashes($pName) }}', 'pause')" class="px-1.5 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300/80 transition-all cursor-pointer shadow-2xs" title="Istirahatkan sementara">
+                                                Istirahat
+                                            </button>
+                                            <button type="button" onclick="openPlayerManageModal({{ $rId }}, '{{ addslashes($pName) }}', 'withdraw')" class="px-1.5 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-[9px] border border-rose-300/80 transition-all cursor-pointer shadow-2xs" title="Keluarkan dari sesi">
+                                                Keluar
+                                            </button>
+                                        @endif
                                     @endif
                                 </div>
                             </div>
@@ -633,6 +650,26 @@
                                 Semua pemain aktif bertanding di ronde ini.
                             </div>
                         @endforelse
+                    </div>
+
+                    @php
+                        $withdrawnList = [];
+                        foreach($game['participants'] ?? [] as $part) {
+                            if (in_array((int)($part['id'] ?? 0), $withdrawnPlayerIds ?? [], true)) {
+                                $withdrawnList[] = $part;
+                            }
+                        }
+                    @endphp
+                    <div id="sidebarWithdrawnContainer" class="pt-2 border-t border-slate-100 space-y-1.5 {{ count($withdrawnList) > 0 ? '' : 'hidden' }}">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pemain Keluar (Sesi)</span>
+                        <div class="space-y-1" id="sidebarWithdrawnList">
+                            @foreach($withdrawnList as $wp)
+                                <div class="flex items-center justify-between p-1.5 rounded-lg bg-rose-50/50 border border-rose-100 text-[11px]">
+                                    <span class="text-slate-500 line-through">{{ $wp['name'] ?? 'Pemain' }}</span>
+                                    <span class="text-[9px] font-bold text-rose-700 bg-rose-100/70 px-1.5 py-0.5 rounded border border-rose-200">Keluar</span>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
 
@@ -1173,6 +1210,24 @@
         return String(n).trim().toLowerCase();
     }
 
+    function getPlayerIdByName(name) {
+        if (!name) return null;
+        const clean = cleanPlayerName(name);
+        if (Array.isArray(allParticipants)) {
+            const found = allParticipants.find(x => cleanPlayerName(x.name || x) === clean);
+            if (found) return found.id || found.player_id;
+        }
+        if (participantsMap) {
+            if (participantsMap[name] && (participantsMap[name].id || participantsMap[name].player_id)) {
+                return participantsMap[name].id || participantsMap[name].player_id;
+            }
+            if (participantsMap[clean] && (participantsMap[clean].id || participantsMap[clean].player_id)) {
+                return participantsMap[clean].id || participantsMap[clean].player_id;
+            }
+        }
+        return null;
+    }
+
     function extractMatchPlayers(teamData, namesArray) {
         if (Array.isArray(namesArray) && namesArray.length > 0) return namesArray;
         if (!teamData) return [];
@@ -1401,6 +1456,8 @@
             if (rosterResting) {
                 rosterResting.innerHTML = `<div class="text-center py-2 text-slate-400 text-xs"><i class="fa-solid fa-lock text-slate-300 mr-1.5"></i>Terkunci</div>`;
             }
+            const sidebarWithdrawnContainer = document.getElementById('sidebarWithdrawnContainer');
+            if (sidebarWithdrawnContainer) sidebarWithdrawnContainer.classList.add('hidden');
 
             // Match Schedule Summary
             const matchesContainer = document.getElementById('courtMatchesContainer');
@@ -1541,34 +1598,57 @@
             if (restingPlayers.length > 0) {
                 rosterResting.innerHTML = restingPlayers.map((p, idx) => {
                     const pName = typeof p === 'object' && p !== null ? (p.name || p.nama || '') : String(p);
-                    let pId = typeof p === 'object' && p !== null ? (p.id || p.player_id) : null;
-                    if (!pId && Array.isArray(allParticipants)) {
-                        const found = allParticipants.find(x => cleanPlayerName(x.name || x) === cleanPlayerName(pName));
-                        if (found) pId = found.id;
-                    }
+                    const pId = getPlayerIdByName(pName) || (typeof p === 'object' && p !== null ? (p.id || p.player_id) : null);
                     const isPaused = isPastRound
                         ? ((Array.isArray(roundData.paused_players) && roundData.paused_players.includes(pName)) || (pId && Array.isArray(roundData.paused_player_ids) && roundData.paused_player_ids.map(Number).includes(Number(pId))))
                         : (pId && Array.isArray(pausedPlayerIds) && pausedPlayerIds.map(Number).includes(Number(pId)));
                     const safeName = pName.replace(/'/g, "\\'");
 
                     return `
-                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border ${isPaused ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/70'} text-xs">
-                            <span class="text-slate-700 truncate max-w-[50%]">${idx + 1}. ${pName}</span>
-                            <div class="flex items-center gap-1.5">
+                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border ${isPaused ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/70'} text-xs gap-2">
+                            <span class="text-slate-700 truncate min-w-0 flex-1">${idx + 1}. ${pName}</span>
+                            <div class="flex items-center gap-1.5 shrink-0">
                                 <span class="text-[10px] font-semibold ${isPaused ? 'text-amber-800 bg-amber-100 border border-amber-300' : 'text-amber-600 bg-amber-50 border border-amber-200'} px-2 py-0.5 rounded">
                                     ${isPaused ? 'Istirahat' : 'Bench'}
                                 </span>
-                                ${!isPastRound && isPaused && isHostUser ? `
-                                    <button type="button" onclick="reactivatePlayer(${pId}, '${safeName}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs transition-colors cursor-pointer">
-                                        <i class="fa-solid fa-play text-[8px]"></i> Siap
-                                    </button>
-                                ` : ''}
+                                ${!isPastRound && isHostUser && pId ? (
+                                    isPaused ? `
+                                        <button type="button" onclick="reactivatePlayer(${pId}, '${safeName}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs transition-all cursor-pointer">
+                                            <i class="fa-solid fa-play text-[8px]"></i> Siap Main
+                                        </button>
+                                    ` : `
+                                        <button type="button" onclick="openPlayerManageModal(${pId}, '${safeName}', 'pause')" class="px-1.5 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300/80 transition-all cursor-pointer shadow-2xs" title="Istirahatkan sementara">
+                                            Istirahat
+                                        </button>
+                                        <button type="button" onclick="openPlayerManageModal(${pId}, '${safeName}', 'withdraw')" class="px-1.5 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-[9px] border border-rose-300/80 transition-all cursor-pointer shadow-2xs" title="Keluarkan dari sesi">
+                                            Keluar
+                                        </button>
+                                    `
+                                ) : ''}
                             </div>
                         </div>
                     `;
                 }).join('');
             } else {
                 rosterResting.innerHTML = `<div class="text-center py-2 text-slate-400 text-xs">Semua pemain aktif bertanding di ronde ini.</div>`;
+            }
+        }
+
+        const sidebarWithdrawnContainer = document.getElementById('sidebarWithdrawnContainer');
+        const sidebarWithdrawnList = document.getElementById('sidebarWithdrawnList');
+        if (sidebarWithdrawnContainer && sidebarWithdrawnList) {
+            const currentWithdrawn = (allParticipants || []).filter(p => withdrawnIds.has(Number(p.id || p.player_id)));
+            if (currentWithdrawn.length > 0) {
+                sidebarWithdrawnContainer.classList.remove('hidden');
+                sidebarWithdrawnList.innerHTML = currentWithdrawn.map(wp => `
+                    <div class="flex items-center justify-between p-1.5 rounded-lg bg-rose-50/50 border border-rose-100 text-[11px]">
+                        <span class="text-slate-500 line-through">${wp.name || 'Pemain'}</span>
+                        <span class="text-[9px] font-bold text-rose-700 bg-rose-100/70 px-1.5 py-0.5 rounded border border-rose-200">Keluar</span>
+                    </div>
+                `).join('');
+            } else {
+                sidebarWithdrawnContainer.classList.add('hidden');
+                sidebarWithdrawnList.innerHTML = '';
             }
         }
 
@@ -1633,19 +1713,47 @@
                     tBName = m.team_b_name;
                 }
 
-                const pAHtml = pA.length > 0 ? pA.map((name, pIdx) => `
-                    <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                        <span class="font-semibold text-slate-800">${pIdx + 1}. ${name}</span>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player ${pIdx + 1}</span>
-                    </div>
-                `).join('') : '<p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>';
+                const pAHtml = pA.length > 0 ? pA.map((name, pIdx) => {
+                    const pId = getPlayerIdByName(name);
+                    const safeName = (name || '').replace(/'/g, "\\'");
+                    return `
+                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs gap-2">
+                            <span class="font-semibold text-slate-800 truncate min-w-0 flex-1">${pIdx + 1}. ${name}</span>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                ${!isPastRound && isHostUser && pId ? `
+                                    <button type="button" onclick="openPlayerManageModal(${pId}, '${safeName}', 'pause')" class="px-1.5 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300/80 transition-all cursor-pointer shadow-2xs" title="Istirahatkan sementara">
+                                        Istirahat
+                                    </button>
+                                    <button type="button" onclick="openPlayerManageModal(${pId}, '${safeName}', 'withdraw')" class="px-1.5 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-[9px] border border-rose-300/80 transition-all cursor-pointer shadow-2xs" title="Keluarkan dari sesi">
+                                        Keluar
+                                    </button>
+                                ` : ''}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player ${pIdx + 1}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('') : '<p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>';
 
-                const pBHtml = pB.length > 0 ? pB.map((name, pIdx) => `
-                    <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs">
-                        <span class="font-semibold text-slate-800">${pIdx + 1}. ${name}</span>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player ${pIdx + 1}</span>
-                    </div>
-                `).join('') : '<p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>';
+                const pBHtml = pB.length > 0 ? pB.map((name, pIdx) => {
+                    const pId = getPlayerIdByName(name);
+                    const safeName = (name || '').replace(/'/g, "\\'");
+                    return `
+                        <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs gap-2">
+                            <span class="font-semibold text-slate-800 truncate min-w-0 flex-1">${pIdx + 1}. ${name}</span>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                ${!isPastRound && isHostUser && pId ? `
+                                    <button type="button" onclick="openPlayerManageModal(${pId}, '${safeName}', 'pause')" class="px-1.5 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300/80 transition-all cursor-pointer shadow-2xs" title="Istirahatkan sementara">
+                                        Istirahat
+                                    </button>
+                                    <button type="button" onclick="openPlayerManageModal(${pId}, '${safeName}', 'withdraw')" class="px-1.5 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-[9px] border border-rose-300/80 transition-all cursor-pointer shadow-2xs" title="Keluarkan dari sesi">
+                                        Keluar
+                                    </button>
+                                ` : ''}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player ${pIdx + 1}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('') : '<p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>';
 
                 return `
                     <div class="p-3.5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-2.5 shadow-2xs">
