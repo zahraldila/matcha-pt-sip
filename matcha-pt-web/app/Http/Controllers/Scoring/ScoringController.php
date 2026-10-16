@@ -1899,7 +1899,9 @@ class ScoringController extends Controller
         $hasInsufficient = ! empty($adjustedScheduleSummary['insufficient']);
         $activePlayersCount = $adjustedSchedule['active_players_count'] ?? count($session->players);
         $insufficientWarning = $hasInsufficient
-            ? "Jumlah pemain aktif tersisa {$activePlayersCount} (minimal 4 untuk Double). Silakan gunakan panel Kesiapan Pemain untuk mengaktifkan pemain dari istirahat sebelum memulai ronde berikutnya."
+            ? ($isWithdraw
+                ? "Jumlah pemain aktif tersisa {$activePlayersCount} (minimal 4 untuk Double). Pemain yang keluar permanen tidak dapat diaktifkan kembali, sehingga sesi tidak dapat melanjutkan ronde berikutnya."
+                : "Jumlah pemain aktif tersisa {$activePlayersCount} (minimal 4 untuk Double). Silakan aktifkan kembali pemain yang sedang istirahat sebelum memulai ronde berikutnya.")
             : null;
 
         if ($scheduleAdjusted && ($isPause || $isWithdraw)) {

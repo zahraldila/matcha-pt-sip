@@ -1132,7 +1132,7 @@
                 <i class="fa-solid fa-circle-info text-amber-600"></i>
                 <span>Petunjuk untuk Host:</span>
             </div>
-            <p class="leading-relaxed text-[11px] text-amber-800">
+            <p id="insufficientPlayersHostGuidance" class="leading-relaxed text-[11px] text-amber-800">
                 Pertandingan ini telah berhasil dihentikan. Jadwal ronde berikutnya akan ditunda sementara hingga Host mengaktifkan kembali pemain istirahat melalui tombol <strong class="font-extrabold text-[#063B00]">[Siap Main]</strong> di Bangku Cadangan.
             </p>
             <div id="insufficientPlayersActionContainer" class="hidden"></div>
@@ -3971,7 +3971,7 @@
             showToast(`Pertandingan ${st.courtName || ('Court ' + st.courtNum)} berhasil dihentikan.`);
 
             if (resData.warning) {
-                showInsufficientPlayersWarningModal(resData.warning);
+                showInsufficientPlayersWarningModal(resData.warning, resData.stop_type || selectedCondition);
             }
         } catch (err) {
             clearTimeout(timeoutId);
@@ -4019,12 +4019,19 @@
     /**
      * Tampilkan modal dialog estetis bergaya Matcha saat pemain aktif tidak mencukupi
      */
-    function showInsufficientPlayersWarningModal(message) {
+    function showInsufficientPlayersWarningModal(message, stopType = '') {
         const modal = document.getElementById('insufficientPlayersWarningModal');
         const msgEl = document.getElementById('insufficientPlayersWarningMessage');
+        const guidanceEl = document.getElementById('insufficientPlayersHostGuidance');
         const actionBox = document.getElementById('insufficientPlayersActionContainer');
+        const isPermanentWithdrawal = ['withdraw', 'withdraw_players'].includes(stopType);
         if (msgEl && message) {
             msgEl.textContent = message;
+        }
+        if (guidanceEl) {
+            guidanceEl.innerHTML = isPermanentWithdrawal
+                ? 'Pemain yang keluar permanen tidak dapat diaktifkan kembali. Jika kuota masih kurang setelah pemain istirahat diaktifkan, selesaikan pertandingan yang masih berjalan lalu pilih <strong class="font-extrabold text-[#063B00]">Selesaikan Sesi &amp; Lihat Juara</strong> untuk membuka recap.'
+                : 'Jadwal ronde berikutnya ditunda sementara. Aktifkan kembali pemain istirahat melalui tombol <strong class="font-extrabold text-[#063B00]">[Siap Main]</strong> di Bangku Cadangan.';
         }
         if (actionBox && IS_HOST) {
             const pausedList = [];

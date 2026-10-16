@@ -714,6 +714,8 @@ class EndMatchFeatureTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertTrue($response->json('has_insufficient_players') || ! empty($response->json('warning')));
+        $this->assertStringContainsString('keluar permanen', $response->json('warning'));
+        $this->assertStringNotContainsString('aktifkan kembali pemain dari istirahat', $response->json('warning'));
 
         // Jadwal ronde mendatang tidak memuat pemain dummy ("Dummy", "Bot", dsb.)
         $cachedSchedule = Cache::get("drawing.schedule_{$session->session_id}");
