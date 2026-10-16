@@ -626,8 +626,8 @@
 
         <!-- Action Buttons (Khusus Host) -->
         <div class="flex items-center gap-3 flex-wrap justify-end">
-            @if($nextRoundKey)
-                @if($isHost)
+            @if($isHost)
+                @if($nextRoundKey)
                     @php
                         $nextRoundNum = preg_replace('/[^0-9]/', '', $nextRoundKey) ?: '2';
                     @endphp
@@ -646,32 +646,29 @@
                         </button>
                     </form>
                 @endif
-            @else
-                @if($isHost)
-                    <form id="globalFinishForm" action="{{ route('scoring.finish') }}" method="POST" class="{{ ($allCourtsCompleted ?? false) ? '' : 'hidden' }} m-0">
-                        @csrf
-                        <input type="hidden" name="game_id"         value="{{ $game['id'] }}">
-                        <input type="hidden" name="round"           value="{{ $activeRound }}">
-                        <input type="hidden" name="scoring_system"  value="{{ $scoringSystem['label'] }}">
-                        <input type="hidden" name="match_key"       id="globalFinishMatchKey" value="">
-                        <input type="hidden" name="status"          id="globalFinishStatus" value="">
-                        <input type="hidden" name="is_stopped"      id="globalFinishIsStopped" value="0">
-                        <!-- Frontend tidak lagi mengirim set_number secara eksplisit -->
-                        <input type="hidden" name="score_a"         id="globalFinishScoreA" value="0">
-                        <input type="hidden" name="score_b"         id="globalFinishScoreB" value="0">
-                        <input type="hidden" name="sets_a"          id="globalFinishSetsA" value="0">
-                        <input type="hidden" name="sets_b"          id="globalFinishSetsB" value="0">
-                        <input type="hidden" name="games_a"         id="globalFinishGamesA" value="0">
-                        <input type="hidden" name="games_b"         id="globalFinishGamesB" value="0">
-                        <input type="hidden" name="set_history"     id="globalFinishSetHistory" value="">
-                        <input type="hidden" name="winner_team"     id="globalFinishWinnerTeam" value="">
+                <form id="globalFinishForm" action="{{ route('scoring.finish') }}" method="POST" class="{{ (($allCourtsCompleted ?? false) && ! $nextRoundKey) ? '' : 'hidden' }} m-0">
+                    @csrf
+                    <input type="hidden" name="game_id"         value="{{ $game['id'] }}">
+                    <input type="hidden" name="round"           value="{{ $activeRound }}">
+                    <input type="hidden" name="scoring_system"  value="{{ $scoringSystem['label'] }}">
+                    <input type="hidden" name="match_key"       id="globalFinishMatchKey" value="">
+                    <input type="hidden" name="status"          id="globalFinishStatus" value="">
+                    <input type="hidden" name="is_stopped"      id="globalFinishIsStopped" value="0">
+                    <!-- Frontend tidak lagi mengirim set_number secara eksplisit -->
+                    <input type="hidden" name="score_a"         id="globalFinishScoreA" value="0">
+                    <input type="hidden" name="score_b"         id="globalFinishScoreB" value="0">
+                    <input type="hidden" name="sets_a"          id="globalFinishSetsA" value="0">
+                    <input type="hidden" name="sets_b"          id="globalFinishSetsB" value="0">
+                    <input type="hidden" name="games_a"         id="globalFinishGamesA" value="0">
+                    <input type="hidden" name="games_b"         id="globalFinishGamesB" value="0">
+                    <input type="hidden" name="set_history"     id="globalFinishSetHistory" value="">
+                    <input type="hidden" name="winner_team"     id="globalFinishWinnerTeam" value="">
 
-                        <button type="submit" id="btnGlobalFinishSession" onclick="submitGlobalFinish(event)"
-                            class="px-6 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
-                            <i class="fa-solid fa-trophy text-[11px] text-[#A8E63A]"></i> Selesaikan Sesi &amp; Lihat Juara
-                        </button>
-                    </form>
-                @endif
+                    <button type="submit" id="btnGlobalFinishSession" onclick="submitGlobalFinish(event)"
+                        class="px-6 py-2.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-trophy text-[11px] text-[#A8E63A]"></i> Selesaikan Sesi &amp; Lihat Juara
+                    </button>
+                </form>
             @endif
         </div>
     </div>
@@ -2254,6 +2251,11 @@
         const btnNext     = document.getElementById('btnGlobalNextRound');
         const formFinish  = document.getElementById('globalFinishForm');
         const btnRecap    = document.getElementById('btnGlobalRecap');
+        const withdrawnPlayerCount = SESSION_PARTICIPANTS.filter(player => (
+            sessionWithdrawnPlayerIds.has(Number(player.id || player.player_id))
+        )).length;
+        const canFinishAfterWithdrawal = withdrawnPlayerCount > 0 &&
+            SESSION_PARTICIPANTS.length - withdrawnPlayerCount < MIN_REQUIRED_PLAYERS;
 
         if (allCourtsDone) {
             if (globalDot) {
@@ -2265,14 +2267,16 @@
             }
             if (globalDesc) {
                 if (IS_HOST) {
-                    globalDesc.textContent = `Semua court telah mencatat skor akhir. Silakan lanjut ke ${formNext ? UNIT_TAB_LABEL.toLowerCase() + ' berikutnya' : 'hasil akhir & podium'}.`;
+                    globalDesc.textContent = canFinishAfterWithdrawal
+                        ? 'Pemain aktif tidak mencukupi untuk ronde berikutnya. Selesaikan sesi untuk melihat hasil akhir.'
+                        : `Semua court telah mencatat skor akhir. Silakan lanjut ke ${formNext ? UNIT_TAB_LABEL.toLowerCase() + ' berikutnya' : 'hasil akhir & podium'}.`;
                 } else {
                     globalDesc.textContent = `Semua court telah selesai. Menunggu Host ${formNext ? 'memulai ' + UNIT_TAB_LABEL.toLowerCase() + ' berikutnya' : 'menyelesaikan sesi'}...`;
                 }
             }
             if (IS_HOST) {
-                if (formNext) formNext.classList.remove('hidden');
-                if (formFinish) formFinish.classList.remove('hidden');
+                if (formNext) formNext.classList.toggle('hidden', canFinishAfterWithdrawal);
+                if (formFinish) formFinish.classList.toggle('hidden', !!formNext && !canFinishAfterWithdrawal);
                 if (btnRecap) btnRecap.classList.add('hidden');
             } else {
                 if (formNext) formNext.classList.add('hidden');
