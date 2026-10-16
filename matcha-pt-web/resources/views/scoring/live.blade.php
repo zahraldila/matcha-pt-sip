@@ -681,15 +681,15 @@
         $isShortOnPlayers = count($activeMembers) < $minReq;
     @endphp
 
-    <div class="glass-card rounded-2xl px-5 py-4 border border-white/90 space-y-3 shadow-2xs">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-            <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center text-xs shrink-0 shadow-2xs">
-                    <i class="fa-solid fa-user-check"></i>
+    <div class="glass-card rounded-2xl p-5 border border-white/90 space-y-4 shadow-2xs">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center text-sm shrink-0 shadow-2xs">
+                    <i class="fa-solid fa-users-viewfinder"></i>
                 </div>
                 <div>
-                    <h3 class="text-xs font-bold text-slate-800 flex items-center gap-2">
-                        Kesiapan Pemain Saat Ini
+                    <h3 class="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2 flex-wrap">
+                        <span>Status Pemain &amp; Rotasi Sesi</span>
                         <span id="readinessActiveCount" class="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
                             {{ count($activeMembers) }} Siap / Aktif
                         </span>
@@ -700,132 +700,135 @@
                             {{ count($withdrawnMembers) }} Keluar
                         </span>
                     </h3>
-                    <p class="text-[10px] text-slate-400 font-medium">Status partisipasi aktual seluruh pemain dalam sesi</p>
+                    <p class="text-[10px] sm:text-xs text-slate-400 font-medium">Status partisipasi aktual seluruh peserta dan alokasi rotasi ronde ini</p>
                 </div>
             </div>
 
-            <div id="readinessWarning" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-bold {{ $isShortOnPlayers ? '' : 'hidden' }}">
-                    <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
-                    <span id="readinessWarningText">Tersisa {{ count($activeMembers) }} pemain (minimal {{ $minReq }}). Aktifkan pemain dari istirahat untuk melanjutkan.</span>
+            <div id="readinessWarning" class="items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-bold shadow-2xs shrink-0 {{ $isShortOnPlayers ? 'flex' : 'hidden' }}">
+                <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+                <span id="readinessWarningText">Tersisa {{ count($activeMembers) }} pemain (minimal {{ $minReq }}). Aktifkan pemain dari istirahat untuk melanjutkan.</span>
             </div>
         </div>
 
-        <div id="sessionReadinessRoster" class="flex flex-wrap gap-2 pt-0.5">
-            {{-- Pemain Aktif / Rotasi --}}
-            @foreach($activeMembers as $part)
-                @php
-                    $pName = $part['name'] ?? 'Pemain';
-                    $pId = (int) ($part['id'] ?? 0);
-                @endphp
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white text-slate-700 border border-slate-200 text-xs font-medium shadow-2xs">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span>{{ $pName }}</span>
-                    <span class="text-[9px] font-semibold text-slate-400">Siap</span>
-                </span>
-            @endforeach
+        <div class="space-y-1.5">
+            <span class="text-[11px] font-bold text-slate-600 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Partisipasi Pemain Sesi
+            </span>
+            <div id="sessionReadinessRoster" class="flex flex-wrap items-center gap-2 pt-0.5">
+                {{-- Pemain Aktif / Rotasi --}}
+                @foreach($activeMembers as $part)
+                    @php
+                        $pName = $part['name'] ?? 'Pemain';
+                        $pId = (int) ($part['id'] ?? 0);
+                    @endphp
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-slate-700 border border-slate-200 text-xs font-medium shadow-2xs">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                        <span>{{ $pName }}</span>
+                        <span class="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Siap</span>
+                    </span>
+                @endforeach
 
-            {{-- Pemain Istirahat (Resting) --}}
-            @foreach($restingMembers as $part)
-                @php
-                    $pName = $part['name'] ?? 'Pemain';
-                    $pId = (int) ($part['id'] ?? 0);
-                @endphp
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-slate-800 border border-amber-300 text-xs font-medium shadow-2xs">
-                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                    <span class="font-bold">{{ $pName }}</span>
-                    <span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>
-                    @if($isHost)
-                        <button type="button" onclick="reactivatePlayerLive({{ $pId }}, '{{ addslashes($pName) }}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1 transition-all">
-                            <i class="fa-solid fa-play text-[7px]"></i> Siap Main
-                        </button>
-                    @endif
-                </span>
-            @endforeach
+                {{-- Pemain Istirahat (Resting) --}}
+                @foreach($restingMembers as $part)
+                    @php
+                        $pName = $part['name'] ?? 'Pemain';
+                        $pId = (int) ($part['id'] ?? 0);
+                    @endphp
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-slate-800 border border-amber-300 text-xs font-medium shadow-2xs">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                        <span class="font-bold">{{ $pName }}</span>
+                        <span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>
+                        @if($isHost)
+                            <button type="button" onclick="reactivatePlayerLive({{ $pId }}, '{{ addslashes($pName) }}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1 transition-all active:scale-95">
+                                <i class="fa-solid fa-play text-[7px]"></i> Siap Main
+                            </button>
+                        @endif
+                    </span>
+                @endforeach
 
-            {{-- Pemain Keluar (Withdrawn) --}}
-            @foreach($withdrawnMembers as $part)
-                @php
-                    $pName = $part['name'] ?? 'Pemain';
-                @endphp
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-50 text-slate-800 border border-rose-300 text-xs font-medium shadow-2xs opacity-80">
-                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                    <span class="line-through text-slate-500">{{ $pName }}</span>
-                    <span class="text-[9px] font-bold text-rose-800 bg-rose-100 px-1.5 py-0.5 rounded border border-rose-300">Keluar</span>
-                </span>
-            @endforeach
-        </div>
-    </div>
-
-    {{-- Tim Istirahat Set Ini --}}
-    @php
-        $visibleRoundBench = [];
-        foreach ($matchContext['resting'] ?? [] as $benchPlayer) {
-            $benchName = is_array($benchPlayer) ? ($benchPlayer['name'] ?? $benchPlayer['nama'] ?? '') : (string) $benchPlayer;
-            $benchPlayerId = is_array($benchPlayer) ? ($benchPlayer['id'] ?? $benchPlayer['player_id'] ?? null) : null;
-            if (! $benchPlayerId && $benchName !== '') {
-                $matchedParticipant = collect($game['participants'] ?? [])->first(fn ($participant) => \App\Services\Scoring\ScoringService::cleanPlayerName($participant['name'] ?? '') === \App\Services\Scoring\ScoringService::cleanPlayerName($benchName));
-                $benchPlayerId = $matchedParticipant['id'] ?? null;
-            }
-            if ($benchPlayerId && (in_array((int) $benchPlayerId, $pausedPlayerIds ?? [], true) || in_array((int) $benchPlayerId, $withdrawnPlayerIds ?? [], true))) {
-                continue;
-            }
-            $visibleRoundBench[] = $benchPlayer;
-        }
-    @endphp
-    <div id="liveRoundBenchPanel" class="glass-card rounded-2xl px-5 py-4 border border-white/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs {{ count($visibleRoundBench) > 0 ? '' : 'hidden' }}">
-        <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center text-xs shrink-0 shadow-2xs">
-                <i class="fa-solid fa-mug-hot"></i>
+                {{-- Pemain Keluar (Withdrawn) --}}
+                @foreach($withdrawnMembers as $part)
+                    @php
+                        $pName = $part['name'] ?? 'Pemain';
+                    @endphp
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 text-slate-800 border border-rose-300 text-xs font-medium shadow-2xs opacity-80">
+                        <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                        <span class="line-through text-slate-500">{{ $pName }}</span>
+                        <span class="text-[9px] font-bold text-rose-800 bg-rose-100 px-1.5 py-0.5 rounded border border-rose-300">Keluar</span>
+                    </span>
+                @endforeach
             </div>
-            <div>
-                <p class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+        </div>
+
+        {{-- Tim Istirahat Set Ini --}}
+        @php
+            $visibleRoundBench = [];
+            foreach ($matchContext['resting'] ?? [] as $benchPlayer) {
+                $benchName = is_array($benchPlayer) ? ($benchPlayer['name'] ?? $benchPlayer['nama'] ?? '') : (string) $benchPlayer;
+                $benchPlayerId = is_array($benchPlayer) ? ($benchPlayer['id'] ?? $benchPlayer['player_id'] ?? null) : null;
+                if (! $benchPlayerId && $benchName !== '') {
+                    $matchedParticipant = collect($game['participants'] ?? [])->first(fn ($participant) => \App\Services\Scoring\ScoringService::cleanPlayerName($participant['name'] ?? '') === \App\Services\Scoring\ScoringService::cleanPlayerName($benchName));
+                    $benchPlayerId = $matchedParticipant['id'] ?? null;
+                }
+                if ($benchPlayerId && (in_array((int) $benchPlayerId, $pausedPlayerIds ?? [], true) || in_array((int) $benchPlayerId, $withdrawnPlayerIds ?? [], true))) {
+                    continue;
+                }
+                $visibleRoundBench[] = $benchPlayer;
+            }
+        @endphp
+        <div id="liveRoundBenchPanel" class="pt-3 border-t border-slate-100 space-y-2 {{ count($visibleRoundBench) > 0 ? '' : 'hidden' }}">
+            <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                    <i class="fa-solid fa-mug-hot text-amber-600"></i>
                     Bangku Istirahat (Bench) {{ $unitTabLabel }} Ini
                     <span id="liveRoundBenchCount" class="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                         {{ count($visibleRoundBench) }} Pemain
                     </span>
-                </p>
-                <div id="liveRoundBenchList" class="flex flex-wrap gap-1.5 pt-1">
-                    @foreach($visibleRoundBench as $rPlayer)
-                        @php
-                            $rName = is_array($rPlayer) ? ($rPlayer['name'] ?? $rPlayer['nama'] ?? '') : $rPlayer;
-                            $rId = is_array($rPlayer) ? ($rPlayer['id'] ?? null) : null;
-                            if (!$rId) {
-                                foreach($game['participants'] ?? [] as $part) {
-                                    if (($part['name'] ?? '') === $rName) {
-                                        $rId = $part['id'] ?? null;
-                                        break;
-                                    }
+                </span>
+                <span class="text-[10px] text-slate-400 font-medium">Rotasi bermain pada {{ $unitTabLabel }} berikutnya</span>
+            </div>
+            <div id="liveRoundBenchList" class="flex flex-wrap items-center gap-2 pt-0.5">
+                @foreach($visibleRoundBench as $rPlayer)
+                    @php
+                        $rName = is_array($rPlayer) ? ($rPlayer['name'] ?? $rPlayer['nama'] ?? '') : $rPlayer;
+                        $rId = is_array($rPlayer) ? ($rPlayer['id'] ?? null) : null;
+                        if (!$rId) {
+                            foreach($game['participants'] ?? [] as $part) {
+                                if (($part['name'] ?? '') === $rName) {
+                                    $rId = $part['id'] ?? null;
+                                    break;
                                 }
                             }
-                            $currActiveNum = (int) preg_replace('/[^0-9]/', '', $savedScores['_meta']['active_round'] ?? '1');
-                            $thisRoundNum = (int) preg_replace('/[^0-9]/', '', $activeRound ?? '1');
-                            $isPastRound = $thisRoundNum < $currActiveNum;
-                            $roundData = $game['drawing'][$activeRound] ?? [];
-                            $roundPausedPlayers = $roundData['paused_players'] ?? [];
-                            $roundPausedIds = $roundData['paused_player_ids'] ?? [];
-                            if ($isPastRound) {
-                                $isPaused = in_array($rName, $roundPausedPlayers, true) || ($rId && in_array((int)$rId, $roundPausedIds, true));
-                            } else {
-                                $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
-                            }
-                        @endphp
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg {{ $isPaused ? 'bg-amber-50 text-slate-800 border border-amber-300' : 'bg-white text-slate-700 border border-slate-200' }} text-xs font-medium shadow-2xs">
-                            <span class="w-1.5 h-1.5 rounded-full {{ $isPaused ? 'bg-amber-600' : 'bg-amber-500' }}"></span>
-                            {{ $rName }}
-                            @if($isPaused)
-                                <span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>
-                                @if(! $isPastRound && $isHost)
-                                    <button type="button" onclick="reactivatePlayerLive({{ $rId }}, '{{ addslashes($rName) }}')" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1">
-                                        <i class="fa-solid fa-play text-[7px]"></i> Siap Main
-                                    </button>
-                                @endif
+                        }
+                        $currActiveNum = (int) preg_replace('/[^0-9]/', '', $savedScores['_meta']['active_round'] ?? '1');
+                        $thisRoundNum = (int) preg_replace('/[^0-9]/', '', $activeRound ?? '1');
+                        $isPastRound = $thisRoundNum < $currActiveNum;
+                        $roundData = $game['drawing'][$activeRound] ?? [];
+                        $roundPausedPlayers = $roundData['paused_players'] ?? [];
+                        $roundPausedIds = $roundData['paused_player_ids'] ?? [];
+                        if ($isPastRound) {
+                            $isPaused = in_array($rName, $roundPausedPlayers, true) || ($rId && in_array((int)$rId, $roundPausedIds, true));
+                        } else {
+                            $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
+                        }
+                    @endphp
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl {{ $isPaused ? 'bg-amber-50 text-slate-800 border border-amber-300' : 'bg-white text-slate-700 border border-slate-200' }} text-xs font-medium shadow-2xs">
+                        <span class="w-1.5 h-1.5 rounded-full {{ $isPaused ? 'bg-amber-600' : 'bg-amber-500' }} shrink-0"></span>
+                        {{ $rName }}
+                        @if($isPaused)
+                            <span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>
+                            @if(! $isPastRound && $isHost)
+                                <button type="button" onclick="reactivatePlayerLive({{ $rId }}, '{{ addslashes($rName) }}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1 transition-all active:scale-95">
+                                    <i class="fa-solid fa-play text-[7px]"></i> Siap Main
+                                </button>
                             @endif
-                        </span>
-                    @endforeach
-                </div>
+                        @else
+                            <span class="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">Bench</span>
+                        @endif
+                    </span>
+                @endforeach
             </div>
         </div>
-        <span class="text-[11px] text-slate-400 font-medium">Rotasi bermain pada {{ $unitTabLabel }} berikutnya</span>
     </div>
     <!-- End Match Modal (Dua Kondisi: Tetap di Sesi / Keluar Sesi Permanen) -->
     <div id="stopMatchModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
@@ -1144,6 +1147,7 @@
         if (warning && warningText) {
             const isShort = activeMembers.length < MIN_REQUIRED_PLAYERS;
             warning.classList.toggle('hidden', !isShort);
+            warning.classList.toggle('flex', isShort);
             warningText.textContent = `Tersisa ${activeMembers.length} pemain (minimal ${MIN_REQUIRED_PLAYERS}). Aktifkan pemain dari istirahat untuk melanjutkan.`;
         }
         if (!roster) return;
@@ -1158,12 +1162,12 @@
             const playerName = escapeLiveStatusText(player.name || player.nama || 'Pemain');
             const reason = escapeLiveStatusText(sessionPlayerReasons[playerId] || '');
             if (status === 'resting') {
-                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-slate-800 border border-amber-300 text-xs font-medium shadow-2xs" title="${reason}"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span class="font-bold">${playerName}</span><span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>${reason ? `<span class="text-[10px] text-amber-900">${reason}</span>` : ''}${IS_HOST ? `<button type="button" data-reactivate-player="${playerId}" data-player-name="${playerName}" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1"><i class="fa-solid fa-play text-[7px]"></i> Siap Main</button>` : ''}</span>`;
+                return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-slate-800 border border-amber-300 text-xs font-semibold shadow-2xs" title="${reason}"><span class="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0"></span><span class="font-bold">${playerName}</span><span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>${reason ? `<span class="text-[10px] text-amber-900">${reason}</span>` : ''}${IS_HOST ? `<button type="button" data-reactivate-player="${playerId}" data-player-name="${playerName}" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1 transition-all active:scale-95"><i class="fa-solid fa-play text-[7px]"></i> Siap Main</button>` : ''}</span>`;
             }
             if (status === 'withdrawn') {
-                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-50 text-slate-800 border border-rose-300 text-xs font-medium shadow-2xs opacity-80" title="${reason}"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span class="line-through text-slate-500">${playerName}</span><span class="text-[9px] font-bold text-rose-800 bg-rose-100 px-1.5 py-0.5 rounded border border-rose-300">Keluar</span>${reason ? `<span class="text-[10px] text-rose-900">${reason}</span>` : ''}</span>`;
+                return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 text-slate-800 border border-rose-300 text-xs font-medium shadow-2xs opacity-80" title="${reason}"><span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span><span class="line-through text-slate-500">${playerName}</span><span class="text-[9px] font-bold text-rose-800 bg-rose-100 px-1.5 py-0.5 rounded border border-rose-300">Keluar</span>${reason ? `<span class="text-[10px] text-rose-900">${reason}</span>` : ''}</span>`;
             }
-            return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white text-slate-700 border border-slate-200 text-xs font-medium shadow-2xs"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>${playerName}</span><span class="text-[9px] font-semibold text-slate-400">Siap</span></span>`;
+            return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-slate-700 border border-slate-200 text-xs font-medium shadow-2xs"><span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span><span>${playerName}</span><span class="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Siap</span></span>`;
         }).join('');
 
         roster.querySelectorAll('[data-reactivate-player]').forEach(button => {
@@ -1199,7 +1203,7 @@
             const playerName = escapeLiveStatusText(player.name || player.nama || 'Pemain');
             const isPaused = sessionPausedPlayerIds.has(playerId);
             const reason = escapeLiveStatusText(sessionPlayerReasons[playerId] || '');
-            return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${isPaused ? 'bg-amber-50 text-slate-800 border border-amber-300' : 'bg-white text-slate-700 border border-slate-200'} text-xs font-medium shadow-2xs" title="${reason}"><span class="w-1.5 h-1.5 rounded-full ${isPaused ? 'bg-amber-600' : 'bg-amber-500'}"></span>${playerName}${isPaused ? `<span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>${reason ? `<span class="text-[10px] text-amber-900">${reason}</span>` : ''}${IS_HOST ? `<button type="button" data-reactivate-player="${playerId}" data-player-name="${playerName}" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1"><i class="fa-solid fa-play text-[7px]"></i> Siap Main</button>` : ''}` : '<span class="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">Bench</span>'}</span>`;
+            return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${isPaused ? 'bg-amber-50 text-slate-800 border border-amber-300' : 'bg-white text-slate-700 border border-slate-200'} text-xs font-medium shadow-2xs" title="${reason}"><span class="w-1.5 h-1.5 rounded-full ${isPaused ? 'bg-amber-600' : 'bg-amber-500'} shrink-0"></span>${playerName}${isPaused ? `<span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>${reason ? `<span class="text-[10px] text-amber-900">${reason}</span>` : ''}${IS_HOST ? `<button type="button" data-reactivate-player="${playerId}" data-player-name="${playerName}" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1 transition-all active:scale-95"><i class="fa-solid fa-play text-[7px]"></i> Siap Main</button>` : ''}` : '<span class="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">Bench</span>'}</span>`;
         }).join('');
 
         benchList.querySelectorAll('[data-reactivate-player]').forEach(button => {
