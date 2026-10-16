@@ -804,24 +804,6 @@
                     </span>
                 @endforeach
 
-                {{-- Pemain Istirahat (Resting) --}}
-                @foreach($restingMembers as $part)
-                    @php
-                        $pName = $part['name'] ?? 'Pemain';
-                        $pId = (int) ($part['id'] ?? 0);
-                    @endphp
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-slate-800 border border-amber-300 text-xs font-medium shadow-2xs">
-                        <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-                        <span class="font-bold">{{ $pName }}</span>
-                        <span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>
-                        @if($isHost)
-                            <button type="button" onclick="reactivatePlayerLive({{ $pId }}, '{{ addslashes($pName) }}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1 transition-all active:scale-95">
-                                <i class="fa-solid fa-play text-[7px]"></i> Siap Main
-                            </button>
-                        @endif
-                    </span>
-                @endforeach
-
                 {{-- Pemain Keluar (Withdrawn) --}}
                 @foreach($withdrawnMembers as $part)
                     @php
@@ -1252,7 +1234,6 @@
 
         const statusMembers = [
             ...activeMembers.map(player => ({ player, status: 'active' })),
-            ...restingMembers.map(player => ({ player, status: 'resting' })),
             ...withdrawnMembers.map(player => ({ player, status: 'withdrawn' })),
         ];
         roster.innerHTML = statusMembers.map(({ player, status }) => {
