@@ -507,10 +507,8 @@
         </div>
 
         <!-- Score Status Notice -->
-        <div id="matchNotice_{{ $mIdx }}" class="p-3.5 bg-white/90 rounded-xl border border-slate-200/70 text-center text-xs font-semibold text-slate-700 shadow-2xs {{ ($isMStopped || $isMCompleted) ? '' : 'hidden' }}">
-            @if($isMStopped)
-                ⚠️ <strong>{{ $unitTabLabel }} {{ $activeRoundNum }} Dihentikan</strong> &bull; Skor: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}
-            @elseif($isMCompleted)
+        <div id="matchNotice_{{ $mIdx }}" class="p-3.5 bg-white/90 rounded-xl border border-slate-200/70 text-center text-xs font-semibold text-slate-700 shadow-2xs {{ ($isMCompleted && !$isMStopped) ? '' : 'hidden' }}">
+            @if($isMCompleted && !$isMStopped)
                 🔒 <strong>{{ $unitTabLabel }} {{ $activeRoundNum }} Selesai & Terkunci</strong> &bull; Skor: {{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }}
             @endif
         </div>
@@ -533,7 +531,7 @@
                 {{ $matchData['court_name'] ?? ('Court ' . ($mIdx + 1)) }} Dihentikan Lebih Awal pada {{ $unitTabLabel }} {{ $activeRoundNum }}
             </p>
             <p class="text-xs text-amber-800 font-medium" id="stoppedSubMsg_{{ $mIdx }}">
-                Alasan: <strong id="stoppedReasonText_{{ $mIdx }}">{{ $currentScore['stop_reason'] ?? 'Dihentikan oleh Host' }}</strong> &bull; Skor Terakhir: <strong>{{ $currentScore['games_a'] ?? 0 }} &mdash; {{ $currentScore['games_b'] ?? 0 }} Games</strong>
+                Alasan: <strong id="stoppedReasonText_{{ $mIdx }}">{{ $currentScore['stop_reason'] ?? 'Dihentikan oleh Host' }}</strong>
             </p>
             @php
                 $stoppedPlayerNames = is_array($currentScore['withdrawn_player_names'] ?? null) ? $currentScore['withdrawn_player_names'] : [];
@@ -1960,8 +1958,7 @@
 
         if (notice) {
             if (st.isStopped) {
-                notice.classList.remove('hidden');
-                notice.innerHTML = `⚠️ <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Dihentikan</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB} Games</strong>`;
+                notice.classList.add('hidden');
             } else if (st.matchDone) {
                 notice.classList.remove('hidden');
                 notice.innerHTML = `🔒 <strong>${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM} Selesai & Terkunci</strong> &bull; Skor: <strong>${st.gamesA} — ${st.gamesB} Games</strong> (${st.winnerTeam || 'Selesai'})`;
@@ -2102,9 +2099,9 @@
         const courtLabel = st.courtName || ('Court ' + st.courtNum);
         const scoreUnit = IS_SETS ? 'Games' : 'Poin';
 
-        if (msg) msg.textContent = `⚠️ ${courtLabel} Dihentikan Lebih Awal pada ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM}`;
+        if (msg) msg.textContent = `${courtLabel} Dihentikan Lebih Awal pada ${UNIT_TAB_LABEL} ${ACTIVE_ROUND_NUM}`;
         if (reasonText) reasonText.textContent = st.stopReason || 'Dihentikan oleh Host';
-        if (subMsg) subMsg.innerHTML = `Alasan: <strong>${st.stopReason || 'Dihentikan oleh Host'}</strong> &bull; Skor Terakhir: <strong>${st.gamesA} &mdash; ${st.gamesB} ${scoreUnit}</strong>`;
+        if (subMsg) subMsg.innerHTML = `Alasan: <strong>${st.stopReason || 'Dihentikan oleh Host'}</strong>`;
         
         const withdrawnNotice = document.getElementById('stoppedWithdrawnNotice_' + cIdx);
         if (withdrawnNotice) {
@@ -2127,6 +2124,9 @@
         }
 
         if (banner) banner.classList.remove('hidden');
+
+        const notice = document.getElementById('matchNotice_' + cIdx);
+        if (notice) notice.classList.add('hidden');
 
         const bA = document.getElementById('btnAddA_' + cIdx);
         const bB = document.getElementById('btnAddB_' + cIdx);
