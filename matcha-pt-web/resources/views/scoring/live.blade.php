@@ -690,33 +690,27 @@
                 <div>
                     <h3 class="text-xs font-bold text-slate-800 flex items-center gap-2">
                         Kesiapan Pemain Saat Ini
-                        <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                        <span id="readinessActiveCount" class="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
                             {{ count($activeMembers) }} Siap / Aktif
                         </span>
-                        @if(count($restingMembers) > 0)
-                            <span class="text-[10px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
-                                {{ count($restingMembers) }} Istirahat
-                            </span>
-                        @endif
-                        @if(count($withdrawnMembers) > 0)
-                            <span class="text-[10px] font-semibold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full border border-rose-200">
-                                {{ count($withdrawnMembers) }} Keluar
-                            </span>
-                        @endif
+                        <span id="readinessRestingCount" class="text-[10px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200 {{ count($restingMembers) > 0 ? '' : 'hidden' }}">
+                            {{ count($restingMembers) }} Istirahat
+                        </span>
+                        <span id="readinessWithdrawnCount" class="text-[10px] font-semibold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full border border-rose-200 {{ count($withdrawnMembers) > 0 ? '' : 'hidden' }}">
+                            {{ count($withdrawnMembers) }} Keluar
+                        </span>
                     </h3>
                     <p class="text-[10px] text-slate-400 font-medium">Status partisipasi aktual seluruh pemain dalam sesi</p>
                 </div>
             </div>
 
-            @if($isShortOnPlayers)
-                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-bold">
+            <div id="readinessWarning" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-bold {{ $isShortOnPlayers ? '' : 'hidden' }}">
                     <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
-                    <span>Tersisa {{ count($activeMembers) }} pemain (minimal {{ $minReq }}). Aktifkan pemain dari istirahat untuk melanjutkan.</span>
-                </div>
-            @endif
+                    <span id="readinessWarningText">Tersisa {{ count($activeMembers) }} pemain (minimal {{ $minReq }}). Aktifkan pemain dari istirahat untuk melanjutkan.</span>
+            </div>
         </div>
 
-        <div class="flex flex-wrap gap-2 pt-0.5">
+        <div id="sessionReadinessRoster" class="flex flex-wrap gap-2 pt-0.5">
             {{-- Pemain Aktif / Rotasi --}}
             @foreach($activeMembers as $part)
                 @php
@@ -763,8 +757,7 @@
     </div>
 
     {{-- Tim Istirahat Set Ini --}}
-    @if(!empty($matchContext['resting']))
-    <div class="glass-card rounded-2xl px-5 py-4 border border-white/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+    <div id="liveRoundBenchPanel" class="glass-card rounded-2xl px-5 py-4 border border-white/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs {{ count($matchContext['resting'] ?? []) > 0 ? '' : 'hidden' }}">
         <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center text-xs shrink-0 shadow-2xs">
                 <i class="fa-solid fa-mug-hot"></i>
@@ -772,12 +765,12 @@
             <div>
                 <p class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                     Bangku Istirahat (Bench) {{ $unitTabLabel }} Ini
-                    <span class="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                        {{ count($matchContext['resting']) }} Pemain
+                    <span id="liveRoundBenchCount" class="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        {{ count($matchContext['resting'] ?? []) }} Pemain
                     </span>
                 </p>
-                <div class="flex flex-wrap gap-1.5 pt-1">
-                    @foreach($matchContext['resting'] as $rPlayer)
+                <div id="liveRoundBenchList" class="flex flex-wrap gap-1.5 pt-1">
+                    @foreach($matchContext['resting'] ?? [] as $rPlayer)
                         @php
                             $rName = is_array($rPlayer) ? ($rPlayer['name'] ?? $rPlayer['nama'] ?? '') : $rPlayer;
                             $rId = is_array($rPlayer) ? ($rPlayer['id'] ?? null) : null;
@@ -819,7 +812,6 @@
         </div>
         <span class="text-[11px] text-slate-400 font-medium">Rotasi bermain pada {{ $unitTabLabel }} berikutnya</span>
     </div>
-    @endif
     <!-- End Match Modal (Dua Kondisi: Tetap di Sesi / Keluar Sesi Permanen) -->
     <div id="stopMatchModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
         <div class="relative w-full bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col my-auto transition-all" style="max-width: 580px; width: 100%; box-sizing: border-box; max-height: min(90vh, 850px);">
@@ -1091,6 +1083,154 @@
     const TOTAL_PLAYERS_COUNT = {{ count($game['participants'] ?? ($session->players ?? [])) }};
     const IS_SINGLE_MODE      = {{ strtolower($game['jenis_permainan'] ?? ($session->jenis_permainan ?? 'Double')) === 'single' ? 'true' : 'false' }};
     const MIN_REQUIRED_PLAYERS = IS_SINGLE_MODE ? 2 : 4;
+    const SESSION_PARTICIPANTS = @json($game['participants'] ?? []);
+    const INITIAL_LIVE_BENCH = @json($matchContext['resting'] ?? []);
+    let sessionPausedPlayerIds = new Set(@json($pausedPlayerIds ?? []).map(Number));
+    let sessionWithdrawnPlayerIds = new Set(@json($withdrawnPlayerIds ?? []).map(Number));
+    let sessionPlayerReasons = {};
+
+    function escapeLiveStatusText(value) {
+        return String(value ?? '').replace(/[&<>"']/g, character => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        })[character]);
+    }
+
+    function getSessionPlayerById(playerId) {
+        return SESSION_PARTICIPANTS.find(player => Number(player.id || player.player_id) === Number(playerId));
+    }
+
+    function renderSessionPlayerReadiness() {
+        const activeMembers = SESSION_PARTICIPANTS.filter(player => {
+            const playerId = Number(player.id || player.player_id);
+            return !sessionPausedPlayerIds.has(playerId) && !sessionWithdrawnPlayerIds.has(playerId);
+        });
+        const restingMembers = SESSION_PARTICIPANTS.filter(player => sessionPausedPlayerIds.has(Number(player.id || player.player_id)));
+        const withdrawnMembers = SESSION_PARTICIPANTS.filter(player => sessionWithdrawnPlayerIds.has(Number(player.id || player.player_id)));
+
+        const activeCount = document.getElementById('readinessActiveCount');
+        const restingCount = document.getElementById('readinessRestingCount');
+        const withdrawnCount = document.getElementById('readinessWithdrawnCount');
+        const warning = document.getElementById('readinessWarning');
+        const warningText = document.getElementById('readinessWarningText');
+        const roster = document.getElementById('sessionReadinessRoster');
+        if (activeCount) activeCount.textContent = `${activeMembers.length} Siap / Aktif`;
+        if (restingCount) {
+            restingCount.textContent = `${restingMembers.length} Istirahat`;
+            restingCount.classList.toggle('hidden', restingMembers.length === 0);
+        }
+        if (withdrawnCount) {
+            withdrawnCount.textContent = `${withdrawnMembers.length} Keluar`;
+            withdrawnCount.classList.toggle('hidden', withdrawnMembers.length === 0);
+        }
+        if (warning && warningText) {
+            const isShort = activeMembers.length < MIN_REQUIRED_PLAYERS;
+            warning.classList.toggle('hidden', !isShort);
+            warningText.textContent = `Tersisa ${activeMembers.length} pemain (minimal ${MIN_REQUIRED_PLAYERS}). Aktifkan pemain dari istirahat untuk melanjutkan.`;
+        }
+        if (!roster) return;
+
+        const statusMembers = [
+            ...activeMembers.map(player => ({ player, status: 'active' })),
+            ...restingMembers.map(player => ({ player, status: 'resting' })),
+            ...withdrawnMembers.map(player => ({ player, status: 'withdrawn' })),
+        ];
+        roster.innerHTML = statusMembers.map(({ player, status }) => {
+            const playerId = Number(player.id || player.player_id);
+            const playerName = escapeLiveStatusText(player.name || player.nama || 'Pemain');
+            const reason = escapeLiveStatusText(sessionPlayerReasons[playerId] || '');
+            if (status === 'resting') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-slate-800 border border-amber-300 text-xs font-medium shadow-2xs" title="${reason}"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span class="font-bold">${playerName}</span><span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>${reason ? `<span class="text-[10px] text-amber-900">${reason}</span>` : ''}${IS_HOST ? `<button type="button" data-reactivate-player="${playerId}" data-player-name="${playerName}" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1"><i class="fa-solid fa-play text-[7px]"></i> Siap Main</button>` : ''}</span>`;
+            }
+            if (status === 'withdrawn') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-50 text-slate-800 border border-rose-300 text-xs font-medium shadow-2xs opacity-80" title="${reason}"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span class="line-through text-slate-500">${playerName}</span><span class="text-[9px] font-bold text-rose-800 bg-rose-100 px-1.5 py-0.5 rounded border border-rose-300">Keluar</span>${reason ? `<span class="text-[10px] text-rose-900">${reason}</span>` : ''}</span>`;
+            }
+            return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white text-slate-700 border border-slate-200 text-xs font-medium shadow-2xs"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>${playerName}</span><span class="text-[9px] font-semibold text-slate-400">Siap</span></span>`;
+        }).join('');
+
+        roster.querySelectorAll('[data-reactivate-player]').forEach(button => {
+            button.addEventListener('click', () => reactivatePlayerLive(Number(button.dataset.reactivatePlayer), button.dataset.playerName || 'Pemain'));
+        });
+    }
+
+    function renderLiveRoundBench() {
+        const benchPanel = document.getElementById('liveRoundBenchPanel');
+        const benchList = document.getElementById('liveRoundBenchList');
+        const benchCount = document.getElementById('liveRoundBenchCount');
+        if (!benchPanel || !benchList || !benchCount) return;
+
+        const benchMembers = new Map();
+        INITIAL_LIVE_BENCH.forEach(entry => {
+            const playerName = typeof entry === 'object' && entry !== null ? (entry.name || entry.nama || '') : String(entry);
+            const playerId = typeof entry === 'object' && entry !== null ? (entry.id || entry.player_id) : null;
+            const player = playerId ? getSessionPlayerById(playerId) : SESSION_PARTICIPANTS.find(item => cleanPlayerName(item.name || item.nama || '') === cleanPlayerName(playerName));
+            if (player) benchMembers.set(Number(player.id || player.player_id), player);
+        });
+        sessionPausedPlayerIds.forEach(playerId => {
+            const player = getSessionPlayerById(playerId);
+            if (player) benchMembers.set(Number(player.id || player.player_id), player);
+        });
+        sessionWithdrawnPlayerIds.forEach(playerId => benchMembers.delete(Number(playerId)));
+
+        const players = [...benchMembers.values()];
+        benchCount.textContent = `${players.length} Pemain`;
+        benchPanel.classList.toggle('hidden', players.length === 0);
+        if (players.length === 0) {
+            benchList.innerHTML = '<span class="text-xs text-slate-400">Semua pemain aktif bertanding di ronde ini.</span>';
+            return;
+        }
+
+        benchList.innerHTML = players.map(player => {
+            const playerId = Number(player.id || player.player_id);
+            const playerName = escapeLiveStatusText(player.name || player.nama || 'Pemain');
+            const isPaused = sessionPausedPlayerIds.has(playerId);
+            const reason = escapeLiveStatusText(sessionPlayerReasons[playerId] || '');
+            return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${isPaused ? 'bg-amber-50 text-slate-800 border border-amber-300' : 'bg-white text-slate-700 border border-slate-200'} text-xs font-medium shadow-2xs" title="${reason}"><span class="w-1.5 h-1.5 rounded-full ${isPaused ? 'bg-amber-600' : 'bg-amber-500'}"></span>${playerName}${isPaused ? `<span class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">Istirahat</span>${reason ? `<span class="text-[10px] text-amber-900">${reason}</span>` : ''}${IS_HOST ? `<button type="button" data-reactivate-player="${playerId}" data-player-name="${playerName}" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] shadow-2xs cursor-pointer ml-1"><i class="fa-solid fa-play text-[7px]"></i> Siap Main</button>` : ''}` : '<span class="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">Bench</span>'}</span>`;
+        }).join('');
+
+        benchList.querySelectorAll('[data-reactivate-player]').forEach(button => {
+            button.addEventListener('click', () => reactivatePlayerLive(Number(button.dataset.reactivatePlayer), button.dataset.playerName || 'Pemain'));
+        });
+    }
+
+    function syncSessionPlayerStatusFromStop(rawPayload) {
+        const payload = rawPayload?.saved && typeof rawPayload.saved === 'object'
+            ? { ...rawPayload, ...rawPayload.saved }
+            : rawPayload;
+        if (!payload || payload.status !== 'stopped') return;
+
+        const isPause = ['temporary_pause', 'pause_players'].includes(payload.stop_type);
+        const isWithdraw = ['withdraw', 'withdraw_players'].includes(payload.stop_type);
+        if (!isPause && !isWithdraw) return;
+
+        const playerIds = new Set((payload.withdrawn_player_ids || []).map(Number));
+        (payload.withdrawn_player_names || []).forEach(name => {
+            const player = SESSION_PARTICIPANTS.find(item => cleanPlayerName(item.name || item.nama || '') === cleanPlayerName(name));
+            if (player) playerIds.add(Number(player.id || player.player_id));
+        });
+        const reasons = payload.player_reasons || {};
+
+        playerIds.forEach(playerId => {
+            if (isPause) {
+                sessionWithdrawnPlayerIds.delete(playerId);
+                sessionPausedPlayerIds.add(playerId);
+            } else {
+                sessionPausedPlayerIds.delete(playerId);
+                sessionWithdrawnPlayerIds.add(playerId);
+            }
+
+            const player = getSessionPlayerById(playerId);
+            const playerName = player?.name || player?.nama || '';
+            const reason = reasons[playerId] || (playerName ? reasons[playerName] : null) || payload.stop_reason || '';
+            if (reason) sessionPlayerReasons[playerId] = reason;
+        });
+
+        renderSessionPlayerReadiness();
+        renderLiveRoundBench();
+    }
     
     // OFFLINE QUEUE: Persist CLIENT_ID to prevent client_seq reset on refresh
     const lsClientIdKey  = `matcha_client_id_${GAME_ID}`;
@@ -2197,6 +2337,7 @@
             st.withdrawnPlayerNames = newWithdrawnPlayerNames;
             st.playerReasons = newPlayerReasons;
             st.winnerTeam  = newWinner;
+            syncSessionPlayerStatusFromStop(data);
             if (incomingVer > (st.serverVersion || 0)) {
                 st.serverVersion = incomingVer;
             }
@@ -3690,6 +3831,7 @@
             st.winnerTeam = null;
             st.completionSavePending = false;
             st.completionSaveSucceeded = true;
+            syncSessionPlayerStatusFromStop(resData.saved || resData);
 
             const isTargetStillActive = currentStoppingTarget &&
                 currentStoppingTarget.sessionId === target.sessionId &&
