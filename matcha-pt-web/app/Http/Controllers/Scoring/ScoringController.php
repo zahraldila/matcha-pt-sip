@@ -195,6 +195,8 @@ class ScoringController extends Controller
         $matchScore = $savedScores[$matchKey] ?? ($courtCount > 1 ? [] : ($savedScores[$activeRound] ?? []));
         $currentScore = array_merge($defaultScore, $matchScore);
         $pausedPlayerIds = ScoringService::getPausedPlayerIds($session);
+        $withdrawnPlayerIds = ScoringService::getWithdrawnPlayerIds($session);
+        $canFinishSessionEarly = $this->canFinishEarlyAfterWithdrawal($game, $activeRound, $withdrawnPlayerIds);
 
         return view('scoring.live', compact(
             'game',
@@ -211,7 +213,9 @@ class ScoringController extends Controller
             'isPlayer',
             'cacheKey',
             'roundAccess',
-            'pausedPlayerIds'
+            'pausedPlayerIds',
+            'withdrawnPlayerIds',
+            'canFinishSessionEarly'
         ));
     }
 
@@ -2556,7 +2560,9 @@ class ScoringController extends Controller
 
         $allRoundKeys = array_keys($game['drawing'] ?? []);
         $lastRoundKey = ! empty($allRoundKeys) ? end($allRoundKeys) : $round;
-        if (! empty($allRoundKeys) && $round !== $lastRoundKey) {
+        $withdrawnPlayerIds = ScoringService::getWithdrawnPlayerIds($gameId);
+        $canFinishEarly = $this->canFinishEarlyAfterWithdrawal($game, $round, $withdrawnPlayerIds);
+        if (! empty($allRoundKeys) && $round !== $lastRoundKey && ! $canFinishEarly) {
             return redirect()->back()->withErrors([
                 'score' => 'Sesi belum mencapai ronde terakhir. Selesaikan seluruh ronde pertandingan terlebih dahulu.',
             ]);
@@ -2565,6 +2571,11 @@ class ScoringController extends Controller
         // Ambil data skor dari request atau fallback ke cache
         $cacheKey = "scoring.game_{$gameId}";
         $scores = Cache::get($cacheKey, []);
+        if ($canFinishEarly && ! $this->isRoundFullyCompleted($game, $round, $scores)) {
+            return redirect()->back()->withErrors([
+                'score' => 'Sesi belum dapat diselesaikan karena masih ada pertandingan yang berlangsung pada ronde ini.',
+            ]);
+        }
         $roundAccess = $this->getRoundAccess($game, $system, $scores);
         if (! ($roundAccess[$round] ?? false)) {
             return redirect()->back()->withErrors([
@@ -3762,6 +3773,60 @@ class ScoringController extends Controller
         }
 
         return true;
+    }
+
+    private function canFinishEarlyAfterWithdrawal(array $game, string $currentRound, array $withdrawnPlayerIds): bool
+    {
+        if (empty($withdrawnPlayerIds)) {
+            return false;
+        }
+
+        $roundKeys = array_keys($game['drawing'] ?? []);
+        $currentRoundIndex = array_search($currentRound, $roundKeys, true);
+        if ($currentRoundIndex === false || ! isset($roundKeys[$currentRoundIndex + 1])) {
+            return false;
+        }
+
+        $withdrawnIds = array_fill_keys(array_map('intval', $withdrawnPlayerIds), true);
+        $activePlayerCount = 0;
+        foreach ($game['participants'] ?? [] as $participant) {
+            $playerId = (int) ($participant['id'] ?? $participant['player_id'] ?? 0);
+            if ($playerId > 0 && ! isset($withdrawnIds[$playerId])) {
+                $activePlayerCount++;
+            }
+        }
+
+        $format = strtolower($game['match_format'] ?? $game['format'] ?? '');
+        $isTeamFormat = str_contains($format, 'team');
+        $isSingle = strtolower($game['jenis_permainan'] ?? '') === 'single';
+        $minimumPlayers = $isTeamFormat ? 4 : ($isSingle ? 2 : 4);
+        if ($activePlayerCount < $minimumPlayers) {
+            return true;
+        }
+
+        if (! $isTeamFormat) {
+            return false;
+        }
+
+        $nextRoundKey = $roundKeys[$currentRoundIndex + 1];
+        $nextRoundNumber = (int) (preg_replace('/[^0-9]/', '', $nextRoundKey) ?: 0);
+        $schedule = Cache::get("drawing.schedule_{$game['id']}", []);
+        $nextRoundData = $schedule[$nextRoundKey]
+            ?? ($schedule['rounds'][$nextRoundKey]
+            ?? ($schedule['rounds'][$nextRoundNumber]
+            ?? ($game['drawing'][$nextRoundKey] ?? [])));
+
+        if (! empty($nextRoundData['has_insufficient_players'])) {
+            return true;
+        }
+
+        foreach ($nextRoundData['matches'] ?? [] as $match) {
+            if (! empty($match['incomplete_team']) || (isset($match['can_activate']) && $match['can_activate'] === false)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

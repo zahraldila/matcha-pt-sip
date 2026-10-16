@@ -128,6 +128,9 @@
 
         $currentRIndex = array_search($activeRound, $allRoundsList);
         $nextRoundKey = ($currentRIndex !== false && isset($allRoundsList[$currentRIndex + 1])) ? $allRoundsList[$currentRIndex + 1] : null;
+        if ($canFinishSessionEarly ?? false) {
+            $nextRoundKey = null;
+        }
         $isCurrentSetCompleted = (($currentScore['status'] ?? '') === 'completed');
 
         // Baca mode Single/Double dari session (via $game atau $matchContext)
@@ -167,6 +170,9 @@
                     $isRoundAccessible = $roundAccess[$rKey] ?? false;
                     // Non-host hanya bisa mengklik ronde yang sudah aktif dibuka host atau ronde lampau
                     if (! $isHost && $rNumber > $currActiveNum) {
+                        $isRoundAccessible = false;
+                    }
+                    if (($canFinishSessionEarly ?? false) && $rNumber > (int) (preg_replace('/[^0-9]/', '', $activeRound) ?: 1)) {
                         $isRoundAccessible = false;
                     }
                     $rScore = $savedScores[$rKey] ?? ($savedScores["{$rKey}_court_1"] ?? []);

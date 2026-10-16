@@ -2240,4 +2240,94 @@ class EndMatchFeatureTest extends TestCase
         $this->assertEquals('stopped', $cachedScores['round_3_court_1']['status']);
         $this->assertEquals('finished', $cachedScores['_meta']['status']);
     }
+
+    public function test_permanent_withdrawal_below_double_quota_allows_early_recap()
+    {
+        foreach (['Americano', 'Team Americano'] as $format) {
+            $env = $this->createIsolatedEnvironment(1, $format, 'Total of 3');
+            $session = $env['session'];
+            $host = $env['host'];
+            $withdrawnPlayer = $env['players'][0];
+            $removedPlayers = array_slice($env['players'], 4);
+
+            DB::table('tb_session_player')
+                ->where('session_id', $session->session_id)
+                ->whereIn('player_id', array_map(fn ($player) => $player->player_id, $removedPlayers))
+                ->delete();
+            DB::table('tb_session_player')
+                ->where('session_id', $session->session_id)
+                ->where('player_id', $withdrawnPlayer->player_id)
+                ->update(['status' => 'withdrawn', 'withdrawn_reason' => 'Cedera']);
+
+            $match = $env['matches']['round_1'][0]['match'];
+            $match->update(['status_match' => 'Stopped', 'stop_type' => 'withdraw_players']);
+            Cache::put("scoring.game_{$session->session_id}", [
+                'round_1' => [
+                    'status' => 'stopped',
+                    'games_a' => 2,
+                    'games_b' => 1,
+                    'stop_type' => 'withdraw_players',
+                    'withdrawn_player_ids' => [$withdrawnPlayer->player_id],
+                ],
+            ], 3600);
+
+            $this->actingAs($host);
+            $liveResponse = $this->get(route('scoring.live', [
+                'id' => $session->session_id,
+                'format' => $format,
+                'round' => 'round_1',
+            ]));
+
+            $liveResponse->assertOk();
+            $liveResponse->assertSee('id="globalFinishForm"', false);
+            $liveResponse->assertDontSee('id="globalNextRoundForm"', false);
+
+            $response = $this->post(route('scoring.finish'), [
+                'game_id' => $session->session_id,
+                'round' => 'round_1',
+                'format' => $format,
+                'match_key' => 'round_1',
+                'status' => 'stopped',
+                'is_stopped' => 1,
+                'games_a' => 2,
+                'games_b' => 1,
+            ]);
+
+            $response->assertRedirect(route('scoring.recap', $session->session_id));
+            $this->assertSame('Finished', $session->fresh()->status_session);
+        }
+    }
+
+    public function test_early_recap_is_rejected_while_another_court_is_active()
+    {
+        $env = $this->createIsolatedEnvironment(2, 'Americano', 'Total of 3');
+        $session = $env['session'];
+        $host = $env['host'];
+        $withdrawnPlayers = array_slice($env['players'], 0, 5);
+
+        DB::table('tb_session_player')
+            ->where('session_id', $session->session_id)
+            ->whereIn('player_id', array_map(fn ($player) => $player->player_id, $withdrawnPlayers))
+            ->update(['status' => 'withdrawn', 'withdrawn_reason' => 'Keluar permanen']);
+
+        $stoppedMatch = $env['matches']['round_1'][0]['match'];
+        $stoppedMatch->update(['status_match' => 'Stopped', 'stop_type' => 'withdraw_players']);
+        Cache::put("scoring.game_{$session->session_id}", [
+            'round_1_court_1' => ['status' => 'stopped', 'games_a' => 2, 'games_b' => 1],
+            'round_1_court_2' => ['status' => 'in_progress', 'games_a' => 1, 'games_b' => 1],
+        ], 3600);
+
+        $this->actingAs($host);
+        $response = $this->post(route('scoring.finish'), [
+            'game_id' => $session->session_id,
+            'round' => 'round_1',
+            'format' => 'Americano',
+            'match_key' => 'round_1_court_1',
+            'status' => 'stopped',
+            'is_stopped' => 1,
+        ]);
+
+        $response->assertSessionHasErrors('score');
+        $this->assertSame('In Progress', $session->fresh()->status_session);
+    }
 }
