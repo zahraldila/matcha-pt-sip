@@ -257,7 +257,8 @@ class GameController extends Controller
             ->orderBy('datetime', 'desc');
 
         if ($search === '') {
-            $cacheKey = 'games.list_'.md5("{$selectedSport}_{$selectedStatus}_{$selectedTime}");
+            $cacheVersion = (int) Cache::get('games.list_version', 1);
+            $cacheKey = 'games.list_'.$cacheVersion.'_'.md5("{$selectedSport}_{$selectedStatus}_{$selectedTime}");
             $allDbSessions = Cache::remember($cacheKey, 20, fn () => $sessionQuery->get());
         } else {
             $allDbSessions = $sessionQuery->get();
@@ -1899,6 +1900,7 @@ class GameController extends Controller
             $session->delete();
 
             DB::commit();
+            $this->invalidateSessionListCache();
 
             if ($request->expectsJson()) {
                 return response()->json([
@@ -1953,6 +1955,7 @@ class GameController extends Controller
             }
 
             DB::commit();
+            $this->invalidateSessionListCache();
 
             return back()->with('success', $deletedCount.' jadwal mabar berhasil dihapus.');
         } catch (\Throwable $e) {
@@ -1960,6 +1963,12 @@ class GameController extends Controller
 
             return back()->with('error', 'Gagal menghapus jadwal mabar: '.$e->getMessage());
         }
+    }
+
+    private function invalidateSessionListCache(): void
+    {
+        $currentVersion = (int) Cache::get('games.list_version', 1);
+        Cache::forever('games.list_version', $currentVersion + 1);
     }
 
     private function deleteSessionPermanently(SessionModel $session): string

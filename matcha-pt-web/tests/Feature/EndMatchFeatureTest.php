@@ -479,6 +479,11 @@ class EndMatchFeatureTest extends TestCase
         foreach ($sessionIds as $sessionId) {
             $this->assertDatabaseMissing('tb_session', ['session_id' => $sessionId]);
         }
+        $refreshedIndex = $this->get(route('games.index'));
+        $refreshedIndex->assertOk();
+        foreach (['Ready Session Test', 'In Progress Session Test', $finishedSession->nama_session] as $deletedTitle) {
+            $refreshedIndex->assertDontSee($deletedTitle);
+        }
         $this->assertSame(0, DB::table('tb_score')->whereIn('match_id', $matchIds)->count());
         $this->assertSame(0, DB::table('tb_match_participant')->whereIn('match_id', $matchIds)->count());
         $this->assertSame(0, GameMatch::whereIn('match_id', $matchIds)->count());
