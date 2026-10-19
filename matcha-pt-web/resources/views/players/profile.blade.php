@@ -346,34 +346,34 @@
             <button
                 type="button"
                 onclick="takePhotoFromCamera()"
-                class="w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-[#EBF8D8] border border-slate-200/80 hover:border-[#063B00]/20 flex items-center gap-3.5 transition-all text-left cursor-pointer group outline-none focus:outline-none focus:ring-0"
+                class="w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-[#EBF8D8] border border-slate-200/80 hover:border-[#063B00]/30 hover:shadow-xs flex items-center gap-3.5 transition-all text-left cursor-pointer group outline-none focus:outline-none focus:ring-0"
                 style="outline: none !important; -webkit-tap-highlight-color: transparent;"
             >
-                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-[#063B00] group-hover:bg-[#063B00] group-hover:text-[#A8E63A] flex items-center justify-center text-sm transition-colors shrink-0">
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-[#063B00] group-hover:bg-emerald-200/80 group-hover:scale-105 flex items-center justify-center text-sm transition-all shrink-0">
                     <i class="fa-solid fa-camera"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <div class="text-xs font-bold text-slate-900 group-hover:text-[#063B00]">Ambil dari Kamera</div>
+                    <div class="text-xs font-bold text-slate-900 group-hover:text-[#063B00] transition-colors">Ambil dari Kamera</div>
                     <div class="text-[10px] text-slate-500">Potret langsung menggunakan kamera perangkat</div>
                 </div>
-                <i class="fa-solid fa-chevron-right text-xs text-slate-300 group-hover:text-[#063B00] transition-colors"></i>
+                <i class="fa-solid fa-chevron-right text-xs text-slate-300 group-hover:text-[#063B00] group-hover:translate-x-1 transition-all"></i>
             </button>
 
             <!-- 2. Pilih dari Galeri -->
             <button
                 type="button"
                 onclick="choosePhotoFromGallery()"
-                class="w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-[#EBF8D8] border border-slate-200/80 hover:border-[#063B00]/20 flex items-center gap-3.5 transition-all text-left cursor-pointer group outline-none focus:outline-none focus:ring-0"
+                class="w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-[#EBF8D8] border border-slate-200/80 hover:border-[#063B00]/30 hover:shadow-xs flex items-center gap-3.5 transition-all text-left cursor-pointer group outline-none focus:outline-none focus:ring-0"
                 style="outline: none !important; -webkit-tap-highlight-color: transparent;"
             >
-                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-[#063B00] group-hover:bg-[#063B00] group-hover:text-[#A8E63A] flex items-center justify-center text-sm transition-colors shrink-0">
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-[#063B00] group-hover:bg-emerald-200/80 group-hover:scale-105 flex items-center justify-center text-sm transition-all shrink-0">
                     <i class="fa-solid fa-images"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <div class="text-xs font-bold text-slate-900 group-hover:text-[#063B00]">Pilih dari Galeri</div>
+                    <div class="text-xs font-bold text-slate-900 group-hover:text-[#063B00] transition-colors">Pilih dari Galeri</div>
                     <div class="text-[10px] text-slate-500">Pilih gambar dari album atau penyimpanan berkas</div>
                 </div>
-                <i class="fa-solid fa-chevron-right text-xs text-slate-300 group-hover:text-[#063B00] transition-colors"></i>
+                <i class="fa-solid fa-chevron-right text-xs text-slate-300 group-hover:text-[#063B00] group-hover:translate-x-1 transition-all"></i>
             </button>
 
             <!-- 3. Hapus Foto Profil -->
@@ -381,17 +381,17 @@
                 type="button"
                 id="modalOptionHapusFoto"
                 onclick="handleRemoveAvatar()"
-                class="{{ empty($user->foto) ? 'hidden' : 'flex' }} w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-rose-50/80 border border-slate-200/80 hover:border-rose-200 items-center gap-3.5 transition-all text-left cursor-pointer group outline-none focus:outline-none focus:ring-0"
+                class="{{ empty($user->foto) ? 'hidden' : 'flex' }} w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-300 hover:shadow-xs items-center gap-3.5 transition-all text-left cursor-pointer group outline-none focus:outline-none focus:ring-0"
                 style="outline: none !important; -webkit-tap-highlight-color: transparent;"
             >
-                <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 group-hover:bg-rose-600 group-hover:text-white flex items-center justify-center text-sm transition-colors shrink-0">
+                <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 group-hover:bg-rose-200/80 group-hover:scale-105 flex items-center justify-center text-sm transition-all shrink-0">
                     <i class="fa-solid fa-trash-can"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <div class="text-xs font-bold text-rose-700">Hapus Foto Profil</div>
+                    <div class="text-xs font-bold text-rose-700 group-hover:text-rose-800 transition-colors">Hapus Foto Profil</div>
                     <div class="text-[10px] text-rose-500">Gunakan inisial nama sebagai foto profil</div>
                 </div>
-                <i class="fa-solid fa-chevron-right text-xs text-slate-300 transition-colors"></i>
+                <i class="fa-solid fa-chevron-right text-xs text-slate-300 group-hover:text-rose-600 group-hover:translate-x-1 transition-all"></i>
             </button>
         </div>
 
