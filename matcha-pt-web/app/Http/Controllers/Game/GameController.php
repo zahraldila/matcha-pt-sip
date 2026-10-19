@@ -69,17 +69,17 @@ class GameController extends Controller
             return '-';
         }
 
-        $drawingIds = Drawing::where('session_id', $session->session_id)
-            ->pluck('drawing_id')
-            ->all();
+        $startedAt = null;
+        $finishedAt = null;
 
-        if (! empty($drawingIds)) {
-            $matches = GameMatch::whereIn('drawing_id', $drawingIds)
-                ->whereIn('status_match', ['Completed', 'Finished'])
-                ->get();
+        $drawings = $session->relationLoaded('drawings')
+            ? $session->drawings
+            : Drawing::where('session_id', $session->session_id)->get();
 
-            $startedAt = null;
-            $finishedAt = null;
+        foreach ($drawings as $drw) {
+            $matches = $drw->relationLoaded('matches')
+                ? $drw->matches->filter(fn ($m) => in_array($m->status_match, ['Completed', 'Finished']))
+                : GameMatch::where('drawing_id', $drw->drawing_id)->whereIn('status_match', ['Completed', 'Finished'])->get();
 
             foreach ($matches as $match) {
                 if (empty($match->waktu_mulai) || empty($match->waktu_selesai)) {
@@ -101,12 +101,12 @@ class GameController extends Controller
                     $finishedAt = $matchFinishedAt;
                 }
             }
+        }
 
-            if ($startedAt && $finishedAt) {
-                $totalMinutes = (int) $startedAt->diffInMinutes($finishedAt, false);
-                if ($totalMinutes > 0) {
-                    return self::formatDurationMinutes($totalMinutes);
-                }
+        if ($startedAt && $finishedAt) {
+            $totalMinutes = (int) $startedAt->diffInMinutes($finishedAt, false);
+            if ($totalMinutes > 0) {
+                return self::formatDurationMinutes($totalMinutes);
             }
         }
 
@@ -193,19 +193,75 @@ class GameController extends Controller
 
         $startOfToday = now()->startOfDay()->toDateTimeString();
 
-        // Fetch 100% real sessions from Supabase database (diurutkan dari terdekat: hari ini, besok, lusa, dst)
-        $sessionQuery = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])
-            ->orderByRaw("CASE WHEN status_session NOT IN ('Finished', 'Completed') AND datetime >= ? THEN 0 ELSE 1 END", [$startOfToday])
-            ->orderByRaw("CASE WHEN status_session NOT IN ('Finished', 'Completed') AND datetime >= ? THEN datetime END ASC", [$startOfToday])
-            ->orderBy('datetime', 'desc');
+        // Optimized SQL query: eager load drawings and matches to eliminate N+1 queries
+        $sessionQuery = SessionModel::with([
+            'sport',
+            'venue',
+            'courts',
+            'players.user',
+            'host',
+            'drawings.matchFormat',
+            'drawings.matches',
+        ]);
 
+        // Push sport filter to SQL
         if ($selectedSport !== 'all') {
             $sessionQuery->whereHas('sport', function ($q) use ($selectedSport) {
                 $q->whereRaw('LOWER(nama_sport) = ?', [strtolower($selectedSport)]);
             });
         }
 
-        $allDbSessions = $sessionQuery->get();
+        // Push search filter directly to SQL (nama_session, venue, host, court, sport)
+        if ($search !== '') {
+            $searchLower = '%'.strtolower($search).'%';
+            $sessionQuery->where(function ($q) use ($searchLower) {
+                $q->whereRaw('LOWER(nama_session) LIKE ?', [$searchLower])
+                    ->orWhereHas('venue', function ($vq) use ($searchLower) {
+                        $vq->whereRaw('LOWER(nama_venue) LIKE ?', [$searchLower]);
+                    })
+                    ->orWhereHas('host', function ($hq) use ($searchLower) {
+                        $hq->whereRaw('LOWER(nama) LIKE ?', [$searchLower]);
+                    })
+                    ->orWhereHas('courts', function ($cq) use ($searchLower) {
+                        $cq->whereRaw('LOWER(nama_court) LIKE ?', [$searchLower]);
+                    })
+                    ->orWhereHas('sport', function ($sq) use ($searchLower) {
+                        $sq->whereRaw('LOWER(nama_sport) LIKE ?', [$searchLower]);
+                    });
+            });
+        }
+
+        // Push status filter directly to SQL
+        if ($selectedStatus === 'upcoming') {
+            $sessionQuery->whereNotIn(DB::raw('LOWER(status_session)'), ['finished', 'completed', 'selesai', 'in_progress', 'in progress', 'live']);
+        } elseif ($selectedStatus === 'live') {
+            $sessionQuery->whereIn(DB::raw('LOWER(status_session)'), ['in_progress', 'in progress', 'live']);
+        } elseif ($selectedStatus === 'finished') {
+            $sessionQuery->whereIn(DB::raw('LOWER(status_session)'), ['finished', 'completed', 'selesai']);
+        }
+
+        // Push date/time filter directly to SQL
+        if ($selectedTime === 'today') {
+            $sessionQuery->whereDate('datetime', Carbon::today());
+        } elseif ($selectedTime === 'tomorrow') {
+            $sessionQuery->whereDate('datetime', Carbon::tomorrow());
+        } elseif ($selectedTime === 'this_week') {
+            $sessionQuery->whereBetween('datetime', [
+                Carbon::today()->startOfDay(),
+                Carbon::today()->addDays(7)->endOfDay(),
+            ]);
+        }
+
+        $sessionQuery->orderByRaw("CASE WHEN status_session NOT IN ('Finished', 'Completed') AND datetime >= ? THEN 0 ELSE 1 END", [$startOfToday])
+            ->orderByRaw("CASE WHEN status_session NOT IN ('Finished', 'Completed') AND datetime >= ? THEN datetime END ASC", [$startOfToday])
+            ->orderBy('datetime', 'desc');
+
+        if ($search === '') {
+            $cacheKey = 'games.list_'.md5("{$selectedSport}_{$selectedStatus}_{$selectedTime}");
+            $allDbSessions = Cache::remember($cacheKey, 20, fn () => $sessionQuery->get());
+        } else {
+            $allDbSessions = $sessionQuery->get();
+        }
 
         $allMappedGames = $allDbSessions->map(function ($s) use ($userId, $userEmail, $userName, $ownedVenueIds) {
             $joinedCount = $s->players->count();
@@ -248,7 +304,7 @@ class GameController extends Controller
             $isAtMyVenue = in_array($s->venue_id, $ownedVenueIds);
 
             $formatString = 'Americano';
-            $dbDrawing = Drawing::where('session_id', $s->session_id)->with('matchFormat')->first();
+            $dbDrawing = $s->relationLoaded('drawings') ? $s->drawings->first() : Drawing::where('session_id', $s->session_id)->with('matchFormat')->first();
             if ($dbDrawing && $dbDrawing->matchFormat) {
                 $formatString = $dbDrawing->matchFormat->nama_format;
             }
