@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="matchaGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#84cc16"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+    <linearGradient id="matchaAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+    <linearGradient id="matchaBall" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#bef264"/>
+      <stop offset="100%" stop-color="#84cc16"/>
+    </linearGradient>
+    <filter id="ballGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#22c55e" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Background Dark Canvas with Matcha Dark rounded squircle -->
+  <rect width="400" height="400" rx="88" fill="#090d10"/>
+  <rect x="6" y="6" width="388" height="388" rx="82" fill="none" stroke="#22c55e" stroke-opacity="0.3" stroke-width="6"/>
+
+  <g transform="translate(0, 32)">
+    <!-- Left Racquet (Green) -->
+    <g transform="rotate(-35 170 170)">
+      <!-- Head Oval Outer -->
+      <ellipse cx="170" cy="110" rx="42" ry="58" fill="none" stroke="url(#matchaGreen)" stroke-width="11"/>
+      <!-- String Grid -->
+      <path d="M150 72 v76 M163 56 v108 M177 56 v108 M190 72 v76 M136 94 h68 M130 110 h80 M136 126 h68" stroke="#84cc16" stroke-width="2.6" stroke-opacity="0.85"/>
+      <!-- Throat Bridge -->
+      <path d="M150 160 L164 195 L176 195 L190 160" fill="none" stroke="url(#matchaGreen)" stroke-width="9" stroke-linejoin="round"/>
+      <!-- Shaft / Handle -->
+      <rect x="164" y="195" width="12" height="105" rx="4" fill="#14532d"/>
+      <!-- Grip Tape Stripes -->
+      <path d="M164 212 h12 M164 229 h12 M164 246 h12 M164 263 h12 M164 280 h12 M164 295 h12" stroke="#84cc16" stroke-width="3.5"/>
+    </g>
+
+    <!-- Right Racquet (White) -->
+    <g transform="rotate(35 230 170)">
+      <!-- Head Oval Outer -->
+      <ellipse cx="230" cy="110" rx="42" ry="58" fill="none" stroke="#ffffff" stroke-width="11"/>
+      <!-- String Grid -->
+      <path d="M210 72 v76 M223 56 v108 M237 56 v108 M250 72 v76 M196 94 h68 M190 110 h80 M196 126 h68" stroke="#cbd5e1" stroke-width="2.6" stroke-opacity="0.9"/>
+      <!-- Throat Bridge -->
+      <path d="M210 160 L224 195 L236 195 L250 160" fill="none" stroke="#ffffff" stroke-width="9" stroke-linejoin="round"/>
+      <!-- Shaft / Handle -->
+      <rect x="224" y="195" width="12" height="105" rx="4" fill="#334155"/>
+      <!-- Grip Tape Stripes -->
+      <path d="M224 212 h12 M224 229 h12 M224 246 h12 M224 263 h12 M224 280 h12 M224 295 h12" stroke="#ffffff" stroke-width="3.5"/>
+    </g>
+
+    <!-- Center Glowing Tennis Ball -->
+    <g filter="url(#ballGlow)">
+      <circle cx="200" cy="170" r="24" fill="url(#matchaBall)" stroke="#15803d" stroke-width="3.5"/>
+      <!-- Seams -->
+      <path d="M185 160 C194 165 194 175 185 180" fill="none" stroke="#15803d" stroke-width="3" stroke-linecap="round"/>
+      <path d="M215 160 C206 165 206 175 215 180" fill="none" stroke="#15803d" stroke-width="3" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>
