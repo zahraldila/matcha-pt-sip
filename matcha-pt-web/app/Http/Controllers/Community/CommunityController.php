@@ -10,6 +10,7 @@ use App\Services\MatchaDummyDataService;
 use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -32,7 +33,7 @@ class CommunityController extends Controller
 
         $currentUserId = Auth::check() ? Auth::id() : null;
 
-        $dbCommunities = Community::with(['players.user', 'creator'])->latest()->get();
+        $dbCommunities = Cache::remember('communities.all_active', 60, fn () => Community::with(['players.user', 'creator'])->latest()->get());
         if ($dbCommunities->isNotEmpty()) {
             $allCommunities = $dbCommunities->map(function ($c) use ($currentUserId) {
                 $isMember = $currentUserId !== null && Player::where('user_id', $currentUserId)
@@ -304,6 +305,8 @@ class CommunityController extends Controller
                 ->withErrors(['error' => 'Gagal membuat komunitas: '.$e->getMessage()]);
         }
 
+        $this->clearCommunityCaches();
+
         return redirect()->route('communities.show', $community->community_id)
             ->with('success', 'Komunitas berhasil dibuat!');
     }
@@ -370,6 +373,8 @@ class CommunityController extends Controller
             'email' => $user->email,
         ]);
 
+        $this->clearCommunityCaches();
+
         return redirect()->route('communities.show', $id)
             ->with('success', 'Berhasil bergabung ke komunitas!');
     }
@@ -395,6 +400,8 @@ class CommunityController extends Controller
         Player::where('user_id', Auth::id())
             ->where('community_id', (int) $id)
             ->update(['community_id' => null]);
+
+        $this->clearCommunityCaches();
 
         return redirect()->route('communities.index')
             ->with('success', 'Anda telah meninggalkan komunitas.');
@@ -502,6 +509,8 @@ class CommunityController extends Controller
             'benefits' => $request->has('benefits') ? (array) $request->input('benefits') : $community->benefits,
             'logo' => $logoUrl,
         ]);
+
+        $this->clearCommunityCaches();
 
         return redirect()->route('communities.show', $community->community_id)
             ->with('success', 'Informasi komunitas berhasil diperbarui!');
@@ -612,6 +621,7 @@ class CommunityController extends Controller
                 }
             }
             DB::commit();
+            $this->clearCommunityCaches();
 
             return back()->with('success', count($ids).' komunitas berhasil dihapus.');
         } catch (\Throwable $e) {
@@ -619,5 +629,11 @@ class CommunityController extends Controller
 
             return back()->with('error', 'Gagal menghapus komunitas: '.$e->getMessage());
         }
+    }
+
+    private function clearCommunityCaches(): void
+    {
+        Cache::forget('communities.all_active');
+        Cache::forget('dashboard.default_communities');
     }
 }

@@ -9,6 +9,7 @@ use App\Models\SessionModel;
 use App\Models\Venue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
@@ -43,7 +44,13 @@ class DashboardController extends Controller
             $sessionQuery->whereDate('datetime', $selectedDate);
         }
 
-        $dbSessions = $sessionQuery->take(6)->get();
+        $isFilteredSession = ($selectedSport && $selectedSport !== 'all')
+            || ($selectedCity && $selectedCity !== 'all')
+            || ! empty($selectedDate);
+
+        $dbSessions = ! $isFilteredSession
+            ? Cache::remember('dashboard.default_sessions', 20, fn () => $sessionQuery->take(6)->get())
+            : $sessionQuery->take(6)->get();
 
         $user = Auth::user();
         $userId = $user?->user_id;
@@ -125,7 +132,13 @@ class DashboardController extends Controller
             $venueQuery->whereRaw('LOWER(alamat) LIKE ?', ['%'.strtolower($selectedCity).'%']);
         }
 
-        $dbVenues = $venueQuery->take(6)->get();
+        $isFilteredVenues = ($selectedSport && $selectedSport !== 'all')
+            || ($selectedCity && $selectedCity !== 'all');
+
+        $dbVenues = ! $isFilteredVenues
+            ? Cache::remember('dashboard.default_venues', 60, fn () => $venueQuery->take(6)->get())
+            : $venueQuery->take(6)->get();
+
         $venues = $dbVenues->map(function ($v) {
             $firstCourt = $v->courts->first();
             $sportName = $firstCourt->sport->nama_sport ?? 'Padel & Tennis';
@@ -163,7 +176,13 @@ class DashboardController extends Controller
             });
         }
 
-        $dbCommunities = $communityQuery->take(6)->get();
+        $isFilteredCommunities = ($selectedSport && $selectedSport !== 'all')
+            || ($selectedCity && $selectedCity !== 'all');
+
+        $dbCommunities = ! $isFilteredCommunities
+            ? Cache::remember('dashboard.default_communities', 60, fn () => $communityQuery->take(6)->get())
+            : $communityQuery->take(6)->get();
+
         $communities = $dbCommunities->map(function ($c) {
             $sport = $c->sport;
 

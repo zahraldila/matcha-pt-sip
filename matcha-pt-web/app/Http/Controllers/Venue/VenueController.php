@@ -10,6 +10,7 @@ use App\Services\MatchaDummyDataService;
 use App\Services\SupabaseStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class VenueController extends Controller
@@ -60,7 +61,7 @@ class VenueController extends Controller
         $selectedSport = $request->get('sport', 'all');
         $search = trim($request->get('q', $request->get('search', '')));
 
-        $dbVenues = Venue::with(['courts.sport', 'owner'])->latest()->get();
+        $dbVenues = Cache::remember('venues.all_active', 60, fn () => Venue::with(['courts.sport', 'owner'])->latest()->get());
         if ($dbVenues->isNotEmpty()) {
             $allVenues = $dbVenues->map(function ($v) use ($currentUserId) {
                 $rawPhotos = array_filter(array_map('trim', explode(',', $v->foto ?? '')));
@@ -271,6 +272,7 @@ class VenueController extends Controller
 
         $fotoString = ! empty($finalPhotos) ? implode(', ', $finalPhotos) : null;
         Venue::where('venue_id', $venue->venue_id)->update(['foto' => $fotoString]);
+        $this->clearVenueCaches();
 
         return redirect()->route('venues.show', $venue->venue_id)
             ->with('success', 'Galeri foto venue berhasil diperbarui!');
@@ -371,6 +373,7 @@ class VenueController extends Controller
             'catatan' => strip_tags($catatanInput ?? ''),
             'fasilitas' => ! empty($fasilitasArr) ? implode(', ', array_map('strip_tags', $fasilitasArr)) : $venue->fasilitas,
         ]);
+        $this->clearVenueCaches();
 
         return redirect()->route('venues.show', $venue->venue_id)
             ->with('success', 'Informasi venue berhasil diperbarui!');
@@ -484,6 +487,7 @@ class VenueController extends Controller
             'owner_user_id' => $user->user_id,
             'fasilitas' => implode(', ', array_map('strip_tags', $fasilitasArr)),
         ]);
+        $this->clearVenueCaches();
 
         return redirect()->route('venues.courts.create', [
             'id' => $venue->venue_id,
@@ -647,6 +651,7 @@ class VenueController extends Controller
                 }
             }
             DB::commit();
+            $this->clearVenueCaches();
 
             return back()->with('success', count($ids).' venue berhasil diproses.');
         } catch (\Exception $e) {
@@ -654,5 +659,11 @@ class VenueController extends Controller
 
             return back()->with('error', 'Gagal menghapus venue: '.$e->getMessage());
         }
+    }
+
+    private function clearVenueCaches(): void
+    {
+        Cache::forget('venues.all_active');
+        Cache::forget('dashboard.default_venues');
     }
 }
