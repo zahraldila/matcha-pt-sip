@@ -198,6 +198,7 @@ class ScoringController extends Controller
         $withdrawnPlayerIds = ScoringService::getWithdrawnPlayerIds($session);
         $inactivePlayerIds = array_values(array_unique(array_merge($withdrawnPlayerIds, $pausedPlayerIds)));
         $canFinishSessionEarly = $this->canFinishEarlyAfterWithdrawal($game, $activeRound, $inactivePlayerIds);
+        $isSingleMode = strtolower($session->jenis_permainan ?? ($game['jenis_permainan'] ?? 'Double')) === 'single';
 
         return view('scoring.live', compact(
             'game',
@@ -216,7 +217,8 @@ class ScoringController extends Controller
             'roundAccess',
             'pausedPlayerIds',
             'withdrawnPlayerIds',
-            'canFinishSessionEarly'
+            'canFinishSessionEarly',
+            'isSingleMode'
         ));
     }
 

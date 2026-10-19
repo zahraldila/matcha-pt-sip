@@ -780,7 +780,8 @@
             }
         }
 
-        $minReq = ($isSingleMode ?? false) ? 2 : 4;
+        $isSingleMode = $isSingleMode ?? (strtolower($game['jenis_permainan'] ?? ($session->jenis_permainan ?? 'Double')) === 'single');
+        $minReq = $isSingleMode ? 2 : 4;
         $isShortOnPlayers = count($activeMembers) < $minReq;
     @endphp
 
@@ -4207,6 +4208,8 @@
         updateDisplay(cIdx);
     });
     syncRoundCompletionStatus();
+    renderSessionPlayerReadiness();
+    renderLiveBench();
     initSupabaseRealtime();
 
     // Auto-dismiss Flash Success Banner
