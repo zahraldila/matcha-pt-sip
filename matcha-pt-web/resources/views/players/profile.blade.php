@@ -139,7 +139,7 @@
                         <div class="flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
                             <h2 class="text-lg font-bold text-slate-900 truncate">{{ $user->nama }}</h2>
                             <span class="inline-block self-center sm:self-auto px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border {{ $user->isAdmin() ? 'bg-amber-100 text-amber-900 border-amber-300' : ($user->is_host ? 'bg-amber-50 text-amber-800 border-amber-200' : ($user->role === 'venue_owner' ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200')) }}">
-                                {{ $user->isAdmin() ? '👑 Administrator Global' : ($user->role === 'venue_owner' ? '🏢 Venue Owner' : ($user->is_host ? '👑 Host Game & Player' : '🎾 Member Pemain')) }}
+                                {{ $user->isAdmin() ? 'Administrator Global' : ($user->role === 'venue_owner' ? 'Venue Owner' : ($user->is_host ? 'Host Game & Player' : 'Member Pemain')) }}
                             </span>
                         </div>
                         <p class="text-xs text-slate-500 font-medium break-words sm:break-normal">

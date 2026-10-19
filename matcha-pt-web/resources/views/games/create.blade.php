@@ -36,10 +36,10 @@
 
             <div class="space-y-3">
                 <!-- Padel -->
-                <button type="button" onclick="selectSport('Padel', '🏓')" class="w-full glass-card hover:border-[#063B00] rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                <button type="button" onclick="selectSport('Padel')" class="w-full glass-card hover:border-[#063B00] rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
                     <div class="flex items-center gap-4">
                         <div class="w-12 h-12 rounded-2xl bg-[#EBF8D8] border border-[#C4E992] flex items-center justify-center text-xl text-[#063B00] group-hover:scale-105 transition-transform">
-                            <i class="fa-solid fa-table-tennis-paddle-ball"></i>
+                            <x-sport-icon sport="padel" class="w-6 h-6 text-[#063B00]" />
                         </div>
                         <div>
                             <h3 class="text-base font-extrabold text-[#050608] group-hover:text-[#063B00] transition-colors">Padel</h3>
@@ -50,10 +50,10 @@
                 </button>
 
                 <!-- Tennis -->
-                <button type="button" onclick="selectSport('Tennis', '🎾')" class="w-full glass-card hover:border-[#063B00] rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
+                <button type="button" onclick="selectSport('Tennis')" class="w-full glass-card hover:border-[#063B00] rounded-2xl p-4 flex items-center justify-between group transition-all text-left">
                     <div class="flex items-center gap-4">
                         <div class="w-12 h-12 rounded-2xl bg-[#A8E63A]/20 border border-[#7FAF25]/30 flex items-center justify-center text-xl text-[#063B00] group-hover:scale-105 transition-transform">
-                            <i class="fa-solid fa-baseball"></i>
+                            <x-sport-icon sport="tennis" class="w-6 h-6 text-[#063B00]" />
                         </div>
                         <div>
                             <h3 class="text-base font-extrabold text-[#050608] group-hover:text-[#063B00] transition-colors">Tennis</h3>
@@ -1307,8 +1307,7 @@
                 selectedSport = sportInput.value;
                 const sportBadge = document.getElementById('selectedSportLabel');
                 if (sportBadge) {
-                    const icon = selectedSport === 'Tennis' ? '🎾' : '🏓';
-                    sportBadge.innerText = `${icon} ${selectedSport}`;
+                    sportBadge.innerText = selectedSport;
                 }
             }
 
@@ -1357,9 +1356,9 @@
         renderNumCourtsDropdown();
     }
 
-    function selectSport(sport, icon) {
+    function selectSport(sport) {
         selectedSport = sport;
-        document.getElementById('selectedSportLabel').innerText = `${icon} ${sport}`;
+        document.getElementById('selectedSportLabel').innerText = sport;
         filterVenuesBySport();
         goToStep(2);
     }

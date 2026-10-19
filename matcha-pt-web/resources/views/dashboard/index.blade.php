@@ -46,8 +46,8 @@
                             @php
                                 $sportOptions = [
                                     'all' => 'Semua Cabang (All)',
-                                    'tennis' => '🎾 Tennis',
-                                    'padel' => '🏓 Padel',
+                                    'tennis' => 'Tennis',
+                                    'padel' => 'Padel',
                                 ];
                                 $currSportVal = $selectedSport ?? 'all';
                                 $currSportLabel = $sportOptions[$currSportVal] ?? 'Semua Cabang (All)';
@@ -190,13 +190,13 @@
         <!-- Category Pill Switcher (Preserving Active Tab) -->
         <div class="flex items-center gap-2.5 overflow-x-auto pb-1">
             <a href="{{ route('dashboard', ['tab' => $activeTab ?? 'mabar', 'sport' => 'all', 'city' => $selectedCity ?? 'all', 'date' => $selectedDate ?? '']) }}" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? 'all') === 'all' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
-                <i class="fa-solid fa-layer-group text-[11px]"></i> Semua Cabang
+                <x-sport-icon sport="all" class="text-[11px]" /> Semua Cabang
             </a>
             <a href="{{ route('dashboard', ['tab' => $activeTab ?? 'mabar', 'sport' => 'tennis', 'city' => $selectedCity ?? 'all', 'date' => $selectedDate ?? '']) }}" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? '') === 'tennis' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
-                <span>🎾</span> Tennis
+                <x-sport-icon sport="tennis" class="w-3.5 h-3.5" /> Tennis
             </a>
             <a href="{{ route('dashboard', ['tab' => $activeTab ?? 'mabar', 'sport' => 'padel', 'city' => $selectedCity ?? 'all', 'date' => $selectedDate ?? '']) }}" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap {{ ($selectedSport ?? '') === 'padel' ? 'bg-[#063B00] text-white shadow-xs font-bold' : 'glass-card text-slate-600 hover:text-[#050608]' }}">
-                <span>🏓</span> Padel
+                <x-sport-icon sport="padel" class="w-3.5 h-3.5" /> Padel
             </a>
         </div>
 
