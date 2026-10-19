@@ -19,11 +19,27 @@ class AmericanoService
      * @param  int|null  $roundCount  Optional number of rounds (defaults to 3, max N-1)
      * @param  string  $mode  'Double' (default) or 'Single'
      * @param  array<string, int>  $previousOpponentHistory  Previously played opponent pairs for Single mode
+     * @param  array<int, array{played:int, rested:int, last_rest_round:int}>  $rotationHistory  Frozen-round rotation stats keyed by player ID
+     * @param  int  $startingRoundNumber  Absolute round number for the first generated round
      */
-    public function generateRounds(array $players, int $courtCount, ?int $roundCount = null, string $mode = 'Double', array $previousOpponentHistory = []): array
-    {
+    public function generateRounds(
+        array $players,
+        int $courtCount,
+        ?int $roundCount = null,
+        string $mode = 'Double',
+        array $previousOpponentHistory = [],
+        array $rotationHistory = [],
+        int $startingRoundNumber = 1
+    ): array {
         if (strtolower($mode) === 'single') {
-            return $this->generateSingleRounds($players, $courtCount, $roundCount, $previousOpponentHistory);
+            return $this->generateSingleRounds(
+                $players,
+                $courtCount,
+                $roundCount,
+                $previousOpponentHistory,
+                $rotationHistory,
+                $startingRoundNumber
+            );
         }
 
         return $this->generateDoubleRounds($players, $courtCount, $roundCount);
@@ -227,8 +243,14 @@ class AmericanoService
      * @param  int  $courtCount  Number of available courts
      * @param  int|null  $roundCount  Optional number of rounds
      */
-    private function generateSingleRounds(array $players, int $courtCount, ?int $roundCount = null, array $previousOpponentHistory = []): array
-    {
+    private function generateSingleRounds(
+        array $players,
+        int $courtCount,
+        ?int $roundCount = null,
+        array $previousOpponentHistory = [],
+        array $rotationHistory = [],
+        int $startingRoundNumber = 1
+    ): array {
         $playerCount = count($players);
 
         // Validation: at least 2 players and 1 court
@@ -261,19 +283,29 @@ class AmericanoService
 
         // Tracking structures
         $opponentHistory = $previousOpponentHistory; // "minId-maxId" => count (how many times these two have faced each other)
-        $playCounts = array_fill_keys(array_keys($normalizedPlayers), 0);
-        $restCounts = array_fill_keys(array_keys($normalizedPlayers), 0);
-        $lastRestedRound = array_fill_keys(array_keys($normalizedPlayers), -1);
+        $playCounts = [];
+        $restCounts = [];
+        $lastRestedRound = [];
+        foreach ($normalizedPlayers as $index => $player) {
+            $history = $rotationHistory[$player['id']] ?? [];
+            $playCounts[$index] = (int) ($history['played'] ?? 0);
+            $restCounts[$index] = (int) ($history['rested'] ?? 0);
+            $lastRestedRound[$index] = isset($history['last_rest_round'])
+                ? (int) $history['last_rest_round']
+                : -1;
+        }
 
         $rounds = [];
 
         for ($r = 1; $r <= $totalRounds; $r++) {
+            $absoluteRound = $startingRoundNumber + $r - 1;
+
             // Select active players and resting players for this round
             $selection = $this->selectActiveAndResting(
                 $normalizedPlayers,
                 $activePerRound,
                 $restingPerRound,
-                $r,
+                $absoluteRound,
                 $playCounts,
                 $restCounts,
                 $lastRestedRound
@@ -338,7 +370,7 @@ class AmericanoService
             }
             foreach ($restingPlayers as $p) {
                 $restCounts[$p['_idx']]++;
-                $lastRestedRound[$p['_idx']] = $r;
+                $lastRestedRound[$p['_idx']] = $absoluteRound;
             }
 
             // Construct round payload

@@ -843,6 +843,39 @@ class DrawingAndScoringLogicTest extends TestCase
         }
     }
 
+    public function test_americano_single_rotation_history_is_optional_and_preserves_normal_drawing()
+    {
+        $service = new AmericanoService;
+        $playerNames = ['Hilmy', 'Khaires', 'Prameswari', 'Abelvan', 'Sule'];
+        $players = array_map(fn ($index, $name) => [
+            'id' => $index + 1,
+            'name' => $name,
+        ], array_keys($playerNames), $playerNames);
+
+        $normalRounds = $service->generateRounds($players, 1, 3, 'Single');
+        $emptyHistoryRounds = $service->generateRounds($players, 1, 3, 'Single', [], [], 1);
+
+        $this->assertSame($normalRounds, $emptyHistoryRounds);
+        $this->assertCount(3, $normalRounds);
+
+        $playedNames = [];
+        $opponentPairs = [];
+        foreach ($normalRounds as $round) {
+            $match = $round['matches'][0];
+            $sideA = $match['team_a_names'][0];
+            $sideB = $match['team_b_names'][0];
+            $playedNames[] = $sideA;
+            $playedNames[] = $sideB;
+
+            $pair = [$sideA, $sideB];
+            sort($pair);
+            $opponentPairs[] = implode('|', $pair);
+        }
+
+        $this->assertEqualsCanonicalizing($playerNames, array_unique($playedNames));
+        $this->assertCount(3, array_unique($opponentPairs));
+    }
+
     /**
      * Test 9: Americano Single — Opponent rotation without early repeats.
      * Untuk N pemain, pasangan lawan tidak boleh berulang selama masih ada pasangan

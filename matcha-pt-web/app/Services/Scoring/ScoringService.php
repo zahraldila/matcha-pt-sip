@@ -2406,6 +2406,14 @@ class ScoringService
 
                     $americanoService = new AmericanoService;
                     $previousOpponentHistory = [];
+                    $rotationHistory = [];
+                    foreach ($allPlayers as $player) {
+                        $rotationHistory[(int) $player->player_id] = [
+                            'played' => 0,
+                            'rested' => 0,
+                            'last_rest_round' => -1,
+                        ];
+                    }
                     $resolvePlayerId = static function ($player, string $fallbackName) use ($allPlayers): ?int {
                         $playerId = is_array($player)
                             ? ($player['id'] ?? $player['player_id'] ?? null)
@@ -2428,6 +2436,7 @@ class ScoringService
                             continue;
                         }
 
+                        $roundPlayingPlayerIds = [];
                         foreach ($historyRound['matches'] ?? [] as $historyMatch) {
                             $teamAPlayers = $historyMatch['team_a'] ?? ($historyMatch['teamA'] ?? []);
                             $teamBPlayers = $historyMatch['team_b'] ?? ($historyMatch['teamB'] ?? []);
@@ -2440,6 +2449,13 @@ class ScoringService
                             $teamAPlayerId = $resolvePlayerId($teamAPlayer, $teamAName);
                             $teamBPlayerId = $resolvePlayerId($teamBPlayer, $teamBName);
 
+                            if ($teamAPlayerId !== null) {
+                                $roundPlayingPlayerIds[$teamAPlayerId] = true;
+                            }
+                            if ($teamBPlayerId !== null) {
+                                $roundPlayingPlayerIds[$teamBPlayerId] = true;
+                            }
+
                             if ($teamAPlayerId === null || $teamBPlayerId === null || $teamAPlayerId === $teamBPlayerId) {
                                 continue;
                             }
@@ -2449,6 +2465,16 @@ class ScoringService
                             $pairKey = "{$firstId}-{$secondId}";
                             $previousOpponentHistory[$pairKey] = ($previousOpponentHistory[$pairKey] ?? 0) + 1;
                         }
+
+                        foreach ($allPlayers as $player) {
+                            $playerId = (int) $player->player_id;
+                            if (isset($roundPlayingPlayerIds[$playerId])) {
+                                $rotationHistory[$playerId]['played']++;
+                            } else {
+                                $rotationHistory[$playerId]['rested']++;
+                                $rotationHistory[$playerId]['last_rest_round'] = (int) $historyRoundNumber;
+                            }
+                        }
                     }
 
                     $generatedFuture = $americanoService->generateRounds(
@@ -2456,7 +2482,9 @@ class ScoringService
                         $courtCount,
                         $remainingRoundCount,
                         $drawingMode,
-                        $previousOpponentHistory
+                        $previousOpponentHistory,
+                        $rotationHistory,
+                        $freezeUpToRound + 1
                     );
                     $futureList = array_values($generatedFuture);
 

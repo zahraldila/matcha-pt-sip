@@ -1480,6 +1480,63 @@ class EndMatchFeatureTest extends TestCase
         $this->assertSame('active', $aliceRecord->status);
     }
 
+    public function test_reactivation_uses_completed_rounds_for_single_rotation_history()
+    {
+        $env = $this->createSingleEnvironment(1, ['Hilmy', 'Khaires', 'Prameswari', 'Abelvan', 'Sule'], 'Total of 3');
+        $session = $env['session'];
+        $host = $env['host'];
+        $players = $env['players'];
+        $matchR1 = $env['matches'][1][0]['match'];
+        $schedule = Cache::get("drawing.schedule_{$session->session_id}");
+        $roundOneBefore = $schedule['rounds'][1];
+
+        $this->assertSame(['Hilmy'], $roundOneBefore['team_a_names']);
+        $this->assertSame(['Khaires'], $roundOneBefore['team_b_names']);
+
+        DB::table('tb_session_player')
+            ->where('session_id', $session->session_id)
+            ->where('player_id', $players[2]->player_id)
+            ->update(['status' => 'resting']);
+        $schedule['paused_player_ids'] = [$players[2]->player_id];
+        Cache::put("drawing.schedule_{$session->session_id}", $schedule, 3600);
+
+        $matchR1->update(['status_match' => 'Completed']);
+        $roundOneParticipantsBefore = DB::table('tb_match_participant')
+            ->where('match_id', $matchR1->match_id)
+            ->orderBy('side')
+            ->pluck('player_id')
+            ->all();
+
+        $this->actingAs($host);
+        $response = $this->postJson(route('scoring.reactivate-player'), [
+            'game_id' => $session->session_id,
+            'player_id' => $players[2]->player_id,
+            'round' => 'round_2',
+        ]);
+
+        $response->assertOk()->assertJsonFragment(['success' => true]);
+
+        $rescheduled = Cache::get("drawing.schedule_{$session->session_id}");
+        $roundTwo = $rescheduled['rounds'][2];
+        $roundTwoNames = array_merge(
+            $roundTwo['matches'][0]['team_a_names'],
+            $roundTwo['matches'][0]['team_b_names']
+        );
+
+        $this->assertSame($roundOneBefore, $rescheduled['rounds'][1]);
+        $this->assertContains('Prameswari', $roundTwoNames);
+        $this->assertNotContains('Hilmy', $roundTwoNames);
+        $this->assertNotContains('Khaires', $roundTwoNames);
+        $this->assertSame(
+            $roundOneParticipantsBefore,
+            DB::table('tb_match_participant')
+                ->where('match_id', $matchR1->match_id)
+                ->orderBy('side')
+                ->pluck('player_id')
+                ->all()
+        );
+    }
+
     /**
      * Test 25: Non-host tidak memiliki hak akses untuk mengaktifkan kembali pemain istirahat.
      */
@@ -1698,6 +1755,7 @@ class EndMatchFeatureTest extends TestCase
         $env = $this->createSingleEnvironment(1, ['P1', 'P2', 'P3', 'P4'], 'First To 2');
         $session = $env['session'];
         $host = $env['host'];
+        $players = $env['players'];
         $p1 = $env['players'][0];
         $p2 = $env['players'][1];
         $matchR1 = $env['matches'][1][0]['match'];
@@ -1723,6 +1781,14 @@ class EndMatchFeatureTest extends TestCase
         $this->assertSame('resting', $p1Status);
 
         // 2. Ronde 2 dihentikan, P2 diistirahatkan (temporary_pause)
+        $roundTwo = Cache::get("drawing.schedule_{$session->session_id}")['rounds'][2];
+        $roundTwoNames = array_merge(
+            $roundTwo['matches'][0]['team_a_names'] ?? [],
+            $roundTwo['matches'][0]['team_b_names'] ?? []
+        );
+        $p2 = collect($players)->first(fn (Player $player) => $player->player_id !== $p1->player_id && in_array($player->nama, $roundTwoNames, true));
+        $this->assertNotNull($p2, 'Ronde 2 harus memiliki pemain selain P1 yang dapat diistirahatkan.');
+
         $respStopR2 = $this->postJson(route('scoring.stop-match'), [
             'game_id' => $session->session_id,
             'match_id' => $matchR2->match_id,
@@ -1766,7 +1832,7 @@ class EndMatchFeatureTest extends TestCase
         // P1 HARUS ada di Ronde 3
         $this->assertContains('P1', $allR3People, 'P1 yang sudah reaktif harus muncul di pertandingan atau bench Ronde 3!');
         // P2 tetap istirahat di resting
-        $this->assertContains('P2', $r3Resting, 'P2 harus berada di resting bench Ronde 3');
+        $this->assertContains($p2->nama, $r3Resting, 'Pemain yang dipause di Ronde 2 harus berada di resting bench Ronde 3');
         // Total 4 pemain tercatat lengkap di Ronde 3
         $this->assertCount(4, array_unique($allR3People));
 
@@ -1775,7 +1841,7 @@ class EndMatchFeatureTest extends TestCase
         $drawingResp->assertStatus(200);
         $r1View = $drawingResp->viewData('rounds')[1] ?? [];
         $r1PausedPlayers = $r1View['paused_players'] ?? [];
-        $this->assertNotContains('P2', $r1PausedPlayers, 'P2 yang baru istirahat di ronde 2 tidak boleh tercatat sebagai istirahat di snapshot ronde 1');
+        $this->assertNotContains($p2->nama, $r1PausedPlayers, 'Pemain yang baru istirahat di Ronde 2 tidak boleh tercatat sebagai istirahat di snapshot Ronde 1');
     }
 
     /**
