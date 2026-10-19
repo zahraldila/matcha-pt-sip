@@ -71,7 +71,7 @@
                 <div class="p-3.5 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         @if(!empty($game['host']['avatar']))
-                            <img src="{{ $game['host']['avatar'] }}" alt="{{ $game['host']['name'] }}" class="w-9 h-9 rounded-full object-cover ring-1 ring-emerald-600">
+                            <img src="{{ $game['host']['avatar'] }}" alt="{{ $game['host']['name'] }}" loading="lazy" decoding="async" class="w-9 h-9 rounded-full object-cover ring-1 ring-emerald-600">
                         @else
                             <div class="w-9 h-9 rounded-full bg-[#063B00] text-white flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-emerald-600">
                                 {{ strtoupper(substr($game['host']['name'] ?? 'H', 0, 1)) }}
@@ -120,7 +120,7 @@
                                     <td class="py-2.5 px-3">
                                         <div class="flex items-center gap-2">
                                             @if(!empty($player['avatar']))
-                                                <img src="{{ $player['avatar'] }}" alt="{{ $player['name'] }}" class="w-6 h-6 rounded-full object-cover">
+                                                <img src="{{ $player['avatar'] }}" alt="{{ $player['name'] }}" loading="lazy" decoding="async" class="w-6 h-6 rounded-full object-cover">
                                             @else
                                                 <div class="w-6 h-6 rounded-full bg-[#063B00] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
                                                     {{ strtoupper(substr($player['name'] ?? 'P', 0, 1)) }}

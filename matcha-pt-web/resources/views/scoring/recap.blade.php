@@ -323,7 +323,7 @@
                 @if($p2)
                 <div class="text-center space-y-1">
                     @if($p2['avatar'])
-                        <img src="{{ $p2['avatar'] }}" class="w-12 h-12 rounded-full object-cover border-2 border-slate-300 mx-auto shadow" alt="{{ $p2['name'] }}">
+                        <img src="{{ $p2['avatar'] }}" loading="lazy" decoding="async" class="w-12 h-12 rounded-full object-cover border-2 border-slate-300 mx-auto shadow" alt="{{ $p2['name'] }}">
                     @else
                         <div class="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center mx-auto text-slate-500 font-bold">{{ mb_substr($p2['name'], 0, 1) }}</div>
                     @endif
@@ -349,7 +349,7 @@
                 @if($p1)
                 <div class="text-center space-y-1">
                     @if($p1['avatar'])
-                        <img src="{{ $p1['avatar'] }}" class="w-14 h-14 rounded-full object-cover border-2 border-amber-400 mx-auto shadow-lg ring-2 ring-amber-200" alt="{{ $p1['name'] }}">
+                        <img src="{{ $p1['avatar'] }}" loading="lazy" decoding="async" class="w-14 h-14 rounded-full object-cover border-2 border-amber-400 mx-auto shadow-lg ring-2 ring-amber-200" alt="{{ $p1['name'] }}">
                     @else
                         <div class="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto text-amber-700 font-bold text-lg">{{ mb_substr($p1['name'], 0, 1) }}</div>
                     @endif
@@ -375,7 +375,7 @@
                 @if($p3)
                 <div class="text-center space-y-1">
                     @if($p3['avatar'])
-                        <img src="{{ $p3['avatar'] }}" class="w-11 h-11 rounded-full object-cover border-2 border-orange-300 mx-auto shadow" alt="{{ $p3['name'] }}">
+                        <img src="{{ $p3['avatar'] }}" loading="lazy" decoding="async" class="w-11 h-11 rounded-full object-cover border-2 border-orange-300 mx-auto shadow" alt="{{ $p3['name'] }}">
                     @else
                         <div class="w-11 h-11 rounded-full bg-orange-100 flex items-center justify-center mx-auto text-orange-700 font-bold">{{ mb_substr($p3['name'], 0, 1) }}</div>
                     @endif
@@ -423,7 +423,7 @@
 
                 {{-- Avatar --}}
                 @if(!empty($player['avatar']))
-                    <img src="{{ $player['avatar'] }}" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-slate-200 shrink-0" alt="{{ $player['name'] }}">
+                    <img src="{{ $player['avatar'] }}" loading="lazy" decoding="async" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-slate-200 shrink-0" alt="{{ $player['name'] }}">
                 @else
                     <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-500 text-[10px] sm:text-xs font-bold">{{ mb_substr($player['name'], 0, 1) }}</div>
                 @endif
@@ -491,7 +491,7 @@
             <div class="p-3.5 rounded-2xl bg-white border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-start gap-4 sm:gap-6 shadow-2xs hover:border-[#063B00]/20 transition-all">
                 <div class="flex items-center gap-3 shrink-0" style="min-width: 220px; width: 220px; max-width: 220px; flex-shrink: 0;">
                     @if(!empty($player['avatar']))
-                        <img src="{{ $player['avatar'] }}" class="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0" alt="{{ $player['name'] }}">
+                        <img src="{{ $player['avatar'] }}" loading="lazy" decoding="async" class="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0" alt="{{ $player['name'] }}">
                     @else
                         <div class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-600 text-xs font-bold">{{ mb_substr($player['name'] ?? 'P', 0, 1) }}</div>
                     @endif
@@ -541,7 +541,7 @@
         <div class="flex items-center justify-between border-b border-slate-100 pb-4">
             <div class="flex items-center gap-3">
                 @if(!empty($playerRecap['avatar']))
-                    <img src="{{ $playerRecap['avatar'] }}" class="w-12 h-12 rounded-full object-cover border-2 border-[#063B00] shadow" alt="{{ $playerRecap['player_name'] }}">
+                    <img src="{{ $playerRecap['avatar'] }}" loading="lazy" decoding="async" class="w-12 h-12 rounded-full object-cover border-2 border-[#063B00] shadow" alt="{{ $playerRecap['player_name'] }}">
                 @endif
                 <div>
                     <h3 class="text-sm font-bold text-slate-900">{{ $playerRecap['player_name'] ?? 'Pemain Matcha' }}</h3>

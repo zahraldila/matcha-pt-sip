@@ -6,13 +6,37 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Matcha — Tennis & Padel Community' }}</title>
     
-    <!-- Google Fonts: Plus Jakarta Sans -->
+    <!-- DNS Prefetch & Preconnect for Fast External Connections -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" crossorigin="anonymous">
     
-    <!-- Icons -->
+    <!-- Icons (Preload for non-blocking render) -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    
+    <!-- Modern Chromium Speculation Rules for Instant Page Navigation -->
+    <script type="speculationrules">
+    {
+      "prefetch": [
+        {
+          "where": {
+            "and": [
+              { "href_matches": "/*" },
+              { "not": { "href_matches": "/*logout*" } },
+              { "not": { "href_matches": "/*delete*" } },
+              { "not": { "selector_matches": "[data-no-instant]" } },
+              { "not": { "selector_matches": "[data-no-prefetch]" } }
+            ]
+          },
+          "eagerness": "moderate"
+        }
+      ]
+    }
+    </script>
     
     <!-- Tailwind CSS with Vite -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -171,6 +195,71 @@
             });
         </script>
     @endif
+    <!-- Universal Instant Navigation Prefetcher (Fallback for Safari/Firefox & Mobile) -->
+    <script>
+        (function() {
+            if (navigator.connection && (navigator.connection.saveData || /(2|3)g/.test(navigator.connection.effectiveType))) {
+                return;
+            }
+
+            const prefetched = new Set();
+            const prefetchUrl = (url) => {
+                if (!url || prefetched.has(url)) return;
+                prefetched.add(url);
+                const link = document.createElement('link');
+                link.rel = 'prefetch';
+                link.href = url;
+                link.as = 'document';
+                document.head.appendChild(link);
+            };
+
+            const isEligible = (anchor) => {
+                if (!anchor || anchor.tagName !== 'A') return false;
+                if (anchor.target && anchor.target !== '_self') return false;
+                if (anchor.hasAttribute('download')) return false;
+                if (anchor.hasAttribute('data-no-instant') || anchor.hasAttribute('data-no-prefetch')) return false;
+                
+                const href = anchor.href;
+                if (!href) return false;
+
+                try {
+                    const url = new URL(href, window.location.origin);
+                    if (url.origin !== window.location.origin) return false;
+                    if (url.pathname === window.location.pathname && url.search === window.location.search) return false;
+                    if (url.pathname.includes('/logout') || url.pathname.includes('/delete')) return false;
+                    if (/\.(pdf|zip|jpg|jpeg|png|webp|svg|mp4)$/i.test(url.pathname)) return false;
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            let hoverTimer = null;
+            document.addEventListener('mouseover', (e) => {
+                const anchor = e.target.closest('a');
+                if (!isEligible(anchor)) return;
+                
+                hoverTimer = setTimeout(() => {
+                    prefetchUrl(anchor.href);
+                }, 65);
+            }, { passive: true });
+
+            document.addEventListener('mouseout', (e) => {
+                if (hoverTimer) {
+                    clearTimeout(hoverTimer);
+                    hoverTimer = null;
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchstart', (e) => {
+                const anchor = e.target.closest('a');
+                if (isEligible(anchor)) {
+                    prefetchUrl(anchor.href);
+                }
+            }, { passive: true });
+        })();
+    </script>
+
     @stack('scripts')
 </body>
 </html>

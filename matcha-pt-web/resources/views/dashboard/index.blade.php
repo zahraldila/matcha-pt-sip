@@ -248,7 +248,7 @@
                     <div class="glass-card rounded-2xl overflow-hidden group flex flex-col justify-between">
                         <div>
                             <div class="relative h-44 overflow-hidden">
-                                <img src="{{ $venue['image'] }}" alt="{{ $venue['name'] }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80';">
+                                <img src="{{ $venue['image'] }}" alt="{{ $venue['name'] }}" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80';">
                                 <div class="absolute top-3 left-3">
                                     <x-badge :type="strtolower($venue['sport']) === 'tennis' ? 'tennis' : 'padel'">
                                         {{ $venue['sport'] }}
@@ -302,7 +302,7 @@
                     <div class="glass-card rounded-2xl overflow-hidden group flex flex-col justify-between">
                         <div>
                             <div class="relative h-44 overflow-hidden">
-                                <img src="{{ $comm['image'] }}" alt="{{ $comm['name'] }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                                <img src="{{ $comm['image'] }}" alt="{{ $comm['name'] }}" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                                 <div class="absolute top-3 left-3">
                                     <x-badge :type="strtolower($comm['sport']) === 'tennis' ? 'tennis' : 'padel'">
                                         {{ $comm['sport'] }}

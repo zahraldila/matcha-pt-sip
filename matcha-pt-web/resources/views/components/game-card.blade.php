@@ -95,6 +95,8 @@
                             <img src="{{ $participant['avatar'] }}" 
                                  alt="{{ $participant['name'] }}" 
                                  title="{{ $participant['name'] }} ({{ $participant['level'] }})" 
+                                 loading="lazy"
+                                 decoding="async"
                                  class="inline-block h-6 w-6 rounded-full ring-2 ring-white object-cover">
                         @else
                             <div title="{{ $participant['name'] }} ({{ $participant['level'] }})" 

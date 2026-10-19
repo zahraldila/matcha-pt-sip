@@ -275,7 +275,7 @@
             <!-- Player Profile & Highlight -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="flex items-center gap-3.5">
-                    <img src="{{ $recap['player']['avatar'] }}" alt="{{ $recap['player']['name'] }}" class="w-14 h-14 rounded-full object-cover ring-2 ring-[#063B00]/40 shadow-xs">
+                    <img src="{{ $recap['player']['avatar'] }}" alt="{{ $recap['player']['name'] }}" loading="lazy" decoding="async" class="w-14 h-14 rounded-full object-cover ring-2 ring-[#063B00]/40 shadow-xs">
                     <div>
                         <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                             {{ $recap['player']['name'] }}
@@ -547,7 +547,7 @@
                             
                             <!-- Player Profile Info -->
                             <div class="flex items-center gap-2.5 pt-1">
-                                <img src="{{ $recap['player']['avatar'] }}" alt="{{ $recap['player']['name'] }}" class="w-10 h-10 rounded-full object-cover border-2 border-[#A8E63A] shadow-md shrink-0">
+                                <img src="{{ $recap['player']['avatar'] }}" alt="{{ $recap['player']['name'] }}" loading="lazy" decoding="async" class="w-10 h-10 rounded-full object-cover border-2 border-[#A8E63A] shadow-md shrink-0">
                                 <div class="min-w-0 flex-1">
                                     <h4 class="text-xs font-black text-white truncate leading-tight flex items-center gap-1.5">
                                         {{ $recap['player']['name'] }}
@@ -618,7 +618,7 @@
                         <div class="space-y-2.5 my-auto">
                             <div class="text-center space-y-1.5">
                                 <div class="inline-block">
-                                    <img src="{{ $recap['player']['avatar'] }}" alt="{{ $recap['player']['name'] }}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto ring-4 ring-[#A8E63A]/60 shadow-xl">
+                                    <img src="{{ $recap['player']['avatar'] }}" alt="{{ $recap['player']['name'] }}" loading="lazy" decoding="async" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto ring-4 ring-[#A8E63A]/60 shadow-xl">
                                 </div>
                                 <h3 class="text-sm font-black text-white truncate">{{ $recap['player']['name'] }}</h3>
                                 <p class="text-[9px] text-slate-400">{{ $recap['player']['community'] ?? 'Matcha Community Player' }}</p>

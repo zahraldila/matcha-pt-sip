@@ -146,7 +146,7 @@
                     <div class="bulk-item-card glass-card rounded-3xl overflow-hidden flex flex-col justify-between group border border-white/90 transition-all duration-200 hover:shadow-md flex-1">
                     <div>
                         <a href="{{ route('communities.show', $comm['id']) }}" class="block relative h-44 overflow-hidden bg-slate-100 group/thumb">
-                            <img src="{{ $comm['image'] }}" alt="{{ $comm['name'] }}" class="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-300">
+                            <img src="{{ $comm['image'] }}" alt="{{ $comm['name'] }}" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-300">
                             <div class="absolute top-3 left-3">
                                 <x-badge :type="strtolower($comm['sport']) === 'tennis' ? 'tennis' : (in_array(strtolower($comm['sport']), ['all racquet', 'padel & tennis', 'both', 'all_racquet']) ? 'padel & tennis' : 'padel')">
                                     {{ $comm['sport'] }}

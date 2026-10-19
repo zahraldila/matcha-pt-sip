@@ -116,7 +116,7 @@
                                 onclick="document.getElementById('mainVenuePhoto').src = '{{ $photoUrl }}'; document.getElementById('mainVenuePhoto')?.classList.remove('hidden'); document.getElementById('venuePhotoPlaceholder')?.classList.add('hidden'); document.querySelectorAll('.venue-thumb').forEach(el => el.classList.remove('ring-2', 'ring-[#063B00]', 'opacity-100')); this.classList.add('ring-2', 'ring-[#063B00]', 'opacity-100');"
                                 class="venue-thumb relative h-16 w-24 sm:h-20 sm:w-28 shrink-0 rounded-xl overflow-hidden border border-slate-200 transition-all cursor-pointer hover:opacity-100 {{ $idx === 0 ? 'ring-2 ring-[#063B00] opacity-100' : 'opacity-70 hover:scale-105' }}"
                             >
-                                <img src="{{ $photoUrl }}" alt="Foto {{ $idx + 1 }}" class="w-full h-full object-cover" onerror="this.closest('.venue-thumb').style.display='none'">
+                                <img src="{{ $photoUrl }}" alt="Foto {{ $idx + 1 }}" loading="lazy" decoding="async" class="w-full h-full object-cover" onerror="this.closest('.venue-thumb').style.display='none'">
                                 @if($idx === 0)
                                     <span class="absolute bottom-1 left-1 bg-[#063B00] text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow-xs">
                                         Cover

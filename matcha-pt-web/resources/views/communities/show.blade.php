@@ -216,7 +216,7 @@
                                             <div class="flex items-center gap-2">
                                                 @php $avatar = $player->foto ?? ($player->user->foto ?? null); @endphp
                                                 @if($avatar)
-                                                    <img src="{{ $avatar }}" alt="{{ $player->nama }}" class="w-6 h-6 rounded-full object-cover">
+                                                    <img src="{{ $avatar }}" alt="{{ $player->nama }}" loading="lazy" decoding="async" class="w-6 h-6 rounded-full object-cover">
                                                 @else
                                                     <div class="w-6 h-6 rounded-full bg-[#063B00] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
                                                         {{ strtoupper(substr($player->nama ?? 'M', 0, 1)) }}
