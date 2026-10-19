@@ -267,17 +267,29 @@ class SupabaseStorageService
             ];
         }
 
+        $originalContent = @file_get_contents($file->getRealPath());
+        if ($originalContent === false) {
+            return [
+                'success' => false,
+                'message' => 'Gagal membaca foto profil yang diunggah.',
+            ];
+        }
+
+        $webpContent = $this->convertAvatarToWebp($originalContent);
+        $fileContent = $webpContent ?? $originalContent;
+        $storedExtension = $webpContent !== null ? 'webp' : $ext;
+        $mimeType = $webpContent !== null
+            ? 'image/webp'
+            : ($file->getMimeType() ?: ('image/'.($ext === 'jpg' ? 'jpeg' : $ext)));
+
         $cleanRandom = Str::random(12);
-        $fileName = "avatar_{$cleanRandom}_".time().".{$ext}";
+        $fileName = "avatar_{$cleanRandom}_".time().".{$storedExtension}";
 
         // 1. Coba upload ke Supabase Storage jika terkonfigurasi
         if ($this->isConfigured()) {
             $endpoint = "{$this->url}/storage/v1/object/{$this->avatarBucket}/{$fileName}";
 
             try {
-                $mimeType = $file->getMimeType() ?: ('image/'.($ext === 'jpg' ? 'jpeg' : $ext));
-                $fileContent = file_get_contents($file->getRealPath());
-
                 $response = Http::timeout(6)
                     ->connectTimeout(3)
                     ->withHeaders([
@@ -313,7 +325,11 @@ class SupabaseStorageService
                 mkdir($localDir, 0755, true);
             }
 
-            $file->move($localDir, $fileName);
+            $localPath = $localDir.DIRECTORY_SEPARATOR.$fileName;
+            if (file_put_contents($localPath, $fileContent, LOCK_EX) === false) {
+                throw new \RuntimeException('Gagal menulis foto profil ke penyimpanan lokal.');
+            }
+
             $localUrl = asset('uploads/avatars/'.$fileName);
 
             return [
@@ -329,6 +345,73 @@ class SupabaseStorageService
                 'message' => 'Gagal menyimpan foto profil: '.$localEx->getMessage(),
             ];
         }
+    }
+
+    protected function convertAvatarToWebp(string $fileContent): ?string
+    {
+        if (! function_exists('imagecreatefromstring') || ! function_exists('imagewebp') || ! function_exists('getimagesizefromstring')) {
+            return null;
+        }
+
+        $imageInfo = @getimagesizefromstring($fileContent);
+        if (! is_array($imageInfo) || empty($imageInfo[0]) || empty($imageInfo[1])) {
+            return null;
+        }
+
+        $sourceWidth = (int) $imageInfo[0];
+        $sourceHeight = (int) $imageInfo[1];
+        if (($imageInfo[2] ?? null) === IMAGETYPE_JPEG && str_contains(substr($fileContent, 0, 65536), "Exif\0\0")) {
+            return null;
+        }
+        if ($sourceWidth * $sourceHeight > 16_000_000) {
+            return null;
+        }
+
+        $sourceImage = @imagecreatefromstring($fileContent);
+        if ($sourceImage === false) {
+            return null;
+        }
+
+        $scale = min(1, 512 / max($sourceWidth, $sourceHeight));
+        $targetWidth = max(1, (int) round($sourceWidth * $scale));
+        $targetHeight = max(1, (int) round($sourceHeight * $scale));
+        $targetImage = imagecreatetruecolor($targetWidth, $targetHeight);
+
+        if ($targetImage === false) {
+            imagedestroy($sourceImage);
+
+            return null;
+        }
+
+        imagealphablending($targetImage, false);
+        imagesavealpha($targetImage, true);
+        $transparent = imagecolorallocatealpha($targetImage, 0, 0, 0, 127);
+        imagefill($targetImage, 0, 0, $transparent);
+        imagecopyresampled(
+            $targetImage,
+            $sourceImage,
+            0,
+            0,
+            0,
+            0,
+            $targetWidth,
+            $targetHeight,
+            $sourceWidth,
+            $sourceHeight
+        );
+
+        ob_start();
+        $encoded = @imagewebp($targetImage, null, 82);
+        $convertedContent = ob_get_clean();
+
+        imagedestroy($sourceImage);
+        imagedestroy($targetImage);
+
+        if (! $encoded || ! is_string($convertedContent) || $convertedContent === '') {
+            return null;
+        }
+
+        return $convertedContent;
     }
 
     /**

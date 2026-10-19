@@ -47,6 +47,8 @@ class AvatarStorageAndProfileTest extends TestCase
 
     public function test_upload_avatar_succeeds_with_local_fallback()
     {
+        config(['services.supabase.service_key' => null, 'services.supabase.key' => null]);
+
         $service = new SupabaseStorageService;
         $file = UploadedFile::fake()->image('my_avatar.png', 200, 200);
 
@@ -54,10 +56,31 @@ class AvatarStorageAndProfileTest extends TestCase
         $this->assertTrue($result['success']);
         $this->assertNotEmpty($result['url']);
         $this->assertNotEmpty($result['filename']);
+        $this->assertStringEndsWith('.webp', $result['filename']);
+
+        $storedImage = getimagesize(public_path('uploads/avatars/'.$result['filename']));
+        $this->assertSame('image/webp', $storedImage['mime'] ?? null);
 
         // Clean up test upload
         if (! empty($result['filename'])) {
             $service->deleteAvatar($result['filename']);
         }
+    }
+
+    public function test_upload_avatar_converts_jpeg_to_webp_with_local_fallback()
+    {
+        config(['services.supabase.service_key' => null, 'services.supabase.key' => null]);
+
+        $service = new SupabaseStorageService;
+        $file = UploadedFile::fake()->image('my_avatar.jpg', 200, 200);
+
+        $result = $service->uploadAvatar($file);
+
+        $this->assertTrue($result['success']);
+        $this->assertStringEndsWith('.webp', $result['filename']);
+        $storedImage = getimagesize(public_path('uploads/avatars/'.$result['filename']));
+        $this->assertSame('image/webp', $storedImage['mime'] ?? null);
+
+        $service->deleteAvatar($result['filename']);
     }
 }
