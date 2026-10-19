@@ -265,6 +265,10 @@
                         <span>{{ $tabDisplayTitle }}</span>
                         @if($isRCompleted)
                             <span class="text-[9px] px-1.5 py-0.2 rounded-md font-extrabold {{ $isTabActive ? 'bg-white/20 text-[#A8E63A]' : 'bg-emerald-50 text-emerald-700 border border-emerald-200' }}">✓ Selesai</span>
+                        @elseif($rNumber === $currActiveNum)
+                            <span class="text-[9px] px-1.5 py-0.2 rounded-md font-extrabold flex items-center gap-1 {{ $isTabActive ? 'bg-white/20 text-[#A8E63A]' : 'bg-rose-50 text-rose-700 border border-rose-200' }}">
+                                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span> Live
+                            </span>
                         @endif
                     </a>
                 @else
@@ -282,6 +286,29 @@
             @endforeach
         </div>
     </div>
+    @endif
+
+    @php
+        $activeRoundNumInt = (int) (preg_replace('/[^0-9]/', '', $activeRound) ?: 1);
+        $currActiveNumInt = (int) (preg_replace('/[^0-9]/', '', $savedScores['_meta']['active_round'] ?? 'round_1') ?: 1);
+        $isViewingPastRound = $activeRoundNumInt < $currActiveNumInt;
+    @endphp
+
+    @if($isViewingPastRound)
+        <div class="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
+            <div class="flex items-center gap-2.5 text-amber-900">
+                <i class="fa-solid fa-clock-rotate-left text-amber-600 text-sm shrink-0"></i>
+                <span class="font-medium">
+                    Anda sedang melihat riwayat skor <strong>{{ $unitTabLabel }} {{ $activeRoundNumInt }}</strong> (Telah Selesai).
+                </span>
+            </div>
+            <a href="{{ route('scoring.live', ['id' => $game['id'], 'format' => request('format', $game['match_format'] ?? 'Americano'), 'round' => "round_{$currActiveNumInt}"]) }}" 
+               class="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#063B00] hover:bg-[#042a00] text-white font-bold text-xs shadow-xs transition-all active:scale-95 shrink-0">
+                <span class="w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>
+                <span>Tonton {{ $unitTabLabel }} {{ $currActiveNumInt }} (Sedang Live)</span>
+                <i class="fa-solid fa-arrow-right text-[10px]"></i>
+            </a>
+        </div>
     @endif
 
     
@@ -1166,6 +1193,8 @@
     const GAME_ID        = {{ $game['id'] }};
     const ACTIVE_ROUND   = '{{ $activeRound }}';
     const ACTIVE_ROUND_NUM = '{{ preg_replace('/[^0-9]/', '', $activeRound) ?: '1' }}';
+    const SESSION_ACTIVE_ROUND_NUM = {{ (int) (preg_replace('/[^0-9]/', '', $savedScores['_meta']['active_round'] ?? 'round_1') ?: 1) }};
+    const IS_VIEWING_PAST_ROUND = {{ ((int) (preg_replace('/[^0-9]/', '', $activeRound) ?: 1)) < ((int) (preg_replace('/[^0-9]/', '', $savedScores['_meta']['active_round'] ?? 'round_1') ?: 1)) ? 'true' : 'false' }};
     const UNIT_TAB_LABEL = '{{ $unitTabLabel }}';
     const CSRF_TOKEN     = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
     const UPDATE_URL     = '{{ route('scoring.update-score') }}';
@@ -2578,6 +2607,13 @@
         // Host tidak boleh di-hijack oleh Realtime/polling background karena navigasi Host dikendalikan penuh oleh submit form ke Drawing
         if (IS_HOST) {
             console.log(`[${sourceName}] Host ignore auto-transition event (Host advances via bottom button form)`);
+            return;
+        }
+
+        // JIKA PENONTON/PEMAIN SEDANG SENGAJA MELIHAT RIWAYAT RONDE LAMPAU:
+        // DILARANG me-redirect paksa penonton. Biarkan mereka membaca rekap ronde lampau dengan tenang.
+        if (IS_VIEWING_PAST_ROUND) {
+            console.log(`[${sourceName}] Penonton/Pemain sedang melihat arsip ronde lampau (${ACTIVE_ROUND}). Auto-transition diabaikan.`);
             return;
         }
 
