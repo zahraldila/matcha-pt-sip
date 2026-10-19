@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Game;
 use App\Http\Controllers\Controller;
 use App\Models\Court;
 use App\Models\Drawing;
-use App\Models\Game\MatchScore;
 use App\Models\GameMatch;
 use App\Models\Kudos;
 use App\Models\MatchParticipant;
@@ -185,6 +184,7 @@ class GameController extends Controller
         $userId = $user ? $user->user_id : null;
         $userEmail = $user ? strtolower(trim($user->email ?? '')) : null;
         $userName = $user ? strtolower(trim($user->nama ?? '')) : null;
+        $isAdmin = $user?->role === 'admin';
 
         $ownedVenueIds = [];
         if ($user) {
@@ -263,7 +263,7 @@ class GameController extends Controller
             $allDbSessions = $sessionQuery->get();
         }
 
-        $allMappedGames = $allDbSessions->map(function ($s) use ($userId, $userEmail, $userName, $ownedVenueIds) {
+        $allMappedGames = $allDbSessions->map(function ($s) use ($userId, $userEmail, $userName, $ownedVenueIds, $isAdmin) {
             $joinedCount = $s->players->count();
             $quota = (int) ($s->jumlah_pemain ?? 6);
             $slotLeft = max(0, $quota - $joinedCount);
@@ -330,7 +330,7 @@ class GameController extends Controller
                 'is_live' => $isLive,
                 'is_upcoming' => $isUpcoming,
                 'is_available' => $isAvailable,
-                'can_delete' => ! $isFinished && ! in_array(strtolower($s->status_session ?? ''), ['in progress', 'in_progress', 'live', 'playing', 'finished', 'completed', 'selesai']),
+                'can_delete' => $isAdmin,
                 'level_recommendation' => 'All Level Welcome',
                 'match_format' => $formatString,
                 'scoring_system' => $s->scoring_system ?? 'Total of 3',
@@ -1895,38 +1895,7 @@ class GameController extends Controller
 
         try {
             DB::beginTransaction();
-
-            // 1. Hapus Kudos terkait sesi jika tabel ada
-            if (Schema::hasTable('tb_kudos')) {
-                Kudos::where('session_id', $session->session_id)->delete();
-            }
-
-            // 2. Hapus Drawing dan Match terkait sesi jika tabel ada
-            if (Schema::hasTable('tb_drawing')) {
-                $drawings = Drawing::where('session_id', $session->session_id)->get();
-                foreach ($drawings as $drawing) {
-                    if (Schema::hasTable('tb_match')) {
-                        $matches = GameMatch::where('drawing_id', $drawing->drawing_id)->get();
-                        foreach ($matches as $match) {
-                            if (Schema::hasTable('tb_match_participant')) {
-                                MatchParticipant::where('match_id', $match->match_id)->delete();
-                            }
-                            if (Schema::hasTable('tb_match_score')) {
-                                MatchScore::where('match_id', $match->match_id)->delete();
-                            }
-                            $match->delete();
-                        }
-                    }
-                    $drawing->delete();
-                }
-            }
-
-            // 3. Detach pivot players & courts
-            $session->players()->detach();
-            $session->courts()->detach();
-
-            // 4. Hapus record session
-            $sessionTitle = $session->nama_session;
+            $sessionTitle = $this->deleteSessionPermanently($session);
             $session->delete();
 
             DB::commit();
@@ -1971,7 +1940,6 @@ class GameController extends Controller
         try {
             DB::beginTransaction();
             $deletedCount = 0;
-            $skippedCount = 0;
 
             foreach ($ids as $id) {
                 $session = SessionModel::find($id);
@@ -1979,36 +1947,7 @@ class GameController extends Controller
                     continue;
                 }
 
-                // 1. Hapus Kudos terkait sesi jika tabel ada
-                if (Schema::hasTable('tb_kudos')) {
-                    Kudos::where('session_id', $session->session_id)->delete();
-                }
-
-                // 2. Hapus Drawing dan Match terkait sesi jika tabel ada
-                if (Schema::hasTable('tb_drawing')) {
-                    $drawings = Drawing::where('session_id', $session->session_id)->get();
-                    foreach ($drawings as $drawing) {
-                        if (Schema::hasTable('tb_match')) {
-                            $matches = GameMatch::where('drawing_id', $drawing->drawing_id)->get();
-                            foreach ($matches as $match) {
-                                if (Schema::hasTable('tb_match_participant')) {
-                                    MatchParticipant::where('match_id', $match->match_id)->delete();
-                                }
-                                if (Schema::hasTable('tb_match_score')) {
-                                    MatchScore::where('match_id', $match->match_id)->delete();
-                                }
-                                $match->delete();
-                            }
-                        }
-                        $drawing->delete();
-                    }
-                }
-
-                // 3. Detach pivot players & courts
-                $session->players()->detach();
-                $session->courts()->detach();
-
-                // 4. Hapus session
+                $this->deleteSessionPermanently($session);
                 $session->delete();
                 $deletedCount++;
             }
@@ -2021,6 +1960,45 @@ class GameController extends Controller
 
             return back()->with('error', 'Gagal menghapus jadwal mabar: '.$e->getMessage());
         }
+    }
+
+    private function deleteSessionPermanently(SessionModel $session): string
+    {
+        if (Schema::hasTable('tb_kudos')) {
+            Kudos::where('session_id', $session->session_id)->delete();
+        }
+
+        if (Schema::hasTable('tb_drawing')) {
+            $drawingIds = Drawing::where('session_id', $session->session_id)->pluck('drawing_id');
+
+            if ($drawingIds->isNotEmpty()) {
+                if (Schema::hasTable('tb_drawing_participant')) {
+                    DB::table('tb_drawing_participant')->whereIn('drawing_id', $drawingIds)->delete();
+                }
+
+                if (Schema::hasTable('tb_match')) {
+                    $matchIds = GameMatch::whereIn('drawing_id', $drawingIds)->pluck('match_id');
+
+                    if ($matchIds->isNotEmpty()) {
+                        foreach (['tb_match_participant', 'tb_match_score', 'tb_score', 'tb_playing_history'] as $table) {
+                            if (Schema::hasTable($table)) {
+                                DB::table($table)->whereIn('match_id', $matchIds)->delete();
+                            }
+                        }
+
+                        GameMatch::whereIn('match_id', $matchIds)->delete();
+                    }
+                }
+
+                Drawing::whereIn('drawing_id', $drawingIds)->delete();
+            }
+        }
+
+        $sessionTitle = $session->nama_session;
+        $session->players()->detach();
+        $session->courts()->detach();
+
+        return $sessionTitle;
     }
 
     /**

@@ -431,6 +431,60 @@ class EndMatchFeatureTest extends TestCase
         $this->assertSame('In Progress', $reloadedSession->status_session);
     }
 
+    public function test_admin_can_bulk_delete_sessions_in_any_status_and_remove_finished_scores()
+    {
+        $env = $this->createIsolatedEnvironment(1);
+        $finishedSession = $env['session'];
+        $finishedSession->update(['status_session' => 'Finished']);
+
+        $readySession = SessionModel::create([
+            'host_user_id' => $finishedSession->host_user_id,
+            'sport_id' => $finishedSession->sport_id,
+            'venue_id' => $finishedSession->venue_id,
+            'nama_session' => 'Ready Session Test',
+            'scoring_system' => 'Total of 3',
+            'status_session' => 'Ready for Drawing',
+            'jumlah_pemain' => '4',
+            'jenis_permainan' => 'Double',
+        ]);
+        $inProgressSession = SessionModel::create([
+            'host_user_id' => $finishedSession->host_user_id,
+            'sport_id' => $finishedSession->sport_id,
+            'venue_id' => $finishedSession->venue_id,
+            'nama_session' => 'In Progress Session Test',
+            'scoring_system' => 'Total of 3',
+            'status_session' => 'In Progress',
+            'jumlah_pemain' => '4',
+            'jenis_permainan' => 'Double',
+        ]);
+
+        $admin = User::create([
+            'nama' => 'Delete Admin',
+            'email' => 'delete-admin-'.uniqid().'@test.com',
+            'role' => 'admin',
+        ]);
+        $sessionIds = [$readySession->session_id, $inProgressSession->session_id, $finishedSession->session_id];
+        $matchIds = GameMatch::whereIn('drawing_id', [$env['drawing']->drawing_id])->pluck('match_id');
+
+        $indexResponse = $this->actingAs($admin)->get(route('games.index'));
+        $indexResponse->assertOk();
+        foreach ($indexResponse->viewData('games')->whereIn('id', $sessionIds) as $game) {
+            $this->assertTrue($game['can_delete']);
+        }
+
+        $response = $this->delete(route('games.bulkDestroy'), ['selected_ids' => $sessionIds]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success', '3 jadwal mabar berhasil dihapus.');
+        foreach ($sessionIds as $sessionId) {
+            $this->assertDatabaseMissing('tb_session', ['session_id' => $sessionId]);
+        }
+        $this->assertSame(0, DB::table('tb_score')->whereIn('match_id', $matchIds)->count());
+        $this->assertSame(0, DB::table('tb_match_participant')->whereIn('match_id', $matchIds)->count());
+        $this->assertSame(0, GameMatch::whereIn('match_id', $matchIds)->count());
+        $this->assertDatabaseMissing('tb_drawing', ['drawing_id' => $env['drawing']->drawing_id]);
+    }
+
     /**
      * Test 2: Kondisi A: semua pemain tetap ikut ronde berikutnya.
      */
