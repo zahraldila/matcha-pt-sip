@@ -274,12 +274,12 @@ class ScoringEngine {
   static ScoringSystemConfig detectScoringSystem([String? scoringSystem]) {
     final str = (scoringSystem ?? '').trim();
 
-    // Group Total of X (Sets)
+    // Group Total of X (Sets) - Supports 3..10
     final totalOfRegex = RegExp(r'total\s*of\s*(\d+)', caseSensitive: false);
     final totalOfMatch = totalOfRegex.firstMatch(str);
     if (totalOfMatch != null) {
       int sets = int.tryParse(totalOfMatch.group(1) ?? '3') ?? 3;
-      if (![3, 4, 5, 6, 7].contains(sets)) {
+      if (![3, 4, 5, 6, 7, 8, 9, 10].contains(sets)) {
         sets = 3;
       }
       final targetSets = (sets ~/ 2) + 1;
@@ -294,12 +294,12 @@ class ScoringEngine {
       );
     }
 
-    // Group First to X (Games)
+    // Group First to X (Games) - Supports 2..10 and legacy 11, 15, 21
     final firstToRegex = RegExp(r'first\s*to\s*(\d+)', caseSensitive: false);
     final firstToMatch = firstToRegex.firstMatch(str);
     if (firstToMatch != null) {
       int games = int.tryParse(firstToMatch.group(1) ?? '8') ?? 8;
-      if (![8, 11, 15, 21].contains(games)) {
+      if (![2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 21].contains(games)) {
         games = 8;
       }
       return ScoringSystemConfig(
