@@ -100,31 +100,29 @@ class GameWizardConfig {
   int? customTotalRounds;
 
   int get maxTargetPoints {
-    if (scoringSystem.contains('32')) return 32;
-    if (scoringSystem.contains('21')) return 21;
-    if (scoringSystem.contains('15')) return 15;
-    if (scoringSystem.contains('11')) return 11;
-    if (scoringSystem.contains('8')) return 8;
-    if (scoringSystem.contains('7')) return 7;
-    if (scoringSystem.contains('6')) return 6;
-    if (scoringSystem.contains('5')) return 5;
-    if (scoringSystem.contains('4')) return 4;
-    if (scoringSystem.contains('3')) return 3;
-    return 3;
+    final firstToRegex = RegExp(r'first\s*to\s*(\d+)', caseSensitive: false);
+    final mFirst = firstToRegex.firstMatch(scoringSystem);
+    if (mFirst != null) return int.tryParse(mFirst.group(1) ?? '') ?? 8;
+
+    final totalOfRegex = RegExp(r'total\s*of\s*(\d+)', caseSensitive: false);
+    final mTotal = totalOfRegex.firstMatch(scoringSystem);
+    if (mTotal != null) return int.tryParse(mTotal.group(1) ?? '') ?? 3;
+
+    return 8;
   }
 
   int get totalRounds {
     if (customTotalRounds != null && customTotalRounds! > 0) {
       return customTotalRounds!;
     }
-    final clean = scoringSystem.toLowerCase();
-
-    if (clean.contains('total of 7')) return 7;
-    if (clean.contains('total of 6')) return 6;
-    if (clean.contains('total of 5')) return 5;
-    if (clean.contains('total of 4')) return 4;
-    if (clean.contains('total of 3')) return 3;
-    if (clean.contains('total of 8')) return 8;
+    
+    // 1. Total of N: Jumlah set/ronde yang dimainkan adalah N (sama persis dengan Laravel ScoringService)
+    final totalOfRegex = RegExp(r'total\s*of\s*(\d+)', caseSensitive: false);
+    final totalOfMatch = totalOfRegex.firstMatch(scoringSystem);
+    if (totalOfMatch != null) {
+      final n = int.tryParse(totalOfMatch.group(1) ?? '');
+      if (n != null && n > 0) return n;
+    }
 
     final isSingle = playMode.toLowerCase() == 'single';
     final isTeam = gameType.toLowerCase().contains('team');

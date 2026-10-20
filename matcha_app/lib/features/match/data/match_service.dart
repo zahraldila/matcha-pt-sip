@@ -118,6 +118,17 @@ class MatchService {
     }
   }
 
+  /// Resolusi integer ID pemain dari GamePlayerItem (mendukung playerId, numeric id, user_X, guest_db_X)
+  static int? resolvePlayerId(GamePlayerItem? player) {
+    if (player == null) return null;
+    if (player.playerId != null && player.playerId! > 0) return player.playerId;
+    final direct = int.tryParse(player.id);
+    if (direct != null && direct > 0) return direct;
+    final match = RegExp(r'\d+').firstMatch(player.id);
+    if (match != null) return int.tryParse(match.group(0)!);
+    return null;
+  }
+
   /// Mengambil drawing_id aktif untuk suatu session_id, memprioritaskan
   /// drawing yang memiliki data match tersimpan sebagai sumber aktif pertandingan.
   Future<int?> getLatestDrawingId(dynamic sessionId) async {
@@ -776,6 +787,9 @@ class MatchService {
     String? stopType,
     int? stoppedByUserId,
     String? hasilPertandingan,
+    List<int>? pausedPlayerIds,
+    List<int>? withdrawnPlayerIds,
+    Map<int, String>? playerReasons,
   }) async {
     final now = DateTime.now();
     final nowIso = now.toIso8601String();
@@ -805,6 +819,33 @@ class MatchService {
           .eq('match_id', matchId);
     } catch (_) {}
 
+    // Perbarui status pemain di tb_session_player jika ada pemain yang diistirahatkan/keluar
+    final parsedSessionId = int.tryParse(sessionId?.toString() ?? '') ?? sessionId;
+    if (parsedSessionId != null) {
+      if (pausedPlayerIds != null && pausedPlayerIds.isNotEmpty) {
+        for (final pId in pausedPlayerIds) {
+          try {
+            await _supabase.from('tb_session_player').update({
+              'status': 'resting',
+              'withdrawn_reason': playerReasons?[pId] ?? reason,
+            }).eq('session_id', parsedSessionId).eq('player_id', pId);
+          } catch (_) {}
+        }
+      }
+
+      if (withdrawnPlayerIds != null && withdrawnPlayerIds.isNotEmpty) {
+        for (final pId in withdrawnPlayerIds) {
+          try {
+            await _supabase.from('tb_session_player').update({
+              'status': 'withdrawn',
+              'withdrawn_reason': playerReasons?[pId] ?? reason,
+              'withdrawn_at': nowIso,
+            }).eq('session_id', parsedSessionId).eq('player_id', pId);
+          } catch (_) {}
+        }
+      }
+    }
+
     // Broadcast status change setelah DB berhasil
     try {
       final channelName = sessionId != null
@@ -819,6 +860,8 @@ class MatchService {
           'session_id': sessionId,
           'stop_reason': reason,
           'stop_type': stopType ?? 'stop',
+          'paused_player_ids': pausedPlayerIds,
+          'withdrawn_player_ids': withdrawnPlayerIds,
           'timestamp': now.millisecondsSinceEpoch,
         },
       );

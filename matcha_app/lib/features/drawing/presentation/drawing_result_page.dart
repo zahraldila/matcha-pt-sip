@@ -567,6 +567,14 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
             onPressed: _goToSessionDetail,
           ),
+          actions: [
+            if (_isHostUser)
+              IconButton(
+                icon: const Icon(Icons.manage_accounts_outlined, color: AppColors.matchaDark),
+                tooltip: 'Kelola Status Pemain',
+                onPressed: _showPlayerStatusManagementModal,
+              ),
+          ],
         ),
         body: Center(
           child: Padding(
@@ -1413,7 +1421,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                                   ),
                                 ],
                               ),
-                              if (_isHostUser && _effectiveSessionId != null) ...[
+                              if (_isHostUser) ...[
                                 const SizedBox(height: 8),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
@@ -1498,15 +1506,21 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     }
 
     try {
-      final pId = p.playerId ?? int.tryParse(p.id) ?? 0;
-      final res = await _matchService.managePlayerStatus(
-        sessionId: _effectiveSessionId,
-        playerId: pId,
-        action: action,
-        reason: reason,
-      );
+      final pId = MatchService.resolvePlayerId(p) ?? p.playerId ?? int.tryParse(p.id) ?? 0;
+      if (_effectiveSessionId != null && pId > 0) {
+        try {
+          await _matchService.managePlayerStatus(
+            sessionId: _effectiveSessionId,
+            playerId: pId,
+            action: action,
+            reason: reason,
+          );
+        } catch (e) {
+          debugPrint('[Drawing] managePlayerStatus backend call: $e');
+        }
+      }
 
-      final newStatus = res['status']?.toString() ?? (action == 'pause' ? 'resting' : (action == 'withdraw' ? 'withdrawn' : 'active'));
+      final newStatus = (action == 'pause' ? 'resting' : (action == 'withdraw' ? 'withdrawn' : 'active'));
       final idx = _config.players.indexWhere((item) => item.id == p.id);
       if (idx != -1) {
         _config.players[idx] = GamePlayerItem(
@@ -1526,8 +1540,25 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       setSheetState(() {});
       setState(() {});
 
-      // Refresh drawing
-      _shuffleDrawing();
+      // Drawing reconciliation:
+      if (!_isLocked) {
+        await _shuffleDrawing();
+      } else {
+        if (mounted) {
+          final msg = action == 'pause'
+              ? '${p.name} berhasil diistirahatkan ke bangku cadangan.'
+              : (action == 'withdraw'
+                  ? '${p.name} berhasil dikeluarkan dari sesi.'
+                  : '${p.name} berhasil diaktifkan kembali.');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(msg),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: const Color(0xFF15803D),
+            ),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

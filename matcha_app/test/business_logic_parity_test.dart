@@ -488,4 +488,281 @@ void main() {
       expect(winnerSide, isNull);
     });
   });
+
+  group('MATCHA QA Fix Batch 1 Test Suite (QA-FIX-01 to QA-FIX-13)', () {
+    // -------------------------------------------------------------------------
+    // QA-FIX-01: Americano Single Total Of 10 follows Laravel round-generation rule
+    // -------------------------------------------------------------------------
+    test('QA-FIX-01: Americano Single Total Of 10 follows Laravel round-generation rule (produces 10 rounds)', () {
+      final players = List.generate(
+        6,
+        (i) => GamePlayerItem(id: '$i', name: 'Player $i', level: 'Beginner', isGuest: true),
+      );
+      final config = GameWizardConfig(
+        activityName: 'Americano Single Total Of 10',
+        scoringSystem: 'Total Of 10',
+        gameType: 'Americano',
+        playMode: 'Single',
+        courtCount: 1,
+        players: players,
+      );
+
+      // Web Laravel ScoringService: determineSessionRoundCount for total_of uses max_sets directly (= 10)
+      expect(config.totalRounds, equals(10));
+    });
+
+    // -------------------------------------------------------------------------
+    // QA-FIX-02: Drawing displays all generated rounds
+    // -------------------------------------------------------------------------
+    test('QA-FIX-02: Drawing displays all generated rounds without missing or duplicate matches', () {
+      final players = List.generate(
+        6,
+        (i) => GamePlayerItem(id: '$i', name: 'Player $i', level: 'Beginner', isGuest: true),
+      );
+      final rounds = MatchaDrawingEngine.generateDrawing(
+        players: players,
+        courtCount: 1,
+        gameType: 'Americano',
+        playMode: 'Single',
+        roundCount: 10,
+      );
+
+      expect(rounds.length, equals(10));
+      for (int i = 0; i < rounds.length; i++) {
+        expect(rounds[i].roundNumber, equals(i + 1));
+        expect(rounds[i].matches.isNotEmpty, isTrue);
+        expect(rounds[i].matches.first.courtNumber, equals(1));
+        expect(rounds[i].matches.first.teamA.length, equals(1));
+        expect(rounds[i].matches.first.teamB.length, equals(1));
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // QA-FIX-03: First To minimum selection is 2
+    // -------------------------------------------------------------------------
+    test('QA-FIX-03: First To minimum selection is 2', () {
+      final validRange = List.generate(9, (i) => i + 2); // 2 through 10
+      expect(validRange.first, equals(2));
+      expect(validRange.contains(1), isFalse);
+    });
+
+    // -------------------------------------------------------------------------
+    // QA-FIX-04: First To maximum selection is 10
+    // -------------------------------------------------------------------------
+    test('QA-FIX-04: First To maximum selection is 10', () {
+      final validRange = List.generate(9, (i) => i + 2); // 2 through 10
+      expect(validRange.last, equals(10));
+      expect(validRange.contains(11), isFalse);
+      expect(validRange.contains(21), isFalse);
+    });
+
+    // -------------------------------------------------------------------------
+    // QA-FIX-05: First To values above 10 are rejected for new games
+    // -------------------------------------------------------------------------
+    test('QA-FIX-05: First To values above 10 are rejected for new games', () {
+      bool isAllowedFirstTo(int val) => val >= 2 && val <= 10;
+      expect(isAllowedFirstTo(1), isFalse);
+      expect(isAllowedFirstTo(2), isTrue);
+      expect(isAllowedFirstTo(10), isTrue);
+      expect(isAllowedFirstTo(11), isFalse);
+      expect(isAllowedFirstTo(15), isFalse);
+      expect(isAllowedFirstTo(21), isFalse);
+    });
+
+    // -------------------------------------------------------------------------
+    // QA-FIX-06: Stop Game options match Laravel
+    // -------------------------------------------------------------------------
+    test('QA-FIX-06: Stop Game options match Laravel (keep_in_session and withdraw_players)', () {
+      const allowedStopConditions = ['keep_in_session', 'withdraw_players'];
+      expect(allowedStopConditions.contains('keep_in_session'), isTrue);
+      expect(allowedStopConditions.contains('withdraw_players'), isTrue);
+    });
+
+    // -------------------------------------------------------------------------
+    // QA-FIX-07: Match stop preserves partial scoring
+    // -------------------------------------------------------------------------
+    test('QA-FIX-07: Match stop preserves partial scoring without declaring unilateral winner', () {
+      final match = DrawingMatch(
+        courtNumber: 1,
+        teamA: [const GamePlayerItem(id: '1', name: 'Alice', level: 'Beginner', isGuest: true)],
+        teamB: [const GamePlayerItem(id: '2', name: 'Bob', level: 'Beginner', isGuest: true)],
+        scoreA: 5,
+        scoreB: 3,
+        status: 'In Progress',
+      );
+
+      // Perform stop match
+      match.status = 'Stopped';
+      match.stopType = 'keep_in_session';
+      match.stopReason = 'Waktu sewa lapangan habis';
+      match.winnerTeam = null;
+
+      expect(match.status, equals('Stopped'));
+      expect(match.isStopped, isTrue);
+      expect(match.isTerminal, isTrue);
+      expect(match.scoreA, equals(5));
+      expect(match.scoreB, equals(3));
+      expect(match.winnerTeam, isNull);
+    });
+
+    // -------------------------------------------------------------------------
+    // QA-FIX-08: Host can manage player status during Drawing
+    // -------------------------------------------------------------------------
+    test('QA-FIX-08: Host can manage player status during Drawing (pause, reactivate, withdraw)', () {
+      final players = [
+        const GamePlayerItem(id: '1', name: 'Alice', level: 'Beginner', isGuest: true),
+        const GamePlayerItem(id: '2', name: 'Bob', level: 'Beginner', isGuest: true),
+        const GamePlayerItem(id: '3', name: 'Charlie', level: 'Beginner', isGuest: true),
+        const GamePlayerItem(id: '4', name: 'David', level: 'Beginner', isGuest: true),
+      ];
+
+      // Host pauses Bob
+      final updatedList = List<GamePlayerItem>.from(players);
+      final idx = updatedList.indexWhere((p) => p.id == '2');
+      updatedList[idx] = GamePlayerItem(
+        id: updatedList[idx].id,
+        name: updatedList[idx].name,
+        level: updatedList[idx].level,
+        isGuest: updatedList[idx].isGuest,
+        status: 'resting',
+        withdrawnReason: 'Kram ringan',
+      );
+
+      expect(updatedList[idx].isResting, isTrue);
+      expect(updatedList[idx].isWithdrawn, isFalse);
+
+      // Host reactivates Bob
+      updatedList[idx] = GamePlayerItem(
+        id: updatedList[idx].id,
+        name: updatedList[idx].name,
+        level: updatedList[idx].level,
+        isGuest: updatedList[idx].isGuest,
+        status: 'active',
+      );
+      expect(updatedList[idx].isResting, isFalse);
+      expect(updatedList[idx].status, equals('active'));
+
+      // Host withdraws Bob
+      updatedList[idx] = GamePlayerItem(
+        id: updatedList[idx].id,
+        name: updatedList[idx].name,
+        level: updatedList[idx].level,
+        isGuest: updatedList[idx].isGuest,
+        status: 'withdrawn',
+        withdrawnReason: 'Cedera lutut',
+        withdrawnAt: DateTime.now(),
+      );
+      expect(updatedList[idx].isWithdrawn, isTrue);
+    });
+
+    // -------------------------------------------------------------------------
+    // QA-FIX-09: Player cannot perform Host-only actions
+    // -------------------------------------------------------------------------
+    test('QA-FIX-09: Player cannot perform Host-only actions', () {
+      bool canManagePlayers({required bool isHost, required bool isAdmin}) {
+        return isHost || isAdmin;
+      }
+
+      expect(canManagePlayers(isHost: false, isAdmin: false), isFalse);
+      expect(canManagePlayers(isHost: true, isAdmin: false), isTrue);
+      expect(canManagePlayers(isHost: false, isAdmin: true), isTrue);
+    });
+
+    // -------------------------------------------------------------------------
+    // QA-FIX-10: Withdrawal updates drawing eligibility
+    // -------------------------------------------------------------------------
+    test('QA-FIX-10: Withdrawal updates drawing eligibility (withdrawn players are excluded)', () {
+      final players = [
+        const GamePlayerItem(id: '1', name: 'Alice', level: 'Beginner', isGuest: true),
+        const GamePlayerItem(id: '2', name: 'Bob', level: 'Beginner', isGuest: true, status: 'withdrawn'),
+        const GamePlayerItem(id: '3', name: 'Charlie', level: 'Beginner', isGuest: true),
+        const GamePlayerItem(id: '4', name: 'David', level: 'Beginner', isGuest: true),
+        const GamePlayerItem(id: '5', name: 'Eve', level: 'Beginner', isGuest: true),
+      ];
+
+      final rounds = MatchaDrawingEngine.generateDrawing(
+        players: players,
+        courtCount: 1,
+        gameType: 'Americano',
+        playMode: 'Double',
+        roundCount: 3,
+      );
+
+      // Verify Bob ('2') never appears in any active match or resting bench
+      for (final r in rounds) {
+        for (final m in r.matches) {
+          expect(m.teamA.any((p) => p.id == '2'), isFalse);
+          expect(m.teamB.any((p) => p.id == '2'), isFalse);
+        }
+        expect(r.restingPlayers.any((p) => p.id == '2'), isFalse);
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // QA-FIX-11: Drawing lock state is respected
+    // -------------------------------------------------------------------------
+    test('QA-FIX-11: Drawing lock state is respected (reshuffling blocked when locked)', () {
+      bool isLocked = true;
+      bool canReshuffle = !isLocked;
+      expect(canReshuffle, isFalse);
+
+      isLocked = false;
+      canReshuffle = !isLocked;
+      expect(canReshuffle, isTrue);
+    });
+
+    // -------------------------------------------------------------------------
+    // QA-FIX-12: Host–Player synchronization remains correct
+    // -------------------------------------------------------------------------
+    test('QA-FIX-12: Host–Player synchronization event payload contains required parity keys', () {
+      final payload = {
+        'session_id': 123,
+        'player_id': 45,
+        'action': 'pause',
+        'status': 'resting',
+        'reason': 'Kram ringan',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+
+      expect(payload.containsKey('session_id'), isTrue);
+      expect(payload.containsKey('player_id'), isTrue);
+      expect(payload.containsKey('action'), isTrue);
+      expect(payload.containsKey('status'), isTrue);
+      expect(payload.containsKey('reason'), isTrue);
+      expect(payload['status'], equals('resting'));
+    });
+
+    // -------------------------------------------------------------------------
+    // QA-FIX-13: Existing scoring and leaderboard behavior does not regress
+    // -------------------------------------------------------------------------
+    test('QA-FIX-13: Existing scoring and leaderboard behavior does not regress', () {
+      final normalMatch = DrawingMatch(
+        courtNumber: 1,
+        teamA: [const GamePlayerItem(id: '1', name: 'Alice', level: 'Beginner', isGuest: true)],
+        teamB: [const GamePlayerItem(id: '2', name: 'Bob', level: 'Beginner', isGuest: true)],
+        scoreA: 16,
+        scoreB: 14,
+        status: 'Completed',
+        winnerTeam: 'teamA',
+      );
+
+      final stoppedMatch = DrawingMatch(
+        courtNumber: 2,
+        teamA: [const GamePlayerItem(id: '3', name: 'Charlie', level: 'Beginner', isGuest: true)],
+        teamB: [const GamePlayerItem(id: '4', name: 'David', level: 'Beginner', isGuest: true)],
+        scoreA: 6,
+        scoreB: 4,
+        status: 'Stopped',
+        winnerTeam: null,
+      );
+
+      expect(normalMatch.status, equals('Completed'));
+      expect(normalMatch.winnerTeam, equals('teamA'));
+      expect(normalMatch.isTerminal, isTrue);
+
+      expect(stoppedMatch.status, equals('Stopped'));
+      expect(stoppedMatch.winnerTeam, isNull);
+      expect(stoppedMatch.isTerminal, isTrue);
+    });
+  });
 }

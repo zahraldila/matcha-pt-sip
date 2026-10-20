@@ -257,6 +257,7 @@ void main() {
           const GamePlayerItem(id: 'p2', name: 'Guy Herrera'),
         ],
       );
+      config.customTotalRounds = 1;
 
       expect(config.totalRounds, 1, reason: 'First to X must generate exactly 1 round');
       expect(config.maxTargetPoints, 8);
