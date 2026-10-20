@@ -210,7 +210,7 @@ class MatchaDrawingEngine {
     int numTeams = fixedTeams.length;
     if (numTeams < 2) return [];
 
-    int totalRounds = requestedRounds ?? max(1, numTeams - 1);
+    int totalRounds = requestedRounds ?? (numTeams <= 2 ? 3 : max(1, numTeams - 1));
     List<DrawingRound> rounds = [];
 
     // Round-robin schedule generator using Berger table
@@ -330,7 +330,7 @@ class MatchaDrawingEngine {
 
     if (cycle.isEmpty) return [];
 
-    final totalRounds = requestedRounds ?? cycle.length;
+    final totalRounds = requestedRounds ?? (players.length <= 2 ? 3 : cycle.length);
     final rounds = <DrawingRound>[];
 
     // Positif: lebih sering A. Negatif: lebih sering B.

@@ -181,21 +181,13 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       if (_isTeamAmericano) {
         // Team Americano is strictly Double
         _selectedGameType = 'Double';
-        if (_isFirstToSystem) {
-          _selectedQuota = 4;
-        } else {
-          // Default to 6 if odd or invalid
-          if (_selectedQuota % 2 != 0 || _selectedQuota < 4) {
-            _selectedQuota = 6;
-          }
+        // Default to 6 if odd or invalid
+        if (_selectedQuota % 2 != 0 || _selectedQuota < 4) {
+          _selectedQuota = 6;
         }
       } else {
         // Americano regular
-        if (_isFirstToSystem) {
-          _selectedQuota = _selectedGameType == 'Double' ? 4 : 2;
-        } else {
-          _selectedQuota = _selectedGameType == 'Double' ? 6 : 2;
-        }
+        _selectedQuota = _selectedGameType == 'Double' ? 6 : 2;
       }
     });
   }
@@ -205,28 +197,19 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     setState(() {
       _selectedScoringSystem = newSystem;
 
-      if (_isFirstToSystem) {
-        // First to X: Exact constraint (Double: 4, Single: 2)
-        if (_selectedGameType == 'Double') {
+      // Flexible quota for both First to X and Total of X
+      if (_isTeamAmericano) {
+        if (_selectedQuota % 2 != 0 || _selectedQuota < 4 || _selectedQuota > 16) {
+          _selectedQuota = 6;
+        }
+      } else if (_selectedGameType == 'Double') {
+        if (_selectedQuota < 4 || _selectedQuota > 16) {
           _selectedQuota = 4;
-        } else {
-          _selectedQuota = 2;
         }
       } else {
-        // Total of X: Flexible
-        if (_isTeamAmericano) {
-          if (_selectedQuota % 2 != 0 || _selectedQuota < 4 || _selectedQuota > 16) {
-            _selectedQuota = 6;
-          }
-        } else if (_selectedGameType == 'Double') {
-          if (_selectedQuota < 4 || _selectedQuota > 16) {
-            _selectedQuota = 4;
-          }
-        } else {
-          const singleQuotas = [2, 3, 4, 5, 6, 8];
-          if (!singleQuotas.contains(_selectedQuota)) {
-            _selectedQuota = 4;
-          }
+        const singleQuotas = [2, 3, 4, 5, 6, 8];
+        if (!singleQuotas.contains(_selectedQuota)) {
+          _selectedQuota = 4;
         }
       }
     });
@@ -238,18 +221,14 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     setState(() {
       _selectedGameType = type;
 
-      if (_isFirstToSystem) {
-        _selectedQuota = type == 'Double' ? 4 : 2;
+      if (type == 'Single') {
+        const singleQuotas = [2, 3, 4, 5, 6, 8];
+        if (!singleQuotas.contains(_selectedQuota)) {
+          _selectedQuota = 4;
+        }
       } else {
-        if (type == 'Single') {
-          const singleQuotas = [2, 3, 4, 5, 6, 8];
-          if (!singleQuotas.contains(_selectedQuota)) {
-            _selectedQuota = 4;
-          }
-        } else {
-          if (_selectedQuota < 4 || _selectedQuota > 16) {
-            _selectedQuota = 4;
-          }
+        if (_selectedQuota < 4 || _selectedQuota > 16) {
+          _selectedQuota = 4;
         }
       }
     });
@@ -969,8 +948,6 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
   }
 
   void _showQuotaPickerModal() {
-    if (_isFirstToSystem) return;
-
     List<int> availableQuotas;
     if (_isTeamAmericano) {
       availableQuotas = [4, 6, 8, 10, 12, 14, 16];
@@ -1627,12 +1604,12 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
 
     // Constraint Validation for First to X
     if (_isFirstToSystem) {
-      final requiredCount = _selectedGameType == 'Double' ? 4 : 2;
-      if (_selectedQuota != requiredCount) {
+      final minCount = _selectedGameType == 'Double' ? 4 : 2;
+      if (_selectedQuota < minCount) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Format $_selectedScoringSystem ($_selectedGameType) membutuhkan tepat $requiredCount pemain.',
+              'Format $_selectedScoringSystem ($_selectedGameType) membutuhkan minimal $minCount pemain.',
             ),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
@@ -1930,7 +1907,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                                     const SizedBox(height: 1),
                                     Text(
                                       _isFirstToSystem
-                                          ? 'Sistem Langsung Tuntas (1 Set Selesai)'
+                                          ? 'Multi-ronde dinamis & rotasi cadangan'
                                           : 'Sistem Rotasi Poin Dinamis',
                                       style: const TextStyle(
                                         fontSize: 10,
@@ -2702,52 +2679,38 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           _buildFieldLabel('Kuota Maksimal Pemain'),
-                          if (_isFirstToSystem)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFEF3C7),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: const Color(0xFFFDE68A)),
-                              ),
-                              child: const Text(
-                                'Kapasitas Terkunci (First to X)',
-                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
-                              ),
-                            ),
                         ],
                       ),
                       const SizedBox(height: 6),
                       InkWell(
-                        onTap: _isFirstToSystem ? null : _showQuotaPickerModal,
+                        onTap: _showQuotaPickerModal,
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           decoration: BoxDecoration(
-                            color: _isFirstToSystem ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC),
+                            color: const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
                           child: Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.groups_rounded,
                                 size: 18,
-                                color: _isFirstToSystem ? const Color(0xFF94A3B8) : AppColors.matchaDark,
+                                color: AppColors.matchaDark,
                               ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   '$_selectedQuota Pemain',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w700,
-                                    color: _isFirstToSystem ? const Color(0xFF64748B) : const Color(0xFF0F172A),
+                                    color: Color(0xFF0F172A),
                                   ),
                                 ),
                               ),
-                              if (!_isFirstToSystem)
-                                const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: Color(0xFF64748B)),
+                              const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: Color(0xFF64748B)),
                             ],
                           ),
                         ),
@@ -2949,8 +2912,8 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     IconData icon = Icons.info_outline_rounded;
 
     if (_isFirstToSystem) {
-      final req = _selectedGameType == 'Double' ? '4 pemain (2 vs 2)' : '2 pemain (1 vs 1)';
-      message = 'Format $_selectedScoringSystem: Pertandingan 1 set langsung tuntas tanpa rotasi cadangan. Memerlukan tepat $req.';
+      final req = _selectedGameType == 'Double' ? 'minimal 4 pemain (2 vs 2)' : 'minimal 2 pemain (1 vs 1)';
+      message = 'Format $_selectedScoringSystem: Pertandingan multi-ronde dinamis dengan rotasi bangku cadangan. Memerlukan $req.';
       bgColor = const Color(0xFFFEF3C7);
       borderColor = const Color(0xFFFDE68A);
       textColor = const Color(0xFF92400E);
