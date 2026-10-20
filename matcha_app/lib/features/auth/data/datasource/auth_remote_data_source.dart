@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+import 'package:bcrypt/bcrypt.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/models/user_model.dart';
 
@@ -7,33 +9,175 @@ class AuthRemoteDataSource {
   AuthRemoteDataSource({SupabaseClient? supabaseClient})
       : _supabase = supabaseClient ?? Supabase.instance.client;
 
-  /// Melakukan validasi login pengguna berdasarkan email dan password ke tb_user
+  /// Login dengan email atau nomor WhatsApp (no_hp)
   Future<UserModel> login({
-    required String email,
+    required String loginId,
     required String password,
   }) async {
     try {
-      final response = await _supabase
-          .from('tb_user')
-          .select()
-          .eq('email', email.trim())
-          .eq('password', password.trim())
-          .maybeSingle();
+      final trimmedLoginId = loginId.trim();
+      final loginIdLower = trimmedLoginId.toLowerCase();
+      final cleanPhone = trimmedLoginId.replaceAll(RegExp(r'[^0-9]'), '');
 
-      if (response == null) {
-        throw Exception('Email atau password yang Anda masukkan salah.');
+      // Query tb_user by email atau no_hp
+      var query = _supabase.from('tb_user').select();
+
+      final List<dynamic> users = await query
+          .or('email.ilike.$loginIdLower,no_hp.eq.$trimmedLoginId${cleanPhone.isNotEmpty ? ",no_hp.eq.$cleanPhone" : ""}');
+
+      if (users.isEmpty) {
+        throw Exception('Email/Nomor WhatsApp tidak terdaftar.');
       }
 
-      final user = UserModel.fromJson(response);
+      final userData = users.first as Map<String, dynamic>;
+      final dbPassword = userData['password']?.toString() ?? '';
 
-      if (user.statusUser.toLowerCase() == 'inactive') {
+      // Verifikasi password (Bcrypt Hash atau Plaintext)
+      bool isPasswordValid = false;
+      if (dbPassword.startsWith(r'$2y$') || dbPassword.startsWith(r'$2a$') || dbPassword.startsWith(r'$2b$')) {
+        // Standarisasi prefix $2y$ ke $2a$ untuk compatibility bcrypt library di Dart
+        final normalizedHash = dbPassword.startsWith(r'$2y$')
+            ? dbPassword.replaceFirst(r'$2y$', r'$2a$')
+            : dbPassword;
+        try {
+          isPasswordValid = BCrypt.checkpw(password, normalizedHash);
+        } catch (_) {
+          isPasswordValid = false;
+        }
+      } else {
+        // Fallback jika di database masih password plaintext
+        isPasswordValid = (dbPassword == password.trim());
+      }
+
+      if (!isPasswordValid) {
+        throw Exception('Password yang Anda masukkan salah.');
+      }
+
+      if (userData['status_user']?.toString().toLowerCase() == 'inactive') {
         throw Exception('Akun Anda saat ini dinonaktifkan.');
       }
 
-      return user;
+      // Ambil data athlete profil dari tb_player (ambil 1 profil terbaru jika ada multiple)
+      final userId = userData['user_id'];
+      List<dynamic> players = await _supabase
+          .from('tb_player')
+          .select()
+          .eq('user_id', userId)
+          .order('player_id', ascending: false)
+          .limit(1);
+
+      if (players.isEmpty && userData['email'] != null) {
+        players = await _supabase
+            .from('tb_player')
+            .select()
+            .eq('email', userData['email'].toString().trim().toLowerCase())
+            .order('player_id', ascending: false)
+            .limit(1);
+      }
+
+      final playerResponse = players.isNotEmpty ? players.first as Map<String, dynamic> : null;
+
+      return UserModel.fromJson(userData, playerJson: playerResponse);
     } catch (e) {
       if (e is PostgrestException) {
-        throw Exception('Terjadi gangguan koneksi database: ${e.message}');
+        throw Exception('Kendala database: ${e.message}');
+      }
+      rethrow;
+    }
+  }
+
+  /// Registrasi pengguna baru ke tb_user dan otomatis buat data tb_player
+  Future<UserModel> register({
+    required String nama,
+    required String email,
+    required String noHp,
+    required String password,
+    required String gender,
+    required int usia,
+    required String level,
+    String role = 'member',
+    int? communityId,
+  }) async {
+    try {
+      final cleanEmail = email.trim().toLowerCase();
+      final cleanPhone = noHp.replaceAll(RegExp(r'[^0-9]'), '');
+
+      // 1. Cek duplikasi email
+      final existingEmail = await _supabase
+          .from('tb_user')
+          .select('user_id')
+          .ilike('email', cleanEmail)
+          .maybeSingle();
+
+      if (existingEmail != null) {
+        throw Exception('Email $cleanEmail sudah terdaftar. Silakan login.');
+      }
+
+      // 2. Cek duplikasi no_hp
+      final existingPhone = await _supabase
+          .from('tb_user')
+          .select('user_id')
+          .eq('no_hp', cleanPhone)
+          .limit(1);
+
+      if (existingPhone.isNotEmpty) {
+        throw Exception(
+          'Nomor WhatsApp sudah terdaftar. '
+          'Silakan login atau gunakan nomor lain.',
+        );
+      }
+
+      // 3. Hash password dengan Bcrypt
+      final hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
+
+      // 4. Insert ke tb_user
+      final newUserResponse = await _supabase
+          .from('tb_user')
+          .insert({
+            'nama': nama.trim(),
+            'email': cleanEmail,
+            'no_hp': cleanPhone,
+            'password': hashedPassword,
+            'role': role,
+            'is_host': false,
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .select()
+          .single();
+
+      final int createdUserId = newUserResponse['user_id'] is int
+          ? newUserResponse['user_id'] as int
+          : int.parse(newUserResponse['user_id'].toString());
+
+      // 5. Insert ke tb_player
+      Map<String, dynamic>? newPlayerResponse;
+      try {
+        newPlayerResponse = await _supabase
+            .from('tb_player')
+            .insert({
+              'user_id': createdUserId,
+              'nama': nama.trim(),
+              'email': cleanEmail,
+              'no_hp': cleanPhone,
+              'gender': gender,
+              'usia': usia,
+              'level': level,
+              'rating': 1200,
+              ...?communityId == null ? null : {'community_id': communityId},
+              'created_at': DateTime.now().toIso8601String(),
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .select()
+            .single();
+      } catch (_) {
+        // abaikan jika tabel player opsional
+      }
+
+      return UserModel.fromJson(newUserResponse, playerJson: newPlayerResponse);
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Gagal mendaftar: ${e.message}');
       }
       rethrow;
     }
@@ -42,16 +186,230 @@ class AuthRemoteDataSource {
   /// Mengambil data user berdasarkan user_id
   Future<UserModel?> getUserById(int userId) async {
     try {
-      final response = await _supabase
+      final userResponse = await _supabase
           .from('tb_user')
           .select()
           .eq('user_id', userId)
           .maybeSingle();
 
-      if (response == null) return null;
-      return UserModel.fromJson(response);
+      if (userResponse == null) return null;
+
+      List<dynamic> players = await _supabase
+          .from('tb_player')
+          .select()
+          .eq('user_id', userId)
+          .order('player_id', ascending: false)
+          .limit(1);
+
+      if (players.isEmpty && userResponse['email'] != null) {
+        players = await _supabase
+            .from('tb_player')
+            .select()
+            .eq('email', userResponse['email'].toString().trim().toLowerCase())
+            .order('player_id', ascending: false)
+            .limit(1);
+      }
+
+      final playerResponse = players.isNotEmpty ? players.first as Map<String, dynamic> : null;
+
+      return UserModel.fromJson(userResponse, playerJson: playerResponse);
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Update status is_host ke tb_user
+  Future<bool> updateHostStatus(int userId, bool isHost) async {
+    try {
+      await _supabase
+          .from('tb_user')
+          .update({'is_host': isHost, 'updated_at': DateTime.now().toIso8601String()})
+          .eq('user_id', userId);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Upload avatar image bytes ke Supabase Storage
+  Future<String?> uploadAvatar(dynamic bytes, String fileExt) async {
+    try {
+      final cleanExt = fileExt.replaceAll('.', '').toLowerCase();
+      final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.$cleanExt';
+      final Uint8List uint8Bytes = bytes is Uint8List ? bytes : Uint8List.fromList(List<int>.from(bytes as Iterable));
+
+      // 1. Coba upload ke bucket 'avatars'
+      try {
+        await _supabase.storage.from('avatars').uploadBinary(
+          fileName,
+          uint8Bytes,
+          fileOptions: FileOptions(
+            contentType: 'image/$cleanExt',
+            upsert: true,
+          ),
+        );
+        return _supabase.storage.from('avatars').getPublicUrl(fileName);
+      } catch (storageErr) {
+        // 2. Fallback bucket 'general' jika bucket 'avatars' tidak tersedia
+        try {
+          await _supabase.storage.from('general').uploadBinary(
+            fileName,
+            uint8Bytes,
+            fileOptions: FileOptions(
+              contentType: 'image/$cleanExt',
+              upsert: true,
+            ),
+          );
+          return _supabase.storage.from('general').getPublicUrl(fileName);
+        } catch (_) {
+          // 3. Fallback bucket 'venues' dengan path 'avatars/$fileName'
+          await _supabase.storage.from('venues').uploadBinary(
+            'avatars/$fileName',
+            uint8Bytes,
+            fileOptions: FileOptions(
+              contentType: 'image/$cleanExt',
+              upsert: true,
+            ),
+          );
+          return _supabase.storage.from('venues').getPublicUrl('avatars/$fileName');
+        }
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Update data profil di tb_user & tb_player
+  Future<UserModel> updateProfile({
+    required int userId,
+    required String nama,
+    required String noHp,
+    required String gender,
+    required int usia,
+    required String level,
+    int? communityId,
+    String? fotoUrl,
+    bool removeFoto = false,
+  }) async {
+    try {
+      final cleanPhone = noHp.replaceAll(RegExp(r'[^0-9]'), '');
+
+      // 0. Cek duplikasi no_hp dengan pengguna lain
+      final existingPhone = await _supabase
+          .from('tb_user')
+          .select('user_id')
+          .eq('no_hp', cleanPhone)
+          .neq('user_id', userId)
+          .limit(1);
+
+      if (existingPhone.isNotEmpty) {
+        throw Exception(
+          'Nomor WhatsApp sudah digunakan oleh akun lain. '
+          'Silakan gunakan nomor yang berbeda.',
+        );
+      }
+
+      // 1. Update tb_user
+      final Map<String, dynamic> userUpdates = {
+        'nama': nama.trim(),
+        'no_hp': cleanPhone,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      if (removeFoto) {
+        userUpdates['foto'] = null;
+      } else if (fotoUrl != null) {
+        userUpdates['foto'] = fotoUrl;
+      }
+
+      final updatedUserRaw = await _supabase
+          .from('tb_user')
+          .update(userUpdates)
+          .eq('user_id', userId)
+          .select()
+          .single();
+
+      // 2. Update or insert tb_player
+      List<dynamic> existingPlayers = await _supabase
+          .from('tb_player')
+          .select()
+          .eq('user_id', userId)
+          .order('player_id', ascending: false);
+
+      if (existingPlayers.isEmpty && updatedUserRaw['email'] != null) {
+        existingPlayers = await _supabase
+            .from('tb_player')
+            .select()
+            .eq('email', updatedUserRaw['email'].toString().trim().toLowerCase())
+            .order('player_id', ascending: false);
+      }
+
+      Map<String, dynamic>? playerRaw;
+      final Map<String, dynamic> playerFields = {
+        'user_id': userId,
+        'email': updatedUserRaw['email'],
+        'nama': nama.trim(),
+        'no_hp': cleanPhone,
+        'gender': gender,
+        'usia': usia,
+        'level': level,
+        'community_id': communityId,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      if (removeFoto) {
+        playerFields['foto'] = null;
+      } else if (fotoUrl != null) {
+        playerFields['foto'] = fotoUrl;
+      }
+
+      if (existingPlayers.isNotEmpty) {
+        final existingId = existingPlayers.first['player_id'];
+        playerRaw = await _supabase
+            .from('tb_player')
+            .update(playerFields)
+            .eq('player_id', existingId)
+            .select()
+            .single();
+
+        // Sinkronkan juga foto, nama, gender, level ke semua tb_player yang terhubung dengan user_id ini
+        try {
+          await _supabase.from('tb_player').update({
+            'nama': nama.trim(),
+            'gender': gender,
+            'usia': usia,
+            'level': level,
+            'foto': removeFoto ? null : fotoUrl,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('user_id', userId);
+        } catch (_) {}
+      } else {
+        playerFields['rating'] = 1.0;
+        playerFields['created_at'] = DateTime.now().toIso8601String();
+        playerRaw = await _supabase
+            .from('tb_player')
+            .insert(playerFields)
+            .select()
+            .single();
+      }
+
+      return UserModel.fromJson(updatedUserRaw, playerJson: playerRaw);
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Gagal memperbarui profil: ${e.message}');
+      }
+      rethrow;
+    }
+  }
+
+  /// Mengambil daftar komunitas untuk dropdown
+  Future<List<Map<String, dynamic>>> getCommunitiesList() async {
+    try {
+      final res = await _supabase
+          .from('tb_community')
+          .select('community_id, nama_community')
+          .order('nama_community', ascending: true);
+      return List<Map<String, dynamic>>.from(res as List);
+    } catch (_) {
+      return [];
     }
   }
 }

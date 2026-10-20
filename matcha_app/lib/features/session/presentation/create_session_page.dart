@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
-
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import 'controllers/session_controller.dart';
-import '../../drawing/presentation/drawing_result_page.dart';
-import '../../auth/domain/models/user_model.dart';
+import '../../../core/utils/app_error_handler.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
+import '../../court/data/venue_service.dart';
+import '../../court/domain/court_model.dart';
+import '../../court/domain/venue_model.dart';
+import '../data/session_service.dart';
 
 class CreateSessionPage extends StatefulWidget {
-  final Function()? onGenerateDrawing;
-  final UserModel currentUser;
+  final AuthController? authController;
+  final int? initialVenueId;
+  final int? initialSportId;
 
   const CreateSessionPage({
     super.key,
-    required this.currentUser,
-    this.onGenerateDrawing,
+    this.authController,
+    this.initialVenueId,
+    this.initialSportId,
   });
 
   @override
@@ -21,787 +24,3100 @@ class CreateSessionPage extends StatefulWidget {
 }
 
 class _CreateSessionPageState extends State<CreateSessionPage> {
-  late final SessionController _sessionController;
+  final _formKey = GlobalKey<FormState>();
+  final SessionService _sessionService = SessionService();
+  final VenueService _venueService = VenueService();
 
-  final TextEditingController _nameController = TextEditingController(
-    text: 'Saturday Morning Session',
-  );
+  // State Data
+  List<VenueModel> _allVenues = [];
+  bool _isLoading = true;
+  bool _isSubmitting = false;
 
-  String _selectedSport = '';
-  int? _selectedSportId;
+  // 1. Cabang Olahraga
+  int? _selectedSportId; // 1: Padel, 2: Tennis (default null: no border)
 
-  String _selectedMethod = 'Americano';
-  String _selectedFormat = 'Doubles';
+  // 2. Format Pertandingan & Sistem Skor
+  String? _selectedFormat; // 'Americano' or 'Team Americano' (default null: no border)
+  String _selectedScoringSystem = 'Total of 3 Poin'; // 'Total of 3 Poin', 'Total of 4 Poin', 'Total of 7 Sets', 'First to 15 Points', 'First to 21 Points'
 
-  DateTime _selectedDate = DateTime.now();
-  TimeOfDay _selectedTime = const TimeOfDay(hour: 8, minute: 0);
+  // 3. Lokasi Venue & Lapangan
+  VenueModel? _selectedVenue;
+  List<CourtModel> _selectedCourts = [];
+  bool _isCourtDropdownOpen = false;
 
-  final Set<int> _selectedPlayerIds = {};
-  final Set<int> _selectedCourtIds = {};
+  String _formatHargaPerJam(double? harga) {
+    if (harga == null || harga <= 0) return 'Rp 20.000/jam';
+    final intVal = harga.toInt();
+    final formatted = intVal.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
+    return 'Rp $formatted/jam';
+  }
 
-  bool _isCreating = false;
+  // 4. Informasi & Judul
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _descController = TextEditingController();
+
+  // 5. Jadwal & Kuota
+  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  TimeOfDay _selectedTime = const TimeOfDay(hour: 18, minute: 30);
+  String _selectedDuration = '2 Jam';
+  String _selectedGameType = 'Double'; // 'Double' or 'Single'
+  int _selectedQuota = 6;
+  String _selectedLevel = 'All Level';
+
+  bool _addYourselfAsPlayer = false; // Add Yourself (host ikut bermain, default tidak ikut)
+
+  bool get _isFirstToSystem =>
+      _selectedScoringSystem.toLowerCase().startsWith('first to');
+
+  bool get _isTeamAmericano => _selectedFormat == 'Team Americano';
 
   @override
   void initState() {
     super.initState();
-
-    _sessionController = SessionController();
-
-    _sessionController.addListener(_onControllerChanged);
-
-    _loadInitialData();
-  }
-
-  Future<void> _loadInitialData() async {
-    await _sessionController.loadSports();
-    await _sessionController.loadPlayers();
-
-    if (!mounted) return;
-
-    if (_sessionController.sports.isEmpty) {
-      return;
+    if (widget.initialSportId != null) {
+      _selectedSportId = widget.initialSportId!;
     }
-
-    // Prioritaskan Tennis agar default UI tetap mirip prototype.
-    final tennisSport = _sessionController.sports.firstWhere(
-      (sport) =>
-          (sport['nama_sport']?.toString().toLowerCase() ?? '') == 'tennis',
-      orElse: () => _sessionController.sports.first,
-    );
-
-    final sportId = tennisSport['sport_id'] as int;
-    final sportName = tennisSport['nama_sport']?.toString() ?? '';
-
-    setState(() {
-      _selectedSportId = sportId;
-      _selectedSport = sportName;
-    });
-
-    await _sessionController.loadCourts(sportId: sportId);
-
-    if (!mounted) return;
-
-    _setDefaultSelections();
-  }
-
-  void _onControllerChanged() {
-    if (!mounted) return;
-
-    setState(() {});
-  }
-
-  void _setDefaultSelections() {
-    // Mempertahankan perilaku prototype:
-    // default memilih maksimal 8 pemain dan 2 court.
-    _selectedPlayerIds
-      ..clear()
-      ..addAll(
-        _sessionController.players
-            .take(8)
-            .map((player) => player['player_id'] as int),
-      );
-
-    _selectedCourtIds
-      ..clear()
-      ..addAll(
-        _sessionController.courts
-            .take(2)
-            .map((court) => court['court_id'] as int),
-      );
-
-    setState(() {});
+    _loadVenues();
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-
-    _sessionController.removeListener(_onControllerChanged);
-    _sessionController.dispose();
-
+    _titleController.dispose();
+    _descController.dispose();
     super.dispose();
   }
 
-  Future<void> _changeSport(
-    Map<String, dynamic> sport,
-  ) async {
-    final sportId = sport['sport_id'] as int;
-    final sportName = sport['nama_sport']?.toString() ?? '';
+  Future<void> _loadVenues() async {
+    try {
+      final venues = await _venueService.getVenues();
+      if (!mounted) return;
 
+      final user = widget.authController?.currentUser;
+      final isVO = user?.isVenueOwner ?? false;
+
+      setState(() {
+        if (isVO) {
+          // Khusus Venue Owner: HANYA menampilkan venue milik dirinya sendiri
+          _allVenues = venues.where((v) => v.ownerUserId != null && v.ownerUserId == user?.userId).toList();
+        } else {
+          _allVenues = venues;
+        }
+
+        // Pre-select venue dari initialVenueId segera setelah data siap
+        if (widget.initialVenueId != null) {
+          _selectedVenue = _allVenues
+              .where((v) => v.venueId == widget.initialVenueId)
+              .firstOrNull;
+        }
+
+        // Auto-set sport: dari initialSportId atau derive dari lapangan venue yang terpilih
+        if (widget.initialSportId != null) {
+          _selectedSportId = widget.initialSportId!;
+        } else if (_selectedVenue != null && _selectedSportId == null) {
+          // Pilih sport pertama yang tersedia di venue ini
+          final firstCourt = _selectedVenue!.courts.where((c) =>
+              c.sportId != null &&
+              (c.statusKetersediaan == null ||
+                  c.statusKetersediaan!.toLowerCase() == 'available')).firstOrNull;
+          if (firstCourt != null) {
+            _selectedSportId = firstCourt.sportId;
+          }
+        }
+
+        // Setelah sport & venue terpilih, set court yang sesuai
+        if (_selectedVenue != null && _selectedSportId != null) {
+          final matchingCourts = _selectedVenue!.courts.where((c) =>
+              c.sportId == _selectedSportId &&
+              (c.statusKetersediaan == null ||
+                  c.statusKetersediaan!.toLowerCase() == 'available')).toList();
+          _selectedCourts = matchingCourts.isNotEmpty ? [matchingCourts.first] : [];
+        }
+
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      AppErrorHandler.showErrorSnackBar(context, e);
+    }
+  }
+
+  void _applySportSelection(int sportId) {
+    _selectedSportId = sportId;
+
+    // Jika venue yang sudah terpilih tidak punya lapangan untuk sport ini, reset
+    if (_selectedVenue != null) {
+      final hasMatchingCourt = _selectedVenue!.courts.any((c) =>
+          c.sportId == _selectedSportId &&
+          (c.statusKetersediaan == null ||
+              c.statusKetersediaan!.toLowerCase() == 'available'));
+      if (!hasMatchingCourt) {
+        _selectedVenue = null;
+        _selectedCourts = [];
+      }
+    }
+
+    if (_selectedVenue != null) {
+      final matchingCourts = _selectedVenue!.courts.where((c) =>
+          c.sportId == _selectedSportId &&
+          (c.statusKetersediaan == null ||
+              c.statusKetersediaan!.toLowerCase() == 'available')).toList();
+      _selectedCourts = matchingCourts.isNotEmpty ? [matchingCourts.first] : [];
+    } else {
+      _selectedCourts = [];
+    }
+
+    _isCourtDropdownOpen = false;
+    setState(() {});
+  }
+
+  void _onFormatChanged(String format) {
     setState(() {
-      _selectedSportId = sportId;
-      _selectedSport = sportName;
+      _selectedFormat = format;
 
-      // Court bergantung pada sport.
-      _selectedCourtIds.clear();
-    });
-
-    await _sessionController.loadCourts(
-      sportId: sportId,
-    );
-
-    if (!mounted) return;
-
-    // Setelah court baru berhasil di-load,
-    // pertahankan behavior prototype dengan memilih maksimal 2.
-    setState(() {
-      _selectedCourtIds.addAll(
-        _sessionController.courts
-            .take(2)
-            .map((court) => court['court_id'] as int),
-      );
+      if (_isTeamAmericano) {
+        // Team Americano is strictly Double
+        _selectedGameType = 'Double';
+        if (_isFirstToSystem) {
+          _selectedQuota = 4;
+        } else {
+          // Default to 6 if odd or invalid
+          if (_selectedQuota % 2 != 0 || _selectedQuota < 4) {
+            _selectedQuota = 6;
+          }
+        }
+      } else {
+        // Americano regular
+        if (_isFirstToSystem) {
+          _selectedQuota = _selectedGameType == 'Double' ? 4 : 2;
+        } else {
+          _selectedQuota = _selectedGameType == 'Double' ? 6 : 2;
+        }
+      }
     });
   }
 
-  Future<void> _pickDate() async {
-    final pickedDate = await showDatePicker(
+  void _onScoringSystemChanged(String? newSystem) {
+    if (newSystem == null) return;
+    setState(() {
+      _selectedScoringSystem = newSystem;
+
+      if (_isFirstToSystem) {
+        // First to X: Exact constraint (Double: 4, Single: 2)
+        if (_selectedGameType == 'Double') {
+          _selectedQuota = 4;
+        } else {
+          _selectedQuota = 2;
+        }
+      } else {
+        // Total of X: Flexible
+        if (_isTeamAmericano) {
+          if (_selectedQuota % 2 != 0 || _selectedQuota < 4 || _selectedQuota > 16) {
+            _selectedQuota = 6;
+          }
+        } else if (_selectedGameType == 'Double') {
+          if (_selectedQuota < 4 || _selectedQuota > 16) {
+            _selectedQuota = 4;
+          }
+        } else {
+          const singleQuotas = [2, 3, 4, 5, 6, 8];
+          if (!singleQuotas.contains(_selectedQuota)) {
+            _selectedQuota = 4;
+          }
+        }
+      }
+    });
+  }
+
+  void _onGameTypeChanged(String type) {
+    if (_isTeamAmericano && type == 'Single') return; // Team Americano cannot be Single
+
+    setState(() {
+      _selectedGameType = type;
+
+      if (_isFirstToSystem) {
+        _selectedQuota = type == 'Double' ? 4 : 2;
+      } else {
+        if (type == 'Single') {
+          const singleQuotas = [2, 3, 4, 5, 6, 8];
+          if (!singleQuotas.contains(_selectedQuota)) {
+            _selectedQuota = 4;
+          }
+        } else {
+          if (_selectedQuota < 4 || _selectedQuota > 16) {
+            _selectedQuota = 4;
+          }
+        }
+      }
+    });
+  }
+
+  void _onVenueChanged(VenueModel? newVenue) {
+    if (newVenue == null) return;
+    setState(() {
+      _selectedVenue = newVenue;
+      final matchingCourts = _selectedVenue!.courts.where((c) =>
+          c.sportId == _selectedSportId &&
+          (c.statusKetersediaan == null ||
+              c.statusKetersediaan!.toLowerCase() == 'available')).toList();
+      _selectedCourts = matchingCourts.isNotEmpty ? [matchingCourts.first] : [];
+      _isCourtDropdownOpen = false;
+    });
+  }
+
+  void _showVenueSearchPickerModal(List<VenueModel> venues) {
+    showModalBottomSheet(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(
-        const Duration(days: 365),
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        String searchQuery = '';
+        final searchCtrl = TextEditingController();
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final query = searchQuery.toLowerCase().trim();
+            final tokens = query.isEmpty ? <String>[] : query.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+
+            final filteredVenues = venues.where((v) {
+              if (tokens.isEmpty) return true;
+              final searchableText = [
+                v.namaVenue,
+                v.alamat ?? '',
+                v.kota ?? '',
+                v.fasilitas ?? '',
+                v.catatan ?? '',
+                v.namaPic ?? '',
+                v.sportName,
+                ...v.courts.map((c) => '${c.namaCourt} ${c.tipeCourt ?? ''}'),
+              ].join(' ').toLowerCase();
+
+              return tokens.every((token) => searchableText.contains(token));
+            }).toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.78,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Pilih Venue Lapangan',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${venues.length} venue tersedia untuk ${_selectedSportId == 2 ? "Tennis" : "Padel"}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 22),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextField(
+                        controller: searchCtrl,
+                        autofocus: false,
+                        onChanged: (val) {
+                          setModalState(() {
+                            searchQuery = val;
+                          });
+                        },
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                        decoration: InputDecoration(
+                          hintText: 'Cari nama venue, kota, atau alamat...',
+                          hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 20),
+                          suffixIcon: searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear_rounded, color: Color(0xFF94A3B8), size: 18),
+                                  onPressed: () {
+                                    searchCtrl.clear();
+                                    setModalState(() {
+                                      searchQuery = '';
+                                    });
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  Expanded(
+                    child: filteredVenues.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search_off_rounded, size: 48, color: Colors.grey.shade400),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'Venue tidak ditemukan',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Tidak ada venue yang sesuai dengan kata kunci "$searchQuery"',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      _showQuickAddVenueModal();
+                                    },
+                                    icon: const Icon(Icons.add_rounded, size: 16),
+                                    label: const Text('Tambah Venue Cepat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.matchaDark,
+                                      foregroundColor: const Color(0xFFA8E63A),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            itemCount: filteredVenues.length,
+                            separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                            itemBuilder: (context, index) {
+                              final venue = filteredVenues[index];
+                              final isSelected = _selectedVenue?.venueId == venue.venueId;
+                              final availableCount = venue.courts
+                                  .where((c) =>
+                                      c.sportId == _selectedSportId &&
+                                      (c.statusKetersediaan == null ||
+                                          c.statusKetersediaan!.toLowerCase() == 'available'))
+                                  .length;
+
+                              return InkWell(
+                                onTap: () {
+                                  _onVenueChanged(venue);
+                                  Navigator.pop(context);
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? AppColors.matchaSoftLime.withValues(alpha: 0.5) : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? AppColors.matchaDark : const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          Icons.sports_tennis_rounded,
+                                          color: isSelected ? const Color(0xFFA8E63A) : const Color(0xFF64748B),
+                                          size: 18,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              venue.namaVenue,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                                color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              '${venue.kota ?? venue.alamat ?? 'Semua Lokasi'} • $availableCount Court Tersedia',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: isSelected ? AppColors.matchaDark.withValues(alpha: 0.8) : const Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        Icon(
+                                          Icons.check_circle_rounded,
+                                          color: AppColors.matchaDark,
+                                          size: 20,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- Venue Availability Helpers ---
+
+  /// Returns true if [day] (weekday 1=Mon…7=Sun) is allowed by [hariBuka].
+  bool _isVenueDayAvailable(DateTime day, String? hariBuka) {
+    if (hariBuka == null || hariBuka.trim().isEmpty) return true;
+    final h = hariBuka.toLowerCase();
+    if (h.contains('setiap hari') || h.contains('senin - minggu') || h.contains('senin–minggu')) {
+      return true;
+    }
+    if (h.contains('senin - jumat') || h.contains('hari kerja') || h.contains('weekday')) {
+      return day.weekday >= DateTime.monday && day.weekday <= DateTime.friday;
+    }
+    if (h.contains('senin - sabtu') || h.contains('6 hari')) {
+      return day.weekday >= DateTime.monday && day.weekday <= DateTime.saturday;
+    }
+    if (h.contains('sabtu') && h.contains('minggu') && !h.contains('senin')) {
+      return day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
+    }
+    // fallback: all days
+    return true;
+  }
+
+  /// Parses "HH:mm - HH:mm WIB" → (openMinutes, closeMinutes) from midnight.
+  /// Returns null if unable to parse.
+  (int, int)? _parseJamOperasional(String? jamOperasional) {
+    if (jamOperasional == null || jamOperasional.trim().isEmpty) return null;
+    final regex = RegExp(r'(\d{1,2})[:\.](\d{2})\s*[-–]\s*(\d{1,2})[:\.](\d{2})');
+    final m = regex.firstMatch(jamOperasional);
+    if (m == null) return null;
+    final openMin  = int.parse(m.group(1)!) * 60 + int.parse(m.group(2)!);
+    final closeMin = int.parse(m.group(3)!) * 60 + int.parse(m.group(4)!);
+    return (openMin, closeMin);
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final hariBuka = _selectedVenue?.hariBuka;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate.isBefore(now) ? now : _selectedDate,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 90)),
+      selectableDayPredicate: hariBuka != null
+          ? (day) => _isVenueDayAvailable(day, hariBuka)
+          : null,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: context.brandColor,
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.matchaDark,
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF0F172A),
             ),
           ),
           child: child!,
         );
       },
     );
-
-    if (pickedDate != null && mounted) {
-      setState(() {
-        _selectedDate = pickedDate;
-      });
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
     }
   }
 
   Future<void> _pickTime() async {
-    final pickedTime = await showTimePicker(
+    final parsed = _parseJamOperasional(_selectedVenue?.jamOperasional);
+    final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
+      initialEntryMode: TimePickerEntryMode.dialOnly,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.matchaDark,
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF0F172A),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
-
-    if (pickedTime != null && mounted) {
-      setState(() {
-        _selectedTime = pickedTime;
-      });
+    if (picked != null) {
+      // Validasi terhadap jam operasional venue (jika ada)
+      if (parsed != null) {
+        final (openMin, closeMin) = parsed;
+        final pickedMin = picked.hour * 60 + picked.minute;
+        if (pickedMin < openMin || pickedMin >= closeMin) {
+          if (mounted) {
+            final openH  = (openMin  ~/ 60).toString().padLeft(2, '0');
+            final openM  = (openMin  %  60).toString().padLeft(2, '0');
+            final closeH = (closeMin ~/ 60).toString().padLeft(2, '0');
+            final closeM = (closeMin %  60).toString().padLeft(2, '0');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Jam ${ picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')} '
+                  'di luar jam operasional venue ($openH:$openM – $closeH:$closeM WIB). '
+                  'Silakan pilih jam yang sesuai.',
+                ),
+                backgroundColor: Colors.orange.shade700,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return; // jangan simpan jam yang tidak valid
+        }
+      }
+      setState(() => _selectedTime = picked);
     }
   }
 
-  String _formatDate() {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'Mei',
-      'Jun',
-      'Jul',
-      'Agu',
-      'Sep',
-      'Okt',
-      'Nov',
-      'Des',
+  void _showScoringSystemPickerModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Pilih Sistem Skor Pertandingan',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Tentukan aturan hitungan poin untuk setiap match',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  children: [
+                    // Group 1: Rotasi Poin
+                    _buildScoringModalGroup(
+                      ctx: ctx,
+                      groupTitle: 'Sistem Rotasi Poin (Total of X)',
+                      groupBadge: 'AMERICANO ROTASI',
+                      badgeBg: const Color(0xFFEBF8D8),
+                      badgeColor: const Color(0xFF063B00),
+                      icon: Icons.sync_rounded,
+                      description: 'Total poin dibagi antara kedua pasangan tiap ronde. Partner & lawan berganti dinamis.',
+                      items: const [
+                        'Total of 3 Poin',
+                        'Total of 4 Poin',
+                        'Total of 5 Poin',
+                        'Total of 6 Poin',
+                        'Total of 7 Poin',
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    // Group 2: Langsung Tuntas
+                    _buildScoringModalGroup(
+                      ctx: ctx,
+                      groupTitle: 'Sistem Langsung Tuntas (First to X)',
+                      groupBadge: '1 SET TUNTAS',
+                      badgeBg: const Color(0xFFFEF3C7),
+                      badgeColor: const Color(0xFFB45309),
+                      icon: Icons.bolt_rounded,
+                      description: 'Satu set langsung tuntas saat tim pertama mencapai target poin (tanpa rotasi cadangan).',
+                      items: const [
+                        'First to 8 Poin (Tuntas)',
+                        'First to 11 Poin (Tuntas)',
+                        'First to 15 Poin (Tuntas)',
+                        'First to 21 Poin (Tuntas)',
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildScoringModalGroup({
+    required BuildContext ctx,
+    required String groupTitle,
+    required String groupBadge,
+    required Color badgeBg,
+    required Color badgeColor,
+    required IconData icon,
+    required String description,
+    required List<String> items,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 16, color: badgeColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    groupTitle,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  groupBadge,
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.4,
+                    color: badgeColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            description,
+            style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), height: 1.3),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: items.map((item) {
+              final isSelected = _selectedScoringSystem == item;
+              return InkWell(
+                onTap: () {
+                  _onScoringSystemChanged(item);
+                  Navigator.pop(ctx);
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFFF0FDF4) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                      width: isSelected ? 1.5 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.matchaDark.withValues(alpha: 0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        item,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          color: isSelected ? AppColors.matchaDark : const Color(0xFF1E293B),
+                        ),
+                      ),
+                      if (isSelected) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.matchaDark),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDurationPickerModal() {
+    final durations = ['1 Jam', '1.5 Jam', '2 Jam', '2.5 Jam', '3 Jam', '4 Jam'];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Pilih Durasi Mabar',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: durations.map((dur) {
+                  final isSelected = _selectedDuration == dur;
+                  return InkWell(
+                    onTap: () {
+                      setState(() => _selectedDuration = dur);
+                      Navigator.pop(ctx);
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.timer_outlined,
+                            size: 15,
+                            color: isSelected ? AppColors.matchaDark : const Color(0xFF64748B),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            dur,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          if (dur == '2 Jam') ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEBF8D8),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'POPULER',
+                                style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Color(0xFF063B00)),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showQuotaPickerModal() {
+    if (_isFirstToSystem) return;
+
+    List<int> availableQuotas;
+    if (_isTeamAmericano) {
+      availableQuotas = [4, 6, 8, 10, 12, 14, 16];
+    } else if (_selectedGameType == 'Double') {
+      availableQuotas = List.generate(13, (i) => 4 + i); // 4 to 16
+    } else {
+      availableQuotas = [2, 3, 4, 5, 6, 8];
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Pilih Kuota Maksimal Pemain',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _isTeamAmericano
+                              ? 'Format Team Americano memerlukan kuota genap (pasangan tetap)'
+                              : 'Tentukan batas kapasitas peserta yang dapat bergabung',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  children: [
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: availableQuotas.map((quota) {
+                        final isSelected = _selectedQuota == quota;
+                        return InkWell(
+                          onTap: () {
+                            setState(() => _selectedQuota = quota);
+                            Navigator.pop(ctx);
+                          },
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            width: (MediaQuery.of(ctx).size.width - 60) / 3,
+                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  '$quota',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Pemain',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected ? AppColors.matchaDark : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showLevelPickerModal() {
+    final levels = [
+      (
+        key: 'All Level',
+        title: 'All Level Welcome',
+        subtitle: 'Bebas untuk semua tingkat kemahiran pemain',
+        badge: 'SEMUA LEVEL',
+        icon: Icons.all_inclusive_rounded,
+      ),
+      (
+        key: 'Newbie - Beginner',
+        title: 'Newbie & Beginner Only',
+        subtitle: 'Khusus pemain baru belajar dan santai',
+        badge: 'PEMULA',
+        icon: Icons.sentiment_satisfied_alt_rounded,
+      ),
+      (
+        key: 'Intermediate',
+        title: 'Intermediate Only',
+        subtitle: 'Pemain dengan pukulan dan rally konsisten',
+        badge: 'MENENGAH',
+        icon: Icons.sports_tennis_rounded,
+      ),
+      (
+        key: 'Advanced',
+        title: 'Advanced / Competitive Only',
+        subtitle: 'Pemain mahir dengan tempo cepat & kompetitif',
+        badge: 'KOMPETITIF',
+        icon: Icons.military_tech_rounded,
+      ),
     ];
 
-    return '${_selectedDate.day} ${months[_selectedDate.month - 1]} '
-        '${_selectedDate.year}';
-  }
-
-  String _formatTime() {
-    final hour = _selectedTime.hour.toString().padLeft(2, '0');
-    final minute = _selectedTime.minute.toString().padLeft(2, '0');
-
-    return '$hour:$minute';
-  }
-
-  DateTime _getSessionDateTime() {
-    return DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      _selectedTime.hour,
-      _selectedTime.minute,
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Pilih Rekomendasi Level',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ...levels.map((lvl) {
+                final isSelected = _selectedLevel == lvl.key;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() => _selectedLevel = lvl.key);
+                      Navigator.pop(ctx);
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.matchaDark : Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Icon(
+                              lvl.icon,
+                              size: 16,
+                              color: isSelected ? const Color(0xFFA8E63A) : const Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      lvl.title,
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                                        color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? const Color(0xFFEBF8D8) : const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        lvl.badge,
+                                        style: TextStyle(
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w800,
+                                          color: isSelected ? const Color(0xFF063B00) : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  lvl.subtitle,
+                                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.matchaDark),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Future<void> _generateDrawing() async {
-    FocusScope.of(context).unfocus();
+  void _showQuickAddVenueModal() {
+    final venueNameCtrl = TextEditingController();
+    final cityCtrl = TextEditingController();
+    final addressCtrl = TextEditingController();
+    int? numberOfCourts;
+    bool isAddingVenue = false;
+    String? errorMessage;
 
-    if (_isCreating) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(modalCtx).viewInsets.bottom),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(22, 20, 22, 28),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.matchaSoftLime,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.add_business_rounded,
+                                size: 20,
+                                color: AppColors.matchaDark,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              'Tambah Venue Cepat',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(modalCtx),
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildFieldLabel('Nama Venue *'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: venueNameCtrl,
+                      onChanged: (_) {
+                        if (errorMessage != null) {
+                          setModalState(() => errorMessage = null);
+                        }
+                      },
+                      decoration: _buildInputDecoration(hint: 'Contoh: Bonang Padel Arena & Club'),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildFieldLabel('Kota / Wilayah'),
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: cityCtrl,
+                                decoration: _buildInputDecoration(hint: 'Contoh: Kota Bandung'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildFieldLabel('Jumlah Court *'),
+                              const SizedBox(height: 6),
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  return PopupMenuButton<int>(
+                                    position: PopupMenuPosition.under,
+                                    offset: const Offset(0, 4),
+                                    color: Colors.white,
+                                    constraints: BoxConstraints(
+                                      minWidth: constraints.maxWidth,
+                                      maxWidth: constraints.maxWidth,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    onOpened: () {
+                                      FocusManager.instance.primaryFocus?.unfocus();
+                                    },
+                                    onSelected: (val) {
+                                      setModalState(() {
+                                        numberOfCourts = val;
+                                        if (errorMessage != null) errorMessage = null;
+                                      });
+                                    },
+                                    itemBuilder: (_) => [
+                                      for (int i = 1; i <= 6; i++)
+                                        PopupMenuItem(
+                                          value: i,
+                                          child: Text(
+                                            '$i Court${i > 1 ? "s" : ""}',
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                    ],
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            numberOfCourts != null
+                                                ? '$numberOfCourts Court${numberOfCourts! > 1 ? "s" : ""}'
+                                                : 'Pilih Jumlah',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: numberOfCourts != null ? FontWeight.w600 : FontWeight.normal,
+                                              color: numberOfCourts != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                                            ),
+                                          ),
+                                          const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildFieldLabel('Alamat Lengkap'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: addressCtrl,
+                      decoration: _buildInputDecoration(hint: 'Contoh: Jl. Riau No. 123'),
+                    ),
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFECACA)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton(
+                        onPressed: isAddingVenue
+                            ? null
+                            : () async {
+                                if (venueNameCtrl.text.trim().isEmpty) {
+                                  setModalState(() => errorMessage = 'Nama venue wajib diisi');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Nama venue wajib diisi'),
+                                      backgroundColor: Colors.orange,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                if (numberOfCourts == null || numberOfCourts! <= 0) {
+                                  setModalState(() => errorMessage = 'Jumlah court wajib dipilih');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Jumlah court wajib dipilih'),
+                                      backgroundColor: Colors.orange,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                setModalState(() {
+                                  isAddingVenue = true;
+                                  errorMessage = null;
+                                });
+                                try {
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  final newVenue = await _venueService.quickAddVenue(
+                                    namaVenue: venueNameCtrl.text.trim(),
+                                    kota: cityCtrl.text.trim().isNotEmpty ? cityCtrl.text.trim() : 'Jakarta',
+                                    alamat: addressCtrl.text.trim(),
+                                    numberOfCourts: numberOfCourts!,
+                                    sportId: _selectedSportId,
+                                    ownerUserId: widget.authController?.currentUser?.userId,
+                                  );
+
+                                  if (modalCtx.mounted) {
+                                    Navigator.pop(modalCtx);
+                                  }
+                                  if (!mounted) return;
+
+                                  // Reload venues & select newly added venue
+                                  final updatedVenues = await _venueService.getVenues();
+                                  if (!mounted) return;
+                                  setState(() {
+                                    _allVenues = updatedVenues;
+                                    // Pre-select venue baru
+                                    _selectedVenue = newVenue;
+                                    if (_selectedSportId != null) {
+                                      _applySportSelection(_selectedSportId!);
+                                    } else {
+                                      _selectedCourts = newVenue.courts.isNotEmpty ? [newVenue.courts.first] : [];
+                                    }
+                                  });
+
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('Venue "${newVenue.namaVenue}" berhasil ditambahkan! 🎉'),
+                                      backgroundColor: AppColors.matchaDark,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  if (modalCtx.mounted) {
+                                    setModalState(() => isAddingVenue = false);
+                                  }
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Gagal menambah venue: $e'),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.matchaDark,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isAddingVenue
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Simpan & Gunakan Venue', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) return;
 
     if (_selectedSportId == null) {
-      _showError('Silakan pilih cabang olahraga.');
-      return;
-    }
-
-    if (_nameController.text.trim().isEmpty) {
-      _showError('Nama session tidak boleh kosong.');
-      return;
-    }
-
-    if (_selectedPlayerIds.isEmpty) {
-      _showError('Silakan pilih minimal satu pemain.');
-      return;
-    }
-
-    if (_selectedCourtIds.isEmpty) {
-      _showError('Silakan pilih minimal satu lapangan.');
-      return;
-    }
-
-    final sessionDateTime = _getSessionDateTime();
-
-    if (sessionDateTime.isBefore(DateTime.now())) {
-      _showError('Waktu session tidak boleh berada di masa lalu.');
-      return;
-    }
-
-    setState(() {
-      _isCreating = true;
-    });
-
-    try {
-      // Mapping UI -> nilai yang sesuai CHECK constraint database.
-      final jenisPermainan =
-          _selectedFormat == 'Singles' ? 'Single' : 'Double';
-
-      final sessionId = await _sessionController.createSession(
-        currentUser: widget.currentUser,
-        sportId: _selectedSportId!,
-        namaSession: _nameController.text.trim(),
-        drawingMethod: _selectedMethod,
-        statusSession: 'Upcoming',
-        waktuSession: sessionDateTime,
-        jenisPermainan: jenisPermainan,
-        playerIds: _selectedPlayerIds.toList(),
-        courtIds: _selectedCourtIds.toList(),
-      );
-
-    if (!mounted) return;
-
-    if (sessionId == null) {
-      _showError(
-        _sessionController.errorMessage ??
-            'Gagal membuat session.',
-      );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Session berhasil dibuat. ID: $sessionId',
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih cabang olahraga (Padel atau Tennis) terlebih dahulu.'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
         ),
-      ),
-    );
-
-    if (widget.onGenerateDrawing != null) {
-      widget.onGenerateDrawing!();
+      );
       return;
     }
 
-    final selectedPlayers = _sessionController.players
-        .where((p) => _selectedPlayerIds.contains(p['player_id'] as int))
-        .toList();
-
-    final selectedPlayerNames = selectedPlayers
-        .map((p) => p['nama_player']?.toString() ?? 'Player ${p['player_id']}')
-        .toList();
-
-    final selectedCourts = _sessionController.courts
-        .where((c) => _selectedCourtIds.contains(c['court_id'] as int))
-        .toList();
-
-    final selectedCourtNames = selectedCourts
-        .map((c) => c['nama_court']?.toString() ?? 'Court ${c['court_id']}')
-        .toList();
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DrawingResultPage(
-          sessionId: sessionId,
-          sessionName: _nameController.text.trim(),
-          sportName: _selectedSport,
-          drawingMethod: _selectedMethod,
-          format: _selectedFormat,
-          jenisPermainan:
-              _selectedFormat == 'Singles' ? 'Single' : 'Double',
-          waktuSession: sessionDateTime,
-          playerNames: selectedPlayerNames,
-          playerIds: _selectedPlayerIds.toList(),
-          courtNames: selectedCourtNames,
-          courtIds: _selectedCourtIds.toList(),
+    if (_selectedFormat == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih format pertandingan (Americano atau Team Americano) terlebih dahulu.'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
         ),
-      ),
-    );
-    } catch (e) {
-      if (!mounted) return;
-
-      _showError(
-        e.toString().replaceFirst('Exception: ', ''),
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isCreating = false;
-        });
+      return;
+    }
+
+    if (_selectedVenue == null || _selectedCourts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih venue dan minimal satu court yang tersedia terlebih dahulu.'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final user = widget.authController?.currentUser;
+    if (user != null && user.isVenueOwner) {
+      if (_selectedVenue!.ownerUserId != user.userId) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sebagai Venue Owner, Anda hanya dapat membuat sesi mabar di venue milik sendiri.'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
       }
     }
+
+    // Constraint Validation for First to X
+    if (_isFirstToSystem) {
+      final requiredCount = _selectedGameType == 'Double' ? 4 : 2;
+      if (_selectedQuota != requiredCount) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Format $_selectedScoringSystem ($_selectedGameType) membutuhkan tepat $requiredCount pemain.',
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Constraint Validation for Team Americano: Must be even
+    if (_isTeamAmericano && _selectedQuota % 2 != 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Jumlah pemain Team Americano harus genap (4, 6, 8, dst) karena setiap tim terdiri dari pasangan tetap.',
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    // Validasi hari buka venue
+    if (_selectedVenue != null &&
+        !_isVenueDayAvailable(_selectedDate, _selectedVenue!.hariBuka)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Venue "${_selectedVenue!.namaVenue}" tidak buka pada hari yang dipilih '
+            '(${_selectedVenue!.hariBuka ?? '-'}). Silakan pilih tanggal lain.',
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Validasi jam operasional venue
+    final jamParsed = _parseJamOperasional(_selectedVenue?.jamOperasional);
+    if (jamParsed != null) {
+      final pickedMin = _selectedTime.hour * 60 + _selectedTime.minute;
+      if (pickedMin < jamParsed.$1 || pickedMin >= jamParsed.$2) {
+        final openH  = (jamParsed.$1 ~/ 60).toString().padLeft(2, '0');
+        final openM  = (jamParsed.$1  %  60).toString().padLeft(2, '0');
+        final closeH = (jamParsed.$2 ~/ 60).toString().padLeft(2, '0');
+        final closeM = (jamParsed.$2 %  60).toString().padLeft(2, '0');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Jam yang dipilih di luar jam operasional venue '
+              '($openH:$openM – $closeH:$closeM WIB). Silakan ubah jam mulai.',
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final user = widget.authController?.currentUser;
+      final timeStr =
+          '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
+
+      await _sessionService.createScheduleSession(
+        sportId: _selectedSportId!,
+        venueId: _selectedVenue!.venueId,
+        courtIds: _selectedCourts.map((c) => c.courtId).toList(),
+        namaSession: _titleController.text.trim(),
+        tanggal: _selectedDate,
+        jam: timeStr,
+        durasi: _selectedDuration,
+        jumlahPemain: _selectedQuota,
+        jenisPermainan: _selectedGameType,
+        scoringSystem: _selectedScoringSystem,
+        levelRekomendasi: _selectedLevel,
+        deskripsi: _descController.text.trim(),
+        hostUserId: user?.userId,
+        hostPlayerId: user?.playerId,
+        addYourselfAsPlayer: _addYourselfAsPlayer,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+
+      AppErrorHandler.showSuccessSnackBar(
+        context,
+        'Sesi mabar "${_titleController.text.trim()}" berhasil dibuat dan dipublikasikan! 🎉',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      AppErrorHandler.showErrorSnackBar(context, e);
+    }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
+  @override
+  Widget build(BuildContext context) {
+    // Matching venues for current sport
+    final matchingVenues = _selectedSportId == null
+        ? <VenueModel>[]
+        : _allVenues.where((v) {
+            return v.courts.any((c) =>
+                c.sportId == _selectedSportId &&
+                (c.statusKetersediaan == null ||
+                    c.statusKetersediaan!.toLowerCase() == 'available'));
+          }).toList();
+
+    // Matching courts for current selected venue
+    final matchingCourts = _selectedVenue != null && _selectedSportId != null
+        ? _selectedVenue!.courts.where((c) =>
+            c.sportId == _selectedSportId &&
+            (c.statusKetersediaan == null ||
+                c.statusKetersediaan!.toLowerCase() == 'available')).toList()
+        : <CourtModel>[];
+
+    final dateFormatted =
+        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+    final timeFormatted =
+        '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')} WIB';
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 1,
+        shadowColor: Colors.black12,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'HOST OPEN SCHEDULE',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+                color: AppColors.matchaDark,
+              ),
+            ),
+            const Text(
+              'Buka Jadwal Mabar Baru',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.matchaDark),
+            )
+          : SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+              child: Form(
+                key: _formKey,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.matchaDark.withValues(alpha: 0.04),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ==========================================
+                      // 1. PILIH CABANG OLAHRAGA
+                      // ==========================================
+                      _buildSectionHeader('1', 'PILIH CABANG OLAHRAGA'),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildSportCard(
+                              sportId: 1,
+                              title: 'Padel',
+                              subtitle: 'Pertandingan Padel',
+                              icon: Icons.sports_tennis_rounded,
+                              isSelected: _selectedSportId == 1,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildSportCard(
+                              sportId: 2,
+                              title: 'Tennis',
+                              subtitle: 'Pertandingan Tennis',
+                              icon: Icons.sports_baseball_rounded,
+                              isSelected: _selectedSportId == 2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      const SizedBox(height: 20),
+
+                      // ==========================================
+                      // 2. PILIH FORMAT PERTANDINGAN & SISTEM SKOR
+                      // ==========================================
+                      _buildSectionHeader('2', 'PILIH FORMAT PERTANDINGAN & SISTEM SKOR'),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildFormatCard(
+                              formatKey: 'Americano',
+                              badgeText: 'POPULER',
+                              badgeColor: const Color(0xFF063B00),
+                              badgeBg: const Color(0xFFEBF8D8),
+                              title: 'Americano',
+                              subtitle: 'Semua pemain berpasangan secara bergantian (Round-Robin)',
+                              icon: Icons.sync_rounded,
+                              isSelected: _selectedFormat == 'Americano',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildFormatCard(
+                              formatKey: 'Team Americano',
+                              badgeText: 'FIXED TEAMS',
+                              badgeColor: const Color(0xFF1D4ED8),
+                              badgeBg: const Color(0xFFEFF6FF),
+                              title: 'Team Americano',
+                              subtitle: 'Setiap tim 2 orang tetap bertanding melawan seluruh tim lainnya',
+                              icon: Icons.groups_rounded,
+                              isSelected: _selectedFormat == 'Team Americano',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Modern Selector Sistem Skor
+                      _buildFieldLabel('Sistem Skor Pertandingan'),
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: _showScoringSystemPickerModal,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: _isFirstToSystem ? const Color(0xFFFEF3C7) : const Color(0xFFEBF8D8),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  _isFirstToSystem ? Icons.bolt_rounded : Icons.sync_rounded,
+                                  size: 16,
+                                  color: _isFirstToSystem ? const Color(0xFFB45309) : const Color(0xFF063B00),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _selectedScoringSystem,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 1),
+                                    Text(
+                                      _isFirstToSystem
+                                          ? 'Sistem Langsung Tuntas (1 Set Selesai)'
+                                          : 'Sistem Rotasi Poin Dinamis',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: _isFirstToSystem ? const Color(0xFFFFFBEB) : const Color(0xFFF0FDF4),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: _isFirstToSystem ? const Color(0xFFFDE68A) : const Color(0xFFBBF7D0),
+                                  ),
+                                ),
+                                child: Text(
+                                  _isFirstToSystem ? 'First to X' : 'Total of X',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: _isFirstToSystem ? const Color(0xFFB45309) : const Color(0xFF15803D),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 20,
+                                color: Color(0xFF64748B),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      const SizedBox(height: 20),
+
+                      // ==========================================
+                      // 3. INFORMASI & JUDUL MABAR
+                      // ==========================================
+                      _buildSectionHeader('3', 'INFORMASI & JUDUL MABAR'),
+                      const SizedBox(height: 12),
+                      _buildFieldLabel('Judul Sesi Mabar *'),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _titleController,
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Judul sesi mabar wajib diisi';
+                          }
+                          return null;
+                        },
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        decoration: _buildInputDecoration(
+                          hint: 'Contoh: Mabar Padel JTK Bonang 6 Players',
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '*Nama ini akan menjadi judul kartu mabar di Dashboard dan Jadwal Mabar.',
+                        style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                      ),
+                      const SizedBox(height: 22),
+                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      const SizedBox(height: 20),
+
+                      // ==========================================
+                      // 4. LOKASI VENUE & LAPANGAN
+                      // ==========================================
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildSectionHeader('4', 'LOKASI VENUE & LAPANGAN'),
+                          InkWell(
+                            onTap: _showQuickAddVenueModal,
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.matchaDark,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.add_rounded, size: 13, color: Color(0xFFA8E63A)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Tambah Venue',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildFieldLabel('Pilih Venue / Tempat *'),
+                      const SizedBox(height: 6),
+                      if (matchingVenues.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFECACA)),
+                          ),
+                          child: Text(
+                            (widget.authController?.currentUser?.isVenueOwner == true)
+                                ? 'Anda belum memiliki venue dengan lapangan aktif untuk cabang olahraga ini. Sebagai Venue Owner, Anda hanya dapat membuat sesi mabar di venue milik sendiri.'
+                                : 'Tidak ada venue dengan lapangan tersedia untuk cabang olahraga ini.',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
+                          ),
+                        )
+                      else
+                        InkWell(
+                          onTap: () => _showVenueSearchPickerModal(matchingVenues),
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: _selectedVenue != null ? AppColors.matchaDark.withValues(alpha: 0.4) : const Color(0xFFE2E8F0),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.matchaSoftLime,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(Icons.location_on_rounded, color: AppColors.matchaDark, size: 18),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _selectedVenue?.namaVenue ?? 'Pilih Lapangan Venue...',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: _selectedVenue != null ? FontWeight.w700 : FontWeight.normal,
+                                          color: _selectedVenue != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (_selectedVenue != null) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${_selectedVenue!.kota ?? _selectedVenue!.alamat ?? 'Lokasi Terdaftar'} • ${_selectedVenue!.courts.where((c) => c.sportId == _selectedSportId).length} Court Tersedia',
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 14),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildFieldLabel('Pilih Court / Lapangan *'),
+                          if (_selectedCourts.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0FDF4),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: const Color(0xFFBBF7D0)),
+                              ),
+                              child: Text(
+                                '${_selectedCourts.length} Lapangan',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF15803D),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      if (matchingCourts.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFECACA)),
+                          ),
+                          child: const Text(
+                            'Tidak ada court yang tersedia untuk cabang olahraga ini pada venue terpilih.',
+                            style: TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
+                          ),
+                        )
+                      else ...[
+                        InkWell(
+                          onTap: () => setState(() => _isCourtDropdownOpen = !_isCourtDropdownOpen),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _isCourtDropdownOpen ? const Color(0xFF063B00) : const Color(0xFFE2E8F0),
+                                width: _isCourtDropdownOpen ? 1.5 : 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _selectedCourts.isEmpty
+                                        ? 'Pilih Lapangan'
+                                        : _selectedCourts.length == matchingCourts.length && matchingCourts.length > 1
+                                            ? 'Semua Lapangan (${_selectedCourts.length} Lapangan)'
+                                            : '${_selectedCourts.map((c) => c.namaCourt).join(', ')} (${_selectedCourts.length} Lapangan)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: _selectedCourts.isEmpty ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Icon(
+                                  _isCourtDropdownOpen ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                                  size: 20,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_isCourtDropdownOpen) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.06),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Pilih Lapangan:',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          if (_selectedCourts.length == matchingCourts.length) {
+                                            _selectedCourts = [];
+                                          } else {
+                                            _selectedCourts = List.from(matchingCourts);
+                                          }
+                                        });
+                                      },
+                                      child: Text(
+                                        _selectedCourts.length == matchingCourts.length
+                                            ? 'Batal Pilih Semua'
+                                            : 'Pilih Semua Lapangan',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF063B00),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                ...matchingCourts.map((court) {
+                                  final isSelected = _selectedCourts.any((c) => c.courtId == court.courtId);
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          if (isSelected) {
+                                            _selectedCourts.removeWhere((c) => c.courtId == court.courtId);
+                                          } else {
+                                            _selectedCourts.add(court);
+                                          }
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: isSelected ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
+                                            width: isSelected ? 1.5 : 1.0,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    court.namaCourt,
+                                                    style: const TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: Color(0xFF0F172A),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    '${court.tipeCourt ?? 'Outdoor'} • ${_formatHargaPerJam(court.hargaPerJam)}',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color: Color(0xFF64748B),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Container(
+                                              width: 22,
+                                              height: 22,
+                                              decoration: BoxDecoration(
+                                                color: isSelected ? const Color(0xFF063B00) : Colors.white,
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: isSelected ? const Color(0xFF063B00) : const Color(0xFFCBD5E1),
+                                                  width: 1.5,
+                                                ),
+                                              ),
+                                              alignment: Alignment.center,
+                                              child: isSelected
+                                                  ? const Icon(Icons.check_rounded, size: 14, color: Color(0xFFA8E63A))
+                                                  : null,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                                const SizedBox(height: 6),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '${_selectedCourts.length} dari ${matchingCourts.length} lapangan dipilih',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => setState(() => _isCourtDropdownOpen = false),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF063B00),
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Selesai',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                      const SizedBox(height: 22),
+                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      const SizedBox(height: 20),
+
+                      // ==========================================
+                      // 5. JADWAL & KUOTA PEMAIN
+                      // ==========================================
+                      _buildSectionHeader('5', 'JADWAL & KUOTA PEMAIN'),
+                      const SizedBox(height: 12),
+
+                      // Info jam operasional & hari buka venue (jika sudah dipilih)
+                      if (_selectedVenue != null &&
+                          (_selectedVenue!.hariBuka != null || _selectedVenue!.jamOperasional != null)) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.access_time_rounded, size: 13, color: Color(0xFF16A34A)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  [
+                                    if (_selectedVenue!.hariBuka != null) _selectedVenue!.hariBuka!,
+                                    if (_selectedVenue!.jamOperasional != null) _selectedVenue!.jamOperasional!,
+                                  ].join('  •  '),
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF15803D),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+
+                      // Tanggal, Jam, Durasi Row
+                      Builder(builder: (context) {
+                        // Compute validity against venue availability
+                        final isDateInvalid = _selectedVenue != null &&
+                            !_isVenueDayAvailable(_selectedDate, _selectedVenue!.hariBuka);
+                        final jamParsed = _parseJamOperasional(_selectedVenue?.jamOperasional);
+                        final pickedMin = _selectedTime.hour * 60 + _selectedTime.minute;
+                        final isTimeInvalid = jamParsed != null &&
+                            (pickedMin < jamParsed.$1 || pickedMin >= jamParsed.$2);
+
+                        return Row(
+                          children: [
+                            // Tanggal
+                            Expanded(
+                              flex: 4,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildFieldLabel('Tanggal Mabar'),
+                                  const SizedBox(height: 6),
+                                  InkWell(
+                                    onTap: _pickDate,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+                                      decoration: BoxDecoration(
+                                        color: isDateInvalid
+                                            ? const Color(0xFFFFF1F2)
+                                            : const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: isDateInvalid
+                                              ? const Color(0xFFFCA5A5)
+                                              : const Color(0xFFE2E8F0),
+                                          width: isDateInvalid ? 1.5 : 1.0,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            isDateInvalid
+                                                ? Icons.event_busy_rounded
+                                                : Icons.calendar_today_rounded,
+                                            size: 14,
+                                            color: isDateInvalid
+                                                ? const Color(0xFFEF4444)
+                                                : const Color(0xFF64748B),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              dateFormatted,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: isDateInvalid
+                                                    ? const Color(0xFFEF4444)
+                                                    : const Color(0xFF0F172A),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (isDateInvalid)
+                                            const Icon(Icons.warning_amber_rounded,
+                                                size: 12, color: Color(0xFFEF4444)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  if (isDateInvalid) ...[
+                                    const SizedBox(height: 3),
+                                    const Text(
+                                      'Venue tutup hari ini',
+                                      style: TextStyle(fontSize: 9.5, color: Color(0xFFEF4444), fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Jam
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildFieldLabel('Jam Mulai'),
+                                  const SizedBox(height: 6),
+                                  InkWell(
+                                    onTap: _pickTime,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+                                      decoration: BoxDecoration(
+                                        color: isTimeInvalid
+                                            ? const Color(0xFFFFF1F2)
+                                            : const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: isTimeInvalid
+                                              ? const Color(0xFFFCA5A5)
+                                              : const Color(0xFFE2E8F0),
+                                          width: isTimeInvalid ? 1.5 : 1.0,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            isTimeInvalid
+                                                ? Icons.timer_off_rounded
+                                                : Icons.access_time_rounded,
+                                            size: 14,
+                                            color: isTimeInvalid
+                                                ? const Color(0xFFEF4444)
+                                                : const Color(0xFF64748B),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              timeFormatted,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: isTimeInvalid
+                                                    ? const Color(0xFFEF4444)
+                                                    : const Color(0xFF0F172A),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (isTimeInvalid)
+                                            const Icon(Icons.warning_amber_rounded,
+                                                size: 12, color: Color(0xFFEF4444)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  if (isTimeInvalid) ...[
+                                    const SizedBox(height: 3),
+                                    const Text(
+                                      'Di luar jam buka',
+                                      style: TextStyle(fontSize: 9.5, color: Color(0xFFEF4444), fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Durasi
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildFieldLabel('Durasi'),
+                                  const SizedBox(height: 6),
+                                  InkWell(
+                                    onTap: _showDurationPickerModal,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.timer_outlined, size: 14, color: Color(0xFF64748B)),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              _selectedDuration,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF0F172A),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF64748B)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                      const SizedBox(height: 14),
+
+                      // Jenis Permainan Toggle (Double / Single)
+                      _buildFieldLabel('Jenis Permainan'),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => _onGameTypeChanged('Double'),
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 9),
+                                  decoration: BoxDecoration(
+                                    color: _selectedGameType == 'Double' ? AppColors.matchaDark : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.people_alt_rounded,
+                                        size: 15,
+                                        color: _selectedGameType == 'Double' ? Colors.white : const Color(0xFF64748B),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Double (2v2)',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: _selectedGameType == 'Double' ? Colors.white : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Opacity(
+                                opacity: _isTeamAmericano ? 0.4 : 1.0,
+                                child: InkWell(
+                                  onTap: _isTeamAmericano ? null : () => _onGameTypeChanged('Single'),
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 9),
+                                    decoration: BoxDecoration(
+                                      color: _selectedGameType == 'Single' ? AppColors.matchaDark : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.person_rounded,
+                                          size: 15,
+                                          color: _selectedGameType == 'Single' ? Colors.white : const Color(0xFF64748B),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Single (1v1)',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: _selectedGameType == 'Single' ? Colors.white : const Color(0xFF64748B),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Kuota Maksimal Pemain
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildFieldLabel('Kuota Maksimal Pemain'),
+                          if (_isFirstToSystem)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFFDE68A)),
+                              ),
+                              child: const Text(
+                                'Kapasitas Terkunci (First to X)',
+                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: _isFirstToSystem ? null : _showQuotaPickerModal,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _isFirstToSystem ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.groups_rounded,
+                                size: 18,
+                                color: _isFirstToSystem ? const Color(0xFF94A3B8) : AppColors.matchaDark,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  '$_selectedQuota Pemain',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: _isFirstToSystem ? const Color(0xFF64748B) : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ),
+                              if (!_isFirstToSystem)
+                                const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: Color(0xFF64748B)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Banner Info Dinamis
+                      _buildDynamicInfoBanner(),
+                      const SizedBox(height: 14),
+
+                      // Rekomendasi Level
+                      _buildFieldLabel('Rekomendasi Level'),
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: _showLevelPickerModal,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.military_tech_rounded, size: 18, color: AppColors.matchaDark),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _selectedLevel == 'All Level'
+                                      ? 'All Level Welcome (Bebas Semua Level)'
+                                      : _selectedLevel == 'Newbie - Beginner'
+                                          ? 'Newbie & Beginner Only'
+                                          : _selectedLevel == 'Intermediate'
+                                              ? 'Intermediate Only'
+                                              : 'Advanced / Competitive Only',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: Color(0xFF64748B)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Catatan Khusus / Deskripsi Mabar
+                      _buildFieldLabel('Catatan Khusus / Deskripsi Mabar'),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _descController,
+                        maxLines: 3,
+                        style: const TextStyle(fontSize: 12),
+                        decoration: _buildInputDecoration(
+                          hint: 'Contoh: Harap hadir 15 menit sebelum mabar dimulai. Bola sudah disediakan oleh host, sewa raket tersedia di tempat.',
+                        ),
+                      ),
+                      // Add Yourself Toggle — host ikut bermain sebagai peserta
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: () => setState(() => _addYourselfAsPlayer = !_addYourselfAsPlayer),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _addYourselfAsPlayer
+                                ? const Color(0xFFF0FDF4)
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _addYourselfAsPlayer
+                                  ? const Color(0xFF86EFAC)
+                                  : const Color(0xFFE2E8F0),
+                              width: _addYourselfAsPlayer ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: _addYourselfAsPlayer
+                                      ? AppColors.matchaDark
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: _addYourselfAsPlayer
+                                        ? AppColors.matchaDark
+                                        : const Color(0xFFCBD5E1),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: _addYourselfAsPlayer
+                                    ? const Icon(Icons.check_rounded,
+                                        size: 13, color: Color(0xFFA8E63A))
+                                    : null,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '+ Add Yourself (Ikut Bermain)',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: _addYourselfAsPlayer
+                                            ? const Color(0xFF15803D)
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                    Text(
+                                      _addYourselfAsPlayer
+                                          ? 'Kamu akan terdaftar sebagai salah satu peserta'
+                                          : 'Kamu tidak ikut bermain, hanya sebagai host',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: _addYourselfAsPlayer
+                                            ? const Color(0xFF16A34A)
+                                            : const Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.person_add_alt_1_rounded,
+                                size: 18,
+                                color: _addYourselfAsPlayer
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFFCBD5E1),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Submit Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: _isSubmitting ? null : _submitForm,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.matchaDark,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: const [
+                                    Icon(Icons.send_rounded, size: 16, color: Color(0xFFA8E63A)),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Publikasikan Sesi Mabar ke Jadwal',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+
+
+
+  Widget _buildDynamicInfoBanner() {
+    String message;
+    Color bgColor = const Color(0xFFF0FDF4);
+    Color borderColor = const Color(0xFFBBF7D0);
+    Color textColor = const Color(0xFF166534);
+    IconData icon = Icons.info_outline_rounded;
+
+    if (_isFirstToSystem) {
+      final req = _selectedGameType == 'Double' ? '4 pemain (2 vs 2)' : '2 pemain (1 vs 1)';
+      message = 'Format $_selectedScoringSystem: Pertandingan 1 set langsung tuntas tanpa rotasi cadangan. Memerlukan tepat $req.';
+      bgColor = const Color(0xFFFEF3C7);
+      borderColor = const Color(0xFFFDE68A);
+      textColor = const Color(0xFF92400E);
+      icon = Icons.bolt_rounded;
+    } else if (_isTeamAmericano) {
+      message = 'Team Americano: Setiap tim 2 orang tetap saling bertanding melawan tim lainnya. Kuota pemain harus genap (4, 6, 8, dst).';
+      bgColor = const Color(0xFFEFF6FF);
+      borderColor = const Color(0xFFBFDBFE);
+      textColor = const Color(0xFF1E40AF);
+      icon = Icons.groups_rounded;
+    } else if (_selectedGameType == 'Double') {
+      message = 'Americano Double: Pasangan partner berganti tiap ronde secara dinamis dan adil.';
+    } else {
+      message = 'Americano Single: Pertandingan 1 lawan 1 round-robin.';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 15, color: textColor),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-
-  Future<void> _showPlayerPicker() async {
-    if (_sessionController.players.isEmpty) {
-      _showError('Belum ada pemain aktif.');
-      return;
-    }
-
-    final tempSelected = Set<int>.from(
-      _selectedPlayerIds,
-    );
-
-    await showModalBottomSheet(
-      context: context,
-      backgroundColor: context.surf,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return SafeArea(
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.75,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    20,
-                    8,
-                    20,
-                    20,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Pilih Pemain',
-                            style: AppTextStyles.pageTitle.copyWith(
-                              fontSize: 20,
-                              color: context.txtPrimary,
-                            ),
-                          ),
-                          Text(
-                            '${tempSelected.length} dipilih',
-                            style: TextStyle(
-                              color: context.brandColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: ListView.separated(
-                          itemCount:
-                              _sessionController.players.length,
-                          separatorBuilder: (context, index) =>
-                              const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final player =
-                                _sessionController.players[index];
-
-                            final playerId =
-                                player['player_id'] as int;
-
-                            final playerName =
-                                player['nama_player']
-                                    ?.toString() ??
-                                '';
-
-                            final status =
-                                player['status_member']
-                                    ?.toString() ??
-                                '';
-
-                            final selected =
-                                tempSelected.contains(playerId);
-
-                            return ListTile(
-                              contentPadding:
-                                  const EdgeInsets.symmetric(
-                                vertical: 4,
-                              ),
-                              leading: CircleAvatar(
-                                backgroundColor:
-                                    context.surfSec,
-                                child: Icon(
-                                  Icons.person_rounded,
-                                  color: context.txtSecondary,
-                                ),
-                              ),
-                              title: Text(
-                                playerName,
-                                style: TextStyle(
-                                  color: context.txtPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              subtitle: Text(
-                                status,
-                                style: TextStyle(
-                                  color: context.txtSecondary,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              trailing: Checkbox(
-                                value: selected,
-                                activeColor:
-                                    context.brandColor,
-                                onChanged: (value) {
-                                  setModalState(() {
-                                    if (value == true) {
-                                      tempSelected.add(
-                                        playerId,
-                                      );
-                                    } else {
-                                      tempSelected.remove(
-                                        playerId,
-                                      );
-                                    }
-                                  });
-                                },
-                              ),
-                              onTap: () {
-                                setModalState(() {
-                                  if (selected) {
-                                    tempSelected.remove(
-                                      playerId,
-                                    );
-                                  } else {
-                                    tempSelected.add(
-                                      playerId,
-                                    );
-                                  }
-                                });
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                context.brandColor,
-                            foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(14),
-                            ),
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _selectedPlayerIds
-                                ..clear()
-                                ..addAll(tempSelected);
-                            });
-
-                            Navigator.pop(context);
-                          },
-                          child: const Text(
-                            'Simpan Pilihan',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
+  Widget _buildSectionHeader(String number, String title) {
+    return Row(
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          decoration: const BoxDecoration(
+            color: AppColors.matchaDark,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            number,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.5,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+      ],
     );
   }
 
-  Future<void> _showCourtPicker() async {
-    if (_selectedSportId == null) {
-      _showError(
-        'Pilih cabang olahraga terlebih dahulu.',
-      );
-      return;
-    }
-
-    if (_sessionController.courts.isEmpty) {
-      _showError(
-        'Belum ada lapangan tersedia untuk olahraga ini.',
-      );
-      return;
-    }
-
-    final tempSelected = Set<int>.from(
-      _selectedCourtIds,
-    );
-
-    await showModalBottomSheet(
-      context: context,
-      backgroundColor: context.surf,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return SafeArea(
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.65,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    20,
-                    8,
-                    20,
-                    20,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Pilih Lapangan',
-                            style: AppTextStyles.pageTitle.copyWith(
-                              fontSize: 20,
-                              color: context.txtPrimary,
-                            ),
-                          ),
-                          Text(
-                            '${tempSelected.length} dipilih',
-                            style: TextStyle(
-                              color: context.brandColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: ListView.separated(
-                          itemCount:
-                              _sessionController.courts.length,
-                          separatorBuilder: (context, index) =>
-                              const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final court =
-                                _sessionController.courts[index];
-
-                            final courtId =
-                                court['court_id'] as int;
-
-                            final courtName =
-                                court['nama_court']
-                                    ?.toString() ??
-                                '';
-
-                            final location =
-                                court['lokasi']?.toString() ??
-                                '';
-
-                            final selected =
-                                tempSelected.contains(courtId);
-
-                            return ListTile(
-                              contentPadding:
-                                  const EdgeInsets.symmetric(
-                                vertical: 4,
-                              ),
-                              leading: CircleAvatar(
-                                backgroundColor:
-                                    context.surfSec,
-                                child: Icon(
-                                  Icons.sports_tennis_rounded,
-                                  color: context.txtSecondary,
-                                ),
-                              ),
-                              title: Text(
-                                courtName,
-                                style: TextStyle(
-                                  color: context.txtPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              subtitle: Text(
-                                location.isEmpty
-                                    ? 'Lokasi tidak tersedia'
-                                    : location,
-                                style: TextStyle(
-                                  color: context.txtSecondary,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              trailing: Checkbox(
-                                value: selected,
-                                activeColor:
-                                    context.brandColor,
-                                onChanged: (value) {
-                                  setModalState(() {
-                                    if (value == true) {
-                                      tempSelected.add(
-                                        courtId,
-                                      );
-                                    } else {
-                                      tempSelected.remove(
-                                        courtId,
-                                      );
-                                    }
-                                  });
-                                },
-                              ),
-                              onTap: () {
-                                setModalState(() {
-                                  if (selected) {
-                                    tempSelected.remove(
-                                      courtId,
-                                    );
-                                  } else {
-                                    tempSelected.add(
-                                      courtId,
-                                    );
-                                  }
-                                });
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                context.brandColor,
-                            foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(14),
-                            ),
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _selectedCourtIds
-                                ..clear()
-                                ..addAll(tempSelected);
-                            });
-
-                            Navigator.pop(context);
-                          },
-                          child: const Text(
-                            'Simpan Pilihan',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
+  Widget _buildFieldLabel(String label) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF334155),
+      ),
     );
   }
 
-  Widget _buildSelectionCard({
-    required BuildContext context,
-    required IconData icon,
+  InputDecoration _buildInputDecoration({required String hint}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5),
+      ),
+    );
+  }
+
+  Widget _buildSportCard({
+    required int sportId,
     required String title,
-    required String value,
-    required VoidCallback onTap,
+    required String subtitle,
+    required IconData icon,
+    required bool isSelected,
   }) {
     return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      onTap: () => _applySportSelection(sportId),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: context.surf,
-          borderRadius: BorderRadius.circular(14),
+          color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: context.surfBorder,
+            color: isSelected ? AppColors.matchaDark : Colors.transparent,
+            width: isSelected ? 1.5 : 1,
           ),
         ),
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                color: context.surfSec,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: Icon(
-                icon,
-                size: 20,
-                color: context.brandColor,
-              ),
+              child: Icon(icon, size: 18, color: AppColors.matchaDark),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      color: context.txtSecondary,
-                      fontSize: 11,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
                     ),
                   ),
-                  const SizedBox(height: 3),
                   Text(
-                    value,
-                    style: TextStyle(
-                      color: context.txtPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: Color(0xFF64748B),
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: context.txtSecondary,
             ),
           ],
         ),
@@ -809,490 +3125,85 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     );
   }
 
-  Widget _buildSportChips() {
-    if (_sessionController.sports.isEmpty) {
-      return Text(
-        _sessionController.isLoading
-            ? 'Memuat cabang olahraga...'
-            : 'Tidak ada cabang olahraga aktif.',
-        style: TextStyle(
-          color: context.txtSecondary,
-          fontSize: 13,
-        ),
-      );
-    }
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _sessionController.sports.map(
-        (sport) {
-          final sportId = sport['sport_id'] as int;
-          final sportName =
-              sport['nama_sport']?.toString() ?? '';
-
-          final selected =
-              sportId == _selectedSportId;
-
-          return ChoiceChip(
-            label: Text(sportName),
-            selected: selected,
-            selectedColor: context.brandColor,
-            backgroundColor: context.surf,
-            labelStyle: TextStyle(
-              color: selected
-                  ? Colors.black
-                  : context.txtSecondary,
-              fontWeight: selected
-                  ? FontWeight.bold
-                  : FontWeight.normal,
-            ),
-            side: BorderSide(
-              color: selected
-                  ? context.brandColor
-                  : context.surfBorder,
-            ),
-            onSelected: (_) {
-              _changeSport(sport);
-            },
-          );
-        },
-      ).toList(),
-    );
-  }
-
-  Widget _buildMethodChips() {
-    const methods = [
-      'Americano',
-      'Mexicano',
-    ];
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: methods.map(
-        (method) {
-          final selected =
-              _selectedMethod == method;
-
-          return ChoiceChip(
-            label: Text(method),
-            selected: selected,
-            selectedColor: context.brandColor,
-            backgroundColor: context.surf,
-            labelStyle: TextStyle(
-              color: selected
-                  ? Colors.black
-                  : context.txtSecondary,
-              fontWeight: selected
-                  ? FontWeight.bold
-                  : FontWeight.normal,
-            ),
-            side: BorderSide(
-              color: selected
-                  ? context.brandColor
-                  : context.surfBorder,
-            ),
-            onSelected: (_) {
-              setState(() {
-                _selectedMethod = method;
-              });
-            },
-          );
-        },
-      ).toList(),
-    );
-  }
-
-  Widget _buildFormatChips() {
-    const formats = [
-      'Singles',
-      'Doubles',
-    ];
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: formats.map(
-        (format) {
-          final selected =
-              _selectedFormat == format;
-
-          return ChoiceChip(
-            label: Text(format),
-            selected: selected,
-            selectedColor: context.brandColor,
-            backgroundColor: context.surf,
-            labelStyle: TextStyle(
-              color: selected
-                  ? Colors.black
-                  : context.txtSecondary,
-              fontWeight: selected
-                  ? FontWeight.bold
-                  : FontWeight.normal,
-            ),
-            side: BorderSide(
-              color: selected
-                  ? context.brandColor
-                  : context.surfBorder,
-            ),
-            onSelected: (_) {
-              setState(() {
-                _selectedFormat = format;
-              });
-            },
-          );
-        },
-      ).toList(),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final selectedPlayerCount =
-        _selectedPlayerIds.length;
-
-    final selectedCourtCount =
-        _selectedCourtIds.length;
-
-    return Scaffold(
-      backgroundColor: context.bg,
-      appBar: AppBar(
-        backgroundColor: context.bg,
-        elevation: 0,
-        title: Text(
-          'Buat Session',
-          style: AppTextStyles.pageTitle.copyWith(
-            fontSize: 20,
-            color: context.txtPrimary,
+  Widget _buildFormatCard({
+    required String formatKey,
+    required String badgeText,
+    required Color badgeColor,
+    required Color badgeBg,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isSelected,
+  }) {
+    return InkWell(
+      onTap: () => _onFormatChanged(formatKey),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? AppColors.matchaDark : Colors.transparent,
+            width: isSelected ? 1.5 : 1,
           ),
         ),
-        iconTheme: IconThemeData(
-          color: context.txtPrimary,
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            8,
-            20,
-            120,
-          ),
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Nama Session',
-                style: AppTextStyles.cardTitle.copyWith(
-                  color: context.txtPrimary,
-                  fontSize: 14,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Icon(icon, size: 17, color: isSelected ? AppColors.matchaDark : const Color(0xFF64748B)),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _nameController,
-                style: TextStyle(
-                  color: context.txtPrimary,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Contoh: Saturday Morning',
-                  hintStyle: TextStyle(
-                    color: context.txtSecondary,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  filled: true,
-                  fillColor: context.surf,
-                  border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: context.surfBorder,
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: context.surfBorder,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: context.brandColor,
+                  child: Text(
+                    badgeText,
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                      color: badgeColor,
                     ),
                   ),
                 ),
-              ),
-
-              const SizedBox(height: 24),
-
-              Text(
-                'Cabang Olahraga',
-                style: AppTextStyles.cardTitle.copyWith(
-                  color: context.txtPrimary,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              _buildSportChips(),
-
-              const SizedBox(height: 24),
-
-              Text(
-                'Drawing Method',
-                style: AppTextStyles.cardTitle.copyWith(
-                  color: context.txtPrimary,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              _buildMethodChips(),
-
-              const SizedBox(height: 24),
-
-              Text(
-                'Format Permainan',
-                style: AppTextStyles.cardTitle.copyWith(
-                  color: context.txtPrimary,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              _buildFormatChips(),
-
-              const SizedBox(height: 24),
-
-              Text(
-                'Jadwal Session',
-                style: AppTextStyles.cardTitle.copyWith(
-                  color: context.txtPrimary,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildSelectionCard(
-                      context: context,
-                      icon: Icons.calendar_today_rounded,
-                      title: 'Tanggal',
-                      value: _formatDate(),
-                      onTap: _pickDate,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildSelectionCard(
-                      context: context,
-                      icon: Icons.access_time_rounded,
-                      title: 'Waktu',
-                      value: _formatTime(),
-                      onTap: _pickTime,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              Text(
-                'Pemain',
-                style: AppTextStyles.cardTitle.copyWith(
-                  color: context.txtPrimary,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              _buildSelectionCard(
-                context: context,
-                icon: Icons.people_alt_rounded,
-                title: 'Pemain Session',
-                value: selectedPlayerCount == 0
-                    ? 'Pilih pemain'
-                    : '$selectedPlayerCount pemain dipilih',
-                onTap: _showPlayerPicker,
-              ),
-
-              const SizedBox(height: 24),
-
-              Text(
-                'Lapangan',
-                style: AppTextStyles.cardTitle.copyWith(
-                  color: context.txtPrimary,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              _buildSelectionCard(
-                context: context,
-                icon: Icons.sports_tennis_rounded,
-                title: 'Lapangan Session',
-                value: selectedCourtCount == 0
-                    ? 'Pilih lapangan'
-                    : '$selectedCourtCount lapangan dipilih',
-                onTap: _showCourtPicker,
-              ),
-
-              const SizedBox(height: 24),
-
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: context.surf,
-                  borderRadius:
-                      BorderRadius.circular(16),
-                  border: Border.all(
-                    color: context.surfBorder,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ringkasan',
-                      style:
-                          AppTextStyles.cardTitle.copyWith(
-                        color: context.txtPrimary,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSummaryRow(
-                      context,
-                      'Session',
-                      _nameController.text.isEmpty
-                          ? '-'
-                          : _nameController.text,
-                    ),
-                    _buildSummaryRow(
-                      context,
-                      'Sport',
-                      _selectedSport.isEmpty
-                          ? '-'
-                          : _selectedSport,
-                    ),
-                    _buildSummaryRow(
-                      context,
-                      'Method',
-                      _selectedMethod,
-                    ),
-                    _buildSummaryRow(
-                      context,
-                      'Format',
-                      _selectedFormat,
-                    ),
-                    _buildSummaryRow(
-                      context,
-                      'Jadwal',
-                      '${_formatDate()} · ${_formatTime()}',
-                    ),
-                    _buildSummaryRow(
-                      context,
-                      'Pemain',
-                      '$selectedPlayerCount pemain',
-                    ),
-                    _buildSummaryRow(
-                      context,
-                      'Lapangan',
-                      '$selectedCourtCount lapangan',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            10,
-            20,
-            16,
-          ),
-          child: SizedBox(
-            height: 54,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    context.brandColor,
-                foregroundColor: Colors.black,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(15),
-                ),
-              ),
-              onPressed:
-                  _isCreating ? null : _generateDrawing,
-              child: _isCreating
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child:
-                          CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                      ),
-                    )
-                  : const Text(
-                      'NEXT: GENERATE DRAWING',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
+              ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryRow(
-    BuildContext context,
-    String label,
-    String value,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 85,
-            child: Text(
-              label,
-              style: TextStyle(
-                color: context.txtSecondary,
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: const TextStyle(
                 fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
               ),
             ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                color: context.txtPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 9,
+                color: Color(0xFF64748B),
+                height: 1.25,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

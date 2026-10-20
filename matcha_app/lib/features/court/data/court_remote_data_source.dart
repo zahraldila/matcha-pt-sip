@@ -11,8 +11,7 @@ class CourtRemoteDataSource {
   Future<List<CourtModel>> getActiveCourts() async {
     final response = await _supabase
         .from('tb_court')
-        .select()
-        .eq('status_aktif', 'active')
+        .select('*, tb_venue(foto)')
         .order('nama_court');
 
     return (response as List)

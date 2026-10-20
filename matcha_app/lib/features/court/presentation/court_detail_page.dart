@@ -206,7 +206,7 @@ class _CourtDetailPageState extends State<CourtDetailPage> {
         height: 210,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) {
+        errorBuilder: (_, _, _) {
           return Container(
             height: 210,
             width: double.infinity,

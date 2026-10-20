@@ -1,0 +1,1753 @@
+import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../auth/domain/models/user_model.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
+import '../data/admin_user_service.dart';
+
+class AdminUserManagementPage extends StatefulWidget {
+  final AuthController? authController;
+
+  const AdminUserManagementPage({super.key, this.authController});
+
+  @override
+  State<AdminUserManagementPage> createState() => _AdminUserManagementPageState();
+}
+
+class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
+  final AdminUserService _adminUserService = AdminUserService();
+  final TextEditingController _searchController = TextEditingController();
+
+  List<UserModel> _allUsers = [];
+  bool _isLoading = true;
+  String _selectedRoleFilter = 'all'; // 'all', 'member', 'host', 'venue_owner', 'admin'
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUsers() async {
+    setState(() => _isLoading = true);
+    try {
+      final users = await _adminUserService.getAllUsers();
+      users.sort((a, b) => a.nama.toLowerCase().compareTo(b.nama.toLowerCase()));
+      if (!mounted) return;
+      setState(() {
+        _allUsers = users;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memuat pengguna: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  List<UserModel> get _filteredUsers {
+    final list = _allUsers.where((u) {
+      // Role Filter
+      if (_selectedRoleFilter != 'all') {
+        if (_selectedRoleFilter == 'host') {
+          if (!u.isHost && u.role.toLowerCase() != 'host') return false;
+        } else if (u.role.toLowerCase() != _selectedRoleFilter.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // Search Query
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final matchName = u.nama.toLowerCase().contains(q);
+        final matchEmail = u.email.toLowerCase().contains(q);
+        final matchPhone = u.noHp?.toLowerCase().contains(q) ?? false;
+        if (!matchName && !matchEmail && !matchPhone) return false;
+      }
+
+      return true;
+    }).toList();
+
+    list.sort((a, b) => a.nama.toLowerCase().compareTo(b.nama.toLowerCase()));
+    return list;
+  }
+
+  int _countByRole(String roleKey) {
+    if (roleKey == 'all') return _allUsers.length;
+    if (roleKey == 'host') {
+      return _allUsers.where((u) => u.isHost || u.role.toLowerCase() == 'host').length;
+    }
+    return _allUsers.where((u) => u.role.toLowerCase() == roleKey.toLowerCase()).length;
+  }
+
+  static const List<Map<String, dynamic>> _userRoleOptions = [
+    {
+      'key': 'member',
+      'label': 'Member',
+      'desc': 'Pemain biasa, dapat bergabung game mabar & komunitas',
+      'badge': 'MEMBER',
+      'badgeBg': Color(0xFFEFF6FF),
+      'badgeTextColor': Color(0xFF1D4ED8),
+      'icon': Icons.person_rounded,
+      'iconBg': Color(0xFFDBEAFE),
+      'iconColor': Color(0xFF2563EB),
+    },
+    {
+      'key': 'host',
+      'label': 'Host',
+      'desc': 'Dapat membuat, memimpin, & mengelola sesi game mabar',
+      'badge': 'HOST',
+      'badgeBg': Color(0xFFFFFBEB),
+      'badgeTextColor': Color(0xFFB45309),
+      'icon': Icons.sports_tennis_rounded,
+      'iconBg': Color(0xFFFEF3C7),
+      'iconColor': Color(0xFFD97706),
+    },
+    {
+      'key': 'venue_owner',
+      'label': 'Venue Owner',
+      'desc': 'Mitra pemilik venue, mengelola lapangan & operasional court',
+      'badge': 'VENUE OWNER',
+      'badgeBg': Color(0xFFECFDF5),
+      'badgeTextColor': Color(0xFF047857),
+      'icon': Icons.stadium_rounded,
+      'iconBg': Color(0xFFD1FAE5),
+      'iconColor': Color(0xFF059669),
+    },
+    {
+      'key': 'admin',
+      'label': 'Administrator',
+      'desc': 'Akses penuh ke semua sistem, master data, & manajemen user',
+      'badge': 'ADMIN',
+      'badgeBg': Color(0xFFFAF5FF),
+      'badgeTextColor': Color(0xFF7E22CE),
+      'icon': Icons.admin_panel_settings_rounded,
+      'iconBg': Color(0xFFF3E8FF),
+      'iconColor': Color(0xFF9333EA),
+    },
+  ];
+
+  Future<void> _showRolePickerBottomSheet({
+    required BuildContext context,
+    required String currentRole,
+    required ValueChanged<String> onSelected,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetCtx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle pill
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Title bar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pilih Role Akun',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Tentukan tingkatan akses dan wewenang pengguna',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(bottomSheetCtx),
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 18),
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFFF1F5F9),
+                      padding: const EdgeInsets.all(6),
+                      minimumSize: const Size(32, 32),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // List Roles
+              ..._userRoleOptions.map((role) {
+                final isSelected = role['key'] == currentRole;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: InkWell(
+                    onTap: () {
+                      onSelected(role['key'] as String);
+                      Navigator.pop(bottomSheetCtx);
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFF0FDF4) : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                          width: isSelected ? 1.8 : 1,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.matchaDark.withValues(alpha: 0.08),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : [],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: role['iconBg'] as Color,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              role['icon'] as IconData,
+                              color: role['iconColor'] as Color,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      role['label'] as String,
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                                        color: isSelected ? AppColors.matchaDark : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: role['badgeBg'] as Color,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        role['badge'] as String,
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: role['badgeTextColor'] as Color,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  role['desc'] as String,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF64748B),
+                                    height: 1.25,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (isSelected)
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.matchaDark,
+                              size: 22,
+                            )
+                          else
+                            Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFFCBD5E1), width: 1.5),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEditUserModal(UserModel user) {
+    final nameCtrl = TextEditingController(text: user.nama);
+    final emailCtrl = TextEditingController(text: user.email);
+    final phoneCtrl = TextEditingController(text: user.noHp ?? '');
+    final passwordCtrl = TextEditingController();
+
+    String rawRole = user.role.toLowerCase();
+    String selectedRole = 'member';
+    if (rawRole.contains('admin')) {
+      selectedRole = 'admin';
+    } else if (rawRole == 'venue_owner') {
+      selectedRole = 'venue_owner';
+    } else if (rawRole == 'host' || user.isHost) {
+      selectedRole = 'host';
+    } else {
+      selectedRole = 'member';
+    }
+
+    final isExistingAdmin = rawRole.contains('admin');
+    bool obscurePassword = true;
+    String? nameError;
+    String? emailError;
+    String? phoneError;
+    bool isChecking = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Dialog(
+            backgroundColor: Colors.white,
+            elevation: 8,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCFCE7),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF86EFAC)),
+                        ),
+                        child: const Icon(
+                          Icons.manage_accounts_rounded,
+                          size: 22,
+                          color: Color(0xFF15803D),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'Edit Data Pengguna',
+                              style: TextStyle(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Perbarui profil, role, atau akses akun pengguna.',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: Color(0xFF64748B),
+                        ),
+                        style: IconButton.styleFrom(
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          padding: const EdgeInsets.all(6),
+                          minimumSize: const Size(32, 32),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  const SizedBox(height: 16),
+
+                  // 1. Nama Lengkap *
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                      children: [
+                        TextSpan(text: 'Nama Lengkap '),
+                        TextSpan(text: '*', style: TextStyle(color: Color(0xFFEF4444))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: nameCtrl,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    onChanged: (val) {
+                      if (nameError != null) {
+                        setModalState(() => nameError = null);
+                      }
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Masukkan nama lengkap',
+                      hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+                      errorText: nameError,
+                      errorStyle: const TextStyle(fontSize: 11, color: Color(0xFFEF4444), fontWeight: FontWeight.w500),
+                      prefixIcon: const Icon(Icons.badge_outlined, size: 19, color: Color(0xFF64748B)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: nameError != null ? const Color(0xFFEF4444) : const Color(0xFFCBD5E1)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: nameError != null ? const Color(0xFFEF4444) : AppColors.matchaDark, width: 1.5),
+                      ),
+                      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+                      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 2. Alamat Email *
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                      children: [
+                        TextSpan(text: 'Alamat Email '),
+                        TextSpan(text: '*', style: TextStyle(color: Color(0xFFEF4444))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    onChanged: (val) {
+                      if (emailError != null) {
+                        setModalState(() => emailError = null);
+                      }
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'nama@email.com',
+                      hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+                      errorText: emailError,
+                      errorStyle: const TextStyle(fontSize: 11, color: Color(0xFFEF4444), fontWeight: FontWeight.w500),
+                      prefixIcon: const Icon(Icons.alternate_email_rounded, size: 19, color: Color(0xFF64748B)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: emailError != null ? const Color(0xFFEF4444) : const Color(0xFFCBD5E1)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: emailError != null ? const Color(0xFFEF4444) : AppColors.matchaDark, width: 1.5),
+                      ),
+                      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+                      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 3. Nomor HP / WhatsApp
+                  const Text(
+                    'Nomor HP / WhatsApp',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: phoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    onChanged: (val) {
+                      if (phoneError != null) {
+                        setModalState(() => phoneError = null);
+                      }
+                    },
+                    decoration: InputDecoration(
+                      hintText: '08xxxxxxxxxx',
+                      hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+                      errorText: phoneError,
+                      errorStyle: const TextStyle(fontSize: 11, color: Color(0xFFEF4444), fontWeight: FontWeight.w500),
+                      prefixIcon: const Icon(Icons.phone_outlined, size: 19, color: Color(0xFF64748B)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: phoneError != null ? const Color(0xFFEF4444) : const Color(0xFFCBD5E1)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: phoneError != null ? const Color(0xFFEF4444) : AppColors.matchaDark, width: 1.5),
+                      ),
+                      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+                      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 4. Role Akun *
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                      children: [
+                        TextSpan(text: 'Role Akun '),
+                        TextSpan(text: '*', style: TextStyle(color: Color(0xFFEF4444))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Builder(
+                    builder: (_) {
+                      final activeRole = _userRoleOptions.firstWhere(
+                        (r) => r['key'] == selectedRole,
+                        orElse: () => _userRoleOptions.first,
+                      );
+
+                      return InkWell(
+                        onTap: isExistingAdmin
+                            ? null
+                            : () {
+                                _showRolePickerBottomSheet(
+                                  context: context,
+                                  currentRole: selectedRole,
+                                  onSelected: (newRole) {
+                                    setModalState(() {
+                                      selectedRole = newRole;
+                                    });
+                                  },
+                                );
+                              },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isExistingAdmin ? const Color(0xFFF8FAFC) : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isExistingAdmin ? const Color(0xFFE2E8F0) : const Color(0xFFCBD5E1),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: activeRole['iconBg'] as Color,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  activeRole['icon'] as IconData,
+                                  color: activeRole['iconColor'] as Color,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      activeRole['label'] as String,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: isExistingAdmin ? const Color(0xFF64748B) : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    Text(
+                                      activeRole['desc'] as String,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 10.5,
+                                        color: Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: activeRole['badgeBg'] as Color,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  activeRole['badge'] as String,
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: activeRole['badgeTextColor'] as Color,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(
+                                isExistingAdmin ? Icons.lock_outline_rounded : Icons.keyboard_arrow_down_rounded,
+                                size: 20,
+                                color: isExistingAdmin ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  if (isExistingAdmin) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF64748B)),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Role Administrator bersifat permanen untuk menjaga keamanan sistem.',
+                              style: TextStyle(fontSize: 10.5, color: Color(0xFF475569), fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+
+                  // 5. Password Baru (opsional)
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                      children: [
+                        TextSpan(text: 'Password Baru '),
+                        TextSpan(text: '(opsional)', style: TextStyle(fontWeight: FontWeight.normal, color: Color(0xFF94A3B8))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: passwordCtrl,
+                    obscureText: obscurePassword,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                    decoration: InputDecoration(
+                      hintText: 'Kosongkan jika tidak ingin mengubah password.',
+                      hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 19, color: Color(0xFF64748B)),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          size: 18,
+                          color: const Color(0xFF94A3B8),
+                        ),
+                        onPressed: () => setModalState(() => obscurePassword = !obscurePassword),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.matchaDark, width: 1.5)),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+
+                  // Action Buttons (Batal & Simpan Perubahan)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF475569),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                        ),
+                        child: const Text(
+                          'Batal',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      ElevatedButton(
+                        onPressed: isChecking ? null : () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final nav = Navigator.of(context);
+                          final trimmedName = nameCtrl.text.trim();
+                          final trimmedEmail = emailCtrl.text.trim();
+
+                          String? newNameError;
+                          String? newEmailError;
+
+                          if (trimmedName.isEmpty) {
+                            newNameError = 'Nama lengkap wajib diisi.';
+                          }
+
+                          if (trimmedEmail.isEmpty) {
+                            newEmailError = 'Email wajib diisi.';
+                          } else if (!RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(trimmedEmail)) {
+                            newEmailError = 'Format email tidak valid.';
+                          }
+
+                          if (newNameError != null || newEmailError != null) {
+                            setModalState(() {
+                              nameError = newNameError;
+                              emailError = newEmailError;
+                            });
+                            return;
+                          }
+
+                          // Cek duplikasi email jika alamat email diubah (seperti pendaftaran)
+                          final cleanEmail = trimmedEmail.toLowerCase();
+                          if (cleanEmail != user.email.trim().toLowerCase()) {
+                            // Cek di memori lokal untuk respons instan
+                            final isDuplicateInLocal = _allUsers.any((u) =>
+                                u.userId != user.userId &&
+                                u.email.trim().toLowerCase() == cleanEmail);
+                            if (isDuplicateInLocal) {
+                              setModalState(() {
+                                emailError = 'Email sudah terdaftar.';
+                              });
+                              return;
+                            }
+
+                            // Cek ke database Supabase
+                            setModalState(() => isChecking = true);
+                            try {
+                              final isTaken = await _adminUserService.isEmailTaken(
+                                cleanEmail,
+                                excludeUserId: user.userId,
+                              );
+                              if (isTaken) {
+                                setModalState(() {
+                                  isChecking = false;
+                                  emailError = 'Email sudah terdaftar.';
+                                });
+                                return;
+                              }
+                            } catch (_) {
+                              // Lanjutkan jika query pengecekan bermasalah
+                            }
+                            setModalState(() => isChecking = false);
+                          }
+
+                          // Cek duplikasi nomor HP jika diisi dan diubah
+                          final trimmedPhone = phoneCtrl.text.trim();
+                          if (trimmedPhone.isNotEmpty) {
+                            final cleanPhone = trimmedPhone.replaceAll(RegExp(r'[^0-9]'), '');
+                            final currentPhone = (user.noHp ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                            if (cleanPhone != currentPhone) {
+                              // Cek di memori lokal untuk respons instan
+                              final isDuplicatePhoneLocal = _allUsers.any((u) =>
+                                  u.userId != user.userId &&
+                                  (u.noHp ?? '').replaceAll(RegExp(r'[^0-9]'), '') == cleanPhone);
+                              if (isDuplicatePhoneLocal) {
+                                setModalState(() {
+                                  phoneError = 'Nomor HP sudah terdaftar.';
+                                });
+                                return;
+                              }
+
+                              // Cek ke database Supabase
+                              setModalState(() => isChecking = true);
+                              try {
+                                final isPhoneTaken = await _adminUserService.isPhoneTaken(
+                                  cleanPhone,
+                                  excludeUserId: user.userId,
+                                );
+                                if (isPhoneTaken) {
+                                  setModalState(() {
+                                    isChecking = false;
+                                    phoneError = 'Nomor HP sudah terdaftar.';
+                                  });
+                                  return;
+                                }
+                              } catch (_) {
+                                // Lanjutkan jika query pengecekan bermasalah
+                              }
+                              setModalState(() => isChecking = false);
+                            }
+                          }
+
+                          if (!mounted) return;
+                          nav.pop();
+                          setState(() => _isLoading = true);
+
+                          try {
+                            await _adminUserService.updateUser(
+                              userId: user.userId,
+                              nama: trimmedName,
+                              email: trimmedEmail,
+                              noHp: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                              role: selectedRole,
+                              isHost: selectedRole == 'host',
+                              password: passwordCtrl.text.trim().isNotEmpty ? passwordCtrl.text.trim() : null,
+                              gender: user.gender,
+                              usia: user.usia,
+                              level: user.level,
+                            );
+                            if (!mounted) return;
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Data akun "$trimmedName" berhasil diperbarui.'),
+                                backgroundColor: AppColors.matchaDark,
+                              ),
+                            );
+                            await _loadUsers();
+                          } catch (e) {
+                            if (!mounted) return;
+                            setState(() => _isLoading = false);
+                            final errorMsg = e.toString().replaceFirst('Exception: ', '');
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Gagal memperbarui pengguna: $errorMsg'),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.matchaDark,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isChecking)
+                              const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            else
+                              const Icon(Icons.check_rounded, size: 16, color: Color(0xFFA8E63A)),
+                            const SizedBox(width: 6),
+                            Text(
+                              isChecking ? 'Memeriksa...' : 'Simpan Perubahan',
+                              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _handleDeleteUser(UserModel user) async {
+    final currentUserId = widget.authController?.currentUser?.userId;
+    if (currentUserId != null && user.userId == currentUserId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.shield_outlined, color: Colors.white, size: 18),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Aksi Ditolak: Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif login.',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFE11D48),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF1F2),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFFECDD3)),
+                    ),
+                    child: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Color(0xFFE11D48),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Hapus Akun Pengguna',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                              height: 1.4,
+                            ),
+                            children: [
+                              const TextSpan(text: 'Apakah Anda yakin ingin menghapus akun pengguna '),
+                              TextSpan(
+                                text: user.nama,
+                                style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                              ),
+                              const TextSpan(
+                                text: '? Tindakan ini tidak dapat dibatalkan.',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF475569),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    ),
+                    child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    icon: const Icon(Icons.delete_rounded, size: 15),
+                    label: const Text('Hapus Akun', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE11D48),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _isLoading = true);
+
+    try {
+      await _adminUserService.deleteUser(user.userId, currentUserId: currentUserId);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Pengguna "${user.nama}" berhasil dihapus.'),
+          backgroundColor: AppColors.matchaDark,
+        ),
+      );
+      await _loadUsers();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Gagal menghapus pengguna: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _filteredUsers;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.matchaDark))
+          : RefreshIndicator(
+              onRefresh: _loadUsers,
+              color: AppColors.matchaDark,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+                children: [
+                  // 1. Header Banner Administrator Panel (matching Web)
+                  _buildHeaderBanner(),
+                  const SizedBox(height: 16),
+
+                  // 2. Role Filter Tabs (Pills)
+                  _buildRoleFilterPills(),
+                  const SizedBox(height: 14),
+
+                  // 3. Search Bar
+                  _buildSearchBar(),
+                  const SizedBox(height: 12),
+
+                  // 4. Counter info
+                  Text(
+                    'Menampilkan ${filtered.length} pengguna',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // 5. User List
+                  if (filtered.isEmpty)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Column(
+                          children: const [
+                            Icon(Icons.person_off_outlined, size: 48, color: Color(0xFFCBD5E1)),
+                            SizedBox(height: 8),
+                            Text(
+                              'Tidak ada pengguna yang cocok',
+                              style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    ...List.generate(filtered.length, (idx) {
+                      final user = filtered[idx];
+                      return _buildUserCard(user, idx + 1);
+                    }),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _buildHeaderBanner() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFDCFCE7),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF86EFAC)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFF16A34A),
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'Administrator Panel',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF15803D),
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Manajemen Pengguna',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Daftar seluruh akun pengguna terdaftar di aplikasi Matcha beserta pengelolaan data dan peran.',
+          style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B), height: 1.4),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoleFilterPills() {
+    final filters = [
+      {'key': 'all', 'label': 'Semua Role', 'count': _countByRole('all'), 'icon': Icons.people_alt_rounded},
+      {'key': 'member', 'label': 'Member', 'count': _countByRole('member'), 'icon': Icons.person_outline_rounded},
+      {'key': 'host', 'label': 'Host', 'count': _countByRole('host'), 'icon': Icons.bolt_rounded},
+      {'key': 'venue_owner', 'label': 'Venue Owner', 'count': _countByRole('venue_owner'), 'icon': Icons.storefront_rounded},
+      {'key': 'admin', 'label': 'Admin', 'count': _countByRole('admin'), 'icon': Icons.shield_outlined},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: filters.map((f) {
+          final isSelected = _selectedRoleFilter == f['key'];
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: InkWell(
+              onTap: () {
+                setState(() => _selectedRoleFilter = f['key'] as String);
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.matchaDark : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.matchaDark.withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      f['icon'] as IconData,
+                      size: 14,
+                      color: isSelected ? const Color(0xFFA8E63A) : const Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      f['label'] as String,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isSelected ? Colors.white : const Color(0xFF334155),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.white.withValues(alpha: 0.2) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${f['count']}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: isSelected ? Colors.white : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (val) => setState(() => _searchQuery = val.trim()),
+        style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+        decoration: InputDecoration(
+          hintText: 'Cari nama, email, no. hp...',
+          hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 20),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear_rounded, color: Color(0xFF94A3B8), size: 18),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserCard(UserModel user, int index) {
+    final currentUserId = widget.authController?.currentUser?.userId;
+    final isCurrentUser = currentUserId != null && user.userId == currentUserId;
+    final genderStr = user.gender != null && user.gender!.toLowerCase().startsWith('f')
+        ? 'Perempuan'
+        : 'Laki-laki';
+    final ageStr = user.usia != null ? '${user.usia} thn' : null;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF063B00).withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top Row: Avatar, User Details, Role Badge
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Avatar with rounded-14 container & index chip
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: (user.foto != null && user.foto!.isNotEmpty)
+                            ? Colors.transparent
+                            : const Color(0xFF063B00),
+                        border: Border.all(
+                          color: const Color(0xFFE2E8F0),
+                          width: 1.5,
+                        ),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: (user.foto != null && user.foto!.isNotEmpty)
+                          ? Image.network(
+                              user.foto!,
+                              width: 44,
+                              height: 44,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => _buildAvatarFallback(user),
+                            )
+                          : _buildAvatarFallback(user),
+                    ),
+                    Positioned(
+                      top: -4,
+                      left: -4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '#$index',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+
+                // Name & Email
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              user.nama,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isCurrentUser) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDCFCE7),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFF86EFAC)),
+                              ),
+                              child: const Text(
+                                'Akun Anda',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF15803D),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          const Icon(Icons.mail_outline_rounded, size: 12, color: Color(0xFF94A3B8)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              user.email,
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: Color(0xFF64748B),
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Role Badge
+                _buildRoleBadge(user),
+              ],
+            ),
+          ),
+
+          // Divider
+          const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+
+          // Bottom Row: Meta Chips & Action Buttons
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                // Info Chips
+                Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      // Phone Chip
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.phone_outlined, size: 11, color: Color(0xFF64748B)),
+                            const SizedBox(width: 4),
+                            Text(
+                              (user.noHp != null && user.noHp!.isNotEmpty) ? user.noHp! : 'No Phone',
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Gender & Age Chip
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Text(
+                          ageStr != null ? '$genderStr • $ageStr' : genderStr,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+
+                      // Skill Level Chip (Matcha Soft Lime style)
+                      if (user.level != null && user.level!.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEBF8D8),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0xFF063B00).withValues(alpha: 0.15),
+                            ),
+                          ),
+                          child: Text(
+                            'Level: ${user.level!}',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF063B00),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                // Action Buttons: Edit & Delete
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Edit button
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _showEditUserModal(user),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                          ),
+                          child: const Icon(
+                            Icons.edit_outlined,
+                            size: 15,
+                            color: Color(0xFF15803D),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    // Delete button
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: isCurrentUser
+                            ? () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Row(
+                                      children: [
+                                        Icon(Icons.shield_outlined, color: Colors.white, size: 18),
+                                        SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'Aksi Ditolak: Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif login.',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: const Color(0xFFE11D48),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                );
+                              }
+                            : () => _handleDeleteUser(user),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: isCurrentUser ? const Color(0xFFF1F5F9) : const Color(0xFFFFF1F2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isCurrentUser ? const Color(0xFFE2E8F0) : const Color(0xFFFECDD3),
+                            ),
+                          ),
+                          child: Icon(
+                            isCurrentUser ? Icons.lock_outline_rounded : Icons.delete_outline_rounded,
+                            size: 15,
+                            color: isCurrentUser ? const Color(0xFF94A3B8) : const Color(0xFFE11D48),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarFallback(UserModel user) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: const BoxDecoration(
+        color: Color(0xFF063B00),
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        user.nama.isNotEmpty ? user.nama[0].toUpperCase() : 'U',
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleBadge(UserModel user) {
+    final role = user.role.toLowerCase();
+    if (role == 'admin' || role == 'administrator' || role == 'superadmin') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.shield_rounded, size: 10, color: Color(0xFFA8E63A)),
+            SizedBox(width: 3.5),
+            Text(
+              'Administrator',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (user.isHost || role == 'host') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF3C7),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFFDE68A)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.bolt_rounded, size: 11, color: Color(0xFFD97706)),
+            SizedBox(width: 3),
+            Text(
+              'Host Game',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF92400E),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (role == 'venue_owner') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE0F2FE),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFBAE6FD)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.storefront_rounded, size: 11, color: Color(0xFF0284C7)),
+            SizedBox(width: 3),
+            Text(
+              'Venue Owner',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0369A1),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEBF8D8),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.18)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.sports_tennis_rounded, size: 11, color: Color(0xFF063B00)),
+            SizedBox(width: 3),
+            Text(
+              'Member Pemain',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF063B00),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+}

@@ -3737,6 +3737,8 @@ class ScoringController extends Controller
                 ],
                 'participants' => $participants,
                 'drawing' => $drawingMap,
+                'share_token' => $dbSession->share_token,
+                'share_url' => $dbSession->share_token ? route('games.share', $dbSession->share_token) : route('scoring.recap', $dbSession->session_id),
             ];
         }
 

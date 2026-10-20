@@ -1,230 +1,1336 @@
 import 'package:flutter/material.dart';
-
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/app_error_handler.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
+import '../../auth/presentation/login_page.dart';
 import '../data/community_remote_data_source.dart';
 import '../domain/community_model.dart';
+import 'edit_community_page.dart';
 
 class CommunityDetailPage extends StatefulWidget {
-  final int communityId;
+  final CommunityModel community;
+  final AuthController? authController;
 
   const CommunityDetailPage({
     super.key,
-    required this.communityId,
+    required this.community,
+    this.authController,
   });
 
   @override
-  State<CommunityDetailPage> createState() =>
-      _CommunityDetailPageState();
+  State<CommunityDetailPage> createState() => _CommunityDetailPageState();
 }
 
 class _CommunityDetailPageState extends State<CommunityDetailPage> {
-  final CommunityRemoteDataSource _dataSource =
-      CommunityRemoteDataSource();
+  final CommunityRemoteDataSource _dataSource = CommunityRemoteDataSource();
 
-  bool _isLoading = true;
-  String? _errorMessage;
-  CommunityModel? _community;
+  late CommunityModel _community;
+  List<Map<String, dynamic>> _members = [];
+  bool _isLoading = false;
+  bool _isActionLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadCommunity();
+    _community = widget.community;
+    _loadDetail();
   }
 
-  Future<void> _loadCommunity() async {
+  Future<void> _loadDetail() async {
+    setState(() => _isLoading = true);
     try {
-      final community = await _dataSource.getCommunityById(
-        widget.communityId,
+      final user = widget.authController?.currentUser;
+      final result = await _dataSource.getCommunityDetail(
+        _community.communityId,
+        currentUserId: user?.userId,
       );
 
       if (!mounted) return;
-
       setState(() {
-        _community = community;
+        _community = result['community'] as CommunityModel;
+        _members = result['members'] as List<Map<String, dynamic>>;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
+  }
 
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Gagal memuat detail community.';
-      });
+  Future<void> _handleToggleMembership() async {
+    final user = widget.authController?.currentUser;
+    if (user == null) {
+      final loggedIn = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LoginPage(authController: widget.authController ?? AuthController()),
+        ),
+      );
+      if (loggedIn != true || !mounted) return;
+    }
+
+    final currentUser = widget.authController?.currentUser;
+    if (currentUser == null) return;
+
+    final isLeaving = _community.isMember;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: isLeaving ? const Color(0xFFFFF1F2) : const Color(0xFFEBF8D8),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isLeaving ? const Color(0xFFFECDD3) : const Color(0xFFBBF7D0),
+                ),
+              ),
+              child: Icon(
+                isLeaving ? Icons.logout_rounded : Icons.person_add_rounded,
+                color: isLeaving ? const Color(0xFFE11D48) : AppColors.matchaDark,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isLeaving ? 'Konfirmasi Keluar Komunitas' : 'Konfirmasi Bergabung',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF475569),
+                        height: 1.4,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: isLeaving
+                              ? 'Apakah Anda yakin ingin keluar dari komunitas '
+                              : 'Apakah Anda yakin ingin bergabung dengan komunitas ',
+                        ),
+                        TextSpan(
+                          text: _community.namaCommunity,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        TextSpan(
+                          text: isLeaving
+                              ? '? Anda tidak lagi terdaftar sebagai anggota komunitas ini.'
+                              : '?',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: Icon(
+              isLeaving ? Icons.logout_rounded : Icons.person_add_rounded,
+              size: 15,
+              color: isLeaving ? Colors.white : const Color(0xFFA8E63A),
+            ),
+            label: Text(
+              isLeaving ? 'Ya, Keluar Komunitas' : 'Ya, Bergabung',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isLeaving ? const Color(0xFFE11D48) : AppColors.matchaDark,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    setState(() => _isActionLoading = true);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      if (_community.isMember) {
+        await _dataSource.leaveCommunity(
+          communityId: _community.communityId,
+          userId: currentUser.userId,
+        );
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Anda telah meninggalkan komunitas "${_community.namaCommunity}".'),
+            backgroundColor: const Color(0xFF64748B),
+          ),
+        );
+      } else {
+        await _dataSource.joinCommunity(
+          communityId: _community.communityId,
+          userId: currentUser.userId,
+          nama: currentUser.nama,
+          noHp: currentUser.noHp,
+          email: currentUser.email,
+        );
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Selamat! Anda telah bergabung ke komunitas "${_community.namaCommunity}" 🎉'),
+            backgroundColor: AppColors.matchaDark,
+          ),
+        );
+      }
+
+      await _loadDetail();
+    } catch (e) {
+      if (mounted) {
+        AppErrorHandler.showErrorSnackBar(context, e);
+      }
+    } finally {
+      if (mounted) setState(() => _isActionLoading = false);
+    }
+  }
+
+  Future<void> _handleDeactivateOrDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF1F2),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFFECDD3)),
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                color: Color(0xFFE11D48),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Hapus / Nonaktifkan Komunitas',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF475569),
+                        height: 1.4,
+                      ),
+                      children: [
+                        const TextSpan(
+                          text: 'Apakah Anda yakin ingin menghapus atau menonaktifkan komunitas ',
+                        ),
+                        TextSpan(
+                          text: _community.namaCommunity,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const TextSpan(
+                          text:
+                              '? Jika komunitas memiliki anggota terdaftar, statusnya akan dinonaktifkan (Inactive) untuk menjaga keutuhan relasi pemain.',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.delete_outline_rounded, size: 15),
+            label: const Text('Ya, Hapus / Nonaktifkan', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE11D48),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    final nav = Navigator.of(context);
+    setState(() => _isLoading = true);
+
+    try {
+      await _dataSource.deleteCommunity(_community.communityId);
+      if (!mounted) return;
+      AppErrorHandler.showSuccessSnackBar(
+        context,
+        'Komunitas "${_community.namaCommunity}" berhasil dihapus.',
+      );
+      nav.pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      AppErrorHandler.showErrorSnackBar(context, e);
+    }
+  }
+
+
+
+  Future<void> _openEditCommunityPage() async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditCommunityPage(
+          community: _community,
+          authController: widget.authController,
+        ),
+      ),
+    );
+
+    if (updated == true && mounted) {
+      await _loadDetail();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = widget.authController?.currentUser;
+    final isLoggedIn = user != null;
+    final isAdmin = user != null && user.isAdmin;
+    final canManage = user != null && (user.isAdmin || user.userId == _community.createdBy);
+    final isMember = _community.isMember;
+
     return Scaffold(
-      backgroundColor: context.bg,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: context.bg,
+        backgroundColor: Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 1,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_rounded,
-            color: context.txtPrimary,
+          icon: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: Color(0xFF0F172A)),
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          'Community',
-          style: AppTextStyles.pageTitle.copyWith(
-            fontSize: 20,
-            color: context.txtPrimary,
-          ),
+        title: const Text(
+          'Detail Komunitas',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
         ),
+        centerTitle: true,
       ),
-      body: _buildBody(context),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.matchaDark))
+          : RefreshIndicator(
+              onRefresh: _loadDetail,
+              color: AppColors.matchaDark,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // HEADER SECTION: Logo, Title, Subtitle, Sport pill & Admin Actions
+                    _buildHeaderSection(canManage),
+
+                    const SizedBox(height: 16),
+
+                    // CARD 1: TENTANG KOMUNITAS
+                    _buildAboutCard(),
+
+                    // CARD 1B: BENEFIT & KEGIATAN (hanya tampil jika ada data)
+                    if (_community.benefits.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      _buildBenefitsCard(),
+                    ],
+
+                    const SizedBox(height: 16),
+
+                    // CARD 2: DAFTAR ANGGOTA KOMUNITAS
+                    _buildMembersCard(),
+
+                    const SizedBox(height: 16),
+
+                    // CARD 3: MODE ADMINISTRATOR (for admin) or MEMBERSHIP CARD (for non-admin)
+                    if (isAdmin)
+                      _buildAdminModeCard()
+                    else
+                      _buildMembershipCard(isLoggedIn, isMember),
+
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
-    if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(
-          color: context.brandColor,
-        ),
-      );
-    }
+  // --- HEADER SECTION ---
+  Widget _buildHeaderSection(bool canManage) {
+    final scheduleText = _community.jadwalRutin != null && _community.jadwalRutin!.isNotEmpty
+        ? _community.jadwalRutin!
+        : 'Rutin Setiap Pekan';
 
-    if (_errorMessage != null || _community == null) {
-      return Center(
-        child: Text(
-          _errorMessage ?? 'Data community tidak ditemukan.',
-          style: AppTextStyles.bodySecondary.copyWith(
-            color: context.txtSecondary,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF063B00).withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-        ),
-      );
-    }
-
-    final community = _community!;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildImage(context, community.imageUrl),
-          const SizedBox(height: 20),
-
+          // Community Info Row (Logo + Name + Subtitle)
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(
-                child: Text(
-                  community.namaCommunity,
-                  style: AppTextStyles.pageTitle.copyWith(
-                    fontSize: 22,
-                    color: context.txtPrimary,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Image.network(
+                    _community.displayImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, error, stackTrace) => const Center(
+                      child: Icon(Icons.groups_rounded, size: 28, color: Color(0xFF94A3B8)),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              _buildStatusBadge(
-                context,
-                community.status,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _community.namaCommunity,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.group_rounded, size: 13, color: Color(0xFF64748B)),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'Komunitas ${_community.sport} • Jadwal: $scheduleText',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF64748B),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
 
-          const SizedBox(height: 24),
+          // Action row: Sport Badge + Admin Buttons (Edit, Hapus)
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              // Sport Pill
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEBF8D8),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
+                ),
+                child: Text(
+                  _community.sport,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF063B00),
+                  ),
+                ),
+              ),
 
-          Text(
-            'Deskripsi',
-            style: AppTextStyles.sectionTitle.copyWith(
-              fontSize: 17,
-              color: context.txtPrimary,
-            ),
-          ),
+              // If can manage (Admin or Creator)
+              if (canManage) ...[
+                // Edit Button
+                InkWell(
+                  onTap: _openEditCommunityPage,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.edit_outlined, size: 14, color: Color(0xFF063B00)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Edit Komunitas',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
-          const SizedBox(height: 8),
-
-          Text(
-            community.deskripsi?.isNotEmpty == true
-                ? community.deskripsi!
-                : 'Belum ada deskripsi community.',
-            style: AppTextStyles.bodySecondary.copyWith(
-              fontSize: 14,
-              height: 1.6,
-              color: context.txtSecondary,
-            ),
+                // Delete / Deactivate Button
+                InkWell(
+                  onTap: _handleDeactivateOrDelete,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF1F2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFFECDD3)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.delete_outline_rounded, size: 14, color: Color(0xFFE11D48)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Hapus / Nonaktifkan',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFE11D48),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildImage(
-    BuildContext context,
-    String? imageUrl,
-  ) {
-    if (imageUrl == null || imageUrl.isEmpty) {
-      return Container(
-        height: 210,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: context.surfSec,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Icon(
-          Icons.diversity_3_rounded,
-          size: 64,
-          color: context.txtSecondary,
-        ),
-      );
-    }
+  // --- CARD 1: TENTANG KOMUNITAS ---
+  Widget _buildAboutCard() {
+    final scheduleText = _community.jadwalRutin != null && _community.jadwalRutin!.isNotEmpty
+        ? _community.jadwalRutin!
+        : 'Rutin Setiap Pekan';
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: Image.network(
-        imageUrl,
-        height: 210,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) {
-          return Container(
-            height: 210,
-            width: double.infinity,
-            color: context.surfSec,
-            child: Icon(
-              Icons.image_not_supported_outlined,
-              size: 52,
-              color: context.txtSecondary,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF063B00).withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Tentang Komunitas',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
             ),
-          );
-        },
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _community.deskripsi != null && _community.deskripsi!.isNotEmpty
+                ? _community.deskripsi!
+                : 'Tidak ada deskripsi komunitas.',
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: Color(0xFF334155),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 2 Sub-boxes: Cabang Olahraga Utama & Jadwal Rutin Mabar
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Cabang Olahraga Utama',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        _community.sport,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Jadwal Rutin Mabar',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        scheduleText,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatusBadge(
-    BuildContext context,
-    String status,
-  ) {
-    final isActive = status.toLowerCase() == 'active';
+  // --- CARD 1B: BENEFIT & KEGIATAN KOMUNITAS ---
+  Widget _buildBenefitsCard() {
+    // Mapping key ke label (type-safe)
+    const benefitLabels = <String, String>{
+      'weekly_mabar': 'Sesi Mabar Mingguan',
+      'internal_tournament': 'Internal Tournament',
+      'coaching_clinic': 'Coaching Clinic',
+      'whatsapp_group': 'WhatsApp Group Aktif',
+      'court_discount': 'Diskon Sewa Court',
+      'official_jersey': 'Jersey Official Club',
+      'rating_tracking': 'Tracking Rating Pemain',
+      'networking': 'Networking Profesional',
+    };
+    // Mapping key ke icon (type-safe)
+    const benefitIcons = <String, IconData>{
+      'weekly_mabar': Icons.calendar_today_rounded,
+      'internal_tournament': Icons.emoji_events_rounded,
+      'coaching_clinic': Icons.school_rounded,
+      'whatsapp_group': Icons.chat_bubble_rounded,
+      'court_discount': Icons.local_offer_rounded,
+      'official_jersey': Icons.checkroom_rounded,
+      'rating_tracking': Icons.trending_up_rounded,
+      'networking': Icons.handshake_rounded,
+    };
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isActive
-            ? context.brandColor.withValues(alpha: 0.15)
-            : context.surfSec,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF063B00).withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Benefit & Kegiatan',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _community.benefits.map((key) {
+              final label = benefitLabels[key] ?? key;
+              final icon = benefitIcons[key] ?? Icons.check_circle_rounded;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFFEF4),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.35)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 13, color: const Color(0xFF16A34A)),
+                    const SizedBox(width: 5),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF15803D),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- CARD 2: DAFTAR ANGGOTA KOMUNITAS ---
+  Widget _buildMembersCard() {
+    final memberCount = _members.isNotEmpty ? _members.length : _community.memberCount;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF063B00).withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Title + Member Count Pill
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Daftar Anggota Komunitas',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEBF8D8),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.group_rounded, size: 13, color: Color(0xFF063B00)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$memberCount Anggota',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF063B00),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          if (_members.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.person_off_rounded, size: 28, color: Color(0xFF94A3B8)),
+                  SizedBox(height: 8),
+                  Text(
+                    'Belum ada anggota bergabung di komunitas ini.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            // Table Header Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
+              ),
+              child: const Row(
+                children: [
+                  SizedBox(
+                    width: 22,
+                    child: Text('#', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF94A3B8))),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text('NAMA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF94A3B8))),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Center(
+                      child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF94A3B8))),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Center(
+                      child: Text('SKILL LEVEL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF94A3B8))),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text('GENDER / USIA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF94A3B8))),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+
+            // Member Rows
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _members.length,
+              separatorBuilder: (_, i) => const Divider(height: 1, color: Color(0xFFF8FAFC)),
+              itemBuilder: (context, index) {
+                final m = _members[index];
+                final name = m['nama'] as String? ?? 'Pemain';
+                final initial = name.isNotEmpty ? name[0].toUpperCase() : 'P';
+                final level = (m['level'] as String? ?? 'Advanced');
+                final gender = m['gender'] as String? ?? 'Male';
+                final age = m['usia'] != null ? '${m['usia']} th' : '22 th';
+                final foto = (m['foto'] as String?)?.trim();
+                final hasFoto = foto != null && foto.isNotEmpty;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                  child: Row(
+                    children: [
+                      // # Index
+                      SizedBox(
+                        width: 22,
+                        child: Text(
+                          '${index + 1}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
+                        ),
+                      ),
+
+                      // Avatar + Name
+                      Expanded(
+                        flex: 3,
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: hasFoto
+                                    ? Image.network(
+                                        foto,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, error, stackTrace) => _buildMemberFallbackAvatar(initial),
+                                      )
+                                    : _buildMemberFallbackAvatar(initial),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Status Pill
+                      Expanded(
+                        flex: 2,
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEBF8D8),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Member',
+                              style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF166534)),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Skill Level Pill
+                      Expanded(
+                        flex: 2,
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              level,
+                              style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFFB45309)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Gender / Usia
+                      Expanded(
+                        flex: 2,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '$gender, $age',
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Color(0xFF64748B)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMemberFallbackAvatar(String initial) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.matchaDark, Color(0xFF064E3B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(8),
       ),
+      alignment: Alignment.center,
       child: Text(
-        status.toUpperCase(),
-        style: AppTextStyles.badge.copyWith(
-          fontSize: 10,
-          color: isActive
-              ? context.brandColor
-              : context.txtSecondary,
-        ),
+        initial,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.white),
+      ),
+    );
+  }
+
+  // --- CARD 3A: MODE ADMINISTRATOR (For Admin) ---
+  Widget _buildAdminModeCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF063B00).withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Mode Administrator',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Amber Notice Box
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFBEB),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFFDE68A)),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.workspace_premium_rounded, size: 16, color: Color(0xFFB45309)),
+                    SizedBox(width: 6),
+                    Text(
+                      'Akses Pengelola',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF92400E)),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Admin mengelola komunitas ini secara sistem dan tidak bergabung sebagai anggota pemain.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF78350F), height: 1.4),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // Bottom Info Note
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded, size: 15, color: Color(0xFF063B00)),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Sebagai anggota, Anda dapat mengikuti sesi mabar, turnamen, dan melihat leaderboard komunitas.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B), height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- CARD 3B: STATUS KEANGGOTAAN / SIAP BERGABUNG (For Non-Admin) ---
+  Widget _buildMembershipCard(bool isLoggedIn, bool isMember) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF063B00).withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isLoggedIn && isMember) ...[
+            const Text(
+              'Status Keanggotaan',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDCFCE7),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF86EFAC)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, size: 18, color: Color(0xFF15803D)),
+                  SizedBox(width: 8),
+                  Text(
+                    'Anda adalah Anggota',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF166534)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: OutlinedButton.icon(
+                onPressed: _isActionLoading ? null : _handleToggleMembership,
+                icon: _isActionLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.redAccent),
+                      )
+                    : const Icon(Icons.logout_rounded, size: 16, color: Color(0xFFB91C1C)),
+                label: Text(
+                  _isActionLoading ? 'Memproses...' : 'Keluar dari Komunitas',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFFB91C1C)),
+                ),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFEF2F2),
+                  side: const BorderSide(color: Color(0xFFFECACA)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+          ] else if (isLoggedIn && !isMember) ...[
+            const Text(
+              'Siap Bergabung?',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Bergabunglah dengan komunitas ini untuk mengikuti sesi mabar dan turnamen!',
+              style: TextStyle(fontSize: 12, color: Color(0xFF334155), height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton.icon(
+                onPressed: _isActionLoading ? null : _handleToggleMembership,
+                icon: _isActionLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.person_add_rounded, size: 18, color: Color(0xFFA8E63A)),
+                label: Text(
+                  _isActionLoading ? 'Memproses...' : 'Bergabung Sekarang',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.matchaDark,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+          ] else ...[
+            const Text(
+              'Akses Komunitas',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Silakan login terlebih dahulu untuk bergabung dengan komunitas ini.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF334155), height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton.icon(
+                onPressed: _handleToggleMembership,
+                icon: const Icon(Icons.login_rounded, size: 18, color: Color(0xFFA8E63A)),
+                label: const Text('Login Terlebih Dahulu', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.matchaDark,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 12),
+
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded, size: 15, color: Color(0xFF063B00)),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Sebagai anggota, Anda dapat mengikuti sesi mabar, turnamen, dan melihat leaderboard komunitas.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B), height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

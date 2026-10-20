@@ -1,140 +1,696 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/theme/theme_controller.dart';
+import '../../../core/utils/app_error_handler.dart';
 import '../../auth/domain/models/user_model.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
+import '../../auth/presentation/register_page.dart';
+import '../../recap/presentation/match_recap_page.dart';
 
 class ProfilePage extends StatefulWidget {
-  final UserModel? user;
-  final AuthController authController;
+  final AuthController? authController;
 
-  const ProfilePage({
-    super.key,
-    required this.user,
-    required this.authController,
-  });
+  const ProfilePage({super.key, this.authController});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
-  bool _notificationEnabled = true;
-  final ThemeController _themeController = ThemeController();
+class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _pulseAnimation;
 
-  void _handleLogout() {
-    showDialog(
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _namaController;
+  late TextEditingController _emailController;
+  late TextEditingController _noHpController;
+  late TextEditingController _usiaController;
+
+  String _selectedGender = 'Male';
+  String _selectedLevel = 'Intermediate';
+  bool _isGenderDropdownOpen = false;
+  bool _isLevelDropdownOpen = false;
+
+  String? _currentFotoUrl;
+  Uint8List? _pickedImageBytes;
+  String? _pickedImageExt;
+  bool _removeFoto = false;
+
+  bool _isSaving = false;
+  bool _isTogglingHost = false;
+
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+
+    _initFormValues();
+    widget.authController?.addListener(_onAuthChanged);
+  }
+
+  void _initFormValues() {
+    final user = widget.authController?.currentUser;
+    _namaController = TextEditingController(text: user?.nama ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
+    _noHpController = TextEditingController(text: user?.noHp ?? '');
+    _usiaController = TextEditingController(text: user?.usia != null ? user!.usia.toString() : '25');
+
+    final rawGender = (user?.gender ?? 'Male').toLowerCase();
+    _selectedGender = rawGender.contains('fem') || rawGender.contains('peremp') ? 'Female' : 'Male';
+
+    final rawLevel = user?.level ?? 'Intermediate';
+    if (['Newbie', 'Beginner', 'Intermediate', 'Advanced'].contains(rawLevel)) {
+      _selectedLevel = rawLevel;
+    } else {
+      _selectedLevel = 'Intermediate';
+    }
+
+    _currentFotoUrl = user?.foto;
+    _removeFoto = false;
+    _pickedImageBytes = null;
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    _namaController.dispose();
+    _emailController.dispose();
+    _noHpController.dispose();
+    _usiaController.dispose();
+    widget.authController?.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+
+  void _onAuthChanged() {
+    if (mounted && !_isSaving) {
+      final user = widget.authController?.currentUser;
+      if (user != null) {
+        _namaController.text = user.nama;
+        _emailController.text = user.email;
+        _noHpController.text = user.noHp ?? '';
+        _usiaController.text = user.usia != null ? user.usia.toString() : '25';
+        final rawGender = (user.gender ?? 'Male').toLowerCase();
+        _selectedGender = rawGender.contains('fem') || rawGender.contains('peremp') ? 'Female' : 'Male';
+        final rawLevel = user.level ?? 'Intermediate';
+        _selectedLevel = ['Newbie', 'Beginner', 'Intermediate', 'Advanced'].contains(rawLevel) ? rawLevel : 'Intermediate';
+        _currentFotoUrl = user.foto;
+      }
+      setState(() {});
+    }
+  }
+
+  Future<void> _handleToggleHost() async {
+    final authCtrl = widget.authController;
+    if (authCtrl == null || authCtrl.currentUser == null) return;
+
+    final isCurrentlyHost = authCtrl.currentUser!.isHost;
+    final actionText = isCurrentlyHost ? 'Nonaktifkan Mode Host' : 'Aktifkan Mode Host';
+    final confirmMsg = isCurrentlyHost
+        ? 'Apakah kamu yakin ingin menonaktifkan status Host? Kamu tidak akan bisa membuat jadwal mabar baru sampai diaktifkan kembali.'
+        : 'Aktifkan Mode Host untuk mulai membuat jadwal mabar, mengatur drawing tim, dan input live score!';
+
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: context.surf,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: context.surfBorder),
-        ),
-        title: Text('Konfirmasi Keluar', style: AppTextStyles.cardTitle.copyWith(color: context.txtPrimary)),
-        content: Text(
-          'Apakah Anda yakin ingin keluar dari akun?',
-          style: AppTextStyles.bodySecondary.copyWith(color: context.txtSecondary),
-        ),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(actionText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+        content: Text(confirmMsg, style: const TextStyle(fontSize: 13.5, color: Color(0xFF475569))),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal', style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
+              backgroundColor: isCurrentlyHost ? const Color(0xFFDC2626) : const Color(0xFF063B00),
               foregroundColor: Colors.white,
-              minimumSize: const Size(80, 36),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            onPressed: () {
-              Navigator.pop(context);
-              widget.authController.logout();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => LoginPage(authController: widget.authController),
+            child: Text(isCurrentlyHost ? 'Nonaktifkan' : 'Aktifkan'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isTogglingHost = true);
+      try {
+        await authCtrl.toggleHost();
+        if (mounted) {
+          final isNowHost = authCtrl.currentUser?.isHost ?? false;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(
+                    isNowHost ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      isNowHost
+                          ? '👑 Mode Host Game Aktif! Kamu sekarang bisa membuat jadwal mabar.'
+                          : 'Status Mode Host dinonaktifkan (Pemain Biasa).',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: isNowHost ? const Color(0xFF065F46) : const Color(0xFF334155),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          AppErrorHandler.showErrorSnackBar(context, e);
+        }
+      } finally {
+        if (mounted) setState(() => _isTogglingHost = false);
+      }
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? file = await _picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      if (file != null) {
+        final bytes = await file.readAsBytes();
+        final ext = file.name.split('.').last.toLowerCase();
+        setState(() {
+          _pickedImageBytes = bytes;
+          _pickedImageExt = (ext == 'png' || ext == 'webp') ? ext : 'jpg';
+          _removeFoto = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        AppErrorHandler.showErrorSnackBar(context, e, customMessage: 'Gagal mengambil gambar dari perangkat.');
+      }
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Pilih Foto Profil',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              ),
+              const SizedBox(height: 14),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.photo_library_rounded, color: Color(0xFF065F46)),
                 ),
-              );
-            },
+                title: const Text('Buka Galeri Foto', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF1D4ED8)),
+                ),
+                title: const Text('Ambil Foto Kamera', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              if (_pickedImageBytes != null || (!_removeFoto && _currentFotoUrl != null && _currentFotoUrl!.isNotEmpty)) ...[
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFDC2626)),
+                  ),
+                  title: const Text('Hapus Foto Profil', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFFDC2626))),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _handleRemoveFoto();
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleRemoveFoto() {
+    setState(() {
+      _currentFotoUrl = null;
+      _pickedImageBytes = null;
+      _removeFoto = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Foto profil diset untuk dihapus saat disimpan.'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Future<void> _handleSaveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final authCtrl = widget.authController;
+    if (authCtrl == null || authCtrl.currentUser == null) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      String? finalFotoUrl = _currentFotoUrl;
+
+      // Jika ada gambar baru yang dipilih dari galeri/kamera, upload ke Supabase Storage
+      if (_pickedImageBytes != null && !_removeFoto) {
+        final uploadedUrl = await authCtrl.uploadAvatar(
+          _pickedImageBytes!,
+          _pickedImageExt ?? 'jpg',
+        );
+        if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+          finalFotoUrl = uploadedUrl;
+        } else {
+          throw Exception('Gagal mengunggah foto profil ke penyimpanan cloud. Silakan periksa koneksi internet Anda.');
+        }
+      }
+
+      final cleanPhone = _noHpController.text.replaceAll(RegExp(r'[^0-9]'), '');
+      final usiaVal = int.tryParse(_usiaController.text.trim()) ?? 25;
+
+      final success = await authCtrl.updateProfile(
+        nama: _namaController.text.trim(),
+        noHp: cleanPhone,
+        gender: _selectedGender,
+        usia: usiaVal,
+        level: _selectedLevel,
+        communityId: authCtrl.currentUser?.communityId,
+        fotoUrl: finalFotoUrl,
+        removeFoto: _removeFoto,
+      );
+
+      if (success && mounted) {
+        _pickedImageBytes = null;
+        _currentFotoUrl = authCtrl.currentUser?.foto;
+        _removeFoto = false;
+
+        final isAdm = authCtrl.currentUser?.isAdmin == true;
+        AppErrorHandler.showSuccessSnackBar(
+          context,
+          isAdm
+              ? '🎉 Profil administrator berhasil diperbarui!'
+              : '🎉 Profil pemain berhasil diperbarui!',
+        );
+      } else if (mounted && authCtrl.errorMessage != null) {
+        AppErrorHandler.showErrorSnackBar(context, authCtrl.errorMessage);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppErrorHandler.showErrorSnackBar(context, e);
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Keluar dari Akun?'),
+        content: const Text('Kamu perlu masuk kembali untuk mengakses fitur mabar dan kelola skor.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             child: const Text('Keluar'),
           ),
         ],
       ),
     );
+
+    if (shouldLogout == true && mounted) {
+      final authCtrl = widget.authController ?? AuthController();
+      await authCtrl.logout();
+
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (ctx) => LoginPage(authController: authCtrl),
+          ),
+          (route) => false,
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final name = widget.user?.nama ?? 'User';
-    final email = widget.user?.email ?? 'user@matcha.com';
-    final role = widget.user?.role ?? 'Personal User';
-    final isHost = widget.user?.isHost ?? false;
+    final user = widget.authController?.currentUser;
+
+    if (user == null) {
+      return _buildGuestProfileView();
+    }
+
+    return _buildLoggedInProfileView(user);
+  }
+
+  /// Tampilan Profil untuk Pengguna yang Sudah Login (1:1 Web Mirror)
+  Widget _buildLoggedInProfileView(UserModel user) {
+    final isAdmin = user.isAdmin;
+    final isHost = user.isHost && !isAdmin;
+    final isVenueOwner = user.role == 'venue_owner' && !isAdmin;
+    final usernameTag = '@${user.nama.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_')}';
 
     return Scaffold(
-      backgroundColor: context.bg,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+          onPressed: () => Navigator.maybePop(context),
+        ),
+        title: Text(
+          isAdmin ? 'Profil Akun Administrator' : 'Profil Member Pemain',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: const Color(0xFFE2E8F0), height: 1),
+        ),
+      ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Form(
+          key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Profil Pengguna',
-                style: AppTextStyles.pageTitle.copyWith(fontSize: 22, color: context.txtPrimary),
-              ),
+              // 1. Tag & Header Judul (Matching web)
+              _buildPageHeader(isAdmin),
               const SizedBox(height: 16),
 
-              // User Info Card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: context.surf,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: context.surfBorder),
+              // 2. Status Akses Host Game Card (Hanya untuk non-admin)
+              if (!isAdmin) ...[
+                _buildHostStatusCard(isHost),
+                const SizedBox(height: 16),
+              ],
+
+              // 3. Profil & Form Data Pemain / Admin Card (Matching web)
+              _buildProfileFormCard(user, isHost, isVenueOwner, usernameTag, isAdmin),
+              const SizedBox(height: 20),
+
+              // 4. Action Save Button
+              _buildSaveButton(),
+              const SizedBox(height: 16),
+
+              // 5. Logout Button
+              _buildLogoutButton(),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPageHeader(bool isAdmin) {
+    if (isAdmin) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFDE68A)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.person_rounded, size: 12, color: Color(0xFF92400E)),
+                SizedBox(width: 5),
+                Text(
+                  'AKUN & PROFIL ADMINISTRATOR',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF92400E),
+                    letterSpacing: 0.5,
+                  ),
                 ),
-                child: Row(
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Profil Akun Administrator',
+            style: TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Kelola data identitas akun, kontak WhatsApp, dan foto profil Administrator Matcha',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: Color(0xFF64748B),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEAF8E6),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFBBF7D0)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('🪪 ', style: TextStyle(fontSize: 11)),
+              Text(
+                'AKUN & PROFIL PEMAIN',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF166534),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Profil Member Pemain',
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Kelola data identitas, kontak WhatsApp, skill level, dan status keanggotaan Host Anda',
+          style: TextStyle(
+            fontSize: 12.5,
+            color: Color(0xFF64748B),
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Quick Button: Lihat Match Recap (Full-width matching web mobile layout)
+        InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MatchRecapPage(authController: widget.authController),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.show_chart_rounded, size: 18, color: Color(0xFF063B00)),
+                SizedBox(width: 8),
+                Text(
+                  'Lihat Match Recap',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Color(0xFFE2E8F0)),
+      ],
+    );
+  }
+
+  Widget _buildHostStatusCard(bool isHost) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 4,
                   children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: isHost
-                          ? context.brandColor.withValues(alpha: 0.2)
-                          : AppColors.info.withValues(alpha: 0.2),
-                      child: Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                        style: AppTextStyles.pageTitle.copyWith(
-                          color: isHost ? context.brandColor : AppColors.info,
-                          fontSize: 24,
-                        ),
+                    const Text(
+                      'Status Akses Host Game:',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isHost ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isHost ? const Color(0xFF86EFAC) : const Color(0xFFCBD5E1),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            name,
-                            style: AppTextStyles.cardTitle.copyWith(fontSize: 17, color: context.txtPrimary),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(email, style: AppTextStyles.caption.copyWith(color: context.txtSecondary)),
-                          const SizedBox(height: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            width: 6,
+                            height: 6,
                             decoration: BoxDecoration(
-                              color: isHost
-                                  ? context.brandColor.withValues(alpha: 0.15)
-                                  : AppColors.info.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
+                              shape: BoxShape.circle,
+                              color: isHost ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
                             ),
-                            child: Text(
-                              role.toUpperCase(),
-                              style: AppTextStyles.badge.copyWith(
-                                color: isHost ? context.brandColor : AppColors.info,
-                                fontSize: 10,
-                              ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            isHost ? 'Host Game Active' : 'Mode Member Biasa',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: isHost ? const Color(0xFF15803D) : const Color(0xFF475569),
                             ),
                           ),
                         ],
@@ -143,120 +699,812 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
               ),
-
-              const SizedBox(height: 24),
-
-              // Section: Pengaturan Akun
-              Text(
-                'PENGATURAN TAMPILAN & AKUN',
-                style: AppTextStyles.badge.copyWith(color: context.txtSecondary, letterSpacing: 1.5),
-              ),
-              const SizedBox(height: 12),
-
-              Container(
-                decoration: BoxDecoration(
-                  color: context.surf,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: context.surfBorder),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            isHost
+                ? 'Mode Host Aktif. Kamu diizinkan untuk membuat jadwal mabar baru, mengelola drawing tim, dan live scoring.'
+                : 'Mode Member Biasa. Aktifkan Mode Host untuk mulai membuat jadwal mabar baru, mengelola drawing tim, dan live scoring.',
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF64748B),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          // Toggle Host Button (Matching web)
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton(
+              onPressed: _isTogglingHost ? null : _handleToggleHost,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                foregroundColor: isHost ? const Color(0xFFDC2626) : const Color(0xFF063B00),
+                backgroundColor: isHost ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5),
+                side: BorderSide(
+                  color: isHost ? const Color(0xFFFECACA) : const Color(0xFFA7F3D0),
                 ),
-                child: Column(
-                  children: [
-                    // Theme Switch Tile (Dark / Light Mode)
-                    ListTile(
-                      leading: Icon(
-                        _themeController.isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                        color: context.brandColor,
-                        size: 22,
-                      ),
-                      title: Text(
-                        _themeController.isDarkMode ? 'Mode Gelap (Dark Mode)' : 'Mode Terang (Light Mode)',
-                        style: AppTextStyles.body.copyWith(color: context.txtPrimary),
-                      ),
-                      subtitle: Text(
-                        _themeController.isDarkMode ? 'Tema sporty gelap aktif' : 'Tema terang bersih aktif',
-                        style: AppTextStyles.caption.copyWith(color: context.txtSecondary),
-                      ),
-                      trailing: Switch(
-                        value: _themeController.isDarkMode,
-                        activeTrackColor: context.brandColor,
-                        onChanged: (isDark) {
-                          setState(() {
-                            _themeController.toggleTheme(isDark);
-                          });
-                        },
-                      ),
-                    ),
-                    Divider(height: 1, indent: 56, color: context.surfBorder),
-                    _buildSettingsTile(
-                      icon: Icons.lock_outline_rounded,
-                      title: 'Ubah Kata Sandi',
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Fitur ubah kata sandi siap dikonfigurasi.',
-                              style: AppTextStyles.body.copyWith(color: context.txtPrimary),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _isTogglingHost
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.power_settings_new_rounded,
+                          size: 18,
+                          color: isHost ? const Color(0xFFDC2626) : const Color(0xFF065F46),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              isHost ? 'Nonaktifkan Mode Host' : 'Aktifkan Mode Host',
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isHost ? const Color(0xFFDC2626) : const Color(0xFF065F46),
+                              ),
                             ),
-                            backgroundColor: context.surf,
-                            behavior: SnackBarBehavior.floating,
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
-                    Divider(height: 1, indent: 56, color: context.surfBorder),
-                    ListTile(
-                      leading: Icon(Icons.notifications_outlined, color: context.brandColor, size: 22),
-                      title: Text('Notifikasi Pertandingan', style: AppTextStyles.body.copyWith(color: context.txtPrimary)),
-                      trailing: Switch(
-                        value: _notificationEnabled,
-                        activeTrackColor: context.brandColor,
-                        onChanged: (val) => setState(() => _notificationEnabled = val),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileFormCard(
+    UserModel user,
+    bool isHost,
+    bool isVenueOwner,
+    String usernameTag,
+    bool isAdmin,
+  ) {
+    ImageProvider? displayImage;
+    if (_pickedImageBytes != null) {
+      displayImage = MemoryImage(_pickedImageBytes!);
+    } else if (!_removeFoto && _currentFotoUrl != null && _currentFotoUrl!.isNotEmpty) {
+      displayImage = NetworkImage(_currentFotoUrl!);
+    }
+
+    final safeGenderValue = ['Male', 'Female'].contains(_selectedGender) ? _selectedGender : 'Male';
+    final safeLevelValue = ['Newbie', 'Beginner', 'Intermediate', 'Advanced'].contains(_selectedLevel)
+        ? _selectedLevel
+        : 'Intermediate';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar + Summary Header
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Avatar with camera badge (clickable directly)
+              GestureDetector(
+                onTap: _showImageSourceDialog,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: displayImage != null ? Colors.transparent : const Color(0xFF063B00),
+                        border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: displayImage != null
+                            ? Image(
+                                image: displayImage,
+                                width: 76,
+                                height: 76,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Container(
+                                  color: const Color(0xFF063B00),
+                                  child: _buildAvatarFallback(user.nama),
+                                ),
+                              )
+                            : _buildAvatarFallback(user.nama),
                       ),
                     ),
-                    Divider(height: 1, indent: 56, color: context.surfBorder),
-                    _buildSettingsTile(
-                      icon: Icons.info_outline_rounded,
-                      title: 'Tentang Aplikasi Matcha',
-                      subtitle: 'Versi 1.0.0 (Match Arena)',
-                      onTap: () {},
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF063B00),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(Icons.camera_alt_rounded, size: 13, color: Color(0xFFA8E63A)),
+                      ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 14),
 
-              const SizedBox(height: 32),
-
-              // Logout Action Button
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+              // Name, Role Badge, Username
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        Text(
+                          user.nama,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isAdmin
+                                ? const Color(0xFFFEF3C7)
+                                : (isHost
+                                    ? const Color(0xFFFEF3C7)
+                                    : (isVenueOwner ? const Color(0xFFE0F2FE) : const Color(0xFFF1F5F9))),
+                            borderRadius: BorderRadius.circular(12),
+                            border: isAdmin ? Border.all(color: const Color(0xFFFDE68A)) : null,
+                          ),
+                          child: Text(
+                            isAdmin
+                                ? 'Administrator Global'
+                                : (isVenueOwner
+                                    ? '🏢 Venue Owner'
+                                    : (isHost ? '👑 Host Game & Player' : '👤 Member Pemain')),
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: isAdmin
+                                  ? const Color(0xFF92400E)
+                                  : (isHost
+                                      ? const Color(0xFFB45309)
+                                      : (isVenueOwner ? const Color(0xFF0369A1) : const Color(0xFF475569))),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$usernameTag • ${user.email}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                onPressed: _handleLogout,
-                icon: const Icon(Icons.logout_rounded, size: 20),
-                label: const Text('Keluar dari Akun'),
               ),
-              const SizedBox(height: 20),
             ],
           ),
+
+          if (!isAdmin) ...[
+            const SizedBox(height: 14),
+            // Info Chips (Skill, Usia)
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _buildInfoPill('⭐ Skill: ${user.level ?? "Intermediate"}', const Color(0xFFFEF3C7), const Color(0xFFB45309)),
+                _buildInfoPill('🎂 Usia: ${user.usia ?? 25} thn', const Color(0xFFF8FAFC), const Color(0xFF475569)),
+              ],
+            ),
+          ],
+
+          const SizedBox(height: 18),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 18),
+
+          // Form Field 1: Nama Lengkap *
+          _buildFormFieldTitle('Nama Lengkap', isRequired: true),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _namaController,
+            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+            decoration: _inputDecoration(hint: 'Masukkan nama lengkap'),
+            validator: (val) => (val == null || val.trim().isEmpty) ? 'Nama lengkap wajib diisi' : null,
+          ),
+          _buildFieldCaption(isAdmin
+              ? 'Nama akun yang digunakan pada identitas sistem.'
+              : 'Nama ini akan digunakan pada papan drawing pertandingan, bracket turnamen, dan leaderboard.'),
+          const SizedBox(height: 14),
+
+          // Form Field 2: Alamat Email (Akun Utama) - Read Only
+          _buildFormFieldTitle('Alamat Email (Akun Utama)'),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _emailController,
+            readOnly: true,
+            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+            decoration: _inputDecoration(
+              hint: 'email@matcha.id',
+              fillColor: const Color(0xFFF8FAFC),
+              suffixIcon: const Icon(Icons.lock_outline_rounded, size: 16, color: Color(0xFF94A3B8)),
+            ),
+          ),
+          _buildFieldCaption(isAdmin
+              ? 'Email akun terhubung yang digunakan untuk masuk ke sistem.'
+              : 'Email akun terhubung dan digunakan untuk masuk ke sistem.'),
+          const SizedBox(height: 14),
+
+          // Form Field 3: Nomor WhatsApp / HP *
+          _buildFormFieldTitle('Nomor WhatsApp / HP', isRequired: true),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _noHpController,
+            keyboardType: TextInputType.phone,
+            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+            decoration: _inputDecoration(hint: '08xxxxxxxxxx', prefixText: ''),
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) return 'Nomor WhatsApp wajib diisi';
+              final clean = val.replaceAll(RegExp(r'[^0-9]'), '');
+              if (clean.length < 9 || clean.length > 15) return 'Nomor WhatsApp harus 9 - 15 digit angka';
+              return null;
+            },
+          ),
+          _buildFieldCaption(isAdmin
+              ? 'Nomor kontak resmi untuk koordinasi & notifikasi sistem.'
+              : 'Nomor kontak untuk koordinasi grup mabar & notifikasi sesi.'),
+          const SizedBox(height: 14),
+
+          if (isAdmin) ...[
+            _buildFormFieldTitle('Jenis Kelamin', isRequired: true),
+            const SizedBox(height: 6),
+            _buildCustomDropdown<String>(
+              value: safeGenderValue,
+              options: const [
+                (value: 'Male', label: 'Laki-laki'),
+                (value: 'Female', label: 'Perempuan'),
+              ],
+              isOpen: _isGenderDropdownOpen,
+              onOpenChanged: (open) => setState(() => _isGenderDropdownOpen = open),
+              onChanged: (val) => setState(() => _selectedGender = val),
+            ),
+          ] else ...[
+            // Form Field 4 & 5: Jenis Kelamin & Usia (Row)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Jenis Kelamin
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildFormFieldTitle('Jenis Kelamin', isRequired: true),
+                      const SizedBox(height: 6),
+                      _buildCustomDropdown<String>(
+                        value: safeGenderValue,
+                        options: const [
+                          (value: 'Male', label: 'Laki-laki'),
+                          (value: 'Female', label: 'Perempuan'),
+                        ],
+                        isOpen: _isGenderDropdownOpen,
+                        onOpenChanged: (open) => setState(() => _isGenderDropdownOpen = open),
+                        onChanged: (val) => setState(() => _selectedGender = val),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Usia (Tahun)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildFormFieldTitle('Usia (Tahun)', isRequired: true),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _usiaController,
+                        keyboardType: TextInputType.number,
+                        onChanged: (_) => setState(() {}),
+                        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                        decoration: _inputDecoration(hint: '25'),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) return 'Wajib diisi';
+                          final numVal = int.tryParse(val.trim());
+                          if (numVal == null || numVal < 10 || numVal > 90) return '10 - 90 thn';
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Form Field 6: Kategori Skill Level *
+            _buildFormFieldTitle('Kategori Skill Level', isRequired: true),
+            const SizedBox(height: 6),
+            _buildCustomDropdown<String>(
+              value: safeLevelValue,
+              options: const [
+                (value: 'Newbie', label: 'Newbie (Pemula Sekali)'),
+                (value: 'Beginner', label: 'Beginner (Bisa Reli Dasar)'),
+                (value: 'Intermediate', label: 'Intermediate (Paham Rotasi & Taktik)'),
+                (value: 'Advanced', label: 'Advanced (Turnamen & Kompetitif)'),
+              ],
+              isOpen: _isLevelDropdownOpen,
+              onOpenChanged: (open) => setState(() => _isLevelDropdownOpen = open),
+              onChanged: (val) => setState(() => _selectedLevel = val),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarFallback(String name) {
+    return Center(
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : 'U',
+        style: const TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
         ),
       ),
     );
   }
 
-  Widget _buildSettingsTile({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required VoidCallback onTap,
+  Widget _buildInfoPill(String label, Color bg, Color text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: text.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: text),
+      ),
+    );
+  }
+
+  Widget _buildFormFieldTitle(String title, {bool isRequired = false}) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        if (isRequired)
+          const Text(
+            ' *',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFE11D48),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFieldCaption(String caption) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, left: 2),
+      child: Text(
+        caption,
+        style: const TextStyle(
+          fontSize: 10.5,
+          color: Color(0xFF94A3B8),
+          height: 1.3,
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({
+    String? hint,
+    Color? fillColor,
+    Widget? suffixIcon,
+    String? prefixText,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: context.brandColor, size: 22),
-      title: Text(title, style: AppTextStyles.body.copyWith(color: context.txtPrimary)),
-      subtitle: subtitle != null ? Text(subtitle, style: AppTextStyles.caption.copyWith(color: context.txtSecondary)) : null,
-      trailing: Icon(Icons.chevron_right_rounded, color: context.txtSecondary, size: 20),
-      onTap: onTap,
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+      prefixText: prefixText,
+      filled: true,
+      fillColor: fillColor ?? const Color(0xFFFFFFFF),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      suffixIcon: suffixIcon,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF063B00), width: 1.8),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE11D48), width: 1.2),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE11D48), width: 1.8),
+      ),
+    );
+  }
+
+  Widget _buildCustomDropdown<T>({
+    required T value,
+    required List<({T value, String label})> options,
+    required ValueChanged<T> onChanged,
+    required bool isOpen,
+    required ValueChanged<bool> onOpenChanged,
+  }) {
+    final selectedOption = options.firstWhere(
+      (opt) => opt.value == value,
+      orElse: () => options.first,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return PopupMenuButton<T>(
+          position: PopupMenuPosition.under,
+          offset: const Offset(0, 6),
+          color: Colors.white,
+          elevation: 6,
+          shadowColor: Colors.black.withValues(alpha: 0.15),
+          constraints: BoxConstraints(
+            minWidth: constraints.maxWidth,
+            maxWidth: constraints.maxWidth,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          padding: EdgeInsets.zero,
+          onOpened: () {
+            FocusManager.instance.primaryFocus?.unfocus();
+            onOpenChanged(true);
+          },
+          onCanceled: () {
+            onOpenChanged(false);
+          },
+          onSelected: (val) {
+            onChanged(val);
+            onOpenChanged(false);
+          },
+          itemBuilder: (_) => options.map((opt) {
+            final isSelected = opt.value == value;
+            return PopupMenuItem<T>(
+              value: opt.value,
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFFEBF8D8) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        opt.label,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          color: isSelected ? const Color(0xFF063B00) : const Color(0xFF334155),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isSelected)
+                      const Icon(
+                        Icons.check_rounded,
+                        size: 16,
+                        color: Color(0xFF063B00),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isOpen ? const Color(0xFF063B00) : const Color(0xFFCBD5E1),
+                width: isOpen ? 1.8 : 1.2,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    selectedOption.label,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  isOpen
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: isOpen
+                      ? const Color(0xFF063B00)
+                      : const Color(0xFF94A3B8),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton(
+        onPressed: _isSaving ? null : _handleSaveProfile,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF063B00),
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: const Color(0xFF063B00).withValues(alpha: 0.6),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        child: _isSaving
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.save_outlined, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Simpan Perubahan Profil',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 44,
+      child: OutlinedButton(
+        onPressed: _handleLogout,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFDC2626),
+          side: const BorderSide(color: Color(0xFFFECACA), width: 1.2),
+          backgroundColor: const Color(0xFFFEF2F2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.logout_rounded, size: 16),
+            SizedBox(width: 6),
+            Text(
+              'Keluar dari Akun (Logout)',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Tampilan Profil untuk Pemain Tamu (Guest)
+  Widget _buildGuestProfileView() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Profil Member',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+        ),
+      ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            ScaleTransition(
+              scale: _pulseAnimation,
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF063B00), Color(0xFF1E5B10)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.matchaDark.withValues(alpha: 0.3),
+                      blurRadius: 18,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.sports_tennis_rounded,
+                    size: 44,
+                    color: Color(0xFFA8E63A),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.lock_outline_rounded, size: 13, color: Color(0xFFD97706)),
+                  const SizedBox(width: 5),
+                  Text(
+                    'MODE TAMU (GUEST)',
+                    style: AppTextStyles.badge.copyWith(
+                      color: const Color(0xFFD97706),
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Akses Profil & Statistik Mabar',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.h1.copyWith(
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Masuk atau buat akun MATCHA untuk menyimpan riwayat bermain, tracking win rate, dan mengaktifkan hak akses Host Game.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.caption.copyWith(
+                fontSize: 12.5,
+                color: const Color(0xFF64748B),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LoginPage(authController: widget.authController),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.matchaDark,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.login_rounded, size: 18),
+                    SizedBox(width: 8),
+                    Text('Masuk ke Akun', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RegisterPage(authController: widget.authController),
+                    ),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.matchaDark,
+                  side: const BorderSide(color: AppColors.matchaDark, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('Daftar Member Baru', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

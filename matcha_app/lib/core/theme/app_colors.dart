@@ -3,60 +3,46 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // Brand Colors (Lime Green)
-  static const Color primary = Color(0xFFA8E63A); // Lime Green for Dark Mode
-  static const Color primaryDark = Color(0xFF7FAF25); // Darker Green
-  static const Color primaryLight = Color(0xFFC7F37A);
-  static const Color primaryAccentLight = Color(0xFF6DA318); // High contrast green for light mode
+  // Matcha Brand Color Palette (matching matcha-pt-web)
+  static const Color matchaDark = Color(0xFF063B00); // Deep Matcha Forest Green
+  static const Color matchaDarkHover = Color(0xFF042A00);
+  static const Color matchaLime = Color(0xFFA8E63A); // Lime Accent
+  static const Color matchaSoftLime = Color(0xFFEBF8D8); // Pastel Lime Background
+  static const Color matchaSoftLimeBorder = Color(0xFFC4E992);
 
-  // Dark Theme Background & Surface
-  static const Color background = Color(0xFF050608); // Near Black
-  static const Color surface = Color(0xFF111318); // Dark Gray
-  static const Color surfaceSecondary = Color(0xFF1A1D23); // Gray Card
-  static const Color surfaceBorder = Color(0xFF262A33);
-
-  // Light Theme Background & Surface
-  static const Color lightBackground = Color(0xFFF6F8FA); // Soft off-white
+  // Background & Surface (Light Mode Primary)
+  static const Color lightBackground = Color(0xFFF8FAFC); // Slate-50 off-white
   static const Color lightSurface = Color(0xFFFFFFFF); // Pure white card
-  static const Color lightSurfaceSecondary = Color(0xFFEFF2F6); // Soft gray card/pill
-  static const Color lightSurfaceBorder = Color(0xFFE2E8F0); // Light border
+  static const Color lightSurfaceSecondary = Color(0xFFF1F5F9); // Slate-100 pill/card
+  static const Color lightSurfaceBorder = Color(0xFFE2E8F0); // Slate-200 border
 
-  // Text Colors - Dark Theme
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFFA9ADB5);
-  static const Color textDisabled = Color(0xFF666A73);
-  static const Color textOnPrimary = Color(0xFF050608); // Dark text on Lime Green
+  // Text Hierarchy
+  static const Color textPrimary = Color(0xFF050608); // Near Black / Deep Slate
+  static const Color textSecondary = Color(0xFF64748B); // Slate-500
+  static const Color textDisabled = Color(0xFF94A3B8); // Slate-400
+  static const Color textOnPrimary = Color(0xFFFFFFFF); // White text on dark green
 
-  // Text Colors - Light Theme
-  static const Color lightTextPrimary = Color(0xFF0F172A); // Deep slate
-  static const Color lightTextSecondary = Color(0xFF64748B); // Cool gray
-  static const Color lightTextDisabled = Color(0xFF94A3B8);
-  static const Color lightTextOnPrimary = Color(0xFFFFFFFF);
+  // Semantic Colors
+  static const Color success = Color(0xFF22C55E);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color error = Color(0xFFEF4444);
+  static const Color info = Color(0xFF3B82F6);
 
-  // Semantic Status Colors
-  static const Color success = Color(0xFF4CAF50);
-  static const Color warning = Color(0xFFFF9800);
-  static const Color error = Color(0xFFF44336);
-  static const Color info = Color(0xFF2196F3);
-
-  // Game / Session Status Badges
-  static const Color liveBadge = Color(0xFFA8E63A);
-  static const Color inProgressBadge = Color(0xFFFF9800);
-  static const Color finishedBadge = Color(0xFF666A73);
-  static const Color waitingBadge = Color(0xFF3F82F6);
-  static const Color playingBadge = Color(0xFFA8E63A);
+  // Status Badges
+  static const Color liveBadge = Color(0xFFEF4444);
+  static const Color openBadge = Color(0xFF063B00);
 }
 
-/// Extension on BuildContext for quick access to theme-aware colors
+/// Extension on BuildContext for quick access to theme colors
 extension AppColorsExtension on BuildContext {
-  bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
-
-  Color get bg => isDarkMode ? AppColors.background : AppColors.lightBackground;
-  Color get surf => isDarkMode ? AppColors.surface : AppColors.lightSurface;
-  Color get surfSec => isDarkMode ? AppColors.surfaceSecondary : AppColors.lightSurfaceSecondary;
-  Color get surfBorder => isDarkMode ? AppColors.surfaceBorder : AppColors.lightSurfaceBorder;
-  Color get txtPrimary => isDarkMode ? AppColors.textPrimary : AppColors.lightTextPrimary;
-  Color get txtSecondary => isDarkMode ? AppColors.textSecondary : AppColors.lightTextSecondary;
-  Color get txtDisabled => isDarkMode ? AppColors.textDisabled : AppColors.lightTextDisabled;
-  Color get brandColor => isDarkMode ? AppColors.primary : AppColors.primaryAccentLight;
+  Color get bg => AppColors.lightBackground;
+  Color get surf => AppColors.lightSurface;
+  Color get surfSec => AppColors.lightSurfaceSecondary;
+  Color get surfBorder => AppColors.lightSurfaceBorder;
+  Color get txtPrimary => AppColors.textPrimary;
+  Color get txtSecondary => AppColors.textSecondary;
+  Color get txtDisabled => AppColors.textDisabled;
+  Color get brandColor => AppColors.matchaDark;
+  Color get limeAccent => AppColors.matchaLime;
+  Color get softLime => AppColors.matchaSoftLime;
 }
