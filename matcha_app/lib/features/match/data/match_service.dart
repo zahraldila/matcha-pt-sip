@@ -768,6 +768,151 @@ class MatchService {
     } catch (_) {}
   }
 
+  /// Memperbarui status match di tb_match menjadi Stopped dengan mempertahankan skor parsial
+  Future<void> stopMatch({
+    required int matchId,
+    dynamic sessionId,
+    required String reason,
+    String? stopType,
+    int? stoppedByUserId,
+    String? hasilPertandingan,
+  }) async {
+    final now = DateTime.now();
+    final nowIso = now.toIso8601String();
+    final nowTime =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+
+    await _supabase
+        .from('tb_match')
+        .update({
+          'status_match': 'Stopped',
+          'waktu_selesai': nowTime,
+          'winner_team': null,
+          'stop_type': stopType ?? 'stop',
+          'stop_reason': reason,
+          if (stoppedByUserId != null) 'stopped_by_user_id': stoppedByUserId,
+          'stopped_at': nowIso,
+          'hasil_pertandingan': hasilPertandingan ?? 'Dihentikan ($reason)',
+          'updated_at': nowIso,
+        })
+        .eq('match_id', matchId);
+
+    // Update status tb_score yang terkait menjadi stopped
+    try {
+      await _supabase
+          .from('tb_score')
+          .update({'status_score': 'stopped'})
+          .eq('match_id', matchId);
+    } catch (_) {}
+
+    // Broadcast status change setelah DB berhasil
+    try {
+      final channelName = sessionId != null
+          ? 'session_$sessionId'
+          : 'match_arena_live';
+      final channel = _supabase.channel(channelName);
+      await channel.sendBroadcastMessage(
+        event: 'match_status_update',
+        payload: {
+          'match_id': matchId,
+          'status_match': 'Stopped',
+          'session_id': sessionId,
+          'stop_reason': reason,
+          'stop_type': stopType ?? 'stop',
+          'timestamp': now.millisecondsSinceEpoch,
+        },
+      );
+    } catch (_) {}
+  }
+
+  /// Mengelola status partisipasi pemain (active, resting, withdrawn) di tb_session_player
+  Future<Map<String, dynamic>> managePlayerStatus({
+    required dynamic sessionId,
+    required int playerId,
+    required String action, // 'pause', 'withdraw', 'reactivate'
+    String? reason,
+  }) async {
+    final parsedSessionId = int.tryParse(sessionId.toString()) ?? sessionId;
+    final now = DateTime.now().toIso8601String();
+
+    String targetStatus;
+    if (action == 'pause') {
+      targetStatus = 'resting';
+    } else if (action == 'withdraw') {
+      targetStatus = 'withdrawn';
+    } else if (action == 'reactivate') {
+      targetStatus = 'active';
+    } else {
+      throw Exception('Aksi status tidak valid: $action');
+    }
+
+    if (action == 'reactivate') {
+      final cur = await _supabase
+          .from('tb_session_player')
+          .select('status')
+          .eq('session_id', parsedSessionId)
+          .eq('player_id', playerId)
+          .maybeSingle();
+      if (cur != null && (cur['status']?.toString().toLowerCase() == 'withdrawn')) {
+        throw Exception('Pemain yang telah keluar secara permanen tidak dapat diaktifkan kembali.');
+      }
+    }
+
+    final updatePayload = <String, dynamic>{
+      'status': targetStatus,
+      'withdrawn_reason': (action == 'reactivate') ? null : reason,
+      'withdrawn_at': (action == 'withdraw') ? now : (action == 'reactivate' ? null : null),
+    };
+
+    await _supabase
+        .from('tb_session_player')
+        .update(updatePayload)
+        .eq('session_id', parsedSessionId)
+        .eq('player_id', playerId);
+
+    // Broadcast player_status_update
+    try {
+      final channelName = 'session_$parsedSessionId';
+      final channel = _supabase.channel(channelName);
+      await channel.sendBroadcastMessage(
+        event: 'player_status_update',
+        payload: {
+          'session_id': parsedSessionId,
+          'player_id': playerId,
+          'action': action,
+          'status': targetStatus,
+          'reason': reason,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
+    } catch (_) {}
+
+    return {
+      'success': true,
+      'status': targetStatus,
+      'needs_schedule_adjustment': (action == 'pause' || action == 'withdraw'),
+    };
+  }
+
+  /// Konfirmasi penyesuaian jadwal
+  Future<void> confirmAdjustedSchedule({
+    required dynamic sessionId,
+    int? expectedVersion,
+  }) async {
+    final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+    try {
+      final channel = _supabase.channel('session_$parsedId');
+      await channel.sendBroadcastMessage(
+        event: 'schedule_adjusted',
+        payload: {
+          'session_id': parsedId,
+          'confirmed': true,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
+    } catch (_) {}
+  }
+
   /// Broadcast round advanced event ke channel realtime (sesuai Web broadcastRoundAdvancedRealtime)
   Future<void> broadcastRoundAdvanced({
     required dynamic sessionId,

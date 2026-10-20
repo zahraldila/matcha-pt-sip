@@ -5,7 +5,7 @@ class DrawingMatch {
   final int courtNumber;
   final List<GamePlayerItem> teamA;
   final List<GamePlayerItem> teamB;
-  String status; // 'Scheduled', 'In Progress', 'Completed'
+  String status; // 'Scheduled', 'In Progress', 'Completed', 'Stopped'
   int scoreA; // Games won / total score
   int scoreB; // Games won / total score
   int gamesWonA;
@@ -22,6 +22,8 @@ class DrawingMatch {
   int? matchId;
   int version;
   String? lastEventId;
+  String? stopType;
+  String? stopReason;
 
   DrawingMatch({
     required this.courtNumber,
@@ -44,7 +46,12 @@ class DrawingMatch {
     this.matchId,
     this.version = 0,
     this.lastEventId,
+    this.stopType,
+    this.stopReason,
   });
+
+  bool get isStopped => status.toLowerCase() == 'stopped';
+  bool get isTerminal => status.toLowerCase() == 'completed' || isStopped;
 
   String get teamANames => teamA.map((p) => p.name).join(' & ');
   String get teamBNames => teamB.map((p) => p.name).join(' & ');
@@ -72,9 +79,10 @@ class MatchaDrawingEngine {
     int? roundCount,
     bool shufflePlayers = false,
   }) {
-    if (players.isEmpty || courtCount < 1) return [];
+    final eligiblePlayers = players.where((p) => !p.isWithdrawn).toList();
+    if (eligiblePlayers.isEmpty || courtCount < 1) return [];
 
-    List<GamePlayerItem> playerPool = List.from(players);
+    List<GamePlayerItem> playerPool = List.from(eligiblePlayers);
     if (shufflePlayers) {
       playerPool.shuffle(Random());
     }

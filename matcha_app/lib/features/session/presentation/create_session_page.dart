@@ -198,6 +198,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       _selectedScoringSystem = newSystem;
 
       // Flexible quota for both First to X and Total of X
+
       if (_isTeamAmericano) {
         if (_selectedQuota % 2 != 0 || _selectedQuota < 4 || _selectedQuota > 16) {
           _selectedQuota = 6;
@@ -2923,8 +2924,8 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     IconData icon = Icons.info_outline_rounded;
 
     if (_isFirstToSystem) {
-      final req = _selectedGameType == 'Double' ? 'minimal 4 pemain (2 vs 2)' : 'minimal 2 pemain (1 vs 1)';
-      message = 'Format $_selectedScoringSystem: Pertandingan multi-ronde dinamis dengan rotasi bangku cadangan. Memerlukan $req.';
+      final minCap = _selectedGameType == 'Double' ? '4 pemain (2 vs 2)' : '2 pemain (1 vs 1)';
+      message = 'Format $_selectedScoringSystem: Pertandingan multi-ronde dinamis dengan rotasi bangku cadangan (min. $minCap).';
       bgColor = const Color(0xFFFEF3C7);
       borderColor = const Color(0xFFFDE68A);
       textColor = const Color(0xFF92400E);

@@ -285,39 +285,28 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
   bool get _isCurrentActiveRoundFinished {
-
     if (_rounds.isEmpty) return false;
-
     final activeRound = _rounds[_sessionActiveRoundIndex.clamp(0, _rounds.length - 1)];
-
-    return activeRound.matches.isNotEmpty && activeRound.matches.every((m) => m.status == 'Completed');
-
+    return activeRound.matches.isNotEmpty &&
+        activeRound.matches.every((m) => m.status == 'Completed' || m.status == 'Stopped');
   }
-
-
 
   bool get _isAllRoundsFinished {
-
     if (_isSessionFinished) return true;
-
     if (_rounds.isEmpty) return false;
-
     return _rounds.every(
-
-      (r) => r.matches.isNotEmpty && r.matches.every((m) => m.status == 'Completed'),
-
+      (r) => r.matches.isNotEmpty &&
+          r.matches.every((m) => m.status == 'Completed' || m.status == 'Stopped'),
     );
-
   }
-
-
 
   int _resolveActiveRoundIndex(List<DrawingRound> rounds) {
     if (rounds.isEmpty) return 0;
 
     for (int i = 0; i < rounds.length; i++) {
       final matches = rounds[i].matches;
-      final isFinished = matches.isNotEmpty && matches.every((m) => m.status == 'Completed');
+      final isFinished = matches.isNotEmpty &&
+          matches.every((m) => m.status == 'Completed' || m.status == 'Stopped');
 
       if (!isFinished) {
         return i;
@@ -889,10 +878,14 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           }
 
           debugPrint('[MATCHA_DEBUG] [RoundAdvance] Diterapkan: Transisi ronde $_sessionActiveRoundIndex -> $nextIdx (Ronde $nextRoundNum, sessionId=${widget.sessionId}, drawingId=$_drawingId)');
+          final wasViewingHistorical = _viewedRoundIndex < _sessionActiveRoundIndex;
           setState(() {
             _sessionActiveRoundIndex = nextIdx;
-            _viewedRoundIndex = nextIdx;
-            _selectedCourtIndex = 0;
+            // Spectator Mode Protection: Jika spectator/player sedang melihat ronde lama, jangan paksa navigasi
+            if (!wasViewingHistorical || isHost) {
+              _viewedRoundIndex = nextIdx;
+              _selectedCourtIndex = 0;
+            }
             for (final m in _rounds[nextIdx].matches) {
               if (m.status == 'Scheduled') {
                 m.status = 'In Progress';
@@ -1728,6 +1721,46 @@ class MatchScoringPageState extends State<MatchScoringPage> {
     if (_isAdvancingRound) return;
     if (_sessionActiveRoundIndex >= _rounds.length - 1) return;
 
+    // GAP 3: Validasi kecukupan pemain eligible (exclude withdrawn)
+    final isSingle = _config.playMode.toLowerCase() == 'single';
+    final minRequired = isSingle ? 2 : 4;
+    final eligiblePlayers = _config.players.where((p) => !p.isWithdrawn).toList();
+
+    if (eligiblePlayers.length < minRequired) {
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: const [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
+              SizedBox(width: 8),
+              Text('Pemain Tidak Mencukupi', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(
+            'Jumlah pemain aktif tersisa (${eligiblePlayers.length} pemain) kurang dari batas minimum ($minRequired pemain untuk ${_config.playMode}) karena pemain mengundurkan diri. Sesi pertandingan diselesaikan lebih awal.',
+            style: const TextStyle(fontSize: 12),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _finishSessionAndShowRecap();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.matchaDark,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Selesaikan Sesi & Buka Podium'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     _isAdvancingRound = true;
     try {
       final currentRoundNum = _sessionActiveRoundIndex + 1;
@@ -1774,6 +1807,438 @@ class MatchScoringPageState extends State<MatchScoringPage> {
     } finally {
       _isAdvancingRound = false;
     }
+  }
+
+  // --- GAP 5: Stop Match Action & Dialog ---
+  Future<void> _showStopMatchDialog(DrawingMatch match) async {
+    if (!isHost) return;
+    String selectedReason = 'Cedera Pemain';
+    String stopType = 'injury';
+    final noteController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDlgState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: const [
+                  Icon(Icons.stop_circle_outlined, color: Color(0xFFDC2626)),
+                  SizedBox(width: 8),
+                  Text('Hentikan Pertandingan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Court ${match.courtNumber}: ${match.teamANames} vs ${match.teamBNames}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: Text(
+                        'Pertandingan akan dihentikan secara resmi. Skor parsial saat ini (${match.scoreA} - ${match.scoreB}) tetap disimpan dan diperhitungkan ke klasemen, namun tidak menentukan pemenang.',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF991B1B)),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text('Pilih Alasan Penghentian:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String>(
+                      value: selectedReason,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Cedera Pemain', child: Text('Cedera Pemain (Injury)')),
+                        DropdownMenuItem(value: 'Kendala Fisik / Kram', child: Text('Kendala Fisik / Kram')),
+                        DropdownMenuItem(value: 'Walkover / Mengundurkan Diri', child: Text('Walkover / Mengundurkan Diri')),
+                        DropdownMenuItem(value: 'Faktor Cuaca / Lapangan', child: Text('Faktor Cuaca / Lapangan')),
+                        DropdownMenuItem(value: 'Waktu Habis / Force Majeure', child: Text('Waktu Habis / Force Majeure')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDlgState(() {
+                            selectedReason = val;
+                            if (val.contains('Cedera')) {
+                              stopType = 'injury';
+                            } else if (val.contains('Walkover')) {
+                              stopType = 'walkover';
+                            } else {
+                              stopType = 'stop';
+                            }
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Catatan Tambahan (Opsional):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: noteController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        hintText: 'Contoh: Pemain A mengalami kram di paha kanan...',
+                        hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Batal'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDC2626),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Hentikan Match'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == true) {
+      final finalReason = noteController.text.trim().isNotEmpty
+          ? '$selectedReason - ${noteController.text.trim()}'
+          : selectedReason;
+
+      setState(() {
+        match.status = 'Stopped';
+        match.stopType = stopType;
+        match.stopReason = finalReason;
+      });
+
+      if (match.matchId != null) {
+        try {
+          await _matchService.stopMatch(
+            matchId: match.matchId!,
+            sessionId: widget.sessionId,
+            reason: finalReason,
+            stopType: stopType,
+            stoppedByUserId: widget.authController?.currentUser?.userId,
+            hasilPertandingan: 'Dihentikan: ${match.scoreA} - ${match.scoreB} ($finalReason)',
+          );
+        } catch (e) {
+          debugPrint('[Scoring] Error stopping match: $e');
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Pertandingan Court ${match.courtNumber} berhasil dihentikan.'),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  // --- GAP 2 & GAP 4: Player Status Management Modal & Schedule Adjustment ---
+  Future<void> _showPlayerStatusManagementModal() async {
+    final allPlayers = _config.players;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Kesiapan & Status Pemain', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+                          SizedBox(height: 2),
+                          Text('Kelola pemain istirahat, cedera, atau keluar', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 20),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: allPlayers.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, idx) {
+                        final p = allPlayers[idx];
+                        Color badgeBg;
+                        Color badgeFg;
+                        String badgeText;
+                        if (p.isWithdrawn) {
+                          badgeBg = const Color(0xFFFEE2E2);
+                          badgeFg = const Color(0xFF991B1B);
+                          badgeText = 'Withdrawn (Keluar)';
+                        } else if (p.isResting) {
+                          badgeBg = const Color(0xFFFEF3C7);
+                          badgeFg = const Color(0xFF92400E);
+                          badgeText = 'Resting (Istirahat)';
+                        } else {
+                          badgeBg = const Color(0xFFDCFCE7);
+                          badgeFg = const Color(0xFF15803D);
+                          badgeText = 'Active (Siap)';
+                        }
+
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: AppColors.matchaDark,
+                                    child: Text(
+                                      p.name.isNotEmpty ? p.name[0].toUpperCase() : 'P',
+                                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A))),
+                                        Text('${p.level} • ${p.gender}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(6)),
+                                    child: Text(badgeText, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeFg)),
+                                  ),
+                                ],
+                              ),
+                              if (isHost && widget.sessionId != null) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    if (!p.isWithdrawn && !p.isResting)
+                                      TextButton.icon(
+                                        onPressed: () => _updatePlayerStatusAction(p, 'pause', setSheetState),
+                                        icon: const Icon(Icons.pause_circle_outline, size: 14, color: Color(0xFFD97706)),
+                                        label: const Text('Istirahatkan', style: TextStyle(fontSize: 11, color: Color(0xFFD97706))),
+                                      ),
+                                    if (p.isResting)
+                                      TextButton.icon(
+                                        onPressed: () => _updatePlayerStatusAction(p, 'reactivate', setSheetState),
+                                        icon: const Icon(Icons.play_circle_outline, size: 14, color: Color(0xFF16A34A)),
+                                        label: const Text('Siap Main', style: TextStyle(fontSize: 11, color: Color(0xFF16A34A))),
+                                      ),
+                                    if (!p.isWithdrawn)
+                                      TextButton.icon(
+                                        onPressed: () => _updatePlayerStatusAction(p, 'withdraw', setSheetState),
+                                        icon: const Icon(Icons.exit_to_app_rounded, size: 14, color: Color(0xFFDC2626)),
+                                        label: const Text('Keluarkan', style: TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _updatePlayerStatusAction(GamePlayerItem p, String action, StateSetter setSheetState) async {
+    String? reason;
+    if (action == 'pause' || action == 'withdraw') {
+      final reasonController = TextEditingController();
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (dlgCtx) => AlertDialog(
+          title: Text(action == 'pause' ? 'Istirahatkan ${p.name}' : 'Keluarkan ${p.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                action == 'pause'
+                    ? 'Pemain akan diistirahatkan ke bangku cadangan pada ronde berikutnya.'
+                    : 'Pemain akan dikeluarkan secara permanen dari sesi dan tidak dapat bermain lagi.',
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Alasan (Wajib)',
+                  hintText: 'Contoh: Kram, Cedera pergelangan, Keperluan pribadi',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Batal')),
+            ElevatedButton(
+              onPressed: () {
+                if (reasonController.text.trim().isEmpty) return;
+                Navigator.pop(dlgCtx, true);
+              },
+              child: const Text('Lanjutkan'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      reason = reasonController.text.trim();
+    }
+
+    try {
+      final pId = p.playerId ?? int.tryParse(p.id) ?? 0;
+      final res = await _matchService.managePlayerStatus(
+        sessionId: widget.sessionId,
+        playerId: pId,
+        action: action,
+        reason: reason,
+      );
+
+      final newStatus = res['status']?.toString() ?? (action == 'pause' ? 'resting' : (action == 'withdraw' ? 'withdrawn' : 'active'));
+      final idx = _config.players.indexWhere((item) => item.id == p.id);
+      if (idx != -1) {
+        _config.players[idx] = GamePlayerItem(
+          id: p.id,
+          name: p.name,
+          gender: p.gender,
+          level: p.level,
+          isGuest: p.isGuest,
+          avatarUrl: p.avatarUrl,
+          userId: p.userId,
+          playerId: p.playerId,
+          status: newStatus,
+          withdrawnReason: reason,
+          withdrawnAt: action == 'withdraw' ? DateTime.now() : null,
+        );
+      }
+      setSheetState(() {});
+      setState(() {});
+
+      if (res['needs_schedule_adjustment'] == true) {
+        _showScheduleAdjustmentDialog();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengubah status pemain: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _showScheduleAdjustmentDialog() async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.tune_rounded, color: AppColors.matchaDark),
+            SizedBox(width: 8),
+            Text('Penyesuaian Jadwal', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          'Terdapat perubahan status pemain (istirahat / keluar). Jadwal pertandingan ronde berikutnya memerlukan penyesuaian rotasi agar tim tetap seimbang.',
+          style: TextStyle(fontSize: 12),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await _matchService.confirmAdjustedSchedule(sessionId: widget.sessionId);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Jadwal pertandingan berhasil dikonfirmasi dan disesuaikan.'),
+                      backgroundColor: Color(0xFF15803D),
+                    ),
+                  );
+                }
+              } catch (_) {}
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.matchaDark,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Konfirmasi & Terapkan Jadwal'),
+          ),
+        ],
+      ),
+    );
   }
 
 
@@ -2104,6 +2569,12 @@ class MatchScoringPageState extends State<MatchScoringPage> {
         centerTitle: true,
 
         actions: [
+          if (isHost)
+            IconButton(
+              icon: const Icon(Icons.manage_accounts_outlined, color: AppColors.matchaDark),
+              tooltip: 'Kesiapan Pemain',
+              onPressed: _showPlayerStatusManagementModal,
+            ),
           Container(
 
             margin: const EdgeInsets.only(right: 14),
@@ -2484,67 +2955,56 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
           // Inactive / Historical Round Notification Banner
-
           if (!_isCurrentViewedRoundActive) ...[
-
             const SizedBox(height: 10),
-
             Container(
-
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-
               decoration: BoxDecoration(
-
                 color: const Color(0xFFF1F5F9),
-
                 borderRadius: BorderRadius.circular(12),
-
                 border: Border.all(color: const Color(0xFFCBD5E1)),
-
               ),
-
               child: Row(
-
                 children: [
-
                   const Icon(
-
                     Icons.history_rounded,
-
                     color: Color(0xFF475569),
-
                     size: 18,
-
                   ),
-
                   const SizedBox(width: 8),
-
                   Expanded(
-
                     child: Text(
-
-                      'Mode Tinjau Riwayat Ronde ${currentRound.roundNumber} • Ronde Aktif saat ini: Ronde ${_sessionActiveRoundIndex + 1}. Tombol skor dikunci.',
-
+                      'Tinjau Riwayat Ronde ${currentRound.roundNumber} • Ronde Aktif: Ronde ${_sessionActiveRoundIndex + 1}.',
                       style: const TextStyle(
-
                         fontSize: 12,
-
                         fontWeight: FontWeight.bold,
-
                         color: Color(0xFF334155),
-
                       ),
-
                     ),
-
                   ),
-
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _viewedRoundIndex = _sessionActiveRoundIndex;
+                        _selectedCourtIndex = 0;
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.matchaDark,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Ronde ${_sessionActiveRoundIndex + 1} (Live)',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ],
-
               ),
-
             ),
-
           ],
 
           const SizedBox(height: 16),
@@ -3853,60 +4313,67 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                         ],
 
                         Container(
-
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-
                           decoration: BoxDecoration(
-
-                            color: isCompleted
-
-                                ? const Color(0xFFF1F5F9)
-
-                                : const Color(0xFFDCFCE7),
-
+                            color: match.isStopped
+                                ? const Color(0xFFFEE2E2)
+                                : (isCompleted
+                                    ? const Color(0xFFF1F5F9)
+                                    : const Color(0xFFDCFCE7)),
                             borderRadius: BorderRadius.circular(6),
-
                             border: Border.all(
-
-                              color: isCompleted
-
-                                  ? const Color(0xFFE2E8F0)
-
-                                  : const Color(0xFFBBF7D0),
-
+                              color: match.isStopped
+                                  ? const Color(0xFFFCA5A5)
+                                  : (isCompleted
+                                      ? const Color(0xFFE2E8F0)
+                                      : const Color(0xFFBBF7D0)),
                             ),
-
                           ),
-
                           child: Text(
-
-                            isCompleted
-
-                                ? (match.winnerTeam != null
-
-                                    ? 'Selesai (${match.winnerTeam} Win)'
-
-                                    : 'Selesai')
-
-                                : 'Sedang Berlangsung',
-
+                            match.isStopped
+                                ? 'Dihentikan (${match.scoreA} - ${match.scoreB})'
+                                : (isCompleted
+                                    ? (match.winnerTeam != null
+                                        ? 'Selesai (${match.winnerTeam} Win)'
+                                        : 'Selesai')
+                                    : 'Sedang Berlangsung'),
                             style: TextStyle(
-
                               fontSize: 10,
-
                               fontWeight: FontWeight.bold,
-
-                              color: isCompleted
-
-                                  ? const Color(0xFF64748B)
-
-                                  : const Color(0xFF15803D),
-
+                              color: match.isStopped
+                                  ? const Color(0xFFDC2626)
+                                  : (isCompleted
+                                      ? const Color(0xFF64748B)
+                                      : const Color(0xFF15803D)),
                             ),
-
                           ),
-
                         ),
+                        if (isHost && _isCurrentViewedRoundActive && !isCompleted && !match.isStopped) ...[
+                          const SizedBox(width: 4),
+                          InkWell(
+                            onTap: () => _showStopMatchDialog(match),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFFECACA)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.stop_circle_outlined, size: 11, color: Color(0xFFDC2626)),
+                                  SizedBox(width: 3),
+                                  Text(
+                                    'Hentikan',
+                                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFFDC2626)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
 
                       ],
 

@@ -7,6 +7,9 @@ class GamePlayerItem {
   final String? avatarUrl;
   final int? userId;
   final int? playerId;
+  final String status; // 'active', 'resting', 'withdrawn'
+  final String? withdrawnReason;
+  final DateTime? withdrawnAt;
 
   const GamePlayerItem({
     required this.id,
@@ -17,7 +20,14 @@ class GamePlayerItem {
     this.avatarUrl,
     this.userId,
     this.playerId,
+    this.status = 'active',
+    this.withdrawnReason,
+    this.withdrawnAt,
   });
+
+  bool get isActive => status.toLowerCase() == 'active';
+  bool get isResting => status.toLowerCase() == 'resting';
+  bool get isWithdrawn => status.toLowerCase() == 'withdrawn';
 
   Map<String, dynamic> toMap() {
     return {
@@ -29,6 +39,9 @@ class GamePlayerItem {
       'avatar_url': avatarUrl,
       'user_id': userId,
       'player_id': playerId,
+      'status': status,
+      'withdrawn_reason': withdrawnReason,
+      'withdrawn_at': withdrawnAt?.toIso8601String(),
     };
   }
 
@@ -42,6 +55,9 @@ class GamePlayerItem {
       avatarUrl: map['avatar_url'] ?? map['foto'],
       userId: map['user_id'] is int ? map['user_id'] : int.tryParse(map['user_id']?.toString() ?? ''),
       playerId: map['player_id'] is int ? map['player_id'] : int.tryParse(map['player_id']?.toString() ?? ''),
+      status: map['status']?.toString() ?? 'active',
+      withdrawnReason: map['withdrawn_reason']?.toString(),
+      withdrawnAt: map['withdrawn_at'] != null ? DateTime.tryParse(map['withdrawn_at'].toString()) : null,
     );
   }
 }
@@ -102,13 +118,7 @@ class GameWizardConfig {
       return customTotalRounds!;
     }
     final clean = scoringSystem.toLowerCase();
-    // Sistem Langsung Tuntas (First to X) adalah 1 ronde match langsung
-    if (clean.contains('first to')) {
-      return 1;
-    }
-    if (customTotalRounds != null && customTotalRounds! > 0 ) {
-      return customTotalRounds!;
-    }
+
     if (clean.contains('total of 7')) return 7;
     if (clean.contains('total of 6')) return 6;
     if (clean.contains('total of 5')) return 5;
@@ -116,8 +126,27 @@ class GameWizardConfig {
     if (clean.contains('total of 3')) return 3;
     if (clean.contains('total of 8')) return 8;
 
-    if (playMode.toLowerCase() == 'single' && players.length == 2) return 1;
-    if (players.length <= 4) return 3;
-    return (players.length - 1).clamp(3, 7);
+    final isSingle = playMode.toLowerCase() == 'single';
+    final isTeam = gameType.toLowerCase().contains('team');
+    final activeCount = players.where((p) => !p.isWithdrawn).length;
+
+    // Follow Web ScoringService::determineSessionRoundCount
+    if (isSingle) {
+      if (activeCount <= 2) return 3;
+      final completeRotation = (activeCount % 2 == 0) ? (activeCount - 1) : activeCount;
+      return completeRotation.clamp(3, 7);
+    }
+
+    if (isTeam) {
+      final teams = (activeCount ~/ 2).clamp(2, 8);
+      if (teams <= 2) return 3;
+      final completeRotation = (teams % 2 == 0) ? (teams - 1) : teams;
+      return completeRotation.clamp(3, 5);
+    }
+
+    // Americano Double
+    if (activeCount <= 4) return 3;
+    final completeRotation = (activeCount % 2 == 0) ? (activeCount - 1) : activeCount;
+    return completeRotation.clamp(3, 7);
   }
 }

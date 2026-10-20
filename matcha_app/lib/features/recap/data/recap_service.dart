@@ -3,10 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/recap_models.dart';
 
 class RecapService {
-  final SupabaseClient _supabase;
+  final SupabaseClient? _supabaseClient;
+  SupabaseClient get _supabase => _supabaseClient ?? Supabase.instance.client;
 
   RecapService({SupabaseClient? supabaseClient})
-      : _supabase = supabaseClient ?? Supabase.instance.client;
+      : _supabaseClient = supabaseClient;
 
   static int _toInt(dynamic value, [int defaultValue = 0]) {
     if (value == null) return defaultValue;
@@ -918,13 +919,15 @@ class RecapService {
         // Skor pertandingan
         final scores = mMap['tb_score'] as List<dynamic>? ?? [];
         final mStatus = (mMap['status_match']?.toString() ?? '').toLowerCase();
+        final bool isStopped = mStatus == 'stopped';
         final bool isMatchCompleted = mStatus == 'completed' ||
             mStatus == 'finished' ||
             mStatus == 'final' ||
+            isStopped ||
             (scores.isNotEmpty &&
                 scores.any((s) {
                   final st = (s['status_score'] ?? '').toString().toLowerCase();
-                  return st == 'completed' || st == 'final';
+                  return st == 'completed' || st == 'final' || st == 'stopped';
                 }));
 
         int mSetsA = 0;
@@ -994,11 +997,13 @@ class RecapService {
         int ptsForB = 0;
 
         if (isSets) {
-          if (mSetsA == 0 && mSetsB == 0 && (mGamesA > 0 || mGamesB > 0)) {
+          if (!isStopped && mSetsA == 0 && mSetsB == 0 && (mGamesA > 0 || mGamesB > 0)) {
             mSetsA = mGamesA > mGamesB ? 1 : 0;
             mSetsB = mGamesB > mGamesA ? 1 : 0;
           }
-          if (winnerSide == null) {
+          if (isStopped) {
+            winnerSide = null; // Skor parsial stopped tidak menentukan pemenang
+          } else if (winnerSide == null) {
             if (mSetsA > mSetsB) {
               winnerSide = 'A';
             } else if (mSetsB > mSetsA) {
@@ -1012,7 +1017,9 @@ class RecapService {
           ptsForA = mGamesA > 0 ? mGamesA : mSetsA;
           ptsForB = mGamesB > 0 ? mGamesB : mSetsB;
         } else {
-          if (winnerSide == null) {
+          if (isStopped) {
+            winnerSide = null; // Skor parsial stopped tidak menentukan pemenang
+          } else if (winnerSide == null) {
             if (mGamesA > mGamesB) {
               winnerSide = 'A';
             } else if (mGamesB > mGamesA) {

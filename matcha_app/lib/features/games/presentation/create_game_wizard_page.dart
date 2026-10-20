@@ -773,6 +773,8 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
     final user = widget.authController?.currentUser;
     if (user == null) return;
 
+    // First To & Americano support bench & rotation (no artificial max cap)
+
     // Check if already added
     if (_config.players.any((p) => p.userId == user.userId || p.name.toLowerCase() == user.nama.toLowerCase())) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -805,6 +807,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
   }
 
   void _openAddPlayerModal() {
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -849,10 +852,29 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
       return;
     }
 
+    final isFirstTo = _config.scoringSystem.toLowerCase().startsWith('first to');
     final isTeamAmericano = _config.gameType.toLowerCase().contains('team');
     final isSingle = _config.playMode == 'Single';
+    final modeLabel = isSingle ? 'Single (1 vs 1)' : 'Double (2 vs 2)';
 
-    // Validasi 1: Team Americano (harus genap & minimal 4)
+    // Validasi 1: First to X (minimal kapasitas court)
+    if (isFirstTo) {
+      final minCap = isSingle ? 2 : 4;
+      if (_config.players.length < minCap) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Untuk format ${_config.scoringSystem} ($modeLabel), jumlah pemain minimal $minCap orang (saat ini: ${_config.players.length} pemain).',
+            ),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Validasi 2: Team Americano (harus genap & minimal 4)
     if (isTeamAmericano) {
       if (_config.players.length < 4) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2385,14 +2407,17 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
     String? warningBanner;
 
     if (isFirstTo) {
-      quotaSubtitle = '*Minimal $minRequired pemain (${isSingle ? "1v1" : "2v2"}), pemain cadangan akan berotasi';
+      quotaSubtitle = '*Minimal $minRequired pemain (${isSingle ? "1v1" : "2v2"}). Pemain cadangan bergantian bermain tiap ronde.';
       if (_config.players.length < minRequired) {
         canGenerate = false;
         final remaining = minRequired - _config.players.length;
         ctaButtonText = '${_config.scoringSystem}: Butuh $remaining Pemain Lagi (${_config.players.length}/$minRequired)';
       } else {
         canGenerate = true;
-        ctaButtonText = 'Generate Drawing & Start Game (${_config.scoringSystem} • ${isSingle ? "1v1" : "2v2"})';
+        final benchCount = (_config.players.length - minRequired).clamp(0, 99);
+        ctaButtonText = benchCount > 0
+            ? 'Generate Drawing & Start Game (${_config.players.length} Pemain • $benchCount Cadangan)'
+            : 'Generate Drawing & Start Game (${_config.scoringSystem} • ${isSingle ? "1v1" : "2v2"})';
       }
     } else if (isTeamAmericano) {
       quotaSubtitle = '*Minimal 4 pemain & harus genap (Pasangan Tetap)';

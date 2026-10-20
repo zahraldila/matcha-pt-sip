@@ -6,6 +6,9 @@ class SessionPlayerModel {
   final String? gender;
   final int? usia;
   final String? foto;
+  final String status;
+  final String? withdrawnReason;
+  final DateTime? withdrawnAt;
 
   SessionPlayerModel({
     required this.playerId,
@@ -15,9 +18,15 @@ class SessionPlayerModel {
     this.gender,
     this.usia,
     this.foto,
+    this.status = 'active',
+    this.withdrawnReason,
+    this.withdrawnAt,
   });
 
   bool get isMember => userId != null && userId! > 0;
+  bool get isActive => status.toLowerCase() == 'active';
+  bool get isResting => status.toLowerCase() == 'resting';
+  bool get isWithdrawn => status.toLowerCase() == 'withdrawn';
 
   factory SessionPlayerModel.fromMap(Map<String, dynamic> map) {
     final player = map['tb_player'] is Map ? map['tb_player'] as Map<String, dynamic> : map;
@@ -59,6 +68,11 @@ class SessionPlayerModel {
                 ? userFoto
                 : null;
 
+    final rawStatus = (map['status'] ?? player['status'] ?? 'active').toString();
+    final rawReason = (map['withdrawn_reason'] ?? player['withdrawn_reason'])?.toString();
+    final rawWithdrawnAt = map['withdrawn_at'] ?? player['withdrawn_at'];
+    final DateTime? withdrawnDate = rawWithdrawnAt != null ? DateTime.tryParse(rawWithdrawnAt.toString()) : null;
+
     return SessionPlayerModel(
       playerId: pId,
       userId: uId,
@@ -67,6 +81,9 @@ class SessionPlayerModel {
       gender: player['gender']?.toString() ?? 'Male',
       usia: usiaVal ?? 25,
       foto: fotoUrl,
+      status: rawStatus,
+      withdrawnReason: rawReason,
+      withdrawnAt: withdrawnDate,
     );
   }
 }

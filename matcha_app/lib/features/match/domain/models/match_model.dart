@@ -15,6 +15,11 @@ class MatchModel {
   final String? lastEventId;
   final DateTime? waktuSelesai;
 
+  final String? stopType;
+  final String? stopReason;
+  final int? stoppedByUserId;
+  final DateTime? stoppedAt;
+
   const MatchModel({
     required this.matchId,
     this.drawingId,
@@ -31,12 +36,19 @@ class MatchModel {
     this.version = 0,
     this.lastEventId,
     this.waktuSelesai,
+    this.stopType,
+    this.stopReason,
+    this.stoppedByUserId,
+    this.stoppedAt,
   });
 
   bool get isFinished =>
       statusMatch.toLowerCase() == 'finished' ||
       statusMatch.toLowerCase() == 'completed' ||
       statusMatch.toLowerCase() == 'done';
+
+  bool get isStopped => statusMatch.toLowerCase() == 'stopped';
+  bool get isTerminal => isFinished || isStopped;
 
   factory MatchModel.fromJson(Map<String, dynamic> json) {
     final rawVersion = json['version'];
@@ -83,6 +95,14 @@ class MatchModel {
       waktuSelesai: json['waktu_selesai'] != null
           ? DateTime.tryParse(json['waktu_selesai'].toString())
           : null,
+      stopType: json['stop_type'] as String?,
+      stopReason: json['stop_reason'] as String?,
+      stoppedByUserId: json['stopped_by_user_id'] != null
+          ? int.tryParse(json['stopped_by_user_id'].toString())
+          : null,
+      stoppedAt: json['stopped_at'] != null
+          ? DateTime.tryParse(json['stopped_at'].toString())
+          : null,
     );
   }
 
@@ -102,6 +122,10 @@ class MatchModel {
       if (version != null) 'version': version,
       if (lastEventId != null) 'last_event_id': lastEventId,
       if (waktuSelesai != null) 'waktu_selesai': waktuSelesai!.toIso8601String(),
+      if (stopType != null) 'stop_type': stopType,
+      if (stopReason != null) 'stop_reason': stopReason,
+      if (stoppedByUserId != null) 'stopped_by_user_id': stoppedByUserId,
+      if (stoppedAt != null) 'stopped_at': stoppedAt!.toIso8601String(),
     };
   }
 }
