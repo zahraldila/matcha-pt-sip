@@ -1007,16 +1007,17 @@ class _SessionListPageState extends State<SessionListPage> {
             ),
 
             // Content: Loading, Error, Empty, or List
-            if (_isLoading)
+            if (_isLoading && _allSessions.isEmpty)
               const SliverFillRemaining(
                 child: Center(
                   child: CircularProgressIndicator(color: AppColors.matchaDark),
                 ),
               )
-            else if (_errorMessage != null)
+            else if (_errorMessage != null && _allSessions.isEmpty)
               SliverFillRemaining(
                 child: OfflineStateWidget(
                   error: _errorMessage,
+                  customTitle: 'Gagal Memuat Mabar',
                   onRetry: _loadSessions,
                 ),
               )

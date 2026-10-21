@@ -21,26 +21,34 @@ class OfflineStateWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isNetwork = error == null || AppErrorHandler.isNetworkError(error);
-    final title = customTitle ?? (isNetwork ? 'Koneksi Internet Terputus' : 'Gagal Memuat Data');
+    final title = customTitle ?? (isNetwork ? 'Koneksi Terputus' : 'Gagal Memuat Data');
     final message = customMessage ??
         (isNetwork
-            ? 'Tidak dapat terhubung ke server. Periksa jaringan Wi-Fi atau kuota internet Anda lalu coba lagi.'
+            ? 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda lalu coba lagi.'
             : AppErrorHandler.getReadableMessage(error));
 
     if (isCompact) {
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFFEF2F2),
+          color: const Color(0xFFFFF1F2), // Soft Rose
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFECACA)),
+          border: Border.all(color: const Color(0xFFFDA4AF), width: 1.2),
         ),
         child: Row(
           children: [
-            Icon(
-              isNetwork ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
-              color: const Color(0xFFDC2626),
-              size: 24,
+            Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFE4E6),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isNetwork ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
+                color: const Color(0xFFE11D48),
+                size: 18,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -52,8 +60,8 @@ class OfflineStateWidget extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Color(0xFF991B1B),
+                      fontSize: 12.5,
+                      color: Color(0xFF881337),
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -61,18 +69,19 @@ class OfflineStateWidget extends StatelessWidget {
                     message,
                     style: const TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF7F1D1D),
-                      height: 1.3,
+                      color: Color(0xFF9F1239),
+                      height: 1.25,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             IconButton(
-              icon: const Icon(Icons.refresh_rounded, color: Color(0xFFDC2626)),
+              icon: const Icon(Icons.refresh_rounded, color: Color(0xFFE11D48), size: 20),
               onPressed: onRetry,
               tooltip: 'Coba Lagi',
+              visualDensity: VisualDensity.compact,
             ),
           ],
         ),
@@ -89,17 +98,17 @@ class OfflineStateWidget extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: isNetwork ? const Color(0xFFFEF3C7) : const Color(0xFFFEF2F2),
+                color: const Color(0xFFFFF1F2),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isNetwork ? const Color(0xFFFDE68A) : const Color(0xFFFECACA),
+                  color: const Color(0xFFFDA4AF),
                   width: 2,
                 ),
               ),
               child: Icon(
                 isNetwork ? Icons.wifi_off_rounded : Icons.cloud_off_rounded,
                 size: 32,
-                color: isNetwork ? const Color(0xFFD97706) : const Color(0xFFDC2626),
+                color: const Color(0xFFE11D48),
               ),
             ),
             const SizedBox(height: 16),

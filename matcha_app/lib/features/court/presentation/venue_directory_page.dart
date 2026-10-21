@@ -48,13 +48,21 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
     }
     _loadVenues();
     widget.authController?.addListener(_onAuthChanged);
+    VenueService.venuesVersion.addListener(_onVenuesChanged);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     widget.authController?.removeListener(_onAuthChanged);
+    VenueService.venuesVersion.removeListener(_onVenuesChanged);
     super.dispose();
+  }
+
+  void _onVenuesChanged() {
+    if (mounted) {
+      _loadVenues();
+    }
   }
 
   void _onAuthChanged() {
@@ -703,13 +711,13 @@ class _VenueDirectoryPageState extends State<VenueDirectoryPage> {
               ),
             ),
 
-            if (_isLoading)
+            if (_isLoading && _venues.isEmpty)
               const SliverFillRemaining(
                 child: Center(
                   child: CircularProgressIndicator(color: AppColors.matchaDark),
                 ),
               )
-            else if (_errorMessage != null)
+            else if (_errorMessage != null && _venues.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: OfflineStateWidget(

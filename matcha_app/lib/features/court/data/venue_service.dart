@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../session/data/session_service.dart';
 import '../domain/venue_model.dart';
@@ -6,8 +6,16 @@ import '../domain/venue_model.dart';
 class VenueService {
   final SupabaseClient _supabase;
 
+  /// Global reactive notifier untuk auto-refresh venue di seluruh view yang aktif
+  static final ValueNotifier<int> venuesVersion = ValueNotifier<int>(0);
+
+  /// Memicu sinkronisasi data venue reaktif
+  static void notifyVenuesChanged() {
+    venuesVersion.value++;
+  }
+
   VenueService({SupabaseClient? supabaseClient})
-    : _supabase = supabaseClient ?? Supabase.instance.client;
+      : _supabase = supabaseClient ?? Supabase.instance.client;
 
   /// Mengambil semua venue beserta daftar court/lapangan
   Future<List<VenueModel>> getVenues() async {

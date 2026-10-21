@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/offline_state_widget.dart';
+import '../../../core/services/network_status_service.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../data/community_remote_data_source.dart';
@@ -38,13 +39,21 @@ class _CommunityPageState extends State<CommunityPage> {
     super.initState();
     _loadCommunities();
     widget.authController?.addListener(_onAuthChanged);
+    NetworkStatusService().connectionRestoredNotifier.addListener(_onConnectionRestored);
   }
 
   @override
   void dispose() {
     widget.authController?.removeListener(_onAuthChanged);
+    NetworkStatusService().connectionRestoredNotifier.removeListener(_onConnectionRestored);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onConnectionRestored() {
+    if (mounted) {
+      _loadCommunities();
+    }
   }
 
   void _onAuthChanged() {
@@ -719,14 +728,14 @@ class _CommunityPageState extends State<CommunityPage> {
               const SizedBox(height: 16),
 
               // 6. Community Cards List
-              if (_isLoading)
+              if (_isLoading && _allCommunities.isEmpty)
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.symmetric(vertical: 40),
                     child: CircularProgressIndicator(color: AppColors.matchaDark),
                   ),
                 )
-              else if (_errorMessage != null)
+              else if (_errorMessage != null && _allCommunities.isEmpty)
                 OfflineStateWidget(
                   error: _errorMessage,
                   customTitle: 'Gagal Memuat Komunitas',

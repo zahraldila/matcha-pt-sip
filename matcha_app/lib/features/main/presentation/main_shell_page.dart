@@ -15,6 +15,7 @@ import '../../recap/presentation/match_recap_page.dart';
 import '../../session/data/session_service.dart';
 import '../../session/presentation/session_detail_page.dart';
 import '../../session/presentation/session_list_page.dart';
+import '../../../core/widgets/top_network_banner.dart';
 
 class MainShellPage extends StatefulWidget {
   final AuthController? authController;
@@ -451,9 +452,16 @@ class _MainShellPageState extends State<MainShellPage> {
           ],
         ),
       ),
-      body: IndexedStack(
-        index: (isAdmin ? activeIndex : (_currentIndex == 2 ? 0 : activeIndex)),
-        children: currentTabs,
+      body: Column(
+        children: [
+          const TopNetworkBanner(),
+          Expanded(
+            child: IndexedStack(
+              index: (isAdmin ? activeIndex : (_currentIndex == 2 ? 0 : activeIndex)),
+              children: currentTabs,
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

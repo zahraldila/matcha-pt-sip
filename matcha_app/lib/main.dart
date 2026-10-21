@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
 import 'core/services/app_link_service.dart';
+import 'core/services/network_status_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/splash/presentation/splash_page.dart';
@@ -48,10 +49,12 @@ class _MatchaAppState extends State<MatchaApp> {
       authController: _authController,
     );
     AppLinkService().init();
+    NetworkStatusService().init();
   }
 
   @override
   void dispose() {
+    NetworkStatusService().dispose();
     AppLinkService().dispose();
     _authController.dispose();
     super.dispose();

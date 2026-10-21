@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../court/data/venue_service.dart';
@@ -47,12 +46,14 @@ class _HomePageState extends State<HomePage> {
     _loadData();
     widget.authController?.addListener(_onAuthChanged);
     SessionService.sessionsVersion.addListener(_onSessionsChanged);
+    VenueService.venuesVersion.addListener(_onSessionsChanged);
   }
 
   @override
   void dispose() {
     widget.authController?.removeListener(_onAuthChanged);
     SessionService.sessionsVersion.removeListener(_onSessionsChanged);
+    VenueService.venuesVersion.removeListener(_onSessionsChanged);
     super.dispose();
   }
 
@@ -275,24 +276,12 @@ class _HomePageState extends State<HomePage> {
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
             // --- Session Cards / Loading / Error / Empty State ---
-            if (_isLoading)
+            if (_isLoading && _sessions.isEmpty)
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.all(40),
                   child: Center(
                     child: CircularProgressIndicator(color: AppColors.matchaDark),
-                  ),
-                ),
-              )
-            else if (_errorMessage != null)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: OfflineStateWidget(
-                    error: _errorMessage,
-                    customTitle: 'Gagal Memuat Jadwal Mabar',
-                    onRetry: _loadData,
-                    isCompact: true,
                   ),
                 ),
               )
@@ -303,10 +292,16 @@ class _HomePageState extends State<HomePage> {
                   child: Center(
                     child: Column(
                       children: [
-                        const Icon(Icons.event_busy_rounded, size: 40, color: Color(0xFF94A3B8)),
+                        Icon(
+                          _errorMessage != null ? Icons.wifi_off_rounded : Icons.event_busy_rounded,
+                          size: 40,
+                          color: const Color(0xFF94A3B8),
+                        ),
                         const SizedBox(height: 8),
                         Text(
-                          'Belum ada jadwal mabar terbuka',
+                          _errorMessage != null
+                              ? 'Tidak dapat memuat jadwal mabar'
+                              : 'Belum ada jadwal mabar terbuka',
                           style: AppTextStyles.caption.copyWith(
                             color: const Color(0xFF64748B),
                             fontSize: 13,
