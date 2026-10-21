@@ -50,8 +50,11 @@ class DrawingMatch {
     this.stopReason,
   });
 
-  bool get isStopped => status.toLowerCase() == 'stopped';
-  bool get isTerminal => status.toLowerCase() == 'completed' || isStopped;
+  bool get isStopped => status.toLowerCase().trim() == 'stopped';
+  bool get isTerminal {
+    final s = status.toLowerCase().trim();
+    return s == 'completed' || s == 'finished' || s == 'selesai' || isStopped;
+  }
 
   String get teamANames => teamA.map((p) => p.name).join(' & ');
   String get teamBNames => teamB.map((p) => p.name).join(' & ');

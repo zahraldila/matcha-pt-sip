@@ -823,7 +823,7 @@ class MatchService {
           'winner_team': null,
           'stop_type': stopType ?? 'stop',
           'stop_reason': reason,
-          if (stoppedByUserId != null) 'stopped_by_user_id': stoppedByUserId,
+          'stopped_by_user_id': ?stoppedByUserId,
           'stopped_at': nowIso,
           'hasil_pertandingan': hasilPertandingan ?? 'Dihentikan ($reason)',
           'updated_at': nowIso,
@@ -1017,35 +1017,53 @@ class MatchService {
       final drawingId = await getLatestDrawingId(parsedId);
       debugPrint('[MATCHA_DEBUG] [AdvanceMatches] sessionId=$parsedId drawingId=$drawingId roundNumber=$roundNumber matchIds=$matchIds');
 
+      // 1. Update status sesi di tb_session ke active_round baru
+      try {
+        await _supabase
+            .from('tb_session')
+            .update({
+              'active_round': 'round_$roundNumber',
+              'session_active_round': roundNumber,
+            })
+            .eq('session_id', parsedId);
+      } catch (_) {}
+
+      // 2. Update matches
       if (matchIds != null && matchIds.isNotEmpty) {
         await _supabase
             .from('tb_match')
             .update({'status_match': 'In Progress'})
             .inFilter('match_id', matchIds);
-        return;
+      } else if (drawingId != null) {
+        final sCourts = await _supabase
+            .from('tb_session_court')
+            .select('court_id')
+            .eq('session_id', parsedId);
+        final uniqueCourtIds = (sCourts as List)
+            .map((c) => int.tryParse(c['court_id']?.toString() ?? ''))
+            .whereType<int>()
+            .where((id) => id > 0)
+            .toSet();
+        final courtCount = uniqueCourtIds.isNotEmpty ? uniqueCourtIds.length : 1;
+
+        final startMatchNo = (roundNumber - 1) * courtCount + 1;
+        final endMatchNo = roundNumber * courtCount;
+
+        await _supabase
+            .from('tb_match')
+            .update({'status_match': 'In Progress'})
+            .eq('drawing_id', drawingId)
+            .gte('nomor_match', startMatchNo)
+            .lte('nomor_match', endMatchNo);
+
+        // Pastikan match pada ronde-ronde sebelumnya berstatus Completed
+        await _supabase
+            .from('tb_match')
+            .update({'status_match': 'Completed'})
+            .eq('drawing_id', drawingId)
+            .lt('nomor_match', startMatchNo)
+            .neq('status_match', 'Stopped');
       }
-      if (drawingId == null) return;
-
-      final sCourts = await _supabase
-          .from('tb_session_court')
-          .select('court_id')
-          .eq('session_id', parsedId);
-      final uniqueCourtIds = (sCourts as List)
-          .map((c) => int.tryParse(c['court_id']?.toString() ?? ''))
-          .whereType<int>()
-          .where((id) => id > 0)
-          .toSet();
-      final courtCount = uniqueCourtIds.isNotEmpty ? uniqueCourtIds.length : 1;
-
-      final startMatchNo = (roundNumber - 1) * courtCount + 1;
-      final endMatchNo = roundNumber * courtCount;
-
-      await _supabase
-          .from('tb_match')
-          .update({'status_match': 'In Progress'})
-          .eq('drawing_id', drawingId)
-          .gte('nomor_match', startMatchNo)
-          .lte('nomor_match', endMatchNo);
     } catch (e) {
       debugPrint('[MATCHA_ERROR] [AdvanceMatches] Gagal update status match ronde $roundNumber: $e');
     }
