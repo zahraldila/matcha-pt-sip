@@ -111,6 +111,9 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
           _selectedVenue = _allVenues
               .where((v) => v.venueId == widget.initialVenueId)
               .firstOrNull;
+          if (_selectedVenue != null) {
+            _syncDateTimeWithVenue(_selectedVenue!);
+          }
         }
 
         // Auto-set sport: dari initialSportId atau derive dari lapangan venue yang terpilih
@@ -245,6 +248,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
               c.statusKetersediaan!.toLowerCase() == 'available')).toList();
       _selectedCourts = matchingCourts.isNotEmpty ? [matchingCourts.first] : [];
       _isCourtDropdownOpen = false;
+      _syncDateTimeWithVenue(newVenue);
     });
   }
 
@@ -513,11 +517,34 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     if (h.contains('senin - sabtu') || h.contains('6 hari')) {
       return day.weekday >= DateTime.monday && day.weekday <= DateTime.saturday;
     }
+    if (h.contains('selasa - minggu') || h.contains('selasa–minggu')) {
+      return day.weekday >= DateTime.tuesday && day.weekday <= DateTime.sunday;
+    }
     if (h.contains('sabtu') && h.contains('minggu') && !h.contains('senin')) {
       return day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
     }
     // fallback: all days
     return true;
+  }
+
+  /// Mencari tanggal buka terdekat berikutnya jika tanggal yang dipilih adalah hari libur venue
+  DateTime _getNextAvailableVenueDate(DateTime from, String? hariBuka) {
+    if (hariBuka == null || hariBuka.trim().isEmpty) return from;
+    var cur = from;
+    for (int i = 0; i < 14; i++) {
+      if (_isVenueDayAvailable(cur, hariBuka)) {
+        return cur;
+      }
+      cur = cur.add(const Duration(days: 1));
+    }
+    return from;
+  }
+
+  /// Mengonversi durasi string (e.g. '1 Jam', '1.5 Jam', '2 Jam') ke menit
+  int _parseDurationMinutes(String duration) {
+    final clean = duration.toLowerCase().replaceAll('jam', '').trim();
+    final val = double.tryParse(clean) ?? 2.0;
+    return (val * 60).round();
   }
 
   /// Parses "HH:mm - HH:mm WIB" → (openMinutes, closeMinutes) from midnight.
@@ -530,6 +557,22 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
     final openMin  = int.parse(m.group(1)!) * 60 + int.parse(m.group(2)!);
     final closeMin = int.parse(m.group(3)!) * 60 + int.parse(m.group(4)!);
     return (openMin, closeMin);
+  }
+
+  /// Sinkronisasi tanggal dan jam mulai saat venue berubah atau durasi berubah
+  void _syncDateTimeWithVenue(VenueModel venue) {
+    if (venue.hariBuka != null && !_isVenueDayAvailable(_selectedDate, venue.hariBuka)) {
+      _selectedDate = _getNextAvailableVenueDate(_selectedDate, venue.hariBuka);
+    }
+    final parsed = _parseJamOperasional(venue.jamOperasional);
+    if (parsed != null) {
+      final (openMin, closeMin) = parsed;
+      final durMin = _parseDurationMinutes(_selectedDuration);
+      final curMin = _selectedTime.hour * 60 + _selectedTime.minute;
+      if (curMin < openMin || curMin + durMin > closeMin) {
+        _selectedTime = TimeOfDay(hour: openMin ~/ 60, minute: openMin % 60);
+      }
+    }
   }
 
   Future<void> _pickDate() async {
@@ -562,52 +605,296 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
   }
 
   Future<void> _pickTime() async {
-    final parsed = _parseJamOperasional(_selectedVenue?.jamOperasional);
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime,
-      initialEntryMode: TimePickerEntryMode.dialOnly,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.matchaDark,
-              onPrimary: Colors.white,
-              onSurface: Color(0xFF0F172A),
+    final venue = _selectedVenue;
+    final parsed = _parseJamOperasional(venue?.jamOperasional);
+    if (venue != null && parsed != null) {
+      await _showJamPickerModal(venue, parsed);
+    } else {
+      final picked = await showTimePicker(
+        context: context,
+        initialTime: _selectedTime,
+        initialEntryMode: TimePickerEntryMode.dialOnly,
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: AppColors.matchaDark,
+                onPrimary: Colors.white,
+                onSurface: Color(0xFF0F172A),
+              ),
             ),
+            child: child!,
+          );
+        },
+      );
+      if (picked != null) {
+        setState(() => _selectedTime = picked);
+      }
+    }
+  }
+
+  Future<void> _showJamPickerModal(VenueModel venue, (int, int) parsed) async {
+    final (openMin, closeMin) = parsed;
+    final durMin = _parseDurationMinutes(_selectedDuration);
+    final maxStartMin = closeMin - durMin;
+
+    final openH = (openMin ~/ 60).toString().padLeft(2, '0');
+    final openM = (openMin % 60).toString().padLeft(2, '0');
+    final closeH = (closeMin ~/ 60).toString().padLeft(2, '0');
+    final closeM = (closeMin % 60).toString().padLeft(2, '0');
+
+    // Generate slot jam per 30 menit
+    final List<int> slots = [];
+    for (int m = openMin; m < closeMin; m += 30) {
+      slots.add(m);
+    }
+    if (slots.isEmpty) {
+      slots.add(openMin);
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.75,
           ),
-          child: child!,
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Pilih Jam Mulai Mabar',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Jam operasional: $openH:$openM – $closeH:$closeM WIB',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF15803D),
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF64748B)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Durasi mabar: $_selectedDuration. Jam yang melewati jam tutup venue ($closeH:$closeM WIB) otomatis dinonaktifkan.',
+                        style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), height: 1.3),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: slots.map((slotMin) {
+                      final h = (slotMin ~/ 60).toString().padLeft(2, '0');
+                      final m = (slotMin % 60).toString().padLeft(2, '0');
+                      final slotTime = TimeOfDay(hour: slotMin ~/ 60, minute: slotMin % 60);
+                      final isSelected = _selectedTime.hour == slotTime.hour &&
+                          _selectedTime.minute == slotTime.minute;
+                      final isAllowed = slotMin <= maxStartMin;
+
+                      return InkWell(
+                        onTap: isAllowed
+                            ? () {
+                                setState(() => _selectedTime = slotTime);
+                                Navigator.pop(ctx);
+                              }
+                            : () {
+                                final endMin = slotMin + durMin;
+                                final endH = (endMin ~/ 60).toString().padLeft(2, '0');
+                                final endM = (endMin % 60).toString().padLeft(2, '0');
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Jam $h:$m WIB dengan durasi $_selectedDuration akan selesai pukul $endH:$endM WIB (melewati jam tutup venue $closeH:$closeM WIB).',
+                                    ),
+                                    backgroundColor: Colors.orange.shade800,
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                        borderRadius: BorderRadius.circular(12),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFFF0FDF4)
+                                : (isAllowed ? Colors.white : const Color(0xFFF1F5F9)),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.matchaDark
+                                  : (isAllowed ? const Color(0xFFE2E8F0) : const Color(0xFFE2E8F0).withValues(alpha: 0.6)),
+                              width: isSelected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isAllowed ? Icons.access_time_rounded : Icons.timer_off_rounded,
+                                size: 13,
+                                color: isSelected
+                                    ? AppColors.matchaDark
+                                    : (isAllowed ? const Color(0xFF334155) : const Color(0xFF94A3B8)),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '$h:$m WIB',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: isSelected ? FontWeight.w800 : (isAllowed ? FontWeight.w600 : FontWeight.w500),
+                                  color: isSelected
+                                      ? AppColors.matchaDark
+                                      : (isAllowed ? const Color(0xFF0F172A) : const Color(0xFF94A3B8)),
+                                  decoration: isAllowed ? null : TextDecoration.lineThrough,
+                                ),
+                              ),
+                              if (isSelected) ...[
+                                const SizedBox(width: 6),
+                                const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.matchaDark),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: _selectedTime,
+                      initialEntryMode: TimePickerEntryMode.dialOnly,
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.light(
+                              primary: AppColors.matchaDark,
+                              onPrimary: Colors.white,
+                              onSurface: Color(0xFF0F172A),
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (picked != null) {
+                      final pickedMin = picked.hour * 60 + picked.minute;
+                      if (pickedMin < openMin || pickedMin >= closeMin) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Jam ${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')} '
+                                'di luar jam operasional venue ($openH:$openM – $closeH:$closeM WIB).',
+                              ),
+                              backgroundColor: Colors.orange.shade800,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                        return;
+                      }
+                      if (pickedMin + durMin > closeMin) {
+                        if (mounted) {
+                          final endMin = pickedMin + durMin;
+                          final endH = (endMin ~/ 60).toString().padLeft(2, '0');
+                          final endM = (endMin % 60).toString().padLeft(2, '0');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Durasi mabar $_selectedDuration akan selesai pukul $endH:$endM WIB (melewati jam tutup $closeH:$closeM WIB).',
+                              ),
+                              backgroundColor: Colors.orange.shade800,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                        return;
+                      }
+                      setState(() => _selectedTime = picked);
+                    }
+                  },
+                  icon: const Icon(Icons.edit_calendar_rounded, size: 14, color: AppColors.matchaDark),
+                  label: const Text(
+                    'Atur Menit Kustom (Jam Lain)',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.matchaDark,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
-    if (picked != null) {
-      // Validasi terhadap jam operasional venue (jika ada)
-      if (parsed != null) {
-        final (openMin, closeMin) = parsed;
-        final pickedMin = picked.hour * 60 + picked.minute;
-        if (pickedMin < openMin || pickedMin >= closeMin) {
-          if (mounted) {
-            final openH  = (openMin  ~/ 60).toString().padLeft(2, '0');
-            final openM  = (openMin  %  60).toString().padLeft(2, '0');
-            final closeH = (closeMin ~/ 60).toString().padLeft(2, '0');
-            final closeM = (closeMin %  60).toString().padLeft(2, '0');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Jam ${ picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')} '
-                  'di luar jam operasional venue ($openH:$openM – $closeH:$closeM WIB). '
-                  'Silakan pilih jam yang sesuai.',
-                ),
-                backgroundColor: Colors.orange.shade700,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-          return; // jangan simpan jam yang tidak valid
-        }
-      }
-      setState(() => _selectedTime = picked);
-    }
   }
 
   void _showScoringSystemPickerModal() {
@@ -898,7 +1185,12 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                   final isSelected = _selectedDuration == dur;
                   return InkWell(
                     onTap: () {
-                      setState(() => _selectedDuration = dur);
+                      setState(() {
+                        _selectedDuration = dur;
+                        if (_selectedVenue != null) {
+                          _syncDateTimeWithVenue(_selectedVenue!);
+                        }
+                      });
                       Navigator.pop(ctx);
                     },
                     borderRadius: BorderRadius.circular(14),
@@ -1510,6 +1802,7 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                                     _allVenues = updatedVenues;
                                     // Pre-select venue baru
                                     _selectedVenue = newVenue;
+                                    _syncDateTimeWithVenue(newVenue);
                                     if (_selectedSportId != null) {
                                       _applySportSelection(_selectedSportId!);
                                     } else {
@@ -1657,20 +1950,39 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
       return;
     }
 
-    // Validasi jam operasional venue
+    // Validasi jam operasional venue & durasi
     final jamParsed = _parseJamOperasional(_selectedVenue?.jamOperasional);
     if (jamParsed != null) {
       final pickedMin = _selectedTime.hour * 60 + _selectedTime.minute;
+      final durMin = _parseDurationMinutes(_selectedDuration);
+      final endMin = pickedMin + durMin;
+
+      final openH  = (jamParsed.$1 ~/ 60).toString().padLeft(2, '0');
+      final openM  = (jamParsed.$1  %  60).toString().padLeft(2, '0');
+      final closeH = (jamParsed.$2 ~/ 60).toString().padLeft(2, '0');
+      final closeM = (jamParsed.$2 %  60).toString().padLeft(2, '0');
+
       if (pickedMin < jamParsed.$1 || pickedMin >= jamParsed.$2) {
-        final openH  = (jamParsed.$1 ~/ 60).toString().padLeft(2, '0');
-        final openM  = (jamParsed.$1  %  60).toString().padLeft(2, '0');
-        final closeH = (jamParsed.$2 ~/ 60).toString().padLeft(2, '0');
-        final closeM = (jamParsed.$2 %  60).toString().padLeft(2, '0');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               'Jam yang dipilih di luar jam operasional venue '
               '($openH:$openM – $closeH:$closeM WIB). Silakan ubah jam mulai.',
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      if (endMin > jamParsed.$2) {
+        final endH = (endMin ~/ 60).toString().padLeft(2, '0');
+        final endM = (endMin % 60).toString().padLeft(2, '0');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Durasi bermain hingga $endH:$endM WIB melewati jam tutup venue ($closeH:$closeM WIB). Silakan kurangi durasi atau majukan jam mulai.',
             ),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
@@ -2409,8 +2721,12 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                             !_isVenueDayAvailable(_selectedDate, _selectedVenue!.hariBuka);
                         final jamParsed = _parseJamOperasional(_selectedVenue?.jamOperasional);
                         final pickedMin = _selectedTime.hour * 60 + _selectedTime.minute;
-                        final isTimeInvalid = jamParsed != null &&
+                        final durMin = _parseDurationMinutes(_selectedDuration);
+                        final isTimeOutside = jamParsed != null &&
                             (pickedMin < jamParsed.$1 || pickedMin >= jamParsed.$2);
+                        final isTimeExceeding = jamParsed != null &&
+                            (pickedMin + durMin > jamParsed.$2);
+                        final isTimeInvalid = isTimeOutside || isTimeExceeding;
 
                         return Row(
                           children: [
@@ -2542,9 +2858,9 @@ class _CreateSessionPageState extends State<CreateSessionPage> {
                                   ),
                                   if (isTimeInvalid) ...[
                                     const SizedBox(height: 3),
-                                    const Text(
-                                      'Di luar jam buka',
-                                      style: TextStyle(fontSize: 9.5, color: Color(0xFFEF4444), fontWeight: FontWeight.w600),
+                                    Text(
+                                      isTimeOutside ? 'Di luar jam buka' : 'Melewati jam tutup',
+                                      style: const TextStyle(fontSize: 9.5, color: Color(0xFFEF4444), fontWeight: FontWeight.w600),
                                     ),
                                   ],
                                 ],
