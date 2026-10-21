@@ -96,8 +96,36 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<SessionModel> get _filteredSessions {
-    if (_selectedSport == 'Semua Cabang') return _sessions;
-    return _sessions.where((s) => s.sportName.toLowerCase() == _selectedSport.toLowerCase()).toList();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // 1. Hanya ambil sesi yang belum selesai dan tanggalnya belum lewat
+    final upcomingSessions = _sessions.where((s) {
+      if (s.isFinished) return false;
+      if (s.datetime != null) {
+        final sDate = DateTime(s.datetime!.year, s.datetime!.month, s.datetime!.day);
+        if (sDate.isBefore(today)) return false;
+      }
+      return true;
+    }).toList();
+
+    // 2. Urutkan berdasarkan waktu terdekat (hari ini, besok, dst)
+    upcomingSessions.sort((a, b) {
+      if (a.datetime == null && b.datetime == null) {
+        return b.sessionId.compareTo(a.sessionId);
+      }
+      if (a.datetime == null) return 1;
+      if (b.datetime == null) return -1;
+      final dateCompare = a.datetime!.compareTo(b.datetime!);
+      if (dateCompare != 0) return dateCompare;
+      return b.sessionId.compareTo(a.sessionId);
+    });
+
+    // 3. Filter berdasarkan cabang olahraga
+    if (_selectedSport == 'Semua Cabang') return upcomingSessions;
+    return upcomingSessions
+        .where((s) => s.sportName.toLowerCase() == _selectedSport.toLowerCase())
+        .toList();
   }
 
 
