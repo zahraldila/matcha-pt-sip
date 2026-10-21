@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../court/data/venue_service.dart';
+import '../../court/domain/court_model.dart';
 import '../../court/domain/venue_model.dart';
 import '../../drawing/domain/matcha_drawing_engine.dart';
 import '../../drawing/presentation/drawing_result_page.dart';
@@ -66,10 +67,58 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
     }
   }
 
+  bool _isCourtAvailable(CourtModel court) {
+    if (court.statusKetersediaan != null &&
+        court.statusKetersediaan!.toLowerCase() != 'available') {
+      return false;
+    }
+    if (court.statusAktif != null &&
+        court.statusAktif!.toLowerCase() != 'aktif' &&
+        court.statusAktif!.toLowerCase() != 'active') {
+      return false;
+    }
+    return true;
+  }
+
+  bool _isCourtMatchSport(CourtModel court, String sportName) {
+    final expectedId = sportName.toLowerCase() == 'tennis' ? 2 : 1;
+    return court.sportId == expectedId || court.sportId == null;
+  }
+
+  List<CourtModel> _getActiveCourtsForVenue(VenueModel venue, String sportName) {
+    return venue.courts
+        .where((c) => _isCourtMatchSport(c, sportName) && _isCourtAvailable(c))
+        .toList();
+  }
+
+  int _getMaxCourtsForVenue(VenueModel? venue, String sportName) {
+    if (venue == null) return 4;
+    final activeCourts = _getActiveCourtsForVenue(venue, sportName);
+    if (activeCourts.isNotEmpty) {
+      // Sesuai Web Laravel: limit = Math.max(1, Math.min(maxAvailable, 4))
+      return activeCourts.length.clamp(1, 4);
+    }
+    final fallbackCourts = venue.courts.where(_isCourtAvailable).toList();
+    if (fallbackCourts.isNotEmpty) {
+      return fallbackCourts.length.clamp(1, 4);
+    }
+    return 1;
+  }
+
+  void _onVenueChanged(VenueModel venue) {
+    setState(() {
+      _config.venueId = venue.venueId;
+      _config.venueName = venue.namaVenue;
+      final maxCourt = _getMaxCourtsForVenue(venue, _config.sport);
+      if (_config.courtCount > maxCourt) {
+        _config.courtCount = maxCourt;
+      }
+    });
+  }
+
   void _showVenueSearchPickerModal() {
-    final sportId = _config.sport.toLowerCase() == 'tennis' ? 2 : 1;
     final availableVenues = _venues.where((v) {
-      return v.courts.isEmpty || v.courts.any((c) => c.sportId == sportId);
+      return v.courts.isEmpty || _getActiveCourtsForVenue(v, _config.sport).isNotEmpty;
     }).toList();
     final targetVenues = availableVenues.isNotEmpty ? availableVenues : _venues;
 
@@ -230,20 +279,11 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                             itemBuilder: (context, index) {
                               final venue = filteredVenues[index];
                               final isSelected = _config.venueId == venue.venueId;
-                              final sportId = _config.sport.toLowerCase() == 'tennis' ? 2 : 1;
-                              final validCourts = venue.courts.where((c) => c.sportId == sportId || c.sportId == null).toList();
-                              final courtCount = validCourts.isNotEmpty ? validCourts.length : (venue.courts.isNotEmpty ? venue.courts.length : 1);
+                              final courtCount = _getMaxCourtsForVenue(venue, _config.sport);
 
                               return InkWell(
                                 onTap: () {
-                                  setState(() {
-                                    _config.venueId = venue.venueId;
-                                    _config.venueName = venue.namaVenue;
-                                    // Auto-adjust court count jika melebihi ketersediaan court cabang olahraga di venue ini
-                                    if (_config.courtCount > courtCount) {
-                                      _config.courtCount = courtCount;
-                                    }
-                                  });
+                                  _onVenueChanged(venue);
                                   Navigator.pop(context);
                                 },
                                 borderRadius: BorderRadius.circular(12),
@@ -282,7 +322,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                                             ),
                                             const SizedBox(height: 3),
                                             Text(
-                                              '${venue.kota ?? venue.alamat ?? 'Semua Lokasi'} • $courtCount Court ${_config.sport}',
+                                              '${venue.kota ?? venue.alamat ?? 'Semua Lokasi'} • $courtCount Court ${_config.sport} Tersedia',
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 color: isSelected ? AppColors.matchaDark.withValues(alpha: 0.8) : const Color(0xFF64748B),
@@ -718,9 +758,12 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
 
                                         setState(() {
                                           _venues = updatedVenues;
-                                          _config.venueId = newVenue.venueId;
-                                          _config.venueName = newVenue.namaVenue;
                                         });
+                                        final selectedVenue = updatedVenues.firstWhere(
+                                          (v) => v.venueId == newVenue.venueId,
+                                          orElse: () => newVenue,
+                                        );
+                                        _onVenueChanged(selectedVenue);
 
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
@@ -1106,28 +1149,25 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
 
       // Conditional reset/watcher jika pengguna mengubah olahraga induk
       if (oldSport.isNotEmpty && oldSport.toLowerCase() != newSport.toLowerCase()) {
-        final newSportId = newSport.toLowerCase() == 'tennis' ? 2 : 1;
-
         if (_config.venueId != null) {
           final venue = _venues.cast<VenueModel?>().firstWhere(
             (v) => v?.venueId == _config.venueId,
             orElse: () => null,
           );
 
-          if (venue != null && venue.courts.isNotEmpty) {
-            final validCourts = venue.courts
-                .where((c) => c.sportId == newSportId || c.sportId == null)
-                .toList();
+          if (venue != null) {
+            final validCourts = _getActiveCourtsForVenue(venue, newSport);
 
-            if (validCourts.isEmpty) {
-              // Venue sebelumnya tidak memiliki court untuk olahraga baru -> reset venue dependensi
+            if (validCourts.isEmpty && venue.courts.isNotEmpty) {
+              // Venue sebelumnya tidak memiliki court aktif untuk olahraga baru -> reset venue dependensi
               _config.venueId = null;
               _config.venueName = '';
               _config.courtCount = 1;
             } else {
               // Venue masih relevan -> sesuaikan (clamp) courtCount
-              if (_config.courtCount > validCourts.length) {
-                _config.courtCount = validCourts.length;
+              final maxCourt = _getMaxCourtsForVenue(venue, newSport);
+              if (_config.courtCount > maxCourt) {
+                _config.courtCount = maxCourt;
               }
             }
           }
@@ -1647,11 +1687,9 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                                     Text(
                                       () {
                                         final v = _venues.firstWhere((v) => v.venueId == _config.venueId);
-                                        final sportId = _config.sport.toLowerCase() == 'tennis' ? 2 : 1;
-                                        final sportCourts = v.courts.where((c) => c.sportId == sportId || c.sportId == null).toList();
-                                        final courtTotal = sportCourts.isNotEmpty ? sportCourts.length : (v.courts.isNotEmpty ? v.courts.length : 1);
+                                        final courtTotal = _getMaxCourtsForVenue(v, _config.sport);
                                         final loc = v.kota ?? v.alamat ?? 'Lokasi Terdaftar';
-                                        return '$loc - $courtTotal Court ${_config.sport}';
+                                        return '$loc - $courtTotal Court ${_config.sport} Tersedia';
                                       }(),
                                       style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                                       maxLines: 1,
@@ -1683,15 +1721,11 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
               _buildSectionLabel('Numbers of Court *'),
               const SizedBox(height: 4),
               Builder(builder: (context) {
-                // Cari jumlah court riil dari venue yang dipilih
+                // Cari jumlah court riil aktif dari venue yang dipilih
                 final selectedVenueModel = _config.venueId != null && _venues.any((v) => v.venueId == _config.venueId)
                     ? _venues.firstWhere((v) => v.venueId == _config.venueId)
                     : null;
-                final sportId = _config.sport.toLowerCase() == 'tennis' ? 2 : 1;
-                final sportCourts = selectedVenueModel?.courts.where((c) => c.sportId == sportId || c.sportId == null).toList() ?? [];
-                final maxCourt = sportCourts.isNotEmpty
-                    ? sportCourts.length
-                    : (selectedVenueModel != null && selectedVenueModel.courts.isNotEmpty ? selectedVenueModel.courts.length : 4);
+                final maxCourt = _getMaxCourtsForVenue(selectedVenueModel, _config.sport);
 
                 // Auto-clamp courtCount jika melebihi max
                 if (_config.courtCount > maxCourt) {
@@ -2030,6 +2064,12 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                 );
                 return;
               }
+              final selectedVenue = _venues.cast<VenueModel?>().firstWhere(
+                (v) => v?.venueId == _config.venueId,
+                orElse: () => null,
+              );
+              final maxCourt = _getMaxCourtsForVenue(selectedVenue, _config.sport);
+              _config.courtCount = _config.courtCount.clamp(1, maxCourt);
               _config.activityName = trimmedName;
               setState(() => _currentStep = 4);
             },
