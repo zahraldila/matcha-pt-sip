@@ -813,31 +813,102 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Round Selector Pills
+                // Round Selector Pills (Surprise Mechanism & Round Status)
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: List.generate(_rounds.length, (idx) {
                       final isSelected = _selectedRoundIndex == idx;
                       final r = _rounds[idx];
+                      final isAccessible = _isRoundAccessible(idx);
+                      final isCompleted = _isRoundCompleted(idx);
+                      final isActive = idx == _activeUnlockedRoundIndex;
+
                       return Container(
                         margin: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
-                          label: Text(
-                            'Ronde ${r.roundNumber} (${r.matches.length} Match)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected ? Colors.white : const Color(0xFF475569),
-                            ),
+                          label: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Ronde ${r.roundNumber}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : (isAccessible ? const Color(0xFF475569) : const Color(0xFF94A3B8)),
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              if (!isAccessible) ...[
+                                Icon(
+                                  Icons.lock_rounded,
+                                  size: 13,
+                                  color: isSelected ? Colors.white70 : const Color(0xFF94A3B8),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Terkunci',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected ? Colors.white70 : const Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ] else if (isCompleted) ...[
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 13,
+                                  color: isSelected ? const Color(0xFFA8E63A) : const Color(0xFF16A34A),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Selesai',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected ? Colors.white70 : const Color(0xFF16A34A),
+                                  ),
+                                ),
+                              ] else if (isActive && _isLocked) ...[
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF22C55E),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Live',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected ? Colors.white70 : const Color(0xFF16A34A),
+                                  ),
+                                ),
+                              ] else ...[
+                                Text(
+                                  '(${r.matches.length} Match)',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isSelected ? Colors.white70 : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                           selected: isSelected,
                           selectedColor: AppColors.matchaDark,
-                          backgroundColor: Colors.white,
+                          backgroundColor: isAccessible ? Colors.white : const Color(0xFFF8FAFC),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                             side: BorderSide(
-                              color: isSelected ? AppColors.matchaDark : const Color(0xFFE2E8F0),
+                              color: isSelected
+                                  ? AppColors.matchaDark
+                                  : (isAccessible ? const Color(0xFFE2E8F0) : const Color(0xFFCBD5E1)),
                             ),
                           ),
                           onSelected: (val) {
@@ -849,189 +920,193 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Live Preview Lapangan Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF22C55E),
-                            shape: BoxShape.circle,
+                if (!_isRoundAccessible(_selectedRoundIndex))
+                  _buildLockedRoundState(currentRound)
+                else ...[
+                  // Live Preview Lapangan Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF22C55E),
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'LIVE PREVIEW',
+                          const SizedBox(width: 6),
+                          Text(
+                            'LIVE PREVIEW',
+                            style: AppTextStyles.caption.copyWith(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
+                              color: const Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'RONDE ${currentRound.roundNumber} • ${currentRound.matches.length} Match',
+                          overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.caption.copyWith(
                             fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                            color: const Color(0xFF0F172A),
+                            color: const Color(0xFF64748B),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'RONDE ${currentRound.roundNumber} • ${currentRound.matches.length} Match',
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.caption.copyWith(
-                          fontSize: 11,
-                          color: const Color(0xFF64748B),
-                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Visual Court Cards
+                  ...currentRound.matches.map((match) => _buildVisualCourtCard(match)),
+                  // Bangku Cadangan / Istirahat (Bench)
+                  if (currentRound.restingPlayers.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.chair_outlined, size: 18, color: Color(0xFFD97706)),
+                              const SizedBox(width: 8),
+                              Text(
+                                'BANGKU ISTIRAHAT (BENCH)',
+                                style: AppTextStyles.caption.copyWith(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFFB45309),
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${currentRound.restingPlayers.length} Pemain',
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: currentRound.restingPlayers.map((p) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFFDE68A)),
+                                ),
+                                child: Text(
+                                  p.name,
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 10),
-                // Visual Court Cards
-                ...currentRound.matches.map((match) => _buildVisualCourtCard(match)),
-                // Bangku Cadangan / Istirahat (Bench)
-                if (currentRound.restingPlayers.isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
+                  // Rincian Roster Pertandingan Card
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFFBEB),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFFDE68A)),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Icon(Icons.chair_outlined, size: 18, color: Color(0xFFD97706)),
-                            const SizedBox(width: 8),
                             Text(
-                              'BANGKU ISTIRAHAT (BENCH)',
+                              'ROSTER PERTANDINGAN',
                               style: AppTextStyles.caption.copyWith(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFFB45309),
+                                color: const Color(0xFF0F172A),
                               ),
                             ),
-                            const Spacer(),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFEF3C7),
+                                color: const Color(0xFFEFF6FF),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                '${currentRound.restingPlayers.length} Pemain',
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
+                                _config.gameType,
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          children: currentRound.restingPlayers.map((p) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFFFDE68A)),
-                              ),
-                              child: Text(
-                                p.name,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
-                              ),
-                            );
-                          }).toList(),
-                        ),
+                        const SizedBox(height: 10),
+                        ...currentRound.matches.map((m) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Court ${m.courtNumber} (Sesi Game)',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Team A: ${m.teamANames}',
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                      ),
+                                    ),
+                                    const Text('vs', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Team B: ${m.teamBNames}',
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
                       ],
                     ),
                   ),
                 ],
-                const SizedBox(height: 16),
-                // Rincian Roster Pertandingan Card
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'ROSTER PERTANDINGAN',
-                            style: AppTextStyles.caption.copyWith(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF0F172A),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEFF6FF),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              _config.gameType,
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      ...currentRound.matches.map((m) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Court ${m.courtNumber} (Sesi Game)',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      'Team A: ${m.teamANames}',
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                                    ),
-                                  ),
-                                  const Text('vs', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Team B: ${m.teamBNames}',
-                                      textAlign: TextAlign.right,
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -1134,6 +1209,138 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       ),
     );
   }
+  bool _isRoundCompleted(int index) {
+    if (index < 0 || index >= _rounds.length) return false;
+    final r = _rounds[index];
+    if (r.matches.isEmpty) return false;
+    return r.matches.every((m) => m.isTerminal);
+  }
+
+  bool _isRoundAccessible(int index) {
+    if (index == 0) return true; // Ronde 1 selalu terbuka
+    if (index < 0 || index >= _rounds.length) return false;
+    // Ronde N terbuka secara bertahap setelah Ronde N-1 selesai dimainkan
+    return _isRoundCompleted(index - 1);
+  }
+
+  int get _activeUnlockedRoundIndex {
+    for (int i = 0; i < _rounds.length; i++) {
+      if (!_isRoundAccessible(i)) {
+        return (i - 1).clamp(0, _rounds.length - 1);
+      }
+      if (!_isRoundCompleted(i)) {
+        return i;
+      }
+    }
+    return _rounds.isEmpty ? 0 : _rounds.length - 1;
+  }
+
+  Widget _buildLockedRoundState(DrawingRound round) {
+    final activeRoundNum = _activeUnlockedRoundIndex + 1;
+    final isTeamFormat = _config.gameType.toLowerCase().contains('team');
+    final unitLabel = isTeamFormat ? 'Set' : 'Ronde';
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 8, bottom: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFBEB),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+            ),
+            child: const Icon(
+              Icons.lock_rounded,
+              color: Color(0xFFD97706),
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFDE68A)),
+            ),
+            child: Text(
+              '$unitLabel Terkunci',
+              style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF92400E),
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '$unitLabel ${round.roundNumber} Belum Dimulai',
+            style: AppTextStyles.h2.copyWith(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF0F172A),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Bagan drawing dan susunan pemain untuk $unitLabel ${round.roundNumber} akan terbuka secara otomatis setelah $unitLabel ${round.roundNumber - 1} selesai dimainkan.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body.copyWith(
+                fontSize: 12,
+                color: const Color(0xFF64748B),
+                height: 1.45,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: () {
+              setState(() {
+                _selectedRoundIndex = _activeUnlockedRoundIndex;
+              });
+            },
+            icon: const Icon(Icons.arrow_back_rounded, size: 16),
+            label: Text(
+              'Buka $unitLabel $activeRoundNum (Aktif)',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.matchaDark,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
