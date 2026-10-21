@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../drawing/domain/matcha_drawing_engine.dart';
@@ -62,6 +63,74 @@ class MatchService {
     }
   }
 
+  /// Mengambil daftar pemain sesi dari tb_session_player bergabung dengan tb_player
+  Future<List<GamePlayerItem>> getSessionPlayers(dynamic sessionId) async {
+    try {
+      if (sessionId == null) return [];
+      final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+      final res = await _supabase
+          .from('tb_session_player')
+          .select('''
+            player_id,
+            status,
+            withdrawn_reason,
+            withdrawn_at,
+            tb_player (
+              player_id,
+              user_id,
+              nama,
+              level,
+              gender,
+              foto,
+              tb_user (foto)
+            )
+          ''')
+          .eq('session_id', parsedId);
+
+      final List<GamePlayerItem> players = [];
+      for (final row in (res as List)) {
+        final rawPlayer = row['tb_player'] as Map<String, dynamic>?;
+        final pId = row['player_id'] is int
+            ? row['player_id'] as int
+            : int.tryParse(row['player_id']?.toString() ?? '');
+        if (pId == null) continue;
+
+        final name = rawPlayer?['nama']?.toString() ?? 'Pemain $pId';
+        final gender = rawPlayer?['gender']?.toString() ?? 'Laki-laki';
+        final level = rawPlayer?['level']?.toString() ?? 'Beginner';
+        final status = (row['status'] ?? 'active').toString().toLowerCase();
+        final withdrawnReason = row['withdrawn_reason']?.toString();
+        DateTime? withdrawnAt;
+        if (row['withdrawn_at'] != null) {
+          withdrawnAt = DateTime.tryParse(row['withdrawn_at'].toString());
+        }
+        final rawUser = rawPlayer?['tb_user'] as Map<String, dynamic>?;
+        final avatar = rawPlayer?['foto']?.toString() ?? rawUser?['foto']?.toString();
+        final rawUserId = rawPlayer?['user_id'];
+        final uId = rawUserId is int
+            ? rawUserId
+            : int.tryParse(rawUserId?.toString() ?? '');
+
+        players.add(GamePlayerItem(
+          id: pId.toString(),
+          playerId: pId,
+          userId: uId,
+          name: name,
+          gender: gender,
+          level: level,
+          avatarUrl: avatar,
+          status: status,
+          withdrawnReason: withdrawnReason,
+          withdrawnAt: withdrawnAt,
+        ));
+      }
+      return players;
+    } catch (e) {
+      debugPrint('[MatchService] getSessionPlayers error: $e');
+      return [];
+    }
+  }
+
   /// Mapping ID ke nama format pertandingan resmi:
   /// 1 Americano, 2 Mexicano, 3 Mix Americano, 4 Team Americano,
   /// 5 Tennis Single / Double, 6 King of the Court
@@ -118,14 +187,25 @@ class MatchService {
     }
   }
 
-  /// Resolusi integer ID pemain dari GamePlayerItem (mendukung playerId, numeric id, user_X, guest_db_X)
-  static int? resolvePlayerId(GamePlayerItem? player) {
+  /// Resolusi integer ID pemain dari GamePlayerItem (mendukung playerId, numeric id, user_X, guest_db_X, atau pencocokan nama di allPlayers)
+  static int? resolvePlayerId(GamePlayerItem? player, [List<GamePlayerItem>? allPlayers]) {
     if (player == null) return null;
     if (player.playerId != null && player.playerId! > 0) return player.playerId;
     final direct = int.tryParse(player.id);
     if (direct != null && direct > 0) return direct;
-    final match = RegExp(r'\d+').firstMatch(player.id);
-    if (match != null) return int.tryParse(match.group(0)!);
+    if (allPlayers != null && allPlayers.isNotEmpty) {
+      final cleanName = player.name.trim().toLowerCase();
+      final found = allPlayers.where((p) => p.name.trim().toLowerCase() == cleanName).firstOrNull;
+      if (found != null) {
+        if (found.playerId != null && found.playerId! > 0) return found.playerId;
+        final fDirect = int.tryParse(found.id);
+        if (fDirect != null && fDirect > 0) return fDirect;
+      }
+    }
+    if (player.id.startsWith('user_') || player.id.startsWith('guest_db_')) {
+      final match = RegExp(r'\d+').firstMatch(player.id);
+      if (match != null) return int.tryParse(match.group(0)!);
+    }
     return null;
   }
 
@@ -809,36 +889,99 @@ class MatchService {
     List<int>? pausedPlayerIds,
     List<int>? withdrawnPlayerIds,
     Map<int, String>? playerReasons,
+    int? scoreA,
+    int? scoreB,
+    String? pointDisplayA,
+    String? pointDisplayB,
+    int? roundNumber,
+    String? scoringSystem,
   }) async {
     final now = DateTime.now();
     final nowIso = now.toIso8601String();
     final nowTime =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
 
+    final effectiveStopType = stopType ??
+        ((pausedPlayerIds != null && pausedPlayerIds.isNotEmpty)
+            ? 'temporary_pause'
+            : ((withdrawnPlayerIds != null && withdrawnPlayerIds.isNotEmpty)
+                ? 'withdraw_players'
+                : 'keep_in_session'));
+
+    final effectiveWithdrawn = (withdrawnPlayerIds != null && withdrawnPlayerIds.isNotEmpty)
+        ? withdrawnPlayerIds
+        : (pausedPlayerIds ?? []);
+
+    final notesData = <String, dynamic>{};
+    if (playerReasons != null) {
+      playerReasons.forEach((k, v) => notesData[k.toString()] = v);
+    }
+    notesData['stop_type'] = effectiveStopType;
+    notesData['stop_reason'] = reason;
+    notesData['timestamp'] = nowIso;
+
+    // 1. Update tb_match
     await _supabase
         .from('tb_match')
         .update({
           'status_match': 'Stopped',
           'waktu_selesai': nowTime,
           'winner_team': null,
-          'stop_type': stopType ?? 'stop',
+          'stop_type': effectiveStopType,
           'stop_reason': reason,
-          'stopped_by_user_id': ?stoppedByUserId,
+          'stopped_by_user_id': stoppedByUserId,
           'stopped_at': nowIso,
-          'hasil_pertandingan': hasilPertandingan ?? 'Dihentikan ($reason)',
+          'hasil_pertandingan': hasilPertandingan ?? 'Dihentikan: ${scoreA ?? 0} - ${scoreB ?? 0} ($reason)',
+          'withdrawn_player_ids': jsonEncode(effectiveWithdrawn),
+          'player_notes': jsonEncode(notesData),
           'updated_at': nowIso,
         })
         .eq('match_id', matchId);
 
-    // Update status tb_score yang terkait menjadi stopped
+    // 2. Update atau insert baris di tb_score dengan status_score 'Stopped'
     try {
-      await _supabase
+      final existingScore = await _supabase
           .from('tb_score')
-          .update({'status_score': 'stopped'})
-          .eq('match_id', matchId);
-    } catch (_) {}
+          .select('score_id')
+          .eq('match_id', matchId)
+          .maybeSingle();
 
-    // Perbarui status pemain di tb_session_player jika ada pemain yang diistirahatkan/keluar
+      if (existingScore != null) {
+        await _supabase
+            .from('tb_score')
+            .update({
+              'status_score': 'Stopped',
+              if (scoreA != null) 'game_score_a': scoreA,
+              if (scoreB != null) 'game_score_b': scoreB,
+              if (scoreA != null) 'score_side_a': scoreA,
+              if (scoreB != null) 'score_side_b': scoreB,
+              if (pointDisplayA != null) 'point_score_a': pointDisplayA,
+              if (pointDisplayB != null) 'point_score_b': pointDisplayB,
+              'updated_at': nowIso,
+            })
+            .eq('match_id', matchId);
+      } else {
+        await _supabase.from('tb_score').insert({
+          'match_id': matchId,
+          'set_number': roundNumber ?? 1,
+          'game_number': 1,
+          'game_score_a': scoreA ?? 0,
+          'game_score_b': scoreB ?? 0,
+          'score_side_a': scoreA ?? 0,
+          'score_side_b': scoreB ?? 0,
+          'point_score_a': pointDisplayA ?? '0',
+          'point_score_b': pointDisplayB ?? '0',
+          'status_score': 'Stopped',
+          'scoring_system': scoringSystem ?? 'total_of_sets',
+          'created_at': nowIso,
+          'updated_at': nowIso,
+        });
+      }
+    } catch (e) {
+      debugPrint('[MatchService] tb_score update/insert on stopMatch error: $e');
+    }
+
+    // 3. Perbarui status pemain di tb_session_player jika ada pemain yang diistirahatkan/keluar
     final parsedSessionId = int.tryParse(sessionId?.toString() ?? '') ?? sessionId;
     if (parsedSessionId != null) {
       if (pausedPlayerIds != null && pausedPlayerIds.isNotEmpty) {
@@ -847,8 +990,11 @@ class MatchService {
             await _supabase.from('tb_session_player').update({
               'status': 'resting',
               'withdrawn_reason': playerReasons?[pId] ?? reason,
+              'withdrawn_match_id': matchId,
             }).eq('session_id', parsedSessionId).eq('player_id', pId);
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('[MatchService] tb_session_player resting error: $e');
+          }
         }
       }
 
@@ -859,13 +1005,16 @@ class MatchService {
               'status': 'withdrawn',
               'withdrawn_reason': playerReasons?[pId] ?? reason,
               'withdrawn_at': nowIso,
+              'withdrawn_match_id': matchId,
             }).eq('session_id', parsedSessionId).eq('player_id', pId);
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('[MatchService] tb_session_player withdrawn error: $e');
+          }
         }
       }
     }
 
-    // Broadcast status change setelah DB berhasil
+    // 4. Broadcast status change setelah DB berhasil
     try {
       final channelName = sessionId != null
           ? 'session_$sessionId'
@@ -878,7 +1027,19 @@ class MatchService {
           'status_match': 'Stopped',
           'session_id': sessionId,
           'stop_reason': reason,
-          'stop_type': stopType ?? 'stop',
+          'stop_type': effectiveStopType,
+          'paused_player_ids': pausedPlayerIds,
+          'withdrawn_player_ids': withdrawnPlayerIds,
+          'score_a': scoreA,
+          'score_b': scoreB,
+          'timestamp': now.millisecondsSinceEpoch,
+        },
+      );
+      await channel.sendBroadcastMessage(
+        event: 'player_status_update',
+        payload: {
+          'session_id': sessionId,
+          'match_id': matchId,
           'paused_player_ids': pausedPlayerIds,
           'withdrawn_player_ids': withdrawnPlayerIds,
           'timestamp': now.millisecondsSinceEpoch,

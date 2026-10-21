@@ -284,15 +284,6 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
   bool get _isCurrentViewedRoundActive => _viewedRoundIndex == _sessionActiveRoundIndex;
 
-
-
-  bool get _isCurrentActiveRoundFinished {
-    if (_rounds.isEmpty) return false;
-    final activeRound = _rounds[_sessionActiveRoundIndex.clamp(0, _rounds.length - 1)];
-    return activeRound.matches.isNotEmpty &&
-        activeRound.matches.every((m) => m.status == 'Completed' || m.status == 'Stopped');
-  }
-
   bool get _isAllRoundsFinished {
     if (_isSessionFinished) return true;
     if (_rounds.isEmpty) return false;
@@ -574,7 +565,11 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
       }
 
-
+      // 1.5 Ambil daftar pemain sesi aktual dari tb_session_player
+      final sessionPlayers = await _matchService.getSessionPlayers(widget.sessionId);
+      if (sessionPlayers.isNotEmpty) {
+        _config.players = sessionPlayers;
+      }
 
       // 2. Ambil matches & scores riil dari backend
 
@@ -601,16 +596,20 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
           final courtNum = (m['courtNumber'] as int?) ?? (((nomorMatch - 1) % effectiveCourtCount) + 1);
 
-
-
           List<GamePlayerItem> teamAPlayers = [];
           if (m['teamAPlayers'] != null && (m['teamAPlayers'] as List).isNotEmpty) {
             teamAPlayers = (m['teamAPlayers'] as List).map((p) {
               final map = p as Map<String, dynamic>;
               final pId = map['playerId'] ?? map['id'];
+              final name = map['name']?.toString() ?? 'Player A';
+              final resolvedInt = MatchService.resolvePlayerId(
+                GamePlayerItem(id: pId?.toString() ?? name, name: name),
+                _config.players,
+              );
               return GamePlayerItem(
-                id: pId != null ? pId.toString() : (map['name']?.toString() ?? ''),
-                name: map['name']?.toString() ?? 'Player A',
+                id: resolvedInt != null ? resolvedInt.toString() : (pId != null ? pId.toString() : name),
+                playerId: resolvedInt,
+                name: name,
                 avatarUrl: map['avatarUrl']?.toString(),
                 level: map['level']?.toString() ?? 'Beginner',
               );
@@ -620,10 +619,32 @@ class MatchScoringPageState extends State<MatchScoringPage> {
               !m['sideA'].toString().toLowerCase().startsWith('side ') &&
               !m['sideA'].toString().toLowerCase().startsWith('team ')) {
             final sideANames = (m['sideA']).toString().split(' · ');
-            teamAPlayers = sideANames.map((n) => GamePlayerItem(id: n, name: n)).toList();
+            teamAPlayers = sideANames.map((n) {
+              final name = n.trim();
+              final resolvedInt = MatchService.resolvePlayerId(
+                GamePlayerItem(id: name, name: name),
+                _config.players,
+              );
+              return GamePlayerItem(
+                id: resolvedInt != null ? resolvedInt.toString() : name,
+                playerId: resolvedInt,
+                name: name,
+              );
+            }).toList();
           } else if (!isRealBackendSession) {
             final sideANames = (m['sideA'] ?? 'Team A').toString().split(' · ');
-            teamAPlayers = sideANames.map((n) => GamePlayerItem(id: n, name: n)).toList();
+            teamAPlayers = sideANames.map((n) {
+              final name = n.trim();
+              final resolvedInt = MatchService.resolvePlayerId(
+                GamePlayerItem(id: name, name: name),
+                _config.players,
+              );
+              return GamePlayerItem(
+                id: resolvedInt != null ? resolvedInt.toString() : name,
+                playerId: resolvedInt,
+                name: name,
+              );
+            }).toList();
           }
 
           List<GamePlayerItem> teamBPlayers = [];
@@ -631,9 +652,15 @@ class MatchScoringPageState extends State<MatchScoringPage> {
             teamBPlayers = (m['teamBPlayers'] as List).map((p) {
               final map = p as Map<String, dynamic>;
               final pId = map['playerId'] ?? map['id'];
+              final name = map['name']?.toString() ?? 'Player B';
+              final resolvedInt = MatchService.resolvePlayerId(
+                GamePlayerItem(id: pId?.toString() ?? name, name: name),
+                _config.players,
+              );
               return GamePlayerItem(
-                id: pId != null ? pId.toString() : (map['name']?.toString() ?? ''),
-                name: map['name']?.toString() ?? 'Player B',
+                id: resolvedInt != null ? resolvedInt.toString() : (pId != null ? pId.toString() : name),
+                playerId: resolvedInt,
+                name: name,
                 avatarUrl: map['avatarUrl']?.toString(),
                 level: map['level']?.toString() ?? 'Beginner',
               );
@@ -643,10 +670,32 @@ class MatchScoringPageState extends State<MatchScoringPage> {
               !m['sideB'].toString().toLowerCase().startsWith('side ') &&
               !m['sideB'].toString().toLowerCase().startsWith('team ')) {
             final sideBNames = (m['sideB']).toString().split(' · ');
-            teamBPlayers = sideBNames.map((n) => GamePlayerItem(id: n, name: n)).toList();
+            teamBPlayers = sideBNames.map((n) {
+              final name = n.trim();
+              final resolvedInt = MatchService.resolvePlayerId(
+                GamePlayerItem(id: name, name: name),
+                _config.players,
+              );
+              return GamePlayerItem(
+                id: resolvedInt != null ? resolvedInt.toString() : name,
+                playerId: resolvedInt,
+                name: name,
+              );
+            }).toList();
           } else if (!isRealBackendSession) {
             final sideBNames = (m['sideB'] ?? 'Team B').toString().split(' · ');
-            teamBPlayers = sideBNames.map((n) => GamePlayerItem(id: n, name: n)).toList();
+            teamBPlayers = sideBNames.map((n) {
+              final name = n.trim();
+              final resolvedInt = MatchService.resolvePlayerId(
+                GamePlayerItem(id: name, name: name),
+                _config.players,
+              );
+              return GamePlayerItem(
+                id: resolvedInt != null ? resolvedInt.toString() : name,
+                playerId: resolvedInt,
+                name: name,
+              );
+            }).toList();
           }
 
           // Jika pada sesi backend riil susunan pemain gagal dimuat, jangan samarkan sebagai Side A/B
@@ -1912,29 +1961,41 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           builder: (context, setDlgState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+              titlePadding: const EdgeInsets.fromLTRB(20, 18, 16, 10),
               contentPadding: const EdgeInsets.symmetric(horizontal: 20),
               title: Row(
                 children: [
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEF2F2),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFFFECACA)),
                     ),
                     child: const Icon(Icons.front_hand_rounded, color: Color(0xFFDC2626), size: 20),
                   ),
                   const SizedBox(width: 10),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text('Akhiri Pertandingan (End Match)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                        Text('Hentikan match aktif ini tanpa menyelesaikan seluruh sesi', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                      children: [
+                        Text(
+                          'Akhiri Pertandingan (End Match)',
+                          style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                        ),
+                        Text(
+                          'Hentikan match aktif ini tanpa menyelesaikan seluruh sesi',
+                          style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                        ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(4),
                   ),
                 ],
               ),
@@ -1950,7 +2011,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
                         child: Column(
@@ -1970,21 +2031,21 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
-                                      'Round ${_viewedRoundIndex + 1} • Court ${match.courtNumber}',
+                                      'Ronde ${_viewedRoundIndex + 1} • Court ${match.courtNumber}',
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF334155)),
                                     ),
                                   ],
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(color: const Color(0xFFFDE68A)),
                                   ),
                                   child: Text(
-                                    'Skor: ${match.scoreA} — ${match.scoreB}',
-                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                    'Skor Terakhir: ${match.scoreA} — ${match.scoreB} Games (Point: ${match.pointDisplayA} : ${match.pointDisplayB})',
+                                    style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
                                   ),
                                 ),
                               ],
@@ -2001,7 +2062,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                       border: Border.all(color: const Color(0xFFCBD5E1)),
                                     ),
                                     child: Text(
-                                      match.teamANames,
+                                      'Tim A: ${match.teamANames}',
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF1E293B)),
                                       overflow: TextOverflow.ellipsis,
@@ -2010,7 +2071,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                 ),
                                 const Padding(
                                   padding: EdgeInsets.symmetric(horizontal: 8),
-                                  child: Text('VS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Color(0xFF94A3B8))),
+                                  child: Text('VS', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 10, color: Color(0xFF94A3B8))),
                                 ),
                                 Expanded(
                                   child: Container(
@@ -2021,7 +2082,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                       border: Border.all(color: const Color(0xFFCBD5E1)),
                                     ),
                                     child: Text(
-                                      match.teamBNames,
+                                      'Tim B: ${match.teamBNames}',
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF1E293B)),
                                       overflow: TextOverflow.ellipsis,
@@ -2045,14 +2106,14 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                           Expanded(
                             child: InkWell(
                               onTap: () {
-                                  setDlgState(() {
-                                    stopCondition = 'keep_in_session';
-                                    validationError = null;
-                                    selectionError = null;
-                                    reasonFieldErrorA = null;
-                                    playerReasonErrors.clear();
-                                  });
-                                },
+                                setDlgState(() {
+                                  stopCondition = 'keep_in_session';
+                                  validationError = null;
+                                  selectionError = null;
+                                  reasonFieldErrorA = null;
+                                  playerReasonErrors.clear();
+                                });
+                              },
                               borderRadius: BorderRadius.circular(12),
                               child: Container(
                                 padding: const EdgeInsets.all(10),
@@ -2077,15 +2138,15 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                         const SizedBox(width: 6),
                                         const Expanded(
                                           child: Text(
-                                            '1. Tetap di Sesi',
-                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0F172A)),
+                                            '1. Tetap di Sesi (Pemain Lanjut)',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10.5, color: Color(0xFF0F172A)),
                                           ),
                                         ),
                                       ],
                                     ),
                                     const SizedBox(height: 4),
                                     const Text(
-                                      'Match berhenti, semua pemain lanjut ke ronde berikutnya atau istirahat sejenak.',
+                                      'Match berhenti, semua pemain lanjut ke ronde berikutnya atau istirahat sejenak ke bench.',
                                       style: TextStyle(fontSize: 9.5, color: Color(0xFF64748B), height: 1.2),
                                     ),
                                   ],
@@ -2130,15 +2191,15 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                         const SizedBox(width: 6),
                                         const Expanded(
                                           child: Text(
-                                            '2. Keluar Sesi',
-                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0F172A)),
+                                            '2. Keluar Sesi (Permanen)',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10.5, color: Color(0xFF0F172A)),
                                           ),
                                         ),
                                       ],
                                     ),
                                     const SizedBox(height: 4),
                                     const Text(
-                                      'Pemain cedera berat / pulang. Ditarik permanen dari seluruh sisa ronde.',
+                                      'Pemain cedera berat atau harus pulang. Ditarik permanen dari seluruh sisa ronde.',
                                       style: TextStyle(fontSize: 9.5, color: Color(0xFF64748B), height: 1.2),
                                     ),
                                   ],
@@ -2170,8 +2231,8 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                             if (val.trim().isNotEmpty) reasonFieldErrorA = null;
                           }),
                           decoration: InputDecoration(
-                            hintText: 'Contoh: Waktu sewa habis, lapangan basah karena hujan...',
-                            hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                            hintText: 'Contoh: Waktu sewa lapangan habis, court basah karena hujan, dll.',
+                            hintStyle: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -2198,7 +2259,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFEF3C7),
+                            color: const Color(0xFFFFFBEB),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: const Color(0xFFFDE68A)),
                           ),
@@ -2225,35 +2286,103 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                   ),
                                   const SizedBox(width: 8),
                                   const Expanded(
-                                    child: Text(
-                                      'Istirahatkan pemain sementara ke Bangku Cadangan (Bench)',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Istirahatkan pemain tertentu sementara ke Bangku Cadangan (Bench)',
+                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          'Centang opsi ini jika ada pemain yang butuh istirahat sejenak (ke toilet / kram ringan).',
+                                          style: TextStyle(fontSize: 9.5, color: Color(0xFFB45309)),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
                               if (pausePlayersToggle) ...[
-                                const Divider(height: 12),
-                                const Text('Pilih pemain yang butuh jeda istirahat:', style: TextStyle(fontSize: 10, color: Color(0xFF78350F))),
-                                const SizedBox(height: 4),
+                                const Divider(height: 14),
+                                const Text(
+                                  'Pilih pemain yang butuh jeda istirahat (pemain masuk cadangan sampai Host menekan tombol Siap Main):',
+                                  style: TextStyle(fontSize: 10, color: Color(0xFF78350F), fontWeight: FontWeight.w500),
+                                ),
+                                const SizedBox(height: 6),
                                 ...allMatchPlayers.map((p) {
                                   final checked = pausedPlayerIds.contains(p.id);
-                                  return CheckboxListTile(
-                                    dense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                    title: Text(p.name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                                    value: checked,
-                                    onChanged: (val) {
-                                      setDlgState(() {
-                                        if (val == true) {
-                                          pausedPlayerIds.add(p.id);
-                                        } else {
-                                          pausedPlayerIds.remove(p.id);
-                                        }
-                                        validationError = null;
-                                        selectionError = null;
-                                      });
-                                    },
+                                  final isTeamA = match.teamA.any((x) => x.id == p.id || x.name.trim().toLowerCase() == p.name.trim().toLowerCase());
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: checked ? const Color(0xFFD97706) : const Color(0xFFCBD5E1)),
+                                    ),
+                                    child: InkWell(
+                                      onTap: () {
+                                        setDlgState(() {
+                                          if (checked) {
+                                            pausedPlayerIds.remove(p.id);
+                                          } else {
+                                            pausedPlayerIds.add(p.id);
+                                          }
+                                          validationError = null;
+                                          selectionError = null;
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        child: Row(
+                                          children: [
+                                            SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: Checkbox(
+                                                value: checked,
+                                                activeColor: const Color(0xFFD97706),
+                                                onChanged: (val) {
+                                                  setDlgState(() {
+                                                    if (val == true) {
+                                                      pausedPlayerIds.add(p.id);
+                                                    } else {
+                                                      pausedPlayerIds.remove(p.id);
+                                                    }
+                                                    validationError = null;
+                                                    selectionError = null;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                p.name,
+                                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                                              ),
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: isTeamA ? const Color(0xFFEFF6FF) : const Color(0xFFFEF3C7),
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: isTeamA ? const Color(0xFFBFDBFE) : const Color(0xFFFDE68A)),
+                                              ),
+                                              child: Text(
+                                                isTeamA ? 'Tim A' : 'Tim B',
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isTeamA ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   );
                                 }),
                                 if (selectionError != null) ...[
@@ -2279,13 +2408,13 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                     ),
                                   ),
                                 ],
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                                 TextField(
                                   controller: pauseReasonController,
                                   decoration: InputDecoration(
                                     labelText: 'Keterangan Istirahat (Opsional)',
                                     labelStyle: const TextStyle(fontSize: 10, color: Color(0xFF78350F)),
-                                    hintText: 'Contoh: Kram ringan, ke toilet...',
+                                    hintText: 'Contoh: Ke toilet sebentar, kram ringan, istirahat sejenak',
                                     hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -2304,7 +2433,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                       if (stopCondition == 'withdraw_players') ...[
                         const Text('Pilih Pemain yang Keluar dari Sesi (Permanen) *', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                         const SizedBox(height: 2),
-                        const Text('Pilih satu atau lebih peserta match ini yang ditarik permanen:', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                        const Text('Pilih satu atau lebih peserta match ini yang tidak dapat melanjutkan sesi:', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
                         if (selectionError != null) ...[
                           const SizedBox(height: 4),
                           Container(
@@ -2331,6 +2460,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                         const SizedBox(height: 6),
                         ...allMatchPlayers.map((p) {
                           final checked = withdrawnPlayerIds.contains(p.id);
+                          final isTeamA = match.teamA.any((x) => x.id == p.id || x.name.trim().toLowerCase() == p.name.trim().toLowerCase());
                           final pError = playerReasonErrors[p.id];
                           return Container(
                             margin: const EdgeInsets.only(bottom: 6),
@@ -2352,28 +2482,55 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                               children: [
                                 Row(
                                   children: [
-                                    Checkbox(
-                                      value: checked,
-                                      activeColor: const Color(0xFFDC2626),
-                                      onChanged: (val) {
-                                        setDlgState(() {
-                                          if (val == true) {
-                                            withdrawnPlayerIds.add(p.id);
-                                          } else {
-                                            withdrawnPlayerIds.remove(p.id);
-                                            playerReasonErrors[p.id] = null;
-                                          }
-                                          validationError = null;
-                                          selectionError = null;
-                                        });
-                                      },
+                                    SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: Checkbox(
+                                        value: checked,
+                                        activeColor: const Color(0xFFDC2626),
+                                        onChanged: (val) {
+                                          setDlgState(() {
+                                            if (val == true) {
+                                              withdrawnPlayerIds.add(p.id);
+                                            } else {
+                                              withdrawnPlayerIds.remove(p.id);
+                                              playerReasonErrors[p.id] = null;
+                                            }
+                                            validationError = null;
+                                            selectionError = null;
+                                          });
+                                        },
+                                      ),
                                     ),
-                                    Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0F172A))),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        p.name,
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0F172A)),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isTeamA ? const Color(0xFFEFF6FF) : const Color(0xFFFEF3C7),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: isTeamA ? const Color(0xFFBFDBFE) : const Color(0xFFFDE68A)),
+                                      ),
+                                      child: Text(
+                                        isTeamA ? 'Tim A' : 'Tim B',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: isTeamA ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
-                                if (checked)
+                                if (checked) ...[
+                                  const SizedBox(height: 6),
                                   Padding(
-                                    padding: const EdgeInsets.only(left: 12, right: 8, bottom: 4),
+                                    padding: const EdgeInsets.only(left: 28, right: 4, bottom: 2),
                                     child: TextField(
                                       controller: playerReasonControllers[p.id],
                                       focusNode: playerReasonFocusNodes[p.id],
@@ -2384,7 +2541,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                         }
                                       }),
                                       decoration: InputDecoration(
-                                        labelText: 'Alasan Keluar *',
+                                        labelText: 'Alasan/kendala untuk ${p.name} *',
                                         labelStyle: TextStyle(
                                           fontSize: 10,
                                           color: pError != null ? const Color(0xFFDC2626) : const Color(0xFF991B1B),
@@ -2393,21 +2550,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                         hintText: 'Contoh: Cedera lutut, urusan mendadak...',
                                         hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
                                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(6),
-                                          borderSide: BorderSide(
-                                            color: pError != null ? const Color(0xFFDC2626) : const Color(0xFFCBD5E1),
-                                            width: pError != null ? 1.5 : 1.0,
-                                          ),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(6),
-                                          borderSide: BorderSide(
-                                            color: pError != null ? const Color(0xFFDC2626) : AppColors.matchaDark,
-                                            width: 1.5,
-                                          ),
-                                        ),
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                                         isDense: true,
                                         fillColor: Colors.white,
                                         filled: true,
@@ -2416,6 +2559,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                       ),
                                     ),
                                   ),
+                                ],
                               ],
                             ),
                           );
@@ -2425,28 +2569,32 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
                       // Impact Summary Box
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFFBEB),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: const Color(0xFFFDE68A)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: const [
-                                Icon(Icons.info_outline, size: 14, color: Color(0xFFD97706)),
+                            const Row(
+                              children: [
+                                Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFFD97706)),
                                 SizedBox(width: 6),
-                                Text('Dampak terhadap Pertandingan & Jadwal:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
+                                Text(
+                                  'Dampak terhadap Pertandingan & Jadwal:',
+                                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                ),
                               ],
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
                             Text(
-                              '• Match court ini akan ditandai Dihentikan dengan skor parsial (${match.scoreA} - ${match.scoreB}) tanpa pemenang.\n'
-                              '• Ronde berikutnya dapat dimulai setelah seluruh court aktif selesai/dihentikan.\n'
-                              '• ${stopCondition == 'keep_in_session' ? 'Seluruh pemain tetap berada dalam sesi pertandingan.' : 'Pemain yang ditarik tidak akan diikutsertakan pada ronde mendatang.'}',
-                              style: const TextStyle(fontSize: 9.5, color: Color(0xFF78350F), height: 1.3),
+                              '• Match court ini akan ditandai Dihentikan dengan skor parsial terakhir yang sah (${match.scoreA} - ${match.scoreB}).\n'
+                              '• ${stopCondition == 'keep_in_session' ? (pausePlayersToggle && pausedPlayerIds.isNotEmpty ? "Pemain yang butuh istirahat: (${allMatchPlayers.where((p) => pausedPlayerIds.contains(p.id)).map((p) => p.name).join(', ')}) akan otomatis ditempatkan di Bangku Cadangan (Bench) pada ronde berikutnya." : "Drawing dan seluruh pemain tetap berpartisipasi pada ronde mendatang.") : (withdrawnPlayerIds.isNotEmpty ? "Pemain yang keluar: (${allMatchPlayers.where((p) => withdrawnPlayerIds.contains(p.id)).map((p) => p.name).join(', ')}) akan ditandai tidak aktif untuk sesi ini (riwayat ronde lampau tetap tersimpan)." : "Pemain yang keluar: (Belum ada pemain dipilih) akan ditandai tidak aktif untuk sesi ini.")}\n'
+                              '• Pemain lain tetap aktif bertanding seperti biasa di lapangan.\n'
+                              '• Partner dan lawan yang tidak keluar tetap aktif di sesi ini.',
+                              style: const TextStyle(fontSize: 9.5, color: Color(0xFF78350F), height: 1.35),
                             ),
                           ],
                         ),
@@ -2483,9 +2631,9 @@ class MatchScoringPageState extends State<MatchScoringPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Batal', style: TextStyle(color: Color(0xFF64748B))),
+                  child: const Text('Batal', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
                 ),
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: () {
                     if (stopCondition == 'keep_in_session') {
                       if (reasonControllerA.text.trim().isEmpty) {
@@ -2531,12 +2679,14 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                     }
                     Navigator.pop(ctx, true);
                   },
+                  icon: const Icon(Icons.check_rounded, size: 16),
+                  label: const Text('Konfirmasi Akhiri Pertandingan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFDC2626),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   ),
-                  child: const Text('Hentikan Match', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -2558,7 +2708,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
         if (pausePlayersToggle) {
           for (final pidStr in pausedPlayerIds) {
             final pObj = allMatchPlayers.firstWhere((item) => item.id == pidStr);
-            final pInt = MatchService.resolvePlayerId(pObj) ?? pObj.playerId ?? int.tryParse(pObj.id);
+            final pInt = MatchService.resolvePlayerId(pObj, _config.players) ?? pObj.playerId ?? int.tryParse(pObj.id);
             if (pInt != null) {
               resolvedPausedIds.add(pInt);
               if (pNote.isNotEmpty) resolvedPlayerReasons[pInt] = pNote;
@@ -2571,7 +2721,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           final pObj = allMatchPlayers.firstWhere((item) => item.id == pidStr);
           final pReason = playerReasonControllers[pidStr]?.text.trim() ?? 'Keluar dari sesi';
           withdrawnDetails.add('${pObj.name}: $pReason');
-          final pInt = MatchService.resolvePlayerId(pObj) ?? pObj.playerId ?? int.tryParse(pObj.id);
+          final pInt = MatchService.resolvePlayerId(pObj, _config.players) ?? pObj.playerId ?? int.tryParse(pObj.id);
           if (pInt != null) {
             resolvedWithdrawnIds.add(pInt);
             resolvedPlayerReasons[pInt] = pReason;
@@ -2582,14 +2732,16 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
       setState(() {
         match.status = 'Stopped';
-        match.stopType = stopCondition;
+        match.stopType = stopCondition == 'keep_in_session'
+            ? (resolvedPausedIds.isNotEmpty ? 'temporary_pause' : 'keep_in_session')
+            : 'withdraw_players';
         match.stopReason = finalReason;
         match.winnerTeam = null;
 
         // Update local players roster
         if (resolvedWithdrawnIds.isNotEmpty) {
           for (final wId in resolvedWithdrawnIds) {
-            final idx = _config.players.indexWhere((p) => (MatchService.resolvePlayerId(p) ?? p.playerId ?? int.tryParse(p.id)) == wId);
+            final idx = _config.players.indexWhere((p) => (MatchService.resolvePlayerId(p, _config.players) ?? p.playerId ?? int.tryParse(p.id)) == wId);
             if (idx != -1) {
               final p = _config.players[idx];
               _config.players[idx] = GamePlayerItem(
@@ -2611,7 +2763,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
         if (resolvedPausedIds.isNotEmpty) {
           for (final pId in resolvedPausedIds) {
-            final idx = _config.players.indexWhere((p) => (MatchService.resolvePlayerId(p) ?? p.playerId ?? int.tryParse(p.id)) == pId);
+            final idx = _config.players.indexWhere((p) => (MatchService.resolvePlayerId(p, _config.players) ?? p.playerId ?? int.tryParse(p.id)) == pId);
             if (idx != -1) {
               final p = _config.players[idx];
               _config.players[idx] = GamePlayerItem(
@@ -2637,16 +2789,36 @@ class MatchScoringPageState extends State<MatchScoringPage> {
             matchId: match.matchId!,
             sessionId: widget.sessionId,
             reason: finalReason,
-            stopType: stopCondition,
+            stopType: stopCondition == 'keep_in_session'
+                ? (resolvedPausedIds.isNotEmpty ? 'temporary_pause' : 'keep_in_session')
+                : 'withdraw_players',
             stoppedByUserId: widget.authController?.currentUser?.userId,
             hasilPertandingan: 'Dihentikan: ${match.scoreA} - ${match.scoreB} ($finalReason)',
             pausedPlayerIds: resolvedPausedIds.isNotEmpty ? resolvedPausedIds : null,
             withdrawnPlayerIds: resolvedWithdrawnIds.isNotEmpty ? resolvedWithdrawnIds : null,
             playerReasons: resolvedPlayerReasons.isNotEmpty ? resolvedPlayerReasons : null,
+            scoreA: match.scoreA,
+            scoreB: match.scoreB,
+            pointDisplayA: match.pointDisplayA,
+            pointDisplayB: match.pointDisplayB,
+            roundNumber: _viewedRoundIndex + 1,
+            scoringSystem: _scoringConfig.label,
           );
         } catch (e) {
           debugPrint('[Scoring] Error stopping match: $e');
         }
+      }
+
+      // Refetch session players to ensure full sync with Supabase
+      if (widget.sessionId != null) {
+        try {
+          final refreshed = await _matchService.getSessionPlayers(widget.sessionId);
+          if (refreshed.isNotEmpty && mounted) {
+            setState(() {
+              _config.players = refreshed;
+            });
+          }
+        } catch (_) {}
       }
 
       if (mounted) {
@@ -3943,197 +4115,13 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
 
-          // Round Finished Notification Banner
+          const SizedBox(height: 12),
 
-          if (_isCurrentActiveRoundFinished && !_isAllRoundsFinished)
+          // 1. Status Pertandingan Ronde (Always visible like Web)
+          _buildRoundStatusCard(currentRound),
 
-            Container(
-
-              margin: const EdgeInsets.only(top: 8),
-
-              padding: const EdgeInsets.all(14),
-
-              decoration: BoxDecoration(
-
-                color: const Color(0xFFFEF3C7),
-
-                borderRadius: BorderRadius.circular(14),
-
-                border: Border.all(color: const Color(0xFFFDE68A)),
-
-              ),
-
-              child: Column(
-
-                crossAxisAlignment: CrossAxisAlignment.start,
-
-                children: [
-
-                  Row(
-
-                    children: [
-
-                      const Icon(
-
-                        Icons.emoji_events_rounded,
-
-                        color: Color(0xFFD97706),
-
-                        size: 20,
-
-                      ),
-
-                      const SizedBox(width: 10),
-
-                      Expanded(
-
-                        child: Column(
-
-                          crossAxisAlignment: CrossAxisAlignment.start,
-
-                          children: [
-
-                            Text(
-
-                              'Ronde ${_sessionActiveRoundIndex + 1} Selesai',
-
-                              style: const TextStyle(
-
-                                fontWeight: FontWeight.w800,
-
-                                fontSize: 13,
-
-                                color: Color(0xFF92400E),
-
-                              ),
-
-                            ),
-
-                            const SizedBox(height: 2),
-
-                            Text(
-
-                              isHost
-
-                                  ? 'Host dapat melanjutkan ke ronde berikutnya atau menyelesaikan sesi.'
-
-                                  : 'Menunggu Host untuk melanjutkan ke ronde berikutnya.',
-
-                              style: const TextStyle(
-
-                                fontSize: 11,
-
-                                color: Color(0xFFB45309),
-
-                              ),
-
-                            ),
-
-                          ],
-
-                        ),
-
-                      ),
-
-                    ],
-
-                  ),
-
-                  if (isHost) ...[
-
-                    const SizedBox(height: 12),
-
-                    Row(
-
-                      children: [
-
-                        Expanded(
-
-                          child: ElevatedButton.icon(
-
-                            onPressed: _advanceToNextRound,
-
-                            icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-
-                            label: Text(
-                              'Lanjut ke ${_config.gameType.toLowerCase().contains('team') ? 'Set' : 'Ronde'} ${_sessionActiveRoundIndex + 2}',
-                              style: const TextStyle(
-
-                                fontWeight: FontWeight.bold,
-
-                                fontSize: 12,
-
-                              ),
-
-                            ),
-
-                            style: ElevatedButton.styleFrom(
-
-                              backgroundColor: AppColors.matchaDark,
-
-                              foregroundColor: Colors.white,
-
-                              shape: RoundedRectangleBorder(
-
-                                borderRadius: BorderRadius.circular(10),
-
-                              ),
-
-                              elevation: 0,
-
-                            ),
-
-                          ),
-
-                        ),
-
-                        const SizedBox(width: 8),
-
-                        OutlinedButton(
-
-                          onPressed: _finishSessionAndShowRecap,
-
-                          style: OutlinedButton.styleFrom(
-
-                            foregroundColor: const Color(0xFF92400E),
-
-                            side: const BorderSide(color: Color(0xFFD97706)),
-
-                            shape: RoundedRectangleBorder(
-
-                              borderRadius: BorderRadius.circular(10),
-
-                            ),
-
-                          ),
-
-                          child: const Text(
-
-                            'Selesaikan Sesi',
-
-                            style: TextStyle(
-
-                              fontWeight: FontWeight.bold,
-
-                              fontSize: 12,
-
-                            ),
-
-                          ),
-
-                        ),
-
-                      ],
-
-                    ),
-
-                  ],
-
-                ],
-
-              ),
-
-            ),
+          // 2. Status Pemain & Rotasi Sesi (Always visible like Web)
+          _buildPlayerReadinessAndRotationCard(currentRound),
 
 
 
@@ -5656,12 +5644,538 @@ class MatchScoringPageState extends State<MatchScoringPage> {
             ),
 
           ),
+
+          // 6. Action Bar: Akhiri Pertandingan & Sinkron Realtime (Matches Web)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (isHost && _isCurrentViewedRoundActive && !isCompleted && !isStopped)
+                  InkWell(
+                    onTap: () => _showStopMatchDialog(match),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.stop_rounded, size: 14, color: Color(0xFFDC2626)),
+                          SizedBox(width: 5),
+                          Text(
+                            'Akhiri Pertandingan',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFDC2626),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: _isRealtimeConnected ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Sinkron realtime: 0.4s',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
 
       ),
 
     );
 
+  }
+
+  /// Card Status Pertandingan Ronde (Selalu tampil di bawah scoreboard, identik dengan Web)
+  Widget _buildRoundStatusCard(DrawingRound currentRound) {
+    final uncompletedMatches = currentRound.matches.where((m) => !m.isTerminal).toList();
+    final isAllCompleted = currentRound.matches.isNotEmpty && uncompletedMatches.isEmpty;
+    final hasNextRound = _sessionActiveRoundIndex + 1 < _rounds.length;
+
+    String descText;
+    if (isAllCompleted) {
+      if (isHost) {
+        descText = 'Semua court telah menyelesaikan pertandingan. Silakan lanjut ke ${hasNextRound ? "ronde berikutnya" : "hasil akhir & podium"}.';
+      } else {
+        descText = 'Semua court telah menyelesaikan pertandingan. Menunggu Host ${hasNextRound ? "memulai ronde berikutnya" : "menyelesaikan sesi"}...';
+      }
+    } else {
+      final uncompletedCourts = uncompletedMatches.map((m) => 'Court ${m.courtNumber}').join(', ');
+      descText = uncompletedCourts.isNotEmpty
+          ? 'Menunggu $uncompletedCourts menyelesaikan pertandingan...'
+          : 'Pertandingan sedang berlangsung pada seluruh court...';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                ),
+                child: const Icon(Icons.sports_score_rounded, color: Color(0xFF15803D), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: isAllCompleted ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            isAllCompleted
+                                ? 'Seluruh Pertandingan Ronde ${currentRound.roundNumber} Selesai!'
+                                : 'Status Pertandingan Ronde ${currentRound.roundNumber}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      descText,
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (isAllCompleted && isHost && _isCurrentViewedRoundActive) ...[
+            const SizedBox(height: 12),
+            if (hasNextRound)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isAdvancingRound ? null : _advanceToNextRound,
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                  label: Text('Lanjut ke Ronde ${_sessionActiveRoundIndex + 2} (Lihat Drawing Lapangan)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.matchaDark,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _finishSessionAndShowRecap,
+                  icon: const Icon(Icons.emoji_events_rounded, size: 16),
+                  label: const Text('Selesaikan Sesi & Lihat Juara'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.matchaDark,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Card Status Pemain & Rotasi Sesi (Selalu tampil di bawah status ronde, identik dengan Web)
+  Widget _buildPlayerReadinessAndRotationCard(DrawingRound currentRound) {
+    final allRoster = _config.players.isNotEmpty ? _config.players : <GamePlayerItem>[];
+    final activeCount = allRoster.where((p) => p.isActive).length;
+    final restingCount = allRoster.where((p) => p.isResting).length;
+    final withdrawnCount = allRoster.where((p) => p.isWithdrawn).length;
+
+    // Pemain aktif bertanding pada ronde ini di seluruh court
+    final roundActivePlayerCleanNames = <String>{};
+    final roundActivePlayerIds = <int>{};
+    for (final m in currentRound.matches) {
+      for (final p in [...m.teamA, ...m.teamB]) {
+        roundActivePlayerCleanNames.add(p.name.trim().toLowerCase());
+        final pInt = MatchService.resolvePlayerId(p, allRoster) ?? p.playerId ?? int.tryParse(p.id);
+        if (pInt != null) roundActivePlayerIds.add(pInt);
+      }
+    }
+
+    // Bangku Cadangan (Bench):
+    // 1. Pemain sesi yang tidak keluar & tidak sedang bertanding di lapangan ronde ini
+    // 2. Pemain resting / paused
+    final benchPlayers = <GamePlayerItem>[];
+    final benchNames = <String>{};
+
+    for (final p in allRoster) {
+      if (p.isWithdrawn) continue;
+      final cleanName = p.name.trim().toLowerCase();
+      final pInt = MatchService.resolvePlayerId(p, allRoster) ?? p.playerId ?? int.tryParse(p.id);
+      final isPlaying = roundActivePlayerCleanNames.contains(cleanName) ||
+          (pInt != null && roundActivePlayerIds.contains(pInt));
+
+      if (!isPlaying || p.isResting) {
+        if (!benchNames.contains(cleanName)) {
+          benchNames.add(cleanName);
+          benchPlayers.add(p);
+        }
+      }
+    }
+
+    for (final rp in currentRound.restingPlayers) {
+      final cleanName = rp.name.trim().toLowerCase();
+      if (!benchNames.contains(cleanName)) {
+        benchNames.add(cleanName);
+        benchPlayers.add(rp);
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                ),
+                child: const Icon(Icons.people_alt_rounded, color: Color(0xFF15803D), size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Text(
+                          'Status Pemain & Rotasi Sesi',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                          ),
+                          child: Text(
+                            '$activeCount Siap / Aktif',
+                            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+                          ),
+                        ),
+                        if (restingCount > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFFDE68A)),
+                            ),
+                            child: Text(
+                              '$restingCount Istirahat',
+                              style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                            ),
+                          ),
+                        if (withdrawnCount > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEE2E2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFFECACA)),
+                            ),
+                            child: Text(
+                              '$withdrawnCount Keluar',
+                              style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Status partisipasi aktual seluruh peserta dan alokasi rotasi ronde ini',
+                      style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+              if (isHost)
+                IconButton(
+                  icon: const Icon(Icons.tune_rounded, size: 18, color: Color(0xFF64748B)),
+                  tooltip: 'Kelola Kesiapan Pemain',
+                  onPressed: _showPlayerStatusManagementModal,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Partisipasi Pemain Sesi
+          Row(
+            children: [
+              Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF16A34A), shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              const Text(
+                'Partisipasi Pemain Sesi',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: allRoster.map((p) {
+              final isWithdrawn = p.isWithdrawn;
+              final isResting = p.isResting;
+
+              Color dotColor;
+              Color badgeBg;
+              Color badgeFg;
+              String badgeLabel;
+
+              if (isWithdrawn) {
+                dotColor = const Color(0xFFDC2626);
+                badgeBg = const Color(0xFFFEE2E2);
+                badgeFg = const Color(0xFF991B1B);
+                badgeLabel = 'Keluar';
+              } else if (isResting) {
+                dotColor = const Color(0xFFD97706);
+                badgeBg = const Color(0xFFFEF3C7);
+                badgeFg = const Color(0xFF92400E);
+                badgeLabel = 'Istirahat';
+              } else {
+                dotColor = const Color(0xFF16A34A);
+                badgeBg = const Color(0xFFDCFCE7);
+                badgeFg = const Color(0xFF15803D);
+                badgeLabel = 'Siap';
+              }
+
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isWithdrawn ? const Color(0xFFFFF1F2) : (isResting ? const Color(0xFFFFFBEB) : Colors.white),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isWithdrawn
+                        ? const Color(0xFFFECACA)
+                        : (isResting ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0)),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(width: 6, height: 6, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
+                    const SizedBox(width: 5),
+                    Text(
+                      p.name,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isWithdrawn ? const Color(0xFF94A3B8) : const Color(0xFF1E293B),
+                        decoration: isWithdrawn ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: badgeBg,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        badgeLabel,
+                        style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: badgeFg),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+
+          // Bangku Istirahat (Bench) Section
+          if (benchPlayers.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: Color(0xFFF1F5F9)),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.coffee_rounded, size: 14, color: Color(0xFFD97706)),
+                    const SizedBox(width: 5),
+                    const Text(
+                      'Bangku Istirahat (Bench) Ronde Ini',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: Text(
+                        '${benchPlayers.length} Pemain',
+                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                      ),
+                    ),
+                  ],
+                ),
+                const Text(
+                  'Rotasi bermain ronde berikutnya',
+                  style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: benchPlayers.map((p) {
+                final isResting = p.isResting;
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isResting ? const Color(0xFFFFFBEB) : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isResting ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: isResting ? const Color(0xFFD97706) : const Color(0xFFF59E0B),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        p.name,
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                      ),
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: isResting ? const Color(0xFFFEF3C7) : const Color(0xFFFEF9C3),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: isResting ? const Color(0xFFFDE68A) : const Color(0xFFFEF08A),
+                          ),
+                        ),
+                        child: Text(
+                          isResting ? 'Istirahat' : 'Bench',
+                          style: TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.bold,
+                            color: isResting ? const Color(0xFF92400E) : const Color(0xFF854D0E),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
 }
