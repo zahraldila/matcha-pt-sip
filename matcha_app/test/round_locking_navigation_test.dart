@@ -7,6 +7,7 @@ import 'package:matcha_app/features/auth/presentation/controllers/auth_controlle
 import 'package:matcha_app/features/drawing/domain/matcha_drawing_engine.dart';
 import 'package:matcha_app/features/games/domain/game_wizard_model.dart';
 import 'package:matcha_app/features/match/data/match_service.dart';
+import 'package:matcha_app/features/drawing/presentation/drawing_result_page.dart';
 import 'package:matcha_app/features/match/presentation/match_scoring_page.dart';
 
 class _FakeAuthDataSource extends Fake implements AuthRemoteDataSource {}
@@ -49,6 +50,9 @@ class _MockMatchService extends MatchService {
   Future<Map<String, dynamic>?> getSession(dynamic sessionId) async {
     return sessionData;
   }
+
+  @override
+  Future<bool> isSessionDrawingLocked(dynamic sessionId) async => true;
 
   @override
   Future<List<DrawingRound>?> loadSavedDrawing({
@@ -334,16 +338,24 @@ void main() {
 
       expect(find.text('Lanjut ke Ronde 2'), findsOneWidget);
 
-      // Host tap "Lanjut ke Ronde 2"
+      // Host tap "Lanjut ke Ronde 2" -> dialihkan ke DrawingResultPage untuk melihat drawing Ronde 2
       await tester.tap(find.text('Lanjut ke Ronde 2'));
       await tester.pumpAndSettle();
 
-      // Host langsung melihat Ronde 2 aktif pada 0-0
+      expect(service.broadcastRoundAdvancedCalled, isTrue);
+      expect(service.broadcastNextRound, equals(2));
+      expect(find.byType(DrawingResultPage), findsOneWidget);
+
+      // Host memulai scoring Ronde 2 dari halaman Drawing
+      final startScoringBtn = find.textContaining('Mulai Scoring Ronde 2');
+      expect(startScoringBtn, findsOneWidget);
+      await tester.tap(startScoringBtn);
+      await tester.pumpAndSettle();
+
+      // Host kembali ke MatchScoringPage dan melihat Ronde 2 aktif pada 0-0
       expect(find.text('Ronde 1 Selesai'), findsNothing);
       expect(find.text('Mode Tinjau Riwayat'), findsNothing);
       expect(find.text('+ Tambah Poin Team A'), findsOneWidget);
-      expect(service.broadcastRoundAdvancedCalled, isTrue);
-      expect(service.broadcastNextRound, equals(2));
 
       // Hanya Ronde 3 yang terkunci sekarang
       expect(find.byIcon(Icons.lock_rounded), findsOneWidget);
@@ -380,14 +392,24 @@ void main() {
       // Player initially at completed round 1
       expect(find.text('Ronde 1 Selesai'), findsOneWidget);
 
-      // Broadcast realtime tiba pada player
+      // Broadcast realtime tiba pada player -> dialihkan ke DrawingResultPage
       playerService.onRoundAdvancedCallback?.call({
         'current_round_num': 1,
         'next_round_num': 2,
       });
       await tester.pumpAndSettle();
 
-      // Player langsung berpindah dan menampilkan ronde 2 pada 0-0 tanpa tombol input
+      // Player membuka DrawingResultPage Ronde 2 lalu tap Lihat Live Scoring
+      expect(find.byType(DrawingResultPage), findsOneWidget);
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+
+      final playerViewLiveBtn = find.textContaining('Lihat Live Scoring');
+      expect(playerViewLiveBtn, findsOneWidget);
+      await tester.tap(playerViewLiveBtn);
+      await tester.pumpAndSettle();
+
+      // Player masuk ke MatchScoringPage Ronde 2 pada 0-0 tanpa tombol input
       expect(find.text('Ronde 1 Selesai'), findsNothing);
       expect(find.text('+ Tambah Poin Team A'), findsNothing); // Player tidak punya input
       // Ronde 3 tetap terkunci untuk player

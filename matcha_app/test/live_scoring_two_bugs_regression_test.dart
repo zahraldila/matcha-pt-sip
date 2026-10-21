@@ -5,6 +5,7 @@ import 'package:matcha_app/features/auth/data/datasource/auth_remote_data_source
 import 'package:matcha_app/features/auth/domain/models/user_model.dart';
 import 'package:matcha_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:matcha_app/features/drawing/domain/matcha_drawing_engine.dart';
+import 'package:matcha_app/features/drawing/presentation/drawing_result_page.dart';
 import 'package:matcha_app/features/games/domain/game_wizard_model.dart';
 import 'package:matcha_app/features/match/data/match_service.dart';
 import 'package:matcha_app/features/match/presentation/match_scoring_page.dart';
@@ -50,6 +51,9 @@ class _MockMatchService extends MatchService {
   Future<Map<String, dynamic>?> getSession(dynamic sessionId) async {
     return sessionData;
   }
+
+  @override
+  Future<bool> isSessionDrawingLocked(dynamic sessionId) async => true;
 
   @override
   Future<List<DrawingRound>?> loadSavedDrawing({
@@ -444,7 +448,7 @@ void main() {
       await tester.tap(find.text('Lanjut ke Ronde 2'));
       await tester.pumpAndSettle();
 
-      // Sekarang berada di Ronde 2
+      // Sekarang berada di Drawing Ronde 2
       expect(find.text('Ronde 1 Selesai'), findsNothing);
       expect(service.broadcastRoundAdvancedCalled, isTrue);
       expect(service.broadcastNextRound, 2);
@@ -452,6 +456,13 @@ void main() {
 
       // Ronde 3 tetap terkunci
       expect(find.byIcon(Icons.lock_rounded), findsOneWidget);
+
+      // Host membuka Scoring Ronde 2
+      final startRound2Btn = find.textContaining('Mulai Scoring Ronde 2');
+      if (startRound2Btn.evaluate().isNotEmpty) {
+        await tester.tap(startRound2Btn);
+        await tester.pumpAndSettle();
+      }
 
       // Simulasikan event broadcast round_advanced duplikat dengan payload ronde 2 yang sama
       service.onRoundAdvancedCallback?.call({
@@ -478,8 +489,9 @@ void main() {
 
     testWidgets('Player otomatis masuk ke Ronde 2 tanpa refresh saat menerima broadcast round_advanced dari Host', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 2.0;
+      tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
       final matches = createTwoCourtThreeRoundMatchesData(
         round1Status: 'Completed',
@@ -526,8 +538,16 @@ void main() {
       });
       await tester.pumpAndSettle();
 
-      // Player OTOMATIS membuka Ronde 2 tanpa refresh!
+      // Player OTOMATIS membuka Drawing Ronde 2 lalu membuka Live Scoring
       expect(find.text('Ronde 1 Selesai'), findsNothing);
+      expect(find.byType(DrawingResultPage), findsOneWidget);
+      final viewLiveBtn = find.textContaining('Lihat Live Scoring');
+      expect(viewLiveBtn, findsOneWidget);
+      // Tunggu / hilangkan SnackBar agar tidak menghalangi tombol di bawah
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      await tester.tap(viewLiveBtn);
+      await tester.pumpAndSettle();
       expect(find.text('Pilih Lapangan (2 Court):'), findsOneWidget);
       expect(find.byIcon(Icons.lock_rounded), findsOneWidget); // Hanya Ronde 3 yang terkunci
     });
@@ -736,9 +756,16 @@ void main() {
       await tester.tap(find.text('Lanjut ke Ronde 3'));
       await tester.pumpAndSettle();
 
-      // Host sekarang di Ronde 3
+      // Host sekarang di Drawing Ronde 3 lalu membuka Scoring Ronde 3
       expect(find.text('Ronde 2 Selesai'), findsNothing);
       expect(service.broadcastNextRound, 3);
+      if (find.byType(DrawingResultPage).evaluate().isNotEmpty) {
+        final startBtn = find.textContaining('Mulai Scoring Ronde 3');
+        if (startBtn.evaluate().isNotEmpty) {
+          await tester.tap(startBtn);
+          await tester.pumpAndSettle();
+        }
+      }
       expect(find.text('Pilih Lapangan (2 Court):'), findsOneWidget);
       expect(find.textContaining('Court 1 ('), findsOneWidget);
       expect(find.textContaining('Court 2 ('), findsOneWidget);
