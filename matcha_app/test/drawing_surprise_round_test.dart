@@ -243,5 +243,44 @@ void main() {
       expect(find.text('Ronde 3 Belum Dimulai'), findsOneWidget);
       expect(find.text('Buka Ronde 2 (Aktif)'), findsOneWidget);
     });
+
+    testWidgets('4. Membuka DrawingResultPage dengan initialRoundIndex Ronde 2 langsung menampilkan Court & Roster (bukan gembok)', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final rounds = createMockRounds(round1Finished: true, round2Finished: false);
+      final mockAuth = _MockAuthController(
+        initialUser: const UserModel(userId: 1, nama: 'Host User', email: 'host@matcha.app'),
+      );
+      final mockService = _MockMatchService(savedDrawing: rounds, isLocked: true);
+
+      await tester.pumpWidget(MaterialApp(
+        home: DrawingResultPage(
+          sessionId: 99,
+          config: wizardConfig,
+          initialRounds: rounds,
+          initialRoundIndex: 1,
+          authController: mockAuth,
+          matchService: mockService,
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Tab Ronde 1 berlabel Selesai
+      expect(find.text('Selesai'), findsAtLeastNWidgets(1));
+
+      // Ronde 2 langsung terpilih dan TERBUKA tanpa kartu gembok
+      expect(find.text('Ronde 2 Belum Dimulai'), findsNothing);
+      expect(find.text('Ronde Terkunci'), findsNothing);
+      expect(find.text('LIVE PREVIEW'), findsOneWidget);
+      expect(find.text('Court 1 (Sesi Game)'), findsOneWidget);
+      expect(find.text('BANGKU ISTIRAHAT (BENCH)'), findsOneWidget);
+
+      // Tombol bawah menampilkan 'Mulai Scoring Ronde 2'
+      expect(find.textContaining('Mulai Scoring Ronde 2'), findsOneWidget);
+    });
   });
 }

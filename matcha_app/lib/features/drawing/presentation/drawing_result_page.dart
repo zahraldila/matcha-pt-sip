@@ -244,6 +244,23 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         }
 
         if (savedRounds != null && savedRounds.isNotEmpty) {
+          // Pertahankan status terminal/skor dari _rounds lokal jika savedRounds di DB masih Scheduled/In Progress
+          if (_rounds.isNotEmpty && _rounds.length == savedRounds.length) {
+            for (int r = 0; r < savedRounds.length; r++) {
+              for (int m = 0; m < savedRounds[r].matches.length; m++) {
+                if (m < _rounds[r].matches.length) {
+                  final oldM = _rounds[r].matches[m];
+                  final newM = savedRounds[r].matches[m];
+                  if (oldM.isTerminal && !newM.isTerminal) {
+                    newM.status = oldM.status;
+                    newM.scoreA = oldM.scoreA;
+                    newM.scoreB = oldM.scoreB;
+                    newM.winnerTeam = oldM.winnerTeam;
+                  }
+                }
+              }
+            }
+          }
           _rounds = savedRounds;
           _config.courtCount = savedRounds
               .expand((round) => round.matches)
@@ -268,7 +285,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         if (_rounds.isNotEmpty) {
           if (widget.initialRoundIndex != null) {
             _selectedRoundIndex = widget.initialRoundIndex!.clamp(0, _rounds.length - 1);
-          } else if (_selectedRoundIndex == 0) {
+          } else if (_selectedRoundIndex == 0 && _activeUnlockedRoundIndex > 0) {
             _selectedRoundIndex = _activeUnlockedRoundIndex;
           }
         }
@@ -1248,21 +1265,99 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       ),
     );
   }
+  int get _effectiveSessionActiveRoundIndex {
+    int active = 0;
+    if (widget.initialRoundIndex != null) {
+      active = widget.initialRoundIndex!;
+    }
+    if (_sessionData != null) {
+      final raw = _sessionData!['active_round'] ?? _sessionData!['session_active_round'];
+      if (raw is int && raw > 0) {
+        if (raw - 1 > active) active = raw - 1;
+      } else if (raw != null) {
+        final d = RegExp(r'\d+').firstMatch(raw.toString())?.group(0);
+        if (d != null) {
+          final n = int.tryParse(d);
+          if (n != null && n > 0 && n - 1 > active) {
+            active = n - 1;
+          }
+        }
+      }
+    }
+    // Scan ronde tertinggi dari match yang sudah In Progress / Playing / Completed / ada skor
+    for (int i = 0; i < _rounds.length; i++) {
+      final matches = _rounds[i].matches;
+      final hasStarted = matches.any((m) =>
+          m.status.toLowerCase() == 'in progress' ||
+          m.status.toLowerCase() == 'playing' ||
+          m.isTerminal ||
+          m.scoreA > 0 ||
+          m.scoreB > 0 ||
+          (m.pointDisplayA != '0' && m.pointDisplayA.isNotEmpty) ||
+          (m.pointDisplayB != '0' && m.pointDisplayB.isNotEmpty));
+      if (hasStarted && i > active) {
+        active = i;
+      }
+    }
+    return _rounds.isEmpty ? active : active.clamp(0, _rounds.length - 1);
+  }
+
   bool _isRoundCompleted(int index) {
     if (index < 0 || index >= _rounds.length) return false;
     final r = _rounds[index];
     if (r.matches.isEmpty) return false;
+
+    // 1. Jika sesi sudah berada di ronde setelah ronde index, maka ronde index pasti sudah selesai
+    if (index < _effectiveSessionActiveRoundIndex) return true;
+
+    // 2. Jika ronde berikutnya sudah ada match yang dimulai (in progress / playing / ada skor)
+    if (index + 1 < _rounds.length) {
+      final nextMatches = _rounds[index + 1].matches;
+      final nextStarted = nextMatches.any((m) =>
+          m.status.toLowerCase() == 'in progress' ||
+          m.status.toLowerCase() == 'playing' ||
+          m.isTerminal ||
+          m.scoreA > 0 ||
+          m.scoreB > 0 ||
+          (m.pointDisplayA != '0' && m.pointDisplayA.isNotEmpty) ||
+          (m.pointDisplayB != '0' && m.pointDisplayB.isNotEmpty));
+      if (nextStarted) return true;
+    }
+
+    // 3. Cek apakah seluruh match pada ronde ini sudah terminal
     return r.matches.every((m) => m.isTerminal);
   }
 
   bool _isRoundAccessible(int index) {
     if (index == 0) return true; // Ronde 1 selalu terbuka
     if (index < 0 || index >= _rounds.length) return false;
+
+    // Ronde aktif sesi atau ronde sebelumnya selalu accessible
+    if (index <= _effectiveSessionActiveRoundIndex) return true;
+    if (widget.initialRoundIndex != null && index <= widget.initialRoundIndex!) return true;
+
+    // Jika ronde ini sudah ada match yang berjalan atau selesai
+    final r = _rounds[index];
+    if (r.matches.any((m) =>
+        m.status.toLowerCase() == 'in progress' ||
+        m.status.toLowerCase() == 'playing' ||
+        m.isTerminal ||
+        m.scoreA > 0 ||
+        m.scoreB > 0)) {
+      return true;
+    }
+
     // Ronde N terbuka secara bertahap setelah Ronde N-1 selesai dimainkan
     return _isRoundCompleted(index - 1);
   }
 
   int get _activeUnlockedRoundIndex {
+    final serverActive = _effectiveSessionActiveRoundIndex;
+    if (serverActive >= 0 && serverActive < _rounds.length) {
+      if (!_isRoundCompleted(serverActive)) {
+        return serverActive;
+      }
+    }
     for (int i = 0; i < _rounds.length; i++) {
       if (!_isRoundAccessible(i)) {
         return (i - 1).clamp(0, _rounds.length - 1);
