@@ -13,6 +13,7 @@ class DrawingResultPage extends StatefulWidget {
   final dynamic sessionId;
   final GameWizardConfig? config;
   final List<DrawingRound>? initialRounds;
+  final int? initialRoundIndex;
   final AuthController? authController;
   final bool? isHost;
   final dynamic hostUserId;
@@ -22,6 +23,7 @@ class DrawingResultPage extends StatefulWidget {
     this.sessionId,
     this.config,
     this.initialRounds,
+    this.initialRoundIndex,
     this.authController,
     this.isHost,
     this.hostUserId,
@@ -101,6 +103,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     super.initState();
     _matchService = widget.matchService ?? MatchService();
     _sessionHostUserId = widget.hostUserId;
+    if (widget.initialRoundIndex != null) {
+      _selectedRoundIndex = widget.initialRoundIndex!;
+    }
     _config = widget.config ??
         GameWizardConfig(
           sessionId: widget.sessionId,
@@ -247,9 +252,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                 (highest, match) =>
                     match.courtNumber > highest ? match.courtNumber : highest,
               );
-        } else if (_rounds.isNotEmpty && _isHostUser) {
-          // Keep existing host rounds
-        } else if (widget.initialRounds != null && widget.initialRounds!.isNotEmpty && _isHostUser) {
+        } else if (_rounds.isNotEmpty) {
+          // Keep existing rounds
+        } else if (widget.initialRounds != null && widget.initialRounds!.isNotEmpty) {
           _rounds = List.from(widget.initialRounds!);
         } else if (_isHostUser && _rounds.isEmpty) {
           if (session != null && session['tb_session_court'] is List) {
@@ -259,6 +264,13 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             }
           }
           _generateInitialDrawing();
+        }
+        if (_rounds.isNotEmpty) {
+          if (widget.initialRoundIndex != null) {
+            _selectedRoundIndex = widget.initialRoundIndex!.clamp(0, _rounds.length - 1);
+          } else if (_selectedRoundIndex == 0) {
+            _selectedRoundIndex = _activeUnlockedRoundIndex;
+          }
         }
         _isLoading = false;
         _errorMessage = null;
@@ -394,6 +406,26 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     }
     final sessId = _effectiveSessionId;
     if (sessId != null) {
+      if (_isLocked) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MatchScoringPage(
+              sessionId: sessId,
+              config: _config,
+              rounds: _rounds,
+              initialRoundIndex: _selectedRoundIndex,
+              authController: widget.authController,
+              matchService: _matchService,
+              isHost: true,
+              hostUserId: _sessionHostUserId is int
+                  ? _sessionHostUserId
+                  : int.tryParse(_sessionHostUserId?.toString() ?? ''),
+            ),
+          ),
+        );
+        return;
+      }
       final formatId = _tryResolveMatchFormatId();
       if (formatId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -432,6 +464,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               sessionId: sessId,
               config: _config,
               rounds: _rounds,
+              initialRoundIndex: _selectedRoundIndex,
               authController: widget.authController,
               matchService: _matchService,
               isHost: true,
@@ -460,6 +493,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           builder: (_) => MatchScoringPage(
             config: _config,
             rounds: _rounds,
+            initialRoundIndex: _selectedRoundIndex,
             authController: widget.authController,
             matchService: _matchService,
             isHost: true,
@@ -477,6 +511,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           sessionId: sessId,
           config: _config,
           rounds: _rounds,
+          initialRoundIndex: _selectedRoundIndex,
           authController: widget.authController,
           matchService: _matchService,
           isHost: false,
@@ -1146,7 +1181,11 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  _isLocked ? 'Buka Live Scoring' : 'Kunci Tim & Mulai Scoring Live',
+                                  _isLocked
+                                      ? (_selectedRoundIndex > 0
+                                          ? 'Mulai Scoring Ronde ${_selectedRoundIndex + 1}'
+                                          : 'Buka Live Scoring')
+                                      : 'Kunci Tim & Mulai Scoring Live',
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                 ),
                                 const SizedBox(width: 8),

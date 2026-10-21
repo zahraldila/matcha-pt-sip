@@ -38,6 +38,7 @@ class MatchScoringPage extends StatefulWidget {
   final bool? isHost;
 
   final int? hostUserId;
+  final int? initialRoundIndex;
 
 
 
@@ -59,6 +60,7 @@ class MatchScoringPage extends StatefulWidget {
     this.isHost,
 
     this.hostUserId,
+    this.initialRoundIndex,
 
   });
 
@@ -440,7 +442,10 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
 
-    _sessionActiveRoundIndex = _resolveActiveRoundIndex(_rounds);
+    final resolved = _resolveActiveRoundIndex(_rounds);
+    _sessionActiveRoundIndex = widget.initialRoundIndex != null
+        ? widget.initialRoundIndex!.clamp(0, _rounds.isEmpty ? 0 : _rounds.length - 1)
+        : resolved;
 
     _viewedRoundIndex = _sessionActiveRoundIndex;
 
@@ -772,8 +777,10 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
           _rounds = sortedRounds;
 
-          _sessionActiveRoundIndex = _resolveActiveRoundIndex(_rounds);
-
+          final resolved = _resolveActiveRoundIndex(_rounds);
+          _sessionActiveRoundIndex = widget.initialRoundIndex != null
+              ? widget.initialRoundIndex!.clamp(0, _rounds.length - 1)
+              : resolved;
           _viewedRoundIndex = _sessionActiveRoundIndex;
 
         }
@@ -788,7 +795,10 @@ class MatchScoringPageState extends State<MatchScoringPage> {
         }
         if (savedDrawing != null && savedDrawing.isNotEmpty) {
           _rounds = savedDrawing;
-          _sessionActiveRoundIndex = _resolveActiveRoundIndex(_rounds);
+          final resolved = _resolveActiveRoundIndex(_rounds);
+          _sessionActiveRoundIndex = widget.initialRoundIndex != null
+              ? widget.initialRoundIndex!.clamp(0, _rounds.length - 1)
+              : resolved;
           _viewedRoundIndex = _sessionActiveRoundIndex;
         } else if (isRealBackendSession && widget.rounds == null) {
           _rounds = [];
@@ -896,6 +906,35 @@ class MatchScoringPageState extends State<MatchScoringPage> {
               }
             }
           });
+
+          // Player / Spectator Auto-Transition to DrawingResultPage:
+          if (!isHost && !wasViewingHistorical && mounted) {
+            final isTeamFormat = _config.gameType.toLowerCase().contains('team');
+            final unitLabel = isTeamFormat ? 'Set' : 'Ronde';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('🏆 Host telah memulai $unitLabel $nextRoundNum! Membuka jadwal & drawing...'),
+                backgroundColor: AppColors.matchaDark,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DrawingResultPage(
+                  sessionId: widget.sessionId,
+                  config: _config,
+                  initialRounds: _rounds,
+                  initialRoundIndex: nextIdx,
+                  authController: widget.authController,
+                  matchService: _matchService,
+                  isHost: false,
+                  hostUserId: widget.hostUserId,
+                ),
+              ),
+            );
+          }
         },
         onSessionFinished: (payload) {
           if (!mounted) return;
@@ -1816,6 +1855,25 @@ class MatchScoringPageState extends State<MatchScoringPage> {
       });
 
       debugPrint('[MATCHA_DEBUG] [HostAdvance] Berhasil transisi: Host sekarang di Ronde $nextRoundNum (index $_sessionActiveRoundIndex, sessionId=${widget.sessionId}, drawingId=$_drawingId)');
+
+      // Arahkan Host ke DrawingResultPage untuk menampilkan drawing ronde berikutnya
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DrawingResultPage(
+              sessionId: widget.sessionId,
+              config: _config,
+              initialRounds: _rounds,
+              initialRoundIndex: nextIdx,
+              authController: widget.authController,
+              matchService: _matchService,
+              isHost: true,
+              hostUserId: widget.hostUserId,
+            ),
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('[MATCHA_ERROR] [HostAdvance] Gagal transisi ronde: $e');
     } finally {
@@ -3998,9 +4056,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                             icon: const Icon(Icons.arrow_forward_rounded, size: 16),
 
                             label: Text(
-
-                              'Lanjut ke Ronde ${_sessionActiveRoundIndex + 2}',
-
+                              'Lanjut ke ${_config.gameType.toLowerCase().contains('team') ? 'Set' : 'Ronde'} ${_sessionActiveRoundIndex + 2}',
                               style: const TextStyle(
 
                                 fontWeight: FontWeight.bold,
