@@ -872,6 +872,7 @@
     const gameSessionId = {{ (int) $game['id'] }};
     const baseLiveScoringUrl = '{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano']) }}';
     const liveScoringUrl = '{{ route('scoring.live', ['id' => $game['id'], 'format' => $game['match_format'] ?? 'Americano', 'round' => 'round_'.$activeRoundNum]) }}';
+    const isSingleMode = @json($isSingleMode ?? false);
     const isSingle4Player = @json($isSingleMode && count($game['participants'] ?? []) === 4);
     const SUPABASE_URL = '{{ config('services.supabase.url') }}';
     const SUPABASE_KEY = '{{ config('services.supabase.public_key') }}';
