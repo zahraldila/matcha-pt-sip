@@ -1,30 +1,13 @@
 import 'package:flutter/material.dart';
 import '../services/network_status_service.dart';
 
-class TopNetworkBanner extends StatefulWidget {
+class TopNetworkBanner extends StatelessWidget {
   const TopNetworkBanner({super.key});
-
-  @override
-  State<TopNetworkBanner> createState() => _TopNetworkBannerState();
-}
-
-class _TopNetworkBannerState extends State<TopNetworkBanner> {
-  final NetworkStatusService _networkService = NetworkStatusService();
-  bool _isChecking = false;
-
-  Future<void> _handleManualRetry() async {
-    if (_isChecking) return;
-    setState(() => _isChecking = true);
-    await _networkService.checkConnection();
-    if (mounted) {
-      setState(() => _isChecking = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<NetworkStatus>(
-      valueListenable: _networkService.status,
+      valueListenable: NetworkStatusService().status,
       builder: (context, status, _) {
         final isVisible = status != NetworkStatus.online;
 
@@ -121,7 +104,7 @@ class _TopNetworkBannerState extends State<TopNetworkBanner> {
                             const SizedBox(height: 2),
                             Text(
                               status == NetworkStatus.offline
-                                  ? 'Tidak ada koneksi internet. Menunggu jaringan...'
+                                  ? 'Tidak ada koneksi internet. Menunggu jaringan pulih...'
                                   : 'Jaringan kembali aktif. Memperbarui data...',
                               style: TextStyle(
                                 fontSize: 11,
@@ -134,57 +117,9 @@ class _TopNetworkBannerState extends State<TopNetworkBanner> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
 
-                      // Status Badge / Retry Button
-                      if (status == NetworkStatus.offline)
-                        GestureDetector(
-                          onTap: _handleManualRetry,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFE4E6),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: const Color(0xFFFDA4AF),
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (_isChecking)
-                                  const SizedBox(
-                                    width: 12,
-                                    height: 12,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Color(0xFFE11D48),
-                                    ),
-                                  )
-                                else
-                                  const Icon(
-                                    Icons.refresh_rounded,
-                                    size: 13,
-                                    color: Color(0xFFE11D48),
-                                  ),
-                                const SizedBox(width: 4),
-                                const Text(
-                                  'Cek',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFE11D48),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      else
+                      if (status == NetworkStatus.recovered) ...[
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 9,
@@ -203,6 +138,7 @@ class _TopNetworkBannerState extends State<TopNetworkBanner> {
                             ),
                           ),
                         ),
+                      ],
                     ],
                   ),
                 ),
