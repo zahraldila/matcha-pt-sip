@@ -153,10 +153,10 @@ void main() {
 
       // Ronde 1 harus aktif dan terbuka
       expect(find.text('LIVE PREVIEW'), findsOneWidget);
-      expect(find.text('Court 1 (Sesi Game)'), findsOneWidget);
+      expect(find.text('COURT 1'), findsAtLeastNWidgets(1));
       expect(find.textContaining('Budi Santoso'), findsAtLeastNWidgets(1));
-      expect(find.text('BANGKU ISTIRAHAT (BENCH)'), findsOneWidget);
-      expect(find.text('Eko Pratama'), findsAtLeastNWidgets(1));
+      expect(find.text('Bangku Cadangan / Istirahat'), findsOneWidget);
+      expect(find.textContaining('Eko Pratama'), findsAtLeastNWidgets(1));
 
       // Tab selector check
       expect(find.text('Ronde 1'), findsOneWidget);
@@ -191,7 +191,7 @@ void main() {
 
       // Bagan lapangan dan pemain Ronde 2 TIDAK boleh bocor / tampil
       expect(find.text('LIVE PREVIEW'), findsNothing);
-      expect(find.text('Court 1 (Sesi Game)'), findsNothing);
+      expect(find.text('COURT 1'), findsNothing);
 
       // Tombol pintas ke Ronde Aktif
       final shortcutButton = find.text('Buka Ronde 1 (Aktif)');
@@ -203,7 +203,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('LIVE PREVIEW'), findsOneWidget);
-      expect(find.text('Court 1 (Sesi Game)'), findsOneWidget);
+      expect(find.text('COURT 1'), findsAtLeastNWidgets(1));
     });
 
     testWidgets('3. Ronde 2 otomatis terbuka setelah Ronde 1 selesai dimainkan', (tester) async {
@@ -229,9 +229,9 @@ void main() {
 
       // Ronde 2 sekarang terbuka!
       expect(find.text('LIVE PREVIEW'), findsOneWidget);
-      expect(find.text('Court 1 (Sesi Game)'), findsOneWidget);
-      expect(find.text('BANGKU ISTIRAHAT (BENCH)'), findsOneWidget);
-      expect(find.text('Dewi Lestari'), findsAtLeastNWidgets(1));
+      expect(find.text('COURT 1'), findsAtLeastNWidgets(1));
+      expect(find.text('Bangku Cadangan / Istirahat'), findsOneWidget);
+      expect(find.textContaining('Dewi Lestari'), findsAtLeastNWidgets(1));
 
       // Namun Ronde 3 masih harus tetap terkunci
       final tabRonde3 = find.byType(ChoiceChip).at(2);
@@ -276,8 +276,8 @@ void main() {
       expect(find.text('Ronde 2 Belum Dimulai'), findsNothing);
       expect(find.text('Ronde Terkunci'), findsNothing);
       expect(find.text('LIVE PREVIEW'), findsOneWidget);
-      expect(find.text('Court 1 (Sesi Game)'), findsOneWidget);
-      expect(find.text('BANGKU ISTIRAHAT (BENCH)'), findsOneWidget);
+      expect(find.text('COURT 1'), findsAtLeastNWidgets(1));
+      expect(find.text('Bangku Cadangan / Istirahat'), findsOneWidget);
 
       // Tombol bawah menampilkan 'Mulai Scoring Ronde 2'
       expect(find.textContaining('Mulai Scoring Ronde 2'), findsOneWidget);

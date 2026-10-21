@@ -322,16 +322,18 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       }
     }
   }
-  Future<void> _shuffleDrawing() async {
+  Future<void> _shuffleDrawing({bool showToast = true}) async {
     if (!_isHostUser) return;
     if (_isLoading) return;
     if (_isLocked) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Drawing sudah dikunci dan tidak dapat diacak ulang.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (showToast) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Drawing sudah dikunci dan tidak dapat diacak ulang.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
       return;
     }
 
@@ -382,7 +384,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           setState(() => _rounds = saved);
         }
         await _matchService.broadcastDrawingUpdate(sessId);
-        if (mounted) {
+        if (mounted && showToast) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Jadwal dan rotasi pemain berhasil diacak ulang! 🔀'),
@@ -407,12 +409,14 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     } else {
       if (mounted) {
         setState(() => _isSavingDrawing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Jadwal dan rotasi pemain berhasil diacak ulang! 🔀'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (showToast) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Jadwal dan rotasi pemain berhasil diacak ulang! 🔀'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     }
   }
@@ -1017,147 +1021,8 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   const SizedBox(height: 10),
                   // Visual Court Cards
                   ...currentRound.matches.map((match) => _buildVisualCourtCard(match)),
-                  // Bangku Cadangan / Istirahat (Bench)
-                  if (currentRound.restingPlayers.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBEB),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFFDE68A)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.chair_outlined, size: 18, color: Color(0xFFD97706)),
-                              const SizedBox(width: 8),
-                              Text(
-                                'BANGKU ISTIRAHAT (BENCH)',
-                                style: AppTextStyles.caption.copyWith(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFFB45309),
-                                ),
-                              ),
-                              const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFEF3C7),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  '${currentRound.restingPlayers.length} Pemain',
-                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
-                            children: currentRound.restingPlayers.map((p) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFFDE68A)),
-                                ),
-                                child: Text(
-                                  p.name,
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 16),
-                  // Rincian Roster Pertandingan Card
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'ROSTER PERTANDINGAN',
-                              style: AppTextStyles.caption.copyWith(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF0F172A),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEFF6FF),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                _config.gameType,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        ...currentRound.matches.map((m) {
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Court ${m.courtNumber} (Sesi Game)',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        'Team A: ${m.teamANames}',
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                                      ),
-                                    ),
-                                    const Text('vs', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Team B: ${m.teamBNames}',
-                                        textAlign: TextAlign.right,
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
+                  _buildRosterSection(currentRound),
                 ],
               ],
             ),
@@ -1803,48 +1668,706 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     );
   }
 
-  Future<void> _updatePlayerStatusAction(GamePlayerItem p, String action, StateSetter setSheetState) async {
-    String? reason;
-    if (action == 'pause' || action == 'withdraw') {
-      final reasonController = TextEditingController();
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (dlgCtx) => AlertDialog(
-          title: Text(action == 'pause' ? 'Istirahatkan ${p.name}' : 'Keluarkan ${p.name}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+  GamePlayerItem _resolvePlayer(GamePlayerItem p) {
+    final found = _config.players.where((item) =>
+        item.id == p.id ||
+        (p.playerId != null && item.playerId == p.playerId)).firstOrNull;
+    return found ?? p;
+  }
+
+  Widget _buildRosterSection(DrawingRound currentRound) {
+    final isRoundCompleted = _isRoundCompleted(_selectedRoundIndex);
+    final canManage = _isHostUser && !isRoundCompleted;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section Header: Roster Pertandingan
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                action == 'pause'
-                    ? 'Pemain akan diistirahatkan ke bangku cadangan pada ronde berikutnya.'
-                    : 'Pemain akan dikeluarkan secara permanen dari sesi dan tidak dapat bermain lagi.',
-                style: const TextStyle(fontSize: 12),
+              Row(
+                children: [
+                  const Icon(Icons.group_outlined, size: 20, color: Color(0xFF063B00)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'ROSTER PERTANDINGAN',
+                    style: AppTextStyles.caption.copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                      color: const Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Alasan (Wajib)',
-                  hintText: 'Contoh: Kram, Cedera, Keperluan pribadi',
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                ),
+                child: Text(
+                  _config.gameType,
+                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
                 ),
               ),
             ],
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Batal')),
-            ElevatedButton(
-              onPressed: () {
-                if (reasonController.text.trim().isEmpty) return;
-                Navigator.pop(dlgCtx, true);
-              },
-              child: const Text('Lanjutkan'),
-            ),
-          ],
         ),
-      );
-      if (ok != true) return;
-      reason = reasonController.text.trim();
-    }
+        const SizedBox(height: 10),
+
+        // Court Cards
+        ...currentRound.matches.map((m) => _buildCourtRosterCard(m, canManage)),
+
+        const SizedBox(height: 12),
+
+        // Bangku Cadangan / Istirahat (Bench) Card
+        _buildBenchCard(currentRound, canManage),
+      ],
+    );
+  }
+
+  Widget _buildCourtRosterCard(DrawingMatch m, bool canManage) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Court Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF22C55E),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'COURT ${m.courtNumber}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                      color: Color(0xFF063B00),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Text(
+                  m.status,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Tim A
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              Text(
+                'Tim A',
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+              ),
+              Text(
+                'Sisi Kiri',
+                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ...m.teamA.asMap().entries.map((entry) {
+            final pIdx = entry.key;
+            final p = entry.value;
+            return _buildRosterPlayerRow(p, pIdx, canManage);
+          }),
+
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 10),
+
+          // Tim B
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              Text(
+                'Tim B',
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+              ),
+              Text(
+                'Sisi Kanan',
+                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ...m.teamB.asMap().entries.map((entry) {
+            final pIdx = entry.key;
+            final p = entry.value;
+            return _buildRosterPlayerRow(p, pIdx, canManage);
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRosterPlayerRow(GamePlayerItem rawP, int pIdx, bool canManage) {
+    final p = _resolvePlayer(rawP);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${pIdx + 1}. ${p.name}',
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (canManage) ...[
+            // Tombol Istirahat
+            InkWell(
+              onTap: () => _updatePlayerStatusAction(p, 'pause'),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: const Text(
+                  'Istirahat',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFB45309),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 5),
+            // Tombol Keluar
+            InkWell(
+              onTap: () => _updatePlayerStatusAction(p, 'withdraw'),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1F2),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFFECDD3)),
+                ),
+                child: const Text(
+                  'Keluar',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF9F1239),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 5),
+          ],
+          // Badge Player 1 / Player 2
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFA7F3D0)),
+            ),
+            child: Text(
+              'Player ${pIdx + 1}',
+              style: const TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF065F46),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBenchCard(DrawingRound currentRound, bool canManage) {
+    final resting = currentRound.restingPlayers;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Bench Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Bangku Cadangan / Istirahat',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Text(
+                  '${resting.length} Pemain',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFB45309),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          if (resting.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Center(
+                child: Text(
+                  'Semua pemain aktif bertanding di ronde ini.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                ),
+              ),
+            )
+          else
+            ...resting.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final rawP = entry.value;
+              final p = _resolvePlayer(rawP);
+              final isPaused = p.isResting;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isPaused ? const Color(0xFFFFFBEB) : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isPaused ? const Color(0xFFFCD34D) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${idx + 1}. ${p.name}',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Badge Bench / Istirahat
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: isPaused ? const Color(0xFFFEF3C7) : const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: const Color(0xFFFDE68A),
+                        ),
+                      ),
+                      child: Text(
+                        isPaused ? 'Istirahat' : 'Bench',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          color: isPaused ? const Color(0xFFB45309) : const Color(0xFFD97706),
+                        ),
+                      ),
+                    ),
+                    if (canManage) ...[
+                      const SizedBox(width: 5),
+                      if (isPaused) ...[
+                        // Tombol Siap Main
+                        InkWell(
+                          onTap: () => _updatePlayerStatusAction(p, 'reactivate'),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF16A34A),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.play_arrow_rounded, size: 12, color: Colors.white),
+                                SizedBox(width: 3),
+                                Text(
+                                  'Siap Main',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        // Tombol Istirahat
+                        InkWell(
+                          onTap: () => _updatePlayerStatusAction(p, 'pause'),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFFBEB),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFFFDE68A)),
+                            ),
+                            child: const Text(
+                              'Istirahat',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFB45309),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 5),
+                      // Tombol Keluar
+                      InkWell(
+                        onTap: () => _updatePlayerStatusAction(p, 'withdraw'),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF1F2),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFFECDD3)),
+                          ),
+                          child: const Text(
+                            'Keluar',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF9F1239),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _showPlayerStatusConfirmationDialog(GamePlayerItem p, String action) async {
+    final reasonController = TextEditingController();
+    String? errorText;
+
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dlgCtx) {
+        return StatefulBuilder(
+          builder: (context, setDlgState) {
+            final isPause = action == 'pause';
+            final isWithdraw = action == 'withdraw';
+
+            final Color primaryColor = isPause
+                ? const Color(0xFFD97706)
+                : (isWithdraw ? const Color(0xFFDC2626) : const Color(0xFF16A34A));
+            final Color iconBg = isPause
+                ? const Color(0xFFFEF3C7)
+                : (isWithdraw ? const Color(0xFFFFF1F2) : const Color(0xFFECFDF5));
+            final Color iconBorder = isPause
+                ? const Color(0xFFFDE68A)
+                : (isWithdraw ? const Color(0xFFFECDD3) : const Color(0xFFA7F3D0));
+            final IconData icon = isPause
+                ? Icons.pause_rounded
+                : (isWithdraw ? Icons.person_remove_rounded : Icons.play_arrow_rounded);
+
+            final String title = isPause
+                ? 'Istirahatkan Pemain Sementara'
+                : (isWithdraw ? 'Keluarkan Pemain dari Sesi' : 'Aktifkan Pemain Kembali');
+
+            final String confirmText = isPause
+                ? 'Ya, Istirahatkan Pemain'
+                : (isWithdraw ? 'Ya, Keluarkan Pemain' : 'Ya, Siap Main');
+
+            return Dialog(
+              backgroundColor: Colors.white,
+              elevation: 8,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(22),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: iconBg,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: iconBorder),
+                          ),
+                          child: Icon(icon, size: 22, color: primaryColor),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF475569),
+                                    height: 1.4,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: isPause
+                                          ? 'Istirahatkan sementara '
+                                          : (isWithdraw ? 'Keluarkan ' : 'Aktifkan kembali '),
+                                    ),
+                                    TextSpan(
+                                      text: p.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: isPause
+                                          ? ' dari ronde mendatang? Pemain dapat diaktifkan kembali nanti saat sudah siap main.'
+                                          : (isWithdraw
+                                              ? ' secara permanen dari sesi ini? Pemain tidak akan dijadwalkan pada seluruh ronde mendatang.'
+                                              : ' untuk dapat mengikuti drawing ronde berikutnya?'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (isPause || isWithdraw) ...[
+                      const SizedBox(height: 18),
+                      RichText(
+                        text: const TextSpan(
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F172A),
+                          ),
+                          children: [
+                            TextSpan(text: 'Alasan '),
+                            TextSpan(
+                              text: '* (Wajib diisi)',
+                              style: TextStyle(
+                                color: Color(0xFFE11D48),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: reasonController,
+                        style: const TextStyle(fontSize: 12.5, color: Color(0xFF0F172A)),
+                        onChanged: (_) {
+                          if (errorText != null) {
+                            setDlgState(() => errorText = null);
+                          }
+                        },
+                        decoration: InputDecoration(
+                          hintText: isPause
+                              ? 'Contoh: Cedera ringan, toilet break, urusan mendadak'
+                              : 'Contoh: Pulang duluan, cedera berat, urusan mendadak',
+                          hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: primaryColor, width: 1.5),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      if (errorText != null)
+                        Text(
+                          errorText!,
+                          style: const TextStyle(fontSize: 11, color: Color(0xFFE11D48), fontWeight: FontWeight.w600),
+                        )
+                      else
+                        const Text(
+                          'Alasan diperlukan untuk transparansi dan catatan sesi pertandingan.',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
+                    ],
+                    const SizedBox(height: 22),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () => Navigator.pop(dlgCtx, null),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          ),
+                          child: const Text(
+                            'Batal',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            if (isPause || isWithdraw) {
+                              final text = reasonController.text.trim();
+                              if (text.isEmpty) {
+                                setDlgState(() {
+                                  errorText = 'Alasan wajib diisi sebelum menyimpan perubahan.';
+                                });
+                                return;
+                              }
+                              Navigator.pop(dlgCtx, text);
+                            } else {
+                              Navigator.pop(dlgCtx, '');
+                            }
+                          },
+                          icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+                          label: Text(
+                            confirmText,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _updatePlayerStatusAction(GamePlayerItem p, String action, [StateSetter? setSheetState]) async {
+    final reason = await _showPlayerStatusConfirmationDialog(p, action);
+    if (reason == null) return;
 
     if (!_isHostUser) return;
     try {
@@ -1855,13 +2378,14 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             sessionId: _effectiveSessionId,
             playerId: pId,
             action: action,
-            reason: reason,
+            reason: reason.isEmpty ? null : reason,
           );
           if (res['is_playing'] == true) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(res['message']?.toString() ?? 'Pemain sedang bertanding di Court ${res['court']}. Silakan gunakan End Match pada court terkait.'),
+                  content: Text(res['message']?.toString() ??
+                      'Pemain sedang bertanding di Court ${res['court']}. Silakan gunakan End Match pada court terkait.'),
                   backgroundColor: const Color(0xFFD97706),
                 ),
               );
@@ -1886,32 +2410,157 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           userId: p.userId,
           playerId: p.playerId,
           status: newStatus,
-          withdrawnReason: reason,
+          withdrawnReason: reason.isEmpty ? null : reason,
           withdrawnAt: action == 'withdraw' ? DateTime.now() : null,
         );
       }
-      setSheetState(() {});
-      setState(() {});
 
       // Drawing reconciliation:
       if (!_isLocked) {
-        await _shuffleDrawing();
+        await _shuffleDrawing(showToast: false);
       } else {
-        if (mounted) {
-          final msg = action == 'pause'
-              ? '${p.name} berhasil diistirahatkan ke bangku cadangan.'
-              : (action == 'withdraw'
-                  ? '${p.name} berhasil dikeluarkan dari sesi.'
-                  : '${p.name} berhasil diaktifkan kembali.');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(msg),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: const Color(0xFF15803D),
-            ),
+        // Reconcile local round roster if match is Scheduled
+        if (_rounds.isNotEmpty && _selectedRoundIndex < _rounds.length) {
+          final curR = _rounds[_selectedRoundIndex];
+          final updatedMatches = <DrawingMatch>[];
+          final updatedResting = List<GamePlayerItem>.from(curR.restingPlayers);
+
+          if (action == 'pause' || action == 'withdraw') {
+            for (final m in curR.matches) {
+              if (m.status.toLowerCase() == 'scheduled') {
+                final inA = m.teamA.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
+                final inB = m.teamB.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
+                if (inA != -1 || inB != -1) {
+                  final subIdx = updatedResting.indexWhere((item) => !item.isResting && !item.isWithdrawn);
+                  GamePlayerItem? subPlayer;
+                  if (subIdx != -1) {
+                    subPlayer = updatedResting.removeAt(subIdx);
+                  }
+
+                  final newTeamA = List<GamePlayerItem>.from(m.teamA);
+                  final newTeamB = List<GamePlayerItem>.from(m.teamB);
+
+                  if (inA != -1 && subPlayer != null) {
+                    newTeamA[inA] = subPlayer;
+                  } else if (inB != -1 && subPlayer != null) {
+                    newTeamB[inB] = subPlayer;
+                  }
+
+                  updatedMatches.add(DrawingMatch(
+                    courtNumber: m.courtNumber,
+                    teamA: newTeamA,
+                    teamB: newTeamB,
+                    status: m.status,
+                    scoreA: m.scoreA,
+                    scoreB: m.scoreB,
+                    gamesWonA: m.gamesWonA,
+                    gamesWonB: m.gamesWonB,
+                    idxA: m.idxA,
+                    idxB: m.idxB,
+                    pointDisplayA: m.pointDisplayA,
+                    pointDisplayB: m.pointDisplayB,
+                    isDeuce: m.isDeuce,
+                    advantage: m.advantage,
+                    setsA: m.setsA,
+                    setsB: m.setsB,
+                    winnerTeam: m.winnerTeam,
+                    matchId: m.matchId,
+                    version: m.version,
+                    lastEventId: m.lastEventId,
+                    stopType: m.stopType,
+                    stopReason: m.stopReason,
+                  ));
+
+                  if (action == 'pause') {
+                    updatedResting.add(GamePlayerItem(
+                      id: p.id,
+                      name: p.name,
+                      gender: p.gender,
+                      level: p.level,
+                      isGuest: p.isGuest,
+                      avatarUrl: p.avatarUrl,
+                      userId: p.userId,
+                      playerId: p.playerId,
+                      status: 'resting',
+                      withdrawnReason: reason.isEmpty ? null : reason,
+                    ));
+                  }
+                  continue;
+                }
+              }
+              updatedMatches.add(m);
+            }
+
+            final restIdx = updatedResting.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
+            if (restIdx != -1) {
+              if (action == 'withdraw') {
+                updatedResting.removeAt(restIdx);
+              } else {
+                final oldP = updatedResting[restIdx];
+                updatedResting[restIdx] = GamePlayerItem(
+                  id: oldP.id,
+                  name: oldP.name,
+                  gender: oldP.gender,
+                  level: oldP.level,
+                  isGuest: oldP.isGuest,
+                  avatarUrl: oldP.avatarUrl,
+                  userId: oldP.userId,
+                  playerId: oldP.playerId,
+                  status: 'resting',
+                  withdrawnReason: reason.isEmpty ? null : reason,
+                );
+              }
+            }
+          } else if (action == 'reactivate') {
+            for (final m in curR.matches) {
+              updatedMatches.add(m);
+            }
+            final restIdx = updatedResting.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
+            if (restIdx != -1) {
+              final oldP = updatedResting[restIdx];
+              updatedResting[restIdx] = GamePlayerItem(
+                id: oldP.id,
+                name: oldP.name,
+                gender: oldP.gender,
+                level: oldP.level,
+                isGuest: oldP.isGuest,
+                avatarUrl: oldP.avatarUrl,
+                userId: oldP.userId,
+                playerId: oldP.playerId,
+                status: 'active',
+              );
+            }
+          }
+
+          _rounds[_selectedRoundIndex] = DrawingRound(
+            roundNumber: curR.roundNumber,
+            matches: updatedMatches,
+            restingPlayers: updatedResting,
           );
         }
+
+        if (_effectiveSessionId != null) {
+          await _loadSessionAndDrawing(silent: true);
+        }
       }
+
+      if (mounted) {
+        final msg = action == 'pause'
+            ? '${p.name} berhasil diistirahatkan ke bangku cadangan.'
+            : (action == 'withdraw'
+                ? '${p.name} berhasil dikeluarkan dari sesi.'
+                : '${p.name} berhasil diaktifkan kembali.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFF15803D),
+          ),
+        );
+      }
+
+      setSheetState?.call(() {});
+      if (mounted) setState(() {});
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
