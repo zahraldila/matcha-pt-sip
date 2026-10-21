@@ -1003,11 +1003,9 @@ class SessionService {
       }
 
       // 5. Loop seluruh ronde dan match untuk insert ke tb_match, tb_match_participant, dan tb_score
-      int matchCounter = 0;
       final effectiveCourtCount = courtIds.isNotEmpty ? courtIds.length : 1;
       for (final round in rounds) {
         for (final match in round.matches) {
-          matchCounter++;
           int? courtId;
           if (courtIds.isNotEmpty) {
             final cIdx = (match.courtNumber - 1).clamp(0, courtIds.length - 1);

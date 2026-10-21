@@ -32,21 +32,12 @@ class AppLinkService {
     final scheme = uri.scheme.toLowerCase();
     final host = uri.host.toLowerCase();
 
-    if (scheme == 'https' || scheme == 'http') {
-      if (host != 'matcha.siproduktif.com') return null;
-      final segments = uri.pathSegments;
-      if (segments.length >= 3 && segments[0] == 'games' && segments[1] == 'share') {
-        final token = segments[2].trim();
-        if (token.isNotEmpty) return token;
-      }
-    } else if (scheme == 'matcha') {
-      final segments = uri.pathSegments;
-      if (segments.length >= 2 && segments[0] == 'share') {
-        return segments[1].trim();
-      }
-      if (host == 'games' && segments.length >= 2 && segments[0] == 'share') {
-        return segments[1].trim();
-      }
+    if (scheme != 'https') return null;
+    if (host != 'matcha.siproduktif.com') return null;
+    final segments = uri.pathSegments;
+    if (segments.length >= 3 && segments[0] == 'games' && segments[1] == 'share') {
+      final token = segments[2].trim();
+      if (token.isNotEmpty) return token;
     }
 
     return null;
@@ -57,17 +48,11 @@ class AppLinkService {
     final scheme = uri.scheme.toLowerCase();
     final host = uri.host.toLowerCase();
 
-    if (scheme == 'https' || scheme == 'http') {
-      if (host != 'matcha.siproduktif.com') return null;
-      final segments = uri.pathSegments;
-      if (segments.length >= 3 && segments[0] == 'scoring' && segments[1] == 'recap') {
-        return int.tryParse(segments[2].trim());
-      }
-    } else if (scheme == 'matcha') {
-      final segments = uri.pathSegments;
-      if (host == 'scoring' && segments.isNotEmpty && segments[0] == 'recap' && segments.length >= 2) {
-        return int.tryParse(segments[1].trim());
-      }
+    if (scheme != 'https' && scheme != 'http') return null;
+    if (host != 'matcha.siproduktif.com') return null;
+    final segments = uri.pathSegments;
+    if (segments.length >= 3 && segments[0] == 'scoring' && segments[1] == 'recap') {
+      return int.tryParse(segments[2].trim());
     }
 
     return null;

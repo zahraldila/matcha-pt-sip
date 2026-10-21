@@ -10,7 +10,6 @@ import 'package:matcha_app/features/games/domain/game_wizard_model.dart';
 import 'package:matcha_app/features/match/data/match_service.dart';
 import 'package:matcha_app/features/match/domain/services/scoring_engine.dart';
 import 'package:matcha_app/features/match/presentation/match_scoring_page.dart';
-import 'package:matcha_app/features/recap/presentation/session_match_recap_page.dart';
 
 class _FakeAuthDataSource extends Fake implements AuthRemoteDataSource {}
 

@@ -1364,7 +1364,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   Expanded(
                     child: ListView.separated(
                       itemCount: allPlayers.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (_, idx) {
                         final p = allPlayers[idx];
                         Color badgeBg;
@@ -1505,16 +1505,28 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       reason = reasonController.text.trim();
     }
 
+    if (!_isHostUser) return;
     try {
       final pId = MatchService.resolvePlayerId(p) ?? p.playerId ?? int.tryParse(p.id) ?? 0;
       if (_effectiveSessionId != null && pId > 0) {
         try {
-          await _matchService.managePlayerStatus(
+          final res = await _matchService.managePlayerStatus(
             sessionId: _effectiveSessionId,
             playerId: pId,
             action: action,
             reason: reason,
           );
+          if (res['is_playing'] == true) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(res['message']?.toString() ?? 'Pemain sedang bertanding di Court ${res['court']}. Silakan gunakan End Match pada court terkait.'),
+                  backgroundColor: const Color(0xFFD97706),
+                ),
+              );
+            }
+            return;
+          }
         } catch (e) {
           debugPrint('[Drawing] managePlayerStatus backend call: $e');
         }

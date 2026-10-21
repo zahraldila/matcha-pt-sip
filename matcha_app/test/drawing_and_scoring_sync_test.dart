@@ -333,7 +333,6 @@ void main() {
             'pointScoreB': '3',
             'status': 'In Progress',
             'version': 1,
-            'nomorMatch': 1,
             'roundNumber': 1,
             'courtNumber': 1,
             'rawMatch': {'nomor_match': 1, 'round_number': 1, 'court_id': 1},

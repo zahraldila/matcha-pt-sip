@@ -226,7 +226,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                         : ListView.separated(
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                             itemCount: filteredVenues.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                            separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                             itemBuilder: (context, index) {
                               final venue = filteredVenues[index];
                               final isSelected = _config.venueId == venue.venueId;

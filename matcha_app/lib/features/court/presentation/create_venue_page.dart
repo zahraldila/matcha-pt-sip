@@ -887,70 +887,7 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
     },
   ];
 
-  static final List<Map<String, dynamic>> _courtCountOptions = [
-    {
-      'value': 1,
-      'title': '1 Court',
-      'subtitle': 'Arena privat / lapangan tunggal',
-      'badge': 'TUNGGAL',
-      'icon': Icons.looks_one_rounded,
-    },
-    {
-      'value': 2,
-      'title': '2 Courts',
-      'subtitle': 'Kapasitas standar mabar klub',
-      'badge': 'STANDAR',
-      'icon': Icons.looks_two_rounded,
-    },
-    {
-      'value': 3,
-      'title': '3 Courts',
-      'subtitle': 'Kapasitas menengah mini turnamen',
-      'badge': 'POPULER',
-      'icon': Icons.looks_3_rounded,
-    },
-    {
-      'value': 4,
-      'title': '4 Courts',
-      'subtitle': 'Klub olahraga aktif & komunitas besar',
-      'badge': 'BESAR',
-      'icon': Icons.looks_4_rounded,
-    },
-    {
-      'value': 6,
-      'title': '6+ Courts',
-      'subtitle': 'Mega sports center / arena komersial besar',
-      'badge': 'MEGA ARENA',
-      'icon': Icons.looks_6_rounded,
-    },
-  ];
 
-  static final List<Map<String, dynamic>> _arenaTypeOptions = [
-    {
-      'value': 'Semi-Indoor',
-      'title': 'Semi-Indoor',
-      'label': 'Semi-Indoor (Atap Pelindung)',
-      'subtitle': 'Memiliki atap pelindung hujan & sirkulasi udara bebas',
-      'badge': 'TERPOPULER',
-      'icon': Icons.roofing_rounded,
-    },
-    {
-      'value': 'Indoor',
-      'title': 'Indoor',
-      'label': 'Indoor (Full AC / Tertutup)',
-      'subtitle': 'Gedung tertutup ber-AC penuh, bebas pengaruh cuaca',
-      'badge': 'FULL AC',
-      'icon': Icons.ac_unit_rounded,
-    },
-    {
-      'value': 'Outdoor',
-      'title': 'Outdoor',
-      'label': 'Outdoor (Terbuka)',
-      'subtitle': 'Lapangan terbuka alami dengan pencahayaan matahari',
-      'badge': 'TERBUKA',
-      'icon': Icons.wb_sunny_rounded,
-    },
-  ];
 
   Widget _buildSelectorTile<T>({
     required String label,
@@ -1045,26 +982,28 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: _kSlate900,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: _kSlate900,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: _kSlate400,
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: _kSlate400,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, color: _kSlate400, size: 22),
@@ -1544,41 +1483,52 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
                 final textScale = MediaQuery.textScalerOf(context).scale(1);
                 final isNarrow = constraints.maxWidth < 380 || textScale > 1.15;
 
-                final courtSelector = _buildSelectorTile<int>(
+                final courtDropdown = MatchaAnchoredDropdown<int>(
                   label: 'Jumlah Court',
                   value: _courtCount,
-                  options: _courtCountOptions,
                   icon: Icons.stadium_outlined,
-                  onTap: () => _showMatchaPickerBottomSheet<int>(
-                    title: 'Jumlah Court',
-                    subtitle: 'Pilih total ketersediaan lapangan di venue Anda',
-                    items: _courtCountOptions,
-                    selectedValue: _courtCount,
-                    onSelect: (v) => setState(() => _courtCount = v),
-                  ),
+                  options: const [
+                    DropdownOption<int>(value: 1, label: '1 Court'),
+                    DropdownOption<int>(value: 2, label: '2 Courts'),
+                    DropdownOption<int>(value: 3, label: '3 Courts'),
+                    DropdownOption<int>(value: 4, label: '4 Courts'),
+                    DropdownOption<int>(value: 6, label: '6+ Courts (Arena Besar)'),
+                  ],
+                  onChanged: (v) {
+                    setState(() => _courtCount = v);
+                  },
                 );
 
-                final arenaSelector = _buildSelectorTile<String>(
+                final arenaDropdown = MatchaAnchoredDropdown<String>(
                   label: 'Tipe Arena',
                   value: _arenaType,
-                  options: _arenaTypeOptions,
                   icon: Icons.roofing_outlined,
-                  onTap: () => _showMatchaPickerBottomSheet<String>(
-                    title: 'Tipe Arena',
-                    subtitle: 'Karakteristik atap & sirkulasi udara arena',
-                    items: _arenaTypeOptions,
-                    selectedValue: _arenaType,
-                    onSelect: (v) => setState(() => _arenaType = v),
-                  ),
+                  options: const [
+                    DropdownOption<String>(
+                      value: 'Semi-Indoor',
+                      label: 'Semi-Indoor (Atap Pelindung)',
+                    ),
+                    DropdownOption<String>(
+                      value: 'Indoor',
+                      label: 'Indoor (Full AC / Tertutup)',
+                    ),
+                    DropdownOption<String>(
+                      value: 'Outdoor',
+                      label: 'Outdoor (Terbuka)',
+                    ),
+                  ],
+                  onChanged: (v) {
+                    setState(() => _arenaType = v);
+                  },
                 );
 
                 if (isNarrow) {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      courtSelector,
+                      courtDropdown,
                       const SizedBox(height: 12),
-                      arenaSelector,
+                      arenaDropdown,
                     ],
                   );
                 }
@@ -1586,9 +1536,9 @@ class _CreateVenuePageState extends State<CreateVenuePage> {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: courtSelector),
+                    Expanded(child: courtDropdown),
                     const SizedBox(width: 12),
-                    Expanded(child: arenaSelector),
+                    Expanded(child: arenaDropdown),
                   ],
                 );
               },

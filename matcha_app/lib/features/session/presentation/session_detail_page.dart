@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/app_error_handler.dart';
@@ -14,7 +13,6 @@ import '../../recap/presentation/session_match_recap_page.dart';
 import '../data/session_service.dart';
 import '../domain/session_model.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'widgets/join_session_modal.dart';
 
 class SessionDetailPage extends StatefulWidget {
@@ -1345,7 +1343,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
         !isUserJoined &&
         !isFinished &&
         !session.isFull &&
-        currentUser?.playerId != null;
+        currentUser.playerId != null;
 
     return Container(
       padding: const EdgeInsets.all(16),

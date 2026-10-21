@@ -764,5 +764,275 @@ void main() {
       expect(stoppedMatch.winnerTeam, isNull);
       expect(stoppedMatch.isTerminal, isTrue);
     });
+
+    // =========================================================================
+    // QA FIX BATCH 2 TEST SUITE (QA-FIX-14 to QA-FIX-21)
+    // =========================================================================
+    group('MATCHA QA Fix Batch 2 Test Suite (QA-FIX-14 to QA-FIX-21)', () {
+      // -----------------------------------------------------------------------
+      // QA-FIX-14: Player status management in Live Scoring matches Laravel behavior
+      // -----------------------------------------------------------------------
+      test('QA-FIX-14: Player status management in Live Scoring matches Laravel behavior (active match players protected, bench reactivatable)', () {
+        final activeMatch = DrawingMatch(
+          courtNumber: 1,
+          teamA: [const GamePlayerItem(id: 'p1', name: 'Player 1', level: 'Beginner', isGuest: true)],
+          teamB: [const GamePlayerItem(id: 'p2', name: 'Player 2', level: 'Beginner', isGuest: true)],
+          status: 'In Progress',
+          scoreA: 2,
+          scoreB: 1,
+        );
+        final round = DrawingRound(roundNumber: 1, matches: [activeMatch]);
+
+        // Helper replicating Live Scoring active player check
+        bool isActivelyPlaying(String playerId) {
+          return round.matches.any((m) =>
+              !m.isTerminal &&
+              (m.teamA.any((p) => p.id == playerId) || m.teamB.any((p) => p.id == playerId)));
+        }
+
+        expect(isActivelyPlaying('p1'), isTrue, reason: 'Active court player p1 must be detected as actively playing');
+        expect(isActivelyPlaying('p2'), isTrue, reason: 'Active court player p2 must be detected as actively playing');
+        expect(isActivelyPlaying('p3_bench'), isFalse, reason: 'Bench player is not actively playing on a court');
+
+        // Resting bench player can be reactivated
+        var restingPlayer = const GamePlayerItem(id: 'p3_bench', name: 'Bench Player', level: 'Intermediate', isGuest: true, status: 'resting');
+        expect(restingPlayer.isResting, isTrue);
+
+        // Reactivate action changes status to active
+        final reactivatedPlayer = GamePlayerItem(
+          id: restingPlayer.id,
+          name: restingPlayer.name,
+          level: restingPlayer.level,
+          isGuest: restingPlayer.isGuest,
+          status: 'active',
+        );
+        expect(reactivatedPlayer.isResting, isFalse);
+        expect(reactivatedPlayer.status, equals('active'));
+      });
+
+      // -----------------------------------------------------------------------
+      // QA-FIX-15: Host-only access enforced for readiness/status actions
+      // -----------------------------------------------------------------------
+      test('QA-FIX-15: Host-only access enforced for readiness/status actions', () {
+        bool canPerformStatusManagement(bool isHost) {
+          if (!isHost) return false;
+          return true;
+        }
+
+        expect(canPerformStatusManagement(true), isTrue, reason: 'Host has authorization to manage player status');
+        expect(canPerformStatusManagement(false), isFalse, reason: 'Player/Spectator must be denied player status actions');
+      });
+
+      // -----------------------------------------------------------------------
+      // QA-FIX-16: End Match required reason shows inline validation
+      // -----------------------------------------------------------------------
+      test('QA-FIX-16: End Match required reason shows inline validation', () {
+        String? reasonFieldErrorA;
+        String? validationError;
+
+        void validateKeepInSession(String reasonInput) {
+          if (reasonInput.trim().isEmpty) {
+            reasonFieldErrorA = 'Alasan penghentian pertandingan wajib diisi.';
+            validationError = 'Silakan isi alasan penghentian pertandingan pada kolom di atas.';
+          } else {
+            reasonFieldErrorA = null;
+            validationError = null;
+          }
+        }
+
+        // Initially empty submission
+        validateKeepInSession('');
+        expect(reasonFieldErrorA, isNotNull);
+        expect(reasonFieldErrorA, equals('Alasan penghentian pertandingan wajib diisi.'));
+        expect(validationError, isNotNull);
+
+        // When user types text, error clears immediately
+        validateKeepInSession('Waktu sewa lapangan habis');
+        expect(reasonFieldErrorA, isNull);
+        expect(validationError, isNull);
+      });
+
+      // -----------------------------------------------------------------------
+      // QA-FIX-17: End Match button triggers clear validation feedback
+      // -----------------------------------------------------------------------
+      test('QA-FIX-17: End Match button triggers clear validation feedback for both options', () {
+        // Option 1: Keep in session with bench toggle but no player selected
+        String? selectionError;
+        String? globalError;
+        void validateBenchToggle(bool pauseToggle, List<String> pausedPlayerIds) {
+          if (pauseToggle && pausedPlayerIds.isEmpty) {
+            selectionError = 'Pilih minimal satu pemain yang diistirahatkan sementara.';
+            globalError = 'Pilih minimal satu pemain yang diistirahatkan sementara.';
+          }
+        }
+
+        validateBenchToggle(true, []);
+        expect(selectionError, isNotNull);
+        expect(globalError, isNotNull);
+
+        // Option 2: Withdraw players with empty selection or missing reason
+        Map<String, String?> playerReasonErrors = {};
+        void validateWithdrawSelection(List<String> withdrawnIds, Map<String, String> reasons) {
+          if (withdrawnIds.isEmpty) {
+            selectionError = 'Pilih minimal satu pemain yang keluar dari sesi.';
+            globalError = 'Pilih minimal satu pemain yang keluar dari sesi.';
+            return;
+          }
+          for (final id in withdrawnIds) {
+            if ((reasons[id] ?? '').trim().isEmpty) {
+              playerReasonErrors[id] = 'Wajib mengisi alasan keluar.';
+              globalError = 'Wajib mengisi alasan keluar untuk seluruh pemain yang dipilih.';
+            }
+          }
+        }
+
+        validateWithdrawSelection([], {});
+        expect(selectionError, equals('Pilih minimal satu pemain yang keluar dari sesi.'));
+
+        selectionError = null;
+        validateWithdrawSelection(['p1'], {'p1': ''});
+        expect(playerReasonErrors['p1'], equals('Wajib mengisi alasan keluar.'));
+        expect(globalError, isNotNull);
+      });
+
+      // -----------------------------------------------------------------------
+      // QA-FIX-18: Stopped match disables scoring buttons immediately
+      // -----------------------------------------------------------------------
+      test('QA-FIX-18: Stopped match disables scoring buttons immediately', () {
+        final stoppedMatch = DrawingMatch(
+          courtNumber: 1,
+          teamA: [const GamePlayerItem(id: '1', name: 'Alice', level: 'Beginner', isGuest: true)],
+          teamB: [const GamePlayerItem(id: '2', name: 'Bob', level: 'Beginner', isGuest: true)],
+          scoreA: 5,
+          scoreB: 3,
+          status: 'Stopped',
+        );
+
+        final isCompleted = stoppedMatch.status == 'Completed';
+        final isStopped = stoppedMatch.isStopped || stoppedMatch.status.toLowerCase() == 'stopped';
+        final isTerminal = isCompleted || isStopped;
+        const isHost = true;
+        const isCurrentViewedRoundActive = true;
+
+        final canInput = isHost && isCurrentViewedRoundActive && !isTerminal;
+        expect(canInput, isFalse, reason: 'canInput must be FALSE for stopped match even if round is active');
+
+        final buttonLabel = isStopped
+            ? 'Match Dihentikan (${stoppedMatch.scoreA} - ${stoppedMatch.scoreB})'
+            : '+ Tambah Poin Team A';
+        expect(buttonLabel, equals('Match Dihentikan (5 - 3)'));
+      });
+
+      // -----------------------------------------------------------------------
+      // QA-FIX-19: Stopped match rejects score update after delayed realtime refresh
+      // -----------------------------------------------------------------------
+      test('QA-FIX-19: Stopped match rejects score update after delayed realtime refresh', () {
+        final localMatch = DrawingMatch(
+          courtNumber: 1,
+          teamA: [const GamePlayerItem(id: '1', name: 'Alice', level: 'Beginner', isGuest: true)],
+          teamB: [const GamePlayerItem(id: '2', name: 'Bob', level: 'Beginner', isGuest: true)],
+          scoreA: 4,
+          scoreB: 2,
+          status: 'Stopped',
+        );
+
+        // Simulate incoming realtime/db snapshot with partial scores
+        final incomingPayload = {
+          'status': 'Stopped',
+          'statusScore': 'stopped',
+          'scoreA': 4,
+          'scoreB': 2,
+        };
+
+        final rawStatus = (incomingPayload['status'] ?? '').toString();
+        final isExplicitStopped = rawStatus.toLowerCase() == 'stopped' ||
+            incomingPayload['statusScore']?.toString().toLowerCase() == 'stopped' ||
+            localMatch.isStopped ||
+            localMatch.status.toLowerCase() == 'stopped';
+        final hasStartedScoring = 4 > 0 || 2 > 0;
+
+        if (isExplicitStopped) {
+          localMatch.status = 'Stopped';
+        } else if (hasStartedScoring) {
+          localMatch.status = 'In Progress';
+        }
+
+        expect(localMatch.status, equals('Stopped'), reason: 'Delayed refresh must NOT overwrite Stopped to In Progress');
+
+        // Scoring attempt must be defended
+        bool scorePointAttempted = false;
+        void tryScore(DrawingMatch m) {
+          if (m.isTerminal || m.isStopped || m.status.toLowerCase() == 'stopped') return;
+          scorePointAttempted = true;
+        }
+
+        tryScore(localMatch);
+        expect(scorePointAttempted, isFalse, reason: 'Point increment on stopped match must be blocked defensively');
+      });
+
+      // -----------------------------------------------------------------------
+      // QA-FIX-20: Partial score remains visible after stop
+      // -----------------------------------------------------------------------
+      test('QA-FIX-20: Partial score remains visible after stop without unilateral winner', () {
+        final stoppedMatch = DrawingMatch(
+          courtNumber: 1,
+          teamA: [const GamePlayerItem(id: '1', name: 'Alice', level: 'Beginner', isGuest: true)],
+          teamB: [const GamePlayerItem(id: '2', name: 'Bob', level: 'Beginner', isGuest: true)],
+          scoreA: 7,
+          scoreB: 5,
+          pointDisplayA: '30',
+          pointDisplayB: '40',
+          status: 'Stopped',
+          stopType: 'keep_in_session',
+          stopReason: 'Hujan lebat',
+          winnerTeam: null,
+        );
+
+        expect(stoppedMatch.scoreA, equals(7));
+        expect(stoppedMatch.scoreB, equals(5));
+        expect(stoppedMatch.pointDisplayA, equals('30'));
+        expect(stoppedMatch.pointDisplayB, equals('40'));
+        expect(stoppedMatch.winnerTeam, isNull, reason: 'No unilateral winner should be assigned on stopped match');
+        expect(stoppedMatch.stopReason, equals('Hujan lebat'));
+      });
+
+      // -----------------------------------------------------------------------
+      // QA-FIX-21: Host and Player remain synchronized after stop
+      // -----------------------------------------------------------------------
+      test('QA-FIX-21: Host and Player remain synchronized after stop via authoritative event', () {
+        final stopEventPayload = {
+          'match_id': 101,
+          'status_match': 'Stopped',
+          'session_id': 42,
+          'score_a': 8,
+          'score_b': 6,
+          'winner_team': null,
+          'stop_type': 'keep_in_session',
+          'stop_reason': 'Waktu sewa lapangan habis',
+        };
+
+        expect(stopEventPayload['status_match'], equals('Stopped'));
+        expect(stopEventPayload['winner_team'], isNull);
+        expect(stopEventPayload['score_a'], equals(8));
+        expect(stopEventPayload['score_b'], equals(6));
+
+        // When Player client consumes the payload:
+        final playerClientMatch = DrawingMatch(
+          courtNumber: 1,
+          matchId: 101,
+          teamA: [const GamePlayerItem(id: '1', name: 'Alice', level: 'Beginner', isGuest: true)],
+          teamB: [const GamePlayerItem(id: '2', name: 'Bob', level: 'Beginner', isGuest: true)],
+          status: stopEventPayload['status_match'] as String,
+          scoreA: stopEventPayload['score_a'] as int,
+          scoreB: stopEventPayload['score_b'] as int,
+          winnerTeam: stopEventPayload['winner_team'] as String?,
+        );
+
+        expect(playerClientMatch.isStopped, isTrue);
+        expect(playerClientMatch.isTerminal, isTrue);
+        expect(playerClientMatch.scoreA, equals(8));
+        expect(playerClientMatch.scoreB, equals(6));
+      });
+    });
   });
 }

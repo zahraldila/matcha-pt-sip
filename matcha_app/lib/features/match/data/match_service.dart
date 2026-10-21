@@ -578,6 +578,9 @@ class MatchService {
     if (lower == 'finished' || lower == 'completed') {
       return 'Finished';
     }
+    if (lower == 'stopped') {
+      return 'Stopped';
+    }
     if (lower == 'waiting' || lower == 'scheduled' || lower == 'pending') {
       return 'Scheduled';
     }
@@ -659,6 +662,22 @@ class MatchService {
     String? lastEventId,
     String? matchKey,
   }) async {
+    // 0. Defensive guard: If match status is Stopped, reject score mutation immediately
+    try {
+      final existingMatch = await _supabase
+          .from('tb_match')
+          .select('status_match')
+          .eq('match_id', matchId)
+          .maybeSingle();
+      if (existingMatch != null) {
+        final sMatch = (existingMatch['status_match'] ?? '').toString().toLowerCase();
+        if (sMatch == 'stopped') {
+          debugPrint('[MatchService] Rejected saveMatchScore: Match $matchId is already Stopped.');
+          return;
+        }
+      }
+    } catch (_) {}
+
     final now = DateTime.now();
     final nowIso = now.toIso8601String();
     final nowTime =

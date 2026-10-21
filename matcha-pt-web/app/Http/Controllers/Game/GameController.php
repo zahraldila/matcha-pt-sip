@@ -926,7 +926,7 @@ class GameController extends Controller
     /**
      * Tampilkan detail jadwal mabar dari link share publik yang aman.
      */
-    public function share($token)
+    public function sharePublicView($token)
     {
         $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])
             ->where('share_token', $token)
