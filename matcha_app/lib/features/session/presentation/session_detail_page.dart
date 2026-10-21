@@ -231,7 +231,13 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     final s = _session;
     if (s == null) return;
 
-    if (s.statusSession.toLowerCase() == 'completed' || s.statusSession.toLowerCase() == 'selesai') {
+    final isAdmin = widget.authController?.currentUser?.isAdmin == true;
+    final isFinished = s.statusSession.toLowerCase() == 'completed' ||
+        s.statusSession.toLowerCase() == 'selesai' ||
+        s.statusSession.toLowerCase() == 'finished';
+
+    // Host biasa diblokir jika sesi telah selesai, namun Admin diizinkan menghapus semua status
+    if (!isAdmin && isFinished) {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -260,9 +266,14 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Jadwal Mabar?', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          isAdmin && isFinished ? 'Hapus Sesi Selesai (Admin)?' : 'Hapus Jadwal Mabar?',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: Text(
-          'Sesi "${s.namaSession}" akan dihapus secara permanen dari database. Seluruh data drawing dan pendaftaran pada sesi ini akan dibersihkan.',
+          isAdmin && isFinished
+              ? 'Sebagai Admin, Anda akan menghapus sesi "${s.namaSession}" (Status: Selesai) secara permanen beserta seluruh rekapan skor, drawing, dan data pertandingan terkait.'
+              : 'Sesi "${s.namaSession}" akan dihapus secara permanen dari database. Seluruh data drawing dan pendaftaran pada sesi ini akan dibersihkan.',
           style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
         ),
         actions: [
@@ -748,6 +759,9 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
             statusLower == 'ready for drawing' ||
             isLive);
 
+    final isAdminUser = widget.authController?.currentUser?.isAdmin == true;
+    final canDelete = isAdminUser || (canManage && !isFinished);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -994,17 +1008,18 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
             if (canManage) const SizedBox(height: 10),
           ],
 
-          // Tombol Hapus Jadwal Mabar (Shown if admin/host and not finished)
-          if (canManage && !isFinished) ...[
+          // Tombol Hapus Jadwal Mabar (Admin dapat menghapus semua status termasuk Finished; Host hanya jika !isFinished)
+          if (canDelete) ...[
+            if (isFinished) const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               height: 40,
               child: OutlinedButton.icon(
                 onPressed: _handleDeleteSession,
                 icon: const Icon(Icons.delete_outline_rounded, size: 16),
-                label: const Text(
-                  'Hapus Jadwal Mabar',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                label: Text(
+                  isAdminUser && isFinished ? 'Hapus Jadwal Mabar (Admin)' : 'Hapus Jadwal Mabar',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
                 style: OutlinedButton.styleFrom(
                   backgroundColor: const Color(0xFFFEF2F2),

@@ -325,9 +325,16 @@ class _SessionListPageState extends State<SessionListPage> {
   bool _canDeleteSession(SessionModel s) {
     final user = widget.authController?.currentUser;
     if (user == null) return false;
+    // Admin memiliki hak menghapus SEMUA status sesi (Upcoming, Live, Finished) tanpa batasan
     if (user.role.toLowerCase().contains('admin') || user.isAdmin) return true;
-    if (user.userId > 0 && s.hostUserId == user.userId) return true;
-    if (_isHostedByMe(s)) return true;
+
+    // Host biasa hanya dapat menghapus sesi miliknya yang belum selesai
+    final isFinished = s.statusSession.toLowerCase() == 'completed' ||
+        s.statusSession.toLowerCase() == 'finished' ||
+        s.statusSession.toLowerCase() == 'selesai';
+    if (!isFinished && (user.userId > 0 && s.hostUserId == user.userId || _isHostedByMe(s))) {
+      return true;
+    }
     return false;
   }
 
