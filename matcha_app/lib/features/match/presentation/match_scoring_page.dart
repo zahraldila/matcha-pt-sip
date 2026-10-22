@@ -1843,10 +1843,12 @@ class MatchScoringPageState extends State<MatchScoringPage> {
     if (_isAdvancingRound) return;
     if (_sessionActiveRoundIndex >= _rounds.length - 1) return;
 
-    // GAP 3: Validasi kecukupan pemain eligible (exclude withdrawn)
+    // Validasi pemain aktif sebelum ronde berikutnya dimulai.
     final isSingle = _config.playMode.toLowerCase() == 'single';
     final minRequired = isSingle ? 2 : 4;
-    final eligiblePlayers = _config.players.where((p) => !p.isWithdrawn).toList();
+    final eligiblePlayers = _config.players
+        .where((p) => !p.isWithdrawn && !p.isResting)
+        .toList();
 
     if (_config.players.isNotEmpty && eligiblePlayers.length < minRequired) {
       await showDialog(
@@ -1880,6 +1882,30 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           ],
         ),
       );
+      return;
+    }
+
+    final nextRound = _rounds[_sessionActiveRoundIndex + 1];
+    final playersPerTeam = isSingle ? 1 : 2;
+    final nextRoundIsReady = nextRound.matches.isNotEmpty &&
+        nextRound.matches.every(
+          (match) =>
+              match.teamA.length == playersPerTeam &&
+              match.teamB.length == playersPerTeam &&
+              [...match.teamA, ...match.teamB]
+                  .every((player) => !player.isResting && !player.isWithdrawn),
+        );
+    if (!nextRoundIsReady) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Susunan ronde berikutnya belum lengkap atau masih berisi pemain istirahat/keluar. Jadwal harus diperbaiki sebelum scoring dimulai.',
+            ),
+            backgroundColor: Color(0xFFD97706),
+          ),
+        );
+      }
       return;
     }
 
@@ -3146,6 +3172,15 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           }
         } catch (e) {
           debugPrint('[Scoring] managePlayerStatus backend call: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Gagal memvalidasi status pemain: $e'),
+                backgroundColor: Colors.red.shade700,
+              ),
+            );
+          }
+          return;
         }
       }
 

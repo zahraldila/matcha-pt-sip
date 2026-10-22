@@ -106,6 +106,7 @@ class _MockMatchServiceForDrawingFlow extends MatchService {
     dynamic sessionId, {
     required List<DrawingRound> rounds,
     List<GamePlayerItem>? allPlayers,
+    required String playMode,
     int? matchFormatId,
     int? courtCount,
   }) async {

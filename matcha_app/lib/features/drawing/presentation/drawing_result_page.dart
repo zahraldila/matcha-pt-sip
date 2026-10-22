@@ -424,9 +424,47 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       }
     }
   }
+  bool _isPlayableMatch(DrawingMatch match) {
+    final isSingle = _config.playMode.toLowerCase() == 'single';
+    final teamSize = isSingle ? 1 : 2;
+    if (match.teamA.length != teamSize || match.teamB.length != teamSize) {
+      return false;
+    }
+    return [...match.teamA, ...match.teamB]
+        .every((player) => !player.isResting && !player.isWithdrawn);
+  }
+
+  bool _canStartScoringRound(DrawingRound round) {
+    final isSingle = _config.playMode.toLowerCase() == 'single';
+    final minimumPlayers = isSingle ? 2 : 4;
+    final activePlayers =
+        _config.players.where((player) => !player.isResting && !player.isWithdrawn);
+    return activePlayers.length >= minimumPlayers &&
+        round.matches.isNotEmpty &&
+        round.matches.every(_isPlayableMatch);
+  }
+
   Future<void> _startLiveScoring() async {
     if (!_isHostUser) {
       _openLiveScoringReadOnly();
+      return;
+    }
+    if (!_isLocked &&
+        (_rounds.isEmpty ||
+            !_canStartScoringRound(
+              _rounds[_selectedRoundIndex.clamp(0, _rounds.length - 1)],
+            ))) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Pemain aktif tidak mencukupi atau susunan court masih belum lengkap. Drawing belum dapat dikunci dan scoring belum dapat dimulai.',
+            ),
+            backgroundColor: Color(0xFFD97706),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
       return;
     }
     final sessId = _effectiveSessionId;
@@ -473,6 +511,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           sessId,
           rounds: _rounds,
           allPlayers: _config.players,
+          playMode: _config.playMode,
           matchFormatId: _resolveMatchFormatId(),
           courtCount: _config.courtCount,
         );
@@ -726,7 +765,12 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     }
     final currentRound = _rounds[_selectedRoundIndex.clamp(0, _rounds.length - 1)];
     final hasPlayableMatches = currentRound.matches.isNotEmpty &&
-        currentRound.matches.any((m) => m.teamA.isNotEmpty && m.teamB.isNotEmpty);
+        currentRound.matches.any(
+          (match) => match.teamA.isNotEmpty && match.teamB.isNotEmpty,
+        );
+    final canStartScoring = _isLocked
+        ? hasPlayableMatches
+        : _canStartScoringRound(currentRound);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -1051,7 +1095,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (!hasPlayableMatches)
+                if (!canStartScoring)
                   Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1078,9 +1122,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   height: 48,
                   child: _isHostUser
                       ? ElevatedButton(
-                          onPressed: (_isStartingScoring || !hasPlayableMatches) ? null : _startLiveScoring,
+                          onPressed: (_isStartingScoring || !canStartScoring) ? null : _startLiveScoring,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: hasPlayableMatches ? AppColors.matchaDark : const Color(0xFFCBD5E1),
+                            backgroundColor: canStartScoring ? AppColors.matchaDark : const Color(0xFFCBD5E1),
                             disabledBackgroundColor: const Color(0xFFE2E8F0),
                             foregroundColor: Colors.white,
                             disabledForegroundColor: const Color(0xFF94A3B8),
@@ -1104,7 +1148,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
-                                      !hasPlayableMatches
+                                      !canStartScoring
                                           ? 'Belum Ada Pemain Bertanding'
                                           : (_isLocked
                                               ? (_selectedRoundIndex > 0
@@ -1114,10 +1158,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
-                                        color: hasPlayableMatches ? Colors.white : const Color(0xFF94A3B8),
+                                        color: canStartScoring ? Colors.white : const Color(0xFF94A3B8),
                                       ),
                                     ),
-                                    if (hasPlayableMatches) ...[
+                                    if (canStartScoring) ...[
                                       const SizedBox(width: 8),
                                       const Icon(Icons.arrow_forward_rounded, size: 18),
                                     ],
@@ -2591,6 +2635,15 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           }
         } catch (e) {
           debugPrint('[Drawing] managePlayerStatus backend call: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Gagal memvalidasi status pemain: $e'),
+                backgroundColor: Colors.red.shade700,
+              ),
+            );
+          }
+          return;
         }
       }
 
