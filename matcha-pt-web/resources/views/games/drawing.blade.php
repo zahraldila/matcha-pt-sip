@@ -529,14 +529,6 @@
                                         <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs gap-2">
                                             <span class="font-semibold text-slate-800 truncate min-w-0 flex-1">{{ $pIdx + 1 }}. {{ $pName }}</span>
                                             <div class="flex items-center gap-1.5 shrink-0">
-                                                @if(! $isPastRoundPhp && ($isHost ?? false) && $pId)
-                                                    <button type="button" onclick="openPlayerManageModal({{ $pId }}, '{{ addslashes($pName) }}', 'pause')" class="px-1.5 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300/80 transition-all cursor-pointer shadow-2xs" title="Istirahatkan sementara">
-                                                        Istirahat
-                                                    </button>
-                                                    <button type="button" onclick="openPlayerManageModal({{ $pId }}, '{{ addslashes($pName) }}', 'withdraw')" class="px-1.5 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-[9px] border border-rose-300/80 transition-all cursor-pointer shadow-2xs" title="Keluarkan dari sesi">
-                                                        Keluar
-                                                    </button>
-                                                @endif
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player {{ $pIdx + 1 }}</span>
                                             </div>
                                         </div>
@@ -573,14 +565,6 @@
                                         <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs gap-2">
                                             <span class="font-semibold text-slate-800 truncate min-w-0 flex-1">{{ $pIdx + 1 }}. {{ $pName }}</span>
                                             <div class="flex items-center gap-1.5 shrink-0">
-                                                @if(! $isPastRoundPhp && ($isHost ?? false) && $pId)
-                                                    <button type="button" onclick="openPlayerManageModal({{ $pId }}, '{{ addslashes($pName) }}', 'pause')" class="px-1.5 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300/80 transition-all cursor-pointer shadow-2xs" title="Istirahatkan sementara">
-                                                        Istirahat
-                                                    </button>
-                                                    <button type="button" onclick="openPlayerManageModal({{ $pId }}, '{{ addslashes($pName) }}', 'withdraw')" class="px-1.5 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-[9px] border border-rose-300/80 transition-all cursor-pointer shadow-2xs" title="Keluarkan dari sesi">
-                                                        Keluar
-                                                    </button>
-                                                @endif
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player {{ $pIdx + 1 }}</span>
                                             </div>
                                         </div>
@@ -1725,20 +1709,10 @@
                 }
 
                 const pAHtml = pA.length > 0 ? pA.map((name, pIdx) => {
-                    const pId = getPlayerIdByName(name);
-                    const safeName = (name || '').replace(/'/g, "\\'");
                     return `
                         <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs gap-2">
                             <span class="font-semibold text-slate-800 truncate min-w-0 flex-1">${pIdx + 1}. ${name}</span>
                             <div class="flex items-center gap-1.5 shrink-0">
-                                ${!isPastRound && isHostUser && pId ? `
-                                    <button type="button" onclick="openPlayerManageModal(${pId}, '${safeName}', 'pause')" class="px-1.5 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300/80 transition-all cursor-pointer shadow-2xs" title="Istirahatkan sementara">
-                                        Istirahat
-                                    </button>
-                                    <button type="button" onclick="openPlayerManageModal(${pId}, '${safeName}', 'withdraw')" class="px-1.5 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-[9px] border border-rose-300/80 transition-all cursor-pointer shadow-2xs" title="Keluarkan dari sesi">
-                                        Keluar
-                                    </button>
-                                ` : ''}
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Player ${pIdx + 1}</span>
                             </div>
                         </div>
@@ -1746,20 +1720,10 @@
                 }).join('') : '<p class="text-[11px] text-slate-400 py-1 text-center">Belum ada pemain</p>';
 
                 const pBHtml = pB.length > 0 ? pB.map((name, pIdx) => {
-                    const pId = getPlayerIdByName(name);
-                    const safeName = (name || '').replace(/'/g, "\\'");
                     return `
                         <div class="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200/70 text-xs shadow-2xs gap-2">
                             <span class="font-semibold text-slate-800 truncate min-w-0 flex-1">${pIdx + 1}. ${name}</span>
                             <div class="flex items-center gap-1.5 shrink-0">
-                                ${!isPastRound && isHostUser && pId ? `
-                                    <button type="button" onclick="openPlayerManageModal(${pId}, '${safeName}', 'pause')" class="px-1.5 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300/80 transition-all cursor-pointer shadow-2xs" title="Istirahatkan sementara">
-                                        Istirahat
-                                    </button>
-                                    <button type="button" onclick="openPlayerManageModal(${pId}, '${safeName}', 'withdraw')" class="px-1.5 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-[9px] border border-rose-300/80 transition-all cursor-pointer shadow-2xs" title="Keluarkan dari sesi">
-                                        Keluar
-                                    </button>
-                                ` : ''}
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eaf3eb] text-[#245b2c] border border-[#bedfc1]">Player ${pIdx + 1}</span>
                             </div>
                         </div>

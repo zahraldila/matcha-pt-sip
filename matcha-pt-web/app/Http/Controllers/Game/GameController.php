@@ -928,20 +928,29 @@ class GameController extends Controller
      */
     public function share($token)
     {
-        $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])
-            ->where('share_token', $token)
-            ->first();
-
-        if (! $dbSession) {
-            abort(404, 'Jadwal mabar tidak ditemukan atau link sudah tidak berlaku.');
+        $cleanToken = trim((string) $token);
+        if ($cleanToken === '') {
+            return response()->view('games.share_invalid', [], 404);
         }
 
-        $payload = $this->buildGameDetailPayload($dbSession);
+        try {
+            $dbSession = SessionModel::with(['sport', 'venue', 'courts', 'players.user', 'host'])
+                ->where('share_token', $cleanToken)
+                ->first();
 
-        return view('games.share', array_merge($payload, [
-            'shareUrl' => $payload['game']['share_url'],
-            'isPublicShare' => true,
-        ]));
+            if (! $dbSession) {
+                return response()->view('games.share_invalid', [], 404);
+            }
+
+            $payload = $this->buildGameDetailPayload($dbSession);
+
+            return view('games.share', array_merge($payload, [
+                'shareUrl' => $payload['game']['share_url'],
+                'isPublicShare' => true,
+            ]));
+        } catch (\Throwable $e) {
+            return response()->view('games.share_invalid', [], 404);
+        }
     }
 
     /**
@@ -1054,34 +1063,6 @@ class GameController extends Controller
             'hasDrawingStarted' => $hasDrawingStarted,
             'isJoinedByMe' => $isJoinedByMe,
         ];
-    }
-
-    /**
-     * Handle link share sesi mabar (/games/share/{token}).
-     * Jika token valid, arahkan ke detail sesi. Jika token tidak valid / expired, tampilkan halaman khusus yang ramah.
-     */
-    public function share($token)
-    {
-        $cleanToken = trim((string) $token);
-        if ($cleanToken === '') {
-            return response()->view('games.share_invalid', [], 404);
-        }
-
-        try {
-            $session = SessionModel::where('share_token', $cleanToken)->first();
-            if (! $session) {
-                return response()->view('games.share_invalid', [], 404);
-            }
-
-            $statusLower = strtolower(trim((string) ($session->status_session ?? '')));
-            if (in_array($statusLower, ['finished', 'completed', 'selesai'], true)) {
-                return redirect()->route('scoring.recap', $session->session_id);
-            }
-
-            return redirect()->route('games.show', $session->session_id);
-        } catch (\Throwable $e) {
-            return response()->view('games.share_invalid', [], 404);
-        }
     }
 
     /**
