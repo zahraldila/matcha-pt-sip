@@ -1809,73 +1809,153 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
 
   Widget _buildRosterPlayerRow(GamePlayerItem rawP, int pIdx, bool canManage) {
     final p = _resolvePlayer(rawP);
+    final isPaused = p.isResting;
+    final isWithdrawn = p.isWithdrawn;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isWithdrawn ? const Color(0xFFFFF1F2).withValues(alpha: 0.4) : Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isWithdrawn
+              ? const Color(0xFFFECDD3)
+              : (isPaused ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0)),
+        ),
       ),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              '${pIdx + 1}. ${p.name}',
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF0F172A),
-              ),
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    '${pIdx + 1}. ${p.name}',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: isWithdrawn ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
+                      decoration: isWithdrawn ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                ),
+                if (isWithdrawn) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF1F2),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFFFECDD3)),
+                    ),
+                    child: const Text(
+                      'Keluar',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF9F1239),
+                      ),
+                    ),
+                  ),
+                ] else if (isPaused) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBEB),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFFFDE68A)),
+                    ),
+                    child: const Text(
+                      'Istirahat',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFB45309),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(width: 8),
           if (canManage) ...[
-            // Tombol Istirahat
-            InkWell(
-              onTap: () => _updatePlayerStatusAction(p, 'pause'),
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFBEB),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFFDE68A)),
-                ),
-                child: const Text(
-                  'Istirahat',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFB45309),
+            if (isPaused) ...[
+              // Tombol Siap Main jika pemain court sedang berstatus istirahat
+              InkWell(
+                onTap: () => _updatePlayerStatusAction(p, 'reactivate'),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16A34A),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.play_arrow_rounded, size: 12, color: Colors.white),
+                      SizedBox(width: 3),
+                      Text(
+                        'Siap Main',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 5),
-            // Tombol Keluar
-            InkWell(
-              onTap: () => _updatePlayerStatusAction(p, 'withdraw'),
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF1F2),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFFECDD3)),
-                ),
-                child: const Text(
-                  'Keluar',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF9F1239),
+            ] else if (!isWithdrawn) ...[
+              // Tombol Istirahat
+              InkWell(
+                onTap: () => _updatePlayerStatusAction(p, 'pause'),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                  ),
+                  child: const Text(
+                    'Istirahat',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFB45309),
+                    ),
                   ),
                 ),
               ),
-            ),
+              const SizedBox(width: 5),
+              // Tombol Keluar
+              InkWell(
+                onTap: () => _updatePlayerStatusAction(p, 'withdraw'),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1F2),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFFECDD3)),
+                  ),
+                  child: const Text(
+                    'Keluar',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF9F1239),
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(width: 5),
           ],
           // Badge Player 1 / Player 2
@@ -2450,7 +2530,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       }
 
       final newStatus = (action == 'pause' ? 'resting' : (action == 'withdraw' ? 'withdrawn' : 'active'));
-      final idx = _config.players.indexWhere((item) => item.id == p.id);
+      final idx = _config.players.indexWhere((item) =>
+          item.id == p.id ||
+          (p.playerId != null && item.playerId == p.playerId) ||
+          (item.name.trim().isNotEmpty && item.name.trim().toLowerCase() == p.name.trim().toLowerCase()));
       if (idx != -1) {
         _config.players[idx] = p.copyWith(
           status: newStatus,
@@ -2460,195 +2543,275 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       }
 
       // Drawing reconciliation:
-      if (!_isLocked) {
-        await _shuffleDrawing(showToast: false);
-      } else {
-        // Reconcile local round roster if match is Scheduled
-        if (_rounds.isNotEmpty && _selectedRoundIndex < _rounds.length) {
-          final curR = _rounds[_selectedRoundIndex];
-          final updatedMatches = <DrawingMatch>[];
-          final updatedResting = List<GamePlayerItem>.from(curR.restingPlayers);
-          final remainingActives = _config.players.where((x) => !x.isResting && !x.isWithdrawn).toList();
-          final isSingleMode = _config.playMode.toLowerCase() == 'single';
-          final minReq = isSingleMode ? 2 : 4;
-          final isInsufficient = remainingActives.length < minReq;
+      if (_rounds.isNotEmpty && _selectedRoundIndex < _rounds.length) {
+        final curR = _rounds[_selectedRoundIndex];
+        final updatedMatches = <DrawingMatch>[];
+        final updatedResting = List<GamePlayerItem>.from(curR.restingPlayers);
+        final remainingActives = _config.players.where((x) => !x.isResting && !x.isWithdrawn).toList();
+        final isSingleMode = _config.playMode.toLowerCase() == 'single';
+        final minReq = isSingleMode ? 2 : 4;
+        final isInsufficient = remainingActives.length < minReq;
 
-          if (action == 'pause' || action == 'withdraw') {
-            for (final m in curR.matches) {
-              if (m.status.toLowerCase() == 'scheduled') {
-                final inA = m.teamA.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
-                final inB = m.teamB.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
-                if (inA != -1 || inB != -1) {
-                  if (isInsufficient) {
-                    // Pemain aktif tidak mencukupi untuk match court ini (misal 1 pemain Single)
-                    // Pindahkan match court menjadi kosong ("Belum ada pemain") dan pindahkan pemain lain ke bench
-                    for (final otherP in [...m.teamA, ...m.teamB]) {
-                      if (otherP.id != p.id && (p.playerId == null || otherP.playerId != p.playerId)) {
-                        if (!updatedResting.any((x) => x.id == otherP.id || (otherP.playerId != null && x.playerId == otherP.playerId))) {
-                          updatedResting.add(otherP.copyWith(status: 'active'));
-                        }
+        if (action == 'pause' || action == 'withdraw') {
+          for (final m in curR.matches) {
+            final s = m.status.toLowerCase().trim();
+            final isModifiable = s == 'scheduled' || s == 'waiting' || s.isEmpty;
+            if (isModifiable) {
+              final inA = m.teamA.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
+              final inB = m.teamB.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
+              if (inA != -1 || inB != -1) {
+                if (isInsufficient) {
+                  // Pemain aktif tidak mencukupi untuk match court ini (misal 1 pemain Single)
+                  // Pindahkan match court menjadi kosong ("Belum ada pemain") dan pindahkan pemain lain ke bench
+                  for (final otherP in [...m.teamA, ...m.teamB]) {
+                    if (otherP.id != p.id && (p.playerId == null || otherP.playerId != p.playerId)) {
+                      if (!updatedResting.any((x) => x.id == otherP.id || (otherP.playerId != null && x.playerId == otherP.playerId))) {
+                        updatedResting.add(otherP.copyWith(status: 'active'));
                       }
                     }
-                    updatedMatches.add(DrawingMatch(
-                      courtNumber: m.courtNumber,
-                      teamA: const [],
-                      teamB: const [],
-                      status: 'Scheduled',
-                      matchId: m.matchId,
-                    ));
-                    if (m.matchId != null) {
-                      _matchService.cancelOrStopScheduledMatch(
-                        matchId: m.matchId!,
-                        reason: reason.isEmpty ? 'Pemain tidak tersedia tanpa pengganti' : reason,
-                      );
-                    }
-                    if (action == 'pause') {
+                  }
+                  updatedMatches.add(DrawingMatch(
+                    courtNumber: m.courtNumber,
+                    teamA: const [],
+                    teamB: const [],
+                    status: 'Scheduled',
+                    matchId: m.matchId,
+                  ));
+                  if (m.matchId != null) {
+                    await _matchService.cancelOrStopScheduledMatch(
+                      matchId: m.matchId!,
+                      reason: reason.isEmpty ? 'Pemain tidak tersedia tanpa pengganti' : reason,
+                    );
+                  }
+                  if (action == 'pause') {
+                    if (!updatedResting.any((x) => x.id == p.id || (p.playerId != null && x.playerId == p.playerId))) {
                       updatedResting.add(p.copyWith(
                         status: 'resting',
                         withdrawnReason: reason.isEmpty ? null : reason,
                       ));
                     }
-                    continue;
                   }
+                  continue;
+                }
 
-                  final subIdx = updatedResting.indexWhere((item) => !item.isResting && !item.isWithdrawn);
-                  GamePlayerItem? subPlayer;
-                  if (subIdx != -1) {
-                    subPlayer = updatedResting.removeAt(subIdx);
+                final subIdx = updatedResting.indexWhere((item) => !item.isResting && !item.isWithdrawn);
+                GamePlayerItem? subPlayer;
+                if (subIdx != -1) {
+                  subPlayer = updatedResting.removeAt(subIdx);
+                }
+
+                final newTeamA = List<GamePlayerItem>.from(m.teamA);
+                final newTeamB = List<GamePlayerItem>.from(m.teamB);
+
+                if (inA != -1 && subPlayer != null) {
+                  newTeamA[inA] = subPlayer;
+                } else if (inB != -1 && subPlayer != null) {
+                  newTeamB[inB] = subPlayer;
+                }
+
+                final newStatusMatch = (subPlayer != null) ? m.status : 'Stopped';
+
+                updatedMatches.add(DrawingMatch(
+                  courtNumber: m.courtNumber,
+                  teamA: subPlayer != null ? newTeamA : const [],
+                  teamB: subPlayer != null ? newTeamB : const [],
+                  status: newStatusMatch,
+                  scoreA: m.scoreA,
+                  scoreB: m.scoreB,
+                  gamesWonA: m.gamesWonA,
+                  gamesWonB: m.gamesWonB,
+                  idxA: m.idxA,
+                  idxB: m.idxB,
+                  pointDisplayA: m.pointDisplayA,
+                  pointDisplayB: m.pointDisplayB,
+                  isDeuce: m.isDeuce,
+                  advantage: m.advantage,
+                  setsA: m.setsA,
+                  setsB: m.setsB,
+                  winnerTeam: m.winnerTeam,
+                  matchId: m.matchId,
+                  version: m.version,
+                  lastEventId: m.lastEventId,
+                  stopType: subPlayer == null ? 'withdraw_players' : m.stopType,
+                  stopReason: subPlayer == null ? (reason.isEmpty ? null : reason) : m.stopReason,
+                ));
+
+                if (m.matchId != null) {
+                  final oldPid = p.playerId ?? MatchService.resolvePlayerId(p, _config.players) ?? pId;
+                  final newPid = subPlayer != null
+                      ? (subPlayer.playerId ?? MatchService.resolvePlayerId(subPlayer, _config.players) ?? int.tryParse(subPlayer.id))
+                      : null;
+                  if (subPlayer != null && oldPid > 0 && newPid != null && newPid > 0) {
+                    await _matchService.substituteMatchParticipant(
+                      matchId: m.matchId!,
+                      oldPlayerId: oldPid,
+                      newPlayerId: newPid,
+                      side: inA != -1 ? 'A' : 'B',
+                    );
+                  } else if (subPlayer == null) {
+                    await _matchService.cancelOrStopScheduledMatch(
+                      matchId: m.matchId!,
+                      reason: reason.isEmpty ? 'Pemain tidak tersedia tanpa pengganti' : reason,
+                    );
                   }
+                }
 
-                  final newTeamA = List<GamePlayerItem>.from(m.teamA);
-                  final newTeamB = List<GamePlayerItem>.from(m.teamB);
-
-                  if (inA != -1 && subPlayer != null) {
-                    newTeamA[inA] = subPlayer;
-                  } else if (inB != -1 && subPlayer != null) {
-                    newTeamB[inB] = subPlayer;
-                  }
-
-                  final newStatusMatch = (subPlayer != null) ? m.status : 'Stopped';
-
-                  updatedMatches.add(DrawingMatch(
-                    courtNumber: m.courtNumber,
-                    teamA: newTeamA,
-                    teamB: newTeamB,
-                    status: newStatusMatch,
-                    scoreA: m.scoreA,
-                    scoreB: m.scoreB,
-                    gamesWonA: m.gamesWonA,
-                    gamesWonB: m.gamesWonB,
-                    idxA: m.idxA,
-                    idxB: m.idxB,
-                    pointDisplayA: m.pointDisplayA,
-                    pointDisplayB: m.pointDisplayB,
-                    isDeuce: m.isDeuce,
-                    advantage: m.advantage,
-                    setsA: m.setsA,
-                    setsB: m.setsB,
-                    winnerTeam: m.winnerTeam,
-                    matchId: m.matchId,
-                    version: m.version,
-                    lastEventId: m.lastEventId,
-                    stopType: subPlayer == null ? 'withdraw_players' : m.stopType,
-                    stopReason: subPlayer == null ? (reason.isEmpty ? null : reason) : m.stopReason,
-                  ));
-
-                  if (m.matchId != null) {
-                    if (subPlayer != null && (p.playerId != null || pId > 0) && (subPlayer.playerId != null || int.tryParse(subPlayer.id) != null)) {
-                      final oldPid = p.playerId ?? pId;
-                      final newPid = subPlayer.playerId ?? int.parse(subPlayer.id);
-                      _matchService.substituteMatchParticipant(
-                        matchId: m.matchId!,
-                        oldPlayerId: oldPid,
-                        newPlayerId: newPid,
-                        side: inA != -1 ? 'A' : 'B',
-                      );
-                    } else if (subPlayer == null) {
-                      _matchService.cancelOrStopScheduledMatch(
-                        matchId: m.matchId!,
-                        reason: reason.isEmpty ? 'Pemain tidak tersedia tanpa pengganti' : reason,
-                      );
-                    }
-                  }
-
-                  if (action == 'pause') {
+                if (action == 'pause') {
+                  if (!updatedResting.any((x) => x.id == p.id || (p.playerId != null && x.playerId == p.playerId))) {
                     updatedResting.add(p.copyWith(
                       status: 'resting',
                       withdrawnReason: reason.isEmpty ? null : reason,
                     ));
                   }
-                  continue;
                 }
-              }
-              updatedMatches.add(m);
-            }
-
-            final restIdx = updatedResting.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
-            if (restIdx != -1) {
-              if (action == 'withdraw') {
-                updatedResting.removeAt(restIdx);
-              } else {
-                final oldP = updatedResting[restIdx];
-                updatedResting[restIdx] = oldP.copyWith(
-                  status: 'resting',
-                  withdrawnReason: reason.isEmpty ? null : reason,
-                );
+                continue;
               }
             }
-          } else if (action == 'reactivate') {
-            final activeEligible = _config.players.where((x) => !x.isResting && !x.isWithdrawn).toList();
-            final hadEmptyCourt = curR.matches.any((m) => m.teamA.isEmpty || m.teamB.isEmpty);
+            updatedMatches.add(m);
+          }
 
-            if (hadEmptyCourt && activeEligible.length >= minReq) {
-              for (final m in curR.matches) {
-                if (m.teamA.isEmpty && m.teamB.isEmpty) {
-                  if (isSingleMode && activeEligible.length >= 2) {
-                    updatedMatches.add(DrawingMatch(
-                      courtNumber: m.courtNumber,
-                      teamA: [activeEligible[0]],
-                      teamB: [activeEligible[1]],
-                      status: 'Scheduled',
-                      matchId: m.matchId,
-                    ));
-                    final removedIds = {activeEligible[0].id, activeEligible[1].id};
-                    final removedPIds = {activeEligible[0].playerId, activeEligible[1].playerId};
-                    updatedResting.removeWhere((item) => removedIds.contains(item.id) || (item.playerId != null && removedPIds.contains(item.playerId)));
-                  } else if (!isSingleMode && activeEligible.length >= 4) {
-                    updatedMatches.add(DrawingMatch(
-                      courtNumber: m.courtNumber,
-                      teamA: [activeEligible[0], activeEligible[1]],
-                      teamB: [activeEligible[2], activeEligible[3]],
-                      status: 'Scheduled',
-                      matchId: m.matchId,
-                    ));
-                    final removedIds = {activeEligible[0].id, activeEligible[1].id, activeEligible[2].id, activeEligible[3].id};
-                    final removedPIds = {activeEligible[0].playerId, activeEligible[1].playerId, activeEligible[2].playerId, activeEligible[3].playerId};
-                    updatedResting.removeWhere((item) => removedIds.contains(item.id) || (item.playerId != null && removedPIds.contains(item.playerId)));
-                  } else {
-                    updatedMatches.add(m);
+          final restIdx = updatedResting.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
+          if (restIdx != -1) {
+            if (action == 'withdraw') {
+              updatedResting.removeAt(restIdx);
+            } else {
+              final oldP = updatedResting[restIdx];
+              updatedResting[restIdx] = oldP.copyWith(
+                status: 'resting',
+                withdrawnReason: reason.isEmpty ? null : reason,
+              );
+            }
+          }
+        } else if (action == 'reactivate') {
+          final activeEligible = _config.players.where((x) => !x.isResting && !x.isWithdrawn).toList();
+          final hadEmptyCourt = curR.matches.any((m) => m.teamA.isEmpty || m.teamB.isEmpty);
+
+          if (hadEmptyCourt && activeEligible.length >= minReq) {
+            for (final m in curR.matches) {
+              if (m.teamA.isEmpty && m.teamB.isEmpty) {
+                if (isSingleMode && activeEligible.length >= 2) {
+                  final newTeamA = [activeEligible[0]];
+                  final newTeamB = [activeEligible[1]];
+                  updatedMatches.add(DrawingMatch(
+                    courtNumber: m.courtNumber,
+                    teamA: newTeamA,
+                    teamB: newTeamB,
+                    status: 'Scheduled',
+                    matchId: m.matchId,
+                  ));
+                  if (m.matchId != null) {
+                    await _matchService.setMatchParticipants(
+                      matchId: m.matchId!,
+                      teamA: newTeamA,
+                      teamB: newTeamB,
+                      allPlayers: _config.players,
+                    );
                   }
+                  final removedIds = {activeEligible[0].id, activeEligible[1].id};
+                  final removedPIds = {activeEligible[0].playerId, activeEligible[1].playerId};
+                  updatedResting.removeWhere((item) => removedIds.contains(item.id) || (item.playerId != null && removedPIds.contains(item.playerId)));
+                } else if (!isSingleMode && activeEligible.length >= 4) {
+                  final newTeamA = [activeEligible[0], activeEligible[1]];
+                  final newTeamB = [activeEligible[2], activeEligible[3]];
+                  updatedMatches.add(DrawingMatch(
+                    courtNumber: m.courtNumber,
+                    teamA: newTeamA,
+                    teamB: newTeamB,
+                    status: 'Scheduled',
+                    matchId: m.matchId,
+                  ));
+                  if (m.matchId != null) {
+                    await _matchService.setMatchParticipants(
+                      matchId: m.matchId!,
+                      teamA: newTeamA,
+                      teamB: newTeamB,
+                      allPlayers: _config.players,
+                    );
+                  }
+                  final removedIds = {activeEligible[0].id, activeEligible[1].id, activeEligible[2].id, activeEligible[3].id};
+                  final removedPIds = {activeEligible[0].playerId, activeEligible[1].playerId, activeEligible[2].playerId, activeEligible[3].playerId};
+                  updatedResting.removeWhere((item) => removedIds.contains(item.id) || (item.playerId != null && removedPIds.contains(item.playerId)));
                 } else {
                   updatedMatches.add(m);
                 }
-              }
-            } else {
-              for (final m in curR.matches) {
+              } else {
                 updatedMatches.add(m);
               }
-              final restIdx = updatedResting.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
-              if (restIdx != -1) {
-                final oldP = updatedResting[restIdx];
-                updatedResting[restIdx] = oldP.copyWith(
-                  status: 'active',
-                );
-              }
+            }
+          } else {
+            for (final m in curR.matches) {
+              updatedMatches.add(m);
+            }
+            final restIdx = updatedResting.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
+            if (restIdx != -1) {
+              final oldP = updatedResting[restIdx];
+              updatedResting[restIdx] = oldP.copyWith(
+                status: 'active',
+              );
             }
           }
+        }
 
-          _rounds[_selectedRoundIndex] = DrawingRound(
-            roundNumber: curR.roundNumber,
-            matches: updatedMatches,
-            restingPlayers: updatedResting,
+        _rounds[_selectedRoundIndex] = DrawingRound(
+          roundNumber: curR.roundNumber,
+          matches: updatedMatches,
+          restingPlayers: updatedResting,
+        );
+
+        // Sesuaikan juga ronde masa depan di state lokal:
+        if (_rounds.length > _selectedRoundIndex + 1) {
+          for (int fr = _selectedRoundIndex + 1; fr < _rounds.length; fr++) {
+            final fRound = _rounds[fr];
+            final fMatches = <DrawingMatch>[];
+            final fResting = List<GamePlayerItem>.from(fRound.restingPlayers);
+            for (final m in fRound.matches) {
+              final inA = m.teamA.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
+              final inB = m.teamB.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
+              if (inA != -1 || inB != -1) {
+                final subIdx = fResting.indexWhere((item) => !item.isResting && !item.isWithdrawn);
+                GamePlayerItem? subPlayer;
+                if (subIdx != -1) {
+                  subPlayer = fResting.removeAt(subIdx);
+                }
+                final newTeamA = List<GamePlayerItem>.from(m.teamA);
+                final newTeamB = List<GamePlayerItem>.from(m.teamB);
+                if (inA != -1 && subPlayer != null) {
+                  newTeamA[inA] = subPlayer;
+                } else if (inB != -1 && subPlayer != null) {
+                  newTeamB[inB] = subPlayer;
+                }
+                fMatches.add(DrawingMatch(
+                  courtNumber: m.courtNumber,
+                  teamA: subPlayer != null ? newTeamA : const [],
+                  teamB: subPlayer != null ? newTeamB : const [],
+                  status: subPlayer != null ? m.status : 'Stopped',
+                  matchId: m.matchId,
+                ));
+                if (action == 'pause') {
+                  if (!fResting.any((x) => x.id == p.id || (p.playerId != null && x.playerId == p.playerId))) {
+                    fResting.add(p.copyWith(status: 'resting', withdrawnReason: reason.isEmpty ? null : reason));
+                  }
+                }
+              } else {
+                fMatches.add(m);
+              }
+            }
+            _rounds[fr] = DrawingRound(
+              roundNumber: fRound.roundNumber,
+              matches: fMatches,
+              restingPlayers: fResting,
+            );
+          }
+        }
+
+        // Sesuaikan juga ronde masa depan di Supabase:
+        if (_effectiveSessionId != null && pId > 0) {
+          await _matchService.adjustFutureScheduleOnPlayerStatusChange(
+            sessionId: _effectiveSessionId,
+            currentRoundNumber: _selectedRoundIndex + 1,
+            targetPlayerId: pId,
+            action: action,
+            allPlayers: _config.players,
           );
         }
 

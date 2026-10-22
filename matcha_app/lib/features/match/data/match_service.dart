@@ -947,18 +947,24 @@ class MatchService {
           .maybeSingle();
 
       if (existingScore != null) {
+        final updateData = <String, dynamic>{
+          'status_score': 'Stopped',
+          'updated_at': nowIso,
+        };
+        if (scoreA != null) {
+          updateData['game_score_a'] = scoreA;
+          updateData['score_side_a'] = scoreA;
+        }
+        if (scoreB != null) {
+          updateData['game_score_b'] = scoreB;
+          updateData['score_side_b'] = scoreB;
+        }
+        if (pointDisplayA != null) updateData['point_score_a'] = pointDisplayA;
+        if (pointDisplayB != null) updateData['point_score_b'] = pointDisplayB;
+
         await _supabase
             .from('tb_score')
-            .update({
-              'status_score': 'Stopped',
-              if (scoreA != null) 'game_score_a': scoreA,
-              if (scoreB != null) 'game_score_b': scoreB,
-              if (scoreA != null) 'score_side_a': scoreA,
-              if (scoreB != null) 'score_side_b': scoreB,
-              if (pointDisplayA != null) 'point_score_a': pointDisplayA,
-              if (pointDisplayB != null) 'point_score_b': pointDisplayB,
-              'updated_at': nowIso,
-            })
+            .update(updateData)
             .eq('match_id', matchId);
       } else {
         await _supabase.from('tb_score').insert({
@@ -1197,6 +1203,11 @@ class MatchService {
   }) async {
     try {
       await _supabase
+          .from('tb_match_participant')
+          .delete()
+          .eq('match_id', matchId);
+
+      await _supabase
           .from('tb_match')
           .update({
             'status_match': 'Stopped',
@@ -1206,6 +1217,172 @@ class MatchService {
           .eq('match_id', matchId);
     } catch (e) {
       debugPrint('[MatchService] cancelOrStopScheduledMatch error: $e');
+    }
+  }
+
+  /// Mengatur ulang partisipan pada match tertentu (misal setelah reaktivasi court kosong)
+  Future<void> setMatchParticipants({
+    required int matchId,
+    required List<GamePlayerItem> teamA,
+    required List<GamePlayerItem> teamB,
+    List<GamePlayerItem>? allPlayers,
+  }) async {
+    try {
+      await _supabase
+          .from('tb_match_participant')
+          .delete()
+          .eq('match_id', matchId);
+
+      for (final p in teamA) {
+        final pId = resolvePlayerId(p, allPlayers) ?? p.playerId ?? int.tryParse(p.id);
+        if (pId != null && pId > 0) {
+          await _supabase.from('tb_match_participant').insert({
+            'match_id': matchId,
+            'player_id': pId,
+            'side': 'A',
+          });
+        }
+      }
+
+      for (final p in teamB) {
+        final pId = resolvePlayerId(p, allPlayers) ?? p.playerId ?? int.tryParse(p.id);
+        if (pId != null && pId > 0) {
+          await _supabase.from('tb_match_participant').insert({
+            'match_id': matchId,
+            'player_id': pId,
+            'side': 'B',
+          });
+        }
+      }
+
+      await _supabase
+          .from('tb_match')
+          .update({'status_match': 'Scheduled'})
+          .eq('match_id', matchId);
+    } catch (e) {
+      debugPrint('[MatchService] setMatchParticipants error: $e');
+    }
+  }
+
+  /// Menyesuaikan jadwal pertandingan ronde mendatang (future rounds) saat pemain istirahat atau keluar,
+  /// agar pemain tersebut tidak dijadwalkan bertanding di court pada ronde mendatang dan digantikan pemain cadangan.
+  Future<void> adjustFutureScheduleOnPlayerStatusChange({
+    required dynamic sessionId,
+    required int currentRoundNumber,
+    required int targetPlayerId,
+    required String action,
+    List<GamePlayerItem>? allPlayers,
+  }) async {
+    if (sessionId == null || targetPlayerId <= 0) return;
+    final parsedSessionId = int.tryParse(sessionId.toString()) ?? sessionId;
+
+    try {
+      final drawingId = await getLatestDrawingId(parsedSessionId);
+      if (drawingId == null) return;
+
+      final sCourts = await _supabase
+          .from('tb_session_court')
+          .select('court_id')
+          .eq('session_id', parsedSessionId);
+      final uniqueCourtIds = (sCourts as List)
+          .map((c) => int.tryParse(c['court_id']?.toString() ?? ''))
+          .whereType<int>()
+          .where((id) => id > 0)
+          .toSet();
+      final effectiveCourtCount = uniqueCourtIds.isNotEmpty ? uniqueCourtIds.length : 1;
+
+      final sPlayers = await _supabase
+          .from('tb_session_player')
+          .select('player_id, status')
+          .eq('session_id', parsedSessionId);
+
+      final excludedIds = <int>{};
+      final allPlayerIds = <int>[];
+      for (final sp in (sPlayers as List)) {
+        final pid = int.tryParse(sp['player_id']?.toString() ?? '');
+        if (pid != null) {
+          allPlayerIds.add(pid);
+          final st = sp['status']?.toString().toLowerCase();
+          if (st == 'resting' || st == 'withdrawn' || st == 'paused' || (action != 'reactivate' && pid == targetPlayerId)) {
+            excludedIds.add(pid);
+          }
+        }
+      }
+
+      final minNomorMatch = (currentRoundNumber * effectiveCourtCount) + 1;
+      final futureMatches = await _supabase
+          .from('tb_match')
+          .select('match_id, nomor_match, status_match')
+          .eq('drawing_id', drawingId)
+          .gte('nomor_match', minNomorMatch)
+          .order('nomor_match', ascending: true);
+
+      if (futureMatches.isEmpty) return;
+
+      final futureMatchIds = futureMatches
+          .map((m) => int.tryParse(m['match_id']?.toString() ?? ''))
+          .whereType<int>()
+          .toList();
+
+      final participants = await _supabase
+          .from('tb_match_participant')
+          .select('match_id, player_id, side')
+          .inFilter('match_id', futureMatchIds);
+
+      final matchesByRound = <int, List<Map<String, dynamic>>>{};
+      for (final m in futureMatches) {
+        final nom = int.tryParse(m['nomor_match']?.toString() ?? '') ?? 1;
+        final rNum = ((nom - 1) ~/ effectiveCourtCount) + 1;
+        matchesByRound.putIfAbsent(rNum, () => []).add(m);
+      }
+
+      for (final entry in matchesByRound.entries) {
+        final rMatches = entry.value;
+        final rMatchIds = rMatches.map((m) => int.tryParse(m['match_id']?.toString() ?? '')).whereType<int>().toSet();
+
+        final roundParticipants = (participants as List)
+            .where((p) => rMatchIds.contains(int.tryParse(p['match_id']?.toString() ?? '')))
+            .toList();
+
+        final participatingPlayerIds = roundParticipants
+            .map((p) => int.tryParse(p['player_id']?.toString() ?? ''))
+            .whereType<int>()
+            .toSet();
+
+        final availableBenchIds = allPlayerIds
+            .where((pid) => !excludedIds.contains(pid) && !participatingPlayerIds.contains(pid))
+            .toList();
+
+        for (final p in roundParticipants) {
+          final pId = int.tryParse(p['player_id']?.toString() ?? '');
+          if (pId == targetPlayerId) {
+            final mId = int.tryParse(p['match_id']?.toString() ?? '');
+            if (mId != null) {
+              if (availableBenchIds.isNotEmpty) {
+                final substituteId = availableBenchIds.removeAt(0);
+                participatingPlayerIds.add(substituteId);
+                await _supabase
+                    .from('tb_match_participant')
+                    .update({'player_id': substituteId})
+                    .eq('match_id', mId)
+                    .eq('player_id', targetPlayerId);
+              }
+            }
+          }
+        }
+      }
+
+      await broadcastDrawingUpdate(parsedSessionId);
+      final channel = _supabase.channel('session_$parsedSessionId');
+      await channel.sendBroadcastMessage(
+        event: 'schedule_adjusted',
+        payload: {
+          'session_id': parsedSessionId,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
+    } catch (e) {
+      debugPrint('[MatchService] adjustFutureScheduleOnPlayerStatusChange error: $e');
     }
   }
 

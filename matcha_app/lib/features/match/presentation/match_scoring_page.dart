@@ -3144,7 +3144,10 @@ class MatchScoringPageState extends State<MatchScoringPage> {
       }
 
       final newStatus = res['status']?.toString() ?? (action == 'pause' ? 'resting' : (action == 'withdraw' ? 'withdrawn' : 'active'));
-      final idx = _config.players.indexWhere((item) => item.id == p.id);
+      final idx = _config.players.indexWhere((item) =>
+          item.id == p.id ||
+          (p.playerId != null && item.playerId == p.playerId) ||
+          (item.name.trim().isNotEmpty && item.name.trim().toLowerCase() == p.name.trim().toLowerCase()));
       if (idx != -1) {
         _config.players[idx] = GamePlayerItem(
           id: p.id,
@@ -3160,6 +3163,22 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           withdrawnAt: action == 'withdraw' ? DateTime.now() : null,
         );
       }
+
+      // Sesuaikan jadwal ronde mendatang di backend jika ada sesi aktif
+      if (widget.sessionId != null && pId > 0) {
+        try {
+          await _matchService.adjustFutureScheduleOnPlayerStatusChange(
+            sessionId: widget.sessionId,
+            currentRoundNumber: _sessionActiveRoundIndex + 1,
+            targetPlayerId: pId,
+            action: action,
+            allPlayers: _config.players,
+          );
+        } catch (e) {
+          debugPrint('[Scoring] adjustFutureScheduleOnPlayerStatusChange: $e');
+        }
+      }
+
       setSheetState(() {});
       setState(() {});
 
@@ -3214,6 +3233,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
               Navigator.pop(ctx);
               try {
                 await _matchService.confirmAdjustedSchedule(sessionId: widget.sessionId);
+                await _loadSessionAndScores();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(

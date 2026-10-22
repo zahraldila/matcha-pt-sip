@@ -85,6 +85,10 @@ class _MockMatchService extends MatchService {
   String? stoppedReason;
   int? substitutedOldPlayerId;
   int? substitutedNewPlayerId;
+  int? substitutedMatchId;
+  int? adjustedTargetPlayerId;
+  String? adjustedAction;
+  int? adjustedCurrentRoundNumber;
 
   @override
   Future<void> stopSessionDueToInsufficientPlayers({
@@ -103,8 +107,48 @@ class _MockMatchService extends MatchService {
     required int newPlayerId,
     required String side,
   }) async {
+    substitutedMatchId = matchId;
     substitutedOldPlayerId = oldPlayerId;
     substitutedNewPlayerId = newPlayerId;
+    if (savedDrawing != null) {
+      for (int r = 0; r < savedDrawing!.length; r++) {
+        final round = savedDrawing![r];
+        final updatedMatches = <DrawingMatch>[];
+        final updatedResting = List<GamePlayerItem>.from(round.restingPlayers);
+        final subPlayerIdx = updatedResting.indexWhere((p) => p.playerId == newPlayerId);
+        GamePlayerItem? subPlayer;
+        if (subPlayerIdx != -1) {
+          subPlayer = updatedResting.removeAt(subPlayerIdx);
+        }
+        for (final m in round.matches) {
+          if (m.matchId == matchId) {
+            final newA = List<GamePlayerItem>.from(m.teamA);
+            final newB = List<GamePlayerItem>.from(m.teamB);
+            if (side == 'A' && subPlayer != null) {
+              final idx = newA.indexWhere((p) => p.playerId == oldPlayerId);
+              if (idx != -1) newA[idx] = subPlayer;
+            } else if (side == 'B' && subPlayer != null) {
+              final idx = newB.indexWhere((p) => p.playerId == oldPlayerId);
+              if (idx != -1) newB[idx] = subPlayer;
+            }
+            updatedMatches.add(DrawingMatch(
+              courtNumber: m.courtNumber,
+              teamA: newA,
+              teamB: newB,
+              status: m.status,
+              matchId: m.matchId,
+            ));
+          } else {
+            updatedMatches.add(m);
+          }
+        }
+        savedDrawing![r] = DrawingRound(
+          roundNumber: round.roundNumber,
+          matches: updatedMatches,
+          restingPlayers: updatedResting,
+        );
+      }
+    }
   }
 
   @override
@@ -114,13 +158,34 @@ class _MockMatchService extends MatchService {
   }) async {}
 
   @override
+  Future<void> setMatchParticipants({
+    required int matchId,
+    required List<GamePlayerItem> teamA,
+    required List<GamePlayerItem> teamB,
+    List<GamePlayerItem>? allPlayers,
+  }) async {}
+
+  @override
+  Future<void> adjustFutureScheduleOnPlayerStatusChange({
+    required dynamic sessionId,
+    required int currentRoundNumber,
+    required int targetPlayerId,
+    required String action,
+    List<GamePlayerItem>? allPlayers,
+  }) async {
+    adjustedTargetPlayerId = targetPlayerId;
+    adjustedAction = action;
+    adjustedCurrentRoundNumber = currentRoundNumber;
+  }
+
+  @override
   Future<void> broadcastDrawingUpdate(dynamic sessionId) async {}
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  final testPlayers = [
+  List<GamePlayerItem> getFreshPlayers() => [
     const GamePlayerItem(id: '1', playerId: 1, name: 'Budi Santoso', level: 'Intermediate'),
     const GamePlayerItem(id: '2', playerId: 2, name: 'Siti Aminah', level: 'Intermediate'),
     const GamePlayerItem(id: '3', playerId: 3, name: 'Agus Wijaya', level: 'Beginner'),
@@ -128,29 +193,30 @@ void main() {
     const GamePlayerItem(id: '5', playerId: 5, name: 'Eko Pratama', level: 'Advanced'),
   ];
 
-  final wizardConfig = GameWizardConfig(
+  GameWizardConfig createWizardConfig({List<GamePlayerItem>? players}) => GameWizardConfig(
     sessionId: 99,
     sport: 'Tennis',
     gameType: 'Americano',
     playMode: 'Single',
     courtCount: 1,
-    players: List.from(testPlayers),
+    players: players ?? getFreshPlayers(),
     activityName: 'Turnamen Americano',
   );
 
-  List<DrawingRound> createMockRounds() {
+  List<DrawingRound> createMockRounds([List<GamePlayerItem>? players]) {
+    final p = players ?? getFreshPlayers();
     return [
       DrawingRound(
         roundNumber: 1,
         matches: [
           DrawingMatch(
             courtNumber: 1,
-            teamA: [testPlayers[0]],
-            teamB: [testPlayers[1]],
+            teamA: [p[0]],
+            teamB: [p[1]],
             status: 'Scheduled',
           ),
         ],
-        restingPlayers: [testPlayers[2], testPlayers[3], testPlayers[4]],
+        restingPlayers: [p[2], p[3], p[4]],
       ),
     ];
   }
@@ -162,7 +228,9 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final rounds = createMockRounds();
+      final testPlayers = getFreshPlayers();
+      final wizardConfig = createWizardConfig(players: testPlayers);
+      final rounds = createMockRounds(testPlayers);
       final mockAuth = _MockAuthController(
         initialUser: const UserModel(userId: 1, nama: 'Host User', email: 'host@matcha.app'),
       );
@@ -204,7 +272,9 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final rounds = createMockRounds();
+      final testPlayers = getFreshPlayers();
+      final wizardConfig = createWizardConfig(players: testPlayers);
+      final rounds = createMockRounds(testPlayers);
       final mockAuth = _MockAuthController(
         initialUser: const UserModel(userId: 2, nama: 'Regular Player', email: 'player@matcha.app'),
       );
@@ -238,7 +308,9 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final rounds = createMockRounds();
+      final testPlayers = getFreshPlayers();
+      final wizardConfig = createWizardConfig(players: testPlayers);
+      final rounds = createMockRounds(testPlayers);
       final mockAuth = _MockAuthController(
         initialUser: const UserModel(userId: 1, nama: 'Host User', email: 'host@matcha.app'),
       );
@@ -477,6 +549,148 @@ void main() {
       expect(mockService.lastAction, 'withdraw');
       expect(mockService.lastPlayerId, 1);
       expect(mockService.stoppedDueToInsufficient, isTrue);
+    });
+
+    testWidgets('6. Mengistirahatkan pemain di court saat ada pemain di bench akan menggantikan pemain court dengan pemain bench dan memindahkan pemain ke bench', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final testPlayers = getFreshPlayers();
+      final wizardConfig = createWizardConfig(players: testPlayers);
+      final rounds = [
+        DrawingRound(
+          roundNumber: 1,
+          matches: [
+            DrawingMatch(
+              courtNumber: 1,
+              teamA: [testPlayers[0]], // Budi Santoso (1)
+              teamB: [testPlayers[1]], // Siti Aminah (2)
+              status: 'Scheduled',
+              matchId: 201,
+            ),
+          ],
+          restingPlayers: [testPlayers[2], testPlayers[3], testPlayers[4]], // Agus (3), Dewi (4), Eko (5)
+        ),
+      ];
+
+      final mockAuth = _MockAuthController(
+        initialUser: const UserModel(userId: 1, nama: 'Host User', email: 'host@matcha.app'),
+      );
+      final mockService = _MockMatchService(savedDrawing: rounds, isLocked: false);
+
+      await tester.pumpWidget(MaterialApp(
+        home: DrawingResultPage(
+          sessionId: 99,
+          config: wizardConfig,
+          initialRounds: rounds,
+          authController: mockAuth,
+          matchService: mockService,
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Budi Santoso awalnya tampil di Court 1 Tim A
+      expect(find.text('1. Budi Santoso'), findsOneWidget);
+      expect(find.text('3 Pemain'), findsOneWidget);
+
+      // Klik tombol Istirahat pada Budi Santoso
+      final btnIstirahat = find.text('Istirahat').first;
+      await tester.ensureVisible(btnIstirahat);
+      await tester.tap(btnIstirahat);
+      await tester.pumpAndSettle();
+
+      // Isi alasan dan submit
+      await tester.enterText(find.byType(TextField), 'Kram otot');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ya, Istirahatkan Pemain'));
+      await tester.pumpAndSettle();
+
+      // Service harus dipanggil dengan parameter yang benar
+      expect(mockService.lastAction, 'pause');
+      expect(mockService.lastPlayerId, 1);
+      expect(mockService.substitutedOldPlayerId, 1);
+      expect(mockService.substitutedNewPlayerId, 3); // Agus Wijaya menggantikan Budi
+
+      // Di Court 1 Tim A, Agus Wijaya sekarang bertanding menggantikan Budi Santoso
+      expect(find.text('1. Agus Wijaya'), findsOneWidget);
+
+      // Budi Santoso kini berada di bangku cadangan dengan badge 'Istirahat' dan tombol 'Siap Main'
+      expect(find.text('Bangku Cadangan / Istirahat'), findsOneWidget);
+      expect(find.text('Siap Main'), findsOneWidget);
+
+      // adjustFutureScheduleOnPlayerStatusChange juga dipanggil
+      expect(mockService.adjustedTargetPlayerId, 1);
+      expect(mockService.adjustedAction, 'pause');
+    });
+
+    testWidgets('7. Mengeluarkan pemain di court saat ada pemain di bench akan menggantikan pemain court dan menghapus pemain dari rotasi aktif', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final testPlayers = getFreshPlayers();
+      final wizardConfig = createWizardConfig(players: testPlayers);
+      final rounds = [
+        DrawingRound(
+          roundNumber: 1,
+          matches: [
+            DrawingMatch(
+              courtNumber: 1,
+              teamA: [testPlayers[0]], // Budi Santoso (1)
+              teamB: [testPlayers[1]], // Siti Aminah (2)
+              status: 'Scheduled',
+              matchId: 202,
+            ),
+          ],
+          restingPlayers: [testPlayers[2], testPlayers[3], testPlayers[4]], // Agus (3), Dewi (4), Eko (5)
+        ),
+      ];
+
+      final mockAuth = _MockAuthController(
+        initialUser: const UserModel(userId: 1, nama: 'Host User', email: 'host@matcha.app'),
+      );
+      final mockService = _MockMatchService(savedDrawing: rounds, isLocked: false);
+
+      await tester.pumpWidget(MaterialApp(
+        home: DrawingResultPage(
+          sessionId: 99,
+          config: wizardConfig,
+          initialRounds: rounds,
+          authController: mockAuth,
+          matchService: mockService,
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Klik tombol Keluar pada Budi Santoso di Court 1 Tim A
+      final btnKeluar = find.text('Keluar').first;
+      await tester.ensureVisible(btnKeluar);
+      await tester.tap(btnKeluar);
+      await tester.pumpAndSettle();
+
+      // Isi alasan dan konfirmasi keluar
+      await tester.enterText(find.byType(TextField), 'Harus pulang cepat');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ya, Keluarkan Pemain'));
+      await tester.pumpAndSettle();
+
+      // Service harus dipanggil
+      expect(mockService.lastAction, 'withdraw');
+      expect(mockService.lastPlayerId, 1);
+      expect(mockService.substitutedOldPlayerId, 1);
+      expect(mockService.substitutedNewPlayerId, 3); // Agus menggantikan Budi
+
+      // Di Court 1 Tim A, Agus Wijaya sekarang bertanding
+      expect(find.text('1. Agus Wijaya'), findsOneWidget);
+
+      // adjustFutureScheduleOnPlayerStatusChange dipanggil
+      expect(mockService.adjustedTargetPlayerId, 1);
+      expect(mockService.adjustedAction, 'withdraw');
     });
   });
 }
