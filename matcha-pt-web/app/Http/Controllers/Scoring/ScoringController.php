@@ -3187,10 +3187,34 @@ class ScoringController extends Controller
         $badge = trim($request->string('badge')->toString());
         $currentUserId = Auth::id();
 
+        // Rule 5: Self-kudos dilarang (Gunakan ID pemain dan ID pengguna yang valid untuk identitas)
+        if ($playerId) {
+            $pObj = Player::find($playerId);
+            if ($pObj && (int) $pObj->user_id === (int) $currentUserId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda tidak dapat memberikan Kudos kepada diri sendiri.',
+                ], 422);
+            }
+        } else {
+            $pObj = Player::where('nama', $playerName)->first();
+            if ($pObj && (int) $pObj->user_id === (int) $currentUserId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda tidak dapat memberikan Kudos kepada diri sendiri.',
+                ], 422);
+            }
+        }
+
         $query = Kudos::where('session_id', $sessionId)
-            ->where('recipient_name', $playerName)
             ->where('badge', $badge)
             ->where('giver_user_id', $currentUserId);
+
+        if ($playerId) {
+            $query->where('recipient_player_id', $playerId);
+        } else {
+            $query->where('recipient_name', $playerName);
+        }
 
         $existing = $query->first();
 
@@ -3199,7 +3223,9 @@ class ScoringController extends Controller
             $action = 'removed';
             $isActive = false;
         } else {
-            if (! $playerId) {
+            if (! $playerId && isset($pObj) && $pObj) {
+                $playerId = $pObj->player_id;
+            } elseif (! $playerId) {
                 $playerId = Player::where('nama', $playerName)->value('player_id');
             }
 
@@ -3214,10 +3240,14 @@ class ScoringController extends Controller
             $isActive = true;
         }
 
-        $totalBadgeCount = Kudos::where('session_id', $sessionId)
-            ->where('recipient_name', $playerName)
-            ->where('badge', $badge)
-            ->count();
+        $countQuery = Kudos::where('session_id', $sessionId)
+            ->where('badge', $badge);
+        if ($playerId) {
+            $countQuery->where('recipient_player_id', $playerId);
+        } else {
+            $countQuery->where('recipient_name', $playerName);
+        }
+        $totalBadgeCount = $countQuery->count();
 
         return response()->json([
             'success' => true,

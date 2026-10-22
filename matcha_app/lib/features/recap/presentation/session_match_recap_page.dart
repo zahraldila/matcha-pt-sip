@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -98,6 +99,24 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
   void _toggleKudos(int playerId, String playerName, String kudosTag) {
     final currentUserId = widget.authController?.currentUser?.userId;
+    if (currentUserId == null || currentUserId <= 0) {
+      AppErrorHandler.showErrorSnackBar(
+        context,
+        'Silakan login terlebih dahulu untuk memberikan Kudos.',
+      );
+      return;
+    }
+
+    // Rule 5: Self-kudos dilarang
+    final recipientStanding = _data?.standings.where((p) => p.playerId == playerId).firstOrNull;
+    if (recipientStanding?.userId != null && recipientStanding!.userId == currentUserId) {
+      AppErrorHandler.showErrorSnackBar(
+        context,
+        'Anda tidak dapat memberikan kudos kepada diri sendiri.',
+      );
+      return;
+    }
+
     setState(() {
       final userTags = _givenKudos.putIfAbsent(playerId, () => <String>{});
       final playerCounts = _kudosCounts.putIfAbsent(playerId, () => <String, int>{});
@@ -123,7 +142,26 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
       recipientPlayerId: playerId,
       recipientName: playerName,
       badge: kudosTag,
-    );
+    ).catchError((e) {
+      // Revert if error
+      if (mounted) {
+        setState(() {
+          final userTags = _givenKudos[playerId];
+          final playerCounts = _kudosCounts[playerId];
+          if (userTags != null && playerCounts != null) {
+            if (userTags.contains(kudosTag)) {
+              userTags.remove(kudosTag);
+              playerCounts[kudosTag] = math.max(0, (playerCounts[kudosTag] ?? 1) - 1);
+            }
+          }
+        });
+        AppErrorHandler.showErrorSnackBar(
+          context,
+          e.toString().replaceAll('Exception: ', ''),
+        );
+      }
+      return false;
+    });
   }
 
   void _handleBackNavigation() {
@@ -2327,32 +2365,49 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
   /// 1. Hero Winner Card (matching web gold gradient banner)
   Widget _buildHeroWinnerCard(SessionMatchRecapData data) {
+    final bool hasResults = data.hasCompetitiveResults;
     final String winnerName;
     if (data.isTeamFormat && data.teamStandings.isNotEmpty) {
-      winnerName = data.teamStandings.first.teamName;
+      final rank1Teams = data.teamStandings.where((t) => t.rank == 1).toList();
+      winnerName = rank1Teams.isNotEmpty
+          ? rank1Teams.map((t) => t.teamName).join(' & ')
+          : (data.teamStandings.first.teamName);
     } else {
-      final winner = data.standings.isNotEmpty ? data.standings.first : null;
-      winnerName = winner?.nama ?? 'Juara';
+      final rank1Players = data.standings.where((p) => p.rank == 1).toList();
+      winnerName = rank1Players.isNotEmpty
+          ? rank1Players.map((p) => p.nama).join(', ')
+          : (data.standings.isNotEmpty ? data.standings.first.nama : 'Juara');
     }
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFFBEB),
-            Color(0xFFFEF3C7),
-            Color(0xFFFFFDF5),
-          ],
+          colors: hasResults
+              ? const [
+                  Color(0xFFFFFBEB),
+                  Color(0xFFFEF3C7),
+                  Color(0xFFFFFDF5),
+                ]
+              : const [
+                  Color(0xFFF8FAFC),
+                  Color(0xFFF1F5F9),
+                  Color(0xFFFFFFFF),
+                ],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+        border: Border.all(
+          color: hasResults ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFD97706).withValues(alpha: 0.08),
+            color: hasResults
+                ? const Color(0xFFD97706).withValues(alpha: 0.08)
+                : Colors.black.withValues(alpha: 0.03),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -2361,30 +2416,59 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Juara 1 Pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF9C3),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFFACC15), width: 1.2),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('🏆', style: TextStyle(fontSize: 14)),
-                const SizedBox(width: 6),
-                Text(
-                  'Juara 1 - $winnerName',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12.5,
-                    color: Color(0xFF854D0E),
+          // Juara 1 / Zero-State Pill (Rule 2 & D1)
+          if (hasResults)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF9C3),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFFACC15), width: 1.2),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('🏆', style: TextStyle(fontSize: 14)),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Juara 1 - $winnerName',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12.5,
+                        color: Color(0xFF854D0E),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF475569)),
+                  SizedBox(width: 6),
+                  Text(
+                    'Belum Ada Hasil Pertandingan',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
           const SizedBox(height: 12),
 
           // Session Title
@@ -2399,16 +2483,27 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           ),
           const SizedBox(height: 6),
 
-          // Venue & Format info
-          Text(
-            '${data.totalRounds} Ronde Selesai • ${data.venueName}${data.courtName != null ? ' (${data.courtName})' : ''} • ${data.sportName} • ${data.scoringSystem}',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF64748B),
-              height: 1.35,
+          // Venue & Format info / Zero-State Message
+          if (hasResults)
+            Text(
+              '${data.totalRounds} Ronde Selesai • ${data.venueName}${data.courtName != null ? ' (${data.courtName})' : ''} • ${data.sportName} • ${data.scoringSystem}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+                height: 1.35,
+              ),
+            )
+          else
+            const Text(
+              'Podium dan klasemen akhir akan tersedia setelah terdapat hasil pertandingan yang valid.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+                height: 1.35,
+              ),
             ),
-          ),
           const SizedBox(height: 14),
 
           // Badges Row
@@ -2731,7 +2826,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       ),
                       const SizedBox(height: 2),
                       const Text(
-                        'Klasemen Tim Tetap: Match Menang -> Total Game -> Selisih Game',
+                        'Aturan klasemen: Total Poin -> Selisih Poin -> Match Menang -> Game Menang -> Selisih Game',
                         style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
                       ),
                     ],
@@ -2741,8 +2836,39 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             ),
             const SizedBox(height: 16),
 
-            // Visual Podium for Top 3 Teams
-            _buildTeamPodiumVisual(teamStandings),
+            // Visual Podium for Top 3 Teams (Rule 2 & D1)
+            if (data.hasCompetitiveResults)
+              _buildTeamPodiumVisual(teamStandings)
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.emoji_events_outlined, size: 40, color: Color(0xFF94A3B8)),
+                    SizedBox(height: 10),
+                    Text(
+                      'Belum Ada Hasil Pertandingan',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Podium dan klasemen akhir akan tersedia setelah terdapat hasil pertandingan yang valid.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+              ),
 
             const SizedBox(height: 20),
 
@@ -2819,7 +2945,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       ),
                       const SizedBox(height: 2),
                       const Text(
-                        'Distribusi skor: Match Menang -> Total Game -> Selisih Game',
+                        'Aturan klasemen: Total Poin -> Selisih Poin -> Match Menang -> Game Menang -> Selisih Game',
                         style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
                       ),
                     ],
@@ -2829,8 +2955,39 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             ),
             const SizedBox(height: 16),
 
-            // Visual Podium for Top 3
-            if (standings.isNotEmpty) _buildPodiumVisual(standings),
+            // Visual Podium for Top 3 (Rule 2 & D1)
+            if (data.hasCompetitiveResults && standings.isNotEmpty)
+              _buildPodiumVisual(standings)
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.emoji_events_outlined, size: 40, color: Color(0xFF94A3B8)),
+                    SizedBox(height: 10),
+                    Text(
+                      'Belum Ada Hasil Pertandingan',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Podium dan klasemen akhir akan tersedia setelah terdapat hasil pertandingan yang valid.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+              ),
 
             const SizedBox(height: 20),
 
@@ -2867,37 +3024,68 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     final second = teamStandings.length > 1 ? teamStandings[1] : null;
     final third = teamStandings.length > 2 ? teamStandings[2] : null;
 
+    final isSecondRank1 = second?.rank == 1;
+    final isThirdRank1 = third?.rank == 1;
+    final isThirdRank2 = third?.rank == 2;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // 2nd Place (Silver - Left)
+        // 2nd Slot (Left - second)
         if (second != null)
           Expanded(
             child: Column(
               children: [
-                _buildTeamPodiumAvatar(second.memberPhotos, second.memberNames, '🥈'),
+                _buildTeamPodiumAvatar(
+                  second.memberPhotos,
+                  second.memberNames,
+                  isSecondRank1 ? '👑' : '🥈',
+                  isGold: isSecondRank1,
+                ),
                 const SizedBox(height: 6),
                 Text(
                   second.teamName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0F172A)),
+                  style: TextStyle(
+                    fontWeight: isSecondRank1 ? FontWeight.w900 : FontWeight.bold,
+                    fontSize: 11,
+                    color: const Color(0xFF0F172A),
+                  ),
                 ),
                 Text(
                   '${second.matchesWon} Win • ${second.gamesWon} Games',
-                  style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B)),
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: isSecondRank1 ? FontWeight.w600 : FontWeight.normal,
+                    color: isSecondRank1 ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  height: 75,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                  height: isSecondRank1 ? 95 : 75,
+                  decoration: BoxDecoration(
+                    gradient: isSecondRank1
+                        ? const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
+                          )
+                        : null,
+                    color: isSecondRank1 ? null : const Color(0xFFE2E8F0),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                   ),
                   alignment: Alignment.center,
-                  child: const Text('2nd', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF475569))),
+                  child: Text(
+                    isSecondRank1 ? '1st' : '2nd',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: isSecondRank1 ? const Color(0xFF713F12) : const Color(0xFF475569),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -2952,33 +3140,64 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
         const SizedBox(width: 8),
 
-        // 3rd Place (Bronze - Right)
+        // 3rd Slot (Right - third)
         if (third != null)
           Expanded(
             child: Column(
               children: [
-                _buildTeamPodiumAvatar(third.memberPhotos, third.memberNames, '🥉'),
+                _buildTeamPodiumAvatar(
+                  third.memberPhotos,
+                  third.memberNames,
+                  isThirdRank1 ? '👑' : (isThirdRank2 ? '🥈' : '🥉'),
+                  isGold: isThirdRank1,
+                ),
                 const SizedBox(height: 6),
                 Text(
                   third.teamName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0F172A)),
+                  style: TextStyle(
+                    fontWeight: isThirdRank1 ? FontWeight.w900 : FontWeight.bold,
+                    fontSize: 11,
+                    color: const Color(0xFF0F172A),
+                  ),
                 ),
                 Text(
                   '${third.matchesWon} Win • ${third.gamesWon} Games',
-                  style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B)),
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: isThirdRank1 ? FontWeight.w600 : FontWeight.normal,
+                    color: isThirdRank1 ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  height: 60,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFED7AA),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                  height: isThirdRank1 ? 95 : (isThirdRank2 ? 75 : 60),
+                  decoration: BoxDecoration(
+                    gradient: isThirdRank1
+                        ? const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
+                          )
+                        : null,
+                    color: isThirdRank1
+                        ? null
+                        : (isThirdRank2 ? const Color(0xFFE2E8F0) : const Color(0xFFFED7AA)),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                   ),
                   alignment: Alignment.center,
-                  child: const Text('3rd', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF9A3412))),
+                  child: Text(
+                    isThirdRank1 ? '1st' : (isThirdRank2 ? '2nd' : '3rd'),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      color: isThirdRank1
+                          ? const Color(0xFF713F12)
+                          : (isThirdRank2 ? const Color(0xFF475569) : const Color(0xFF9A3412)),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -3091,7 +3310,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
   }
 
   Widget _buildTeamStandingRow(SessionTeamStanding team) {
-    String rankMedal = '#${team.rank}';
+    String rankMedal = team.rank == 0 ? '-' : '#${team.rank}';
     if (team.rank == 1) rankMedal = '🥇 1';
     if (team.rank == 2) rankMedal = '🥈 2';
     if (team.rank == 3) rankMedal = '🥉 3';
@@ -3233,37 +3452,68 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     final second = standings.length > 1 ? standings[1] : null;
     final third = standings.length > 2 ? standings[2] : null;
 
+    final isSecondRank1 = second?.rank == 1;
+    final isThirdRank1 = third?.rank == 1;
+    final isThirdRank2 = third?.rank == 2;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // 2nd Place (Silver - Left)
+        // 2nd Slot (Left - second)
         if (second != null)
           Expanded(
             child: Column(
               children: [
-                _buildPodiumAvatar(second.foto, second.nama, '🥈'),
+                _buildPodiumAvatar(
+                  second.foto,
+                  second.nama,
+                  isSecondRank1 ? '👑' : '🥈',
+                  isGold: isSecondRank1,
+                ),
                 const SizedBox(height: 6),
                 Text(
                   second.nama,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0F172A)),
+                  style: TextStyle(
+                    fontWeight: isSecondRank1 ? FontWeight.w900 : FontWeight.bold,
+                    fontSize: 11,
+                    color: const Color(0xFF0F172A),
+                  ),
                 ),
                 Text(
                   '${second.matchesWon} Win • ${second.gamesWon} Games',
-                  style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B)),
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: isSecondRank1 ? FontWeight.w600 : FontWeight.normal,
+                    color: isSecondRank1 ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  height: 75,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                  height: isSecondRank1 ? 95 : 75,
+                  decoration: BoxDecoration(
+                    gradient: isSecondRank1
+                        ? const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
+                          )
+                        : null,
+                    color: isSecondRank1 ? null : const Color(0xFFE2E8F0),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                   ),
                   alignment: Alignment.center,
-                  child: const Text('2nd', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF475569))),
+                  child: Text(
+                    isSecondRank1 ? '1st' : '2nd',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: isSecondRank1 ? const Color(0xFF713F12) : const Color(0xFF475569),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -3318,33 +3568,64 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
         const SizedBox(width: 8),
 
-        // 3rd Place (Bronze - Right)
+        // 3rd Slot (Right - third)
         if (third != null)
           Expanded(
             child: Column(
               children: [
-                _buildPodiumAvatar(third.foto, third.nama, '🥉'),
+                _buildPodiumAvatar(
+                  third.foto,
+                  third.nama,
+                  isThirdRank1 ? '👑' : (isThirdRank2 ? '🥈' : '🥉'),
+                  isGold: isThirdRank1,
+                ),
                 const SizedBox(height: 6),
                 Text(
                   third.nama,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0F172A)),
+                  style: TextStyle(
+                    fontWeight: isThirdRank1 ? FontWeight.w900 : FontWeight.bold,
+                    fontSize: 11,
+                    color: const Color(0xFF0F172A),
+                  ),
                 ),
                 Text(
                   '${third.matchesWon} Win • ${third.gamesWon} Games',
-                  style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B)),
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: isThirdRank1 ? FontWeight.w600 : FontWeight.normal,
+                    color: isThirdRank1 ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  height: 60,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFED7AA),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                  height: isThirdRank1 ? 95 : (isThirdRank2 ? 75 : 60),
+                  decoration: BoxDecoration(
+                    gradient: isThirdRank1
+                        ? const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
+                          )
+                        : null,
+                    color: isThirdRank1
+                        ? null
+                        : (isThirdRank2 ? const Color(0xFFE2E8F0) : const Color(0xFFFED7AA)),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                   ),
                   alignment: Alignment.center,
-                  child: const Text('3rd', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF9A3412))),
+                  child: Text(
+                    isThirdRank1 ? '1st' : (isThirdRank2 ? '2nd' : '3rd'),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      color: isThirdRank1
+                          ? const Color(0xFF713F12)
+                          : (isThirdRank2 ? const Color(0xFF475569) : const Color(0xFF9A3412)),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -3400,7 +3681,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
   }
 
   Widget _buildStandingRow(SessionPlayerStanding player) {
-    String rankMedal = '#${player.rank}';
+    String rankMedal = player.rank == 0 ? '-' : '#${player.rank}';
     if (player.rank == 1) rankMedal = '🥇 1';
     if (player.rank == 2) rankMedal = '🥈 2';
     if (player.rank == 3) rankMedal = '🥉 3';
@@ -3447,16 +3728,37 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           ),
           const SizedBox(width: 10),
 
-          // Name & Level
+          // Name & Level + Withdrawn Badge
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  player.nama,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF0F172A)),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        player.nama,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF0F172A)),
+                      ),
+                    ),
+                    if (player.isWithdrawn) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFE4E6),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFFFDA4AF), width: 0.8),
+                        ),
+                        child: const Text(
+                          'Withdrawn',
+                          style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFFBE123C)),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   '${player.level} • ${player.matchesPlayed} match',
@@ -3576,6 +3878,8 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
   Widget _buildPlayerKudosCard(SessionPlayerStanding player) {
     final userGiven = _givenKudos[player.playerId] ?? <String>{};
+    final currentUserId = widget.authController?.currentUser?.userId;
+    final bool isSelf = (currentUserId != null && player.userId == currentUserId);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -3612,9 +3916,16 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0F172A)),
                     children: [
                       TextSpan(
-                        text: ' • Juara ${player.rank} (${player.level})',
+                        text: player.rank == 0
+                            ? ' • (${player.level})'
+                            : ' • Rank #${player.rank} (${player.level})',
                         style: const TextStyle(fontWeight: FontWeight.normal, fontSize: 10, color: Color(0xFF64748B)),
                       ),
+                      if (isSelf)
+                        const TextSpan(
+                          text: ' • (Anda)',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Color(0xFFD97706)),
+                        ),
                     ],
                   ),
                 ),
@@ -3623,16 +3934,29 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           ),
           const SizedBox(height: 10),
 
-          // Kudos Chips
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: _kudosOptions.map((tag) {
-              final isSelected = userGiven.contains(tag);
-              final kCount = _kudosCounts[player.playerId]?[tag] ?? 0;
+          // Kudos Chips / Self-Kudos Disabled Note (Rule 5)
+          if (isSelf)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'Anda tidak dapat memberikan Kudos kepada diri sendiri.',
+                style: TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: Color(0xFF64748B)),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _kudosOptions.map((tag) {
+                final isSelected = userGiven.contains(tag);
+                final kCount = _kudosCounts[player.playerId]?[tag] ?? 0;
 
-              return GestureDetector(
-                onTap: () => _toggleKudos(player.playerId, player.nama, tag),
+                return GestureDetector(
+                  onTap: () => _toggleKudos(player.playerId, player.nama, tag),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),

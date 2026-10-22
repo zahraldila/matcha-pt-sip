@@ -43,20 +43,30 @@
         <div class="relative space-y-3">
             @php
                 $isSets = $scoringSystem['is_sets'] ?? true;
-                $topPlayer = ($hasScores ?? false) ? ($rankedPlayers[0] ?? null) : null;
+                $hasCompetitive = false;
+                $rank1Winners = [];
+                foreach ($rankedPlayers as $p) {
+                    if (($p['rank'] ?? 0) === 1) {
+                        $rank1Winners[] = $p['name'];
+                    }
+                    if (($p['rank'] ?? 0) > 0) {
+                        $hasCompetitive = true;
+                    }
+                }
+                $winnerTitle = !empty($rank1Winners) ? implode(' & ', $rank1Winners) : null;
             @endphp
 
             @if($isFinished ?? true)
-                @if($topPlayer)
+                @if($winnerTitle)
                 <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-100/80 border border-amber-200 text-amber-900 text-xs font-bold shadow-2xs">
-                    <i class="fa-solid fa-trophy text-amber-600"></i> Juara 1 &bull; {{ $topPlayer['name'] }}
+                    <i class="fa-solid fa-trophy text-amber-600"></i> Juara 1 &bull; {{ $winnerTitle }}
                 </div>
                 @else
-                <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#EBF8D8] border border-[#063B00]/25 text-[#063B00] text-xs font-bold shadow-2xs">
-                    <i class="fa-solid fa-circle-check text-[#063B00]"></i> Pertandingan Selesai
+                <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold shadow-2xs">
+                    <i class="fa-solid fa-info-circle text-slate-500"></i> Belum Ada Hasil Pertandingan
                 </div>
                 @endif
-            @elseif($hasScores ?? false)
+            @elseif($hasCompetitive)
                 <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold shadow-2xs">
                     <i class="fa-solid fa-chart-simple text-amber-600"></i> Klasemen Sementara &bull; Sesi Masih Berlangsung
                 </div>
@@ -308,24 +318,39 @@
             <div>
                 <h2 class="text-sm font-bold text-slate-900">Podium &amp; Klasemen Akhir</h2>
                 <p class="text-[11px] text-slate-500">
-                    Diurutkan: Total Poin/Game &rarr; Selisih &rarr; Match Menang &rarr; Nama
+                    Diurutkan: Total Poin &rarr; Selisih Poin &rarr; Match Menang &rarr; Game Menang &rarr; Selisih Game
                 </p>
             </div>
         </div>
 
         {{-- Top 3 Podium Visual --}}
-        @if(count($rankedPlayers) >= 1)
+        @if(!$hasCompetitiveResults)
+        <div class="py-8 px-4 text-center rounded-2xl bg-slate-50 border border-slate-200/80">
+            <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 text-xl mx-auto mb-3">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h3 class="text-sm font-bold text-slate-900 mb-1">Belum Ada Hasil Pertandingan</h3>
+            <p class="text-xs text-slate-500 max-w-sm mx-auto">Podium dan klasemen akhir akan tersedia setelah terdapat hasil pertandingan yang valid.</p>
+        </div>
+        @elseif(count($rankedPlayers) >= 1)
         <div class="grid grid-cols-3 gap-3 items-end pb-2">
             
             {{-- Juara 2 (Silver) — kiri --}}
-            @php $p2 = $rankedPlayers[1] ?? null; @endphp
+            @php
+                $p2 = $rankedPlayers[1] ?? null;
+                $p2Rank = $p2['rank'] ?? 2;
+                $p2Emoji = match($p2Rank) { 1 => '🥇', 2 => '🥈', default => '🥉' };
+                $p2Label = match($p2Rank) { 1 => 'JUARA!', 2 => '2nd', default => '3rd' };
+                $p2Bg = $p2Rank === 1 ? 'bg-gradient-to-t from-amber-400 to-amber-300' : 'bg-slate-200';
+                $p2Text = $p2Rank === 1 ? 'text-amber-900' : 'text-slate-600';
+            @endphp
             <div class="flex flex-col items-center gap-2">
                 @if($p2)
                 <div class="text-center space-y-1">
                     @if($p2['avatar'])
-                        <img src="{{ $p2['avatar'] }}" loading="lazy" decoding="async" class="w-12 h-12 rounded-full object-cover border-2 border-slate-300 mx-auto shadow" alt="{{ $p2['name'] }}">
+                        <img src="{{ $p2['avatar'] }}" loading="lazy" decoding="async" class="w-12 h-12 rounded-full object-cover border-2 {{ $p2Rank === 1 ? 'border-amber-400 ring-2 ring-amber-200' : 'border-slate-300' }} mx-auto shadow" alt="{{ $p2['name'] }}">
                     @else
-                        <div class="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center mx-auto text-slate-500 font-bold">{{ mb_substr($p2['name'], 0, 1) }}</div>
+                        <div class="w-12 h-12 rounded-full {{ $p2Rank === 1 ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500' }} flex items-center justify-center mx-auto font-bold">{{ mb_substr($p2['name'], 0, 1) }}</div>
                     @endif
                     <p class="text-[11px] font-bold text-slate-700 leading-tight">{{ $p2['name'] }}</p>
                     <p class="text-[10px] text-slate-400">
@@ -336,9 +361,9 @@
                         @endif
                     </p>
                 </div>
-                <div class="w-full bg-slate-200 rounded-t-xl py-5 text-center">
-                    <span class="text-2xl">🥈</span>
-                    <p class="text-[10px] font-black text-slate-600 mt-1">2nd</p>
+                <div class="w-full {{ $p2Bg }} rounded-t-xl py-5 text-center">
+                    <span class="text-2xl">{{ $p2Emoji }}</span>
+                    <p class="text-[10px] font-black {{ $p2Text }} mt-1">{{ $p2Label }}</p>
                 </div>
                 @endif
             </div>
@@ -370,14 +395,21 @@
             </div>
 
             {{-- Juara 3 (Bronze) — kanan --}}
-            @php $p3 = $rankedPlayers[2] ?? null; @endphp
+            @php
+                $p3 = $rankedPlayers[2] ?? null;
+                $p3Rank = $p3['rank'] ?? 3;
+                $p3Emoji = match($p3Rank) { 1 => '🥇', 2 => '🥈', default => '🥉' };
+                $p3Label = match($p3Rank) { 1 => 'JUARA!', 2 => '2nd', default => '3rd' };
+                $p3Bg = match($p3Rank) { 1 => 'bg-gradient-to-t from-amber-400 to-amber-300', 2 => 'bg-slate-200', default => 'bg-orange-200' };
+                $p3Text = match($p3Rank) { 1 => 'text-amber-900', 2 => 'text-slate-600', default => 'text-orange-700' };
+            @endphp
             <div class="flex flex-col items-center gap-2">
                 @if($p3)
                 <div class="text-center space-y-1">
                     @if($p3['avatar'])
-                        <img src="{{ $p3['avatar'] }}" loading="lazy" decoding="async" class="w-11 h-11 rounded-full object-cover border-2 border-orange-300 mx-auto shadow" alt="{{ $p3['name'] }}">
+                        <img src="{{ $p3['avatar'] }}" loading="lazy" decoding="async" class="w-11 h-11 rounded-full object-cover border-2 {{ $p3Rank === 1 ? 'border-amber-400 ring-2 ring-amber-200' : ($p3Rank === 2 ? 'border-slate-300' : 'border-orange-300') }} mx-auto shadow" alt="{{ $p3['name'] }}">
                     @else
-                        <div class="w-11 h-11 rounded-full bg-orange-100 flex items-center justify-center mx-auto text-orange-700 font-bold">{{ mb_substr($p3['name'], 0, 1) }}</div>
+                        <div class="w-11 h-11 rounded-full {{ $p3Rank === 1 ? 'bg-amber-100 text-amber-700' : ($p3Rank === 2 ? 'bg-slate-200 text-slate-500' : 'bg-orange-100 text-orange-700') }} flex items-center justify-center mx-auto font-bold">{{ mb_substr($p3['name'], 0, 1) }}</div>
                     @endif
                     <p class="text-[11px] font-bold text-slate-700 leading-tight">{{ $p3['name'] }}</p>
                     <p class="text-[10px] text-slate-400">
@@ -388,9 +420,9 @@
                         @endif
                     </p>
                 </div>
-                <div class="w-full bg-orange-200 rounded-t-xl py-4 text-center">
-                    <span class="text-xl">🥉</span>
-                    <p class="text-[10px] font-black text-orange-700 mt-1">3rd</p>
+                <div class="w-full {{ $p3Bg }} rounded-t-xl py-4 text-center">
+                    <span class="text-xl">{{ $p3Emoji }}</span>
+                    <p class="text-[10px] font-black {{ $p3Text }} mt-1">{{ $p3Label }}</p>
                 </div>
                 @endif
             </div>
@@ -414,7 +446,9 @@
             <div class="p-2.5 sm:p-3.5 rounded-2xl {{ $bgClass }} border flex items-center gap-2 sm:gap-3 shadow-2xs">
                 {{-- Rank --}}
                 <div class="w-6 sm:w-8 text-center shrink-0">
-                    @if($medalEmoji)
+                    @if(empty($player['rank']) || $player['rank'] === 0)
+                        <span class="text-[10px] sm:text-xs font-black text-slate-400">-</span>
+                    @elseif($medalEmoji)
                         <span class="text-base sm:text-lg leading-none">{{ $medalEmoji }}</span>
                     @else
                         <span class="text-[10px] sm:text-xs font-black text-slate-400">#{{ $player['rank'] }}</span>
@@ -430,7 +464,12 @@
 
                 {{-- Nama & Level --}}
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-900 truncate">{{ $player['name'] }}</p>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <p class="text-xs font-bold text-slate-900 truncate">{{ $player['name'] }}</p>
+                        @if(!empty($player['is_withdrawn']) || ($player['status'] ?? '') === 'withdrawn')
+                            <span class="px-1.5 py-0.2 rounded text-[8px] font-bold bg-rose-50 text-rose-600 border border-rose-200">Withdrawn</span>
+                        @endif
+                    </div>
                     <p class="text-[9px] sm:text-[10px] text-slate-400 truncate">{{ $player['level'] }} &bull; {{ $player['matches'] }} match</p>
                 </div>
 
@@ -488,6 +527,10 @@
                 $kudosBadges = ['🎾 Super Forehand', '🛡️ Solid Defense', '🤝 Fun Partner', '💥 Killer Smash', '⭐ MVP Play', '✨ Fair Play'];
             @endphp
             @foreach($allKudosPlayers as $player)
+            @php
+                $pUserId = $player['user_id'] ?? null;
+                $isSelf = auth()->check() && $pUserId && ((int)$pUserId === (int)auth()->id());
+            @endphp
             <div class="p-3.5 rounded-2xl bg-white border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-start gap-4 sm:gap-6 shadow-2xs hover:border-[#063B00]/20 transition-all">
                 <div class="flex items-center gap-3 shrink-0" style="min-width: 220px; width: 220px; max-width: 220px; flex-shrink: 0;">
                     @if(!empty($player['avatar']))
@@ -496,7 +539,7 @@
                         <div class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-600 text-xs font-bold">{{ mb_substr($player['name'] ?? 'P', 0, 1) }}</div>
                     @endif
                     <div class="min-w-0 flex-1">
-                        <div class="flex items-center gap-1.5">
+                        <div class="flex items-center gap-1.5 flex-wrap">
                             <h4 class="text-xs font-bold text-slate-900 truncate" title="{{ $player['name'] }}">{{ $player['name'] }}</h4>
                             @if(!empty($player['rank']) && $player['rank'] <= 3)
                                 <span class="text-[10px] shrink-0">{{ $player['medal']['emoji'] ?? '' }}</span>
@@ -508,6 +551,9 @@
                             @endif
                             {{ $player['level'] ?? 'Player' }}
                         </p>
+                        @if($isSelf)
+                            <p class="text-[9px] font-semibold text-amber-700 mt-0.5">(Anda - Tidak dapat memberi Kudos ke diri sendiri)</p>
+                        @endif
                     </div>
                 </div>
 
@@ -518,6 +564,17 @@
                         $isGiven = !empty($userGivenKudos[$kKey]);
                         $kCount = $savedKudos[$kKey] ?? 0;
                     @endphp
+                    @if($isSelf)
+                    <button type="button"
+                        disabled
+                        title="Anda tidak dapat memberikan Kudos kepada diri sendiri"
+                        class="kudos-btn w-fit inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition-all cursor-not-allowed opacity-50 bg-slate-100 text-slate-400 border-slate-200 whitespace-nowrap">
+                        <span>{{ $badge }}</span>
+                        <span class="kudos-badge-count text-[9px] px-1.5 py-0.2 rounded-full {{ $kCount > 0 ? 'bg-slate-200 text-slate-700 font-bold' : 'hidden' }}">
+                            {{ $kCount > 0 ? $kCount : '' }}
+                        </span>
+                    </button>
+                    @else
                     <button type="button" 
                         onclick="toggleKudos(this, '{{ addslashes($player['name']) }}', '{{ addslashes($badge) }}', {{ $player['id'] ?? ($player['player_id'] ?? 'null') }})"
                         data-player-name="{{ $player['name'] }}"
@@ -528,6 +585,7 @@
                             {{ $kCount > 0 ? $kCount : '' }}
                         </span>
                     </button>
+                    @endif
                     @endforeach
                 </div>
             </div>

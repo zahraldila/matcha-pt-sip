@@ -174,6 +174,9 @@ class SessionMatchRecapData {
   bool get isTeamFormat =>
       matchFormatId == 4 ||
       (matchFormatName?.toLowerCase().contains('team americano') ?? false);
+
+  bool get hasCompetitiveResults =>
+      standings.any((p) => p.matchesPlayed > 0 || p.pointsFor > 0);
 }
 
 class SessionRoundRecapItem {
@@ -235,6 +238,9 @@ class SessionPlayerStanding {
   final int setDiff;
   final int scoreWon;
   final int gamesDiff;
+  final int? userId;
+  final bool isWithdrawn;
+  final String? withdrawnReason;
 
   const SessionPlayerStanding({
     required this.rank,
@@ -243,6 +249,7 @@ class SessionPlayerStanding {
     required this.level,
     this.foto,
     this.gender = 'Male',
+    this.userId,
     required this.matchesPlayed,
     required this.matchesWon,
     required this.matchesLost,
@@ -257,6 +264,8 @@ class SessionPlayerStanding {
     this.setDiff = 0,
     required this.scoreWon,
     required this.gamesDiff,
+    this.isWithdrawn = false,
+    this.withdrawnReason,
   });
 }
 
@@ -281,6 +290,7 @@ class SessionTeamStanding {
   final int setDiff;
   final int scoreWon;
   final int gamesDiff;
+  final bool isWithdrawn;
 
   const SessionTeamStanding({
     required this.rank,
@@ -303,6 +313,7 @@ class SessionTeamStanding {
     this.setDiff = 0,
     required this.scoreWon,
     required this.gamesDiff,
+    this.isWithdrawn = false,
   });
 }
 

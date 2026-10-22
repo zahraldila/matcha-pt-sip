@@ -119,8 +119,15 @@ class KudosPersistenceTest extends TestCase
             'status_session' => 'Finished',
         ]);
 
+        $recipientUser = User::create([
+            'nama' => 'User Recipient',
+            'email' => 'recipient_'.uniqid().'@matcha.com',
+            'role' => 'member',
+            'password' => bcrypt('secret'),
+        ]);
+
         $player = Player::create([
-            'user_id' => $user->user_id,
+            'user_id' => $recipientUser->user_id,
             'nama' => 'lala',
             'level' => 'Beginner',
         ]);
@@ -197,6 +204,52 @@ class KudosPersistenceTest extends TestCase
         $this->assertDatabaseMissing('tb_kudos', [
             'session_id' => $session->session_id,
             'recipient_name' => 'lala',
+            'badge' => '🎾 Super Forehand',
+        ]);
+    }
+
+    public function test_self_kudos_is_rejected_with_422(): void
+    {
+        $user = User::create([
+            'nama' => 'Self User',
+            'email' => 'self_'.uniqid().'@matcha.com',
+            'role' => 'member',
+            'password' => bcrypt('secret'),
+        ]);
+
+        $sport = Sport::firstOrCreate(['nama_sport' => 'Padel'], ['status_sport' => 'active']);
+        $venue = Venue::create(['nama_venue' => 'Arena Self Kudos']);
+
+        $session = SessionModel::create([
+            'host_user_id' => $user->user_id,
+            'sport_id' => $sport->sport_id,
+            'venue_id' => $venue->venue_id,
+            'nama_session' => 'Mabar Self Kudos Test',
+            'status_session' => 'Finished',
+        ]);
+
+        $selfPlayer = Player::create([
+            'user_id' => $user->user_id,
+            'nama' => 'Self Player',
+            'level' => 'Intermediate',
+        ]);
+
+        $res = $this->actingAs($user)->postJson(route('scoring.kudos.toggle'), [
+            'session_id' => $session->session_id,
+            'player_name' => 'Self Player',
+            'player_id' => $selfPlayer->player_id,
+            'badge' => '🎾 Super Forehand',
+        ]);
+
+        $res->assertStatus(422);
+        $res->assertJson([
+            'success' => false,
+            'message' => 'Anda tidak dapat memberikan Kudos kepada diri sendiri.',
+        ]);
+
+        $this->assertDatabaseMissing('tb_kudos', [
+            'session_id' => $session->session_id,
+            'giver_user_id' => $user->user_id,
             'badge' => '🎾 Super Forehand',
         ]);
     }

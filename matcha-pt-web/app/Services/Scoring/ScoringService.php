@@ -370,7 +370,7 @@ class ScoringService
             $finals = $candidates->filter(function ($sc) {
                 $st = strtolower($sc->status_score ?? '');
 
-                return in_array($st, ['final', 'completed']);
+                return in_array($st, ['final', 'completed', 'stopped']);
             });
 
             $pool = $finals->isNotEmpty() ? $finals : $candidates;
@@ -486,12 +486,16 @@ class ScoringService
             for ($i = 0; $i < $totalCountForSuffix; $i++) {
                 $courtNumber = $matches[$i]['court'] ?? ($i + 1);
                 $matchKey = self::buildMatchKey($roundKey, $courtNumber, $totalCountForSuffix);
-
+                $rPrefix = is_numeric($roundKey) ? "round_{$roundKey}" : (string) $roundKey;
                 $candidateKeys = [
                     $matchKey,
+                    self::buildMatchKey($rPrefix, $courtNumber, $totalCountForSuffix),
                     "{$roundKey}_court_{$courtNumber}",
+                    "{$rPrefix}_court_{$courtNumber}",
                     $roundKey,
+                    $rPrefix,
                     "{$roundKey}_match_{$i}",
+                    "{$rPrefix}_match_{$i}",
                 ];
 
                 $matchedScore = null;
@@ -758,6 +762,8 @@ class ScoringService
                 $cleanName = self::cleanPlayerName($name);
                 $stats[$cleanName] = [
                     'name' => $name,
+                    'player_id' => $p['id'] ?? ($p['player_id'] ?? null),
+                    'user_id' => $p['user_id'] ?? null,
                     'avatar' => $p['avatar'] ?? null,
                     'level' => $p['level'] ?? '-',
                     'is_member' => $p['is_member'] ?? false,
@@ -804,10 +810,15 @@ class ScoringService
 
                 // Fallback (legacy single key atau versi match / court)
                 if (empty($matchScore) || ($matchScore['status'] ?? '') !== 'completed') {
+                    $rPrefix = is_numeric($roundKey) ? "round_{$roundKey}" : (string) $roundKey;
                     $candidateAltKeys = [
+                        self::buildMatchKey($rPrefix, $mCourt, $totalCountForSuffix),
                         "{$roundKey}_court_{$mCourt}",
+                        "{$rPrefix}_court_{$mCourt}",
                         $roundKey,
+                        $rPrefix,
                         "{$roundKey}_match_{$mIdx}",
+                        "{$rPrefix}_match_{$mIdx}",
                     ];
                     foreach ($candidateAltKeys as $altKey) {
                         if (isset($effectiveScores[$altKey]) && ($effectiveScores[$altKey]['status'] ?? '') === 'completed') {
@@ -1019,18 +1030,56 @@ class ScoringService
             return strcasecmp((string) $a['name'], (string) $b['name']);
         });
 
-        // Tambahkan rank & medal
-        foreach ($ranked as $i => &$player) {
-            $player['rank'] = $i + 1;
-            $player['medal'] = match ($i) {
-                0 => ['emoji' => '🥇', 'label' => 'Juara 1', 'color' => 'amber'],
-                1 => ['emoji' => '🥈', 'label' => 'Juara 2', 'color' => 'slate'],
-                2 => ['emoji' => '🥉', 'label' => 'Juara 3', 'color' => 'orange'],
-                default => ['emoji' => '', 'label' => "Rank #{$player['rank']}", 'color' => 'gray'],
+        // Cek apakah ada kontribusi hasil kompetitif yang sah (Rule 2 & D1)
+        $hasCompetitiveResults = false;
+        foreach ($ranked as $p) {
+            if ($p['matches'] > 0 && ($p['points_for'] > 0 || $p['points_against'] > 0 || $p['wins'] > 0)) {
+                $hasCompetitiveResults = true;
+                break;
+            }
+        }
+
+        // Tambahkan rank (Competition Ranking: 1, 1, 3, 4) & medal (Rule 2)
+        $currentRank = 1;
+        for ($i = 0; $i < count($ranked); $i++) {
+            if (! $hasCompetitiveResults) {
+                $ranked[$i]['rank'] = 0;
+                $ranked[$i]['medal'] = [
+                    'emoji' => '',
+                    'label' => 'Belum Ada Hasil',
+                    'color' => 'gray',
+                ];
+                continue;
+            }
+
+            if ($i > 0 && self::arePlayersTied($ranked[$i], $ranked[$i - 1])) {
+                // Shared / Joint rank: pertahankan rank sebelumnya
+            } else {
+                $currentRank = $i + 1;
+            }
+
+            $ranked[$i]['rank'] = $currentRank;
+            $ranked[$i]['medal'] = match ($currentRank) {
+                1 => ['emoji' => '🥇', 'label' => 'Juara 1', 'color' => 'amber'],
+                2 => ['emoji' => '🥈', 'label' => 'Juara 2', 'color' => 'slate'],
+                3 => ['emoji' => '🥉', 'label' => 'Juara 3', 'color' => 'orange'],
+                default => ['emoji' => '', 'label' => "Rank #{$currentRank}", 'color' => 'gray'],
             };
         }
 
         return $ranked;
+    }
+
+    /**
+     * Memeriksa apakah 2 peserta memiliki metrik kompetitif yang identik (Rule 2).
+     */
+    public static function arePlayersTied(array $a, array $b): bool
+    {
+        return $a['points_for'] === $b['points_for']
+            && $a['point_diff'] === $b['point_diff']
+            && $a['wins'] === $b['wins']
+            && $a['games_won'] === $b['games_won']
+            && $a['game_diff'] === $b['game_diff'];
     }
 
     /**

@@ -616,6 +616,62 @@ class RecapService {
     }
   }
 
+  /// Memilih baris skor otoritatif per nomor set, mengeliminasi EventLog atau duplikasi snapshot progres,
+  /// memprioritaskan status Final/Completed/Stopped dan versi tertinggi (identik dengan ScoringService web).
+  static List<Map<String, dynamic>> getAuthoritativeScores(List<dynamic> rawScores) {
+    if (rawScores.isEmpty) return [];
+
+    final mapScores = rawScores
+        .map((s) => Map<String, dynamic>.from(s as Map))
+        .toList();
+
+    // 1. Kelompokkan per set_number (default 1)
+    final Map<int, List<Map<String, dynamic>>> bySet = {};
+    for (final sc in mapScores) {
+      final setNum = _toInt(sc['set_number'], 1);
+      bySet.putIfAbsent(setNum, () => []).add(sc);
+    }
+
+    final List<Map<String, dynamic>> result = [];
+
+    final sortedSetKeys = bySet.keys.toList()..sort();
+    for (final setNum in sortedSetKeys) {
+      final setScores = bySet[setNum]!;
+
+      // a. Prioritaskan baris non-EventLog
+      final nonEventLogs = setScores.where((sc) {
+        final st = (sc['status_score'] ?? '').toString().toLowerCase();
+        return st != 'eventlog';
+      }).toList();
+
+      final candidates = nonEventLogs.isNotEmpty ? nonEventLogs : setScores;
+
+      // b. Prioritaskan status 'final', 'completed', atau 'stopped'
+      final terminalScores = candidates.where((sc) {
+        final st = (sc['status_score'] ?? '').toString().toLowerCase();
+        return st == 'final' || st == 'completed' || st == 'stopped';
+      }).toList();
+
+      final pool = terminalScores.isNotEmpty ? terminalScores : candidates;
+
+      // c. Urutkan berdasarkan version desc, lalu score_id desc
+      pool.sort((a, b) {
+        final vA = _toInt(a['version'], 0);
+        final vB = _toInt(b['version'], 0);
+        if (vA != vB) {
+          return vB.compareTo(vA);
+        }
+        final idA = _toInt(a['score_id'] ?? a['id'], 0);
+        final idB = _toInt(b['score_id'] ?? b['id'], 0);
+        return idB.compareTo(idA);
+      });
+
+      result.add(pool.first);
+    }
+
+    return result;
+  }
+
   /// Mengambil data rekap pertandingan lengkap untuk sesi tertentu (seperti web /scoring/recap/{sessionId})
   Future<SessionMatchRecapData> getSessionMatchRecap(
     int sessionId, {
@@ -639,7 +695,7 @@ class RecapService {
             tb_sport (nama_sport),
             tb_venue (nama_venue),
             tb_session_court (tb_court (nama_court)),
-            tb_session_player (tb_player (player_id, user_id, nama, gender, level, foto, tb_user (foto)))
+            tb_session_player (status, withdrawn_reason, tb_player (player_id, user_id, nama, gender, level, foto, tb_user (foto)))
           ''')
           .eq('session_id', sessionId)
           .maybeSingle();
@@ -685,6 +741,8 @@ class RecapService {
             f = pCopy['tb_user']?['foto']?.toString().trim();
           }
           pCopy['foto'] = (f != null && f.isNotEmpty) ? f : null;
+          pCopy['status'] = rpMap['status']?.toString();
+          pCopy['withdrawn_reason'] = rpMap['withdrawn_reason']?.toString();
           registeredPlayers.add(pCopy);
         }
       }
@@ -782,6 +840,7 @@ class RecapService {
       for (final p in registeredPlayers) {
         final pId = _toInt(p['player_id']);
         final pName = (p['nama'] ?? p['nama_player'])?.toString() ?? 'Pemain';
+        final isWithdrawn = (p['status']?.toString().toLowerCase() == 'withdrawn');
         playerStatsMap[pId] = {
           'playerId': pId,
           'nama': pName,
@@ -789,6 +848,8 @@ class RecapService {
           'foto': p['foto']?.toString(),
           'gender': (p['gender']?.toString()) ?? 'Male',
           'userId': _toNullableInt(p['user_id']),
+          'isWithdrawn': isWithdrawn,
+          'withdrawnReason': p['withdrawn_reason']?.toString(),
           'matchesPlayed': 0,
           'matchesWon': 0,
           'matchesLost': 0,
@@ -916,8 +977,8 @@ class RecapService {
           }
         }
 
-        // Skor pertandingan
-        final scores = mMap['tb_score'] as List<dynamic>? ?? [];
+        // Skor pertandingan otoritatif (tanpa eventlog & deduplikasi snapshot)
+        final scores = getAuthoritativeScores(mMap['tb_score'] as List<dynamic>? ?? []);
         final mStatus = (mMap['status_match']?.toString() ?? '').toLowerCase();
         final bool isStopped = mStatus == 'stopped';
         final bool isMatchCompleted = mStatus == 'completed' ||
@@ -943,7 +1004,7 @@ class RecapService {
           int shGamesB = 0;
 
           for (int i = 0; i < scores.length; i++) {
-            final sc = scores[i] as Map<String, dynamic>;
+            final sc = scores[i];
             final setNum = _toInt(sc['set_number'], i + 1);
             final scoreSideA = _toInt(sc['score_side_a']);
             final scoreSideB = _toInt(sc['score_side_b']);
@@ -1168,9 +1229,46 @@ class RecapService {
         return (a['nama']?.toString() ?? '').toLowerCase().compareTo((b['nama']?.toString() ?? '').toLowerCase());
       });
 
+      // Helper untuk memeriksa apakah 2 entri memiliki metrik kompetitif yang identik (Rule 2)
+      bool isTied(Map<String, dynamic> a, Map<String, dynamic> b) {
+        final ptsForA = _toInt(a['pointsFor']);
+        final ptsForB = _toInt(b['pointsFor']);
+        if (ptsForA != ptsForB) return false;
+
+        final ptDiffA = ptsForA - _toInt(a['pointsAgainst']);
+        final ptDiffB = ptsForB - _toInt(b['pointsAgainst']);
+        if (ptDiffA != ptDiffB) return false;
+
+        final winsA = _toInt(a['matchesWon']);
+        final winsB = _toInt(b['matchesWon']);
+        if (winsA != winsB) return false;
+
+        final gWonA = _toInt(a['gamesWon']);
+        final gWonB = _toInt(b['gamesWon']);
+        if (gWonA != gWonB) return false;
+
+        final gDiffA = gWonA - _toInt(a['gamesLost']);
+        final gDiffB = gWonB - _toInt(b['gamesLost']);
+        return gDiffA == gDiffB;
+      }
+
+      // Deteksi apakah ada hasil pertandingan kompetitif yang sah
+      final bool hasCompetitiveResults = rawStandings.any((s) =>
+          _toInt(s['matchesPlayed']) > 0 &&
+          (_toInt(s['pointsFor']) > 0 || _toInt(s['pointsAgainst']) > 0 || _toInt(s['matchesWon']) > 0));
+
       final List<SessionPlayerStanding> standings = [];
+      int currentRank = 1;
       for (int i = 0; i < rawStandings.length; i++) {
         final item = rawStandings[i];
+        if (!hasCompetitiveResults) {
+          currentRank = 0; // Belum ada hasil kompetitif valid
+        } else if (i > 0 && isTied(item, rawStandings[i - 1])) {
+          // Shared / Joint rank: pertahankan rank sebelumnya
+        } else {
+          currentRank = i + 1; // Competition ranking: 1, 1, 3, 4
+        }
+
         final gWon = _toInt(item['gamesWon']);
         final gLost = _toInt(item['gamesLost']);
         final sWon = _toInt(item['setsWon']);
@@ -1180,12 +1278,13 @@ class RecapService {
 
         standings.add(
           SessionPlayerStanding(
-            rank: i + 1,
+            rank: currentRank,
             playerId: _toInt(item['playerId']),
             nama: item['nama'].toString(),
             level: item['level'].toString(),
             foto: item['foto']?.toString(),
             gender: item['gender']?.toString() ?? 'Male',
+            userId: _toNullableInt(item['userId']),
             matchesPlayed: _toInt(item['matchesPlayed']),
             matchesWon: _toInt(item['matchesWon']),
             matchesLost: _toInt(item['matchesLost']),
@@ -1200,6 +1299,8 @@ class RecapService {
             setDiff: sWon - sLost,
             scoreWon: pFor,
             gamesDiff: gWon - gLost,
+            isWithdrawn: item['isWithdrawn'] == true,
+            withdrawnReason: item['withdrawnReason']?.toString(),
           ),
         );
       }
@@ -1234,8 +1335,17 @@ class RecapService {
               .compareTo((b['teamName']?.toString() ?? '').toLowerCase());
         });
 
+        int teamCurrentRank = 1;
         for (int i = 0; i < rawTeamStandings.length; i++) {
           final item = rawTeamStandings[i];
+          if (!hasCompetitiveResults) {
+            teamCurrentRank = 0;
+          } else if (i > 0 && isTied(item, rawTeamStandings[i - 1])) {
+            // Shared rank tim
+          } else {
+            teamCurrentRank = i + 1;
+          }
+
           final gWon = _toInt(item['gamesWon']);
           final gLost = _toInt(item['gamesLost']);
           final sWon = _toInt(item['setsWon']);
@@ -1245,7 +1355,7 @@ class RecapService {
 
           teamStandings.add(
             SessionTeamStanding(
-              rank: i + 1,
+              rank: teamCurrentRank,
               teamId: item['teamId'].toString(),
               teamName: item['teamName'].toString(),
               memberIds: (item['memberIds'] as List<dynamic>? ?? []).map((e) => _toInt(e)).toList(),
@@ -1311,7 +1421,7 @@ class RecapService {
           }
         }
       }
-      selectedPlayerEntry ??= rawStandings.isNotEmpty ? rawStandings.first : null;
+      // CATATAN: Jangan melakukan fallback ke rawStandings.first agar non-participant tidak melihat data orang lain
 
       if (selectedPlayerEntry != null) {
         final mPlayed = _toInt(selectedPlayerEntry['matchesPlayed']);
@@ -1357,7 +1467,7 @@ class RecapService {
     }
   }
 
-  /// Toggle Kudos ke database tb_kudos
+  /// Toggle Kudos ke database tb_kudos (Rule 5)
   Future<bool> toggleKudos({
     required int sessionId,
     required int? giverUserId,
@@ -1365,22 +1475,49 @@ class RecapService {
     required String recipientName,
     required String badge,
   }) async {
+    // 1. Validasi: Pemberi harus terautentikasi (Rule 5: Pengguna tanpa autentikasi valid tidak boleh melakukan mutasi)
+    if (giverUserId == null || giverUserId <= 0) {
+      throw Exception('Autentikasi diperlukan untuk memberikan Kudos.');
+    }
+
+    // 2. Validasi Self-Kudos: Dilarang memberi kudos kepada diri sendiri (Rule 5)
+    if (recipientPlayerId != null) {
+      try {
+        final pCheck = await _supabase
+            .from('tb_player')
+            .select('user_id')
+            .eq('player_id', recipientPlayerId)
+            .maybeSingle();
+        if (pCheck != null && _toNullableInt(pCheck['user_id']) == giverUserId) {
+          throw Exception('Anda tidak dapat memberikan Kudos kepada diri sendiri.');
+        }
+      } catch (e) {
+        if (e.toString().contains('diri sendiri')) rethrow;
+      }
+    }
+
     try {
       var query = _supabase
           .from('tb_kudos')
           .select('kudos_id')
           .eq('session_id', sessionId)
-          .eq('recipient_name', recipientName)
+          .eq('giver_user_id', giverUserId)
           .eq('badge', badge);
 
-      if (giverUserId != null) {
-        query = query.eq('giver_user_id', giverUserId);
+      if (recipientPlayerId != null) {
+        query = query.eq('recipient_player_id', recipientPlayerId);
+      } else {
+        query = query.eq('recipient_name', recipientName);
       }
 
       final existing = await query;
       if (existing.isNotEmpty) {
         final kId = existing.first['kudos_id'];
-        await _supabase.from('tb_kudos').delete().eq('kudos_id', kId);
+        await _supabase
+            .from('tb_kudos')
+            .delete()
+            .eq('kudos_id', kId)
+            .eq('giver_user_id', giverUserId); // Toggle hanya boleh menghapus kudos milik pemberi sendiri
         return false;
       } else {
         await _supabase.from('tb_kudos').insert({
@@ -1392,8 +1529,9 @@ class RecapService {
         });
         return true;
       }
-    } catch (_) {
-      return true;
+    } catch (e) {
+      if (e.toString().contains('diri sendiri')) rethrow;
+      return false;
     }
   }
 
