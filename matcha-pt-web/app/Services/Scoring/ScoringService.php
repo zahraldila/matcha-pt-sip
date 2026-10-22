@@ -2181,6 +2181,14 @@ class ScoringService
             array_map('intval', $newlyPausedPlayerIds)
         )));
 
+        $sessionId = $session->session_id;
+        $scoresCacheKey = "scoring.game_{$sessionId}";
+        $scoresMeta = Cache::get($scoresCacheKey, []);
+        if (is_array($scoresMeta)) {
+            $scoresMeta['_meta']['paused_players'] = $allPausedIds;
+            Cache::put($scoresCacheKey, $scoresMeta, now()->addHours(12));
+        }
+
         return self::adjustFutureScheduleCore($session, $allWithdrawnIds, $allPausedIds, $currentRoundNumber);
     }
 
@@ -2191,6 +2199,14 @@ class ScoringService
     {
         $allWithdrawnIds = self::getWithdrawnPlayerIds($session);
         $allPausedIds = array_values(array_diff(self::getPausedPlayerIds($session), [(int) $reactivatedPlayerId]));
+
+        $sessionId = $session->session_id;
+        $scoresCacheKey = "scoring.game_{$sessionId}";
+        $scoresMeta = Cache::get($scoresCacheKey, []);
+        if (is_array($scoresMeta)) {
+            $scoresMeta['_meta']['paused_players'] = $allPausedIds;
+            Cache::put($scoresCacheKey, $scoresMeta, now()->addHours(12));
+        }
 
         return self::adjustFutureScheduleCore($session, $allWithdrawnIds, $allPausedIds, $currentRoundNumber);
     }
@@ -2435,6 +2451,10 @@ class ScoringService
                         $updatedRounds[$r] = [
                             'round' => $r,
                             'matches' => [],
+                            'rotation_bench' => $activePlayers->pluck('nama')->toArray(),
+                            'paused_players' => $pausedPlayerNames,
+                            'paused_player_ids' => $allPausedIds,
+                            'withdrawn_players' => $allWithdrawnIds,
                             'resting' => $allRestingNames,
                             'teamA' => [],
                             'teamB' => [],

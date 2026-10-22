@@ -203,6 +203,15 @@
             <!-- 2D Court Visualizer Container (Simultaneous Multi-Court Preview) -->
             <div id="courtsMultiContainer" class="{{ count($activeRound['matches'] ?? []) > 1 ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'w-full max-w-2xl mx-auto' }}">
                 @php
+                    $isPastRoundInitial = (($roundStatus[$activeRoundNum] ?? '') === 'completed') || ((int) $activeRoundNum < (int) ($roundsProgress['active_round_num'] ?? $activeRoundNum));
+                    $withdrawnIdsSet = array_map('intval', $withdrawnPlayerIds ?? []);
+                    $pausedIdsSet = array_map('intval', $pausedPlayerIds ?? []);
+                    $eligibleActivesSSR = collect($game['participants'] ?? [])->filter(function($p) use ($withdrawnIdsSet, $pausedIdsSet) {
+                        $pId = (int) ($p['id'] ?? 0);
+                        return $pId > 0 && !in_array($pId, $withdrawnIdsSet, true) && !in_array($pId, $pausedIdsSet, true);
+                    })->values();
+                    $minReqSSR = $isSingleMode ? 2 : 4;
+
                     $initMatches = !empty($activeRound['matches']) ? $activeRound['matches'] : [
                         [
                             'court_name' => 'Court 1',
@@ -214,6 +223,30 @@
                             'status' => 'Scheduled'
                         ]
                     ];
+
+                    $ssrHasNoPlayableMatches = true;
+                    foreach ($initMatches as $im) {
+                        $pACount = count(!empty($im['team_a_names']) ? $im['team_a_names'] : (is_array($im['team_a'] ?? null) ? $im['team_a'] : []));
+                        $pBCount = count(!empty($im['team_b_names']) ? $im['team_b_names'] : (is_array($im['team_b'] ?? null) ? $im['team_b'] : []));
+                        if ($pACount > 0 || $pBCount > 0) {
+                            $ssrHasNoPlayableMatches = false;
+                            break;
+                        }
+                    }
+
+                    if (!$isPastRoundInitial && $ssrHasNoPlayableMatches && $eligibleActivesSSR->count() >= $minReqSSR) {
+                        if ($isSingleMode) {
+                            $initMatches[0]['team_a'] = [$eligibleActivesSSR[0]];
+                            $initMatches[0]['team_a_names'] = [$eligibleActivesSSR[0]['name'] ?? ''];
+                            $initMatches[0]['team_b'] = [$eligibleActivesSSR[1]];
+                            $initMatches[0]['team_b_names'] = [$eligibleActivesSSR[1]['name'] ?? ''];
+                        } else {
+                            $initMatches[0]['team_a'] = [$eligibleActivesSSR[0], $eligibleActivesSSR[1]];
+                            $initMatches[0]['team_a_names'] = [$eligibleActivesSSR[0]['name'] ?? '', $eligibleActivesSSR[1]['name'] ?? ''];
+                            $initMatches[0]['team_b'] = [$eligibleActivesSSR[2], $eligibleActivesSSR[3]];
+                            $initMatches[0]['team_b_names'] = [$eligibleActivesSSR[2]['name'] ?? '', $eligibleActivesSSR[3]['name'] ?? ''];
+                        }
+                    }
                 @endphp
 
                 @foreach($initMatches as $mIdx => $m)
@@ -376,13 +409,11 @@
                                 }
                             }
                             $isPastRound = $activeRoundIsPast;
-                            if ($isPastRound) {
-                                $roundPausedPlayers = $activeRound['paused_players'] ?? [];
-                                $roundPausedIds = $activeRound['paused_player_ids'] ?? [];
-                                $isPaused = in_array($rName, $roundPausedPlayers, true) || ($rId && in_array((int)$rId, $roundPausedIds, true));
-                            } else {
-                                $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
-                            }
+                            $roundPausedPlayers = $activeRound['paused_players'] ?? [];
+                            $roundPausedIds = $activeRound['paused_player_ids'] ?? [];
+                            $isPaused = ($rId && in_array((int)$rId, $pausedPlayerIds ?? [], true))
+                                || ($rId && in_array((int)$rId, $roundPausedIds, true))
+                                || in_array($rName, $roundPausedPlayers, true);
                         @endphp
                         <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl {{ $isPaused ? 'bg-amber-50/80 text-slate-800 border border-amber-200' : 'bg-white text-slate-800 border border-slate-200' }} text-xs font-medium shadow-2xs">
                             <span class="w-5 h-5 rounded-full {{ $isPaused ? 'bg-amber-200 text-amber-800' : 'bg-amber-100 text-amber-800' }} text-[10px] flex items-center justify-center font-bold">
@@ -632,13 +663,11 @@
                                     }
                                 }
                                 $isPastRound = (($roundStatus[$activeRoundNum] ?? '') === 'completed') || ((int)$activeRoundNum < (int)($roundsProgress['active_round_num'] ?? $activeRoundNum));
-                                if ($isPastRound) {
-                                    $roundPausedPlayers = $activeRound['paused_players'] ?? [];
-                                    $roundPausedIds = $activeRound['paused_player_ids'] ?? [];
-                                    $isPaused = in_array($pName, $roundPausedPlayers, true) || ($rId && in_array((int)$rId, $roundPausedIds, true));
-                                } else {
-                                    $isPaused = $rId && in_array((int)$rId, $pausedPlayerIds ?? [], true);
-                                }
+                                $roundPausedPlayers = $activeRound['paused_players'] ?? [];
+                                $roundPausedIds = $activeRound['paused_player_ids'] ?? [];
+                                $isPaused = ($rId && in_array((int)$rId, $pausedPlayerIds ?? [], true))
+                                    || ($rId && in_array((int)$rId, $roundPausedIds, true))
+                                    || in_array($pName, $roundPausedPlayers, true);
                             @endphp
                             <div class="flex items-center justify-between bg-white p-2 rounded-xl border {{ $isPaused ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/70' }} text-xs gap-2">
                                 <span class="text-slate-700 truncate min-w-0 flex-1">{{ $idx + 1 }}. {{ $pName }}</span>
@@ -1025,9 +1054,9 @@
         const formLockDrawing = document.getElementById('formLockDrawing');
 
         // Cek apakah ada pertandingan yang dapat dimainkan (memiliki pemain di kedua tim)
-        const roundObj = roundsData[roundToUse];
+        const roundObj = roundsData[roundToUse] || roundsData[`round_${roundToUse}`];
         let hasPlayableMatches = false;
-        if (roundObj && !roundObj.has_insufficient_players) {
+        if (roundObj) {
             const mList = roundObj.matches || [];
             if (mList.length > 0) {
                 hasPlayableMatches = mList.some(m => {
@@ -1035,7 +1064,7 @@
                     const pB = extractMatchPlayers(m.team_b, m.team_b_names);
                     return pA.length > 0 && pB.length > 0;
                 });
-            } else {
+            } else if (!roundObj.has_insufficient_players) {
                 const pA = extractMatchPlayers(roundObj.teamA || roundObj.team_a, roundObj.teamA_names);
                 const pB = extractMatchPlayers(roundObj.teamB || roundObj.team_b, roundObj.teamB_names);
                 hasPlayableMatches = pA.length > 0 && pB.length > 0;
@@ -1121,6 +1150,16 @@
             .map(Number);
         if (roundWithdrawnIds.length > 0) {
             withdrawnPlayerIds = [...new Set([...withdrawnPlayerIds.map(Number), ...roundWithdrawnIds])];
+        }
+
+        const roundPausedIds = Object.values(newRounds)
+            .flatMap(round => Array.isArray(round?.paused_player_ids) ? round.paused_player_ids : [])
+            .map(Number);
+        const curRoundObj = newRounds[currentRoundKey] || newRounds[`round_${currentRoundKey}`];
+        if (curRoundObj && Array.isArray(curRoundObj.paused_player_ids)) {
+            pausedPlayerIds = curRoundObj.paused_player_ids.map(Number);
+        } else if (roundPausedIds.length > 0) {
+            pausedPlayerIds = [...new Set(roundPausedIds)];
         }
 
         const oldJson = JSON.stringify(roundsData);
@@ -1647,6 +1686,45 @@
             }];
         }
 
+        const tabEl = document.getElementById(`tabRound${roundNum}`);
+        const roundStatusVal = tabEl ? tabEl.dataset.status : (roundStatusData[roundNum] || '');
+        const isPastRound = (roundStatusVal === 'completed') || (Number(roundNum) < Number(serverActiveRoundNum));
+        const withdrawnIds = new Set((withdrawnPlayerIds || []).map(Number));
+        const withdrawnNames = new Set((allParticipants || [])
+            .filter(p => withdrawnIds.has(Number(p.id || p.player_id)))
+            .map(p => cleanPlayerName(p.name || p.nama || '')));
+        const pausedIds = new Set((pausedPlayerIds || []).map(Number));
+
+        // Auto-assign ke Court 1 jika seluruh match kosong padahal kuota pemain aktif mencukupi (Parity dengan Mobile)
+        const isSingleGame = isSingleMode;
+        const minReq = isSingleGame ? 2 : 4;
+        const eligibleActives = (allParticipants || []).filter(p => {
+            const pId = Number(p.id || p.player_id);
+            return pId > 0 && !withdrawnIds.has(pId) && !pausedIds.has(pId);
+        });
+
+        const hasNoPlayableMatches = matches.every(m => {
+            const pA = extractMatchPlayers(m.team_a, m.team_a_names);
+            const pB = extractMatchPlayers(m.team_b, m.team_b_names);
+            return pA.length === 0 && pB.length === 0;
+        });
+
+        if (!isPastRound && hasNoPlayableMatches && eligibleActives.length >= minReq) {
+            if (isSingleGame) {
+                matches[0].team_a = [eligibleActives[0]];
+                matches[0].team_a_names = [eligibleActives[0].name || eligibleActives[0].nama];
+                matches[0].team_b = [eligibleActives[1]];
+                matches[0].team_b_names = [eligibleActives[1].name || eligibleActives[1].nama];
+            } else {
+                matches[0].team_a = [eligibleActives[0], eligibleActives[1]];
+                matches[0].team_a_names = [eligibleActives[0].name || eligibleActives[0].nama, eligibleActives[1].name || eligibleActives[1].nama];
+                matches[0].team_b = [eligibleActives[2], eligibleActives[3]];
+                matches[0].team_b_names = [eligibleActives[2].name || eligibleActives[2].nama, eligibleActives[3].name || eligibleActives[3].nama];
+            }
+            roundData.matches = matches;
+            delete roundData.has_insufficient_players;
+        }
+
         if (labelTotalMatches) {
             labelTotalMatches.innerText = `${matches.length} Lapangan Berjalan`;
         }
@@ -1670,16 +1748,6 @@
             pA.forEach(n => activePlayerNames.add(cleanPlayerName(n)));
             pB.forEach(n => activePlayerNames.add(cleanPlayerName(n)));
         });
-
-        const tabEl = document.getElementById(`tabRound${roundNum}`);
-        const roundStatusVal = tabEl ? tabEl.dataset.status : (roundStatusData[roundNum] || '');
-        const isPastRound = (roundStatusVal === 'completed') || (Number(roundNum) < Number(serverActiveRoundNum));
-        const withdrawnIds = new Set((withdrawnPlayerIds || []).map(Number));
-        const withdrawnNames = new Set((allParticipants || [])
-            .filter(p => withdrawnIds.has(Number(p.id || p.player_id)))
-            .map(p => cleanPlayerName(p.name || p.nama || '')));
-
-        const pausedIds = new Set((pausedPlayerIds || []).map(Number));
         let restingPlayers = [];
         if (allParticipants && allParticipants.length > 0) {
             restingPlayers = allParticipants.filter(p =>
@@ -1707,9 +1775,11 @@
                         const found = allParticipants.find(x => cleanPlayerName(x.name || x) === cleanPlayerName(pName));
                         if (found) pId = found.id;
                     }
-                    const isPaused = isPastRound
-                        ? ((Array.isArray(roundData.paused_players) && roundData.paused_players.includes(pName)) || (pId && Array.isArray(roundData.paused_player_ids) && roundData.paused_player_ids.map(Number).includes(Number(pId))))
-                        : (pId && Array.isArray(pausedPlayerIds) && pausedPlayerIds.map(Number).includes(Number(pId)));
+                    const roundPausedPlayers = Array.isArray(roundData?.paused_players) ? roundData.paused_players : [];
+                    const roundPausedIds = Array.isArray(roundData?.paused_player_ids) ? roundData.paused_player_ids.map(Number) : [];
+                    const isPaused = (pId && Array.isArray(pausedPlayerIds) && pausedPlayerIds.map(Number).includes(Number(pId)))
+                        || (pId && roundPausedIds.includes(Number(pId)))
+                        || roundPausedPlayers.includes(pName);
                     const safeName = pName.replace(/'/g, "\\'");
 
                     return `
@@ -1743,9 +1813,11 @@
                 rosterResting.innerHTML = restingPlayers.map((p, idx) => {
                     const pName = typeof p === 'object' && p !== null ? (p.name || p.nama || '') : String(p);
                     const pId = getPlayerIdByName(pName) || (typeof p === 'object' && p !== null ? (p.id || p.player_id) : null);
-                    const isPaused = isPastRound
-                        ? ((Array.isArray(roundData.paused_players) && roundData.paused_players.includes(pName)) || (pId && Array.isArray(roundData.paused_player_ids) && roundData.paused_player_ids.map(Number).includes(Number(pId))))
-                        : (pId && Array.isArray(pausedPlayerIds) && pausedPlayerIds.map(Number).includes(Number(pId)));
+                    const roundPausedPlayers = Array.isArray(roundData?.paused_players) ? roundData.paused_players : [];
+                    const roundPausedIds = Array.isArray(roundData?.paused_player_ids) ? roundData.paused_player_ids.map(Number) : [];
+                    const isPaused = (pId && Array.isArray(pausedPlayerIds) && pausedPlayerIds.map(Number).includes(Number(pId)))
+                        || (pId && roundPausedIds.includes(Number(pId)))
+                        || roundPausedPlayers.includes(pName);
                     const safeName = pName.replace(/'/g, "\\'");
 
                     return `
@@ -2112,11 +2184,15 @@
 
             // Hapus dari local pausedPlayerIds
             pausedPlayerIds = pausedPlayerIds.filter(id => Number(id) !== Number(playerId));
+            if (Array.isArray(data.paused_player_ids)) {
+                pausedPlayerIds = data.paused_player_ids.map(Number);
+            }
 
             // Jika response menyertakan data ronde terbaru, langsung terapkan
             if (data.rounds && Object.keys(data.rounds).length > 0) {
                 applyRemoteDrawingUpdate(data.rounds, participantsMap, data.message);
             } else {
+                switchRound(currentRoundKey, false);
                 // Trigger smart polling update untuk sinkronisasi
                 try {
                     const pollRes = await fetch(`{{ route('games.drawing', $game['id']) }}?json=1&round=${currentRoundKey}&_t=${Date.now()}`, {
@@ -2125,7 +2201,7 @@
                     if (pollRes.ok) {
                         const pollData = await pollRes.json();
                         if (pollData.rounds) {
-                            if (pollData.paused_player_ids) pausedPlayerIds = pollData.paused_player_ids;
+                            if (pollData.paused_player_ids) pausedPlayerIds = pollData.paused_player_ids.map(Number);
                             applyRemoteDrawingUpdate(pollData.rounds, pollData.participantsMap, data.message);
                         }
                     }

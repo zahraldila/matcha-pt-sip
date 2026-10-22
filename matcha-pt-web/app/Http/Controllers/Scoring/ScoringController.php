@@ -2068,6 +2068,8 @@ class ScoringController extends Controller
             'schedule_version' => $adjusted['schedule_version'] ?? 1,
             'active_players_count' => $adjusted['active_players_count'] ?? null,
             'rounds' => $adjusted['rounds'] ?? [],
+            'paused_player_ids' => ScoringService::getPausedPlayerIds($session),
+            'withdrawn_player_ids' => ScoringService::getWithdrawnPlayerIds($session),
         ]);
     }
 
@@ -2286,6 +2288,8 @@ class ScoringController extends Controller
             'summary' => $adjusted['summary'] ?? null,
             'rounds' => $adjusted['rounds'] ?? [],
             'drawingData' => $adjusted['drawingData'] ?? [],
+            'paused_player_ids' => ScoringService::getPausedPlayerIds($session),
+            'withdrawn_player_ids' => ScoringService::getWithdrawnPlayerIds($session),
         ]);
     }
 
@@ -3033,6 +3037,13 @@ class ScoringController extends Controller
 
         // Hitung ranking semua pemain
         $rankedPlayers = ScoringService::calculateRecap($game, $effectiveScores);
+        $hasCompetitiveResults = false;
+        foreach ($rankedPlayers as $rp) {
+            if (($rp['matches'] ?? 0) > 0 && (($rp['points_for'] ?? 0) > 0 || ($rp['points_against'] ?? 0) > 0 || ($rp['wins'] ?? 0) > 0)) {
+                $hasCompetitiveResults = true;
+                break;
+            }
+        }
 
         // Cek status sesi dari database & jumlah match selesai
         $sessionModel = SessionModel::find($game['id']);
@@ -3158,7 +3169,8 @@ class ScoringController extends Controller
             'totalMatchesCount',
             'savedKudos',
             'userGivenKudos',
-            'hasStoppedMatches'
+            'hasStoppedMatches',
+            'hasCompetitiveResults'
         ));
     }
 

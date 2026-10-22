@@ -324,6 +324,9 @@
         </div>
 
         {{-- Top 3 Podium Visual --}}
+        @php
+            $hasCompetitiveResults = $hasCompetitiveResults ?? (!empty($rankedPlayers) && collect($rankedPlayers)->some(fn($p) => ($p['matches'] ?? 0) > 0 && (($p['points_for'] ?? 0) > 0 || ($p['points_against'] ?? 0) > 0 || ($p['wins'] ?? 0) > 0)));
+        @endphp
         @if(!$hasCompetitiveResults)
         <div class="py-8 px-4 text-center rounded-2xl bg-slate-50 border border-slate-200/80">
             <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 text-xl mx-auto mb-3">
