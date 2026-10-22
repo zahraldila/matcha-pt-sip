@@ -273,7 +273,7 @@
                                         {{ $tAName }}
                                     </span>
                                     <div class="flex flex-col justify-around gap-2 my-auto py-2 h-full">
-                                        @foreach($tAPlayers as $pName)
+                                        @forelse($tAPlayers as $pName)
                                             @php
                                                 $isFemale = $getGenderHelper($pName);
                                                 $pDisplayName = is_array($pName) ? ($pName['name'] ?? $pName['nama'] ?? '') : (string)$pName;
@@ -286,7 +286,13 @@
                                                     {{ $pDisplayName }}
                                                 </span>
                                             </div>
-                                        @endforeach
+                                        @empty
+                                            <div class="flex flex-col items-center justify-center text-center my-auto py-2">
+                                                <span class="text-[10px] sm:text-[11px] font-semibold text-slate-300 italic bg-black/40 backdrop-blur-xs px-3 py-1 rounded-full border border-white/10">
+                                                    Belum ada pemain
+                                                </span>
+                                            </div>
+                                        @endforelse
                                     </div>
                                 </div>
 
@@ -296,7 +302,7 @@
                                         {{ $tBName }}
                                     </span>
                                     <div class="flex flex-col justify-around gap-2 my-auto py-2 h-full items-end w-full">
-                                        @foreach($tBPlayers as $pName)
+                                        @forelse($tBPlayers as $pName)
                                             @php
                                                 $isFemale = $getGenderHelper($pName);
                                                 $pDisplayName = is_array($pName) ? ($pName['name'] ?? $pName['nama'] ?? '') : (string)$pName;
@@ -309,7 +315,13 @@
                                                     {{ $pDisplayName }}
                                                 </span>
                                             </div>
-                                        @endforeach
+                                        @empty
+                                            <div class="flex flex-col items-center justify-center text-center my-auto py-2">
+                                                <span class="text-[10px] sm:text-[11px] font-semibold text-slate-300 italic bg-black/40 backdrop-blur-xs px-3 py-1 rounded-full border border-white/10">
+                                                    Belum ada pemain
+                                                </span>
+                                            </div>
+                                        @endforelse
                                     </div>
                                 </div>
                             </div>
@@ -678,6 +690,19 @@
                     </div>
                 </div>
 
+                <!-- Banner Edukatif: Belum Ada Pemain Bertanding -->
+                <div id="noPlayableMatchesBanner" class="hidden mb-3 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs shadow-2xs transition-all">
+                    <div class="flex items-start gap-2.5">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-600 text-sm mt-0.5 shrink-0"></i>
+                        <div class="space-y-0.5">
+                            <p class="font-bold text-slate-900">Belum Ada Pemain Bertanding</p>
+                            <p class="text-[11px] text-slate-600 leading-relaxed">
+                                Semua pertandingan di ronde ini belum memiliki pemain yang siap bertanding. Silakan aktifkan kembali pemain melalui tombol <strong class="text-emerald-700">Siap Main</strong> di Bangku Cadangan untuk memulai pertandingan.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- CTA Button to Live Scoring / Lock Drawing -->
                 @if($isLocked ?? false)
                     @php
@@ -993,30 +1018,96 @@
 
         const ctaLiveBtn = document.getElementById('ctaLiveBtn');
         const ctaLiveText = document.getElementById('ctaLiveText');
+        const lockRoundInput = document.getElementById('lockRoundInput');
+        const lockSubmitText = document.getElementById('lockSubmitText');
+        const btnLockSubmit = document.getElementById('btnLockSubmit');
+        const noPlayableBanner = document.getElementById('noPlayableMatchesBanner');
+        const formLockDrawing = document.getElementById('formLockDrawing');
+
+        // Cek apakah ada pertandingan yang dapat dimainkan (memiliki pemain di kedua tim)
+        const roundObj = roundsData[roundToUse];
+        let hasPlayableMatches = false;
+        if (roundObj && !roundObj.has_insufficient_players) {
+            const mList = roundObj.matches || [];
+            if (mList.length > 0) {
+                hasPlayableMatches = mList.some(m => {
+                    const pA = extractMatchPlayers(m.team_a, m.team_a_names);
+                    const pB = extractMatchPlayers(m.team_b, m.team_b_names);
+                    return pA.length > 0 && pB.length > 0;
+                });
+            } else {
+                const pA = extractMatchPlayers(roundObj.teamA || roundObj.team_a, roundObj.teamA_names);
+                const pB = extractMatchPlayers(roundObj.teamB || roundObj.team_b, roundObj.teamB_names);
+                hasPlayableMatches = pA.length > 0 && pB.length > 0;
+            }
+        }
+
+        // Tampilkan atau sembunyikan banner edukatif jika tidak ada pemain yang siap bertanding
+        if (noPlayableBanner) {
+            if (!hasPlayableMatches && isAccessible) {
+                noPlayableBanner.classList.remove('hidden');
+            } else {
+                noPlayableBanner.classList.add('hidden');
+            }
+        }
+
+        if (formLockDrawing) {
+            formLockDrawing.onsubmit = function(e) {
+                if (!hasPlayableMatches) {
+                    e.preventDefault();
+                    if (typeof showToast === 'function') {
+                        showToast('Tidak dapat memulai scoring. Belum ada pemain yang bertanding pada ronde ini.', 'warning');
+                    }
+                    return false;
+                }
+            };
+        }
+
         if (ctaLiveBtn) {
             const separator = baseLiveScoringUrl.includes('?') ? '&' : '?';
             ctaLiveBtn.href = `${baseLiveScoringUrl}${separator}round=round_${roundToUse}`;
-            if (ctaLiveText) {
-                if (!isAccessible) {
-                    ctaLiveText.innerText = `Buka Scoring ${unitLabel} ${activeUnlocked} (Aktif)`;
-                } else if (targetStat === 'completed') {
-                    ctaLiveText.innerText = `Buka Rekap / Skor ${unitLabel} ${roundToUse}`;
-                } else {
-                    ctaLiveText.innerText = `Buka Scoring Live ${unitLabel} ${roundToUse}`;
+            if (!hasPlayableMatches && isAccessible) {
+                ctaLiveBtn.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+                ctaLiveBtn.classList.remove('hover:scale-[1.01]', 'active:scale-95');
+                if (ctaLiveText) {
+                    ctaLiveText.innerText = 'Belum Ada Pemain Bertanding';
+                }
+            } else {
+                ctaLiveBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+                ctaLiveBtn.classList.add('hover:scale-[1.01]', 'active:scale-95');
+                if (ctaLiveText) {
+                    if (!isAccessible) {
+                        ctaLiveText.innerText = `Buka Scoring ${unitLabel} ${activeUnlocked} (Aktif)`;
+                    } else if (targetStat === 'completed') {
+                        ctaLiveText.innerText = `Buka Rekap / Skor ${unitLabel} ${roundToUse}`;
+                    } else {
+                        ctaLiveText.innerText = `Buka Scoring Live ${unitLabel} ${roundToUse}`;
+                    }
                 }
             }
         }
 
-        const lockRoundInput = document.getElementById('lockRoundInput');
-        const lockSubmitText = document.getElementById('lockSubmitText');
         if (lockRoundInput) {
             lockRoundInput.value = `round_${roundToUse}`;
         }
-        if (lockSubmitText) {
-            if (!isAccessible) {
-                lockSubmitText.innerText = `Buka Scoring ${unitLabel} ${activeUnlocked} (Aktif)`;
+
+        if (btnLockSubmit) {
+            if (!hasPlayableMatches && isAccessible) {
+                btnLockSubmit.disabled = true;
+                btnLockSubmit.className = 'w-full text-center py-3.5 rounded-2xl bg-slate-200 text-slate-400 font-extrabold text-xs shadow-none cursor-not-allowed transition-all';
+                if (lockSubmitText) {
+                    lockSubmitText.innerText = 'Belum Ada Pemain Bertanding';
+                }
             } else {
-                lockSubmitText.innerText = `Kunci Tim & Buka Scoring Live (${unitLabel} ${roundToUse})`;
+                btnLockSubmit.disabled = false;
+                btnLockSubmit.className = 'w-full text-center py-3.5 rounded-2xl bg-[#063B00] hover:bg-[#042a00] text-white font-extrabold text-xs shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer';
+                if (lockSubmitText) {
+                    if (!isAccessible) {
+                        lockSubmitText.innerText = `Buka Scoring ${unitLabel} ${activeUnlocked} (Aktif)`;
+                    } else {
+                        lockSubmitText.innerText = `Kunci Tim & Buka Scoring Live (${unitLabel} ${roundToUse})`;
+                    }
+                }
             }
         }
     }
@@ -1076,6 +1167,35 @@
 
     function onHostOpenScoring(event) {
         if (!isHostUser) return;
+
+        const roundObj = roundsData[currentRoundKey];
+        let hasPlayableMatches = false;
+        if (roundObj && !roundObj.has_insufficient_players) {
+            const mList = roundObj.matches || [];
+            if (mList.length > 0) {
+                hasPlayableMatches = mList.some(m => {
+                    const pA = extractMatchPlayers(m.team_a, m.team_a_names);
+                    const pB = extractMatchPlayers(m.team_b, m.team_b_names);
+                    return pA.length > 0 && pB.length > 0;
+                });
+            } else {
+                const pA = extractMatchPlayers(roundObj.teamA || roundObj.team_a, roundObj.teamA_names);
+                const pB = extractMatchPlayers(roundObj.teamB || roundObj.team_b, roundObj.teamB_names);
+                hasPlayableMatches = pA.length > 0 && pB.length > 0;
+            }
+        }
+
+        if (!hasPlayableMatches) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            if (typeof showToast === 'function') {
+                showToast('Tidak dapat membuka scoring. Belum ada pemain yang bertanding pada ronde ini.', 'warning');
+            }
+            return false;
+        }
+
         if (window.supabase && SUPABASE_URL && SUPABASE_KEY) {
             try {
                 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -1293,7 +1413,7 @@
         const playersA = extractMatchPlayers(match.team_a, match.team_a_names);
         const playersB = extractMatchPlayers(match.team_b, match.team_b_names);
 
-        const playersAHtml = playersA.map(name => {
+        const playersAHtml = playersA.length > 0 ? playersA.map(name => {
             const female = isFemalePlayer(name);
             return `
                 <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-6 my-auto">
@@ -1305,9 +1425,15 @@
                     </span>
                 </div>
             `;
-        }).join('');
+        }).join('') : `
+            <div class="flex flex-col items-center justify-center text-center my-auto py-2">
+                <span class="text-[10px] sm:text-[11px] font-semibold text-slate-300 italic bg-black/40 backdrop-blur-xs px-3 py-1 rounded-full border border-white/10">
+                    Belum ada pemain
+                </span>
+            </div>
+        `;
 
-        const playersBHtml = playersB.map(name => {
+        const playersBHtml = playersB.length > 0 ? playersB.map(name => {
             const female = isFemalePlayer(name);
             return `
                 <div class="flex flex-col items-center justify-center text-center transform transition-transform hover:scale-105 w-fit mx-auto sm:mx-6 my-auto">
@@ -1319,7 +1445,13 @@
                     </span>
                 </div>
             `;
-        }).join('');
+        }).join('') : `
+            <div class="flex flex-col items-center justify-center text-center my-auto py-2">
+                <span class="text-[10px] sm:text-[11px] font-semibold text-slate-300 italic bg-black/40 backdrop-blur-xs px-3 py-1 rounded-full border border-white/10">
+                    Belum ada pemain
+                </span>
+            </div>
+        `;
 
         return `
             <div class="rounded-3xl glass-card p-4 sm:p-5 shadow-sm border border-white/80 space-y-3">
@@ -1818,6 +1950,14 @@
         if (isSessionLocked) {
             if (typeof showToast === 'function') {
                 showToast('Jadwal sudah dikunci karena pertandingan sudah berjalan.');
+            }
+            return;
+        }
+
+        const roundObj = roundsData[currentRoundKey];
+        if (roundObj && roundObj.has_insufficient_players) {
+            if (typeof showToast === 'function') {
+                showToast('Pemain aktif tidak mencukupi untuk diacak. Silakan aktifkan kembali pemain melalui Bangku Cadangan.', 'warning');
             }
             return;
         }

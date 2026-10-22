@@ -1739,6 +1739,27 @@ class GameController extends Controller
             $redirectParams['round'] = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $request->input('round')) ?: 'round_1';
         }
 
+        // Validasi: pastikan ada pemain aktif yang mencukupi untuk bertanding
+        $pausedPlayerIds = ScoringService::getPausedPlayerIds($session);
+        $withdrawnPlayerIds = ScoringService::getWithdrawnPlayerIds($session);
+        $excludedPlayerIds = array_unique(array_merge($pausedPlayerIds, $withdrawnPlayerIds));
+
+        $session->loadMissing('players');
+        $activePlayersCount = $session->players->filter(fn ($p) => ! in_array((int) $p->player_id, $excludedPlayerIds, true))->count();
+        $isSingle = strtolower($session->jenis_permainan ?? '') === 'single';
+        $minRequired = $isSingle ? 2 : 4;
+
+        if ($activePlayersCount < $minRequired) {
+            $errorMsg = 'Tidak dapat memulai scoring: Semua pertandingan di ronde ini belum memiliki pemain yang siap bertanding. Silakan aktifkan kembali pemain melalui Bangku Cadangan.';
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMsg,
+                ], 422);
+            }
+            return redirect()->back()->with('warning', $errorMsg);
+        }
+
         // Kunci status drawing di cache
         Cache::put("drawing.locked_{$id}", true, now()->addHours(12));
 
