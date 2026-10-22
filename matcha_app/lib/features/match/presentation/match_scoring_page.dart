@@ -2833,6 +2833,27 @@ class MatchScoringPageState extends State<MatchScoringPage> {
         }
       }
 
+      if (widget.sessionId != null) {
+        for (final playerId in resolvedPausedIds) {
+          await _matchService.adjustFutureScheduleOnPlayerStatusChange(
+            sessionId: widget.sessionId,
+            currentRoundNumber: _viewedRoundIndex + 1,
+            targetPlayerId: playerId,
+            action: 'pause',
+            allPlayers: _config.players,
+          );
+        }
+        for (final playerId in resolvedWithdrawnIds) {
+          await _matchService.adjustFutureScheduleOnPlayerStatusChange(
+            sessionId: widget.sessionId,
+            currentRoundNumber: _viewedRoundIndex + 1,
+            targetPlayerId: playerId,
+            action: 'withdraw',
+            allPlayers: _config.players,
+          );
+        }
+      }
+
       // Refetch session players to ensure full sync with Supabase
       if (widget.sessionId != null) {
         try {

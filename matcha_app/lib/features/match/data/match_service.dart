@@ -1364,6 +1364,7 @@ class MatchService {
           .from('tb_match')
           .select('match_id, nomor_match, status_match')
           .eq('drawing_id', drawingId)
+          .eq('status_match', 'Scheduled')
           .gte('nomor_match', minNomorMatch)
           .order('nomor_match', ascending: true);
 
