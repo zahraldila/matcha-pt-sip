@@ -298,7 +298,7 @@ void main() {
       expect(find.textContaining('Budi Santoso berhasil diistirahatkan ke bangku cadangan'), findsOneWidget);
     });
 
-    testWidgets('4. Mengistirahatkan pemain saat pemain pas-pasan (2 pemain single) dicegah dengan dialog peringatan', (tester) async {
+    testWidgets('4. Mengistirahatkan pemain saat pemain pas-pasan (2 pemain single) mengosongkan court, memindahkan ke bench, dan mendisable tombol scoring serta otomatis assign saat Siap Main', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -363,17 +363,39 @@ void main() {
       await tester.tap(find.text('Ya, Istirahatkan Pemain'));
       await tester.pumpAndSettle();
 
-      // Harus muncul dialog peringatan "Tidak Dapat Mengistirahatkan Pemain"
-      expect(find.text('Tidak Dapat Mengistirahatkan Pemain'), findsOneWidget);
-      expect(find.textContaining('tidak ada pemain pengganti di bangku cadangan'), findsOneWidget);
-      expect(find.text('Mengerti'), findsOneWidget);
+      // managePlayerStatus dipanggil
+      expect(mockService.lastAction, 'pause');
+      expect(mockService.lastPlayerId, 1);
 
-      // Dismiss dialog
-      await tester.tap(find.text('Mengerti'));
+      // Court menampilkan Belum ada pemain
+      expect(find.text('Belum ada pemain'), findsWidgets);
+
+      // Di Bangku Cadangan ada tombol Siap Main untuk Ocean Abelvan
+      expect(find.text('Siap Main'), findsOneWidget);
+
+      // Muncul banner informasi bahwa semua pemain berada di bangku cadangan
+      expect(find.textContaining('Semua pemain berada di bangku cadangan / istirahat'), findsOneWidget);
+
+      // Tombol scoring menjadi disabled dengan teks Belum Ada Pemain Bertanding
+      expect(find.text('Belum Ada Pemain Bertanding'), findsOneWidget);
+
+      // TEST REAKTIVASI (Siap Main):
+      final btnSiapMain = find.text('Siap Main');
+      await tester.ensureVisible(btnSiapMain);
+      await tester.tap(btnSiapMain);
       await tester.pumpAndSettle();
 
-      // managePlayerStatus TIDAK boleh dipanggil
-      expect(mockService.lastAction, isNull);
+      // Dialog konfirmasi Siap Main muncul
+      expect(find.text('Ya, Siap Main'), findsOneWidget);
+      await tester.tap(find.text('Ya, Siap Main'));
+      await tester.pumpAndSettle();
+
+      // managePlayerStatus dipanggil dengan reactivate
+      expect(mockService.lastAction, 'reactivate');
+
+      // Kedua pemain otomatis masuk kembali ke Tim A dan Tim B di Court 1
+      expect(find.text('Kunci Tim & Mulai Scoring Live'), findsOneWidget);
+      expect(find.text('Belum Ada Pemain Bertanding'), findsNothing);
     });
 
     testWidgets('5. Mengeluarkan pemain saat pemain pas-pasan (2 pemain single) memicu dialog konfirmasi penghentian sesi', (tester) async {

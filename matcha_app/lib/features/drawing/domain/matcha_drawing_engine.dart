@@ -90,7 +90,25 @@ class MatchaDrawingEngine {
 
     final isSingle = playMode.toLowerCase() == 'single';
     final minRequired = isSingle ? 2 : 4;
-    if (activePlayers.length < minRequired) return [];
+    if (activePlayers.length < minRequired) {
+      if (restingPlayers.isNotEmpty) {
+        // Ada pemain yang istirahat sehingga pemain aktif tersisa kurang dari batas minimal (misal 1 Single atau <4 Double).
+        // Buat struktur ronde dengan court kosong agar UI tetap menampilkan Court & Bangku Cadangan (Paritas Web).
+        final effectiveRounds = roundCount ?? 3;
+        final emptyMatches = List.generate(courtCount, (i) => DrawingMatch(
+          courtNumber: i + 1,
+          teamA: const [],
+          teamB: const [],
+          status: 'Scheduled',
+        ));
+        return List.generate(effectiveRounds, (r) => DrawingRound(
+          roundNumber: r + 1,
+          matches: emptyMatches,
+          restingPlayers: List<GamePlayerItem>.from(eligiblePlayers),
+        ));
+      }
+      return [];
+    }
 
     List<GamePlayerItem> playerPool = List.from(activePlayers);
     if (shufflePlayers) {
