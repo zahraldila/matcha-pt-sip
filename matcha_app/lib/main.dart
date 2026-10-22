@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
 import 'core/services/app_link_service.dart';
+import 'core/services/matcha_sync_engine.dart';
+import 'core/storage/matcha_hive_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/splash/presentation/splash_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inisialisasi Hive Offline-First Storage
+  await MatchaHiveService.init();
 
   // Inisialisasi Supabase Client
   try {
@@ -19,6 +24,9 @@ void main() async {
   } catch (_) {
     // Abaikan jika sudah diinisialisasi atau mode offline
   }
+
+  // Mulai listener jaringan & antrean sinkronisasi background
+  MatchaSyncEngine.instance.init();
 
   runApp(const MatchaApp());
 }

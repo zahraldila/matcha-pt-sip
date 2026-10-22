@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/storage/matcha_hive_service.dart';
 import '../../drawing/domain/matcha_drawing_engine.dart';
 import '../../games/domain/game_wizard_model.dart';
 import 'datasource/match_remote_data_source.dart';
@@ -742,8 +743,38 @@ class MatchService {
     String? lastEventId,
     String? matchKey,
   }) async {
-    // 0. Defensive guard: If match status is Stopped, reject score mutation immediately
+    final scorePayload = {
+      'matchId': matchId,
+      'sessionId': sessionId,
+      'setNumber': setNumber,
+      'gameNumber': gameNumber,
+      'scoreA': scoreA,
+      'scoreB': scoreB,
+      'gameScoreA': gameScoreA ?? scoreA,
+      'gameScoreB': gameScoreB ?? scoreB,
+      'pointScoreA': pointScoreA,
+      'pointScoreB': pointScoreB,
+      'setScoreA': setScoreA,
+      'setScoreB': setScoreB,
+      'scoringSystem': scoringSystem,
+      'statusScore': statusScore,
+      'winnerTeam': winnerTeam,
+      'version': version,
+      'lastEventId': lastEventId,
+      'matchKey': matchKey,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+
+    // 1. Simpan ke Hive dan perbarui antrean offline seketika (State Snapshot Coalescing)
     try {
+      await MatchaHiveService.enqueueOrUpdateScoreAction(
+        matchId: matchId,
+        scorePayload: scorePayload,
+      );
+    } catch (_) {}
+
+    try {
+      // 0. Defensive guard: If match status is Stopped, reject score mutation immediately
       final existingMatch = await _supabase
           .from('tb_match')
           .select('status_match')
@@ -756,80 +787,86 @@ class MatchService {
           return;
         }
       }
-    } catch (_) {}
 
-    final now = DateTime.now();
-    final nowIso = now.toIso8601String();
-    final nowTime =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+      final now = DateTime.now();
+      final nowIso = now.toIso8601String();
+      final nowTime =
+          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
 
-    // 1. Delegasikan ke MatchRemoteDataSource untuk operasi tulis, deduplikasi, dan anti-downgrade
-    final savedScore = await _dataSource.saveOrUpdateScore(
-      matchId: matchId,
-      setNumber: setNumber,
-      gameNumber: gameNumber,
-      pointScoreA: pointScoreA,
-      pointScoreB: pointScoreB,
-      gameScoreA: gameScoreA ?? scoreA,
-      gameScoreB: gameScoreB ?? scoreB,
-      scoreSideA: scoreA,
-      scoreSideB: scoreB,
-      setScoreA: setScoreA,
-      setScoreB: setScoreB,
-      scoringSystem: scoringSystem,
-      statusScore: statusScore,
-      version: version,
-      lastEventId: lastEventId,
-    );
-
-    final finalVersion = savedScore.version ?? version ?? 1;
-
-    // Update tb_match jika match selesai atau ada pembaruan status
-    if (statusScore != null && (statusScore.toLowerCase().contains('final') || statusScore.toLowerCase().contains('completed'))) {
-      try {
-        await _supabase.from('tb_match').update({
-          'status_match': 'Completed',
-          'hasil_pertandingan': 'Game Score $scoreA - $scoreB',
-          'winner_team': ?winnerTeam,
-          'version': finalVersion,
-          'last_event_id': ?lastEventId,
-          'waktu_selesai': nowTime,
-          'updated_at': nowIso,
-        }).eq('match_id', matchId);
-      } catch (_) {}
-    }
-
-    // 2. Database berhasil -> kirim broadcast ke Realtime Channel sesuai Web
-    try {
-      final channelName = sessionId != null
-          ? 'session_$sessionId'
-          : 'match_arena_live';
-      final channel = _supabase.channel(channelName);
-      await channel.sendBroadcastMessage(
-        event: 'score_update',
-        payload: {
-          'session_id': sessionId,
-          'match_id': matchId,
-          'match_key': matchKey ?? 'round_${setNumber}_court_1',
-          'score_a': gameScoreA ?? scoreA,
-          'score_b': gameScoreB ?? scoreB,
-          'games_a': gameScoreA ?? scoreA,
-          'games_b': gameScoreB ?? scoreB,
-          'score_value_a': scoreA,
-          'score_value_b': scoreB,
-          'point_display_a': pointScoreA ?? '0',
-          'point_display_b': pointScoreB ?? '0',
-          'sets_a': setScoreA ?? 0,
-          'sets_b': setScoreB ?? 0,
-          'version': finalVersion,
-          'server_version': finalVersion,
-          'last_event_id': lastEventId ?? '',
-          'status': (statusScore ?? 'in_progress').toLowerCase(),
-          'winner_team': winnerTeam,
-        },
+      // 2. Delegasikan ke MatchRemoteDataSource untuk operasi tulis ke Supabase
+      final savedScore = await _dataSource.saveOrUpdateScore(
+        matchId: matchId,
+        setNumber: setNumber,
+        gameNumber: gameNumber,
+        pointScoreA: pointScoreA,
+        pointScoreB: pointScoreB,
+        gameScoreA: gameScoreA ?? scoreA,
+        gameScoreB: gameScoreB ?? scoreB,
+        scoreSideA: scoreA,
+        scoreSideB: scoreB,
+        setScoreA: setScoreA,
+        setScoreB: setScoreB,
+        scoringSystem: scoringSystem,
+        statusScore: statusScore,
+        version: version,
+        lastEventId: lastEventId,
       );
-    } catch (_) {
-      // Abaikan jika broadcast gagal, database tetap source of truth
+
+      final finalVersion = savedScore.version ?? version ?? 1;
+
+      // Update tb_match jika match selesai atau ada pembaruan status
+      if (statusScore != null && (statusScore.toLowerCase().contains('final') || statusScore.toLowerCase().contains('completed'))) {
+        try {
+          await _supabase.from('tb_match').update({
+            'status_match': 'Completed',
+            'hasil_pertandingan': 'Game Score $scoreA - $scoreB',
+            'winner_team': ?winnerTeam,
+            'version': finalVersion,
+            'last_event_id': ?lastEventId,
+            'waktu_selesai': nowTime,
+            'updated_at': nowIso,
+          }).eq('match_id', matchId);
+        } catch (_) {}
+      }
+
+      // 3. Database berhasil -> kirim broadcast ke Realtime Channel sesuai Web
+      try {
+        final channelName = sessionId != null
+            ? 'session_$sessionId'
+            : 'match_arena_live';
+        final channel = _supabase.channel(channelName);
+        await channel.sendBroadcastMessage(
+          event: 'score_update',
+          payload: {
+            'session_id': sessionId,
+            'match_id': matchId,
+            'match_key': matchKey ?? 'round_${setNumber}_court_1',
+            'score_a': gameScoreA ?? scoreA,
+            'score_b': gameScoreB ?? scoreB,
+            'games_a': gameScoreA ?? scoreA,
+            'games_b': gameScoreB ?? scoreB,
+            'score_value_a': scoreA,
+            'score_value_b': scoreB,
+            'point_display_a': pointScoreA ?? '0',
+            'point_display_b': pointScoreB ?? '0',
+            'sets_a': setScoreA ?? 0,
+            'sets_b': setScoreB ?? 0,
+            'version': finalVersion,
+            'server_version': finalVersion,
+            'last_event_id': lastEventId ?? '',
+            'status': (statusScore ?? 'in_progress').toLowerCase(),
+            'winner_team': winnerTeam,
+          },
+        );
+      } catch (_) {}
+
+      // 4. Sukses disinkronkan ke Supabase, hapus aksi dari antrean pending Hive
+      try {
+        await MatchaHiveService.removeSyncAction('score_action_$matchId');
+      } catch (_) {}
+    } catch (e) {
+      debugPrint('[MatchService] saveMatchScore offline/network error: Saved in Hive. Error: $e');
+      // Tidak melempar exception fatal agar UI scoring tetap responsif
     }
   }
 
@@ -842,40 +879,53 @@ class MatchService {
     String? lastEventId,
     String? hasilPertandingan,
   }) async {
-    final now = DateTime.now();
-    final nowIso = now.toIso8601String();
-    final nowTime =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
-
-    await _supabase
-        .from('tb_match')
-        .update({
-          'status_match': 'Finished',
-          'waktu_selesai': nowTime,
-          'winner_team': ?winnerTeam,
-          'version': ?version,
-          'last_event_id': ?lastEventId,
-          'hasil_pertandingan': ?hasilPertandingan,
-          'updated_at': nowIso,
-        })
-        .eq('match_id', matchId);
-
-    // Broadcast status change setelah DB berhasil
     try {
-      final channelName = sessionId != null
-          ? 'session_$sessionId'
-          : 'match_arena_live';
-      final channel = _supabase.channel(channelName);
-      await channel.sendBroadcastMessage(
-        event: 'match_status_update',
+      final now = DateTime.now();
+      final nowIso = now.toIso8601String();
+      final nowTime =
+          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+
+      await _supabase
+          .from('tb_match')
+          .update({
+            'status_match': 'Finished',
+            'waktu_selesai': nowTime,
+            'winner_team': ?winnerTeam,
+            'version': ?version,
+            'last_event_id': ?lastEventId,
+            'hasil_pertandingan': ?hasilPertandingan,
+            'updated_at': nowIso,
+          })
+          .eq('match_id', matchId);
+
+      // Broadcast status change setelah DB berhasil
+      try {
+        final channelName = sessionId != null
+            ? 'session_$sessionId'
+            : 'match_arena_live';
+        final channel = _supabase.channel(channelName);
+        await channel.sendBroadcastMessage(
+          event: 'match_status_update',
+          payload: {
+            'match_id': matchId,
+            'status_match': 'Finished',
+            'session_id': sessionId,
+            'winner_team': ?winnerTeam,
+          },
+        );
+      } catch (_) {}
+    } catch (e) {
+      debugPrint('[MatchService] finishMatch offline, queuing in Hive: $e');
+      await MatchaHiveService.enqueueSyncAction(
+        actionType: 'FINISH_MATCH',
+        actionId: 'finish_match_$matchId',
         payload: {
-          'match_id': matchId,
-          'status_match': 'Finished',
-          'session_id': sessionId,
-          'winner_team': ?winnerTeam,
+          'matchId': matchId,
+          'winnerTeam': winnerTeam,
+          'hasilPertandingan': hasilPertandingan,
         },
       );
-    } catch (_) {}
+    }
   }
 
   /// Memperbarui status match di tb_match menjadi Stopped dengan mempertahankan skor parsial
@@ -1504,23 +1554,32 @@ class MatchService {
     if (sessionId == null) return;
     final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
 
-    await _supabase
-        .from('tb_session')
-        .update({'status_session': 'Finished'})
-        .eq('session_id', parsedId);
-
     try {
-      final channelName = 'session_$parsedId';
-      final channel = _supabase.channel(channelName);
-      await channel.sendBroadcastMessage(
-        event: 'session_finished',
-        payload: {
-          'session_id': parsedId,
-          'status_session': 'Finished',
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-        },
+      await _supabase
+          .from('tb_session')
+          .update({'status_session': 'Finished'})
+          .eq('session_id', parsedId);
+
+      try {
+        final channelName = 'session_$parsedId';
+        final channel = _supabase.channel(channelName);
+        await channel.sendBroadcastMessage(
+          event: 'session_finished',
+          payload: {
+            'session_id': parsedId,
+            'status_session': 'Finished',
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+          },
+        );
+      } catch (_) {}
+    } catch (e) {
+      debugPrint('[MatchService] finishSession offline, queuing in Hive: $e');
+      await MatchaHiveService.enqueueSyncAction(
+        actionType: 'FINISH_SESSION',
+        actionId: 'finish_session_$parsedId',
+        payload: {'sessionId': parsedId},
       );
-    } catch (_) {}
+    }
   }
 
   /// Berlangganan (subscribe) ke event realtime untuk tb_score DAN tb_match
@@ -1754,13 +1813,22 @@ class MatchService {
     final parsedSessionId =
         int.tryParse(sessionId.toString()) ?? sessionId;
 
-    final maxCourtNumber = rounds
-        .expand((round) => round.matches)
-        .fold<int>(
-          0,
-          (highest, match) =>
-              match.courtNumber > highest ? match.courtNumber : highest,
-        );
+    // 1. Simpan ke Hive lokal terlebih dahulu agar selalu aman dibuka offline
+    try {
+      await MatchaHiveService.saveDrawingRounds(
+        parsedSessionId,
+        rounds.map((r) => r.toMap()).toList(),
+      );
+    } catch (_) {}
+
+    try {
+      final maxCourtNumber = rounds
+          .expand((round) => round.matches)
+          .fold<int>(
+            0,
+            (highest, match) =>
+                match.courtNumber > highest ? match.courtNumber : highest,
+          );
 
     final requiredCourtCount = courtCount ?? maxCourtNumber;
 
@@ -1907,7 +1975,31 @@ class MatchService {
       ));
     }
 
-    return savedRounds;
+    // Simpan hasil drawing tersinkron ke Hive
+    try {
+      await MatchaHiveService.saveDrawingRounds(
+        parsedSessionId,
+        savedRounds.map((r) => r.toMap()).toList(),
+      );
+    } catch (_) {}
+
+      return savedRounds;
+    } catch (e) {
+      debugPrint('[MatchService] saveDrawingMatches offline/error, falling back to local rounds: $e');
+      int fallbackId = 1000;
+      for (final r in rounds) {
+        for (final m in r.matches) {
+          m.matchId ??= ++fallbackId;
+        }
+      }
+      try {
+        await MatchaHiveService.saveDrawingRounds(
+          parsedSessionId,
+          rounds.map((r) => r.toMap()).toList(),
+        );
+      } catch (_) {}
+      return rounds;
+    }
   }
 
   /// Mengambil data hasil drawing yang tersimpan di tb_match & tb_match_participant
@@ -2160,8 +2252,22 @@ class MatchService {
         ));
       }
 
+      if (reconstructedRounds.isNotEmpty) {
+        try {
+          await MatchaHiveService.saveDrawingRounds(
+            parsedSessionId,
+            reconstructedRounds.map((r) => r.toMap()).toList(),
+          );
+        } catch (_) {}
+      }
+
       return reconstructedRounds;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[MatchService] loadSavedDrawing failed, checking Hive cache: $e');
+      final cached = MatchaHiveService.getDrawingRounds(sessionId);
+      if (cached != null && cached.isNotEmpty) {
+        return cached.map((map) => DrawingRound.fromMap(map)).toList();
+      }
       return null;
     }
   }

@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/storage/matcha_hive_service.dart';
 import '../domain/recap_models.dart';
 
 class RecapService {
@@ -1443,7 +1445,7 @@ class RecapService {
         );
       }
 
-      return SessionMatchRecapData(
+      final recapResult = SessionMatchRecapData(
         sessionId: sessionId,
         sessionName: sessionName,
         venueName: venueName,
@@ -1462,9 +1464,192 @@ class RecapService {
         matchFormatId: activeMatchFormatId,
         matchFormatName: activeMatchFormatName,
       );
+
+      // Simpan snapshot rekap ke Hive lokal
+      try {
+        await MatchaHiveService.saveRecapSnapshot(sessionId, _recapToMap(recapResult));
+      } catch (_) {}
+
+      return recapResult;
     } catch (e) {
+      debugPrint('[RecapService] getSessionMatchRecap network error, checking Hive snapshot: $e');
+      final cached = MatchaHiveService.getRecapSnapshot(sessionId);
+      if (cached != null) {
+        return _reconstructRecapFromMap(cached);
+      }
       throw Exception('Gagal memuat rekap pertandingan sesi: $e');
     }
+  }
+
+  static Map<String, dynamic> _recapToMap(SessionMatchRecapData data) {
+    return {
+      'sessionId': data.sessionId,
+      'sessionName': data.sessionName,
+      'venueName': data.venueName,
+      'courtName': data.courtName,
+      'sportName': data.sportName,
+      'scoringSystem': data.scoringSystem,
+      'isSets': data.isSets,
+      'totalRounds': data.totalRounds,
+      'totalPlayers': data.totalPlayers,
+      'matchFormatId': data.matchFormatId,
+      'matchFormatName': data.matchFormatName,
+      'rounds': data.rounds.map((r) => {
+        'roundNumber': r.roundNumber,
+        'matches': r.matches.map((m) => {
+          'matchId': m.matchId,
+          'roundNumber': m.roundNumber,
+          'courtName': m.courtName,
+          'sideANames': m.sideANames,
+          'sideBNames': m.sideBNames,
+          'scoreA': m.scoreA,
+          'scoreB': m.scoreB,
+          'setDetails': m.setDetails,
+          'isSideAWinner': m.isSideAWinner,
+          'isSideBWinner': m.isSideBWinner,
+          'isDraw': m.isDraw,
+        }).toList(),
+      }).toList(),
+      'standings': data.standings.map((s) => {
+        'rank': s.rank,
+        'playerId': s.playerId,
+        'nama': s.nama,
+        'level': s.level,
+        'foto': s.foto,
+        'gender': s.gender,
+        'userId': s.userId,
+        'matchesPlayed': s.matchesPlayed,
+        'matchesWon': s.matchesWon,
+        'matchesLost': s.matchesLost,
+        'setsWon': s.setsWon,
+        'setsLost': s.setsLost,
+        'gamesWon': s.gamesWon,
+        'gamesLost': s.gamesLost,
+        'pointsFor': s.pointsFor,
+        'pointsAgainst': s.pointsAgainst,
+        'pointDiff': s.pointDiff,
+        'gameDiff': s.gameDiff,
+        'setDiff': s.setDiff,
+        'scoreWon': s.scoreWon,
+        'gamesDiff': s.gamesDiff,
+        'isWithdrawn': s.isWithdrawn,
+        'withdrawnReason': s.withdrawnReason,
+      }).toList(),
+      'teamStandings': data.teamStandings.map((t) => {
+        'rank': t.rank,
+        'teamId': t.teamId,
+        'teamName': t.teamName,
+        'memberIds': t.memberIds,
+        'memberNames': t.memberNames,
+        'matchesPlayed': t.matchesPlayed,
+        'matchesWon': t.matchesWon,
+        'matchesLost': t.matchesLost,
+        'setsWon': t.setsWon,
+        'setsLost': t.setsLost,
+        'gamesWon': t.gamesWon,
+        'gamesLost': t.gamesLost,
+        'pointsFor': t.pointsFor,
+        'pointsAgainst': t.pointsAgainst,
+        'pointDiff': t.pointDiff,
+        'gameDiff': t.gameDiff,
+      }).toList(),
+    };
+  }
+
+  static SessionMatchRecapData _reconstructRecapFromMap(Map<String, dynamic> map) {
+    final roundsList = (map['rounds'] as List<dynamic>? ?? []).map((r) {
+      final rMap = Map<String, dynamic>.from(r as Map);
+      final mList = (rMap['matches'] as List<dynamic>? ?? []).map((m) {
+        final mMap = Map<String, dynamic>.from(m as Map);
+        return SessionMatchItem(
+          matchId: _toInt(mMap['matchId']),
+          roundNumber: _toInt(mMap['roundNumber'], 1),
+          courtName: mMap['courtName']?.toString() ?? 'Court 1',
+          sideANames: List<String>.from(mMap['sideANames'] as List? ?? []),
+          sideBNames: List<String>.from(mMap['sideBNames'] as List? ?? []),
+          scoreA: _toInt(mMap['scoreA']),
+          scoreB: _toInt(mMap['scoreB']),
+          setDetails: mMap['setDetails']?.toString() ?? '',
+          isSideAWinner: mMap['isSideAWinner'] == true,
+          isSideBWinner: mMap['isSideBWinner'] == true,
+          isDraw: mMap['isDraw'] == true,
+        );
+      }).toList();
+      return SessionRoundRecapItem(
+        roundNumber: _toInt(rMap['roundNumber'], 1),
+        matches: mList,
+      );
+    }).toList();
+
+    final standingsList = (map['standings'] as List<dynamic>? ?? []).map((s) {
+      final sMap = Map<String, dynamic>.from(s as Map);
+      return SessionPlayerStanding(
+        rank: _toInt(sMap['rank']),
+        playerId: _toInt(sMap['playerId']),
+        nama: sMap['nama']?.toString() ?? 'Player',
+        level: sMap['level']?.toString() ?? 'Beginner',
+        foto: sMap['foto']?.toString(),
+        gender: sMap['gender']?.toString() ?? 'Male',
+        userId: _toNullableInt(sMap['userId']),
+        matchesPlayed: _toInt(sMap['matchesPlayed']),
+        matchesWon: _toInt(sMap['matchesWon']),
+        matchesLost: _toInt(sMap['matchesLost']),
+        setsWon: _toInt(sMap['setsWon']),
+        setsLost: _toInt(sMap['setsLost']),
+        gamesWon: _toInt(sMap['gamesWon']),
+        gamesLost: _toInt(sMap['gamesLost']),
+        pointsFor: _toInt(sMap['pointsFor']),
+        pointsAgainst: _toInt(sMap['pointsAgainst']),
+        pointDiff: _toInt(sMap['pointDiff']),
+        gameDiff: _toInt(sMap['gameDiff']),
+        setDiff: _toInt(sMap['setDiff']),
+        scoreWon: _toInt(sMap['scoreWon']),
+        gamesDiff: _toInt(sMap['gamesDiff']),
+        isWithdrawn: sMap['isWithdrawn'] == true,
+        withdrawnReason: sMap['withdrawnReason']?.toString(),
+      );
+    }).toList();
+
+    final teamStandingsList = (map['teamStandings'] as List<dynamic>? ?? []).map((t) {
+      final tMap = Map<String, dynamic>.from(t as Map);
+      return SessionTeamStanding(
+        rank: _toInt(tMap['rank']),
+        teamId: tMap['teamId']?.toString() ?? '',
+        teamName: tMap['teamName']?.toString() ?? 'Team',
+        memberIds: (tMap['memberIds'] as List? ?? []).map((e) => _toInt(e)).toList(),
+        memberNames: List<String>.from(tMap['memberNames'] as List? ?? []),
+        matchesPlayed: _toInt(tMap['matchesPlayed']),
+        matchesWon: _toInt(tMap['matchesWon']),
+        matchesLost: _toInt(tMap['matchesLost']),
+        setsWon: _toInt(tMap['setsWon']),
+        setsLost: _toInt(tMap['setsLost']),
+        gamesWon: _toInt(tMap['gamesWon']),
+        gamesLost: _toInt(tMap['gamesLost']),
+        pointsFor: _toInt(tMap['pointsFor']),
+        pointsAgainst: _toInt(tMap['pointsAgainst']),
+        pointDiff: _toInt(tMap['pointDiff']),
+        gameDiff: _toInt(tMap['gameDiff']),
+        scoreWon: _toInt(tMap['scoreWon'] ?? tMap['gamesWon']),
+        gamesDiff: _toInt(tMap['gamesDiff'] ?? tMap['gameDiff']),
+      );
+    }).toList();
+
+    return SessionMatchRecapData(
+      sessionId: _toInt(map['sessionId']),
+      sessionName: map['sessionName']?.toString() ?? 'Sesi Mabar',
+      venueName: map['venueName']?.toString() ?? 'Arena Lapangan',
+      courtName: map['courtName']?.toString(),
+      sportName: map['sportName']?.toString() ?? 'Padel',
+      scoringSystem: map['scoringSystem']?.toString() ?? 'Total of 3',
+      isSets: map['isSets'] == true,
+      totalRounds: _toInt(map['totalRounds'], 1),
+      totalPlayers: _toInt(map['totalPlayers'], standingsList.length),
+      rounds: roundsList,
+      standings: standingsList,
+      teamStandings: teamStandingsList,
+      matchFormatId: _toNullableInt(map['matchFormatId']),
+      matchFormatName: map['matchFormatName']?.toString(),
+    );
   }
 
   /// Toggle Kudos ke database tb_kudos (Rule 5)

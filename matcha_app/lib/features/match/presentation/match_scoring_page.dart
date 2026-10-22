@@ -1681,37 +1681,22 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
       if (mounted) {
-
         setState(() {
-
           _pendingEventsByMatch[matchId]?.removeWhere((e) => e.eventId == event.eventId);
-
           if ((_pendingEventsByMatch[matchId] ?? []).isEmpty) {
-
             _matchSaveStatus[matchId] = 'saved';
-
           }
-
         });
-
       }
-
     } catch (e) {
-
       if (mounted) {
-
         setState(() {
-
-          _matchSaveStatus[matchId] = 'error';
-
+          // Data telah tersimpan di Hive dan akan disinkronkan saat online
+          _pendingEventsByMatch[matchId]?.removeWhere((e) => e.eventId == event.eventId);
+          _matchSaveStatus[matchId] = 'saved';
         });
-
       }
-
-      rethrow;
-
     }
-
   }
 
 

@@ -58,6 +58,60 @@ class DrawingMatch {
 
   String get teamANames => teamA.map((p) => p.name).join(' & ');
   String get teamBNames => teamB.map((p) => p.name).join(' & ');
+
+  Map<String, dynamic> toMap() {
+    return {
+      'courtNumber': courtNumber,
+      'teamA': teamA.map((p) => p.toMap()).toList(),
+      'teamB': teamB.map((p) => p.toMap()).toList(),
+      'status': status,
+      'scoreA': scoreA,
+      'scoreB': scoreB,
+      'gamesWonA': gamesWonA,
+      'gamesWonB': gamesWonB,
+      'idxA': idxA,
+      'idxB': idxB,
+      'pointDisplayA': pointDisplayA,
+      'pointDisplayB': pointDisplayB,
+      'isDeuce': isDeuce,
+      'advantage': advantage,
+      'setsA': setsA,
+      'setsB': setsB,
+      'winnerTeam': winnerTeam,
+      'matchId': matchId,
+      'version': version,
+      'lastEventId': lastEventId,
+      'stopType': stopType,
+      'stopReason': stopReason,
+    };
+  }
+
+  factory DrawingMatch.fromMap(Map<String, dynamic> map) {
+    return DrawingMatch(
+      courtNumber: map['courtNumber'] is int ? map['courtNumber'] as int : int.tryParse(map['courtNumber']?.toString() ?? '1') ?? 1,
+      teamA: (map['teamA'] as List<dynamic>? ?? []).map((e) => GamePlayerItem.fromMap(Map<String, dynamic>.from(e as Map))).toList(),
+      teamB: (map['teamB'] as List<dynamic>? ?? []).map((e) => GamePlayerItem.fromMap(Map<String, dynamic>.from(e as Map))).toList(),
+      status: map['status']?.toString() ?? 'Scheduled',
+      scoreA: map['scoreA'] is int ? map['scoreA'] as int : int.tryParse(map['scoreA']?.toString() ?? '0') ?? 0,
+      scoreB: map['scoreB'] is int ? map['scoreB'] as int : int.tryParse(map['scoreB']?.toString() ?? '0') ?? 0,
+      gamesWonA: map['gamesWonA'] is int ? map['gamesWonA'] as int : int.tryParse(map['gamesWonA']?.toString() ?? '0') ?? 0,
+      gamesWonB: map['gamesWonB'] is int ? map['gamesWonB'] as int : int.tryParse(map['gamesWonB']?.toString() ?? '0') ?? 0,
+      idxA: map['idxA'] is int ? map['idxA'] as int : int.tryParse(map['idxA']?.toString() ?? '0') ?? 0,
+      idxB: map['idxB'] is int ? map['idxB'] as int : int.tryParse(map['idxB']?.toString() ?? '0') ?? 0,
+      pointDisplayA: map['pointDisplayA']?.toString() ?? '0',
+      pointDisplayB: map['pointDisplayB']?.toString() ?? '0',
+      isDeuce: map['isDeuce'] == true,
+      advantage: map['advantage']?.toString(),
+      setsA: map['setsA'] is int ? map['setsA'] as int : int.tryParse(map['setsA']?.toString() ?? '0') ?? 0,
+      setsB: map['setsB'] is int ? map['setsB'] as int : int.tryParse(map['setsB']?.toString() ?? '0') ?? 0,
+      winnerTeam: map['winnerTeam']?.toString(),
+      matchId: map['matchId'] is int ? map['matchId'] as int : int.tryParse(map['matchId']?.toString() ?? ''),
+      version: map['version'] is int ? map['version'] as int : int.tryParse(map['version']?.toString() ?? '0') ?? 0,
+      lastEventId: map['lastEventId']?.toString(),
+      stopType: map['stopType']?.toString(),
+      stopReason: map['stopReason']?.toString(),
+    );
+  }
 }
 
 class DrawingRound {
@@ -70,6 +124,22 @@ class DrawingRound {
     required this.matches,
     this.restingPlayers = const [],
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'roundNumber': roundNumber,
+      'matches': matches.map((m) => m.toMap()).toList(),
+      'restingPlayers': restingPlayers.map((p) => p.toMap()).toList(),
+    };
+  }
+
+  factory DrawingRound.fromMap(Map<String, dynamic> map) {
+    return DrawingRound(
+      roundNumber: map['roundNumber'] is int ? map['roundNumber'] as int : int.tryParse(map['roundNumber']?.toString() ?? '1') ?? 1,
+      matches: (map['matches'] as List<dynamic>? ?? []).map((e) => DrawingMatch.fromMap(Map<String, dynamic>.from(e as Map))).toList(),
+      restingPlayers: (map['restingPlayers'] as List<dynamic>? ?? []).map((e) => GamePlayerItem.fromMap(Map<String, dynamic>.from(e as Map))).toList(),
+    );
+  }
 }
 
 class MatchaDrawingEngine {
