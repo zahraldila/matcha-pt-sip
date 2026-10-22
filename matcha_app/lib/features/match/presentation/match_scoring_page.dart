@@ -3524,12 +3524,6 @@ class MatchScoringPageState extends State<MatchScoringPage> {
         centerTitle: true,
 
         actions: [
-          if (isHost)
-            IconButton(
-              icon: const Icon(Icons.manage_accounts_outlined, color: AppColors.matchaDark),
-              tooltip: 'Kesiapan Pemain',
-              onPressed: _showPlayerStatusManagementModal,
-            ),
           Container(
 
             margin: const EdgeInsets.only(right: 14),
