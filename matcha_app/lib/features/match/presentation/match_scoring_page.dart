@@ -826,6 +826,23 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
           _rounds = sortedRounds;
 
+          final allP = <GamePlayerItem>[];
+          for (final r in _rounds) {
+            for (final m in r.matches) {
+              allP.addAll(m.teamA);
+              allP.addAll(m.teamB);
+            }
+            allP.addAll(r.restingPlayers);
+          }
+          final unique = <String, GamePlayerItem>{};
+          for (final p in allP) {
+            final key = p.playerId?.toString() ?? p.id;
+            if (!unique.containsKey(key)) unique[key] = p;
+          }
+          if (unique.isNotEmpty) {
+            _config.players = unique.values.toList();
+          }
+
           final resolved = _resolveActiveRoundIndex(_rounds);
           _sessionActiveRoundIndex = widget.initialRoundIndex != null
               ? widget.initialRoundIndex!.clamp(0, _rounds.length - 1)
@@ -844,6 +861,24 @@ class MatchScoringPageState extends State<MatchScoringPage> {
         }
         if (savedDrawing != null && savedDrawing.isNotEmpty) {
           _rounds = savedDrawing;
+
+          final allP = <GamePlayerItem>[];
+          for (final r in _rounds) {
+            for (final m in r.matches) {
+              allP.addAll(m.teamA);
+              allP.addAll(m.teamB);
+            }
+            allP.addAll(r.restingPlayers);
+          }
+          final unique = <String, GamePlayerItem>{};
+          for (final p in allP) {
+            final key = p.playerId?.toString() ?? p.id;
+            if (!unique.containsKey(key)) unique[key] = p;
+          }
+          if (unique.isNotEmpty) {
+            _config.players = unique.values.toList();
+          }
+
           final resolved = _resolveActiveRoundIndex(_rounds);
           _sessionActiveRoundIndex = widget.initialRoundIndex != null
               ? widget.initialRoundIndex!.clamp(0, _rounds.length - 1)
@@ -2016,10 +2051,14 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                         ),
                         child: Column(
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 4,
                               children: [
                                 Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Container(
                                       width: 6,
@@ -2044,7 +2083,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                     border: Border.all(color: const Color(0xFFFDE68A)),
                                   ),
                                   child: Text(
-                                    'Skor Terakhir: ${match.scoreA} — ${match.scoreB} Games (Point: ${match.pointDisplayA} : ${match.pointDisplayB})',
+                                    'Skor: ${match.scoreA} — ${match.scoreB} (${match.pointDisplayA} : ${match.pointDisplayB})',
                                     style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
                                   ),
                                 ),
@@ -5445,8 +5484,11 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           // 6. Action Bar: Akhiri Pertandingan & Sinkron Realtime (Matches Web)
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 6,
               children: [
                 if (isHost && _isCurrentViewedRoundActive && !isCompleted && !isStopped)
                   InkWell(
@@ -5922,18 +5964,22 @@ class MatchScoringPageState extends State<MatchScoringPage> {
             const SizedBox(height: 12),
             const Divider(height: 1, color: Color(0xFFF1F5F9)),
             const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
               children: [
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 5,
+                  runSpacing: 2,
                   children: [
                     const Icon(Icons.coffee_rounded, size: 14, color: Color(0xFFD97706)),
-                    const SizedBox(width: 5),
                     const Text(
-                      'Bangku Istirahat (Bench) Ronde Ini',
+                      'Bangku Cadangan (Bench)',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
                     ),
-                    const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                       decoration: BoxDecoration(
@@ -5949,7 +5995,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                   ],
                 ),
                 const Text(
-                  'Rotasi bermain ronde berikutnya',
+                  'Rotasi ronde berikutnya',
                   style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
                 ),
               ],
