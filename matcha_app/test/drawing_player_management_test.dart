@@ -81,6 +81,38 @@ class _MockMatchService extends MatchService {
     int? matchFormatId,
   }) async => rounds;
 
+  bool stoppedDueToInsufficient = false;
+  String? stoppedReason;
+  int? substitutedOldPlayerId;
+  int? substitutedNewPlayerId;
+
+  @override
+  Future<void> stopSessionDueToInsufficientPlayers({
+    required dynamic sessionId,
+    required String reason,
+    int? stopPlayerId,
+  }) async {
+    stoppedDueToInsufficient = true;
+    stoppedReason = reason;
+  }
+
+  @override
+  Future<void> substituteMatchParticipant({
+    required int matchId,
+    required int oldPlayerId,
+    required int newPlayerId,
+    required String side,
+  }) async {
+    substitutedOldPlayerId = oldPlayerId;
+    substitutedNewPlayerId = newPlayerId;
+  }
+
+  @override
+  Future<void> cancelOrStopScheduledMatch({
+    required int matchId,
+    required String reason,
+  }) async {}
+
   @override
   Future<void> broadcastDrawingUpdate(dynamic sessionId) async {}
 }
@@ -264,6 +296,165 @@ void main() {
 
       // SnackBar notifikasi sukses muncul
       expect(find.textContaining('Budi Santoso berhasil diistirahatkan ke bangku cadangan'), findsOneWidget);
+    });
+
+    testWidgets('4. Mengistirahatkan pemain saat pemain pas-pasan (2 pemain single) dicegah dengan dialog peringatan', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final twoPlayers = [
+        const GamePlayerItem(id: '1', playerId: 1, name: 'Ocean Abelvan', level: 'Intermediate'),
+        const GamePlayerItem(id: '2', playerId: 2, name: 'Hilmy Ram Fahreza', level: 'Intermediate'),
+      ];
+
+      final twoPlayerConfig = GameWizardConfig(
+        sessionId: 101,
+        sport: 'Padel',
+        gameType: 'First To',
+        playMode: 'Single',
+        courtCount: 1,
+        players: List.from(twoPlayers),
+        activityName: 'Single 1v1',
+      );
+
+      final rounds = [
+        DrawingRound(
+          roundNumber: 1,
+          matches: [
+            DrawingMatch(
+              courtNumber: 1,
+              teamA: [twoPlayers[0]],
+              teamB: [twoPlayers[1]],
+              status: 'Scheduled',
+            ),
+          ],
+          restingPlayers: const [],
+        ),
+      ];
+
+      final mockAuth = _MockAuthController(
+        initialUser: const UserModel(userId: 1, nama: 'Host User', email: 'host@matcha.app'),
+      );
+      final mockService = _MockMatchService(savedDrawing: rounds, isLocked: false);
+
+      await tester.pumpWidget(MaterialApp(
+        home: DrawingResultPage(
+          sessionId: 101,
+          config: twoPlayerConfig,
+          initialRounds: rounds,
+          authController: mockAuth,
+          matchService: mockService,
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Klik tombol Istirahat pada Ocean Abelvan
+      final btnIstirahat = find.text('Istirahat').first;
+      await tester.ensureVisible(btnIstirahat);
+      await tester.tap(btnIstirahat);
+      await tester.pumpAndSettle();
+
+      // Isi alasan istirahat
+      await tester.enterText(find.byType(TextField), 'Capek butuh minum');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ya, Istirahatkan Pemain'));
+      await tester.pumpAndSettle();
+
+      // Harus muncul dialog peringatan "Tidak Dapat Mengistirahatkan Pemain"
+      expect(find.text('Tidak Dapat Mengistirahatkan Pemain'), findsOneWidget);
+      expect(find.textContaining('tidak ada pemain pengganti di bangku cadangan'), findsOneWidget);
+      expect(find.text('Mengerti'), findsOneWidget);
+
+      // Dismiss dialog
+      await tester.tap(find.text('Mengerti'));
+      await tester.pumpAndSettle();
+
+      // managePlayerStatus TIDAK boleh dipanggil
+      expect(mockService.lastAction, isNull);
+    });
+
+    testWidgets('5. Mengeluarkan pemain saat pemain pas-pasan (2 pemain single) memicu dialog konfirmasi penghentian sesi', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final twoPlayers = [
+        const GamePlayerItem(id: '1', playerId: 1, name: 'Ocean Abelvan', level: 'Intermediate'),
+        const GamePlayerItem(id: '2', playerId: 2, name: 'Hilmy Ram Fahreza', level: 'Intermediate'),
+      ];
+
+      final twoPlayerConfig = GameWizardConfig(
+        sessionId: 102,
+        sport: 'Padel',
+        gameType: 'First To',
+        playMode: 'Single',
+        courtCount: 1,
+        players: List.from(twoPlayers),
+        activityName: 'Single 1v1',
+      );
+
+      final rounds = [
+        DrawingRound(
+          roundNumber: 1,
+          matches: [
+            DrawingMatch(
+              courtNumber: 1,
+              teamA: [twoPlayers[0]],
+              teamB: [twoPlayers[1]],
+              status: 'Scheduled',
+            ),
+          ],
+          restingPlayers: const [],
+        ),
+      ];
+
+      final mockAuth = _MockAuthController(
+        initialUser: const UserModel(userId: 1, nama: 'Host User', email: 'host@matcha.app'),
+      );
+      final mockService = _MockMatchService(savedDrawing: rounds, isLocked: false);
+
+      await tester.pumpWidget(MaterialApp(
+        home: DrawingResultPage(
+          sessionId: 102,
+          config: twoPlayerConfig,
+          initialRounds: rounds,
+          authController: mockAuth,
+          matchService: mockService,
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Klik tombol Keluar pada Ocean Abelvan
+      final btnKeluar = find.text('Keluar').first;
+      await tester.ensureVisible(btnKeluar);
+      await tester.tap(btnKeluar);
+      await tester.pumpAndSettle();
+
+      // Isi alasan keluar
+      await tester.enterText(find.byType(TextField), 'Ada keperluan mendadak');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ya, Keluarkan Pemain'));
+      await tester.pumpAndSettle();
+
+      // Harus muncul dialog peringatan "Pertandingan Tidak Cukup Pemain"
+      expect(find.text('Pertandingan Tidak Cukup Pemain'), findsOneWidget);
+      expect(find.textContaining('Pertandingan tidak dapat dilanjutkan dan sesi pertandingan akan dihentikan'), findsOneWidget);
+      expect(find.text('Hentikan Pertandingan & Keluarkan'), findsOneWidget);
+
+      // Konfirmasi penghentian
+      await tester.tap(find.text('Hentikan Pertandingan & Keluarkan'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Service harus dipanggil untuk mengeluarkan pemain dan menghentikan sesi
+      expect(mockService.lastAction, 'withdraw');
+      expect(mockService.lastPlayerId, 1);
+      expect(mockService.stoppedDueToInsufficient, isTrue);
     });
   });
 }

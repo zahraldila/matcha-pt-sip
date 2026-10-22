@@ -613,6 +613,11 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       );
     }
     if (_rounds.isEmpty) {
+      final eligibleActive = _config.players.where((p) => !p.isWithdrawn && !p.isResting).toList();
+      final isSingleMode = _config.playMode.toLowerCase() == 'single';
+      final minReq = isSingleMode ? 2 : 4;
+      final isInsufficient = eligibleActive.length < minReq;
+
       return Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         appBar: AppBar(
@@ -631,27 +636,46 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  _isLocked ? Icons.sports_tennis_rounded : Icons.hourglass_empty_rounded,
+                  isInsufficient
+                      ? Icons.people_outline_rounded
+                      : (_isLocked ? Icons.sports_tennis_rounded : Icons.hourglass_empty_rounded),
                   size: 52,
-                  color: _isLocked ? AppColors.matchaDark : const Color(0xFF94A3B8),
+                  color: isInsufficient
+                      ? const Color(0xFFD97706)
+                      : (_isLocked ? AppColors.matchaDark : const Color(0xFF94A3B8)),
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  _isLocked ? 'Pertandingan Sedang Berlangsung' : 'Drawing Belum Tersedia',
+                  isInsufficient
+                      ? 'Jumlah Pemain Aktif Tidak Mencukupi'
+                      : (_isLocked ? 'Pertandingan Sedang Berlangsung' : 'Drawing Belum Tersedia'),
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _isLocked
-                      ? 'Jadwal dan sesi pertandingan telah dimulai oleh Host.'
-                      : (_isHostUser
-                          ? 'Silakan acak susunan tim untuk memulai pertandingan.'
-                          : 'Host sedang mempersiapkan drawing pertandingan untuk sesi ini.'),
+                  isInsufficient
+                      ? 'Tersisa ${eligibleActive.length} pemain aktif (minimal $minReq pemain untuk mode ${_config.playMode}). Pertandingan tidak dapat dimulai tanpa penambahan pemain atau pengaktifan pemain yang sedang istirahat.'
+                      : (_isLocked
+                          ? 'Jadwal dan sesi pertandingan telah dimulai oleh Host.'
+                          : (_isHostUser
+                              ? 'Silakan acak susunan tim untuk memulai pertandingan.'
+                              : 'Host sedang mempersiapkan drawing pertandingan untuk sesi ini.')),
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                 ),
                 const SizedBox(height: 20),
-                if (_isLocked)
+                if (isInsufficient)
+                  ElevatedButton.icon(
+                    onPressed: _goToSessionDetail,
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('Kembali ke Detail Sesi'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.matchaDark,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  )
+                else if (_isLocked)
                   ElevatedButton.icon(
                     onPressed: _openLiveScoringReadOnly,
                     icon: const Icon(Icons.scoreboard_outlined),
@@ -2201,6 +2225,134 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     if (reason == null) return;
 
     if (!_isHostUser) return;
+
+    final isSingle = _config.playMode.toLowerCase() == 'single';
+    final minRequired = isSingle ? 2 : 4;
+    final remainingActivePlayers = _config.players.where((item) {
+      final isTarget = item.id == p.id || (p.playerId != null && item.playerId == p.playerId);
+      if (isTarget) return false;
+      return !item.isWithdrawn && !item.isResting;
+    }).toList();
+
+    // 1. Validasi pemain kurang untuk action withdraw -> Konfirmasi penghentian sesi (Web Parity)
+    if (action == 'withdraw' && remainingActivePlayers.length < minRequired) {
+      if (!mounted) return;
+      final confirmStop = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706)),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('Pertandingan Tidak Cukup Pemain', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          content: Text(
+            'Mengeluarkan ${p.name} akan menyisakan ${remainingActivePlayers.length} pemain aktif (minimal $minRequired pemain untuk format ${_config.gameType}).\n\nPertandingan tidak dapat dilanjutkan dan sesi pertandingan akan dihentikan.',
+            style: const TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal', style: TextStyle(color: Color(0xFF64748B))),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Hentikan Pertandingan & Keluarkan'),
+            ),
+          ],
+        ),
+      );
+      if (confirmStop != true) return;
+
+      final pId = MatchService.resolvePlayerId(p) ?? p.playerId ?? int.tryParse(p.id) ?? 0;
+      if (_effectiveSessionId != null && pId > 0) {
+        try {
+          await _matchService.managePlayerStatus(
+            sessionId: _effectiveSessionId,
+            playerId: pId,
+            action: 'withdraw',
+            reason: reason.isEmpty ? null : reason,
+          );
+        } catch (_) {}
+
+        try {
+          await _matchService.stopSessionDueToInsufficientPlayers(
+            sessionId: _effectiveSessionId,
+            reason: reason.isEmpty ? 'Pemain keluar: jumlah pemain aktif tidak mencukupi' : reason,
+            stopPlayerId: pId,
+          );
+        } catch (_) {}
+      }
+
+      final idx = _config.players.indexWhere((item) => item.id == p.id);
+      if (idx != -1) {
+        _config.players[idx] = p.copyWith(
+          status: 'withdrawn',
+          withdrawnReason: reason.isEmpty ? null : reason,
+          withdrawnAt: DateTime.now(),
+        );
+      }
+      _rounds = [];
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${p.name} berhasil dikeluarkan. Pertandingan dihentikan karena jumlah pemain aktif tidak mencukupi.'),
+            backgroundColor: const Color(0xFF15803D),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        _goToSessionDetail();
+      }
+      return;
+    }
+
+    // 2. Validasi pemain kurang untuk action pause -> Beri tahu bahwa tidak ada pemain pengganti di bangku cadangan
+    if (action == 'pause' && remainingActivePlayers.length < minRequired) {
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.info_outline_rounded, color: Color(0xFFD97706)),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Tidak Dapat Mengistirahatkan Pemain', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            content: Text(
+              'Tidak dapat mengistirahatkan ${p.name} karena tidak ada pemain pengganti di bangku cadangan (tersisa ${remainingActivePlayers.length} pemain aktif, minimal $minRequired pemain untuk memulai pertandingan).\n\nSilakan tambahkan pemain baru terlebih dahulu atau gunakan opsi Keluarkan jika sesi ingin diakhiri.',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.matchaDark,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Mengerti'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
     try {
       final pId = MatchService.resolvePlayerId(p) ?? p.playerId ?? int.tryParse(p.id) ?? 0;
       if (_effectiveSessionId != null && pId > 0) {
@@ -2231,15 +2383,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       final newStatus = (action == 'pause' ? 'resting' : (action == 'withdraw' ? 'withdrawn' : 'active'));
       final idx = _config.players.indexWhere((item) => item.id == p.id);
       if (idx != -1) {
-        _config.players[idx] = GamePlayerItem(
-          id: p.id,
-          name: p.name,
-          gender: p.gender,
-          level: p.level,
-          isGuest: p.isGuest,
-          avatarUrl: p.avatarUrl,
-          userId: p.userId,
-          playerId: p.playerId,
+        _config.players[idx] = p.copyWith(
           status: newStatus,
           withdrawnReason: reason.isEmpty ? null : reason,
           withdrawnAt: action == 'withdraw' ? DateTime.now() : null,
@@ -2277,11 +2421,13 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     newTeamB[inB] = subPlayer;
                   }
 
+                  final newStatusMatch = (subPlayer != null) ? m.status : 'Stopped';
+
                   updatedMatches.add(DrawingMatch(
                     courtNumber: m.courtNumber,
                     teamA: newTeamA,
                     teamB: newTeamB,
-                    status: m.status,
+                    status: newStatusMatch,
                     scoreA: m.scoreA,
                     scoreB: m.scoreB,
                     gamesWonA: m.gamesWonA,
@@ -2298,20 +2444,30 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     matchId: m.matchId,
                     version: m.version,
                     lastEventId: m.lastEventId,
-                    stopType: m.stopType,
-                    stopReason: m.stopReason,
+                    stopType: subPlayer == null ? 'withdraw_players' : m.stopType,
+                    stopReason: subPlayer == null ? (reason.isEmpty ? null : reason) : m.stopReason,
                   ));
 
+                  if (m.matchId != null) {
+                    if (subPlayer != null && (p.playerId != null || pId > 0) && (subPlayer.playerId != null || int.tryParse(subPlayer.id) != null)) {
+                      final oldPid = p.playerId ?? pId;
+                      final newPid = subPlayer.playerId ?? int.parse(subPlayer.id);
+                      _matchService.substituteMatchParticipant(
+                        matchId: m.matchId!,
+                        oldPlayerId: oldPid,
+                        newPlayerId: newPid,
+                        side: inA != -1 ? 'A' : 'B',
+                      );
+                    } else if (subPlayer == null) {
+                      _matchService.cancelOrStopScheduledMatch(
+                        matchId: m.matchId!,
+                        reason: reason.isEmpty ? 'Pemain tidak tersedia tanpa pengganti' : reason,
+                      );
+                    }
+                  }
+
                   if (action == 'pause') {
-                    updatedResting.add(GamePlayerItem(
-                      id: p.id,
-                      name: p.name,
-                      gender: p.gender,
-                      level: p.level,
-                      isGuest: p.isGuest,
-                      avatarUrl: p.avatarUrl,
-                      userId: p.userId,
-                      playerId: p.playerId,
+                    updatedResting.add(p.copyWith(
                       status: 'resting',
                       withdrawnReason: reason.isEmpty ? null : reason,
                     ));
@@ -2328,15 +2484,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                 updatedResting.removeAt(restIdx);
               } else {
                 final oldP = updatedResting[restIdx];
-                updatedResting[restIdx] = GamePlayerItem(
-                  id: oldP.id,
-                  name: oldP.name,
-                  gender: oldP.gender,
-                  level: oldP.level,
-                  isGuest: oldP.isGuest,
-                  avatarUrl: oldP.avatarUrl,
-                  userId: oldP.userId,
-                  playerId: oldP.playerId,
+                updatedResting[restIdx] = oldP.copyWith(
                   status: 'resting',
                   withdrawnReason: reason.isEmpty ? null : reason,
                 );
@@ -2349,15 +2497,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             final restIdx = updatedResting.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
             if (restIdx != -1) {
               final oldP = updatedResting[restIdx];
-              updatedResting[restIdx] = GamePlayerItem(
-                id: oldP.id,
-                name: oldP.name,
-                gender: oldP.gender,
-                level: oldP.level,
-                isGuest: oldP.isGuest,
-                avatarUrl: oldP.avatarUrl,
-                userId: oldP.userId,
-                playerId: oldP.playerId,
+              updatedResting[restIdx] = oldP.copyWith(
                 status: 'active',
               );
             }

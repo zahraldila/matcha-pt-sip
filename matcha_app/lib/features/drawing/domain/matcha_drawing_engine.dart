@@ -85,21 +85,45 @@ class MatchaDrawingEngine {
     final eligiblePlayers = players.where((p) => !p.isWithdrawn).toList();
     if (eligiblePlayers.isEmpty || courtCount < 1) return [];
 
-    List<GamePlayerItem> playerPool = List.from(eligiblePlayers);
+    final activePlayers = eligiblePlayers.where((p) => !p.isResting).toList();
+    final restingPlayers = eligiblePlayers.where((p) => p.isResting).toList();
+
+    final isSingle = playMode.toLowerCase() == 'single';
+    final minRequired = isSingle ? 2 : 4;
+    if (activePlayers.length < minRequired) return [];
+
+    List<GamePlayerItem> playerPool = List.from(activePlayers);
     if (shufflePlayers) {
       playerPool.shuffle(Random());
     }
 
+    List<DrawingRound> rawRounds;
     if (playMode.toLowerCase() == 'single') {
-      return _generateSingleRounds(playerPool, courtCount, roundCount);
+      rawRounds = _generateSingleRounds(playerPool, courtCount, roundCount);
+    } else if (gameType.toLowerCase().contains('team americano')) {
+      rawRounds = _generateTeamAmericanoRounds(playerPool, courtCount, roundCount);
+    } else {
+      // Default: Americano Double (2 vs 2) with rotating partners
+      rawRounds = _generateAmericanoDoubleRounds(playerPool, courtCount, roundCount);
     }
 
-    if (gameType.toLowerCase().contains('team americano')) {
-      return _generateTeamAmericanoRounds(playerPool, courtCount, roundCount);
+    if (restingPlayers.isEmpty || rawRounds.isEmpty) {
+      return rawRounds;
     }
 
-    // Default: Americano Double (2 vs 2) with rotating partners
-    return _generateAmericanoDoubleRounds(playerPool, courtCount, roundCount);
+    return rawRounds.map((r) {
+      final combinedResting = List<GamePlayerItem>.from(r.restingPlayers);
+      for (final rp in restingPlayers) {
+        if (!combinedResting.any((p) => p.id == rp.id)) {
+          combinedResting.add(rp);
+        }
+      }
+      return DrawingRound(
+        roundNumber: r.roundNumber,
+        matches: r.matches,
+        restingPlayers: combinedResting,
+      );
+    }).toList();
   }
 
   /// Americano Double (2 vs 2) Partner Rotation algorithm (matches PHP AmericanoService)

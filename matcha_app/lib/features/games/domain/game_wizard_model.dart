@@ -60,6 +60,34 @@ class GamePlayerItem {
       withdrawnAt: map['withdrawn_at'] != null ? DateTime.tryParse(map['withdrawn_at'].toString()) : null,
     );
   }
+
+  GamePlayerItem copyWith({
+    String? id,
+    String? name,
+    String? gender,
+    String? level,
+    bool? isGuest,
+    String? avatarUrl,
+    int? userId,
+    int? playerId,
+    String? status,
+    String? withdrawnReason,
+    DateTime? withdrawnAt,
+  }) {
+    return GamePlayerItem(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      gender: gender ?? this.gender,
+      level: level ?? this.level,
+      isGuest: isGuest ?? this.isGuest,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      userId: userId ?? this.userId,
+      playerId: playerId ?? this.playerId,
+      status: status ?? this.status,
+      withdrawnReason: withdrawnReason ?? this.withdrawnReason,
+      withdrawnAt: withdrawnAt ?? this.withdrawnAt,
+    );
+  }
 }
 
 class UniqueKey {

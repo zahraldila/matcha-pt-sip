@@ -1117,6 +1117,98 @@ class MatchService {
     };
   }
 
+  /// Menghentikan sesi pertandingan karena jumlah pemain aktif tidak mencukupi (Web parity)
+  Future<void> stopSessionDueToInsufficientPlayers({
+    required dynamic sessionId,
+    required String reason,
+    int? stopPlayerId,
+  }) async {
+    if (sessionId == null) return;
+    final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
+
+    try {
+      // 1. Ambil drawing_id
+      final drawingId = await getLatestDrawingId(parsedId);
+      if (drawingId != null) {
+        // Hentikan semua match yang masih Scheduled atau In Progress
+        await _supabase
+            .from('tb_match')
+            .update({
+              'status_match': 'Stopped',
+              'stop_type': 'withdraw_players',
+              'stop_reason': reason,
+            })
+            .eq('drawing_id', drawingId)
+            .inFilter('status_match', ['Scheduled', 'In Progress', 'Live']);
+      }
+
+      // 2. Tandai session sebagai Completed
+      await _supabase
+          .from('tb_session')
+          .update({'status_session': 'Completed'})
+          .eq('session_id', parsedId);
+
+      // 3. Broadcast session_finished dan drawing_updated
+      final channelName = 'session_$parsedId';
+      final channel = _supabase.channel(channelName);
+      await channel.sendBroadcastMessage(
+        event: 'session_finished',
+        payload: {
+          'session_id': parsedId,
+          'status_session': 'Completed',
+          'reason': reason,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
+      await channel.sendBroadcastMessage(
+        event: 'drawing_updated',
+        payload: {
+          'session_id': parsedId,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
+    } catch (e) {
+      debugPrint('[MatchService] stopSessionDueToInsufficientPlayers error: $e');
+    }
+  }
+
+  /// Memperbarui partisipan pada match Scheduled ketika terjadi pergantian pemain dari bench
+  Future<void> substituteMatchParticipant({
+    required int matchId,
+    required int oldPlayerId,
+    required int newPlayerId,
+    required String side,
+  }) async {
+    try {
+      await _supabase
+          .from('tb_match_participant')
+          .update({'player_id': newPlayerId})
+          .eq('match_id', matchId)
+          .eq('player_id', oldPlayerId);
+    } catch (e) {
+      debugPrint('[MatchService] substituteMatchParticipant error: $e');
+    }
+  }
+
+  /// Menghapus partisipan dan menandai match Scheduled sebagai Stopped karena pemain keluar tanpa pengganti
+  Future<void> cancelOrStopScheduledMatch({
+    required int matchId,
+    required String reason,
+  }) async {
+    try {
+      await _supabase
+          .from('tb_match')
+          .update({
+            'status_match': 'Stopped',
+            'stop_type': 'withdraw_players',
+            'stop_reason': reason,
+          })
+          .eq('match_id', matchId);
+    } catch (e) {
+      debugPrint('[MatchService] cancelOrStopScheduledMatch error: $e');
+    }
+  }
+
   /// Konfirmasi penyesuaian jadwal
   Future<void> confirmAdjustedSchedule({
     required dynamic sessionId,
@@ -1662,22 +1754,23 @@ class MatchService {
 
       if (matches.isEmpty) return null;
 
-      // 1. Ambil seluruh session player terdaftar jika belum diberikan
+      // 1. Ambil seluruh session player terdaftar dan sinkronkan statusnya dari tb_session_player
+      final spMap = <int, Map<String, dynamic>>{};
+      try {
+        final sPlayers = await _supabase
+            .from('tb_session_player')
+            .select('player_id, status, withdrawn_reason, withdrawn_at')
+            .eq('session_id', parsedSessionId);
+        for (final sp in (sPlayers as List)) {
+          final pid = int.tryParse(sp['player_id']?.toString() ?? '');
+          if (pid != null) spMap[pid] = sp;
+        }
+      } catch (_) {}
+
       List<GamePlayerItem> allPlayers = registeredPlayers != null ? List.from(registeredPlayers) : [];
       if (allPlayers.isEmpty) {
         try {
-          final sPlayers = await _supabase
-              .from('tb_session_player')
-              .select('player_id')
-              .eq('session_id', parsedSessionId);
-
-          final spIds = (sPlayers as List)
-              .map((sp) => sp['player_id'])
-              .where((id) => id != null)
-              .map((id) => id is int ? id : int.tryParse(id.toString()))
-              .whereType<int>()
-              .toList();
-
+          final spIds = spMap.keys.toList();
           if (spIds.isNotEmpty) {
             final pList = await _supabase
                 .from('tb_player')
@@ -1687,18 +1780,39 @@ class MatchService {
             for (final pData in pList) {
               final pId = pData['player_id'];
               if (pId != null) {
+                final parsedPId = pId is int ? pId : int.tryParse(pId.toString());
+                final spInfo = parsedPId != null ? spMap[parsedPId] : null;
                 allPlayers.add(GamePlayerItem(
                   id: pId.toString(),
-                  playerId: pId is int ? pId : int.tryParse(pId.toString()),
+                  playerId: parsedPId,
                   userId: pData['user_id'] as int?,
                   name: (pData['nama'] ?? pData['nama_player'])?.toString() ?? 'Pemain',
                   avatarUrl: pData['foto']?.toString(),
                   level: pData['level']?.toString() ?? 'Beginner',
+                  status: spInfo?['status']?.toString() ?? 'active',
+                  withdrawnReason: spInfo?['withdrawn_reason']?.toString(),
+                  withdrawnAt: spInfo?['withdrawn_at'] != null ? DateTime.tryParse(spInfo!['withdrawn_at'].toString()) : null,
                 ));
               }
             }
           }
         } catch (_) {}
+      } else if (allPlayers.isNotEmpty && spMap.isNotEmpty) {
+        allPlayers = allPlayers.map((pl) {
+          final pid = pl.playerId ?? int.tryParse(pl.id);
+          final spInfo = pid != null ? spMap[pid] : null;
+          if (spInfo != null) {
+            final dbStatus = spInfo['status']?.toString();
+            final dbReason = spInfo['withdrawn_reason']?.toString();
+            final dbAt = spInfo['withdrawn_at'] != null ? DateTime.tryParse(spInfo['withdrawn_at'].toString()) : null;
+            return pl.copyWith(
+              status: dbStatus ?? pl.status,
+              withdrawnReason: dbReason ?? pl.withdrawnReason,
+              withdrawnAt: dbAt ?? pl.withdrawnAt,
+            );
+          }
+          return pl;
+        }).toList();
       }
 
       // 2. Batch ambil data partisipan untuk seluruh match
@@ -1736,6 +1850,7 @@ class MatchService {
             final pid = pData['player_id'] as int?;
             if (pid != null) {
               playerDetailsMap[pid] = pData;
+              final spInfo = spMap[pid];
               allPlayers.add(GamePlayerItem(
                 id: pid.toString(),
                 playerId: pid,
@@ -1743,6 +1858,9 @@ class MatchService {
                 name: (pData['nama'] ?? pData['nama_player'])?.toString() ?? 'Pemain',
                 avatarUrl: pData['foto']?.toString(),
                 level: pData['level']?.toString() ?? 'Beginner',
+                status: spInfo?['status']?.toString() ?? 'active',
+                withdrawnReason: spInfo?['withdrawn_reason']?.toString(),
+                withdrawnAt: spInfo?['withdrawn_at'] != null ? DateTime.tryParse(spInfo!['withdrawn_at'].toString()) : null,
               ));
             }
           }
@@ -1796,6 +1914,9 @@ class MatchService {
           final pData = parsedPId != null ? playerDetailsMap[parsedPId] : null;
 
           final pName = existingPlayer?.name ?? (pData?['nama'] ?? pData?['nama_player'])?.toString() ?? 'Pemain';
+          final spInfo = parsedPId != null ? spMap[parsedPId] : null;
+          final pStatus = existingPlayer?.status ?? spInfo?['status']?.toString() ?? 'active';
+          final pReason = existingPlayer?.withdrawnReason ?? spInfo?['withdrawn_reason']?.toString();
           final playerItem = GamePlayerItem(
             id: pId.toString(),
             playerId: parsedPId,
@@ -1803,6 +1924,9 @@ class MatchService {
             name: pName,
             avatarUrl: existingPlayer?.avatarUrl ?? pData?['foto']?.toString(),
             level: existingPlayer?.level ?? pData?['level']?.toString() ?? 'Beginner',
+            status: pStatus,
+            withdrawnReason: pReason,
+            withdrawnAt: existingPlayer?.withdrawnAt,
           );
 
           final sideVal = (p['side'] ?? '').toString().trim().toUpperCase();
@@ -1821,6 +1945,8 @@ class MatchService {
           status: match['status_match']?.toString() ?? 'Scheduled',
           winnerTeam: match['winner_team']?.toString(),
           matchId: matchId,
+          stopType: match['stop_type']?.toString(),
+          stopReason: match['stop_reason']?.toString(),
         );
 
         roundMap.putIfAbsent(roundNum, () => []).add(drawingMatch);
