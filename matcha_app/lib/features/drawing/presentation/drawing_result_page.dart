@@ -623,14 +623,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
             onPressed: _goToSessionDetail,
           ),
-          actions: [
-            if (_isHostUser)
-              IconButton(
-                icon: const Icon(Icons.manage_accounts_outlined, color: AppColors.matchaDark),
-                tooltip: 'Kelola Status Pemain',
-                onPressed: _showPlayerStatusManagementModal,
-              ),
-          ],
         ),
         body: Center(
           child: Padding(
@@ -735,14 +727,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           ],
         ),
         centerTitle: true,
-        actions: [
-          if (_isHostUser)
-            IconButton(
-              icon: const Icon(Icons.manage_accounts_outlined, color: AppColors.matchaDark),
-              tooltip: 'Kelola Status Pemain',
-              onPressed: _showPlayerStatusManagementModal,
-            ),
-        ],
       ),
       body: Column(
         children: [
@@ -1512,159 +1496,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           ),
         ),
       ],
-    );
-  }
-
-  // --- GAP 2: Player Status Management Modal ---
-  Future<void> _showPlayerStatusManagementModal() async {
-    final allPlayers = _config.players;
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(ctx).size.height * 0.85,
-              ),
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFCBD5E1),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Kesiapan & Status Pemain', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                          SizedBox(height: 2),
-                          Text('Kelola pemain istirahat, cedera, atau keluar', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                        ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 20),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 20),
-                  Expanded(
-                    child: ListView.separated(
-                      itemCount: allPlayers.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (_, idx) {
-                        final p = allPlayers[idx];
-                        Color badgeBg;
-                        Color badgeFg;
-                        String badgeText;
-                        if (p.isWithdrawn) {
-                          badgeBg = const Color(0xFFFEE2E2);
-                          badgeFg = const Color(0xFF991B1B);
-                          badgeText = 'Withdrawn (Keluar)';
-                        } else if (p.isResting) {
-                          badgeBg = const Color(0xFFFEF3C7);
-                          badgeFg = const Color(0xFF92400E);
-                          badgeText = 'Resting (Istirahat)';
-                        } else {
-                          badgeBg = const Color(0xFFDCFCE7);
-                          badgeFg = const Color(0xFF15803D);
-                          badgeText = 'Active (Siap)';
-                        }
-
-                        return Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: AppColors.matchaDark,
-                                    child: Text(
-                                      p.name.isNotEmpty ? p.name[0].toUpperCase() : 'P',
-                                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A))),
-                                        Text('${p.level} • ${p.gender}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(6)),
-                                    child: Text(badgeText, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeFg)),
-                                  ),
-                                ],
-                              ),
-                              if (_isHostUser) ...[
-                                const SizedBox(height: 8),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    if (!p.isWithdrawn && !p.isResting)
-                                      TextButton.icon(
-                                        onPressed: () => _updatePlayerStatusAction(p, 'pause', setSheetState),
-                                        icon: const Icon(Icons.pause_circle_outline, size: 14, color: Color(0xFFD97706)),
-                                        label: const Text('Istirahatkan', style: TextStyle(fontSize: 11, color: Color(0xFFD97706))),
-                                      ),
-                                    if (p.isResting)
-                                      TextButton.icon(
-                                        onPressed: () => _updatePlayerStatusAction(p, 'reactivate', setSheetState),
-                                        icon: const Icon(Icons.play_circle_outline, size: 14, color: Color(0xFF16A34A)),
-                                        label: const Text('Siap Main', style: TextStyle(fontSize: 11, color: Color(0xFF16A34A))),
-                                      ),
-                                    if (!p.isWithdrawn)
-                                      TextButton.icon(
-                                        onPressed: () => _updatePlayerStatusAction(p, 'withdraw', setSheetState),
-                                        icon: const Icon(Icons.exit_to_app_rounded, size: 14, color: Color(0xFFDC2626)),
-                                        label: const Text('Keluarkan', style: TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
     );
   }
 
