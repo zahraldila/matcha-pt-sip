@@ -199,9 +199,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     try {
       final session = await _matchService.getSession(sessId);
       final locked = await _matchService.isSessionDrawingLocked(sessId);
+      final sessionPlayers = await _matchService.getSessionPlayers(sessId);
       final savedRounds = await _matchService.loadSavedDrawing(
         sessionId: sessId,
-        registeredPlayers: _config.players,
+        registeredPlayers: sessionPlayers.isNotEmpty ? sessionPlayers : _config.players,
       );
       final formatInfo = await _matchService.getActiveDrawingFormat(sessId);
       final activeFormatName = formatInfo?['nama_format'] as String?;
@@ -210,6 +211,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       if (!mounted) return;
       setState(() {
         _sessionData = session;
+        if (sessionPlayers.isNotEmpty) {
+          _config.players = sessionPlayers;
+        }
         if (session != null && session['host_user_id'] != null) {
           _sessionHostUserId = session['host_user_id'];
         }
@@ -1981,7 +1985,11 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
   }
 
   Widget _buildBenchCard(DrawingRound currentRound, bool canManage) {
-    final resting = currentRound.restingPlayers;
+    final resting = currentRound.restingPlayers
+        .map(_resolvePlayer)
+        .where((player) => !player.isWithdrawn)
+        .toList();
+    final withdrawnPlayers = _config.players.where((player) => player.isWithdrawn).toList();
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -2033,20 +2041,21 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           const SizedBox(height: 10),
 
           if (resting.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Center(
                 child: Text(
-                  'Semua pemain aktif bertanding di ronde ini.',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                  withdrawnPlayers.isEmpty
+                      ? 'Semua pemain aktif bertanding di ronde ini.'
+                      : 'Tidak ada pemain di bangku cadangan.',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                 ),
               ),
             )
           else
             ...resting.asMap().entries.map((entry) {
               final idx = entry.key;
-              final rawP = entry.value;
-              final p = _resolvePlayer(rawP);
+              final p = entry.value;
               final isPaused = p.isResting;
 
               return Container(
@@ -2172,6 +2181,62 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                 ),
               );
             }),
+          if (withdrawnPlayers.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Pemain Keluar',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF9F1239),
+              ),
+            ),
+            const SizedBox(height: 6),
+            ...withdrawnPlayers.asMap().entries.map((entry) {
+              final p = entry.value;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1F2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFECDD3)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${entry.key + 1}. ${p.name}',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF94A3B8),
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: const Text(
+                        'Keluar',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF991B1B),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
         ],
       ),
     );

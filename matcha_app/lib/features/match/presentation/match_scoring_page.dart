@@ -839,7 +839,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
             final key = p.playerId?.toString() ?? p.id;
             if (!unique.containsKey(key)) unique[key] = p;
           }
-          if (unique.isNotEmpty) {
+          if (unique.isNotEmpty && (!isRealBackendSession || _config.players.isEmpty)) {
             _config.players = unique.values.toList();
           }
 
@@ -875,7 +875,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
             final key = p.playerId?.toString() ?? p.id;
             if (!unique.containsKey(key)) unique[key] = p;
           }
-          if (unique.isNotEmpty) {
+          if (unique.isNotEmpty && (!isRealBackendSession || _config.players.isEmpty)) {
             _config.players = unique.values.toList();
           }
 
@@ -6067,4 +6067,3 @@ class MatchScoringPageState extends State<MatchScoringPage> {
   }
 
 }
-
