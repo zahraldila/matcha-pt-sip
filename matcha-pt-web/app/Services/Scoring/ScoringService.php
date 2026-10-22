@@ -1851,12 +1851,7 @@ class ScoringService
             return false;
         }
 
-        // 2. Jika status eksplisit 'in progress', match sedang berlangsung di lapangan
-        if (in_array($status, ['in progress', 'in_progress'], true)) {
-            return true;
-        }
-
-        // 3. Jika ada last_event_id pada match, berarti pertandingan sudah memiliki rekaman event scoring
+        // 2. Jika ada last_event_id pada match, berarti pertandingan sudah memiliki rekaman event scoring
         if (! empty($match->last_event_id)) {
             return true;
         }

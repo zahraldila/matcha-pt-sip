@@ -2209,17 +2209,9 @@ class ScoringController extends Controller
             $savedScores = Cache::get("scoring.game_{$gameId}", []);
 
             foreach ($currentMatches as $cm) {
-                $hasPlayer = MatchParticipant::where('match_id', $cm->match_id)->where('player_id', $playerId)->exists();
-                if ($hasPlayer) {
-                    $st = strtolower(trim((string) ($cm->status_match ?? '')));
-                    $isTerminal = in_array($st, ['completed', 'stopped', 'finished', 'cancelled'], true);
-                    $isActivelyPlaying = ! $isTerminal && (
-                        in_array($st, ['in progress', 'in_progress'], true)
-                        || ! empty($cm->waktu_mulai)
-                        || ScoringService::isMatchActivelyPlaying($cm, $savedScores)
-                    );
-
-                    if ($isActivelyPlaying) {
+                if (ScoringService::isMatchActivelyPlaying($cm, $savedScores)) {
+                    $hasPlayer = MatchParticipant::where('match_id', $cm->match_id)->where('player_id', $playerId)->exists();
+                    if ($hasPlayer) {
                         $courtNum = ($cm->nomor_match - 1) % $courtCount + 1;
 
                         return response()->json([

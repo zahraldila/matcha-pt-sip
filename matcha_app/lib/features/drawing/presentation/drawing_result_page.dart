@@ -985,6 +985,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     }),
                   ),
                 ),
+                const SizedBox(height: 16),
                 if (!_isRoundAccessible(_selectedRoundIndex))
                   _buildLockedRoundState(currentRound)
                 else ...[
@@ -1830,6 +1831,53 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               ),
             ),
           ),
+          const SizedBox(width: 8),
+          if (canManage) ...[
+            // Tombol Istirahat
+            InkWell(
+              onTap: () => _updatePlayerStatusAction(p, 'pause'),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: const Text(
+                  'Istirahat',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFB45309),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 5),
+            // Tombol Keluar
+            InkWell(
+              onTap: () => _updatePlayerStatusAction(p, 'withdraw'),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1F2),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFFECDD3)),
+                ),
+                child: const Text(
+                  'Keluar',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF9F1239),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 5),
+          ],
           // Badge Player 1 / Player 2
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),

@@ -42,6 +42,7 @@ Route::prefix('games')->name('games.')->group(function () {
     Route::get('/', [GameController::class, 'index'])->name('index');
     Route::get('/share/{token}', [GameController::class, 'share'])->name('share');
     Route::get('/{id}', [GameController::class, 'show'])->whereNumber('id')->name('show');
+    Route::get('/share/{token}', [GameController::class, 'share'])->name('share');
     Route::get('/{id}/drawing', [GameController::class, 'drawing'])->whereNumber('id')->name('drawing');
     Route::post('/{id}/join', [GameController::class, 'joinSession'])->whereNumber('id')->name('join'); // Support Member & Guest Player join
 
