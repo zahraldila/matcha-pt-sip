@@ -176,7 +176,14 @@ class SessionMatchRecapData {
       (matchFormatName?.toLowerCase().contains('team americano') ?? false);
 
   bool get hasCompetitiveResults =>
-      standings.any((p) => p.matchesPlayed > 0 || p.pointsFor > 0);
+      standings.any((p) =>
+          p.rank > 0 ||
+          (p.matchesPlayed > 0 &&
+              (p.pointsFor > 0 ||
+                  p.pointsAgainst > 0 ||
+                  p.matchesWon > 0 ||
+                  p.gamesWon > 0 ||
+                  p.setsWon > 0)));
 }
 
 class SessionRoundRecapItem {

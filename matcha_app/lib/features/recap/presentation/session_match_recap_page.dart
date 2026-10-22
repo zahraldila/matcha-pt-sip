@@ -107,24 +107,19 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
       return;
     }
 
-    // Rule 5: Self-kudos dilarang
-    final recipientStanding = _data?.standings.where((p) => p.playerId == playerId).firstOrNull;
-    if (recipientStanding?.userId != null && recipientStanding!.userId == currentUserId) {
-      AppErrorHandler.showErrorSnackBar(
-        context,
-        'Anda tidak dapat memberikan kudos kepada diri sendiri.',
-      );
-      return;
-    }
-
     setState(() {
       final userTags = _givenKudos.putIfAbsent(playerId, () => <String>{});
-      final playerCounts = _kudosCounts.putIfAbsent(playerId, () => <String, int>{});
+      final playerCounts = _kudosCounts.putIfAbsent(
+        playerId,
+        () => <String, int>{},
+      );
 
       if (userTags.contains(kudosTag)) {
         userTags.remove(kudosTag);
         final currentCount = playerCounts[kudosTag] ?? 1;
-        playerCounts[kudosTag] = (currentCount - 1) > 0 ? (currentCount - 1) : 0;
+        playerCounts[kudosTag] = (currentCount - 1) > 0
+            ? (currentCount - 1)
+            : 0;
       } else {
         userTags.add(kudosTag);
         playerCounts[kudosTag] = (playerCounts[kudosTag] ?? 0) + 1;
@@ -136,32 +131,37 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     });
 
     // Panggil service untuk persistensi ke database tb_kudos
-    _recapService.toggleKudos(
-      sessionId: widget.sessionId,
-      giverUserId: currentUserId,
-      recipientPlayerId: playerId,
-      recipientName: playerName,
-      badge: kudosTag,
-    ).catchError((e) {
-      // Revert if error
-      if (mounted) {
-        setState(() {
-          final userTags = _givenKudos[playerId];
-          final playerCounts = _kudosCounts[playerId];
-          if (userTags != null && playerCounts != null) {
-            if (userTags.contains(kudosTag)) {
-              userTags.remove(kudosTag);
-              playerCounts[kudosTag] = math.max(0, (playerCounts[kudosTag] ?? 1) - 1);
-            }
+    _recapService
+        .toggleKudos(
+          sessionId: widget.sessionId,
+          giverUserId: currentUserId,
+          recipientPlayerId: playerId,
+          recipientName: playerName,
+          badge: kudosTag,
+        )
+        .catchError((e) {
+          // Revert if error
+          if (mounted) {
+            setState(() {
+              final userTags = _givenKudos[playerId];
+              final playerCounts = _kudosCounts[playerId];
+              if (userTags != null && playerCounts != null) {
+                if (userTags.contains(kudosTag)) {
+                  userTags.remove(kudosTag);
+                  playerCounts[kudosTag] = math.max(
+                    0,
+                    (playerCounts[kudosTag] ?? 1) - 1,
+                  );
+                }
+              }
+            });
+            AppErrorHandler.showErrorSnackBar(
+              context,
+              e.toString().replaceAll('Exception: ', ''),
+            );
           }
+          return false;
         });
-        AppErrorHandler.showErrorSnackBar(
-          context,
-          e.toString().replaceAll('Exception: ', ''),
-        );
-      }
-      return false;
-    });
   }
 
   void _handleBackNavigation() {
@@ -193,7 +193,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A), size: 20),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Color(0xFF0F172A),
+              size: 20,
+            ),
             onPressed: _handleBackNavigation,
           ),
           title: const Text(
@@ -205,59 +209,61 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             ),
           ),
         ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.matchaDark))
-          : _errorMessage != null && _data == null
-              ? OfflineStateWidget(
-                  error: _errorMessage,
-                  customTitle: 'Gagal Memuat Rekap Pertandingan',
-                  onRetry: _loadRecap,
-                )
-              : _data == null
-                  ? const SizedBox.shrink()
-                  : RefreshIndicator(
-                      onRefresh: _loadRecap,
-                      color: AppColors.matchaDark,
-                      child: SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 0. Top Action Breadcrumbs Row (Kembali ke Daftar Mabar & Bagikan)
-                            _buildTopActionBreadcrumbsRow(_data!),
+        body: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.matchaDark),
+              )
+            : _errorMessage != null && _data == null
+            ? OfflineStateWidget(
+                error: _errorMessage,
+                customTitle: 'Gagal Memuat Rekap Pertandingan',
+                onRetry: _loadRecap,
+              )
+            : _data == null
+            ? const SizedBox.shrink()
+            : RefreshIndicator(
+                onRefresh: _loadRecap,
+                color: AppColors.matchaDark,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 0. Top Action Breadcrumbs Row (Kembali ke Daftar Mabar & Bagikan)
+                      _buildTopActionBreadcrumbsRow(_data!),
 
-                            const SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
-                            // 1. Hero Winner Card
-                            _buildHeroWinnerCard(_data!),
+                      // 1. Hero Winner Card
+                      _buildHeroWinnerCard(_data!),
 
-                            const SizedBox(height: 18),
+                      const SizedBox(height: 18),
 
-                            // 2. Section 1: Riwayat Hasil Pertandingan Seluruh Ronde
-                            _buildRoundsHistorySection(_data!),
+                      // 2. Section 1: Riwayat Hasil Pertandingan Seluruh Ronde
+                      _buildRoundsHistorySection(_data!),
 
-                            const SizedBox(height: 18),
+                      const SizedBox(height: 18),
 
-                            // 3. Section 2: Podium & Klasemen Akhir
-                            _buildPodiumAndStandingsSection(_data!),
+                      // 3. Section 2: Podium & Klasemen Akhir
+                      _buildPodiumAndStandingsSection(_data!),
 
-                            const SizedBox(height: 18),
+                      const SizedBox(height: 18),
 
-                            // 4. Section 3: Kudos System
-                            _buildKudosSection(_data!),
+                      // 4. Section 3: Kudos System
+                      _buildKudosSection(_data!),
 
-                            const SizedBox(height: 18),
+                      const SizedBox(height: 18),
 
-                            // 5. Section 4: Statistik Pribadi Pemain
-                            if (_data!.myStats != null) ...[
-                              _buildPersonalStatsCard(_data!.myStats!),
-                              const SizedBox(height: 20),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
+                      // 5. Section 4: Statistik Pribadi Pemain
+                      if (_data!.myStats != null) ...[
+                        _buildPersonalStatsCard(_data!.myStats!),
+                        const SizedBox(height: 20),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
       ),
     );
   }
@@ -277,12 +283,18 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
               decoration: BoxDecoration(
                 color: const Color(0xFFEBF8D8),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.25)),
+                border: Border.all(
+                  color: const Color(0xFF063B00).withValues(alpha: 0.25),
+                ),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle_rounded, size: 11, color: Color(0xFF063B00)),
+                  Icon(
+                    Icons.check_circle_rounded,
+                    size: 11,
+                    color: Color(0xFF063B00),
+                  ),
                   SizedBox(width: 3),
                   Text(
                     'Match Finished',
@@ -301,7 +313,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             GestureDetector(
               onTap: () => _showShareModal(context, data),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF063B00),
                   borderRadius: BorderRadius.circular(10),
@@ -316,7 +331,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.share_rounded, size: 12, color: Color(0xFFA8E63A)),
+                    Icon(
+                      Icons.share_rounded,
+                      size: 12,
+                      color: Color(0xFFA8E63A),
+                    ),
                     SizedBox(width: 4),
                     Text(
                       'Bagikan',
@@ -374,16 +393,27 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFEBF8D8),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
+                            border: Border.all(
+                              color: const Color(
+                                0xFF063B00,
+                              ).withValues(alpha: 0.2),
+                            ),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.share_rounded, size: 12, color: Color(0xFF063B00)),
+                              Icon(
+                                Icons.share_rounded,
+                                size: 12,
+                                color: Color(0xFF063B00),
+                              ),
                               SizedBox(width: 4),
                               Text(
                                 'Share Game',
@@ -427,7 +457,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         shape: BoxShape.circle,
                         color: Color(0xFFF1F5F9),
                       ),
-                      child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
                   ),
                 ],
@@ -456,7 +490,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: const Color(0xFFA7F3D0)),
                           ),
-                          child: const Icon(Icons.language_rounded, size: 19, color: Color(0xFF063B00)),
+                          child: const Icon(
+                            Icons.language_rounded,
+                            size: 19,
+                            color: Color(0xFF063B00),
+                          ),
                         ),
                         const SizedBox(width: 10),
                         const Expanded(
@@ -474,7 +512,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               SizedBox(height: 2),
                               Text(
                                 'Tampilkan hasil pertandingan lengkap dalam format web. Cocok untuk grup WhatsApp / Telegram.',
-                                style: TextStyle(fontSize: 11, color: Color(0xFF64748B), height: 1.3),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF64748B),
+                                  height: 1.3,
+                                ),
                               ),
                             ],
                           ),
@@ -488,13 +530,16 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         Expanded(
                           child: GestureDetector(
                             onTap: () async {
-                              String? shareToken = widget.session?.shareToken?.trim();
+                              String? shareToken = widget.session?.shareToken
+                                  ?.trim();
                               if (shareToken == null || shareToken.isEmpty) {
                                 try {
-                                  shareToken = await SessionService().ensureShareToken(data.sessionId);
+                                  shareToken = await SessionService()
+                                      .ensureShareToken(data.sessionId);
                                 } catch (_) {}
                               }
-                              final url = (shareToken != null && shareToken.isNotEmpty)
+                              final url =
+                                  (shareToken != null && shareToken.isNotEmpty)
                                   ? 'https://matcha.siproduktif.com/games/share/$shareToken'
                                   : 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
                               Clipboard.setData(ClipboardData(text: url));
@@ -502,7 +547,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Tautan rekap berhasil disalin! 🔗'),
+                                    content: Text(
+                                      'Tautan rekap berhasil disalin! 🔗',
+                                    ),
                                     backgroundColor: Color(0xFF063B00),
                                     behavior: SnackBarBehavior.floating,
                                   ),
@@ -514,7 +561,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
+                                ),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.03),
@@ -526,7 +575,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.copy_rounded, size: 14, color: Color(0xFF64748B)),
+                                  Icon(
+                                    Icons.copy_rounded,
+                                    size: 14,
+                                    color: Color(0xFF64748B),
+                                  ),
                                   SizedBox(width: 6),
                                   Text(
                                     'Salin Link',
@@ -547,19 +600,27 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         Expanded(
                           child: GestureDetector(
                             onTap: () async {
-                              String? shareToken = widget.session?.shareToken?.trim();
+                              String? shareToken = widget.session?.shareToken
+                                  ?.trim();
                               if (shareToken == null || shareToken.isEmpty) {
                                 try {
-                                  shareToken = await SessionService().ensureShareToken(data.sessionId);
+                                  shareToken = await SessionService()
+                                      .ensureShareToken(data.sessionId);
                                 } catch (_) {}
                               }
-                              final url = (shareToken != null && shareToken.isNotEmpty)
+                              final url =
+                                  (shareToken != null && shareToken.isNotEmpty)
                                   ? 'https://matcha.siproduktif.com/games/share/$shareToken'
                                   : 'https://matcha.siproduktif.com/scoring/recap/${data.sessionId}';
-                              final winnerName = (data.isTeamFormat && data.teamStandings.isNotEmpty)
+                              final winnerName =
+                                  (data.isTeamFormat &&
+                                      data.teamStandings.isNotEmpty)
                                   ? data.teamStandings.first.teamName
-                                  : (data.standings.isNotEmpty ? data.standings.first.nama : '-');
-                              final shareText = '🎾 Hasil Mabar: ${data.sessionName}\n🏆 Pemenang: $winnerName\nLihat rekap selengkapnya di: $url';
+                                  : (data.standings.isNotEmpty
+                                        ? data.standings.first.nama
+                                        : '-');
+                              final shareText =
+                                  '🎾 Hasil Mabar: ${data.sessionName}\n🏆 Pemenang: $winnerName\nLihat rekap selengkapnya di: $url';
                               if (ctx.mounted) Navigator.pop(ctx);
                               await Share.share(shareText);
                             },
@@ -570,7 +631,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF063B00).withValues(alpha: 0.25),
+                                    color: const Color(
+                                      0xFF063B00,
+                                    ).withValues(alpha: 0.25),
                                     blurRadius: 6,
                                     offset: const Offset(0, 2),
                                   ),
@@ -579,7 +642,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.send_rounded, size: 14, color: Color(0xFFA8E63A)),
+                                  Icon(
+                                    Icons.send_rounded,
+                                    size: 14,
+                                    color: Color(0xFFA8E63A),
+                                  ),
                                   SizedBox(width: 6),
                                   Text(
                                     'Bagikan Link',
@@ -606,12 +673,18 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFECFDF5), Color(0xFFF7FEE7), Colors.white],
+                    colors: [
+                      Color(0xFFECFDF5),
+                      Color(0xFFF7FEE7),
+                      Colors.white,
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.25)),
+                  border: Border.all(
+                    color: const Color(0xFF063B00).withValues(alpha: 0.25),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -626,7 +699,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                             color: const Color(0xFF063B00),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.auto_awesome_rounded, size: 19, color: Color(0xFFA8E63A)),
+                          child: const Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 19,
+                            color: Color(0xFFA8E63A),
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -645,7 +722,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                   ),
                                   const SizedBox(width: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 1,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF063B00),
                                       borderRadius: BorderRadius.circular(4),
@@ -664,7 +744,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               const SizedBox(height: 2),
                               const Text(
                                 'Ubah hasil mabar jadi kartu gambar story ala Strava/SKOR dengan foto dari galerimu!',
-                                style: TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.3),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF475569),
+                                  height: 1.3,
+                                ),
                               ),
                             ],
                           ),
@@ -687,7 +771,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF063B00).withValues(alpha: 0.3),
+                              color: const Color(
+                                0xFF063B00,
+                              ).withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 3),
                             ),
@@ -696,7 +782,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.style_rounded, size: 15, color: Color(0xFFA8E63A)),
+                            Icon(
+                              Icons.style_rounded,
+                              size: 15,
+                              color: Color(0xFFA8E63A),
+                            ),
                             SizedBox(width: 6),
                             Text(
                               'Pilih Template Story',
@@ -721,18 +811,26 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
   }
 
   /// 2. Modal: Template Studio (9:16 Story Customizer)
-  void _showStoryTemplateModal(BuildContext context, SessionMatchRecapData data) {
-    int selectedTemplate = 0; // 0: Minimalist Podium, 1: Glass Leaderboard, 2: Match Highlights, 3: Strava Athletic
+  void _showStoryTemplateModal(
+    BuildContext context,
+    SessionMatchRecapData data,
+  ) {
+    int selectedTemplate =
+        0; // 0: Minimalist Podium, 1: Glass Leaderboard, 2: Match Highlights, 3: Strava Athletic
     File? pickedBgImage;
     String overlayFilter = 'contrast'; // 'contrast', 'matcha', 'clean'
-    SessionPlayerStanding? selectedPlayer = data.standings.isNotEmpty ? data.standings.first : null;
+    SessionPlayerStanding? selectedPlayer = data.standings.isNotEmpty
+        ? data.standings.first
+        : null;
     final GlobalKey storyCardKey = GlobalKey();
     bool isSharing = false;
     bool isDownloading = false;
 
     Future<Uint8List?> capturePng() async {
       try {
-        final boundary = storyCardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        final boundary =
+            storyCardKey.currentContext?.findRenderObject()
+                as RenderRepaintBoundary?;
         if (boundary == null) return null;
         final image = await boundary.toImage(pixelRatio: 3.5);
         final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -763,8 +861,12 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
                     decoration: const BoxDecoration(
                       color: Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                      border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(28),
+                      ),
+                      border: Border(
+                        bottom: BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,11 +900,20 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                       ),
                                       const SizedBox(width: 8),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 1.5,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFEBF8D8),
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(
+                                              0xFF063B00,
+                                            ).withValues(alpha: 0.2),
+                                          ),
                                         ),
                                         child: const Text(
                                           '9:16 HD',
@@ -818,7 +929,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                   const SizedBox(height: 2),
                                   const Text(
                                     'Pilih template, pasang foto dokumentasi mabar dari galeri, dan unduh/bagikan.',
-                                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF64748B),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -831,9 +945,15 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: Colors.white,
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                  ),
                                 ),
-                                child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
+                                child: const Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: Color(0xFF64748B),
+                                ),
                               ),
                             ),
                           ],
@@ -858,7 +978,8 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 GestureDetector(
                                   onTap: () {
                                     setModalState(() {
-                                      selectedTemplate = (selectedTemplate - 1 + 4) % 4;
+                                      selectedTemplate =
+                                          (selectedTemplate - 1 + 4) % 4;
                                     });
                                   },
                                   child: Container(
@@ -867,9 +988,15 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: const Color(0xFFF1F5F9),
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      border: Border.all(
+                                        color: const Color(0xFFE2E8F0),
+                                      ),
                                     ),
-                                    child: const Icon(Icons.chevron_left_rounded, size: 20, color: Color(0xFF334155)),
+                                    child: const Icon(
+                                      Icons.chevron_left_rounded,
+                                      size: 20,
+                                      color: Color(0xFF334155),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -892,7 +1019,8 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 GestureDetector(
                                   onTap: () {
                                     setModalState(() {
-                                      selectedTemplate = (selectedTemplate + 1) % 4;
+                                      selectedTemplate =
+                                          (selectedTemplate + 1) % 4;
                                     });
                                   },
                                   child: Container(
@@ -901,9 +1029,15 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: const Color(0xFFF1F5F9),
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      border: Border.all(
+                                        color: const Color(0xFFE2E8F0),
+                                      ),
                                     ),
-                                    child: const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFF334155)),
+                                    child: const Icon(
+                                      Icons.chevron_right_rounded,
+                                      size: 20,
+                                      color: Color(0xFF334155),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -936,28 +1070,32 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 title: '1. Minimalist Podium',
                                 subtitle: 'Bottom 3-avatar overlay',
                                 isSelected: selectedTemplate == 0,
-                                onTap: () => setModalState(() => selectedTemplate = 0),
+                                onTap: () =>
+                                    setModalState(() => selectedTemplate = 0),
                               ),
                               _buildTemplateTabButton(
                                 index: 1,
                                 title: '2. Glass Leaderboard',
                                 subtitle: 'Tabel ranking 1st - 4th',
                                 isSelected: selectedTemplate == 1,
-                                onTap: () => setModalState(() => selectedTemplate = 1),
+                                onTap: () =>
+                                    setModalState(() => selectedTemplate = 1),
                               ),
                               _buildTemplateTabButton(
                                 index: 2,
                                 title: '3. Match Highlights',
                                 subtitle: 'Rekap skor tiap match',
                                 isSelected: selectedTemplate == 2,
-                                onTap: () => setModalState(() => selectedTemplate = 2),
+                                onTap: () =>
+                                    setModalState(() => selectedTemplate = 2),
                               ),
                               _buildTemplateTabButton(
                                 index: 3,
                                 title: '4. Strava Athletic',
                                 subtitle: 'Personal performance card',
                                 isSelected: selectedTemplate == 3,
-                                onTap: () => setModalState(() => selectedTemplate = 3),
+                                onTap: () =>
+                                    setModalState(() => selectedTemplate = 3),
                               ),
                             ],
                           ),
@@ -976,19 +1114,28 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                             ),
                             const SizedBox(height: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
+                                ),
                               ),
                               child: DropdownButtonHideUnderline(
                                 child: DropdownButton<SessionPlayerStanding>(
                                   value: selectedPlayer,
                                   isExpanded: true,
-                                  icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF063B00)),
+                                  icon: const Icon(
+                                    Icons.arrow_drop_down_rounded,
+                                    color: Color(0xFF063B00),
+                                  ),
                                   items: data.standings.map((p) {
-                                    return DropdownMenuItem<SessionPlayerStanding>(
+                                    return DropdownMenuItem<
+                                      SessionPlayerStanding
+                                    >(
                                       value: p,
                                       child: Text(
                                         '#${p.rank} • ${p.nama} (${p.pointsFor} pts)',
@@ -1018,13 +1165,16 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                             decoration: BoxDecoration(
                               color: const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                              ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Text(
                                       'BACKGROUND FOTO LAPANGAN',
@@ -1037,11 +1187,20 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                     ),
                                     if (pickedBgImage != null)
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 7,
+                                          vertical: 2,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFEBF8D8),
-                                          borderRadius: BorderRadius.circular(10),
-                                          border: Border.all(color: const Color(0xFF063B00).withValues(alpha: 0.2)),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(
+                                              0xFF063B00,
+                                            ).withValues(alpha: 0.2),
+                                          ),
                                         ),
                                         child: const Text(
                                           'Foto Terpasang',
@@ -1057,7 +1216,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 const SizedBox(height: 3),
                                 const Text(
                                   'Pasang foto momen mabar dari galeri HP atau komputermu.',
-                                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF64748B),
+                                  ),
                                 ),
                                 const SizedBox(height: 10),
                                 Row(
@@ -1066,7 +1228,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                       child: GestureDetector(
                                         onTap: () async {
                                           final picker = ImagePicker();
-                                          final picked = await picker.pickImage(source: ImageSource.gallery);
+                                          final picked = await picker.pickImage(
+                                            source: ImageSource.gallery,
+                                          );
                                           if (picked != null) {
                                             setModalState(() {
                                               pickedBgImage = File(picked.path);
@@ -1074,26 +1238,41 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                           }
                                         },
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(vertical: 9),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 9,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: Colors.white,
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFFE2E8F0),
+                                            ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withValues(alpha: 0.02),
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.02,
+                                                ),
                                                 blurRadius: 4,
                                                 offset: const Offset(0, 1),
                                               ),
                                             ],
                                           ),
                                           child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
-                                              const Icon(Icons.camera_alt_rounded, size: 14, color: Color(0xFF063B00)),
+                                              const Icon(
+                                                Icons.camera_alt_rounded,
+                                                size: 14,
+                                                color: Color(0xFF063B00),
+                                              ),
                                               const SizedBox(width: 6),
                                               Text(
-                                                pickedBgImage != null ? 'Ganti Foto Galeri' : 'Insert Photo dari Galeri',
+                                                pickedBgImage != null
+                                                    ? 'Ganti Foto Galeri'
+                                                    : 'Insert Photo dari Galeri',
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 11.5,
@@ -1108,15 +1287,25 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                     if (pickedBgImage != null) ...[
                                       const SizedBox(width: 8),
                                       GestureDetector(
-                                        onTap: () => setModalState(() => pickedBgImage = null),
+                                        onTap: () => setModalState(
+                                          () => pickedBgImage = null,
+                                        ),
                                         child: Container(
                                           padding: const EdgeInsets.all(9),
                                           decoration: BoxDecoration(
                                             color: const Color(0xFFFFF1F2),
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: const Color(0xFFFECDD3)),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFFFECDD3),
+                                            ),
                                           ),
-                                          child: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFE11D48)),
+                                          child: const Icon(
+                                            Icons.delete_outline_rounded,
+                                            size: 18,
+                                            color: Color(0xFFE11D48),
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -1144,19 +1333,25 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               _buildFilterOptionButton(
                                 label: 'Dark Contrast',
                                 isSelected: overlayFilter == 'contrast',
-                                onTap: () => setModalState(() => overlayFilter = 'contrast'),
+                                onTap: () => setModalState(
+                                  () => overlayFilter = 'contrast',
+                                ),
                               ),
                               const SizedBox(width: 8),
                               _buildFilterOptionButton(
                                 label: 'Matcha Glow',
                                 isSelected: overlayFilter == 'matcha',
-                                onTap: () => setModalState(() => overlayFilter = 'matcha'),
+                                onTap: () => setModalState(
+                                  () => overlayFilter = 'matcha',
+                                ),
                               ),
                               const SizedBox(width: 8),
                               _buildFilterOptionButton(
                                 label: 'Minimal',
                                 isSelected: overlayFilter == 'clean',
-                                onTap: () => setModalState(() => overlayFilter = 'clean'),
+                                onTap: () => setModalState(
+                                  () => overlayFilter = 'clean',
+                                ),
                               ),
                             ],
                           ),
@@ -1173,28 +1368,45 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                       final pngBytes = await capturePng();
                                       if (pngBytes == null) {
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Gagal membuat gambar template story.')),
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Gagal membuat gambar template story.',
+                                              ),
+                                            ),
                                           );
                                         }
                                         return;
                                       }
-                                      final tempDir = await getTemporaryDirectory();
-                                      final fileName = 'matcha_story_${data.sessionId}_${DateTime.now().millisecondsSinceEpoch}.png';
-                                      final file = File('${tempDir.path}/$fileName');
+                                      final tempDir =
+                                          await getTemporaryDirectory();
+                                      final fileName =
+                                          'matcha_story_${data.sessionId}_${DateTime.now().millisecondsSinceEpoch}.png';
+                                      final file = File(
+                                        '${tempDir.path}/$fileName',
+                                      );
                                       await file.writeAsBytes(pngBytes);
 
                                       if (context.mounted) {
                                         Navigator.pop(ctx);
                                         await Share.shareXFiles(
                                           [XFile(file.path)],
-                                          text: '🎾 Rekap Mabar: ${data.sessionName}\n🏆 Juara: ${data.standings.isNotEmpty ? data.standings.first.nama : '-'}\n#MatchaApp #MatchaStory',
+                                          text:
+                                              '🎾 Rekap Mabar: ${data.sessionName}\n🏆 Juara: ${data.standings.isNotEmpty ? data.standings.first.nama : '-'}\n#MatchaApp #MatchaStory',
                                         );
                                       }
                                     } catch (e) {
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Gagal membagikan story: $e')),
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Gagal membagikan story: $e',
+                                            ),
+                                          ),
                                         );
                                       }
                                     } finally {
@@ -1209,7 +1421,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF063B00).withValues(alpha: 0.3),
+                                    color: const Color(
+                                      0xFF063B00,
+                                    ).withValues(alpha: 0.3),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   ),
@@ -1222,13 +1436,22 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                     const SizedBox(
                                       width: 16,
                                       height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA8E63A)),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFFA8E63A),
+                                      ),
                                     )
                                   else
-                                    const Icon(Icons.share_rounded, size: 16, color: Color(0xFFA8E63A)),
+                                    const Icon(
+                                      Icons.share_rounded,
+                                      size: 16,
+                                      color: Color(0xFFA8E63A),
+                                    ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    isSharing ? 'Membagikan Story...' : 'Share Image / Story',
+                                    isSharing
+                                        ? 'Membagikan Story...'
+                                        : 'Share Image / Story',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w900,
                                       fontSize: 13,
@@ -1249,8 +1472,14 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                       final pngBytes = await capturePng();
                                       if (pngBytes == null) {
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Gagal merender gambar template story.')),
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Gagal merender gambar template story.',
+                                              ),
+                                            ),
                                           );
                                         }
                                         return;
@@ -1260,12 +1489,21 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                       bool hasAccess = false;
                                       try {
                                         if (Platform.isAndroid) {
-                                          final status = await Permission.photos.request();
-                                          final storage = await Permission.storage.request();
-                                          hasAccess = status.isGranted || storage.isGranted || status.isLimited;
+                                          final status = await Permission.photos
+                                              .request();
+                                          final storage = await Permission
+                                              .storage
+                                              .request();
+                                          hasAccess =
+                                              status.isGranted ||
+                                              storage.isGranted ||
+                                              status.isLimited;
                                         } else if (Platform.isIOS) {
-                                          final status = await Permission.photos.request();
-                                          hasAccess = status.isGranted || status.isLimited;
+                                          final status = await Permission.photos
+                                              .request();
+                                          hasAccess =
+                                              status.isGranted ||
+                                              status.isLimited;
                                         } else {
                                           hasAccess = await Gal.requestAccess();
                                         }
@@ -1282,15 +1520,23 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                       try {
                                         await Gal.putImageBytes(
                                           pngBytes,
-                                          name: 'matcha_story_${data.sessionId}_${DateTime.now().millisecondsSinceEpoch}',
+                                          name:
+                                              'matcha_story_${data.sessionId}_${DateTime.now().millisecondsSinceEpoch}',
                                         );
                                         if (context.mounted) {
                                           Navigator.pop(ctx);
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             const SnackBar(
-                                              content: Text('Gambar story berhasil tersimpan di Galeri foto HP! 🖼️✨'),
-                                              backgroundColor: Color(0xFF063B00),
-                                              behavior: SnackBarBehavior.floating,
+                                              content: Text(
+                                                'Gambar story berhasil tersimpan di Galeri foto HP! 🖼️✨',
+                                              ),
+                                              backgroundColor: Color(
+                                                0xFF063B00,
+                                              ),
+                                              behavior:
+                                                  SnackBarBehavior.floating,
                                               duration: Duration(seconds: 4),
                                             ),
                                           );
@@ -1301,7 +1547,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                     } catch (e) {
                                       debugPrint('Render error: $e');
                                     } finally {
-                                      setModalState(() => isDownloading = false);
+                                      setModalState(
+                                        () => isDownloading = false,
+                                      );
                                     }
                                   },
                             child: Container(
@@ -1310,7 +1558,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFCBD5E1)),
+                                border: Border.all(
+                                  color: const Color(0xFFCBD5E1),
+                                ),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1319,13 +1569,22 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                     const SizedBox(
                                       width: 14,
                                       height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF063B00)),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFF063B00),
+                                      ),
                                     )
                                   else
-                                    const Icon(Icons.download_rounded, size: 15, color: Color(0xFF063B00)),
+                                    const Icon(
+                                      Icons.download_rounded,
+                                      size: 15,
+                                      color: Color(0xFF063B00),
+                                    ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    isDownloading ? 'Menyimpan ke Galeri...' : 'Download PNG (1080x1920)',
+                                    isDownloading
+                                        ? 'Menyimpan ke Galeri...'
+                                        : 'Download PNG (1080x1920)',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 11.5,
@@ -1365,7 +1624,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           color: isSelected ? const Color(0xFF063B00) : Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? const Color(0xFF063B00) : const Color(0xFFE2E8F0),
+            color: isSelected
+                ? const Color(0xFF063B00)
+                : const Color(0xFFE2E8F0),
             width: isSelected ? 1.5 : 1.0,
           ),
           boxShadow: isSelected
@@ -1395,7 +1656,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
               subtitle,
               style: TextStyle(
                 fontSize: 9.5,
-                color: isSelected ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+                color: isSelected
+                    ? const Color(0xFFCBD5E1)
+                    : const Color(0xFF64748B),
               ),
             ),
           ],
@@ -1419,7 +1682,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             color: isSelected ? const Color(0xFF063B00) : Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? const Color(0xFF063B00) : const Color(0xFFE2E8F0),
+              color: isSelected
+                  ? const Color(0xFF063B00)
+                  : const Color(0xFFE2E8F0),
               width: isSelected ? 1.5 : 1.0,
             ),
           ),
@@ -1490,9 +1755,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           children: [
             // 1. Background Photo or Pattern
             if (pickedImage != null)
-              Positioned.fill(
-                child: Image.file(pickedImage, fit: BoxFit.cover),
-              )
+              Positioned.fill(child: Image.file(pickedImage, fit: BoxFit.cover))
             else
               Positioned.fill(
                 child: Container(
@@ -1572,10 +1835,7 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     Widget avatarImage = Container(
       width: radius * 2,
       height: radius * 2,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: fallbackBg,
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: fallbackBg),
       child: ClipOval(
         child: hasFoto
             ? Image.network(
@@ -1616,7 +1876,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           Positioned(
             top: -4,
             right: -4,
-            child: Text(badgeEmoji, style: TextStyle(fontSize: radius > 15 ? 12 : 9)),
+            child: Text(
+              badgeEmoji,
+              style: TextStyle(fontSize: radius > 15 ? 12 : 9),
+            ),
           ),
         ],
       );
@@ -1653,20 +1916,62 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
   Widget _buildStoryTemplatePodium(SessionMatchRecapData data) {
     final isTeam = data.isTeamFormat && data.teamStandings.isNotEmpty;
 
-    final p1Foto = isTeam ? null : (data.standings.isNotEmpty ? data.standings[0].foto : null);
-    final p1Name = isTeam ? (data.teamStandings.isNotEmpty ? data.teamStandings[0].teamName : null) : (data.standings.isNotEmpty ? data.standings[0].nama : null);
-    final p1Record = isTeam ? (data.teamStandings.isNotEmpty ? '${data.teamStandings[0].matchesWon}-${data.teamStandings[0].matchesLost}' : '') : (data.standings.isNotEmpty ? '${data.standings[0].matchesWon}-${data.standings[0].matchesLost}' : '');
-    final p1Pts = isTeam ? (data.teamStandings.isNotEmpty ? data.teamStandings[0].pointsFor : 0) : (data.standings.isNotEmpty ? data.standings[0].pointsFor : 0);
+    final p1Foto = isTeam
+        ? null
+        : (data.standings.isNotEmpty ? data.standings[0].foto : null);
+    final p1Name = isTeam
+        ? (data.teamStandings.isNotEmpty
+              ? data.teamStandings[0].teamName
+              : null)
+        : (data.standings.isNotEmpty ? data.standings[0].nama : null);
+    final p1Record = isTeam
+        ? (data.teamStandings.isNotEmpty
+              ? '${data.teamStandings[0].matchesWon}-${data.teamStandings[0].matchesLost}'
+              : '')
+        : (data.standings.isNotEmpty
+              ? '${data.standings[0].matchesWon}-${data.standings[0].matchesLost}'
+              : '');
+    final p1Pts = isTeam
+        ? (data.teamStandings.isNotEmpty ? data.teamStandings[0].pointsFor : 0)
+        : (data.standings.isNotEmpty ? data.standings[0].pointsFor : 0);
 
-    final p2Foto = isTeam ? null : (data.standings.length > 1 ? data.standings[1].foto : null);
-    final p2Name = isTeam ? (data.teamStandings.length > 1 ? data.teamStandings[1].teamName : null) : (data.standings.length > 1 ? data.standings[1].nama : null);
-    final p2Record = isTeam ? (data.teamStandings.length > 1 ? '${data.teamStandings[1].matchesWon}-${data.teamStandings[1].matchesLost}' : '') : (data.standings.length > 1 ? '${data.standings[1].matchesWon}-${data.standings[1].matchesLost}' : '');
-    final p2Pts = isTeam ? (data.teamStandings.length > 1 ? data.teamStandings[1].pointsFor : 0) : (data.standings.length > 1 ? data.standings[1].pointsFor : 0);
+    final p2Foto = isTeam
+        ? null
+        : (data.standings.length > 1 ? data.standings[1].foto : null);
+    final p2Name = isTeam
+        ? (data.teamStandings.length > 1
+              ? data.teamStandings[1].teamName
+              : null)
+        : (data.standings.length > 1 ? data.standings[1].nama : null);
+    final p2Record = isTeam
+        ? (data.teamStandings.length > 1
+              ? '${data.teamStandings[1].matchesWon}-${data.teamStandings[1].matchesLost}'
+              : '')
+        : (data.standings.length > 1
+              ? '${data.standings[1].matchesWon}-${data.standings[1].matchesLost}'
+              : '');
+    final p2Pts = isTeam
+        ? (data.teamStandings.length > 1 ? data.teamStandings[1].pointsFor : 0)
+        : (data.standings.length > 1 ? data.standings[1].pointsFor : 0);
 
-    final p3Foto = isTeam ? null : (data.standings.length > 2 ? data.standings[2].foto : null);
-    final p3Name = isTeam ? (data.teamStandings.length > 2 ? data.teamStandings[2].teamName : null) : (data.standings.length > 2 ? data.standings[2].nama : null);
-    final p3Record = isTeam ? (data.teamStandings.length > 2 ? '${data.teamStandings[2].matchesWon}-${data.teamStandings[2].matchesLost}' : '') : (data.standings.length > 2 ? '${data.standings[2].matchesWon}-${data.standings[2].matchesLost}' : '');
-    final p3Pts = isTeam ? (data.teamStandings.length > 2 ? data.teamStandings[2].pointsFor : 0) : (data.standings.length > 2 ? data.standings[2].pointsFor : 0);
+    final p3Foto = isTeam
+        ? null
+        : (data.standings.length > 2 ? data.standings[2].foto : null);
+    final p3Name = isTeam
+        ? (data.teamStandings.length > 2
+              ? data.teamStandings[2].teamName
+              : null)
+        : (data.standings.length > 2 ? data.standings[2].nama : null);
+    final p3Record = isTeam
+        ? (data.teamStandings.length > 2
+              ? '${data.teamStandings[2].matchesWon}-${data.teamStandings[2].matchesLost}'
+              : '')
+        : (data.standings.length > 2
+              ? '${data.standings[2].matchesWon}-${data.standings[2].matchesLost}'
+              : '');
+    final p3Pts = isTeam
+        ? (data.teamStandings.length > 2 ? data.teamStandings[2].pointsFor : 0)
+        : (data.standings.length > 2 ? data.standings[2].pointsFor : 0);
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1683,11 +1988,19 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     data.sessionName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10.5, color: Colors.white),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10.5,
+                      color: Colors.white,
+                    ),
                   ),
                   Text(
                     '${data.standings.length} Players • ${data.totalRounds} Rounds • ${data.scoringSystem}',
-                    style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A)),
+                    style: const TextStyle(
+                      fontSize: 7.5,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFA8E63A),
+                    ),
                   ),
                 ],
               ),
@@ -1699,7 +2012,15 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
               ),
-              child: const Text('MATCHA', style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1)),
+              child: const Text(
+                'MATCHA',
+                style: TextStyle(
+                  fontSize: 7.5,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 1,
+                ),
+              ),
             ),
           ],
         ),
@@ -1713,14 +2034,23 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
               decoration: BoxDecoration(
                 color: const Color(0xFFEBF8D8).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.4)),
+                border: Border.all(
+                  color: const Color(0xFFA8E63A).withValues(alpha: 0.4),
+                ),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('🏆', style: TextStyle(fontSize: 8)),
                   SizedBox(width: 3),
-                  Text('Match Results', style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w900, color: Color(0xFFA8E63A))),
+                  Text(
+                    'Match Results',
+                    style: TextStyle(
+                      fontSize: 7.5,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFFA8E63A),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1754,13 +2084,41 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 badgeTextColor: Colors.black,
                               ),
                               const SizedBox(height: 2),
-                              Text(p2Name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
-                              Text(p2Record, style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+                              Text(
+                                p2Name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                p2Record,
+                                style: const TextStyle(
+                                  fontSize: 6.5,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                              ),
                               Container(
                                 margin: const EdgeInsets.only(top: 2),
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(4)),
-                                child: Text('$p2Pts pts', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '$p2Pts pts',
+                                  style: const TextStyle(
+                                    fontSize: 7,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -1783,13 +2141,41 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 badgeEmoji: '🥇',
                               ),
                               const SizedBox(height: 2),
-                              Text(p1Name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFFFDE047))),
-                              Text(p1Record, style: const TextStyle(fontSize: 7, color: Color(0xFFFEF08A))),
+                              Text(
+                                p1Name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFFFDE047),
+                                ),
+                              ),
+                              Text(
+                                p1Record,
+                                style: const TextStyle(
+                                  fontSize: 7,
+                                  color: Color(0xFFFEF08A),
+                                ),
+                              ),
                               Container(
                                 margin: const EdgeInsets.only(top: 2),
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                decoration: BoxDecoration(color: const Color(0xFFFACC15), borderRadius: BorderRadius.circular(4)),
-                                child: Text('$p1Pts pts', style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Color(0xFF78350F))),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 1.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFACC15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '$p1Pts pts',
+                                  style: const TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF78350F),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -1814,13 +2200,41 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 badgeTextColor: Colors.black,
                               ),
                               const SizedBox(height: 2),
-                              Text(p3Name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
-                              Text(p3Record, style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+                              Text(
+                                p3Name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                p3Record,
+                                style: const TextStyle(
+                                  fontSize: 6.5,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                              ),
                               Container(
                                 margin: const EdgeInsets.only(top: 2),
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(4)),
-                                child: Text('$p3Pts pts', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '$p3Pts pts',
+                                  style: const TextStyle(
+                                    fontSize: 7,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -1838,22 +2252,32 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
   Widget _buildStoryTemplateLeaderboard(SessionMatchRecapData data) {
     final isTeam = data.isTeamFormat && data.teamStandings.isNotEmpty;
     final topEntries = isTeam
-        ? data.teamStandings.take(4).map((t) => (
-            name: t.teamName,
-            foto: null as String?,
-            matchesWon: t.matchesWon,
-            matchesLost: t.matchesLost,
-            diff: t.gameDiff,
-            points: t.pointsFor,
-          )).toList()
-        : data.standings.take(4).map((p) => (
-            name: p.nama,
-            foto: p.foto,
-            matchesWon: p.matchesWon,
-            matchesLost: p.matchesLost,
-            diff: p.gameDiff,
-            points: p.pointsFor,
-          )).toList();
+        ? data.teamStandings
+              .take(4)
+              .map(
+                (t) => (
+                  name: t.teamName,
+                  foto: null as String?,
+                  matchesWon: t.matchesWon,
+                  matchesLost: t.matchesLost,
+                  diff: t.gameDiff,
+                  points: t.pointsFor,
+                ),
+              )
+              .toList()
+        : data.standings
+              .take(4)
+              .map(
+                (p) => (
+                  name: p.nama,
+                  foto: p.foto,
+                  matchesWon: p.matchesWon,
+                  matchesLost: p.matchesLost,
+                  diff: p.gameDiff,
+                  points: p.pointsFor,
+                ),
+              )
+              .toList();
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1865,8 +2289,24 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('MATCHA', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 10, color: Colors.white, letterSpacing: 1)),
-                Text('LEADERBOARD', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 7, color: Color(0xFFA8E63A), letterSpacing: 1.5)),
+                Text(
+                  'MATCHA',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 10,
+                    color: Colors.white,
+                    letterSpacing: 1,
+                  ),
+                ),
+                Text(
+                  'LEADERBOARD',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 7,
+                    color: Color(0xFFA8E63A),
+                    letterSpacing: 1.5,
+                  ),
+                ),
               ],
             ),
             Container(
@@ -1874,9 +2314,18 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
               decoration: BoxDecoration(
                 color: const Color(0xFF063B00),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: const Color(0xFFA8E63A).withValues(alpha: 0.3),
+                ),
               ),
-              child: Text(data.sportName, style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A))),
+              child: Text(
+                data.sportName,
+                style: const TextStyle(
+                  fontSize: 7.5,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFA8E63A),
+                ),
+              ),
             ),
           ],
         ),
@@ -1896,11 +2345,63 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Row(
                   children: [
-                    const SizedBox(width: 16, child: Text('POS', style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
-                    Expanded(child: Text(isTeam ? 'TEAM' : 'PLAYER', style: const TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
-                    const SizedBox(width: 24, child: Text('W-L', textAlign: TextAlign.center, style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
-                    const SizedBox(width: 22, child: Text('DIFF', textAlign: TextAlign.center, style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
-                    const SizedBox(width: 24, child: Text('PTS', textAlign: TextAlign.right, style: TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
+                    const SizedBox(
+                      width: 16,
+                      child: Text(
+                        'POS',
+                        style: TextStyle(
+                          fontSize: 6.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        isTeam ? 'TEAM' : 'PLAYER',
+                        style: const TextStyle(
+                          fontSize: 6.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      width: 24,
+                      child: Text(
+                        'W-L',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 6.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      width: 22,
+                      child: Text(
+                        'DIFF',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 6.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      width: 24,
+                      child: Text(
+                        'PTS',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 6.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1914,19 +2415,37 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
-                    color: isFirst ? const Color(0xFFFACC15).withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
+                    color: isFirst
+                        ? const Color(0xFFFACC15).withValues(alpha: 0.15)
+                        : Colors.white.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: isFirst ? const Color(0xFFFACC15).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.05)),
+                    border: Border.all(
+                      color: isFirst
+                          ? const Color(0xFFFACC15).withValues(alpha: 0.3)
+                          : Colors.white.withValues(alpha: 0.05),
+                    ),
                   ),
                   child: Row(
                     children: [
                       SizedBox(
                         width: 14,
                         child: Text(
-                          idx == 0 ? '🥇' : idx == 1 ? '🥈' : idx == 2 ? '🥉' : '#${idx + 1}',
-                          style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold),
+                          idx == 0
+                              ? '🥇'
+                              : idx == 1
+                              ? '🥈'
+                              : idx == 2
+                              ? '🥉'
+                              : '#${idx + 1}',
+                          style: const TextStyle(
+                            fontSize: 7.5,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 2),
@@ -1934,7 +2453,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         foto: rp.foto,
                         nama: rp.name,
                         radius: 6,
-                        fallbackBg: isFirst ? const Color(0xFFD97706) : const Color(0xFF475569),
+                        fallbackBg: isFirst
+                            ? const Color(0xFFD97706)
+                            : const Color(0xFF475569),
                         textColor: Colors.white,
                         fontSize: 5.5,
                       ),
@@ -1947,7 +2468,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                           style: TextStyle(
                             fontSize: 8,
                             fontWeight: FontWeight.bold,
-                            color: isFirst ? const Color(0xFFFEF08A) : Colors.white,
+                            color: isFirst
+                                ? const Color(0xFFFEF08A)
+                                : Colors.white,
                           ),
                         ),
                       ),
@@ -1956,7 +2479,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         child: Text(
                           '${rp.matchesWon}-${rp.matchesLost}',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 7.5, color: Color(0xFFCBD5E1)),
+                          style: const TextStyle(
+                            fontSize: 7.5,
+                            color: Color(0xFFCBD5E1),
+                          ),
                         ),
                       ),
                       SizedBox(
@@ -1967,7 +2493,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                           style: TextStyle(
                             fontSize: 7.5,
                             fontWeight: FontWeight.bold,
-                            color: rp.diff >= 0 ? const Color(0xFFA8E63A) : const Color(0xFFFB7185),
+                            color: rp.diff >= 0
+                                ? const Color(0xFFA8E63A)
+                                : const Color(0xFFFB7185),
                           ),
                         ),
                       ),
@@ -1976,7 +2504,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         child: Text(
                           '${rp.points}',
                           textAlign: TextAlign.right,
-                          style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ],
@@ -1990,8 +2522,20 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
         // Footer
         Column(
           children: [
-            Text(data.sessionName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
-            Text('${data.venueName} • Matcha Match Arena', style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+            Text(
+              data.sessionName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            Text(
+              '${data.venueName} • Matcha Match Arena',
+              style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8)),
+            ),
           ],
         ),
       ],
@@ -2013,8 +2557,24 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(data.sessionName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10, color: Colors.white)),
-                  const Text('Match Recap Highlights', style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A))),
+                  Text(
+                    data.sessionName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const Text(
+                    'Match Recap Highlights',
+                    style: TextStyle(
+                      fontSize: 7,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFA8E63A),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2025,7 +2585,14 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
               ),
-              child: Text('${data.totalRounds} Rounds', style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold, color: Colors.white)),
+              child: Text(
+                '${data.totalRounds} Rounds',
+                style: const TextStyle(
+                  fontSize: 7.5,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ],
         ),
@@ -2040,7 +2607,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.65),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.15),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2048,8 +2617,21 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Round ${m.roundNumber}', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.w900, color: Color(0xFFA8E63A))),
-                        Text(m.courtName.isNotEmpty ? m.courtName : 'Court 1', style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+                        Text(
+                          'Round ${m.roundNumber}',
+                          style: const TextStyle(
+                            fontSize: 7,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFFA8E63A),
+                          ),
+                        ),
+                        Text(
+                          m.courtName.isNotEmpty ? m.courtName : 'Court 1',
+                          style: const TextStyle(
+                            fontSize: 6.5,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -2057,11 +2639,22 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       children: [
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
-                              color: m.isSideAWinner ? const Color(0xFF063B00) : Colors.white.withValues(alpha: 0.05),
+                              color: m.isSideAWinner
+                                  ? const Color(0xFF063B00)
+                                  : Colors.white.withValues(alpha: 0.05),
                               borderRadius: BorderRadius.circular(6),
-                              border: m.isSideAWinner ? Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.4)) : null,
+                              border: m.isSideAWinner
+                                  ? Border.all(
+                                      color: const Color(
+                                        0xFFA8E63A,
+                                      ).withValues(alpha: 0.4),
+                                    )
+                                  : null,
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2071,7 +2664,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                     m.sideANames.join(' & '),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white),
+                                    style: const TextStyle(
+                                      fontSize: 7,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                                 Text(
@@ -2079,7 +2676,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                   style: TextStyle(
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.w900,
-                                    color: m.isSideAWinner ? const Color(0xFFA8E63A) : const Color(0xFF94A3B8),
+                                    color: m.isSideAWinner
+                                        ? const Color(0xFFA8E63A)
+                                        : const Color(0xFF94A3B8),
                                   ),
                                 ),
                               ],
@@ -2089,11 +2688,22 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
-                              color: m.isSideBWinner ? const Color(0xFF063B00) : Colors.white.withValues(alpha: 0.05),
+                              color: m.isSideBWinner
+                                  ? const Color(0xFF063B00)
+                                  : Colors.white.withValues(alpha: 0.05),
                               borderRadius: BorderRadius.circular(6),
-                              border: m.isSideBWinner ? Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.4)) : null,
+                              border: m.isSideBWinner
+                                  ? Border.all(
+                                      color: const Color(
+                                        0xFFA8E63A,
+                                      ).withValues(alpha: 0.4),
+                                    )
+                                  : null,
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2103,7 +2713,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                     m.sideBNames.join(' & '),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white),
+                                    style: const TextStyle(
+                                      fontSize: 7,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                                 Text(
@@ -2111,7 +2725,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                   style: TextStyle(
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.w900,
-                                    color: m.isSideBWinner ? const Color(0xFFA8E63A) : const Color(0xFF94A3B8),
+                                    color: m.isSideBWinner
+                                        ? const Color(0xFFA8E63A)
+                                        : const Color(0xFF94A3B8),
                                   ),
                                 ),
                               ],
@@ -2138,18 +2754,37 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('MATCH SUMMARY', style: TextStyle(fontSize: 7, fontWeight: FontWeight.w900, color: Color(0xFFA8E63A), letterSpacing: 0.5)),
-                    Text('${data.sportName} • ${data.scoringSystem}', style: const TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
+                    const Text(
+                      'MATCH SUMMARY',
+                      style: TextStyle(
+                        fontSize: 7,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFFA8E63A),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      '${data.sportName} • ${data.scoringSystem}',
+                      style: const TextStyle(
+                        fontSize: 6.5,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 if (data.standings.isNotEmpty) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF063B00),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.3)),
+                      border: Border.all(
+                        color: const Color(0xFFA8E63A).withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -2169,12 +2804,20 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                             data.standings.first.nama,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Color(0xFFFEF08A)),
+                            style: const TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFFEF08A),
+                            ),
                           ),
                         ),
                         Text(
                           '${data.standings.first.matchesWon} Win • ${data.standings.first.pointsFor} Pts',
-                          style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A)),
+                          style: const TextStyle(
+                            fontSize: 7.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFA8E63A),
+                          ),
                         ),
                       ],
                     ),
@@ -2182,7 +2825,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   const SizedBox(height: 5),
                   if (data.standings.length > 1)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(8),
@@ -2205,12 +2851,19 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               data.standings[1].nama,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white),
+                              style: const TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                           Text(
                             '${data.standings[1].matchesWon} Win • ${data.standings[1].pointsFor} Pts',
-                            style: const TextStyle(fontSize: 7.5, color: Color(0xFFCBD5E1)),
+                            style: const TextStyle(
+                              fontSize: 7.5,
+                              color: Color(0xFFCBD5E1),
+                            ),
                           ),
                         ],
                       ),
@@ -2223,19 +2876,30 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
         // Footer
         Text(
           '🏆 Winner: ${data.standings.isNotEmpty ? data.standings.first.nama : '-'}',
-          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A)),
+          style: const TextStyle(
+            fontSize: 8,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFA8E63A),
+          ),
         ),
       ],
     );
   }
 
   /// Template 4: Strava Athletic (Personal Performance Card)
-  Widget _buildStoryTemplateStrava(SessionMatchRecapData data, SessionPlayerStanding? player) {
-    final p = player ?? (data.standings.isNotEmpty ? data.standings.first : null);
+  Widget _buildStoryTemplateStrava(
+    SessionMatchRecapData data,
+    SessionPlayerStanding? player,
+  ) {
+    final p =
+        player ?? (data.standings.isNotEmpty ? data.standings.first : null);
     final playerName = p?.nama ?? 'Pemain Matcha';
     final points = p?.pointsFor ?? data.myStats?.totalPoints ?? 0;
-    final totalMatches = p?.matchesPlayed ?? (p != null ? p.matchesWon + p.matchesLost : 0);
-    final winRate = totalMatches > 0 && p != null ? ((p.matchesWon / totalMatches) * 100).round() : (data.myStats?.winRatePercent ?? 0);
+    final totalMatches =
+        p?.matchesPlayed ?? (p != null ? p.matchesWon + p.matchesLost : 0);
+    final winRate = totalMatches > 0 && p != null
+        ? ((p.matchesWon / totalMatches) * 100).round()
+        : (data.myStats?.winRatePercent ?? 0);
     final wins = p?.matchesWon ?? data.myStats?.wins ?? 0;
     final losses = p?.matchesLost ?? data.myStats?.losses ?? 0;
 
@@ -2253,13 +2917,34 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   children: [
                     CircleAvatar(radius: 3, backgroundColor: Color(0xFFA8E63A)),
                     SizedBox(width: 4),
-                    Text('MATCHA ACTIVITY', style: TextStyle(fontSize: 7, fontWeight: FontWeight.w900, color: Color(0xFFA8E63A), letterSpacing: 1.2)),
+                    Text(
+                      'MATCHA ACTIVITY',
+                      style: TextStyle(
+                        fontSize: 7,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFFA8E63A),
+                        letterSpacing: 1.2,
+                      ),
+                    ),
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                  decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(4)),
-                  child: const Text('MATCHA', style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 1.5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black45,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'MATCHA',
+                    style: TextStyle(
+                      fontSize: 7,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -2279,8 +2964,25 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(playerName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: Colors.white)),
-                      Text('${data.sportName} • ${data.venueName}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 7, color: Color(0xFFCBD5E1))),
+                      Text(
+                        playerName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        '${data.sportName} • ${data.venueName}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 7,
+                          color: Color(0xFFCBD5E1),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -2304,12 +3006,30 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: Column(
                         children: [
-                          const Text('TOTAL POIN', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5)),
+                          const Text(
+                            'TOTAL POIN',
+                            style: TextStyle(
+                              fontSize: 6,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF94A3B8),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                           const SizedBox(height: 2),
-                          Text('$points', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white)),
+                          Text(
+                            '$points',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -2321,13 +3041,30 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF063B00).withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFA8E63A).withValues(alpha: 0.4)),
+                        border: Border.all(
+                          color: const Color(0xFFA8E63A).withValues(alpha: 0.4),
+                        ),
                       ),
                       child: Column(
                         children: [
-                          const Text('WIN RATE', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A), letterSpacing: 0.5)),
+                          const Text(
+                            'WIN RATE',
+                            style: TextStyle(
+                              fontSize: 6,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFA8E63A),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                           const SizedBox(height: 2),
-                          Text('$winRate%', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFFA8E63A))),
+                          Text(
+                            '$winRate%',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFA8E63A),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -2338,12 +3075,30 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 5),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: Column(
                   children: [
-                    const Text('MATCH RECORD', style: TextStyle(fontSize: 6, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5)),
+                    const Text(
+                      'MATCH RECORD',
+                      style: TextStyle(
+                        fontSize: 6,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF94A3B8),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text('${wins}W - ${losses}L', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white)),
+                    Text(
+                      '${wins}W - ${losses}L',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -2355,8 +3110,18 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('MATCHA Tennis & Padel', style: TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8))),
-            Text('${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}', style: const TextStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Color(0xFFA8E63A))),
+            const Text(
+              'MATCHA Tennis & Padel',
+              style: TextStyle(fontSize: 6.5, color: Color(0xFF94A3B8)),
+            ),
+            Text(
+              '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+              style: const TextStyle(
+                fontSize: 6.5,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFA8E63A),
+              ),
+            ),
           ],
         ),
       ],
@@ -2387,16 +3152,8 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: hasResults
-              ? const [
-                  Color(0xFFFFFBEB),
-                  Color(0xFFFEF3C7),
-                  Color(0xFFFFFDF5),
-                ]
-              : const [
-                  Color(0xFFF8FAFC),
-                  Color(0xFFF1F5F9),
-                  Color(0xFFFFFFFF),
-                ],
+              ? const [Color(0xFFFFFBEB), Color(0xFFFEF3C7), Color(0xFFFFFDF5)]
+              : const [Color(0xFFF8FAFC), Color(0xFFF1F5F9), Color(0xFFFFFFFF)],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
@@ -2456,7 +3213,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF475569)),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 14,
+                    color: Color(0xFF475569),
+                  ),
                   SizedBox(width: 6),
                   Text(
                     'Belum Ada Hasil Pertandingan',
@@ -2526,7 +3287,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: isGreen ? const Color(0xFFF0FDF4) : Colors.white.withValues(alpha: 0.9),
+        color: isGreen
+            ? const Color(0xFFF0FDF4)
+            : Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isGreen ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
@@ -2571,7 +3334,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   color: AppColors.matchaSoftLime,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.history_rounded, size: 18, color: AppColors.matchaDark),
+                child: const Icon(
+                  Icons.history_rounded,
+                  size: 18,
+                  color: AppColors.matchaDark,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -2603,7 +3370,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             Container(
               padding: const EdgeInsets.all(16),
               alignment: Alignment.center,
-              child: const Text('Belum ada data ronde pertandingan.', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+              child: const Text(
+                'Belum ada data ronde pertandingan.',
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+              ),
             )
           else
             ListView.separated(
@@ -2687,9 +3457,13 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           Row(
             children: [
               Icon(
-                match.isSideAWinner ? Icons.check_circle_rounded : Icons.circle_outlined,
+                match.isSideAWinner
+                    ? Icons.check_circle_rounded
+                    : Icons.circle_outlined,
                 size: 14,
-                color: match.isSideAWinner ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+                color: match.isSideAWinner
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFF94A3B8),
               ),
               const SizedBox(width: 6),
               Expanded(
@@ -2697,19 +3471,33 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   match.sideANames.join(' & '),
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: match.isSideAWinner ? FontWeight.bold : FontWeight.w600,
-                    color: match.isSideAWinner ? const Color(0xFF0F172A) : const Color(0xFF475569),
+                    fontWeight: match.isSideAWinner
+                        ? FontWeight.bold
+                        : FontWeight.w600,
+                    color: match.isSideAWinner
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFF475569),
                   ),
                 ),
               ),
               if (match.isSideAWinner) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFDCFCE7),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text('WIN', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFF15803D))),
+                  child: const Text(
+                    'WIN',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF15803D),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -2718,7 +3506,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
-                  color: match.isSideAWinner ? const Color(0xFF15803D) : const Color(0xFF64748B),
+                  color: match.isSideAWinner
+                      ? const Color(0xFF15803D)
+                      : const Color(0xFF64748B),
                 ),
               ),
             ],
@@ -2729,9 +3519,13 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           Row(
             children: [
               Icon(
-                match.isSideBWinner ? Icons.check_circle_rounded : Icons.circle_outlined,
+                match.isSideBWinner
+                    ? Icons.check_circle_rounded
+                    : Icons.circle_outlined,
                 size: 14,
-                color: match.isSideBWinner ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+                color: match.isSideBWinner
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFF94A3B8),
               ),
               const SizedBox(width: 6),
               Expanded(
@@ -2739,19 +3533,33 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   match.sideBNames.join(' & '),
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: match.isSideBWinner ? FontWeight.bold : FontWeight.w600,
-                    color: match.isSideBWinner ? const Color(0xFF0F172A) : const Color(0xFF475569),
+                    fontWeight: match.isSideBWinner
+                        ? FontWeight.bold
+                        : FontWeight.w600,
+                    color: match.isSideBWinner
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFF475569),
                   ),
                 ),
               ),
               if (match.isSideBWinner) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFDCFCE7),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text('WIN', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFF15803D))),
+                  child: const Text(
+                    'WIN',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF15803D),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -2760,7 +3568,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
-                  color: match.isSideBWinner ? const Color(0xFF15803D) : const Color(0xFF64748B),
+                  color: match.isSideBWinner
+                      ? const Color(0xFF15803D)
+                      : const Color(0xFF64748B),
                 ),
               ),
             ],
@@ -2809,7 +3619,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     color: const Color(0xFFFEF3C7),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.emoji_events_rounded, size: 18, color: Color(0xFFD97706)),
+                  child: const Icon(
+                    Icons.emoji_events_rounded,
+                    size: 18,
+                    color: Color(0xFFD97706),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -2827,7 +3641,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       const SizedBox(height: 2),
                       const Text(
                         'Aturan klasemen: Total Poin -> Selisih Poin -> Match Menang -> Game Menang -> Selisih Game',
-                        style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: Color(0xFF64748B),
+                        ),
                       ),
                     ],
                   ),
@@ -2842,7 +3659,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             else
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                  horizontal: 16,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(14),
@@ -2850,7 +3670,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 ),
                 child: const Column(
                   children: [
-                    Icon(Icons.emoji_events_outlined, size: 40, color: Color(0xFF94A3B8)),
+                    Icon(
+                      Icons.emoji_events_outlined,
+                      size: 40,
+                      color: Color(0xFF94A3B8),
+                    ),
                     SizedBox(height: 10),
                     Text(
                       'Belum Ada Hasil Pertandingan',
@@ -2864,7 +3688,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     Text(
                       'Podium dan klasemen akhir akan tersedia setelah terdapat hasil pertandingan yang valid.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
                   ],
                 ),
@@ -2889,7 +3716,8 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: teamStandings.length,
-              separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              separatorBuilder: (context, index) =>
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
               itemBuilder: (context, index) {
                 final team = teamStandings[index];
                 return _buildTeamStandingRow(team);
@@ -2910,113 +3738,125 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.emoji_events_rounded, size: 18, color: Color(0xFFD97706)),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Podium & Klasemen Akhir',
-                        style: AppTextStyles.h3.copyWith(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0F172A),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Aturan klasemen: Total Poin -> Selisih Poin -> Match Menang -> Game Menang -> Selisih Game',
-                        style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Visual Podium for Top 3 (Rule 2 & D1)
-            if (data.hasCompetitiveResults && standings.isNotEmpty)
-              _buildPodiumVisual(standings)
-            else
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Column(
+                child: const Icon(
+                  Icons.emoji_events_rounded,
+                  size: 18,
+                  color: Color(0xFFD97706),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.emoji_events_outlined, size: 40, color: Color(0xFF94A3B8)),
-                    SizedBox(height: 10),
                     Text(
-                      'Belum Ada Hasil Pertandingan',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
+                      'Podium & Klasemen Akhir',
+                      style: AppTextStyles.h3.copyWith(
                         fontSize: 14,
-                        color: Color(0xFF1E293B),
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF0F172A),
                       ),
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Podium dan klasemen akhir akan tersedia setelah terdapat hasil pertandingan yang valid.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Aturan klasemen: Total Poin -> Selisih Poin -> Match Menang -> Game Menang -> Selisih Game',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 16),
 
-            const SizedBox(height: 20),
-
-            // Table Ranking & Statistik
-            const Text(
-              'RANKING & STATISTIK',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF64748B),
-                letterSpacing: 0.5,
+          // Visual Podium for Top 3 (Rule 2 & D1)
+          if (data.hasCompetitiveResults && standings.isNotEmpty)
+            _buildPodiumVisual(standings)
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: const Column(
+                children: [
+                  Icon(
+                    Icons.emoji_events_outlined,
+                    size: 40,
+                    color: Color(0xFF94A3B8),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'Belum Ada Hasil Pertandingan',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Podium dan klasemen akhir akan tersedia setelah terdapat hasil pertandingan yang valid.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
 
-            // Ranking Rows
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: standings.length,
-              separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-              itemBuilder: (context, index) {
-                final player = standings[index];
-                return _buildStandingRow(player);
-              },
+          const SizedBox(height: 20),
+
+          // Table Ranking & Statistik
+          const Text(
+            'RANKING & STATISTIK',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.5,
             ),
-          ],
-        ),
-      );
+          ),
+          const SizedBox(height: 10),
+
+          // Ranking Rows
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: standings.length,
+            separatorBuilder: (context, index) =>
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+            itemBuilder: (context, index) {
+              final player = standings[index];
+              return _buildStandingRow(player);
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildTeamPodiumVisual(List<SessionTeamStanding> teamStandings) {
@@ -3050,7 +3890,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontWeight: isSecondRank1 ? FontWeight.w900 : FontWeight.bold,
+                    fontWeight: isSecondRank1
+                        ? FontWeight.w900
+                        : FontWeight.bold,
                     fontSize: 11,
                     color: const Color(0xFF0F172A),
                   ),
@@ -3059,8 +3901,12 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   '${second.matchesWon} Win • ${second.gamesWon} Games',
                   style: TextStyle(
                     fontSize: 9.5,
-                    fontWeight: isSecondRank1 ? FontWeight.w600 : FontWeight.normal,
-                    color: isSecondRank1 ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                    fontWeight: isSecondRank1
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                    color: isSecondRank1
+                        ? const Color(0xFFD97706)
+                        : const Color(0xFF64748B),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -3075,7 +3921,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                           )
                         : null,
                     color: isSecondRank1 ? null : const Color(0xFFE2E8F0),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: Text(
@@ -3083,7 +3931,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
-                      color: isSecondRank1 ? const Color(0xFF713F12) : const Color(0xFF475569),
+                      color: isSecondRank1
+                          ? const Color(0xFF713F12)
+                          : const Color(0xFF475569),
                     ),
                   ),
                 ),
@@ -3100,18 +3950,31 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           Expanded(
             child: Column(
               children: [
-                _buildTeamPodiumAvatar(first.memberPhotos, first.memberNames, '👑', isGold: true),
+                _buildTeamPodiumAvatar(
+                  first.memberPhotos,
+                  first.memberNames,
+                  '👑',
+                  isGold: true,
+                ),
                 const SizedBox(height: 6),
                 Text(
                   first.teamName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFF0F172A)),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
                 Text(
                   '${first.matchesWon} Win • ${first.gamesWon} Games',
-                  style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFD97706),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Container(
@@ -3122,7 +3985,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       end: Alignment.bottomCenter,
                       colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
                     ),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(14),
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: const Column(
@@ -3130,7 +3995,14 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     children: [
                       Text('🌱', style: TextStyle(fontSize: 18)),
                       SizedBox(height: 2),
-                      Text('JUARA 1', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF713F12))),
+                      Text(
+                        'JUARA 1',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF713F12),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -3158,7 +4030,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontWeight: isThirdRank1 ? FontWeight.w900 : FontWeight.bold,
+                    fontWeight: isThirdRank1
+                        ? FontWeight.w900
+                        : FontWeight.bold,
                     fontSize: 11,
                     color: const Color(0xFF0F172A),
                   ),
@@ -3167,8 +4041,12 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   '${third.matchesWon} Win • ${third.gamesWon} Games',
                   style: TextStyle(
                     fontSize: 9.5,
-                    fontWeight: isThirdRank1 ? FontWeight.w600 : FontWeight.normal,
-                    color: isThirdRank1 ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                    fontWeight: isThirdRank1
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                    color: isThirdRank1
+                        ? const Color(0xFFD97706)
+                        : const Color(0xFF64748B),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -3184,8 +4062,12 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         : null,
                     color: isThirdRank1
                         ? null
-                        : (isThirdRank2 ? const Color(0xFFE2E8F0) : const Color(0xFFFED7AA)),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                        : (isThirdRank2
+                              ? const Color(0xFFE2E8F0)
+                              : const Color(0xFFFED7AA)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: Text(
@@ -3195,7 +4077,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       fontWeight: FontWeight.w900,
                       color: isThirdRank1
                           ? const Color(0xFF713F12)
-                          : (isThirdRank2 ? const Color(0xFF475569) : const Color(0xFF9A3412)),
+                          : (isThirdRank2
+                                ? const Color(0xFF475569)
+                                : const Color(0xFF9A3412)),
                     ),
                   ),
                 ),
@@ -3208,7 +4092,12 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     );
   }
 
-  Widget _buildTeamPodiumAvatar(List<String?> photos, List<String> names, String badgeEmoji, {bool isGold = false}) {
+  Widget _buildTeamPodiumAvatar(
+    List<String?> photos,
+    List<String> names,
+    String badgeEmoji, {
+    bool isGold = false,
+  }) {
     final double avatarSize = isGold ? 48.0 : 40.0;
     return Stack(
       clipBehavior: Clip.none,
@@ -3226,12 +4115,17 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isGold ? const Color(0xFFEAB308) : const Color(0xFF94A3B8),
+                      color: isGold
+                          ? const Color(0xFFEAB308)
+                          : const Color(0xFF94A3B8),
                       width: isGold ? 2.5 : 1.5,
                     ),
                   ),
                   child: ClipOval(
-                    child: (photos.isNotEmpty && photos[0] != null && photos[0]!.isNotEmpty)
+                    child:
+                        (photos.isNotEmpty &&
+                            photos[0] != null &&
+                            photos[0]!.isNotEmpty)
                         ? Image.network(
                             photos[0]!,
                             width: avatarSize,
@@ -3241,8 +4135,12 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               color: AppColors.matchaSoftLime,
                               alignment: Alignment.center,
                               child: Text(
-                                names.isNotEmpty && names[0].isNotEmpty ? names[0][0].toUpperCase() : 'A',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                names.isNotEmpty && names[0].isNotEmpty
+                                    ? names[0][0].toUpperCase()
+                                    : 'A',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           )
@@ -3250,8 +4148,12 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                             color: AppColors.matchaSoftLime,
                             alignment: Alignment.center,
                             child: Text(
-                              names.isNotEmpty && names[0].isNotEmpty ? names[0][0].toUpperCase() : 'A',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              names.isNotEmpty && names[0].isNotEmpty
+                                  ? names[0][0].toUpperCase()
+                                  : 'A',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                   ),
@@ -3266,12 +4168,17 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isGold ? const Color(0xFFEAB308) : const Color(0xFF94A3B8),
+                        color: isGold
+                            ? const Color(0xFFEAB308)
+                            : const Color(0xFF94A3B8),
                         width: isGold ? 2.5 : 1.5,
                       ),
                     ),
                     child: ClipOval(
-                      child: (photos.length > 1 && photos[1] != null && photos[1]!.isNotEmpty)
+                      child:
+                          (photos.length > 1 &&
+                              photos[1] != null &&
+                              photos[1]!.isNotEmpty)
                           ? Image.network(
                               photos[1]!,
                               width: avatarSize,
@@ -3281,8 +4188,13 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                                 color: const Color(0xFFD1FAE5),
                                 alignment: Alignment.center,
                                 child: Text(
-                                  names[1].isNotEmpty ? names[1][0].toUpperCase() : 'B',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF065F46)),
+                                  names[1].isNotEmpty
+                                      ? names[1][0].toUpperCase()
+                                      : 'B',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF065F46),
+                                  ),
                                 ),
                               ),
                             )
@@ -3290,8 +4202,13 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                               color: const Color(0xFFD1FAE5),
                               alignment: Alignment.center,
                               child: Text(
-                                names[1].isNotEmpty ? names[1][0].toUpperCase() : 'B',
-                                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF065F46)),
+                                names[1].isNotEmpty
+                                    ? names[1][0].toUpperCase()
+                                    : 'B',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF065F46),
+                                ),
                               ),
                             ),
                     ),
@@ -3326,7 +4243,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             width: 36,
             child: Text(
               rankMedal,
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0F172A)),
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 13,
+                color: Color(0xFF0F172A),
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -3347,21 +4268,36 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       color: AppColors.matchaSoftLime,
                     ),
                     child: ClipOval(
-                      child: (team.memberPhotos.isNotEmpty && team.memberPhotos[0] != null && team.memberPhotos[0]!.isNotEmpty)
+                      child:
+                          (team.memberPhotos.isNotEmpty &&
+                              team.memberPhotos[0] != null &&
+                              team.memberPhotos[0]!.isNotEmpty)
                           ? Image.network(
                               team.memberPhotos[0]!,
                               fit: BoxFit.cover,
                               errorBuilder: (_, _, _) => Center(
                                 child: Text(
-                                  team.memberNames.isNotEmpty && team.memberNames[0].isNotEmpty ? team.memberNames[0][0].toUpperCase() : 'A',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                                  team.memberNames.isNotEmpty &&
+                                          team.memberNames[0].isNotEmpty
+                                      ? team.memberNames[0][0].toUpperCase()
+                                      : 'A',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                  ),
                                 ),
                               ),
                             )
                           : Center(
                               child: Text(
-                                team.memberNames.isNotEmpty && team.memberNames[0].isNotEmpty ? team.memberNames[0][0].toUpperCase() : 'A',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                                team.memberNames.isNotEmpty &&
+                                        team.memberNames[0].isNotEmpty
+                                    ? team.memberNames[0][0].toUpperCase()
+                                    : 'A',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
                               ),
                             ),
                     ),
@@ -3378,21 +4314,36 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         color: Color(0xFFD1FAE5),
                       ),
                       child: ClipOval(
-                        child: (team.memberPhotos.length > 1 && team.memberPhotos[1] != null && team.memberPhotos[1]!.isNotEmpty)
+                        child:
+                            (team.memberPhotos.length > 1 &&
+                                team.memberPhotos[1] != null &&
+                                team.memberPhotos[1]!.isNotEmpty)
                             ? Image.network(
                                 team.memberPhotos[1]!,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, _, _) => Center(
                                   child: Text(
-                                    team.memberNames[1].isNotEmpty ? team.memberNames[1][0].toUpperCase() : 'B',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Color(0xFF065F46)),
+                                    team.memberNames[1].isNotEmpty
+                                        ? team.memberNames[1][0].toUpperCase()
+                                        : 'B',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10,
+                                      color: Color(0xFF065F46),
+                                    ),
                                   ),
                                 ),
                               )
                             : Center(
                                 child: Text(
-                                  team.memberNames[1].isNotEmpty ? team.memberNames[1][0].toUpperCase() : 'B',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Color(0xFF065F46)),
+                                  team.memberNames[1].isNotEmpty
+                                      ? team.memberNames[1][0].toUpperCase()
+                                      : 'B',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                    color: Color(0xFF065F46),
+                                  ),
                                 ),
                               ),
                       ),
@@ -3412,11 +4363,18 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   team.teamName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF0F172A)),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12.5,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
                 Text(
                   'Tim Tetap • ${team.matchesPlayed} match',
-                  style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF64748B),
+                  ),
                 ),
               ],
             ),
@@ -3478,7 +4436,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontWeight: isSecondRank1 ? FontWeight.w900 : FontWeight.bold,
+                    fontWeight: isSecondRank1
+                        ? FontWeight.w900
+                        : FontWeight.bold,
                     fontSize: 11,
                     color: const Color(0xFF0F172A),
                   ),
@@ -3487,8 +4447,12 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   '${second.matchesWon} Win • ${second.gamesWon} Games',
                   style: TextStyle(
                     fontSize: 9.5,
-                    fontWeight: isSecondRank1 ? FontWeight.w600 : FontWeight.normal,
-                    color: isSecondRank1 ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                    fontWeight: isSecondRank1
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                    color: isSecondRank1
+                        ? const Color(0xFFD97706)
+                        : const Color(0xFF64748B),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -3503,7 +4467,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                           )
                         : null,
                     color: isSecondRank1 ? null : const Color(0xFFE2E8F0),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: Text(
@@ -3511,7 +4477,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
-                      color: isSecondRank1 ? const Color(0xFF713F12) : const Color(0xFF475569),
+                      color: isSecondRank1
+                          ? const Color(0xFF713F12)
+                          : const Color(0xFF475569),
                     ),
                   ),
                 ),
@@ -3535,11 +4503,19 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFF0F172A)),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
                 Text(
                   '${first.matchesWon} Win • ${first.gamesWon} Games',
-                  style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFD97706),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Container(
@@ -3550,7 +4526,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       end: Alignment.bottomCenter,
                       colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
                     ),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(14),
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: const Column(
@@ -3558,7 +4536,14 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     children: [
                       Text('🌱', style: TextStyle(fontSize: 18)),
                       SizedBox(height: 2),
-                      Text('JUARA 1', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF713F12))),
+                      Text(
+                        'JUARA 1',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF713F12),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -3586,7 +4571,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontWeight: isThirdRank1 ? FontWeight.w900 : FontWeight.bold,
+                    fontWeight: isThirdRank1
+                        ? FontWeight.w900
+                        : FontWeight.bold,
                     fontSize: 11,
                     color: const Color(0xFF0F172A),
                   ),
@@ -3595,8 +4582,12 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   '${third.matchesWon} Win • ${third.gamesWon} Games',
                   style: TextStyle(
                     fontSize: 9.5,
-                    fontWeight: isThirdRank1 ? FontWeight.w600 : FontWeight.normal,
-                    color: isThirdRank1 ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                    fontWeight: isThirdRank1
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                    color: isThirdRank1
+                        ? const Color(0xFFD97706)
+                        : const Color(0xFF64748B),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -3612,8 +4603,12 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         : null,
                     color: isThirdRank1
                         ? null
-                        : (isThirdRank2 ? const Color(0xFFE2E8F0) : const Color(0xFFFED7AA)),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                        : (isThirdRank2
+                              ? const Color(0xFFE2E8F0)
+                              : const Color(0xFFFED7AA)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: Text(
@@ -3623,7 +4618,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       fontWeight: FontWeight.w900,
                       color: isThirdRank1
                           ? const Color(0xFF713F12)
-                          : (isThirdRank2 ? const Color(0xFF475569) : const Color(0xFF9A3412)),
+                          : (isThirdRank2
+                                ? const Color(0xFF475569)
+                                : const Color(0xFF9A3412)),
                     ),
                   ),
                 ),
@@ -3636,7 +4633,12 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     );
   }
 
-  Widget _buildPodiumAvatar(String? foto, String name, String badgeEmoji, {bool isGold = false}) {
+  Widget _buildPodiumAvatar(
+    String? foto,
+    String name,
+    String badgeEmoji, {
+    bool isGold = false,
+  }) {
     return Stack(
       alignment: Alignment.topRight,
       clipBehavior: Clip.none,
@@ -3661,13 +4663,19 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     errorBuilder: (context, error, stackTrace) => Container(
                       color: AppColors.matchaSoftLime,
                       alignment: Alignment.center,
-                      child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'P', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   )
                 : Container(
                     color: AppColors.matchaSoftLime,
                     alignment: Alignment.center,
-                    child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'P', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
           ),
         ),
@@ -3697,7 +4705,11 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             width: 36,
             child: Text(
               rankMedal,
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0F172A)),
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 13,
+                color: Color(0xFF0F172A),
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -3718,11 +4730,27 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                       height: 32,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Center(
-                        child: Text(player.nama.isNotEmpty ? player.nama[0].toUpperCase() : 'P', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                        child: Text(
+                          player.nama.isNotEmpty
+                              ? player.nama[0].toUpperCase()
+                              : 'P',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
                       ),
                     )
                   : Center(
-                      child: Text(player.nama.isNotEmpty ? player.nama[0].toUpperCase() : 'P', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                      child: Text(
+                        player.nama.isNotEmpty
+                            ? player.nama[0].toUpperCase()
+                            : 'P',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
                     ),
             ),
           ),
@@ -3740,21 +4768,35 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                         player.nama,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF0F172A)),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12.5,
+                          color: Color(0xFF0F172A),
+                        ),
                       ),
                     ),
                     if (player.isWithdrawn) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFE4E6),
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: const Color(0xFFFDA4AF), width: 0.8),
+                          border: Border.all(
+                            color: const Color(0xFFFDA4AF),
+                            width: 0.8,
+                          ),
                         ),
                         child: const Text(
                           'Withdrawn',
-                          style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFFBE123C)),
+                          style: TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFBE123C),
+                          ),
                         ),
                       ),
                     ],
@@ -3762,7 +4804,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 ),
                 Text(
                   '${player.level} • ${player.matchesPlayed} match',
-                  style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF64748B),
+                  ),
                 ),
               ],
             ),
@@ -3781,7 +4826,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
               _buildStatCol('${player.gamesWon}', 'Games'),
               const SizedBox(width: 8),
               _buildStatCol(
-                player.gameDiff >= 0 ? '+${player.gameDiff}' : '${player.gameDiff}',
+                player.gameDiff >= 0
+                    ? '+${player.gameDiff}'
+                    : '${player.gameDiff}',
                 'Selisih',
                 isHighlight: true,
                 isPositive: player.gameDiff >= 0,
@@ -3793,7 +4840,12 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     );
   }
 
-  Widget _buildStatCol(String val, String label, {bool isHighlight = false, bool isPositive = true}) {
+  Widget _buildStatCol(
+    String val,
+    String label, {
+    bool isHighlight = false,
+    bool isPositive = true,
+  }) {
     return Column(
       children: [
         Text(
@@ -3802,7 +4854,9 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
             fontWeight: FontWeight.w900,
             fontSize: 12,
             color: isHighlight
-                ? (isPositive ? const Color(0xFF15803D) : const Color(0xFFDC2626))
+                ? (isPositive
+                      ? const Color(0xFF15803D)
+                      : const Color(0xFFDC2626))
                 : const Color(0xFF0F172A),
           ),
         ),
@@ -3860,7 +4914,10 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                     const SizedBox(height: 2),
                     const Text(
                       'Apresiasi skill & sportivitas sesama pemain di lapangan',
-                      style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
                   ],
                 ),
@@ -3879,7 +4936,8 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
   Widget _buildPlayerKudosCard(SessionPlayerStanding player) {
     final userGiven = _givenKudos[player.playerId] ?? <String>{};
     final currentUserId = widget.authController?.currentUser?.userId;
-    final bool isSelf = (currentUserId != null && player.userId == currentUserId);
+    final bool isSelf =
+        (currentUserId != null && player.userId == currentUserId);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -3904,8 +4962,32 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 ),
                 child: ClipOval(
                   child: (player.foto != null && player.foto!.isNotEmpty)
-                      ? Image.network(player.foto!, width: 28, height: 28, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Center(child: Text(player.nama[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10))))
-                      : Center(child: Text(player.nama.isNotEmpty ? player.nama[0].toUpperCase() : 'P', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10))),
+                      ? Image.network(
+                          player.foto!,
+                          width: 28,
+                          height: 28,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Center(
+                            child: Text(
+                              player.nama[0].toUpperCase(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            player.nama.isNotEmpty
+                                ? player.nama[0].toUpperCase()
+                                : 'P',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -3913,18 +4995,30 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 child: RichText(
                   text: TextSpan(
                     text: player.nama,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0F172A)),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Color(0xFF0F172A),
+                    ),
                     children: [
                       TextSpan(
                         text: player.rank == 0
                             ? ' • (${player.level})'
                             : ' • Rank #${player.rank} (${player.level})',
-                        style: const TextStyle(fontWeight: FontWeight.normal, fontSize: 10, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.normal,
+                          fontSize: 10,
+                          color: Color(0xFF64748B),
+                        ),
                       ),
                       if (isSelf)
                         const TextSpan(
                           text: ' • (Anda)',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Color(0xFFD97706)),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                            color: Color(0xFFD97706),
+                          ),
                         ),
                     ],
                   ),
@@ -3934,88 +5028,98 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
           ),
           const SizedBox(height: 10),
 
-          // Kudos Chips / Self-Kudos Disabled Note (Rule 5)
-          if (isSelf)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                'Anda tidak dapat memberikan Kudos kepada diri sendiri.',
-                style: TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: Color(0xFF64748B)),
-              ),
-            )
-          else
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
               children: _kudosOptions.map((tag) {
                 final isSelected = userGiven.contains(tag);
                 final kCount = _kudosCounts[player.playerId]?[tag] ?? 0;
 
                 return GestureDetector(
                   onTap: () => _toggleKudos(player.playerId, player.nama, tag),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFFFEF3C7) : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFFE2E8F0),
-                      width: isSelected ? 1.2 : 1.0,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
                     ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        tag,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                          color: isSelected ? const Color(0xFF92400E) : const Color(0xFF475569),
-                        ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFFFEF3C7)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFFF59E0B)
+                            : const Color(0xFFE2E8F0),
+                        width: isSelected ? 1.2 : 1.0,
                       ),
-                      if (kCount > 0) ...[
-                        const SizedBox(width: 5),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFFE2E8F0),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '$kCount',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              color: isSelected ? Colors.white : const Color(0xFF475569),
-                            ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFFF59E0B,
+                                ).withValues(alpha: 0.15),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          tag,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.w600,
+                            color: isSelected
+                                ? const Color(0xFF92400E)
+                                : const Color(0xFF475569),
                           ),
                         ),
+                        if (kCount > 0) ...[
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFFF59E0B)
+                                  : const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$kCount',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: isSelected
+                                    ? Colors.white
+                                    : const Color(0xFF475569),
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (isSelected) ...[
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.check_rounded,
+                            size: 12,
+                            color: Color(0xFFD97706),
+                          ),
+                        ],
                       ],
-                      if (isSelected) ...[
-                        const SizedBox(width: 4),
-                        const Icon(Icons.check_rounded, size: 12, color: Color(0xFFD97706)),
-                      ],
-                    ],
+                    ),
                   ),
-                ),
-              );
-            }).toList(),
-          ),
+                );
+              }).toList(),
+            ),
         ],
       ),
     );
@@ -4052,8 +5156,28 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                 ),
                 child: ClipOval(
                   child: (stat.foto != null && stat.foto!.isNotEmpty)
-                      ? Image.network(stat.foto!, width: 36, height: 36, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Center(child: Text(stat.nama[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold))))
-                      : Center(child: Text(stat.nama.isNotEmpty ? stat.nama[0].toUpperCase() : 'P', style: const TextStyle(fontWeight: FontWeight.bold))),
+                      ? Image.network(
+                          stat.foto!,
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Center(
+                            child: Text(
+                              stat.nama[0].toUpperCase(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            stat.nama.isNotEmpty
+                                ? stat.nama[0].toUpperCase()
+                                : 'P',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -4063,21 +5187,33 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   children: [
                     Text(
                       stat.nama,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Color(0xFF0F172A),
+                      ),
                     ),
                     Text(
                       'Statistik Pertandingan • ${stat.sportName}',
-                      style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.matchaSoftLime,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.matchaDark.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: AppColors.matchaDark.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Text(
                   stat.level,
@@ -4105,11 +5241,21 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   ),
                   child: Column(
                     children: [
-                      const Text('Total Poin', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      const Text(
+                        'Total Poin',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         '${stat.totalPoints}',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF0F172A),
+                        ),
                       ),
                     ],
                   ),
@@ -4126,11 +5272,21 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
                   ),
                   child: Column(
                     children: [
-                      const Text('Win Rate', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      const Text(
+                        'Win Rate',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         '${stat.winRatePercent}%',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF16A34A)),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF16A34A),
+                        ),
                       ),
                     ],
                   ),
@@ -4143,5 +5299,3 @@ class _SessionMatchRecapPageState extends State<SessionMatchRecapPage> {
     );
   }
 }
-
-

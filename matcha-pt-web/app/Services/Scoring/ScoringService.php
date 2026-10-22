@@ -458,8 +458,8 @@ class ScoringService
         $system = self::detectScoringSystem($scoringSystem);
 
         // Cek apakah ada minimal 1 skor riil yang berstatus completed atau sesi berstatus finished
-        $hasRealCompleted = false;
-        $isFinishedSession = ($sessionScores['_meta']['status'] ?? '') === 'finished';
+        $isFinishedSession = ($sessionScores['_meta']['status'] ?? '') === 'finished'
+            || in_array(strtolower((string) ($game['status'] ?? ($game['status_session'] ?? ''))), ['finished', 'completed', 'selesai'], true);
 
         foreach ($sessionScores as $k => $v) {
             if ($k !== '_meta' && is_array($v)) {
@@ -610,7 +610,7 @@ class ScoringService
                                 ['set' => 1, 'score_a' => $eGamesA, 'score_b' => $eGamesB],
                             ];
                             if ($eSetsA === 0 && $eSetsB === 0) {
-                                $eSetsA = $eGamesA >= $eGamesB ? 1 : 0;
+                                $eSetsA = $eGamesA > $eGamesB ? 1 : 0;
                                 $eSetsB = $eGamesB > $eGamesA ? 1 : 0;
                             }
                         } elseif ($eSetsA > 0 || $eSetsB > 0) {
@@ -787,6 +787,9 @@ class ScoringService
         }
 
         // Iterasi tiap round menggunakan $effectiveScores yang sudah sinkron
+        $isFinishedSession = ($sessionScores['_meta']['status'] ?? '') === 'finished'
+            || in_array(strtolower((string) ($game['status'] ?? ($game['status_session'] ?? ''))), ['finished', 'completed', 'selesai'], true);
+
         foreach ($drawing as $roundKey => $round) {
             $roundMatches = $round['matches'] ?? [
                 [
@@ -809,7 +812,7 @@ class ScoringService
                 $matchScore = $effectiveScores[$matchScoreKey] ?? [];
 
                 // Fallback (legacy single key atau versi match / court)
-                if (empty($matchScore) || ($matchScore['status'] ?? '') !== 'completed') {
+                if (empty($matchScore) || ! in_array(strtolower((string) ($matchScore['status'] ?? '')), ['completed', 'finished', 'final', 'selesai', 'stopped'], true)) {
                     $rPrefix = is_numeric($roundKey) ? "round_{$roundKey}" : (string) $roundKey;
                     $candidateAltKeys = [
                         self::buildMatchKey($rPrefix, $mCourt, $totalCountForSuffix),
@@ -821,19 +824,11 @@ class ScoringService
                         "{$rPrefix}_match_{$mIdx}",
                     ];
                     foreach ($candidateAltKeys as $altKey) {
-                        if (isset($effectiveScores[$altKey]) && ($effectiveScores[$altKey]['status'] ?? '') === 'completed') {
+                        if (isset($effectiveScores[$altKey]) && (in_array(strtolower((string) ($effectiveScores[$altKey]['status'] ?? '')), ['completed', 'finished', 'final', 'selesai', 'stopped'], true) || ($isFinishedSession && (($effectiveScores[$altKey]['games_a'] ?? 0) > 0 || ($effectiveScores[$altKey]['games_b'] ?? 0) > 0 || ($effectiveScores[$altKey]['score_a'] ?? 0) > 0 || ($effectiveScores[$altKey]['score_b'] ?? 0) > 0)))) {
                             $matchScore = $effectiveScores[$altKey];
                             break;
                         }
                     }
-                }
-
-                $status = $matchScore['status'] ?? ($effectiveScores[$roundKey]['status'] ?? 'pending');
-                $isStopped = $status === 'stopped';
-
-                // Skor parsial stopped tetap masuk akumulasi; status ini tidak menentukan pemenang.
-                if ($status !== 'completed' && ! $isStopped) {
-                    continue;
                 }
 
                 $scoreA = (int) ($matchScore['score_a'] ?? 0);
@@ -842,6 +837,16 @@ class ScoringService
                 $setsB = (int) ($matchScore['sets_b'] ?? 0);
                 $gamesA = (int) ($matchScore['games_a'] ?? 0);
                 $gamesB = (int) ($matchScore['games_b'] ?? 0);
+
+                $status = strtolower((string) ($matchScore['status'] ?? ($effectiveScores[$roundKey]['status'] ?? 'pending')));
+                $isStopped = $status === 'stopped';
+                $isCompleted = in_array($status, ['completed', 'finished', 'final', 'selesai'], true)
+                    || ($isFinishedSession && ($gamesA > 0 || $gamesB > 0 || $setsA > 0 || $setsB > 0 || $scoreA > 0 || $scoreB > 0));
+
+                // Skor parsial stopped tetap masuk akumulasi; status ini tidak menentukan pemenang.
+                if (! $isCompleted && ! $isStopped) {
+                    continue;
+                }
 
                 if ($system['type'] === 'total_of_sets') {
                     $sanitizedHist = self::sanitizeSetHistory($matchScore['set_history'] ?? []);
@@ -1033,7 +1038,7 @@ class ScoringService
         // Cek apakah ada kontribusi hasil kompetitif yang sah (Rule 2 & D1)
         $hasCompetitiveResults = false;
         foreach ($ranked as $p) {
-            if ($p['matches'] > 0 && ($p['points_for'] > 0 || $p['points_against'] > 0 || $p['wins'] > 0)) {
+            if ($p['matches'] > 0 && ($p['points_for'] > 0 || $p['points_against'] > 0 || $p['wins'] > 0 || $p['games_won'] > 0 || $p['games_lost'] > 0 || $p['sets_won'] > 0 || $p['sets_lost'] > 0)) {
                 $hasCompetitiveResults = true;
                 break;
             }

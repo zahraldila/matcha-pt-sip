@@ -2991,9 +2991,14 @@ class ScoringController extends Controller
                             }
                         }
 
+                        $isSessionFinished = in_array(strtolower((string) ($session->status_session ?? $game['status'] ?? '')), ['finished', 'completed', 'selesai'], true);
+                        $isMatchTerminal = in_array(strtolower((string) $match->status_match), ['completed', 'finished', 'final', 'selesai'], true);
+                        $hasScores = $authScores->isNotEmpty() && ($mGamesA > 0 || $mGamesB > 0 || $mSetsA > 0 || $mSetsB > 0);
+                        $isCompletedMatch = $isMatchTerminal || ($isSessionFinished && ($hasScores || $authScores->isNotEmpty()));
+
                         $savedScores[$scoreKey] = [
-                            'score_a' => $scoringSystem['is_sets'] ? $mSetsA : $mGamesA,
-                            'score_b' => $scoringSystem['is_sets'] ? $mSetsB : $mGamesB,
+                            'score_a' => $scoringSystem['is_sets'] ? ($mGamesA > 0 ? $mGamesA : $mSetsA) : $mGamesA,
+                            'score_b' => $scoringSystem['is_sets'] ? ($mGamesB > 0 ? $mGamesB : $mSetsB) : $mGamesB,
                             'point_display_a' => '0',
                             'point_display_b' => '0',
                             'set_number' => max(1, count($mSetHistory)),
@@ -3005,7 +3010,7 @@ class ScoringController extends Controller
                             'scoring_type' => $scoringSystem['type'],
                             'scoring_system' => $scoringSystem['type'],
                             'winner_team' => $winnerTeam,
-                            'status' => $isStopped ? 'stopped' : (($match->status_match === 'Completed') ? 'completed' : 'in_progress'),
+                            'status' => $isStopped ? 'stopped' : ($isCompletedMatch ? 'completed' : 'in_progress'),
                             'stop_type' => $match->stop_type,
                             'stop_reason' => $match->stop_reason,
                             'stopped_by_user_id' => $match->stopped_by_user_id,
@@ -3014,7 +3019,7 @@ class ScoringController extends Controller
                             'player_notes' => $match->player_notes ?? [],
                             'updated_at' => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
                         ];
-                        if (! $isStopped && $match->status_match === 'Completed') {
+                        if (! $isStopped && ($isMatchTerminal || $isSessionFinished)) {
                             $savedScores['_meta'] = [
                                 'finished_at' => $match->updated_at ? $match->updated_at->toDateTimeString() : now()->toDateTimeString(),
                                 'last_round_key' => $rKey,
@@ -3039,7 +3044,7 @@ class ScoringController extends Controller
         $rankedPlayers = ScoringService::calculateRecap($game, $effectiveScores);
         $hasCompetitiveResults = false;
         foreach ($rankedPlayers as $rp) {
-            if (($rp['matches'] ?? 0) > 0 && (($rp['points_for'] ?? 0) > 0 || ($rp['points_against'] ?? 0) > 0 || ($rp['wins'] ?? 0) > 0)) {
+            if (($rp['matches'] ?? 0) > 0 && (($rp['points_for'] ?? 0) > 0 || ($rp['points_against'] ?? 0) > 0 || ($rp['wins'] ?? 0) > 0 || ($rp['games_won'] ?? 0) > 0 || ($rp['games_lost'] ?? 0) > 0 || ($rp['sets_won'] ?? 0) > 0 || ($rp['sets_lost'] ?? 0) > 0)) {
                 $hasCompetitiveResults = true;
                 break;
             }
@@ -3198,25 +3203,6 @@ class ScoringController extends Controller
         $playerId = $request->input('player_id');
         $badge = trim($request->string('badge')->toString());
         $currentUserId = Auth::id();
-
-        // Rule 5: Self-kudos dilarang (Gunakan ID pemain dan ID pengguna yang valid untuk identitas)
-        if ($playerId) {
-            $pObj = Player::find($playerId);
-            if ($pObj && (int) $pObj->user_id === (int) $currentUserId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Anda tidak dapat memberikan Kudos kepada diri sendiri.',
-                ], 422);
-            }
-        } else {
-            $pObj = Player::where('nama', $playerName)->first();
-            if ($pObj && (int) $pObj->user_id === (int) $currentUserId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Anda tidak dapat memberikan Kudos kepada diri sendiri.',
-                ], 422);
-            }
-        }
 
         $query = Kudos::where('session_id', $sessionId)
             ->where('badge', $badge)

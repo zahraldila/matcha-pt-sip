@@ -208,7 +208,7 @@ class KudosPersistenceTest extends TestCase
         ]);
     }
 
-    public function test_self_kudos_is_rejected_with_422(): void
+    public function test_self_kudos_is_allowed(): void
     {
         $user = User::create([
             'nama' => 'Self User',
@@ -241,15 +241,16 @@ class KudosPersistenceTest extends TestCase
             'badge' => '🎾 Super Forehand',
         ]);
 
-        $res->assertStatus(422);
+        $res->assertOk();
         $res->assertJson([
-            'success' => false,
-            'message' => 'Anda tidak dapat memberikan Kudos kepada diri sendiri.',
+            'success' => true,
+            'action' => 'added',
         ]);
 
-        $this->assertDatabaseMissing('tb_kudos', [
+        $this->assertDatabaseHas('tb_kudos', [
             'session_id' => $session->session_id,
             'giver_user_id' => $user->user_id,
+            'recipient_player_id' => $selfPlayer->player_id,
             'badge' => '🎾 Super Forehand',
         ]);
     }

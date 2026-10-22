@@ -9,7 +9,7 @@ class RecapService {
   SupabaseClient get _supabase => _supabaseClient ?? Supabase.instance.client;
 
   RecapService({SupabaseClient? supabaseClient})
-      : _supabaseClient = supabaseClient;
+    : _supabaseClient = supabaseClient;
 
   static int _toInt(dynamic value, [int defaultValue = 0]) {
     if (value == null) return defaultValue;
@@ -37,10 +37,18 @@ class RecapService {
     if (raw == null) return null;
     final clean = raw.trim().toUpperCase();
     if (clean.isEmpty) return null;
-    if (clean == 'B' || clean == 'TEAM B' || clean == 'TEAM_B' || clean == 'SIDE B' || clean == 'SIDE_B') {
+    if (clean == 'B' ||
+        clean == 'TEAM B' ||
+        clean == 'TEAM_B' ||
+        clean == 'SIDE B' ||
+        clean == 'SIDE_B') {
       return 'B';
     }
-    if (clean == 'A' || clean == 'TEAM A' || clean == 'TEAM_A' || clean == 'SIDE A' || clean == 'SIDE_A') {
+    if (clean == 'A' ||
+        clean == 'TEAM A' ||
+        clean == 'TEAM_A' ||
+        clean == 'SIDE A' ||
+        clean == 'SIDE_A') {
       return 'A';
     }
     final matchB = RegExp(r'(^|[^A-Z])B($|[^A-Z])').hasMatch(clean);
@@ -99,7 +107,8 @@ class RecapService {
         }
 
         final venueMap = map['tb_venue'] as Map<String, dynamic>?;
-        final venueName = (venueMap?['nama_venue']?.toString()) ?? 'Arena Olahraga';
+        final venueName =
+            (venueMap?['nama_venue']?.toString()) ?? 'Arena Olahraga';
         venueCounts[venueName] = (venueCounts[venueName] ?? 0) + 1;
 
         final sportMap = map['tb_sport'] as Map<String, dynamic>?;
@@ -119,7 +128,9 @@ class RecapService {
             }
           }
         }
-        final String courtName = courtNamesList.isNotEmpty ? courtNamesList.join(', ') : 'Court 1';
+        final String courtName = courtNamesList.isNotEmpty
+            ? courtNamesList.join(', ')
+            : 'Court 1';
 
         DateTime? dt;
         if (map['datetime'] != null) {
@@ -157,7 +168,8 @@ class RecapService {
             quota: _toInt(map['jumlah_pemain'], 6),
             joinedCount: joinedCount,
             status: status,
-            scoringSystem: (map['scoring_system']?.toString()) ?? 'Total of 3 Sets',
+            scoringSystem:
+                (map['scoring_system']?.toString()) ?? 'Total of 3 Sets',
             players: sessionPlayers,
           ),
         );
@@ -195,7 +207,9 @@ class RecapService {
     try {
       String playerName = userNama ?? 'Pemain Matcha';
       String currentLevel = userLevel ?? 'Intermediate';
-      String? playerAvatar = (userFoto != null && userFoto.isNotEmpty) ? userFoto : null;
+      String? playerAvatar = (userFoto != null && userFoto.isNotEmpty)
+          ? userFoto
+          : null;
       String? playerRole = userRole;
 
       // 1. Kumpulkan SEMUA player_id milik user ini (user_id, email, atau nama)
@@ -211,17 +225,24 @@ class RecapService {
             .eq('user_id', userId)
             .maybeSingle();
         if (uRes != null) {
-          if ((playerName == 'Pemain Matcha' || playerName.isEmpty) && uRes['nama'] != null && uRes['nama'].toString().isNotEmpty) {
+          if ((playerName == 'Pemain Matcha' || playerName.isEmpty) &&
+              uRes['nama'] != null &&
+              uRes['nama'].toString().isNotEmpty) {
             playerName = uRes['nama'].toString();
           }
-          if ((userEmail == null || userEmail.isEmpty) && uRes['email'] != null) {
+          if ((userEmail == null || userEmail.isEmpty) &&
+              uRes['email'] != null) {
             userEmail = uRes['email'].toString();
           }
-          if (playerAvatar == null && uRes['foto'] != null && uRes['foto'].toString().isNotEmpty) {
+          if (playerAvatar == null &&
+              uRes['foto'] != null &&
+              uRes['foto'].toString().isNotEmpty) {
             playerAvatar = uRes['foto'].toString();
           }
           if (playerRole == null && uRes['role'] != null) {
-            playerRole = uRes['role'].toString() == 'venue_owner' ? 'Venue Owner' : 'Member';
+            playerRole = uRes['role'].toString() == 'venue_owner'
+                ? 'Venue Owner'
+                : 'Member';
           }
         }
       } catch (_) {}
@@ -230,7 +251,9 @@ class RecapService {
       try {
         final pDirect = await _supabase
             .from('tb_player')
-            .select('player_id, nama, level, foto, email, user_id, tb_user (nama, email, foto, role)')
+            .select(
+              'player_id, nama, level, foto, email, user_id, tb_user (nama, email, foto, role)',
+            )
             .eq('player_id', userId)
             .maybeSingle();
         if (pDirect != null) {
@@ -242,7 +265,8 @@ class RecapService {
             final pNama = (pDirect['nama'] ?? uObj?['nama'])?.toString();
             if (pNama != null && pNama.isNotEmpty) playerName = pNama;
           }
-          if (pDirect['level'] != null && pDirect['level'].toString().isNotEmpty) {
+          if (pDirect['level'] != null &&
+              pDirect['level'].toString().isNotEmpty) {
             currentLevel = pDirect['level'].toString();
           }
           if (playerAvatar == null) {
@@ -277,13 +301,17 @@ class RecapService {
         for (final p in pUserRes as List<dynamic>) {
           final pid = _toNullableInt(p['player_id']);
           if (pid != null) allPlayerIds.add(pid);
-          if (p['nama'] != null && p['nama'].toString().isNotEmpty && playerName == 'Pemain Matcha') {
+          if (p['nama'] != null &&
+              p['nama'].toString().isNotEmpty &&
+              playerName == 'Pemain Matcha') {
             playerName = p['nama'].toString();
           }
           if (p['level'] != null && p['level'].toString().isNotEmpty) {
             currentLevel = p['level'].toString();
           }
-          if (playerAvatar == null && p['foto'] != null && p['foto'].toString().isNotEmpty) {
+          if (playerAvatar == null &&
+              p['foto'] != null &&
+              p['foto'].toString().isNotEmpty) {
             playerAvatar = p['foto'].toString();
           }
         }
@@ -299,21 +327,25 @@ class RecapService {
           for (final p in pEmailRes as List<dynamic>) {
             final pid = _toNullableInt(p['player_id']);
             if (pid != null) allPlayerIds.add(pid);
-            if (p['nama'] != null && p['nama'].toString().isNotEmpty && playerName == 'Pemain Matcha') {
+            if (p['nama'] != null &&
+                p['nama'].toString().isNotEmpty &&
+                playerName == 'Pemain Matcha') {
               playerName = p['nama'].toString();
             }
             if (p['level'] != null && p['level'].toString().isNotEmpty) {
               currentLevel = p['level'].toString();
             }
-            if (playerAvatar == null && p['foto'] != null && p['foto'].toString().isNotEmpty) {
+            if (playerAvatar == null &&
+                p['foto'] != null &&
+                p['foto'].toString().isNotEmpty) {
               playerAvatar = p['foto'].toString();
             }
           }
         } catch (_) {}
       }
 
-
-      final username = '@${playerName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_')}';
+      final username =
+          '@${playerName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_')}';
       final avatar = (playerAvatar != null && playerAvatar.isNotEmpty)
           ? playerAvatar
           : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
@@ -417,14 +449,18 @@ class RecapService {
         final drawing = match['tb_drawing'] as Map<String, dynamic>?;
         final session = drawing?['tb_session'] as Map<String, dynamic>?;
 
-        final sessionStatus = (session?['status_session']?.toString())?.toLowerCase() ?? '';
-        final isSessionFinished = sessionStatus.contains('finish') ||
+        final sessionStatus =
+            (session?['status_session']?.toString())?.toLowerCase() ?? '';
+        final isSessionFinished =
+            sessionStatus.contains('finish') ||
             sessionStatus.contains('complete') ||
             sessionStatus.contains('selesai');
         if (!isSessionFinished) continue;
 
-        final statusMatch = (match['status_match']?.toString())?.toLowerCase() ?? '';
-        final isMatchFinished = statusMatch.contains('complete') ||
+        final statusMatch =
+            (match['status_match']?.toString())?.toLowerCase() ?? '';
+        final isMatchFinished =
+            statusMatch.contains('complete') ||
             statusMatch.contains('finish') ||
             statusMatch.contains('final') ||
             statusMatch.contains('selesai');
@@ -440,15 +476,18 @@ class RecapService {
         bool isDraw = false;
 
         if (winnerSide != null) {
-          isWinner = (isSideA && winnerSide == 'A') || (!isSideA && winnerSide == 'B');
+          isWinner =
+              (isSideA && winnerSide == 'A') || (!isSideA && winnerSide == 'B');
         } else {
           final scoresList = match['tb_score'] as List<dynamic>? ?? [];
           int scoreA = 0;
           int scoreB = 0;
           for (final s in scoresList) {
             final sMap = s as Map<String, dynamic>;
-            scoreA += _toInt(sMap['game_score_a']) + _toInt(sMap['set_score_a']);
-            scoreB += _toInt(sMap['game_score_b']) + _toInt(sMap['set_score_b']);
+            scoreA +=
+                _toInt(sMap['game_score_a']) + _toInt(sMap['set_score_a']);
+            scoreB +=
+                _toInt(sMap['game_score_b']) + _toInt(sMap['set_score_b']);
           }
           if (scoreA > scoreB) {
             isWinner = isSideA;
@@ -473,7 +512,8 @@ class RecapService {
         for (final other in allParts) {
           final oMap = other as Map<String, dynamic>;
           final oPlayerId = _toNullableInt(oMap['player_id']);
-          if (oPlayerId != null && allPlayerIds.contains(oPlayerId)) continue; // Diri sendiri
+          if (oPlayerId != null && allPlayerIds.contains(oPlayerId))
+            continue; // Diri sendiri
 
           final oSide = parseTeamSide(oMap['side']?.toString()) ?? 'B';
           final oSideA = oSide == 'A';
@@ -486,13 +526,21 @@ class RecapService {
           } else {
             opponents.add(oName);
             if (!headToHeadMap.containsKey(oName)) {
-              headToHeadMap[oName] = {'opponent': oName, 'win': 0, 'lose': 0, 'played': 0};
+              headToHeadMap[oName] = {
+                'opponent': oName,
+                'win': 0,
+                'lose': 0,
+                'played': 0,
+              };
             }
-            headToHeadMap[oName]!['played'] = _toInt(headToHeadMap[oName]!['played']) + 1;
+            headToHeadMap[oName]!['played'] =
+                _toInt(headToHeadMap[oName]!['played']) + 1;
             if (isWinner) {
-              headToHeadMap[oName]!['win'] = _toInt(headToHeadMap[oName]!['win']) + 1;
+              headToHeadMap[oName]!['win'] =
+                  _toInt(headToHeadMap[oName]!['win']) + 1;
             } else if (!isDraw) {
-              headToHeadMap[oName]!['lose'] = _toInt(headToHeadMap[oName]!['lose']) + 1;
+              headToHeadMap[oName]!['lose'] =
+                  _toInt(headToHeadMap[oName]!['lose']) + 1;
             }
           }
         }
@@ -502,7 +550,8 @@ class RecapService {
         final venueMap = session?['tb_venue'] as Map<String, dynamic>?;
 
         final sportName = (sportMap?['nama_sport']?.toString()) ?? 'Padel';
-        final venueName = (venueMap?['nama_venue']?.toString()) ?? 'Arena Olahraga';
+        final venueName =
+            (venueMap?['nama_venue']?.toString()) ?? 'Arena Olahraga';
 
         DateTime? dt;
         if (match['updated_at'] != null) {
@@ -543,7 +592,9 @@ class RecapService {
       }
 
       // Hitung streak secara kronologis (dari pertandingan terlama ke terbaru)
-      rawCompletedList.sort((a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
+      rawCompletedList.sort(
+        (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int),
+      );
       int currentStreak = 0;
       for (final item in rawCompletedList) {
         if (item['isWinner'] == true) {
@@ -554,22 +605,28 @@ class RecapService {
       }
 
       // Urutkan riwayat pertandingan dari yang paling baru (descending)
-      rawCompletedList.sort((a, b) => (b['timestamp'] as int).compareTo(a['timestamp'] as int));
-      final List<PlayerMatchHistoryItem> completedMatches = rawCompletedList.map((m) {
-        return PlayerMatchHistoryItem(
-          sport: m['sport'] as String,
-          venue: m['venue'] as String,
-          result: m['result'] as String,
-          score: m['score'] as String,
-          partner: m['partner'] as String,
-          opponents: List<String>.from(m['opponents'] as List),
-          matchDate: m['matchDate'] as String,
-          timestamp: m['timestamp'] as int,
-        );
-      }).toList();
+      rawCompletedList.sort(
+        (a, b) => (b['timestamp'] as int).compareTo(a['timestamp'] as int),
+      );
+      final List<PlayerMatchHistoryItem> completedMatches = rawCompletedList
+          .map((m) {
+            return PlayerMatchHistoryItem(
+              sport: m['sport'] as String,
+              venue: m['venue'] as String,
+              result: m['result'] as String,
+              score: m['score'] as String,
+              partner: m['partner'] as String,
+              opponents: List<String>.from(m['opponents'] as List),
+              matchDate: m['matchDate'] as String,
+              timestamp: m['timestamp'] as int,
+            );
+          })
+          .toList();
 
       final totalMatches = completedMatches.length;
-      final winRatePercent = totalMatches > 0 ? ((totalWins / totalMatches) * 100).round() : 0;
+      final winRatePercent = totalMatches > 0
+          ? ((totalWins / totalMatches) * 100).round()
+          : 0;
       final totalHours = totalMatches > 0
           ? '${(totalMatches * 0.5).toStringAsFixed(totalMatches % 2 == 0 ? 0 : 1)} Jam'
           : '0 Jam';
@@ -620,7 +677,9 @@ class RecapService {
 
   /// Memilih baris skor otoritatif per nomor set, mengeliminasi EventLog atau duplikasi snapshot progres,
   /// memprioritaskan status Final/Completed/Stopped dan versi tertinggi (identik dengan ScoringService web).
-  static List<Map<String, dynamic>> getAuthoritativeScores(List<dynamic> rawScores) {
+  static List<Map<String, dynamic>> getAuthoritativeScores(
+    List<dynamic> rawScores,
+  ) {
     if (rawScores.isEmpty) return [];
 
     final mapScores = rawScores
@@ -711,8 +770,16 @@ class RecapService {
       final sportMap = sMap['tb_sport'] as Map<String, dynamic>?;
       final sportName = (sportMap?['nama_sport']?.toString()) ?? 'Padel';
       final venueMap = sMap['tb_venue'] as Map<String, dynamic>?;
-      final venueName = (venueMap?['nama_venue']?.toString()) ?? 'Arena Lapangan';
-      final scoringSystem = (sMap['scoring_system']?.toString()) ?? 'Total of 3';
+      final venueName =
+          (venueMap?['nama_venue']?.toString()) ?? 'Arena Lapangan';
+      final scoringSystem =
+          (sMap['scoring_system']?.toString()) ?? 'Total of 3';
+      final sessionStatus =
+          (sMap['status_session']?.toString() ?? '').toLowerCase();
+      final bool isSessionCompleted = sessionStatus == 'completed' ||
+          sessionStatus == 'finished' ||
+          sessionStatus == 'final' ||
+          sessionStatus == 'selesai';
 
       final courtNamesList = <String>[];
       final courtsList = sMap['tb_session_court'] as List<dynamic>?;
@@ -728,7 +795,9 @@ class RecapService {
           }
         }
       }
-      final String? courtName = courtNamesList.isNotEmpty ? courtNamesList.join(', ') : null;
+      final String? courtName = courtNamesList.isNotEmpty
+          ? courtNamesList.join(', ')
+          : null;
 
       // 2. Ambil Pemain Terdaftar
       final registeredPlayers = <Map<String, dynamic>>[];
@@ -787,7 +856,9 @@ class RecapService {
         }
         if (activeDrawingId == null) {
           activeDrawingId = _toNullableInt(drawingsRes.first['drawing_id']);
-          activeMatchFormatId = _toNullableInt(drawingsRes.first['match_format_id']);
+          activeMatchFormatId = _toNullableInt(
+            drawingsRes.first['match_format_id'],
+          );
         }
       }
 
@@ -805,8 +876,10 @@ class RecapService {
         } catch (_) {}
       }
 
-      final bool isTeamAmericano = activeMatchFormatId == 4 ||
-          (activeMatchFormatName?.toLowerCase().contains('team americano') ?? false);
+      final bool isTeamAmericano =
+          activeMatchFormatId == 4 ||
+          (activeMatchFormatName?.toLowerCase().contains('team americano') ??
+              false);
 
       List<dynamic> rawMatches = [];
       if (activeDrawingId != null) {
@@ -831,7 +904,8 @@ class RecapService {
 
       // Deteksi format sistem scoring (Sets vs Games / Points)
       final lowerScoring = scoringSystem.toLowerCase();
-      final isSets = lowerScoring.contains('set') || lowerScoring.contains('total of');
+      final isSets =
+          lowerScoring.contains('set') || lowerScoring.contains('total of');
 
       // 4. Strukturisasi Ronde & Perhitungan Skor
       final Map<int, List<SessionMatchItem>> roundMatchesMap = {};
@@ -842,7 +916,8 @@ class RecapService {
       for (final p in registeredPlayers) {
         final pId = _toInt(p['player_id']);
         final pName = (p['nama'] ?? p['nama_player'])?.toString() ?? 'Pemain';
-        final isWithdrawn = (p['status']?.toString().toLowerCase() == 'withdrawn');
+        final isWithdrawn =
+            (p['status']?.toString().toLowerCase() == 'withdrawn');
         playerStatsMap[pId] = {
           'playerId': pId,
           'nama': pName,
@@ -871,12 +946,17 @@ class RecapService {
         matchCounter++;
         final matchId = _toInt(mMap['match_id'], matchCounter);
         final matchNo = _toInt(mMap['nomor_match'], matchCounter);
-        final roundNum = _toInt(mMap['round_number'], ((matchNo - 1) ~/ sessionCourtCount) + 1);
+        final roundNum = _toInt(
+          mMap['round_number'],
+          ((matchNo - 1) ~/ sessionCourtCount) + 1,
+        );
 
         final courtObj = mMap['tb_court'] as Map<String, dynamic>?;
-        final cName = (courtObj?['nama_court']?.toString()) ?? courtName ?? 'Court 1';
+        final cName =
+            (courtObj?['nama_court']?.toString()) ?? courtName ?? 'Court 1';
 
-        final participants = mMap['tb_match_participant'] as List<dynamic>? ?? [];
+        final participants =
+            mMap['tb_match_participant'] as List<dynamic>? ?? [];
         final sideANames = <String>[];
         final sideBNames = <String>[];
         final sideAPlayerIds = <int>[];
@@ -886,7 +966,8 @@ class RecapService {
           final partMap = part as Map<String, dynamic>;
           final pId = _toNullableInt(partMap['player_id']);
           final pObj = partMap['tb_player'] as Map<String, dynamic>?;
-          final pName = (pObj?['nama'] ?? pObj?['nama_player'])?.toString() ?? 'Pemain';
+          final pName =
+              (pObj?['nama'] ?? pObj?['nama_player'])?.toString() ?? 'Pemain';
           final sideParsed = parseTeamSide(partMap['side']?.toString());
           final isB = sideParsed == 'B';
 
@@ -937,8 +1018,12 @@ class RecapService {
         final teamBMemberNames = sideBSortedIds
             .map((id) => playerStatsMap[id]?['nama']?.toString() ?? 'Pemain')
             .toList();
-        final teamAName = teamAMemberNames.isNotEmpty ? teamAMemberNames.join(' & ') : 'Team A';
-        final teamBName = teamBMemberNames.isNotEmpty ? teamBMemberNames.join(' & ') : 'Team B';
+        final teamAName = teamAMemberNames.isNotEmpty
+            ? teamAMemberNames.join(' & ')
+            : 'Team A';
+        final teamBName = teamBMemberNames.isNotEmpty
+            ? teamBMemberNames.join(' & ')
+            : 'Team B';
 
         if (isTeamAmericano) {
           if (teamAKey.isNotEmpty && !teamStatsMap.containsKey(teamAKey)) {
@@ -947,7 +1032,9 @@ class RecapService {
               'teamName': teamAName,
               'memberIds': sideASortedIds,
               'memberNames': teamAMemberNames,
-              'memberPhotos': sideASortedIds.map((id) => playerStatsMap[id]?['foto']?.toString()).toList(),
+              'memberPhotos': sideASortedIds
+                  .map((id) => playerStatsMap[id]?['foto']?.toString())
+                  .toList(),
               'matchesPlayed': 0,
               'matchesWon': 0,
               'matchesLost': 0,
@@ -965,7 +1052,9 @@ class RecapService {
               'teamName': teamBName,
               'memberIds': sideBSortedIds,
               'memberNames': teamBMemberNames,
-              'memberPhotos': sideBSortedIds.map((id) => playerStatsMap[id]?['foto']?.toString()).toList(),
+              'memberPhotos': sideBSortedIds
+                  .map((id) => playerStatsMap[id]?['foto']?.toString())
+                  .toList(),
               'matchesPlayed': 0,
               'matchesWon': 0,
               'matchesLost': 0,
@@ -980,19 +1069,9 @@ class RecapService {
         }
 
         // Skor pertandingan otoritatif (tanpa eventlog & deduplikasi snapshot)
-        final scores = getAuthoritativeScores(mMap['tb_score'] as List<dynamic>? ?? []);
-        final mStatus = (mMap['status_match']?.toString() ?? '').toLowerCase();
-        final bool isStopped = mStatus == 'stopped';
-        final bool isMatchCompleted = mStatus == 'completed' ||
-            mStatus == 'finished' ||
-            mStatus == 'final' ||
-            isStopped ||
-            (scores.isNotEmpty &&
-                scores.any((s) {
-                  final st = (s['status_score'] ?? '').toString().toLowerCase();
-                  return st == 'completed' || st == 'final' || st == 'stopped';
-                }));
-
+        final scores = getAuthoritativeScores(
+          mMap['tb_score'] as List<dynamic>? ?? [],
+        );
         int mSetsA = 0;
         int mSetsB = 0;
         int mGamesA = 0;
@@ -1008,8 +1087,8 @@ class RecapService {
           for (int i = 0; i < scores.length; i++) {
             final sc = scores[i];
             final setNum = _toInt(sc['set_number'], i + 1);
-            final scoreSideA = _toInt(sc['score_side_a']);
-            final scoreSideB = _toInt(sc['score_side_b']);
+            final scoreSideA = _toInt(sc['score_side_a'] ?? sc['score_a']);
+            final scoreSideB = _toInt(sc['score_side_b'] ?? sc['score_b']);
             final gameA = _toInt(sc['game_score_a']);
             final gameB = _toInt(sc['game_score_b']);
             final setScoreA = _toInt(sc['set_score_a']);
@@ -1037,9 +1116,43 @@ class RecapService {
           }
           mGamesA = shGamesA;
           mGamesB = shGamesB;
-        } else if (mMap['hasil_pertandingan'] != null && mMap['hasil_pertandingan'].toString().isNotEmpty) {
+        } else if (mMap['hasil_pertandingan'] != null &&
+            mMap['hasil_pertandingan'].toString().isNotEmpty) {
           setPills.add(mMap['hasil_pertandingan'].toString());
         }
+
+        final mStatus = (mMap['status_match']?.toString() ?? '').toLowerCase();
+        final bool isStopped = mStatus == 'stopped';
+        final bool isTerminalStatus = mStatus == 'completed' ||
+            mStatus == 'finished' ||
+            mStatus == 'final' ||
+            mStatus == 'selesai' ||
+            isStopped;
+
+        final bool hasTerminalScore = scores.isNotEmpty &&
+            scores.any((s) {
+              final st = (s['status_score'] ?? '').toString().toLowerCase();
+              return st == 'completed' ||
+                  st == 'final' ||
+                  st == 'finished' ||
+                  st == 'selesai' ||
+                  st == 'stopped';
+            });
+
+        final bool hasRecordedScores =
+            scores.isNotEmpty && (mGamesA > 0 || mGamesB > 0 || mSetsA > 0 || mSetsB > 0);
+
+        final bool hasMatchResult =
+            (mMap['hasil_pertandingan'] != null &&
+                mMap['hasil_pertandingan'].toString().trim().isNotEmpty) ||
+            (mMap['winner_team'] != null &&
+                mMap['winner_team'].toString().trim().isNotEmpty) ||
+            mMap['waktu_selesai'] != null;
+
+        final bool isMatchCompleted = isTerminalStatus ||
+            hasTerminalScore ||
+            hasMatchResult ||
+            (isSessionCompleted && (hasRecordedScores || scores.isNotEmpty));
 
         // Hitung durasi match
         int matchDuration = 0;
@@ -1060,7 +1173,10 @@ class RecapService {
         int ptsForB = 0;
 
         if (isSets) {
-          if (!isStopped && mSetsA == 0 && mSetsB == 0 && (mGamesA > 0 || mGamesB > 0)) {
+          if (!isStopped &&
+              mSetsA == 0 &&
+              mSetsB == 0 &&
+              (mGamesA > 0 || mGamesB > 0)) {
             mSetsA = mGamesA > mGamesB ? 1 : 0;
             mSetsB = mGamesB > mGamesA ? 1 : 0;
           }
@@ -1109,7 +1225,8 @@ class RecapService {
               st['gamesLost'] = _toInt(st['gamesLost']) + mGamesB;
               st['pointsFor'] = _toInt(st['pointsFor']) + ptsForA;
               st['pointsAgainst'] = _toInt(st['pointsAgainst']) + ptsForB;
-              st['durationMinutes'] = _toInt(st['durationMinutes']) + matchDuration;
+              st['durationMinutes'] =
+                  _toInt(st['durationMinutes']) + matchDuration;
               if (isSideAWinner) {
                 st['matchesWon'] = _toInt(st['matchesWon']) + 1;
               } else if (isSideBWinner) {
@@ -1128,7 +1245,8 @@ class RecapService {
               st['gamesLost'] = _toInt(st['gamesLost']) + mGamesA;
               st['pointsFor'] = _toInt(st['pointsFor']) + ptsForB;
               st['pointsAgainst'] = _toInt(st['pointsAgainst']) + ptsForA;
-              st['durationMinutes'] = _toInt(st['durationMinutes']) + matchDuration;
+              st['durationMinutes'] =
+                  _toInt(st['durationMinutes']) + matchDuration;
               if (isSideBWinner) {
                 st['matchesWon'] = _toInt(st['matchesWon']) + 1;
               } else if (isSideAWinner) {
@@ -1172,9 +1290,15 @@ class RecapService {
           }
         }
 
-        final scoreDisplayA = isSets ? (mGamesA > 0 ? mGamesA : mSetsA) : mGamesA;
-        final scoreDisplayB = isSets ? (mGamesB > 0 ? mGamesB : mSetsB) : mGamesB;
-        final setDetails = setPills.isNotEmpty ? 'Rincian: ${setPills.join(', ')}' : 'Set 1: $scoreDisplayA-$scoreDisplayB';
+        final scoreDisplayA = isSets
+            ? (mGamesA > 0 ? mGamesA : mSetsA)
+            : mGamesA;
+        final scoreDisplayB = isSets
+            ? (mGamesB > 0 ? mGamesB : mSetsB)
+            : mGamesB;
+        final setDetails = setPills.isNotEmpty
+            ? 'Rincian: ${setPills.join(', ')}'
+            : 'Set 1: $scoreDisplayA-$scoreDisplayB';
 
         final matchItem = SessionMatchItem(
           matchId: matchId,
@@ -1198,10 +1322,7 @@ class RecapService {
       final sortedRoundKeys = roundMatchesMap.keys.toList()..sort();
       for (final k in sortedRoundKeys) {
         rounds.add(
-          SessionRoundRecapItem(
-            roundNumber: k,
-            matches: roundMatchesMap[k]!,
-          ),
+          SessionRoundRecapItem(roundNumber: k, matches: roundMatchesMap[k]!),
         );
       }
 
@@ -1228,7 +1349,9 @@ class RecapService {
         final gDiffB = gWonB - _toInt(b['gamesLost']);
         if (gDiffB != gDiffA) return gDiffB.compareTo(gDiffA);
 
-        return (a['nama']?.toString() ?? '').toLowerCase().compareTo((b['nama']?.toString() ?? '').toLowerCase());
+        return (a['nama']?.toString() ?? '').toLowerCase().compareTo(
+          (b['nama']?.toString() ?? '').toLowerCase(),
+        );
       });
 
       // Helper untuk memeriksa apakah 2 entri memiliki metrik kompetitif yang identik (Rule 2)
@@ -1255,9 +1378,17 @@ class RecapService {
       }
 
       // Deteksi apakah ada hasil pertandingan kompetitif yang sah
-      final bool hasCompetitiveResults = rawStandings.any((s) =>
-          _toInt(s['matchesPlayed']) > 0 &&
-          (_toInt(s['pointsFor']) > 0 || _toInt(s['pointsAgainst']) > 0 || _toInt(s['matchesWon']) > 0));
+      final bool hasCompetitiveResults = rawStandings.any(
+        (s) =>
+            _toInt(s['matchesPlayed']) > 0 &&
+            (_toInt(s['pointsFor']) > 0 ||
+                _toInt(s['pointsAgainst']) > 0 ||
+                _toInt(s['matchesWon']) > 0 ||
+                _toInt(s['gamesWon']) > 0 ||
+                _toInt(s['gamesLost']) > 0 ||
+                _toInt(s['setsWon']) > 0 ||
+                _toInt(s['setsLost']) > 0),
+      );
 
       final List<SessionPlayerStanding> standings = [];
       int currentRank = 1;
@@ -1332,9 +1463,9 @@ class RecapService {
           final gDiffB = gWonB - _toInt(b['gamesLost']);
           if (gDiffB != gDiffA) return gDiffB.compareTo(gDiffA);
 
-          return (a['teamName']?.toString() ?? '')
-              .toLowerCase()
-              .compareTo((b['teamName']?.toString() ?? '').toLowerCase());
+          return (a['teamName']?.toString() ?? '').toLowerCase().compareTo(
+            (b['teamName']?.toString() ?? '').toLowerCase(),
+          );
         });
 
         int teamCurrentRank = 1;
@@ -1360,9 +1491,15 @@ class RecapService {
               rank: teamCurrentRank,
               teamId: item['teamId'].toString(),
               teamName: item['teamName'].toString(),
-              memberIds: (item['memberIds'] as List<dynamic>? ?? []).map((e) => _toInt(e)).toList(),
-              memberNames: (item['memberNames'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
-              memberPhotos: (item['memberPhotos'] as List<dynamic>? ?? []).map((e) => e?.toString()).toList(),
+              memberIds: (item['memberIds'] as List<dynamic>? ?? [])
+                  .map((e) => _toInt(e))
+                  .toList(),
+              memberNames: (item['memberNames'] as List<dynamic>? ?? [])
+                  .map((e) => e.toString())
+                  .toList(),
+              memberPhotos: (item['memberPhotos'] as List<dynamic>? ?? [])
+                  .map((e) => e?.toString())
+                  .toList(),
               matchesPlayed: _toInt(item['matchesPlayed']),
               matchesWon: _toInt(item['matchesWon']),
               matchesLost: _toInt(item['matchesLost']),
@@ -1454,7 +1591,9 @@ class RecapService {
         scoringSystem: scoringSystem,
         isSets: isSets,
         totalRounds: rounds.isNotEmpty ? rounds.length : 1,
-        totalPlayers: standings.isNotEmpty ? standings.length : registeredPlayers.length,
+        totalPlayers: standings.isNotEmpty
+            ? standings.length
+            : registeredPlayers.length,
         rounds: rounds,
         standings: standings,
         teamStandings: teamStandings,
@@ -1665,22 +1804,6 @@ class RecapService {
       throw Exception('Autentikasi diperlukan untuk memberikan Kudos.');
     }
 
-    // 2. Validasi Self-Kudos: Dilarang memberi kudos kepada diri sendiri (Rule 5)
-    if (recipientPlayerId != null) {
-      try {
-        final pCheck = await _supabase
-            .from('tb_player')
-            .select('user_id')
-            .eq('player_id', recipientPlayerId)
-            .maybeSingle();
-        if (pCheck != null && _toNullableInt(pCheck['user_id']) == giverUserId) {
-          throw Exception('Anda tidak dapat memberikan Kudos kepada diri sendiri.');
-        }
-      } catch (e) {
-        if (e.toString().contains('diri sendiri')) rethrow;
-      }
-    }
-
     try {
       var query = _supabase
           .from('tb_kudos')
@@ -1702,7 +1825,10 @@ class RecapService {
             .from('tb_kudos')
             .delete()
             .eq('kudos_id', kId)
-            .eq('giver_user_id', giverUserId); // Toggle hanya boleh menghapus kudos milik pemberi sendiri
+            .eq(
+              'giver_user_id',
+              giverUserId,
+            ); // Toggle hanya boleh menghapus kudos milik pemberi sendiri
         return false;
       } else {
         await _supabase.from('tb_kudos').insert({
@@ -1715,17 +1841,25 @@ class RecapService {
         return true;
       }
     } catch (e) {
-      if (e.toString().contains('diri sendiri')) rethrow;
       return false;
     }
   }
 
   static String formatDate(DateTime dt) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 }
-

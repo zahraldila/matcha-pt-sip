@@ -555,7 +555,7 @@
                             {{ $player['level'] ?? 'Player' }}
                         </p>
                         @if($isSelf)
-                            <p class="text-[9px] font-semibold text-amber-700 mt-0.5">(Anda - Tidak dapat memberi Kudos ke diri sendiri)</p>
+                            <p class="text-[9px] font-semibold text-emerald-700 mt-0.5">(Anda)</p>
                         @endif
                     </div>
                 </div>
@@ -567,17 +567,6 @@
                         $isGiven = !empty($userGivenKudos[$kKey]);
                         $kCount = $savedKudos[$kKey] ?? 0;
                     @endphp
-                    @if($isSelf)
-                    <button type="button"
-                        disabled
-                        title="Anda tidak dapat memberikan Kudos kepada diri sendiri"
-                        class="kudos-btn w-fit inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition-all cursor-not-allowed opacity-50 bg-slate-100 text-slate-400 border-slate-200 whitespace-nowrap">
-                        <span>{{ $badge }}</span>
-                        <span class="kudos-badge-count text-[9px] px-1.5 py-0.2 rounded-full {{ $kCount > 0 ? 'bg-slate-200 text-slate-700 font-bold' : 'hidden' }}">
-                            {{ $kCount > 0 ? $kCount : '' }}
-                        </span>
-                    </button>
-                    @else
                     <button type="button" 
                         onclick="toggleKudos(this, '{{ addslashes($player['name']) }}', '{{ addslashes($badge) }}', {{ $player['id'] ?? ($player['player_id'] ?? 'null') }})"
                         data-player-name="{{ $player['name'] }}"
@@ -588,7 +577,6 @@
                             {{ $kCount > 0 ? $kCount : '' }}
                         </span>
                     </button>
-                    @endif
                     @endforeach
                 </div>
             </div>
