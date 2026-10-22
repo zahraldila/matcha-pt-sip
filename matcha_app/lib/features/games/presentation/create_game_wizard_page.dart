@@ -2577,8 +2577,8 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
               ],
 
               // Player List Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Player List ( ${_config.players.length} )',
@@ -2588,6 +2588,7 @@ class _CreateGameWizardPageState extends State<CreateGameWizardPage> {
                       color: const Color(0xFF0F172A),
                     ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
                     quotaSubtitle,
                     style: AppTextStyles.caption.copyWith(
