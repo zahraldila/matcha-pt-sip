@@ -3436,172 +3436,122 @@ class MatchScoringPageState extends State<MatchScoringPage> {
     }
 
     final currentRound =
-
         _rounds[_viewedRoundIndex.clamp(0, _rounds.length - 1)];
 
-
+    final totalPendingScoreCount = _pendingEventsByMatch.values.fold<int>(0, (sum, list) => sum + list.length);
+    final hasGlobalSaveError = _matchSaveStatus.values.any((status) => status == 'error');
 
     return Scaffold(
-
       backgroundColor: const Color(0xFFF8FAFC),
-
       appBar: AppBar(
-
         backgroundColor: Colors.white,
-
         elevation: 0,
-
         leading: IconButton(
-
           icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-
           onPressed: () => Navigator.pop(context),
-
         ),
-
         title: Column(
-
           children: [
-
             Text(
-
               'Live Match Scoring',
-
               style: AppTextStyles.h2.copyWith(
-
                 fontSize: 15,
-
                 fontWeight: FontWeight.w800,
-
                 color: const Color(0xFF0F172A),
-
               ),
-
             ),
-
             const SizedBox(height: 2),
-
             Text(
-
               hostAccessStatus == HostAccessStatus.host
-
                   ? 'Mode Host'
-
                   : (hostAccessStatus == HostAccessStatus.verifying
-
                       ? 'Memverifikasi Peran...'
-
                       : (hostAccessStatus == HostAccessStatus.error
-
                           ? 'Verifikasi Host Gagal'
-
                           : 'Mode Penonton')),
-
               style: AppTextStyles.caption.copyWith(
-
                 fontSize: 11,
-
                 fontWeight: FontWeight.w600,
-
                 color: hostAccessStatus == HostAccessStatus.host
-
                     ? const Color(0xFF059669)
-
                     : (hostAccessStatus == HostAccessStatus.error
-
                         ? const Color(0xFFDC2626)
-
                         : const Color(0xFF64748B)),
-
               ),
-
             ),
-
           ],
-
         ),
-
         centerTitle: true,
-
         actions: [
-          Container(
+          Builder(
+            builder: (context) {
+              final isSaving = totalPendingScoreCount > 0;
+              final isError = hasGlobalSaveError;
 
-            margin: const EdgeInsets.only(right: 14),
+              Color bgColor;
+              Color borderColor;
+              Color contentColor;
+              Widget leadingWidget;
+              String statusLabel;
 
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-
-            decoration: BoxDecoration(
-
-              color: _isRealtimeConnected
-
-                  ? const Color(0xFFECFDF5)
-
-                  : const Color(0xFFF1F5F9),
-
-              borderRadius: BorderRadius.circular(10),
-
-              border: Border.all(
-
-                color: _isRealtimeConnected
-
-                    ? const Color(0xFFA7F3D0)
-
-                    : const Color(0xFFE2E8F0),
-
-              ),
-
-            ),
-
-            child: Row(
-
-              mainAxisSize: MainAxisSize.min,
-
-              children: [
-
-                Icon(
-
-                  Icons.circle,
-
-                  color: _isRealtimeConnected
-
-                      ? const Color(0xFF10B981)
-
-                      : const Color(0xFF94A3B8),
-
-                  size: 8,
-
-                ),
-
-                const SizedBox(width: 4),
-
-                Text(
-
-                  _isRealtimeConnected ? 'Realtime Aktif' : 'Status koneksi belum terverifikasi',
-
-                  style: TextStyle(
-
-                    fontWeight: FontWeight.w800,
-
-                    fontSize: 10,
-
-                    color: _isRealtimeConnected
-
-                        ? const Color(0xFF065F46)
-
-                        : const Color(0xFF64748B),
-
+              if (isSaving) {
+                bgColor = const Color(0xFFFEF3C7);
+                borderColor = const Color(0xFFFDE68A);
+                contentColor = const Color(0xFFB45309);
+                leadingWidget = SizedBox(
+                  width: 8,
+                  height: 8,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: contentColor,
                   ),
+                );
+                statusLabel = 'Menyimpan ($totalPendingScoreCount)...';
+              } else if (isError) {
+                bgColor = const Color(0xFFFEF2F2);
+                borderColor = const Color(0xFFFECACA);
+                contentColor = const Color(0xFFDC2626);
+                leadingWidget = Icon(Icons.error_outline_rounded, color: contentColor, size: 10);
+                statusLabel = 'Gagal Simpan';
+              } else {
+                bgColor = _isRealtimeConnected ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9);
+                borderColor = _isRealtimeConnected ? const Color(0xFFA7F3D0) : const Color(0xFFE2E8F0);
+                contentColor = _isRealtimeConnected ? const Color(0xFF065F46) : const Color(0xFF64748B);
+                leadingWidget = Icon(
+                  Icons.circle,
+                  color: _isRealtimeConnected ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                  size: 8,
+                );
+                statusLabel = _isRealtimeConnected ? 'Realtime Aktif' : 'Status koneksi belum terverifikasi';
+              }
 
+              return Container(
+                margin: const EdgeInsets.only(right: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: borderColor),
                 ),
-
-              ],
-
-            ),
-
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    leadingWidget,
+                    const SizedBox(width: 4),
+                    Text(
+                      statusLabel,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 10,
+                        color: contentColor,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
-
         ],
-
       ),
 
       body: ListView(
@@ -4955,147 +4905,28 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                     // Priority Badges: Conflict / Error > Menyimpan > Match Status
 
                     Wrap(
-
                       spacing: 6,
-
                       runSpacing: 4,
-
                       alignment: WrapAlignment.end,
-
                       children: [
-
                         if (hasConflict) ...[
-
                           Container(
-
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-
                             decoration: BoxDecoration(
-
                               color: const Color(0xFFFEF2F2),
-
                               borderRadius: BorderRadius.circular(6),
-
                               border: Border.all(color: const Color(0xFFFCA5A5)),
-
                             ),
-
                             child: const Text(
-
                               '⚠️ Konflik',
-
                               style: TextStyle(
-
                                 fontSize: 9.5,
-
                                 fontWeight: FontWeight.bold,
-
                                 color: Color(0xFFDC2626),
-
                               ),
-
                             ),
-
                           ),
-
-                        ] else if (saveStatus == 'error') ...[
-
-                          Container(
-
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-
-                            decoration: BoxDecoration(
-
-                              color: const Color(0xFFFEE2E2),
-
-                              borderRadius: BorderRadius.circular(6),
-
-                              border: Border.all(color: const Color(0xFFFCA5A5)),
-
-                            ),
-
-                            child: const Text(
-
-                              '⚠️ Gagal Simpan',
-
-                              style: TextStyle(
-
-                                fontSize: 9.5,
-
-                                fontWeight: FontWeight.bold,
-
-                                color: Color(0xFFDC2626),
-
-                              ),
-
-                            ),
-
-                          ),
-
-                        ] else if (pendingCount > 0) ...[
-
-                          Container(
-
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-
-                            decoration: BoxDecoration(
-
-                              color: const Color(0xFFFEF3C7),
-
-                              borderRadius: BorderRadius.circular(6),
-
-                              border: Border.all(color: const Color(0xFFFDE68A)),
-
-                            ),
-
-                            child: Row(
-
-                              mainAxisSize: MainAxisSize.min,
-
-                              children: [
-
-                                const SizedBox(
-
-                                  width: 8,
-
-                                  height: 8,
-
-                                  child: CircularProgressIndicator(
-
-                                    strokeWidth: 1.5,
-
-                                    color: Color(0xFFB45309),
-
-                                  ),
-
-                                ),
-
-                                const SizedBox(width: 4),
-
-                                Text(
-
-                                  'Menyimpan ($pendingCount)',
-
-                                  style: const TextStyle(
-
-                                    fontSize: 9.5,
-
-                                    fontWeight: FontWeight.bold,
-
-                                    color: Color(0xFFB45309),
-
-                                  ),
-
-                                ),
-
-                              ],
-
-                            ),
-
-                          ),
-
                         ],
-
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
@@ -5132,35 +4963,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                             ),
                           ),
                         ),
-                        if (isHost && _isCurrentViewedRoundActive && !isCompleted && !match.isStopped) ...[
-                          const SizedBox(width: 4),
-                          InkWell(
-                            onTap: () => _showStopMatchDialog(match),
-                            borderRadius: BorderRadius.circular(6),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: const Color(0xFFFECACA)),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.stop_circle_outlined, size: 11, color: Color(0xFFDC2626)),
-                                  SizedBox(width: 3),
-                                  Text(
-                                    'Hentikan',
-                                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFFDC2626)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-
                       ],
-
                     ),
 
                   ],
@@ -5675,28 +5478,68 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                   )
                 else
                   const SizedBox.shrink(),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: _isRealtimeConnected ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
-                        shape: BoxShape.circle,
+                if (pendingCount > 0)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 8,
+                        height: 8,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: Color(0xFFB45309),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'Sinkron realtime: 0.4s',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF94A3B8),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Menyimpan ($pendingCount)...',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFB45309),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  )
+                else if (saveStatus == 'error')
+                  const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.error_outline_rounded, size: 10, color: Color(0xFFDC2626)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Gagal simpan',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFDC2626),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: _isRealtimeConnected ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'Sinkron realtime: 0.4s',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
