@@ -156,5 +156,92 @@ void main() {
       expect(find.text('Court 1 (2 - 1)'), findsOneWidget);
       expect(find.text('Court 2 (3 - 0)'), findsOneWidget);
     });
+
+    testWidgets('Only courts with complete active rosters appear in scoring', (tester) async {
+      final players = [
+        const GamePlayerItem(id: '1', name: 'Resting Player', status: 'resting'),
+        const GamePlayerItem(id: '2', name: 'Player 2'),
+        const GamePlayerItem(id: '3', name: 'Player 3'),
+      ];
+      final config = GameWizardConfig(
+        gameType: 'Americano',
+        playMode: 'Single',
+        players: players,
+      );
+      final round = DrawingRound(
+        roundNumber: 1,
+        matches: [
+          DrawingMatch(
+            courtNumber: 1,
+            teamA: [players[0]],
+            teamB: [players[1]],
+            status: 'In Progress',
+          ),
+          DrawingMatch(
+            courtNumber: 2,
+            teamA: [players[1]],
+            teamB: [players[2]],
+            status: 'In Progress',
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        home: MatchScoringPage(
+          config: config,
+          rounds: [round],
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Court 2'), findsWidgets);
+      expect(find.textContaining('Court 1'), findsNothing);
+      expect(find.textContaining('Pilih Lapangan (1 Court):'), findsNothing);
+    });
+
+    testWidgets('Previously inactive court returns when its roster is complete', (tester) async {
+      final players = [
+        const GamePlayerItem(id: '1', name: 'Player 1'),
+        const GamePlayerItem(id: '2', name: 'Player 2'),
+        const GamePlayerItem(id: '3', name: 'Player 3'),
+        const GamePlayerItem(id: '4', name: 'Player 4'),
+      ];
+      final config = GameWizardConfig(
+        gameType: 'Americano',
+        playMode: 'Single',
+        players: players,
+      );
+      final round = DrawingRound(
+        roundNumber: 1,
+        matches: [
+          DrawingMatch(
+            courtNumber: 1,
+            teamA: [players[0]],
+            teamB: [players[1]],
+            status: 'In Progress',
+          ),
+          DrawingMatch(
+            courtNumber: 2,
+            teamA: [players[2]],
+            teamB: [players[3]],
+            status: 'In Progress',
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        home: MatchScoringPage(
+          config: config,
+          rounds: [round],
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Pilih Lapangan (2 Court):'), findsOneWidget);
+      expect(find.text('Court 1 (0 - 0)'), findsOneWidget);
+      expect(find.text('Court 2 (0 - 0)'), findsOneWidget);
+    });
   });
 }
