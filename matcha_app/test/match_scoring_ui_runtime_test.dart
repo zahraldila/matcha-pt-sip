@@ -6,25 +6,33 @@ import 'package:matcha_app/features/match/presentation/match_scoring_page.dart';
 
 void main() {
   group('MatchScoringPage UI Runtime Tests', () {
-    testWidgets('1. Displays CURRENT POINT (TENNIS) and initial 0-0 points', (tester) async {
+    testWidgets('1. Displays CURRENT POINT (TENNIS) and initial 0-0 points', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: MatchScoringPage(isHost: true),
-        ),
+        const MaterialApp(home: MatchScoringPage(isHost: true)),
       );
       await tester.pumpAndSettle();
 
       // Verify header and tennis point labels
       expect(find.text('Live Match Scoring'), findsOneWidget);
-      expect(find.text('CURRENT POINT (TENNIS)'), findsNWidgets(2)); // Team A and Team B
+      expect(
+        find.text('CURRENT POINT (TENNIS)'),
+        findsNWidgets(2),
+      ); // Team A and Team B
       expect(find.text('0'), findsNWidgets(2)); // Initial points 0 and 0
-      expect(find.text('Games Won: 0 Game'), findsNWidgets(2)); // Initial games won
+      expect(
+        find.text('Games Won: 0 Game'),
+        findsNWidgets(2),
+      ); // Initial games won
       expect(find.text('Round score'), findsOneWidget);
       expect(find.text('0 – 0'), findsOneWidget);
       expect(find.text('Skor game'), findsOneWidget);
     });
 
-    testWidgets('2. Host wins one game: Point 0-0, Games Won 1-0', (tester) async {
+    testWidgets('2. Host wins one game: Point 0-0, Games Won 1-0', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -41,18 +49,10 @@ void main() {
         scoreB: 0,
       );
 
-      final round = DrawingRound(
-        roundNumber: 1,
-        matches: [match],
-      );
+      final round = DrawingRound(roundNumber: 1, matches: [match]);
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: MatchScoringPage(
-            rounds: [round],
-            isHost: true,
-          ),
-        ),
+        MaterialApp(home: MatchScoringPage(rounds: [round], isHost: true)),
       );
       await tester.pumpAndSettle();
 
@@ -72,7 +72,9 @@ void main() {
       expect(find.text('1 – 0'), findsOneWidget);
     });
 
-    testWidgets('3. Deuce and Advantage banners displayed correctly on UI', (tester) async {
+    testWidgets('3. Deuce and Advantage banners displayed correctly on UI', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -91,7 +93,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: MatchScoringPage(
-            rounds: [DrawingRound(roundNumber: 1, matches: [deuceMatch])],
+            rounds: [
+              DrawingRound(roundNumber: 1, matches: [deuceMatch]),
+            ],
             isHost: true,
           ),
         ),
@@ -109,22 +113,25 @@ void main() {
       expect(find.text('ADV'), findsOneWidget);
     });
 
-    testWidgets('4. Spectator mode (isHost: false) disables scoring and shows Read-Only', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: MatchScoringPage(isHost: false),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      '4. Spectator mode (isHost: false) disables scoring and shows Read-Only',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(home: MatchScoringPage(isHost: false)),
+        );
+        await tester.pumpAndSettle();
 
-      // Verify Read-Only indicators
-      expect(find.text('Mode Penonton (Read-Only)'), findsNWidgets(2));
-      expect(find.text('+ Tambah Poin Team A'), findsNothing);
-      expect(find.text('+ Tambah Poin Team B'), findsNothing);
-      expect(find.text('Deklarasi Walkover (WO)'), findsNothing);
-    });
+        // Verify Read-Only indicators
+        expect(find.text('Mode Penonton (Read-Only)'), findsNWidgets(2));
+        expect(find.text('+ Tambah Poin Team A'), findsNothing);
+        expect(find.text('+ Tambah Poin Team B'), findsNothing);
+        expect(find.text('Deklarasi Walkover (WO)'), findsNothing);
+      },
+    );
 
-    testWidgets('5. Court Selector tabs appear when multiple courts exist', (tester) async {
+    testWidgets('5. Court Selector tabs appear when multiple courts exist', (
+      tester,
+    ) async {
       final match1 = DrawingMatch(
         courtNumber: 1,
         teamA: const [GamePlayerItem(id: '1', name: 'Player 1')],
@@ -143,12 +150,7 @@ void main() {
       final round = DrawingRound(roundNumber: 1, matches: [match1, match2]);
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: MatchScoringPage(
-            rounds: [round],
-            isHost: true,
-          ),
-        ),
+        MaterialApp(home: MatchScoringPage(rounds: [round], isHost: true)),
       );
       await tester.pumpAndSettle();
 
@@ -157,9 +159,15 @@ void main() {
       expect(find.text('Court 2 (3 - 0)'), findsOneWidget);
     });
 
-    testWidgets('Only courts with complete active rosters appear in scoring', (tester) async {
+    testWidgets('Only courts with complete active rosters appear in scoring', (
+      tester,
+    ) async {
       final players = [
-        const GamePlayerItem(id: '1', name: 'Resting Player', status: 'resting'),
+        const GamePlayerItem(
+          id: '1',
+          name: 'Resting Player',
+          status: 'resting',
+        ),
         const GamePlayerItem(id: '2', name: 'Player 2'),
         const GamePlayerItem(id: '3', name: 'Player 3'),
       ];
@@ -186,13 +194,11 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: MatchScoringPage(
-          config: config,
-          rounds: [round],
-          isHost: true,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MatchScoringPage(config: config, rounds: [round], isHost: true),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Court 2'), findsWidgets);
@@ -200,102 +206,186 @@ void main() {
       expect(find.textContaining('Pilih Lapangan (1 Court):'), findsNothing);
     });
 
-    testWidgets('Previously inactive court returns when its roster is complete', (tester) async {
-      final players = [
-        const GamePlayerItem(id: '1', name: 'Player 1'),
-        const GamePlayerItem(id: '2', name: 'Player 2'),
-        const GamePlayerItem(id: '3', name: 'Player 3'),
-        const GamePlayerItem(id: '4', name: 'Player 4'),
-      ];
-      final config = GameWizardConfig(
-        gameType: 'Americano',
-        playMode: 'Single',
-        players: players,
-      );
-      final round = DrawingRound(
-        roundNumber: 1,
-        matches: [
-          DrawingMatch(
-            courtNumber: 1,
-            teamA: [players[0]],
-            teamB: [players[1]],
-            status: 'In Progress',
-          ),
-          DrawingMatch(
-            courtNumber: 2,
-            teamA: [players[2]],
-            teamB: [players[3]],
-            status: 'In Progress',
-          ),
-        ],
-      );
-
-      await tester.pumpWidget(MaterialApp(
-        home: MatchScoringPage(
-          config: config,
-          rounds: [round],
-          isHost: true,
-        ),
-      ));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Pilih Lapangan (2 Court):'), findsOneWidget);
-      expect(find.text('Court 1 (0 - 0)'), findsOneWidget);
-      expect(find.text('Court 2 (0 - 0)'), findsOneWidget);
-    });
-
-    testWidgets('Scoring starts at the first unfinished round despite a stale initial index', (tester) async {
-      final player1 = const GamePlayerItem(id: '1', name: 'Player 1');
-      final player2 = const GamePlayerItem(id: '2', name: 'Player 2');
-      final player3 = const GamePlayerItem(id: '3', name: 'Player 3');
-      final player4 = const GamePlayerItem(id: '4', name: 'Player 4');
-      final rounds = [
-        DrawingRound(
+    testWidgets(
+      'Previously inactive court returns when its roster is complete',
+      (tester) async {
+        final players = [
+          const GamePlayerItem(id: '1', name: 'Player 1'),
+          const GamePlayerItem(id: '2', name: 'Player 2'),
+          const GamePlayerItem(id: '3', name: 'Player 3'),
+          const GamePlayerItem(id: '4', name: 'Player 4'),
+        ];
+        final config = GameWizardConfig(
+          gameType: 'Americano',
+          playMode: 'Single',
+          players: players,
+        );
+        final round = DrawingRound(
           roundNumber: 1,
           matches: [
             DrawingMatch(
               courtNumber: 1,
-              teamA: [player1],
-              teamB: [player2],
-              status: 'Stopped',
+              teamA: [players[0]],
+              teamB: [players[1]],
+              status: 'In Progress',
             ),
-          ],
-        ),
-        DrawingRound(
-          roundNumber: 2,
-          matches: [
             DrawingMatch(
-              courtNumber: 1,
-              teamA: [player2],
-              teamB: [player3],
-              status: 'Stopped',
-            ),
-          ],
-        ),
-        DrawingRound(
-          roundNumber: 3,
-          matches: [
-            DrawingMatch(
-              courtNumber: 1,
-              teamA: [player3],
-              teamB: [player4],
+              courtNumber: 2,
+              teamA: [players[2]],
+              teamB: [players[3]],
               status: 'In Progress',
             ),
           ],
-        ),
-      ];
+        );
 
-      await tester.pumpWidget(MaterialApp(
-        home: MatchScoringPage(
-          rounds: rounds,
-          initialRoundIndex: 2,
-          isHost: true,
-        ),
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MatchScoringPage(
+              config: config,
+              rounds: [round],
+              isHost: true,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Player 1'), findsWidgets);
-      expect(find.text('Player 3'), findsNothing);
-    });
+        expect(
+          find.textContaining('Pilih Lapangan (2 Court):'),
+          findsOneWidget,
+        );
+        expect(find.text('Court 1 (0 - 0)'), findsOneWidget);
+        expect(find.text('Court 2 (0 - 0)'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Scoring starts at the first unfinished round despite a stale initial index',
+      (tester) async {
+        final player1 = const GamePlayerItem(id: '1', name: 'Player 1');
+        final player2 = const GamePlayerItem(id: '2', name: 'Player 2');
+        final player3 = const GamePlayerItem(id: '3', name: 'Player 3');
+        final player4 = const GamePlayerItem(id: '4', name: 'Player 4');
+        final rounds = [
+          DrawingRound(
+            roundNumber: 1,
+            matches: [
+              DrawingMatch(
+                courtNumber: 1,
+                teamA: [player1],
+                teamB: [player2],
+                status: 'Stopped',
+              ),
+            ],
+          ),
+          DrawingRound(
+            roundNumber: 2,
+            matches: [
+              DrawingMatch(
+                courtNumber: 1,
+                teamA: [player2],
+                teamB: [player3],
+                status: 'Stopped',
+              ),
+            ],
+          ),
+          DrawingRound(
+            roundNumber: 3,
+            matches: [
+              DrawingMatch(
+                courtNumber: 1,
+                teamA: [player3],
+                teamB: [player4],
+                status: 'In Progress',
+              ),
+            ],
+          ),
+        ];
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MatchScoringPage(
+              rounds: rounds,
+              initialRoundIndex: 2,
+              isHost: true,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Player 1'), findsWidgets);
+        expect(find.text('Player 3'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Scoring hides courts without valid session players and resolves roster names/status',
+      (tester) async {
+        final players = [
+          const GamePlayerItem(id: '1', playerId: 1, name: 'Player One'),
+          const GamePlayerItem(id: '2', playerId: 2, name: 'Player Two'),
+          const GamePlayerItem(id: '3', playerId: 3, name: 'Player Three'),
+          const GamePlayerItem(id: '4', playerId: 4, name: 'Player Four'),
+        ];
+        final config = GameWizardConfig(
+          gameType: 'Americano',
+          playMode: 'Single',
+          players: players,
+        );
+        final round = DrawingRound(
+          roundNumber: 1,
+          matches: [
+            DrawingMatch(
+              courtNumber: 1,
+              teamA: const [
+                GamePlayerItem(id: '9', playerId: 9, name: 'Unknown One'),
+              ],
+              teamB: const [
+                GamePlayerItem(id: '10', playerId: 10, name: 'Unknown Two'),
+              ],
+              status: 'In Progress',
+            ),
+            DrawingMatch(
+              courtNumber: 2,
+              teamA: const [GamePlayerItem(id: '1', playerId: 1, name: '')],
+              teamB: const [GamePlayerItem(id: '2', playerId: 2, name: '')],
+              status: 'In Progress',
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MatchScoringPage(
+              config: config,
+              rounds: [round],
+              allowFallbackRounds: false,
+              isHost: true,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Court 2'), findsWidgets);
+        expect(find.text('Court 1'), findsNothing);
+        expect(find.text('Player One'), findsWidgets);
+        expect(find.text('Player Two'), findsWidgets);
+        expect(find.text('Unknown One'), findsNothing);
+        expect(find.text('Unknown Two'), findsNothing);
+
+        await tester.drag(find.byType(ListView).first, const Offset(0, -1600));
+        await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
+
+        expect(find.text('Player Three'), findsWidgets);
+        expect(find.text('Player Four'), findsWidgets);
+        expect(find.text('Main • Court 2'), findsNWidgets(2));
+
+        await tester.tap(find.byTooltip('Kelola Kesiapan Pemain'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Sedang Main (Court 2)'), findsNWidgets(2));
+        expect(find.text('Active (Siap)'), findsNWidgets(2));
+      },
+    );
   });
 }

@@ -479,6 +479,7 @@ class MatchService {
         }
       }
 
+      final sessionPlayers = await getSessionPlayers(parsedSessionId);
       final List<Map<String, dynamic>> detailedMatches = [];
 
       for (final match in matches) {
@@ -524,18 +525,26 @@ class MatchService {
           if (parsedPId == null) continue;
 
           final pData = playerMap[parsedPId];
-          final pName = (pData?['nama'] ?? pData?['nama_player'])?.toString().trim();
-          if (pName == null || pName.isEmpty) continue;
+          final sessionPlayer = sessionPlayers
+              .where((player) => player.playerId == parsedPId)
+              .firstOrNull;
+          final pName = (sessionPlayer?.name ??
+                  pData?['nama'] ??
+                  pData?['nama_player'] ??
+                  'Pemain $parsedPId')
+              .toString()
+              .trim();
 
           final playerItem = {
             'id': parsedPId.toString(),
             'playerId': parsedPId,
-            'userId': pData?['user_id'] is int
+            'userId': sessionPlayer?.userId ??
+                (pData?['user_id'] is int
                 ? pData!['user_id'] as int
-                : int.tryParse(pData?['user_id']?.toString() ?? ''),
+                : int.tryParse(pData?['user_id']?.toString() ?? '')),
             'name': pName,
-            'avatarUrl': pData?['foto']?.toString(),
-            'level': pData?['level']?.toString() ?? 'Beginner',
+            'avatarUrl': sessionPlayer?.avatarUrl ?? pData?['foto']?.toString(),
+            'level': sessionPlayer?.level ?? pData?['level']?.toString() ?? 'Beginner',
           };
 
           final sideVal = (p['side'] ?? '').toString().trim().toUpperCase();
