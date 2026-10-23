@@ -284,12 +284,23 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
   bool get _isCurrentViewedRoundActive => _viewedRoundIndex == _sessionActiveRoundIndex;
 
+  bool _isMatchPlayable(DrawingMatch m) {
+    if (m.isStopped) return false;
+    final isSingle = _config.playMode.toLowerCase() == 'single';
+    final minPerTeam = isSingle ? 1 : 2;
+    return m.teamA.length >= minPerTeam && m.teamB.length >= minPerTeam;
+  }
+
   bool get _isAllRoundsFinished {
     if (_isSessionFinished) return true;
     if (_rounds.isEmpty) return false;
     return _rounds.every(
-      (r) => r.matches.isNotEmpty &&
-          r.matches.every((m) => m.status == 'Completed' || m.status == 'Stopped'),
+      (r) {
+        final playable = r.matches.where(_isMatchPlayable).toList();
+        final list = playable.isNotEmpty ? playable : r.matches;
+        return list.isNotEmpty &&
+            list.every((m) => m.status == 'Completed' || m.status == 'Stopped');
+      },
     );
   }
 
@@ -297,7 +308,8 @@ class MatchScoringPageState extends State<MatchScoringPage> {
     if (rounds.isEmpty) return 0;
 
     for (int i = 0; i < rounds.length; i++) {
-      final matches = rounds[i].matches;
+      final playable = rounds[i].matches.where(_isMatchPlayable).toList();
+      final matches = playable.isNotEmpty ? playable : rounds[i].matches;
       final isFinished = matches.isNotEmpty &&
           matches.every((m) => m.status == 'Completed' || m.status == 'Stopped');
 
@@ -434,11 +446,11 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
     final resolved = _resolveActiveRoundIndex(_rounds);
-    _sessionActiveRoundIndex = widget.initialRoundIndex != null
-        ? widget.initialRoundIndex!.clamp(0, _rounds.isEmpty ? 0 : _rounds.length - 1)
-        : resolved;
-
-    _viewedRoundIndex = _sessionActiveRoundIndex;
+    _sessionActiveRoundIndex = resolved;
+    _viewedRoundIndex = (widget.initialRoundIndex != null &&
+            widget.initialRoundIndex! <= _sessionActiveRoundIndex)
+        ? widget.initialRoundIndex!
+        : _sessionActiveRoundIndex;
 
 
 
@@ -844,10 +856,11 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           }
 
           final resolved = _resolveActiveRoundIndex(_rounds);
-          _sessionActiveRoundIndex = widget.initialRoundIndex != null
-              ? widget.initialRoundIndex!.clamp(0, _rounds.length - 1)
-              : resolved;
-          _viewedRoundIndex = _sessionActiveRoundIndex;
+          _sessionActiveRoundIndex = resolved;
+          _viewedRoundIndex = (widget.initialRoundIndex != null &&
+                  widget.initialRoundIndex! <= _sessionActiveRoundIndex)
+              ? widget.initialRoundIndex!
+              : _sessionActiveRoundIndex;
 
         }
 
@@ -880,10 +893,11 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           }
 
           final resolved = _resolveActiveRoundIndex(_rounds);
-          _sessionActiveRoundIndex = widget.initialRoundIndex != null
-              ? widget.initialRoundIndex!.clamp(0, _rounds.length - 1)
-              : resolved;
-          _viewedRoundIndex = _sessionActiveRoundIndex;
+          _sessionActiveRoundIndex = resolved;
+          _viewedRoundIndex = (widget.initialRoundIndex != null &&
+                  widget.initialRoundIndex! <= _sessionActiveRoundIndex)
+              ? widget.initialRoundIndex!
+              : _sessionActiveRoundIndex;
         } else if (isRealBackendSession && widget.rounds == null) {
           _rounds = [];
         }
@@ -2949,8 +2963,22 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                         DrawingMatch? activeMatchForPlayer;
                         if (_rounds.isNotEmpty) {
                           final activeRound = _rounds[_sessionActiveRoundIndex.clamp(0, _rounds.length - 1)];
+                          final pInt = MatchService.resolvePlayerId(p, allPlayers) ?? p.playerId ?? int.tryParse(p.id);
+                          final pNameClean = p.name.trim().toLowerCase();
+
                           for (final m in activeRound.matches) {
-                            if (!m.isTerminal && (m.teamA.any((x) => x.id == p.id) || m.teamB.any((x) => x.id == p.id))) {
+                            // Hanya match yang playable (tidak stopped dan memenuhi kuota pemain) yang dihitung sebagai match aktif
+                            if (!_isMatchPlayable(m)) continue;
+                            if (m.isTerminal) continue;
+
+                            final isPlayerInMatch = [...m.teamA, ...m.teamB].any((x) {
+                              final xInt = MatchService.resolvePlayerId(x, allPlayers) ?? x.playerId ?? int.tryParse(x.id);
+                              if (pInt != null && xInt != null) return pInt == xInt;
+                              if (pNameClean.isNotEmpty && x.name.trim().toLowerCase() == pNameClean) return true;
+                              return x.id.isNotEmpty && x.id == p.id;
+                            });
+
+                            if (isPlayerInMatch) {
                               activeMatchForPlayer = m;
                               break;
                             }
@@ -2978,6 +3006,8 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                           badgeText = 'Active (Siap)';
                         }
 
+                        final displayName = p.displayName;
+
                         return Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -2994,7 +3024,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                     radius: 16,
                                     backgroundColor: AppColors.matchaDark,
                                     child: Text(
-                                      p.name.isNotEmpty ? p.name[0].toUpperCase() : 'P',
+                                      displayName.isNotEmpty ? displayName[0].toUpperCase() : 'P',
                                       style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                                     ),
                                   ),
@@ -3003,7 +3033,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A))),
+                                        Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A))),
                                         Text('${p.level} • ${p.gender}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                                       ],
                                     ),
@@ -3503,6 +3533,16 @@ class MatchScoringPageState extends State<MatchScoringPage> {
     final currentRound =
         _rounds[_viewedRoundIndex.clamp(0, _rounds.length - 1)];
 
+    final playableMatches = currentRound.matches
+        .where(_isMatchPlayable)
+        .toList();
+    final effectiveMatches = playableMatches.isNotEmpty
+        ? playableMatches
+        : currentRound.matches.where((m) => !m.isStopped).toList();
+    final finalMatches = effectiveMatches.isNotEmpty
+        ? effectiveMatches
+        : currentRound.matches;
+
     final totalPendingScoreCount = _pendingEventsByMatch.values.fold<int>(0, (sum, list) => sum + list.length);
     final hasGlobalSaveError = _matchSaveStatus.values.any((status) => status == 'error');
 
@@ -3988,139 +4028,73 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
 
-          // Court Tabs (jika ronde memiliki lebih dari 1 court)
-
-          if (currentRound.matches.length > 1) ...[
-
+          // Court Tabs (hanya tampilkan court yang memiliki pemain dan tidak stopped)
+          if (finalMatches.length > 1 || (currentRound.matches.length > 1 && finalMatches.isNotEmpty)) ...[
             Row(
-
               children: [
-
                 const Icon(Icons.sports_tennis_rounded, size: 14, color: AppColors.matchaDark),
-
                 const SizedBox(width: 6),
-
                 Text(
-
-                  'Pilih Lapangan (${currentRound.matches.length} Court):',
-
+                  'Pilih Lapangan (${finalMatches.length} Court):',
                   style: AppTextStyles.caption.copyWith(
-
                     fontWeight: FontWeight.bold,
-
                     color: const Color(0xFF334155),
-
                   ),
-
                 ),
-
               ],
-
             ),
-
             const SizedBox(height: 6),
-
             SingleChildScrollView(
-
               scrollDirection: Axis.horizontal,
-
               child: Row(
-
-                children: List.generate(currentRound.matches.length, (cIdx) {
-
-                  final isCourtSelected = _selectedCourtIndex == cIdx;
-
-                  final cm = currentRound.matches[cIdx];
-
+                children: List.generate(finalMatches.length, (cIdx) {
+                  final isCourtSelected = (_selectedCourtIndex.clamp(0, finalMatches.length - 1)) == cIdx;
+                  final cm = finalMatches[cIdx];
                   final isCourtDone = cm.status == 'Completed';
-
                   return Container(
-
                     margin: const EdgeInsets.only(right: 8),
-
                     child: ChoiceChip(
-
                       label: Text(
-
                         isCourtDone
-
                             ? 'Court ${cm.courtNumber} ✓ (${cm.scoreA} - ${cm.scoreB})'
-
                             : 'Court ${cm.courtNumber} (${cm.scoreA} - ${cm.scoreB})',
-
                       ),
-
                       selected: isCourtSelected,
-
                       selectedColor: const Color(0xFF063B00),
-
                       backgroundColor: Colors.white,
-
                       labelStyle: TextStyle(
-
                         fontSize: 11,
-
                         fontWeight: FontWeight.bold,
-
                         color: isCourtSelected ? Colors.white : const Color(0xFF475569),
-
                       ),
-
                       shape: RoundedRectangleBorder(
-
                         borderRadius: BorderRadius.circular(10),
-
                         side: BorderSide(
-
                           color: isCourtSelected
-
                               ? const Color(0xFF063B00)
-
                               : const Color(0xFFE2E8F0),
-
                         ),
-
                       ),
-
                       onSelected: (val) {
-
                         if (val) setState(() => _selectedCourtIndex = cIdx);
-
                       },
-
                     ),
-
                   );
-
                 }),
-
               ),
-
             ),
-
             const SizedBox(height: 14),
-
           ],
 
-
-
           // Matches in this round
-
-          if (currentRound.matches.length > 1)
-
+          if (finalMatches.length > 1 || (currentRound.matches.length > 1 && finalMatches.isNotEmpty))
             _buildScoreboardCard(
-
-              currentRound.matches[
-
-                _selectedCourtIndex.clamp(0, currentRound.matches.length - 1)
-
+              finalMatches[
+                _selectedCourtIndex.clamp(0, finalMatches.length - 1)
               ],
-
             )
-
           else
-
-            ...currentRound.matches.map((m) => _buildScoreboardCard(m)),
+            ...finalMatches.map((m) => _buildScoreboardCard(m)),
 
 
 
@@ -5621,8 +5595,13 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
   /// Card Status Pertandingan Ronde (Selalu tampil di bawah scoreboard, identik dengan Web)
   Widget _buildRoundStatusCard(DrawingRound currentRound) {
-    final uncompletedMatches = currentRound.matches.where((m) => !m.isTerminal).toList();
-    final isAllCompleted = currentRound.matches.isNotEmpty && uncompletedMatches.isEmpty;
+    final playableMatches = currentRound.matches.where(_isMatchPlayable).toList();
+    final matchesToCheck = playableMatches.isNotEmpty
+        ? playableMatches
+        : currentRound.matches.where((m) => !m.isStopped).toList();
+    final finalMatchesToCheck = matchesToCheck.isNotEmpty ? matchesToCheck : currentRound.matches;
+    final uncompletedMatches = finalMatchesToCheck.where((m) => !m.isTerminal).toList();
+    final isAllCompleted = finalMatchesToCheck.isNotEmpty && uncompletedMatches.isEmpty;
     final hasNextRound = _sessionActiveRoundIndex + 1 < _rounds.length;
 
     String descText;
@@ -5755,12 +5734,15 @@ class MatchScoringPageState extends State<MatchScoringPage> {
     final restingCount = allRoster.where((p) => p.isResting).length;
     final withdrawnCount = allRoster.where((p) => p.isWithdrawn).length;
 
-    // Pemain aktif bertanding pada ronde ini di seluruh court
+    // Pemain aktif bertanding pada ronde ini di seluruh court yang valid
     final roundActivePlayerCleanNames = <String>{};
     final roundActivePlayerIds = <int>{};
     for (final m in currentRound.matches) {
+      if (!_isMatchPlayable(m)) continue; // Court tanpa pemain/lawan atau stopped bukan pertandingan aktif
       for (final p in [...m.teamA, ...m.teamB]) {
-        roundActivePlayerCleanNames.add(p.name.trim().toLowerCase());
+        if (p.name.trim().isNotEmpty) {
+          roundActivePlayerCleanNames.add(p.name.trim().toLowerCase());
+        }
         final pInt = MatchService.resolvePlayerId(p, allRoster) ?? p.playerId ?? int.tryParse(p.id);
         if (pInt != null) roundActivePlayerIds.add(pInt);
       }
@@ -5959,7 +5941,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                     Container(width: 6, height: 6, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
                     const SizedBox(width: 5),
                     Text(
-                      p.name,
+                      p.displayName,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -6054,7 +6036,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        p.name,
+                        p.displayName,
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
                       ),
                       const SizedBox(width: 5),

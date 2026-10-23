@@ -29,6 +29,13 @@ class GamePlayerItem {
   bool get isResting => status.toLowerCase() == 'resting';
   bool get isWithdrawn => status.toLowerCase() == 'withdrawn';
 
+  String get displayName {
+    if (name.trim().isNotEmpty) return name.trim();
+    if (playerId != null) return 'Pemain $playerId';
+    if (id.trim().isNotEmpty && int.tryParse(id) != null) return 'Pemain $id';
+    return 'Pemain';
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -46,15 +53,26 @@ class GamePlayerItem {
   }
 
   factory GamePlayerItem.fromMap(Map<String, dynamic> map) {
+    final rawName = map['name']?.toString().trim();
+    final rawNama = map['nama']?.toString().trim();
+    final parsedPId = map['player_id'] is int
+        ? map['player_id'] as int
+        : int.tryParse(map['player_id']?.toString() ?? '');
+    final resolvedName = (rawName != null && rawName.isNotEmpty)
+        ? rawName
+        : ((rawNama != null && rawNama.isNotEmpty)
+            ? rawNama
+            : (parsedPId != null ? 'Pemain $parsedPId' : 'Player'));
+
     return GamePlayerItem(
       id: map['id']?.toString() ?? UniqueKey().toString(),
-      name: map['name'] ?? map['nama'] ?? 'Player',
+      name: resolvedName,
       gender: map['gender'] ?? 'Laki-laki',
       level: map['level'] ?? 'Beginner',
       isGuest: map['is_guest'] == true,
       avatarUrl: map['avatar_url'] ?? map['foto'],
       userId: map['user_id'] is int ? map['user_id'] : int.tryParse(map['user_id']?.toString() ?? ''),
-      playerId: map['player_id'] is int ? map['player_id'] : int.tryParse(map['player_id']?.toString() ?? ''),
+      playerId: parsedPId,
       status: map['status']?.toString() ?? 'active',
       withdrawnReason: map['withdrawn_reason']?.toString(),
       withdrawnAt: map['withdrawn_at'] != null ? DateTime.tryParse(map['withdrawn_at'].toString()) : null,

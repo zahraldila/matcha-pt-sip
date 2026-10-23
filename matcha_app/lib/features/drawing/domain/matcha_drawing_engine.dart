@@ -56,8 +56,8 @@ class DrawingMatch {
     return s == 'completed' || s == 'finished' || s == 'selesai' || isStopped;
   }
 
-  String get teamANames => teamA.map((p) => p.name).join(' & ');
-  String get teamBNames => teamB.map((p) => p.name).join(' & ');
+  String get teamANames => teamA.map((p) => p.displayName).join(' & ');
+  String get teamBNames => teamB.map((p) => p.displayName).join(' & ');
 
   Map<String, dynamic> toMap() {
     return {

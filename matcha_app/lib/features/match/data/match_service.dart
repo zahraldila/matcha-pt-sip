@@ -83,7 +83,7 @@ class MatchService {
               level,
               gender,
               foto,
-              tb_user (foto)
+              tb_user (foto, nama, username)
             )
           ''')
           .eq('session_id', parsedId);
@@ -96,7 +96,17 @@ class MatchService {
             : int.tryParse(row['player_id']?.toString() ?? '');
         if (pId == null) continue;
 
-        final name = rawPlayer?['nama']?.toString() ?? 'Pemain $pId';
+        final rawUser = rawPlayer?['tb_user'] as Map<String, dynamic>?;
+        final rawNama = rawPlayer?['nama']?.toString().trim();
+        final rawUserNama = rawUser?['nama']?.toString().trim();
+        final rawUsername = rawUser?['username']?.toString().trim();
+        final name = (rawNama != null && rawNama.isNotEmpty)
+            ? rawNama
+            : ((rawUserNama != null && rawUserNama.isNotEmpty)
+                ? rawUserNama
+                : ((rawUsername != null && rawUsername.isNotEmpty)
+                    ? rawUsername
+                    : 'Pemain $pId'));
         final gender = rawPlayer?['gender']?.toString() ?? 'Laki-laki';
         final level = rawPlayer?['level']?.toString() ?? 'Beginner';
         final status = (row['status'] ?? 'active').toString().toLowerCase();
@@ -105,7 +115,6 @@ class MatchService {
         if (row['withdrawn_at'] != null) {
           withdrawnAt = DateTime.tryParse(row['withdrawn_at'].toString());
         }
-        final rawUser = rawPlayer?['tb_user'] as Map<String, dynamic>?;
         final avatar = rawPlayer?['foto']?.toString() ?? rawUser?['foto']?.toString();
         final rawUserId = rawPlayer?['user_id'];
         final uId = rawUserId is int
@@ -464,7 +473,7 @@ class MatchService {
         try {
           final pList = await _supabase
               .from('tb_player')
-              .select('player_id, user_id, nama, foto, level')
+              .select('player_id, user_id, nama, foto, level, tb_user (foto, nama, username)')
               .inFilter('player_id', participantPlayerIds);
           for (final pData in pList) {
             final pid = pData['player_id'];
@@ -524,8 +533,17 @@ class MatchService {
           if (parsedPId == null) continue;
 
           final pData = playerMap[parsedPId];
-          final pName = (pData?['nama'] ?? pData?['nama_player'])?.toString().trim();
-          if (pName == null || pName.isEmpty) continue;
+          final rawUser = pData?['tb_user'] as Map<String, dynamic>?;
+          final rawNama = (pData?['nama'] ?? pData?['nama_player'])?.toString().trim();
+          final rawUserNama = rawUser?['nama']?.toString().trim();
+          final rawUsername = rawUser?['username']?.toString().trim();
+          final pName = (rawNama != null && rawNama.isNotEmpty)
+              ? rawNama
+              : ((rawUserNama != null && rawUserNama.isNotEmpty)
+                  ? rawUserNama
+                  : ((rawUsername != null && rawUsername.isNotEmpty)
+                      ? rawUsername
+                      : 'Pemain $parsedPId'));
 
           final playerItem = {
             'id': parsedPId.toString(),
@@ -1307,7 +1325,11 @@ class MatchService {
 
       await _supabase
           .from('tb_match')
-          .update({'status_match': 'Scheduled'})
+          .update({
+            'status_match': 'Scheduled',
+            'stop_type': null,
+            'stop_reason': null,
+          })
           .eq('match_id', matchId);
     } catch (e) {
       debugPrint('[MatchService] setMatchParticipants error: $e');
@@ -1903,9 +1925,11 @@ class MatchService {
             (round.roundNumber - 1) * effectiveCourtCount +
             match.courtNumber;
 
-        final initialStatus = round.roundNumber == 1
-            ? (matchStatus.isNotEmpty ? matchStatus : 'In Progress')
-            : 'Scheduled';
+        final initialStatus = match.status == 'Stopped'
+            ? 'Stopped'
+            : (round.roundNumber == 1
+                ? (matchStatus.isNotEmpty ? matchStatus : 'In Progress')
+                : 'Scheduled');
 
         final matchInsert = await _supabase
             .from('tb_match')
@@ -1914,6 +1938,8 @@ class MatchService {
               'court_id': courtId,
               'nomor_match': nomorMatch,
               'status_match': initialStatus,
+              if (match.stopType != null) 'stop_type': match.stopType,
+              if (match.stopReason != null) 'stop_reason': match.stopReason,
               'created_at': DateTime.now().toIso8601String(),
             })
             .select('match_id')
@@ -2114,18 +2140,26 @@ class MatchService {
         try {
           final pList = await _supabase
               .from('tb_player')
-              .select('player_id, user_id, nama, foto, level')
+              .select('player_id, user_id, nama, foto, level, tb_user (foto, nama, username)')
               .inFilter('player_id', missingPlayerIds);
           for (final pData in pList) {
             final pid = pData['player_id'] as int?;
             if (pid != null) {
               playerDetailsMap[pid] = pData;
               final spInfo = spMap[pid];
+              final rawUser = pData['tb_user'] as Map<String, dynamic>?;
+              final rawNama = (pData['nama'] ?? pData['nama_player'])?.toString().trim();
+              final rawUserNama = rawUser?['nama']?.toString().trim() ?? rawUser?['username']?.toString().trim();
+              final pName = (rawNama != null && rawNama.isNotEmpty)
+                  ? rawNama
+                  : ((rawUserNama != null && rawUserNama.isNotEmpty)
+                      ? rawUserNama
+                      : 'Pemain $pid');
               allPlayers.add(GamePlayerItem(
                 id: pid.toString(),
                 playerId: pid,
                 userId: pData['user_id'] as int?,
-                name: (pData['nama'] ?? pData['nama_player'])?.toString() ?? 'Pemain',
+                name: pName,
                 avatarUrl: pData['foto']?.toString(),
                 level: pData['level']?.toString() ?? 'Beginner',
                 status: spInfo?['status']?.toString() ?? 'active',
@@ -2183,7 +2217,17 @@ class MatchService {
           final existingPlayer = allPlayers.where((ap) => ap.playerId == parsedPId || ap.id == pId.toString()).firstOrNull;
           final pData = parsedPId != null ? playerDetailsMap[parsedPId] : null;
 
-          final pName = existingPlayer?.name ?? (pData?['nama'] ?? pData?['nama_player'])?.toString() ?? 'Pemain';
+          final rawExistingName = existingPlayer?.name.trim();
+          final rawPName = (pData?['nama'] ?? pData?['nama_player'])?.toString().trim();
+          final rawUser = pData?['tb_user'] as Map<String, dynamic>?;
+          final rawUserNama = rawUser?['nama']?.toString().trim() ?? rawUser?['username']?.toString().trim();
+          final pName = (rawExistingName != null && rawExistingName.isNotEmpty)
+              ? rawExistingName
+              : ((rawPName != null && rawPName.isNotEmpty)
+                  ? rawPName
+                  : ((rawUserNama != null && rawUserNama.isNotEmpty)
+                      ? rawUserNama
+                      : 'Pemain ${parsedPId ?? pId}'));
           final spInfo = parsedPId != null ? spMap[parsedPId] : null;
           final pStatus = existingPlayer?.status ?? spInfo?['status']?.toString() ?? 'active';
           final pReason = existingPlayer?.withdrawnReason ?? spInfo?['withdrawn_reason']?.toString();
@@ -2326,12 +2370,16 @@ class MatchService {
           .from('tb_match')
           .update({'status_match': 'In Progress'})
           .eq('drawing_id', drawingId)
+          .neq('status_match', 'Stopped')
+          .neq('status_match', 'Completed')
           .lte('nomor_match', effectiveCourtCount);
 
       await _supabase
           .from('tb_match')
           .update({'status_match': 'Scheduled'})
           .eq('drawing_id', drawingId)
+          .neq('status_match', 'Stopped')
+          .neq('status_match', 'Completed')
           .gt('nomor_match', effectiveCourtCount);
 
       final hasNullMatchId = rounds.any((r) => r.matches.any((m) => m.matchId == null || m.matchId! <= 0));

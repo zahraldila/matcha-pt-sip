@@ -1227,17 +1227,19 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         }
       }
     }
-    // Scan ronde tertinggi dari match yang sudah In Progress / Playing / Completed / ada skor
+    // Scan ronde tertinggi dari match yang benar-benar sudah In Progress / Playing / Completed / ada skor
     for (int i = 0; i < _rounds.length; i++) {
       final matches = _rounds[i].matches;
-      final hasStarted = matches.any((m) =>
-          m.status.toLowerCase() == 'in progress' ||
-          m.status.toLowerCase() == 'playing' ||
-          m.isTerminal ||
-          m.scoreA > 0 ||
-          m.scoreB > 0 ||
-          (m.pointDisplayA != '0' && m.pointDisplayA.isNotEmpty) ||
-          (m.pointDisplayB != '0' && m.pointDisplayB.isNotEmpty));
+      final hasStarted = matches.any((m) {
+        final s = m.status.toLowerCase().trim();
+        final isPlaying = s == 'in progress' || s == 'playing';
+        final isCompleted = s == 'completed' || s == 'finished' || s == 'selesai';
+        final hasScore = m.scoreA > 0 ||
+            m.scoreB > 0 ||
+            (m.pointDisplayA != '0' && m.pointDisplayA.isNotEmpty) ||
+            (m.pointDisplayB != '0' && m.pointDisplayB.isNotEmpty);
+        return isPlaying || isCompleted || hasScore;
+      });
       if (hasStarted && i > active) {
         active = i;
       }
@@ -1253,21 +1255,36 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     // 1. Jika sesi sudah berada di ronde setelah ronde index, maka ronde index pasti sudah selesai
     if (index < _effectiveSessionActiveRoundIndex) return true;
 
-    // 2. Jika ronde berikutnya sudah ada match yang dimulai (in progress / playing / ada skor)
+    // 2. Jika ronde berikutnya sudah ada match yang benar-benar dimulai (in progress / playing / completed / ada skor)
     if (index + 1 < _rounds.length) {
       final nextMatches = _rounds[index + 1].matches;
-      final nextStarted = nextMatches.any((m) =>
-          m.status.toLowerCase() == 'in progress' ||
-          m.status.toLowerCase() == 'playing' ||
-          m.isTerminal ||
-          m.scoreA > 0 ||
-          m.scoreB > 0 ||
-          (m.pointDisplayA != '0' && m.pointDisplayA.isNotEmpty) ||
-          (m.pointDisplayB != '0' && m.pointDisplayB.isNotEmpty));
+      final nextStarted = nextMatches.any((m) {
+        final s = m.status.toLowerCase().trim();
+        final isPlaying = s == 'in progress' || s == 'playing';
+        final isCompleted = s == 'completed' || s == 'finished' || s == 'selesai';
+        final hasScore = m.scoreA > 0 ||
+            m.scoreB > 0 ||
+            (m.pointDisplayA != '0' && m.pointDisplayA.isNotEmpty) ||
+            (m.pointDisplayB != '0' && m.pointDisplayB.isNotEmpty);
+        return isPlaying || isCompleted || hasScore;
+      });
       if (nextStarted) return true;
     }
 
-    // 3. Cek apakah seluruh match pada ronde ini sudah terminal
+    // 3. Cek apakah seluruh court yang dapat dimainkan (playable) pada ronde ini sudah selesai
+    final isSingle = _config.playMode.toLowerCase() == 'single';
+    final minPerTeam = isSingle ? 1 : 2;
+    final playable = r.matches
+        .where((m) => !m.isStopped && m.teamA.length >= minPerTeam && m.teamB.length >= minPerTeam)
+        .toList();
+    if (playable.isNotEmpty) {
+      return playable.every((m) {
+        final s = m.status.toLowerCase().trim();
+        return s == 'completed' || s == 'finished' || s == 'selesai';
+      });
+    }
+
+    // Jika tidak ada court yang dapat dimainkan sama sekali (seluruh court stopped)
     return r.matches.every((m) => m.isTerminal);
   }
 
@@ -1281,12 +1298,13 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
 
     // Jika ronde ini sudah ada match yang berjalan atau selesai
     final r = _rounds[index];
-    if (r.matches.any((m) =>
-        m.status.toLowerCase() == 'in progress' ||
-        m.status.toLowerCase() == 'playing' ||
-        m.isTerminal ||
-        m.scoreA > 0 ||
-        m.scoreB > 0)) {
+    if (r.matches.any((m) {
+      final s = m.status.toLowerCase().trim();
+      final isPlaying = s == 'in progress' || s == 'playing';
+      final isCompleted = s == 'completed' || s == 'finished' || s == 'selesai';
+      final hasScore = m.scoreA > 0 || m.scoreB > 0;
+      return isPlaying || isCompleted || hasScore;
+    })) {
       return true;
     }
 
@@ -1579,8 +1597,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     );
   }
   Widget _buildPlayerBadge(GamePlayerItem player) {
-    final initials = player.name.trim().isNotEmpty
-        ? player.name.trim().split(' ').map((s) => s.isNotEmpty ? s[0] : '').take(2).join().toUpperCase()
+    final displayName = player.displayName;
+    final initials = displayName.trim().isNotEmpty
+        ? displayName.trim().split(' ').map((s) => s.isNotEmpty ? s[0] : '').take(2).join().toUpperCase()
         : 'P';
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1604,7 +1623,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         SizedBox(
           width: 60,
           child: Text(
-            player.name,
+            displayName,
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
@@ -2651,7 +2670,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               if (inA != -1 || inB != -1) {
                 if (isInsufficient) {
                   // Pemain aktif tidak mencukupi untuk match court ini (misal 1 pemain Single)
-                  // Pindahkan match court menjadi kosong ("Belum ada pemain") dan pindahkan pemain lain ke bench
+                  // Pindahkan match court menjadi Stopped dan evakuasi pemain lain ke bench
                   for (final otherP in [...m.teamA, ...m.teamB]) {
                     if (otherP.id != p.id && (p.playerId == null || otherP.playerId != p.playerId)) {
                       if (!updatedResting.any((x) => x.id == otherP.id || (otherP.playerId != null && x.playerId == otherP.playerId))) {
@@ -2663,8 +2682,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                     courtNumber: m.courtNumber,
                     teamA: const [],
                     teamB: const [],
-                    status: 'Scheduled',
+                    status: 'Stopped',
                     matchId: m.matchId,
+                    stopType: 'withdraw_players',
+                    stopReason: reason.isEmpty ? 'Pemain tidak tersedia tanpa pengganti' : reason,
                   ));
                   if (m.matchId != null) {
                     await _matchService.cancelOrStopScheduledMatch(
@@ -2696,6 +2717,22 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   newTeamA[inA] = subPlayer;
                 } else if (inB != -1 && subPlayer != null) {
                   newTeamB[inB] = subPlayer;
+                }
+
+                if (subPlayer == null) {
+                  // Court kekurangan pemain dan tidak ada pengganti di bench:
+                  // Evakuasi seluruh pemain lain di court ini ke bangku cadangan (bench)
+                  for (final otherP in [...m.teamA, ...m.teamB]) {
+                    final isTarget = otherP.id == p.id || (p.playerId != null && otherP.playerId == p.playerId);
+                    if (!isTarget) {
+                      if (!updatedResting.any((x) => x.id == otherP.id || (otherP.playerId != null && x.playerId == otherP.playerId))) {
+                        updatedResting.add(otherP.copyWith(
+                          status: 'active',
+                          withdrawnReason: null,
+                        ));
+                      }
+                    }
+                  }
                 }
 
                 final newStatusMatch = (subPlayer != null) ? m.status : 'Stopped';
@@ -2772,15 +2809,30 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             }
           }
         } else if (action == 'reactivate') {
-          final activeEligible = _config.players.where((x) => !x.isResting && !x.isWithdrawn).toList();
-          final hadEmptyCourt = curR.matches.any((m) => m.teamA.isEmpty || m.teamB.isEmpty);
+          final restIdx = updatedResting.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
+          if (restIdx != -1) {
+            final oldP = updatedResting[restIdx];
+            updatedResting[restIdx] = oldP.copyWith(
+              status: 'active',
+              withdrawnReason: null,
+            );
+          }
 
-          if (hadEmptyCourt && activeEligible.length >= minReq) {
+          final benchEligible = updatedResting.where((x) => !x.isResting && !x.isWithdrawn).toList();
+          final hadEmptyCourt = curR.matches.any((m) => m.isStopped || m.teamA.isEmpty || m.teamB.isEmpty);
+
+          if (hadEmptyCourt && benchEligible.length >= minReq) {
             for (final m in curR.matches) {
-              if (m.teamA.isEmpty && m.teamB.isEmpty) {
-                if (isSingleMode && activeEligible.length >= 2) {
-                  final newTeamA = [activeEligible[0]];
-                  final newTeamB = [activeEligible[1]];
+              final isMatchEmptyOrStopped = m.isStopped || (m.teamA.isEmpty && m.teamB.isEmpty);
+              if (isMatchEmptyOrStopped) {
+                if (isSingleMode && benchEligible.length >= 2) {
+                  final newTeamA = [benchEligible[0]];
+                  final newTeamB = [benchEligible[1]];
+                  benchEligible.removeRange(0, 2);
+                  final removedIds = {newTeamA[0].id, newTeamB[0].id};
+                  final removedPIds = {newTeamA[0].playerId, newTeamB[0].playerId};
+                  updatedResting.removeWhere((item) => removedIds.contains(item.id) || (item.playerId != null && removedPIds.contains(item.playerId)));
+
                   updatedMatches.add(DrawingMatch(
                     courtNumber: m.courtNumber,
                     teamA: newTeamA,
@@ -2796,12 +2848,14 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                       allPlayers: _config.players,
                     );
                   }
-                  final removedIds = {activeEligible[0].id, activeEligible[1].id};
-                  final removedPIds = {activeEligible[0].playerId, activeEligible[1].playerId};
+                } else if (!isSingleMode && benchEligible.length >= 4) {
+                  final newTeamA = [benchEligible[0], benchEligible[1]];
+                  final newTeamB = [benchEligible[2], benchEligible[3]];
+                  benchEligible.removeRange(0, 4);
+                  final removedIds = {newTeamA[0].id, newTeamA[1].id, newTeamB[0].id, newTeamB[1].id};
+                  final removedPIds = {newTeamA[0].playerId, newTeamA[1].playerId, newTeamB[0].playerId, newTeamB[1].playerId};
                   updatedResting.removeWhere((item) => removedIds.contains(item.id) || (item.playerId != null && removedPIds.contains(item.playerId)));
-                } else if (!isSingleMode && activeEligible.length >= 4) {
-                  final newTeamA = [activeEligible[0], activeEligible[1]];
-                  final newTeamB = [activeEligible[2], activeEligible[3]];
+
                   updatedMatches.add(DrawingMatch(
                     courtNumber: m.courtNumber,
                     teamA: newTeamA,
@@ -2817,9 +2871,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                       allPlayers: _config.players,
                     );
                   }
-                  final removedIds = {activeEligible[0].id, activeEligible[1].id, activeEligible[2].id, activeEligible[3].id};
-                  final removedPIds = {activeEligible[0].playerId, activeEligible[1].playerId, activeEligible[2].playerId, activeEligible[3].playerId};
-                  updatedResting.removeWhere((item) => removedIds.contains(item.id) || (item.playerId != null && removedPIds.contains(item.playerId)));
                 } else {
                   updatedMatches.add(m);
                 }
@@ -2830,13 +2881,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           } else {
             for (final m in curR.matches) {
               updatedMatches.add(m);
-            }
-            final restIdx = updatedResting.indexWhere((item) => item.id == p.id || (p.playerId != null && item.playerId == p.playerId));
-            if (restIdx != -1) {
-              final oldP = updatedResting[restIdx];
-              updatedResting[restIdx] = oldP.copyWith(
-                status: 'active',
-              );
             }
           }
         }
@@ -2869,12 +2913,25 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                 } else if (inB != -1 && subPlayer != null) {
                   newTeamB[inB] = subPlayer;
                 }
+                if (subPlayer == null) {
+                  // Evakuasi seluruh pemain lain di court ini ke fResting
+                  for (final otherP in [...m.teamA, ...m.teamB]) {
+                    final isTarget = otherP.id == p.id || (p.playerId != null && otherP.playerId == p.playerId);
+                    if (!isTarget) {
+                      if (!fResting.any((x) => x.id == otherP.id || (otherP.playerId != null && x.playerId == otherP.playerId))) {
+                        fResting.add(otherP.copyWith(status: 'active', withdrawnReason: null));
+                      }
+                    }
+                  }
+                }
                 fMatches.add(DrawingMatch(
                   courtNumber: m.courtNumber,
                   teamA: subPlayer != null ? newTeamA : const [],
                   teamB: subPlayer != null ? newTeamB : const [],
                   status: subPlayer != null ? m.status : 'Stopped',
                   matchId: m.matchId,
+                  stopType: subPlayer == null ? 'withdraw_players' : m.stopType,
+                  stopReason: subPlayer == null ? (reason.isEmpty ? null : reason) : m.stopReason,
                 ));
                 if (action == 'pause') {
                   if (!fResting.any((x) => x.id == p.id || (p.playerId != null && x.playerId == p.playerId))) {
