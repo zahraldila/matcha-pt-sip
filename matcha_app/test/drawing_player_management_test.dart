@@ -24,6 +24,7 @@ class _MockAuthController extends AuthController {
 class _MockMatchService extends MatchService {
   final List<DrawingRound>? savedDrawing;
   final bool isLocked;
+  final int activeRound;
   String? lastAction;
   int? lastPlayerId;
   String? lastReason;
@@ -31,6 +32,7 @@ class _MockMatchService extends MatchService {
   _MockMatchService({
     this.savedDrawing,
     this.isLocked = false,
+    this.activeRound = 1,
   });
 
   @override
@@ -38,7 +40,7 @@ class _MockMatchService extends MatchService {
     return {
       'session_id': sessionId,
       'host_user_id': 1,
-      'active_round': 1,
+      'active_round': activeRound,
       'status_session': isLocked ? 'In Progress' : 'Scheduled',
     };
   }
@@ -405,7 +407,7 @@ void main() {
 
       expect(find.text('Budi Santoso'), findsNothing);
       expect(find.text('4. Budi Santoso'), findsOneWidget);
-      expect(find.text('Siap Main'), findsOneWidget);
+      expect(find.text('Siap Main'), findsNWidgets(2));
     });
 
     testWidgets('Pemain yang dikeluarkan dari match In Progress hanya muncul di daftar Pemain Keluar', (tester) async {
@@ -443,6 +445,134 @@ void main() {
 
       expect(find.text('Budi Santoso'), findsNothing);
       expect(find.text('1. Budi Santoso'), findsOneWidget);
+    });
+
+    testWidgets('Court yang tidak penuh dikosongkan dan pemainnya masuk bench', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final players = getFreshPlayers();
+      final restingPlayer = players[3].copyWith(status: 'resting');
+      final config = GameWizardConfig(
+        sessionId: 99,
+        sport: 'Tennis',
+        gameType: 'Americano',
+        playMode: 'Single',
+        courtCount: 2,
+        players: [...players.take(3), restingPlayer],
+        activityName: 'Americano Single',
+      );
+      final rounds = [
+        DrawingRound(
+          roundNumber: 1,
+          matches: [
+            DrawingMatch(
+              courtNumber: 1,
+              teamA: [players[1]],
+              teamB: const [],
+            ),
+            DrawingMatch(
+              courtNumber: 2,
+              teamA: [players[2]],
+              teamB: [players[0]],
+            ),
+          ],
+          restingPlayers: [restingPlayer],
+        ),
+      ];
+
+      await tester.pumpWidget(MaterialApp(
+        home: DrawingResultPage(
+          sessionId: 99,
+          config: config,
+          initialRounds: rounds,
+          authController: _MockAuthController(
+            initialUser: const UserModel(userId: 1, nama: 'Host User', email: 'host@matcha.app'),
+          ),
+          matchService: _MockMatchService(savedDrawing: rounds),
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1. Siti Aminah'), findsNothing);
+      expect(find.text('2. Siti Aminah'), findsOneWidget);
+      expect(find.text('Siap Main'), findsNWidgets(2));
+
+      await tester.tap(find.text('Siap Main').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ya, Siap Main'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2. Siti Aminah'), findsOneWidget);
+      expect(find.text('Belum ada pemain'), findsWidgets);
+      expect(find.text('Siap Main'), findsOneWidget);
+
+      await tester.tap(find.text('Siap Main'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ya, Siap Main'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2. Siti Aminah'), findsNothing);
+      expect(find.text('1. Siti Aminah'), findsOneWidget);
+      expect(find.text('Belum ada pemain'), findsNothing);
+    });
+
+    testWidgets('Tombol status tetap tersedia pada ronde aktif berikutnya', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final players = getFreshPlayers();
+      final rounds = [
+        DrawingRound(
+          roundNumber: 1,
+          matches: [
+            DrawingMatch(
+              courtNumber: 1,
+              teamA: [players[0]],
+              teamB: [players[1]],
+              status: 'Completed',
+            ),
+          ],
+        ),
+        DrawingRound(
+          roundNumber: 2,
+          matches: [
+            DrawingMatch(
+              courtNumber: 1,
+              teamA: [players[0]],
+              teamB: [players[1]],
+              status: 'In Progress',
+            ),
+          ],
+          restingPlayers: players.skip(2).toList(),
+        ),
+      ];
+
+      await tester.pumpWidget(MaterialApp(
+        home: DrawingResultPage(
+          sessionId: 99,
+          config: createWizardConfig(players: players),
+          initialRounds: rounds,
+          initialRoundIndex: 1,
+          authController: _MockAuthController(
+            initialUser: const UserModel(userId: 1, nama: 'Host User', email: 'host@matcha.app'),
+          ),
+          matchService: _MockMatchService(
+            savedDrawing: rounds,
+            activeRound: 3,
+          ),
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Istirahat'), findsWidgets);
+      expect(find.text('Keluar'), findsWidgets);
     });
 
     testWidgets('4. Mengistirahatkan pemain saat pemain pas-pasan (2 pemain single) mengosongkan court, memindahkan ke bench, dan mendisable tombol scoring serta otomatis assign saat Siap Main', (tester) async {
