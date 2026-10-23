@@ -328,12 +328,16 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
   bool _isMatchRoundComplete(DrawingRound round) {
     final playableMatches = _playableMatches(round);
-    return playableMatches.isNotEmpty &&
-        playableMatches.every((match) {
-          final status = match.status.trim().toLowerCase();
-          return status == 'completed' ||
-              (status == 'stopped' && _hasScoringEvidence(match));
-        });
+    if (playableMatches.isEmpty) return false;
+
+    final allTerminal = playableMatches.every((match) => match.isTerminal);
+    if (!allTerminal) return false;
+
+    // Ronde dianggap selesai jika semua match-nya terminal (Completed/Stopped),
+    // dan setidaknya ada match yang memang selesai dimainkan / ada bukti skor.
+    return playableMatches.any(
+      (m) => m.status.trim().toLowerCase() == 'completed' || _hasScoringEvidence(m),
+    );
   }
 
   bool get _isAllRoundsFinished {
@@ -347,21 +351,6 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
     for (int i = 0; i < rounds.length; i++) {
       if (!_isMatchRoundComplete(rounds[i])) return i;
-
-      // Jika ronde i sudah selesai tapi ronde berikutnya belum dimulai (belum ada skor/permainan berjalan),
-      // maka ronde aktif tetap ronde i (menunggu Host klik "Lanjut ke Ronde i+1").
-      if (i + 1 < rounds.length) {
-        final nextMatches = _playableMatches(rounds[i + 1]);
-        final nextStarted = nextMatches.any(
-          (m) =>
-              m.status == 'In Progress' ||
-              m.status == 'Completed' ||
-              _hasScoringEvidence(m),
-        );
-        if (!nextStarted) {
-          return i;
-        }
-      }
     }
 
     return rounds.length - 1;
@@ -473,7 +462,11 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
     final resolved = _resolveActiveRoundIndex(_rounds);
     _sessionActiveRoundIndex = resolved;
-    _viewedRoundIndex = _sessionActiveRoundIndex;
+    if (widget.initialRoundIndex != null && widget.initialRoundIndex! <= _sessionActiveRoundIndex) {
+      _viewedRoundIndex = widget.initialRoundIndex!;
+    } else {
+      _viewedRoundIndex = _sessionActiveRoundIndex;
+    }
 
 
 
@@ -878,9 +871,30 @@ class MatchScoringPageState extends State<MatchScoringPage> {
             _config.players = unique.values.toList();
           }
 
+          int? backendActiveRound;
+          final rawActiveRound = sessionData?['session_active_round'] ?? sessionData?['active_round'];
+          if (rawActiveRound is int && rawActiveRound > 0) {
+            backendActiveRound = rawActiveRound - 1;
+          } else if (rawActiveRound != null) {
+            final digits = RegExp(r'\d+').firstMatch(rawActiveRound.toString())?.group(0);
+            if (digits != null) {
+              final n = int.tryParse(digits);
+              if (n != null && n > 0) {
+                backendActiveRound = n - 1;
+              }
+            }
+          }
+
           final resolved = _resolveActiveRoundIndex(_rounds);
-          _sessionActiveRoundIndex = resolved;
-          _viewedRoundIndex = _sessionActiveRoundIndex;
+          _sessionActiveRoundIndex = (backendActiveRound != null && backendActiveRound > resolved)
+              ? backendActiveRound.clamp(0, _rounds.length - 1)
+              : resolved;
+
+          if (widget.initialRoundIndex != null && widget.initialRoundIndex! <= _sessionActiveRoundIndex) {
+            _viewedRoundIndex = widget.initialRoundIndex!;
+          } else {
+            _viewedRoundIndex = _sessionActiveRoundIndex;
+          }
 
         }
 
@@ -912,9 +926,30 @@ class MatchScoringPageState extends State<MatchScoringPage> {
             _config.players = unique.values.toList();
           }
 
+          int? backendActiveRound;
+          final rawActiveRound = sessionData?['session_active_round'] ?? sessionData?['active_round'];
+          if (rawActiveRound is int && rawActiveRound > 0) {
+            backendActiveRound = rawActiveRound - 1;
+          } else if (rawActiveRound != null) {
+            final digits = RegExp(r'\d+').firstMatch(rawActiveRound.toString())?.group(0);
+            if (digits != null) {
+              final n = int.tryParse(digits);
+              if (n != null && n > 0) {
+                backendActiveRound = n - 1;
+              }
+            }
+          }
+
           final resolved = _resolveActiveRoundIndex(_rounds);
-          _sessionActiveRoundIndex = resolved;
-          _viewedRoundIndex = _sessionActiveRoundIndex;
+          _sessionActiveRoundIndex = (backendActiveRound != null && backendActiveRound > resolved)
+              ? backendActiveRound.clamp(0, _rounds.length - 1)
+              : resolved;
+
+          if (widget.initialRoundIndex != null && widget.initialRoundIndex! <= _sessionActiveRoundIndex) {
+            _viewedRoundIndex = widget.initialRoundIndex!;
+          } else {
+            _viewedRoundIndex = _sessionActiveRoundIndex;
+          }
         } else if (isRealBackendSession && widget.rounds == null) {
           _rounds = [];
         }
@@ -3229,6 +3264,26 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           );
         } catch (e) {
           debugPrint('[Scoring] adjustFutureScheduleOnPlayerStatusChange: $e');
+        }
+      }
+
+      if (action == 'reactivate') {
+        for (int rIdx = 0; rIdx < _rounds.length; rIdx++) {
+          for (final m in _rounds[rIdx].matches) {
+            if (m.isStopped && _isMatchPlayable(m)) {
+              m.status = _sessionActiveRoundIndex == rIdx ? 'In Progress' : 'Scheduled';
+              m.stopType = null;
+              m.stopReason = null;
+              if (m.matchId != null) {
+                await _matchService.setMatchParticipants(
+                  matchId: m.matchId!,
+                  teamA: m.teamA,
+                  teamB: m.teamB,
+                  allPlayers: _config.players,
+                );
+              }
+            }
+          }
         }
       }
 

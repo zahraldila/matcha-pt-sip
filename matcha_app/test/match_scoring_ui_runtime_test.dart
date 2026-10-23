@@ -297,5 +297,54 @@ void main() {
       expect(find.text('Player 1'), findsWidgets);
       expect(find.text('Player 3'), findsNothing);
     });
+
+    testWidgets('Round with completed match and stopped 0-0 match correctly advances to next round', (tester) async {
+      final p1 = const GamePlayerItem(id: '1', name: 'p1');
+      final p2 = const GamePlayerItem(id: '2', name: 'p2');
+      final p3 = const GamePlayerItem(id: '3', name: 'p3');
+      final p4 = const GamePlayerItem(id: '4', name: 'p4');
+      final config = GameWizardConfig(
+        gameType: 'Americano',
+        playMode: 'Single',
+        players: [p1, p2, p3, p4],
+      );
+
+      final rounds = [
+        DrawingRound(
+          roundNumber: 1,
+          matches: [
+            DrawingMatch(courtNumber: 1, teamA: [p1], teamB: [p2], status: 'Completed', scoreA: 6, scoreB: 4),
+            DrawingMatch(courtNumber: 2, teamA: [p3], teamB: [p4], status: 'Completed', scoreA: 6, scoreB: 2),
+          ],
+        ),
+        DrawingRound(
+          roundNumber: 2,
+          matches: [
+            DrawingMatch(courtNumber: 1, teamA: [p2], teamB: [p1], status: 'Stopped', scoreA: 0, scoreB: 0),
+            DrawingMatch(courtNumber: 2, teamA: [p3], teamB: [p4], status: 'Completed', scoreA: 0, scoreB: 6),
+          ],
+        ),
+        DrawingRound(
+          roundNumber: 3,
+          matches: [
+            DrawingMatch(courtNumber: 1, teamA: [p2], teamB: [p1], status: 'Scheduled'),
+            DrawingMatch(courtNumber: 2, teamA: [p4], teamB: [p3], status: 'In Progress'),
+          ],
+        ),
+      ];
+
+      await tester.pumpWidget(MaterialApp(
+        home: MatchScoringPage(
+          config: config,
+          rounds: rounds,
+          initialRoundIndex: 2,
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ronde 3'), findsWidgets);
+      expect(find.textContaining('0 – 6'), findsNothing);
+    });
   });
 }

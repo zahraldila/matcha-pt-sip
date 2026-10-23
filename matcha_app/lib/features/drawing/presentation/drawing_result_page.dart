@@ -2863,7 +2863,46 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
 
           for (final match in curR.matches) {
             if (_isCourtPlayable(match)) {
-              updatedMatches.add(match);
+              if (match.isStopped) {
+                final restoredStatus = _effectiveSessionActiveRoundIndex == _selectedRoundIndex
+                    ? 'In Progress'
+                    : 'Scheduled';
+                final restoredMatch = DrawingMatch(
+                  courtNumber: match.courtNumber,
+                  teamA: match.teamA,
+                  teamB: match.teamB,
+                  status: restoredStatus,
+                  scoreA: match.scoreA,
+                  scoreB: match.scoreB,
+                  gamesWonA: match.gamesWonA,
+                  gamesWonB: match.gamesWonB,
+                  idxA: match.idxA,
+                  idxB: match.idxB,
+                  pointDisplayA: match.pointDisplayA,
+                  pointDisplayB: match.pointDisplayB,
+                  isDeuce: match.isDeuce,
+                  advantage: match.advantage,
+                  setsA: match.setsA,
+                  setsB: match.setsB,
+                  winnerTeam: match.winnerTeam,
+                  matchId: match.matchId,
+                  version: match.version,
+                  lastEventId: match.lastEventId,
+                  stopType: null,
+                  stopReason: null,
+                );
+                updatedMatches.add(restoredMatch);
+                if (match.matchId != null) {
+                  await _matchService.setMatchParticipants(
+                    matchId: match.matchId!,
+                    teamA: match.teamA,
+                    teamB: match.teamB,
+                    allPlayers: _config.players,
+                  );
+                }
+              } else {
+                updatedMatches.add(match);
+              }
               continue;
             }
 
@@ -2920,6 +2959,65 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           matches: updatedMatches,
           restingPlayers: updatedResting,
         );
+
+        // Sesuaikan juga semua ronde lain yang memiliki match stopped dan pemainnya sudah lengkap & aktif
+        if (action == 'reactivate') {
+          for (int rIdx = 0; rIdx < _rounds.length; rIdx++) {
+            if (rIdx == _selectedRoundIndex) continue;
+            final r = _rounds[rIdx];
+            final newMatches = <DrawingMatch>[];
+            bool changed = false;
+            for (final m in r.matches) {
+              if (m.isStopped && _isCourtPlayable(m)) {
+                changed = true;
+                final restoredStatus = _effectiveSessionActiveRoundIndex == rIdx
+                    ? 'In Progress'
+                    : 'Scheduled';
+                newMatches.add(DrawingMatch(
+                  courtNumber: m.courtNumber,
+                  teamA: m.teamA,
+                  teamB: m.teamB,
+                  status: restoredStatus,
+                  scoreA: m.scoreA,
+                  scoreB: m.scoreB,
+                  gamesWonA: m.gamesWonA,
+                  gamesWonB: m.gamesWonB,
+                  idxA: m.idxA,
+                  idxB: m.idxB,
+                  pointDisplayA: m.pointDisplayA,
+                  pointDisplayB: m.pointDisplayB,
+                  isDeuce: m.isDeuce,
+                  advantage: m.advantage,
+                  setsA: m.setsA,
+                  setsB: m.setsB,
+                  winnerTeam: m.winnerTeam,
+                  matchId: m.matchId,
+                  version: m.version,
+                  lastEventId: m.lastEventId,
+                  stopType: null,
+                  stopReason: null,
+                ));
+                if (m.matchId != null) {
+                  await _matchService.setMatchParticipants(
+                    matchId: m.matchId!,
+                    teamA: m.teamA,
+                    teamB: m.teamB,
+                    allPlayers: _config.players,
+                  );
+                }
+              } else {
+                newMatches.add(m);
+              }
+            }
+            if (changed) {
+              _rounds[rIdx] = DrawingRound(
+                roundNumber: r.roundNumber,
+                matches: newMatches,
+                restingPlayers: r.restingPlayers,
+              );
+            }
+          }
+        }
 
         // Sesuaikan juga ronde masa depan di state lokal:
         if (_rounds.length > _selectedRoundIndex + 1) {
