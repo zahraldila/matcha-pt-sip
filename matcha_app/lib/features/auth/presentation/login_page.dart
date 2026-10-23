@@ -474,12 +474,16 @@ class _LoginPageState extends State<LoginPage> {
                                           const SizedBox(height: 4),
                                           GestureDetector(
                                             onTap: () {
-                                              Navigator.of(context).pushAndRemoveUntil(
-                                                MaterialPageRoute(
-                                                  builder: (context) => MainShellPage(authController: widget.authController),
-                                                ),
-                                                (route) => false,
-                                              );
+                                              if (Navigator.canPop(context)) {
+                                                Navigator.pop(context);
+                                              } else {
+                                                Navigator.of(context).pushAndRemoveUntil(
+                                                  MaterialPageRoute(
+                                                    builder: (context) => MainShellPage(authController: widget.authController),
+                                                  ),
+                                                  (route) => false,
+                                                );
+                                              }
                                             },
                                             child: const Row(
                                               mainAxisAlignment: MainAxisAlignment.center,

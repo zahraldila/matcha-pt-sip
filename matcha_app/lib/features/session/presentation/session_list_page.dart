@@ -9,7 +9,6 @@ import 'session_detail_page.dart';
 import 'widgets/join_session_modal.dart';
 import 'widgets/session_filter_bottom_sheet.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
-import '../../auth/presentation/login_page.dart';
 
 class SessionListPage extends StatefulWidget {
   final AuthController? authController;
@@ -1356,14 +1355,7 @@ class _SessionListPageState extends State<SessionListPage> {
     }
 
     void handleJoin() {
-      if (user == null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => LoginPage(authController: widget.authController)),
-        );
-        return;
-      }
-      if (user.isVenueOwner) {
+      if (user != null && user.isVenueOwner) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Venue Owner tidak dapat bergabung sebagai peserta slot mabar.'),
