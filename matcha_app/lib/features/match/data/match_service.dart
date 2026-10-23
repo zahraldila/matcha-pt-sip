@@ -1104,51 +1104,6 @@ class MatchService {
     } catch (_) {}
   }
 
-  bool _hasStartedScoring(
-    Map<String, dynamic> match,
-    List<dynamic> scoreRows,
-  ) {
-    final status = match['status_match']?.toString().trim().toLowerCase();
-    if (status == null ||
-        status.isEmpty ||
-        status == 'scheduled' ||
-        status == 'completed' ||
-        status == 'stopped' ||
-        status == 'finished' ||
-        status == 'cancelled') {
-      return false;
-    }
-    if (match['last_event_id']?.toString().trim().isNotEmpty == true) {
-      return true;
-    }
-
-    bool hasPositiveValue(dynamic value) =>
-        (num.tryParse(value?.toString() ?? '') ?? 0) > 0;
-    bool hasActivePoint(dynamic value) {
-      final point = value?.toString().trim().toLowerCase() ?? '';
-      return point.isNotEmpty &&
-          point != '0' &&
-          point != '0-0' &&
-          point != '0 - 0' &&
-          point != 'love';
-    }
-
-    return scoreRows.any((row) {
-      if (row['match_id']?.toString() != match['match_id']?.toString()) {
-        return false;
-      }
-      return hasPositiveValue(row['game_score_a']) ||
-          hasPositiveValue(row['game_score_b']) ||
-          hasPositiveValue(row['score_side_a']) ||
-          hasPositiveValue(row['score_side_b']) ||
-          hasActivePoint(row['point_score_a']) ||
-          hasActivePoint(row['point_score_b']) ||
-          row['last_event_id']?.toString().trim().isNotEmpty == true ||
-          row['status_score']?.toString().toLowerCase() == 'eventlog' ||
-          (int.tryParse(row['version']?.toString() ?? '') ?? 0) > 1;
-    });
-  }
-
   /// Mengelola status partisipasi pemain (active, resting, withdrawn) di tb_session_player
   Future<Map<String, dynamic>> managePlayerStatus({
     required dynamic sessionId,
@@ -1179,86 +1134,6 @@ class MatchService {
           .maybeSingle();
       if (cur != null && (cur['status']?.toString().toLowerCase() == 'withdrawn')) {
         throw Exception('Pemain yang telah keluar secara permanen tidak dapat diaktifkan kembali.');
-      }
-    }
-
-    if (action == 'pause' || action == 'withdraw') {
-      final sessionData = await _supabase
-          .from('tb_session')
-          .select('active_round')
-          .eq('session_id', parsedSessionId)
-          .maybeSingle();
-      final activeRoundText = sessionData?['active_round']?.toString() ?? '';
-      final roundMatch = RegExp(r'(\d+)').firstMatch(activeRoundText);
-      final activeRoundNumber =
-          int.tryParse(roundMatch?.group(1) ?? '') ?? 1;
-      final drawingId = await getLatestDrawingId(parsedSessionId);
-      if (drawingId != null) {
-        final courtRows = await _supabase
-            .from('tb_session_court')
-            .select('court_id')
-            .eq('session_id', parsedSessionId);
-        final courtIds = (courtRows as List)
-            .map((court) => int.tryParse(court['court_id']?.toString() ?? ''))
-            .whereType<int>()
-            .where((id) => id > 0)
-            .toSet();
-        final courtCount = courtIds.isNotEmpty ? courtIds.length : 1;
-        final startMatchNumber = (activeRoundNumber - 1) * courtCount + 1;
-        final endMatchNumber = activeRoundNumber * courtCount;
-        final currentMatches = await _supabase
-            .from('tb_match')
-            .select('match_id, nomor_match, status_match, last_event_id')
-            .eq('drawing_id', drawingId)
-            .gte('nomor_match', startMatchNumber)
-            .lte('nomor_match', endMatchNumber);
-        final activeCandidates = (currentMatches as List)
-            .where((match) {
-              final status =
-                  match['status_match']?.toString().toLowerCase() ?? '';
-              return status != 'scheduled' &&
-                  status != 'completed' &&
-                  status != 'stopped' &&
-                  status != 'finished' &&
-                  status != 'cancelled' &&
-                  status.isNotEmpty;
-            })
-            .toList();
-        final activeMatchIds = activeCandidates
-            .map((match) => int.tryParse(match['match_id']?.toString() ?? ''))
-            .whereType<int>()
-            .toList();
-        if (activeMatchIds.isNotEmpty) {
-          final scoreRows = await _supabase
-              .from('tb_score')
-              .select(
-                'match_id, game_score_a, game_score_b, score_side_a, score_side_b, point_score_a, point_score_b, status_score, version, last_event_id',
-              )
-              .inFilter('match_id', activeMatchIds);
-          for (final match in activeCandidates) {
-            if (!_hasStartedScoring(match, List<dynamic>.from(scoreRows))) {
-              continue;
-            }
-            final hasPlayer = await _supabase
-                .from('tb_match_participant')
-                .select('match_id')
-                .eq('match_id', match['match_id'])
-                .eq('player_id', playerId)
-                .maybeSingle();
-            if (hasPlayer != null) {
-              final nomorMatch =
-                  int.tryParse(match['nomor_match']?.toString() ?? '') ?? 1;
-              final courtNumber = ((nomorMatch - 1) % courtCount) + 1;
-              return {
-                'success': false,
-                'is_playing': true,
-                'court': courtNumber,
-                'message':
-                    'Pemain sedang bertanding di Court $courtNumber. Silakan hentikan match terkait sebelum mengubah statusnya.',
-              };
-            }
-          }
-        }
       }
     }
 
@@ -1439,7 +1314,8 @@ class MatchService {
     }
   }
 
-  /// Menyesuaikan match aktif yang belum mulai scoring dan ronde mendatang saat pemain istirahat/keluar.
+  /// Menyesuaikan jadwal pertandingan ronde mendatang (future rounds) saat pemain istirahat atau keluar,
+  /// agar pemain tersebut tidak dijadwalkan bertanding di court pada ronde mendatang dan digantikan pemain cadangan.
   Future<void> adjustFutureScheduleOnPlayerStatusChange({
     required dynamic sessionId,
     required int currentRoundNumber,
@@ -1483,116 +1359,29 @@ class MatchService {
         }
       }
 
-      final minNomorMatch =
-          ((currentRoundNumber - 1) * effectiveCourtCount) + 1;
-      final scheduleMatches = await _supabase
+      final minNomorMatch = (currentRoundNumber * effectiveCourtCount) + 1;
+      final futureMatches = await _supabase
           .from('tb_match')
-          .select('match_id, nomor_match, status_match, last_event_id')
+          .select('match_id, nomor_match, status_match')
           .eq('drawing_id', drawingId)
+          .eq('status_match', 'Scheduled')
           .gte('nomor_match', minNomorMatch)
           .order('nomor_match', ascending: true);
 
-      if (scheduleMatches.isEmpty) return;
+      if (futureMatches.isEmpty) return;
 
-      final currentRoundEnd = currentRoundNumber * effectiveCourtCount;
-      final currentInProgressIds = (scheduleMatches as List)
-          .where((match) {
-            final nomor =
-                int.tryParse(match['nomor_match']?.toString() ?? '') ?? 0;
-            final status =
-                match['status_match']?.toString().toLowerCase() ?? '';
-            return nomor <= currentRoundEnd &&
-                status != 'scheduled' &&
-                status != 'completed' &&
-                status != 'stopped' &&
-                status != 'finished' &&
-                status != 'cancelled' &&
-                status.isNotEmpty;
-          })
-          .map((match) => int.tryParse(match['match_id']?.toString() ?? ''))
-          .whereType<int>()
-          .toList();
-      final currentScoreRows = currentInProgressIds.isEmpty
-          ? <dynamic>[]
-          : List<dynamic>.from(
-              await _supabase
-                  .from('tb_score')
-                  .select(
-                    'match_id, game_score_a, game_score_b, score_side_a, score_side_b, point_score_a, point_score_b, status_score, version, last_event_id',
-                  )
-                  .inFilter('match_id', currentInProgressIds),
-            );
-      final editableMatches = (scheduleMatches as List).where((match) {
-        final nomor =
-            int.tryParse(match['nomor_match']?.toString() ?? '') ?? 0;
-        final status = match['status_match']?.toString().toLowerCase() ?? '';
-        if (nomor > currentRoundEnd) return status == 'scheduled';
-        if (status == 'scheduled') return true;
-        if (status == 'completed' ||
-            status == 'stopped' ||
-            status == 'finished' ||
-            status == 'cancelled' ||
-            status.isEmpty) {
-          return false;
-        }
-        return !_hasStartedScoring(match, currentScoreRows);
-      }).toList();
-      if (editableMatches.isEmpty) return;
-
-      final editableMatchIds = editableMatches
-          .map((match) => int.tryParse(match['match_id']?.toString() ?? ''))
+      final futureMatchIds = futureMatches
+          .map((m) => int.tryParse(m['match_id']?.toString() ?? ''))
           .whereType<int>()
           .toList();
 
-      final sessionData = await _supabase
-          .from('tb_session')
-          .select('jenis_permainan')
-          .eq('session_id', parsedSessionId)
-          .maybeSingle();
-      final isSingle =
-          sessionData?['jenis_permainan']?.toString().toLowerCase() == 'single';
-      final minimumPlayers = isSingle ? 2 : 4;
-      final activePlayerIds =
-          allPlayerIds.where((playerId) => !excludedIds.contains(playerId));
-      if (activePlayerIds.length < minimumPlayers) {
-        await _supabase
-            .from('tb_match_participant')
-            .delete()
-            .inFilter('match_id', editableMatchIds);
-        await _supabase.from('tb_match').update({
-          'status_match': 'Stopped',
-          'stop_type': action == 'pause' ? 'temporary_pause' : 'withdraw_players',
-          'stop_reason':
-              'Jumlah pemain aktif tidak mencukupi untuk memulai pertandingan.',
-        }).inFilter('match_id', editableMatchIds);
-        await broadcastDrawingUpdate(parsedSessionId);
-        final channel = _supabase.channel('session_$parsedSessionId');
-        await channel.sendBroadcastMessage(
-          event: 'schedule_adjusted',
-          payload: {
-            'session_id': parsedSessionId,
-            'timestamp': DateTime.now().millisecondsSinceEpoch,
-          },
-        );
-        return;
-      }
-
-      final allScheduleMatchIds = (scheduleMatches as List)
-          .map((match) => int.tryParse(match['match_id']?.toString() ?? ''))
-          .whereType<int>()
-          .toList();
-      final allParticipants = await _supabase
+      final participants = await _supabase
           .from('tb_match_participant')
           .select('match_id, player_id, side')
-          .inFilter('match_id', allScheduleMatchIds);
-      final participants = (allParticipants as List)
-          .where((participant) => editableMatchIds.contains(
-                int.tryParse(participant['match_id']?.toString() ?? ''),
-              ))
-          .toList();
+          .inFilter('match_id', futureMatchIds);
 
       final matchesByRound = <int, List<Map<String, dynamic>>>{};
-      for (final m in editableMatches) {
+      for (final m in futureMatches) {
         final nom = int.tryParse(m['nomor_match']?.toString() ?? '') ?? 1;
         final rNum = ((nom - 1) ~/ effectiveCourtCount) + 1;
         matchesByRound.putIfAbsent(rNum, () => []).add(m);
@@ -1601,24 +1390,12 @@ class MatchService {
       for (final entry in matchesByRound.entries) {
         final rMatches = entry.value;
         final rMatchIds = rMatches.map((m) => int.tryParse(m['match_id']?.toString() ?? '')).whereType<int>().toSet();
-        final allRoundMatchIds = (scheduleMatches as List)
-            .where((match) {
-              final nom =
-                  int.tryParse(match['nomor_match']?.toString() ?? '') ?? 1;
-              return ((nom - 1) ~/ effectiveCourtCount) + 1 == entry.key;
-            })
-            .map((match) => int.tryParse(match['match_id']?.toString() ?? ''))
-            .whereType<int>()
-            .toSet();
 
-        final roundParticipants = participants
+        final roundParticipants = (participants as List)
             .where((p) => rMatchIds.contains(int.tryParse(p['match_id']?.toString() ?? '')))
             .toList();
 
-        final participatingPlayerIds = (allParticipants as List)
-            .where((p) => allRoundMatchIds.contains(
-                  int.tryParse(p['match_id']?.toString() ?? ''),
-                ))
+        final participatingPlayerIds = roundParticipants
             .map((p) => int.tryParse(p['player_id']?.toString() ?? ''))
             .whereType<int>()
             .toSet();
@@ -1640,18 +1417,6 @@ class MatchService {
                     .update({'player_id': substituteId})
                     .eq('match_id', mId)
                     .eq('player_id', targetPlayerId);
-              } else {
-                await _supabase
-                    .from('tb_match_participant')
-                    .delete()
-                    .eq('match_id', mId);
-                await _supabase.from('tb_match').update({
-                  'status_match': 'Stopped',
-                  'stop_type':
-                      action == 'pause' ? 'temporary_pause' : 'withdraw_players',
-                  'stop_reason':
-                      'Pemain istirahat atau keluar dan tidak tersedia pemain pengganti.',
-                }).eq('match_id', mId);
               }
             }
           }
@@ -2513,78 +2278,11 @@ class MatchService {
     dynamic sessionId, {
     required List<DrawingRound> rounds,
     List<GamePlayerItem>? allPlayers,
-    required String playMode,
     int? matchFormatId,
     int? courtCount,
   }) async {
     if (sessionId == null) return rounds;
     final parsedId = int.tryParse(sessionId.toString()) ?? sessionId;
-
-    final sessionPlayers = await _supabase
-        .from('tb_session_player')
-        .select('player_id, status')
-        .eq('session_id', parsedId);
-    final inactivePlayerIds = <int>{};
-    int activePlayerCount = 0;
-    for (final player in (sessionPlayers as List)) {
-      final playerId = int.tryParse(player['player_id']?.toString() ?? '');
-      if (playerId == null) continue;
-      final status = player['status']?.toString().toLowerCase();
-      if (status == 'resting' || status == 'withdrawn' || status == 'paused') {
-        inactivePlayerIds.add(playerId);
-      } else {
-        activePlayerCount++;
-      }
-    }
-    if (sessionPlayers.isEmpty && allPlayers != null) {
-      activePlayerCount = allPlayers
-          .where((player) => !player.isResting && !player.isWithdrawn)
-          .length;
-    }
-
-    final isSingle = playMode.toLowerCase() == 'single';
-    final minimumPlayers = isSingle ? 2 : 4;
-    if (activePlayerCount < minimumPlayers) {
-      throw Exception(
-        'Pemain aktif tidak mencukupi (tersisa $activePlayerCount, minimal $minimumPlayers). Drawing belum dapat dikunci atau dimulai.',
-      );
-    }
-    if (rounds.isEmpty) {
-      throw Exception(
-        'Drawing belum memiliki susunan pertandingan yang dapat dimulai.',
-      );
-    }
-    final teamSize = isSingle ? 1 : 2;
-    final firstRoundMatches = rounds.first.matches;
-    final hasPlayableMatch = firstRoundMatches.any((match) =>
-        match.teamA.length == teamSize &&
-        match.teamB.length == teamSize &&
-        [...match.teamA, ...match.teamB].every((player) {
-          final playerId = resolvePlayerId(player, allPlayers) ??
-              player.playerId ??
-              int.tryParse(player.id);
-          return !player.isResting &&
-              !player.isWithdrawn &&
-              (playerId == null || !inactivePlayerIds.contains(playerId));
-        }));
-    final hasInvalidMatch = firstRoundMatches.any((match) {
-      if (match.teamA.length != teamSize || match.teamB.length != teamSize) {
-        return true;
-      }
-      return [...match.teamA, ...match.teamB].any((player) {
-        final playerId = resolvePlayerId(player, allPlayers) ??
-            player.playerId ??
-            int.tryParse(player.id);
-        return player.isResting ||
-            player.isWithdrawn ||
-            (playerId != null && inactivePlayerIds.contains(playerId));
-      });
-    });
-    if (!hasPlayableMatch || hasInvalidMatch) {
-      throw Exception(
-        'Susunan court belum lengkap atau masih berisi pemain yang istirahat/keluar. Perbaiki drawing sebelum memulai scoring.',
-      );
-    }
 
     List<DrawingRound> finalRounds = rounds;
 

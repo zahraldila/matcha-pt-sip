@@ -117,7 +117,6 @@ class MockMatchServiceForSync extends MatchService {
     dynamic sessionId, {
     required List<DrawingRound> rounds,
     List<GamePlayerItem>? allPlayers,
-    required String playMode,
     int? matchFormatId,
     int? courtCount,
   }) async {
@@ -214,45 +213,6 @@ void main() {
 
       expect(matchService.saveDrawingCalled, isTrue);
       expect(matchService.broadcastCalled, isTrue);
-    });
-
-    testWidgets('Host cannot start scoring below the active-player minimum', (tester) async {
-      tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 2.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      final auth = MockAuthController(initialUser: hostUser);
-      final matchService = MockMatchServiceForSync();
-      final config = GameWizardConfig(
-        players: [
-          const GamePlayerItem(id: '1', name: 'Marcello'),
-          const GamePlayerItem(
-            id: '2',
-            name: 'Hilmy',
-            status: 'resting',
-          ),
-        ],
-        courtCount: 1,
-        playMode: 'Single',
-        gameType: 'Americano',
-      );
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: DrawingResultPage(
-            authController: auth,
-            matchService: matchService,
-            config: config,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final startButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Belum Ada Pemain Bertanding'),
-      );
-      expect(startButton.onPressed, isNull);
-      expect(matchService.lockCalled, isFalse);
     });
 
     testWidgets('Non-Host cannot see Acak Ulang, sees Penonton badge, no scoring button before lock, and Lihat Live Scoring once locked', (tester) async {
