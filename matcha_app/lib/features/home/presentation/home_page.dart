@@ -3,7 +3,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/offline_state_widget.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
-import '../../auth/presentation/login_page.dart';
 import '../../court/data/venue_service.dart';
 import '../../court/domain/venue_model.dart';
 import '../../court/presentation/venue_detail_page.dart';
@@ -484,14 +483,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     void handleJoin() {
-      if (user == null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => LoginPage(authController: widget.authController)),
-        );
-        return;
-      }
-      if (user.isVenueOwner) {
+      if (user != null && user.isVenueOwner) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Venue Owner tidak dapat bergabung sebagai peserta slot mabar.'),
