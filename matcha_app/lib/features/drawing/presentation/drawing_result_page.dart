@@ -1453,8 +1453,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     );
   }
   Widget _buildVisualCourtCard(DrawingMatch match) {
-    final teamA = _visibleCourtPlayers(match.teamA);
-    final teamB = _visibleCourtPlayers(match.teamB);
+    final isPlayable = _isCourtPlayable(match);
+    final teamA = isPlayable ? _visibleCourtPlayers(match.teamA) : const <GamePlayerItem>[];
+    final teamB = isPlayable ? _visibleCourtPlayers(match.teamB) : const <GamePlayerItem>[];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -1647,9 +1648,32 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
         .toList();
   }
 
+  String _playerKey(GamePlayerItem player) =>
+      player.playerId != null ? 'player:${player.playerId}' : 'id:${player.id}';
+
+  bool _isCourtPlayable(DrawingMatch match) {
+    final playersPerTeam = _config.playMode.toLowerCase() == 'single' ? 1 : 2;
+    return _visibleCourtPlayers(match.teamA).length == playersPerTeam &&
+        _visibleCourtPlayers(match.teamB).length == playersPerTeam;
+  }
+
+  List<GamePlayerItem> _underfilledCourtPlayers(DrawingRound round) {
+    final players = <GamePlayerItem>[];
+    final seenPlayerKeys = <String>{};
+    for (final match in round.matches.where((match) => !_isCourtPlayable(match))) {
+      for (final player in [...match.teamA, ...match.teamB].map(_resolvePlayer)) {
+        if (!player.isWithdrawn && seenPlayerKeys.add(_playerKey(player))) {
+          players.add(player);
+        }
+      }
+    }
+    return players;
+  }
+
   Widget _buildRosterSection(DrawingRound currentRound) {
-    final isRoundCompleted = _isRoundCompleted(_selectedRoundIndex);
-    final canManage = _isHostUser && !isRoundCompleted;
+    final canManage = _isHostUser &&
+        (currentRound.matches.any((match) => match.status != 'Completed') ||
+            _config.players.any((p) => p.isResting));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1704,8 +1728,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
   }
 
   Widget _buildCourtRosterCard(DrawingMatch m, bool canManage) {
-    final teamA = _visibleCourtPlayers(m.teamA);
-    final teamB = _visibleCourtPlayers(m.teamB);
+    final isPlayable = _isCourtPlayable(m);
+    final teamA = isPlayable ? _visibleCourtPlayers(m.teamA) : const <GamePlayerItem>[];
+    final teamB = isPlayable ? _visibleCourtPlayers(m.teamB) : const <GamePlayerItem>[];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -2020,6 +2045,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     final restingCandidates = [
       ...currentRound.restingPlayers,
       ..._config.players.where((player) => player.isResting),
+      ..._underfilledCourtPlayers(currentRound),
     ]
         .map(_resolvePlayer)
         .where((player) => !player.isWithdrawn)
@@ -2027,11 +2053,11 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     final resting = <GamePlayerItem>[];
     final seenPlayerKeys = <String>{};
     for (final player in restingCandidates) {
-      final key = player.playerId != null
-          ? 'player:${player.playerId}'
-          : 'id:${player.id}';
+      final key = _playerKey(player);
       if (seenPlayerKeys.add(key)) resting.add(player);
     }
+    final underfilledPlayerKeys =
+        _underfilledCourtPlayers(currentRound).map(_playerKey).toSet();
     final withdrawnPlayers = _config.players.where((player) => player.isWithdrawn).toList();
 
     return Container(
@@ -2099,7 +2125,8 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             ...resting.asMap().entries.map((entry) {
               final idx = entry.key;
               final p = entry.value;
-              final isPaused = p.isResting;
+              final isPaused =
+                  p.isResting || underfilledPlayerKeys.contains(_playerKey(p));
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 6),
@@ -2818,70 +2845,73 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             );
           }
 
-          final benchEligible = updatedResting.where((x) => !x.isResting && !x.isWithdrawn).toList();
-          final hadEmptyCourt = curR.matches.any((m) => m.isStopped || m.teamA.isEmpty || m.teamB.isEmpty);
+          final playersPerTeam = isSingleMode ? 1 : 2;
+          final targetKey = _playerKey(p);
+          final underfilledPlayerKeys =
+              _underfilledCourtPlayers(curR).map(_playerKey).toSet();
+          final alreadyPlayingKeys = <String>{
+            for (final match in curR.matches.where(_isCourtPlayable))
+              ..._visibleCourtPlayers([...match.teamA, ...match.teamB])
+                  .map(_playerKey),
+          };
+          final availablePlayers = _config.players.where((player) {
+            if (player.isResting || player.isWithdrawn) return false;
+            final key = _playerKey(player);
+            if (alreadyPlayingKeys.contains(key)) return false;
+            return !underfilledPlayerKeys.contains(key) || key == targetKey;
+          }).toList();
 
-          if (hadEmptyCourt && benchEligible.length >= minReq) {
-            for (final m in curR.matches) {
-              final isMatchEmptyOrStopped = m.isStopped || (m.teamA.isEmpty && m.teamB.isEmpty);
-              if (isMatchEmptyOrStopped) {
-                if (isSingleMode && benchEligible.length >= 2) {
-                  final newTeamA = [benchEligible[0]];
-                  final newTeamB = [benchEligible[1]];
-                  benchEligible.removeRange(0, 2);
-                  final removedIds = {newTeamA[0].id, newTeamB[0].id};
-                  final removedPIds = {newTeamA[0].playerId, newTeamB[0].playerId};
-                  updatedResting.removeWhere((item) => removedIds.contains(item.id) || (item.playerId != null && removedPIds.contains(item.playerId)));
-
-                  updatedMatches.add(DrawingMatch(
-                    courtNumber: m.courtNumber,
-                    teamA: newTeamA,
-                    teamB: newTeamB,
-                    status: 'Scheduled',
-                    matchId: m.matchId,
-                  ));
-                  if (m.matchId != null) {
-                    await _matchService.setMatchParticipants(
-                      matchId: m.matchId!,
-                      teamA: newTeamA,
-                      teamB: newTeamB,
-                      allPlayers: _config.players,
-                    );
-                  }
-                } else if (!isSingleMode && benchEligible.length >= 4) {
-                  final newTeamA = [benchEligible[0], benchEligible[1]];
-                  final newTeamB = [benchEligible[2], benchEligible[3]];
-                  benchEligible.removeRange(0, 4);
-                  final removedIds = {newTeamA[0].id, newTeamA[1].id, newTeamB[0].id, newTeamB[1].id};
-                  final removedPIds = {newTeamA[0].playerId, newTeamA[1].playerId, newTeamB[0].playerId, newTeamB[1].playerId};
-                  updatedResting.removeWhere((item) => removedIds.contains(item.id) || (item.playerId != null && removedPIds.contains(item.playerId)));
-
-                  updatedMatches.add(DrawingMatch(
-                    courtNumber: m.courtNumber,
-                    teamA: newTeamA,
-                    teamB: newTeamB,
-                    status: 'Scheduled',
-                    matchId: m.matchId,
-                  ));
-                  if (m.matchId != null) {
-                    await _matchService.setMatchParticipants(
-                      matchId: m.matchId!,
-                      teamA: newTeamA,
-                      teamB: newTeamB,
-                      allPlayers: _config.players,
-                    );
-                  }
-                } else {
-                  updatedMatches.add(m);
-                }
-              } else {
-                updatedMatches.add(m);
-              }
+          for (final match in curR.matches) {
+            if (_isCourtPlayable(match)) {
+              updatedMatches.add(match);
+              continue;
             }
-          } else {
-            for (final m in curR.matches) {
-              updatedMatches.add(m);
+
+            if (availablePlayers.length < playersPerTeam * 2) {
+              updatedMatches.add(match);
+              continue;
             }
+
+            final teamA = availablePlayers.take(playersPerTeam).toList();
+            availablePlayers.removeRange(0, playersPerTeam);
+            final teamB = availablePlayers.take(playersPerTeam).toList();
+            availablePlayers.removeRange(0, playersPerTeam);
+            updatedMatches.add(DrawingMatch(
+              courtNumber: match.courtNumber,
+              teamA: teamA,
+              teamB: teamB,
+              status: match.isStopped ? 'Scheduled' : match.status,
+              scoreA: match.scoreA,
+              scoreB: match.scoreB,
+              gamesWonA: match.gamesWonA,
+              gamesWonB: match.gamesWonB,
+              idxA: match.idxA,
+              idxB: match.idxB,
+              pointDisplayA: match.pointDisplayA,
+              pointDisplayB: match.pointDisplayB,
+              isDeuce: match.isDeuce,
+              advantage: match.advantage,
+              setsA: match.setsA,
+              setsB: match.setsB,
+              winnerTeam: match.winnerTeam,
+              matchId: match.matchId,
+              version: match.version,
+              lastEventId: match.lastEventId,
+              stopType: match.stopType,
+              stopReason: match.stopReason,
+            ));
+            if (match.matchId != null) {
+              await _matchService.setMatchParticipants(
+                matchId: match.matchId!,
+                teamA: teamA,
+                teamB: teamB,
+                allPlayers: _config.players,
+              );
+            }
+            final assignedKeys = {...teamA, ...teamB}.map(_playerKey).toSet();
+            updatedResting.removeWhere(
+              (player) => assignedKeys.contains(_playerKey(player)),
+            );
           }
         }
 

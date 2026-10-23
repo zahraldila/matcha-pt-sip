@@ -284,53 +284,79 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
   bool get _isCurrentViewedRoundActive => _viewedRoundIndex == _sessionActiveRoundIndex;
 
-  bool _isMatchPlayable(DrawingMatch m) {
-    if (m.isStopped) return false;
-    final isSingle = _config.playMode.toLowerCase() == 'single';
-    final minPerTeam = isSingle ? 1 : 2;
-    return m.teamA.length >= minPerTeam && m.teamB.length >= minPerTeam;
+  bool _isMatchPlayable(DrawingMatch match) {
+    if (match.isStopped && (match.teamA.isEmpty || match.teamB.isEmpty)) {
+      return false;
+    }
+    final playersPerTeam = widget.config == null
+        ? (match.teamA.length <= 1 && match.teamB.length <= 1 ? 1 : 2)
+        : (_config.playMode.toLowerCase() == 'single' ? 1 : 2);
+    if (match.teamA.length < playersPerTeam || match.teamB.length < playersPerTeam) {
+      return false;
+    }
+
+    bool isEligible(GamePlayerItem player) {
+      final roster = _config.players;
+      final rosterPlayer = roster.where((candidate) =>
+          candidate.id == player.id ||
+          (player.playerId != null && candidate.playerId == player.playerId) ||
+          (player.name.trim().isNotEmpty &&
+              candidate.name.trim().toLowerCase() == player.name.trim().toLowerCase())).firstOrNull;
+      final currentPlayer = rosterPlayer ?? player;
+      return !currentPlayer.isResting && !currentPlayer.isWithdrawn;
+    }
+
+    final eligibleA = match.teamA.where(isEligible).length;
+    final eligibleB = match.teamB.where(isEligible).length;
+    return eligibleA == playersPerTeam && eligibleB == playersPerTeam;
+  }
+
+  List<DrawingMatch> _playableMatches(DrawingRound round) {
+    return round.matches.where(_isMatchPlayable).toList();
+  }
+
+  bool _hasScoringEvidence(DrawingMatch match) {
+    return match.scoreA > 0 ||
+        match.scoreB > 0 ||
+        match.idxA > 0 ||
+        match.idxB > 0 ||
+        match.setsA > 0 ||
+        match.setsB > 0 ||
+        (match.pointDisplayA != '0' && match.pointDisplayA.isNotEmpty) ||
+        (match.pointDisplayB != '0' && match.pointDisplayB.isNotEmpty);
+  }
+
+  bool _isMatchRoundComplete(DrawingRound round) {
+    final playableMatches = _playableMatches(round);
+    return playableMatches.isNotEmpty &&
+        playableMatches.every((match) {
+          final status = match.status.trim().toLowerCase();
+          return status == 'completed' ||
+              (status == 'stopped' && _hasScoringEvidence(match));
+        });
   }
 
   bool get _isAllRoundsFinished {
     if (_isSessionFinished) return true;
     if (_rounds.isEmpty) return false;
-    return _rounds.every(
-      (r) {
-        final playable = r.matches.where(_isMatchPlayable).toList();
-        final list = playable.isNotEmpty ? playable : r.matches;
-        return list.isNotEmpty &&
-            list.every((m) => m.status == 'Completed' || m.status == 'Stopped');
-      },
-    );
+    return _rounds.every(_isMatchRoundComplete);
   }
 
   int _resolveActiveRoundIndex(List<DrawingRound> rounds) {
     if (rounds.isEmpty) return 0;
 
     for (int i = 0; i < rounds.length; i++) {
-      final playable = rounds[i].matches.where(_isMatchPlayable).toList();
-      final matches = playable.isNotEmpty ? playable : rounds[i].matches;
-      final isFinished = matches.isNotEmpty &&
-          matches.every((m) => m.status == 'Completed' || m.status == 'Stopped');
-
-      if (!isFinished) {
-        return i;
-      }
+      if (!_isMatchRoundComplete(rounds[i])) return i;
 
       // Jika ronde i sudah selesai tapi ronde berikutnya belum dimulai (belum ada skor/permainan berjalan),
       // maka ronde aktif tetap ronde i (menunggu Host klik "Lanjut ke Ronde i+1").
       if (i + 1 < rounds.length) {
-        final nextMatches = rounds[i + 1].matches;
+        final nextMatches = _playableMatches(rounds[i + 1]);
         final nextStarted = nextMatches.any(
           (m) =>
               m.status == 'In Progress' ||
               m.status == 'Completed' ||
-              m.scoreA > 0 ||
-              m.scoreB > 0 ||
-              (m.pointDisplayA != '0' && m.pointDisplayA.isNotEmpty) ||
-              (m.pointDisplayB != '0' && m.pointDisplayB.isNotEmpty) ||
-              (m.idxA > 0) ||
-              (m.idxB > 0),
+              _hasScoringEvidence(m),
         );
         if (!nextStarted) {
           return i;
@@ -447,10 +473,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
     final resolved = _resolveActiveRoundIndex(_rounds);
     _sessionActiveRoundIndex = resolved;
-    _viewedRoundIndex = (widget.initialRoundIndex != null &&
-            widget.initialRoundIndex! <= _sessionActiveRoundIndex)
-        ? widget.initialRoundIndex!
-        : _sessionActiveRoundIndex;
+    _viewedRoundIndex = _sessionActiveRoundIndex;
 
 
 
@@ -857,10 +880,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
           final resolved = _resolveActiveRoundIndex(_rounds);
           _sessionActiveRoundIndex = resolved;
-          _viewedRoundIndex = (widget.initialRoundIndex != null &&
-                  widget.initialRoundIndex! <= _sessionActiveRoundIndex)
-              ? widget.initialRoundIndex!
-              : _sessionActiveRoundIndex;
+          _viewedRoundIndex = _sessionActiveRoundIndex;
 
         }
 
@@ -894,10 +914,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
           final resolved = _resolveActiveRoundIndex(_rounds);
           _sessionActiveRoundIndex = resolved;
-          _viewedRoundIndex = (widget.initialRoundIndex != null &&
-                  widget.initialRoundIndex! <= _sessionActiveRoundIndex)
-              ? widget.initialRoundIndex!
-              : _sessionActiveRoundIndex;
+          _viewedRoundIndex = _sessionActiveRoundIndex;
         } else if (isRealBackendSession && widget.rounds == null) {
           _rounds = [];
         }
@@ -979,8 +996,8 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           }
 
           final nextIdx = nextRoundNum - 1;
-          if (nextIdx <= _sessionActiveRoundIndex) {
-            debugPrint('[MATCHA_DEBUG] [RoundAdvance] Ditolak: Event lama/duplikat (target nextIdx=$nextIdx <= active=$_sessionActiveRoundIndex, sessionId=${widget.sessionId}, drawingId=$_drawingId)');
+          if (nextIdx != _sessionActiveRoundIndex + 1) {
+            debugPrint('[MATCHA_DEBUG] [RoundAdvance] Ditolak: Transisi harus berurutan (target nextIdx=$nextIdx, active=$_sessionActiveRoundIndex, sessionId=${widget.sessionId}, drawingId=$_drawingId)');
             return;
           }
 
@@ -3532,16 +3549,23 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
     final currentRound =
         _rounds[_viewedRoundIndex.clamp(0, _rounds.length - 1)];
-
-    final playableMatches = currentRound.matches
-        .where(_isMatchPlayable)
-        .toList();
-    final effectiveMatches = playableMatches.isNotEmpty
-        ? playableMatches
-        : currentRound.matches.where((m) => !m.isStopped).toList();
-    final finalMatches = effectiveMatches.isNotEmpty
-        ? effectiveMatches
-        : currentRound.matches;
+    final playableMatches = _playableMatches(currentRound);
+    final selectedCourtNumber = currentRound.matches.isEmpty
+        ? null
+        : currentRound
+            .matches[_selectedCourtIndex.clamp(
+              0,
+              currentRound.matches.length - 1,
+            )]
+            .courtNumber;
+    final selectedPlayableIndex = playableMatches.isEmpty
+        ? -1
+        : playableMatches.indexWhere(
+            (match) => match.courtNumber == selectedCourtNumber,
+          );
+    final selectedMatch = playableMatches.isEmpty
+        ? null
+        : playableMatches[selectedPlayableIndex < 0 ? 0 : selectedPlayableIndex];
 
     final totalPendingScoreCount = _pendingEventsByMatch.values.fold<int>(0, (sum, list) => sum + list.length);
     final hasGlobalSaveError = _matchSaveStatus.values.any((status) => status == 'error');
@@ -4028,14 +4052,14 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
 
-          // Court Tabs (hanya tampilkan court yang memiliki pemain dan tidak stopped)
-          if (finalMatches.length > 1 || (currentRound.matches.length > 1 && finalMatches.isNotEmpty)) ...[
+          // Court Tabs (hanya tampilkan jika ronde memiliki lebih dari 1 court aktif)
+          if (playableMatches.length > 1) ...[
             Row(
               children: [
                 const Icon(Icons.sports_tennis_rounded, size: 14, color: AppColors.matchaDark),
                 const SizedBox(width: 6),
                 Text(
-                  'Pilih Lapangan (${finalMatches.length} Court):',
+                  'Pilih Lapangan (${playableMatches.length} Court):',
                   style: AppTextStyles.caption.copyWith(
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF334155),
@@ -4047,9 +4071,12 @@ class MatchScoringPageState extends State<MatchScoringPage> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: List.generate(finalMatches.length, (cIdx) {
-                  final isCourtSelected = (_selectedCourtIndex.clamp(0, finalMatches.length - 1)) == cIdx;
-                  final cm = finalMatches[cIdx];
+                children: playableMatches.map((cm) {
+                  final courtIndex = currentRound.matches.indexWhere(
+                    (match) => match.courtNumber == cm.courtNumber,
+                  );
+                  final isCourtSelected =
+                      cm.courtNumber == selectedMatch?.courtNumber;
                   final isCourtDone = cm.status == 'Completed';
                   return Container(
                     margin: const EdgeInsets.only(right: 8),
@@ -4076,25 +4103,41 @@ class MatchScoringPageState extends State<MatchScoringPage> {
                         ),
                       ),
                       onSelected: (val) {
-                        if (val) setState(() => _selectedCourtIndex = cIdx);
+                        if (val) {
+                          setState(() => _selectedCourtIndex = courtIndex >= 0 ? courtIndex : 0);
+                        }
                       },
                     ),
                   );
-                }),
+                }).toList(),
               ),
             ),
             const SizedBox(height: 14),
           ],
 
           // Matches in this round
-          if (finalMatches.length > 1 || (currentRound.matches.length > 1 && finalMatches.isNotEmpty))
-            _buildScoreboardCard(
-              finalMatches[
-                _selectedCourtIndex.clamp(0, finalMatches.length - 1)
-              ],
+          if (playableMatches.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: const Text(
+                'Belum ada court dengan jumlah pemain yang cukup untuk scoring.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF64748B),
+                ),
+              ),
             )
+          else if (playableMatches.length > 1)
+            _buildScoreboardCard(selectedMatch!)
           else
-            ...finalMatches.map((m) => _buildScoreboardCard(m)),
+            _buildScoreboardCard(playableMatches.single),
 
 
 
@@ -5595,17 +5638,18 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
   /// Card Status Pertandingan Ronde (Selalu tampil di bawah scoreboard, identik dengan Web)
   Widget _buildRoundStatusCard(DrawingRound currentRound) {
-    final playableMatches = currentRound.matches.where(_isMatchPlayable).toList();
-    final matchesToCheck = playableMatches.isNotEmpty
-        ? playableMatches
-        : currentRound.matches.where((m) => !m.isStopped).toList();
-    final finalMatchesToCheck = matchesToCheck.isNotEmpty ? matchesToCheck : currentRound.matches;
-    final uncompletedMatches = finalMatchesToCheck.where((m) => !m.isTerminal).toList();
-    final isAllCompleted = finalMatchesToCheck.isNotEmpty && uncompletedMatches.isEmpty;
+    final playableMatches = _playableMatches(currentRound);
+    final uncompletedMatches =
+        playableMatches.where((m) => !m.isTerminal).toList();
+    final isAllCompleted =
+        playableMatches.isNotEmpty && uncompletedMatches.isEmpty;
     final hasNextRound = _sessionActiveRoundIndex + 1 < _rounds.length;
 
     String descText;
-    if (isAllCompleted) {
+    if (playableMatches.isEmpty) {
+      descText =
+          'Tidak ada court dengan jumlah pemain yang cukup untuk memulai scoring.';
+    } else if (isAllCompleted) {
       if (isHost) {
         descText = 'Semua court telah menyelesaikan pertandingan. Silakan lanjut ke ${hasNextRound ? "ronde berikutnya" : "hasil akhir & podium"}.';
       } else {
@@ -5737,8 +5781,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
     // Pemain aktif bertanding pada ronde ini di seluruh court yang valid
     final roundActivePlayerCleanNames = <String>{};
     final roundActivePlayerIds = <int>{};
-    for (final m in currentRound.matches) {
-      if (!_isMatchPlayable(m)) continue; // Court tanpa pemain/lawan atau stopped bukan pertandingan aktif
+    for (final m in _playableMatches(currentRound)) {
       for (final p in [...m.teamA, ...m.teamB]) {
         if (p.name.trim().isNotEmpty) {
           roundActivePlayerCleanNames.add(p.name.trim().toLowerCase());
