@@ -370,6 +370,81 @@ void main() {
       expect(find.textContaining('Budi Santoso berhasil diistirahatkan ke bangku cadangan'), findsOneWidget);
     });
 
+    testWidgets('Pemain yang diistirahatkan dari match In Progress hanya muncul di bench', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final players = getFreshPlayers();
+      final config = createWizardConfig(players: players);
+      final rounds = createMockRounds(players);
+      rounds[0].matches[0].status = 'In Progress';
+      final mockService = _MockMatchService(savedDrawing: rounds);
+
+      await tester.pumpWidget(MaterialApp(
+        home: DrawingResultPage(
+          sessionId: 99,
+          config: config,
+          initialRounds: rounds,
+          authController: _MockAuthController(
+            initialUser: const UserModel(userId: 1, nama: 'Host User', email: 'host@matcha.app'),
+          ),
+          matchService: mockService,
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Istirahat').first);
+      await tester.tap(find.text('Istirahat').first);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Perlu istirahat');
+      await tester.tap(find.text('Ya, Istirahatkan Pemain'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Budi Santoso'), findsNothing);
+      expect(find.text('4. Budi Santoso'), findsOneWidget);
+      expect(find.text('Siap Main'), findsOneWidget);
+    });
+
+    testWidgets('Pemain yang dikeluarkan dari match In Progress hanya muncul di daftar Pemain Keluar', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final players = getFreshPlayers();
+      final config = createWizardConfig(players: players);
+      final rounds = createMockRounds(players);
+      rounds[0].matches[0].status = 'In Progress';
+      final mockService = _MockMatchService(savedDrawing: rounds);
+
+      await tester.pumpWidget(MaterialApp(
+        home: DrawingResultPage(
+          sessionId: 99,
+          config: config,
+          initialRounds: rounds,
+          authController: _MockAuthController(
+            initialUser: const UserModel(userId: 1, nama: 'Host User', email: 'host@matcha.app'),
+          ),
+          matchService: mockService,
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Keluar').first);
+      await tester.tap(find.text('Keluar').first);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Tidak dapat melanjutkan');
+      await tester.tap(find.text('Ya, Keluarkan Pemain'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Budi Santoso'), findsNothing);
+      expect(find.text('1. Budi Santoso'), findsOneWidget);
+    });
+
     testWidgets('4. Mengistirahatkan pemain saat pemain pas-pasan (2 pemain single) mengosongkan court, memindahkan ke bench, dan mendisable tombol scoring serta otomatis assign saat Siap Main', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1.0;

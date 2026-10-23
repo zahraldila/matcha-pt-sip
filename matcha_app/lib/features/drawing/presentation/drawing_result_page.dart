@@ -424,47 +424,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
       }
     }
   }
-  bool _isPlayableMatch(DrawingMatch match) {
-    final isSingle = _config.playMode.toLowerCase() == 'single';
-    final teamSize = isSingle ? 1 : 2;
-    if (match.teamA.length != teamSize || match.teamB.length != teamSize) {
-      return false;
-    }
-    return [...match.teamA, ...match.teamB]
-        .every((player) => !player.isResting && !player.isWithdrawn);
-  }
-
-  bool _canStartScoringRound(DrawingRound round) {
-    final isSingle = _config.playMode.toLowerCase() == 'single';
-    final minimumPlayers = isSingle ? 2 : 4;
-    final activePlayers =
-        _config.players.where((player) => !player.isResting && !player.isWithdrawn);
-    return activePlayers.length >= minimumPlayers &&
-        round.matches.isNotEmpty &&
-        round.matches.every(_isPlayableMatch);
-  }
-
   Future<void> _startLiveScoring() async {
     if (!_isHostUser) {
       _openLiveScoringReadOnly();
-      return;
-    }
-    if (!_isLocked &&
-        (_rounds.isEmpty ||
-            !_canStartScoringRound(
-              _rounds[_selectedRoundIndex.clamp(0, _rounds.length - 1)],
-            ))) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Pemain aktif tidak mencukupi atau susunan court masih belum lengkap. Drawing belum dapat dikunci dan scoring belum dapat dimulai.',
-            ),
-            backgroundColor: Color(0xFFD97706),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
       return;
     }
     final sessId = _effectiveSessionId;
@@ -511,7 +473,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           sessId,
           rounds: _rounds,
           allPlayers: _config.players,
-          playMode: _config.playMode,
           matchFormatId: _resolveMatchFormatId(),
           courtCount: _config.courtCount,
         );
@@ -765,12 +726,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     }
     final currentRound = _rounds[_selectedRoundIndex.clamp(0, _rounds.length - 1)];
     final hasPlayableMatches = currentRound.matches.isNotEmpty &&
-        currentRound.matches.any(
-          (match) => match.teamA.isNotEmpty && match.teamB.isNotEmpty,
-        );
-    final canStartScoring = _isLocked
-        ? hasPlayableMatches
-        : _canStartScoringRound(currentRound);
+        currentRound.matches.any((m) => m.teamA.isNotEmpty && m.teamB.isNotEmpty);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -1095,7 +1051,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (!canStartScoring)
+                if (!hasPlayableMatches)
                   Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1122,9 +1078,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   height: 48,
                   child: _isHostUser
                       ? ElevatedButton(
-                          onPressed: (_isStartingScoring || !canStartScoring) ? null : _startLiveScoring,
+                          onPressed: (_isStartingScoring || !hasPlayableMatches) ? null : _startLiveScoring,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: canStartScoring ? AppColors.matchaDark : const Color(0xFFCBD5E1),
+                            backgroundColor: hasPlayableMatches ? AppColors.matchaDark : const Color(0xFFCBD5E1),
                             disabledBackgroundColor: const Color(0xFFE2E8F0),
                             foregroundColor: Colors.white,
                             disabledForegroundColor: const Color(0xFF94A3B8),
@@ -1148,7 +1104,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
-                                      !canStartScoring
+                                      !hasPlayableMatches
                                           ? 'Belum Ada Pemain Bertanding'
                                           : (_isLocked
                                               ? (_selectedRoundIndex > 0
@@ -1158,10 +1114,10 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
-                                        color: canStartScoring ? Colors.white : const Color(0xFF94A3B8),
+                                        color: hasPlayableMatches ? Colors.white : const Color(0xFF94A3B8),
                                       ),
                                     ),
-                                    if (canStartScoring) ...[
+                                    if (hasPlayableMatches) ...[
                                       const SizedBox(width: 8),
                                       const Icon(Icons.arrow_forward_rounded, size: 18),
                                     ],
@@ -1479,6 +1435,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     );
   }
   Widget _buildVisualCourtCard(DrawingMatch match) {
+    final teamA = _visibleCourtPlayers(match.teamA);
+    final teamB = _visibleCourtPlayers(match.teamB);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
@@ -1568,7 +1527,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                         style: TextStyle(color: Color(0xFFA7F3D0), fontSize: 9, fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 6),
-                      if (match.teamA.isEmpty)
+                      if (teamA.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: Text(
@@ -1579,7 +1538,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                       else
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: match.teamA.map((p) => _buildPlayerBadge(p)).toList(),
+                          children: teamA.map((p) => _buildPlayerBadge(p)).toList(),
                         ),
                     ],
                   ),
@@ -1591,7 +1550,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   right: 10,
                   child: Column(
                     children: [
-                      if (match.teamB.isEmpty)
+                      if (teamB.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: Text(
@@ -1602,7 +1561,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                       else
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: match.teamB.map((p) => _buildPlayerBadge(p)).toList(),
+                          children: teamB.map((p) => _buildPlayerBadge(p)).toList(),
                         ),
                       const SizedBox(height: 6),
                       const Text(
@@ -1662,6 +1621,13 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     return found ?? p;
   }
 
+  List<GamePlayerItem> _visibleCourtPlayers(List<GamePlayerItem> players) {
+    return players
+        .map(_resolvePlayer)
+        .where((player) => !player.isResting && !player.isWithdrawn)
+        .toList();
+  }
+
   Widget _buildRosterSection(DrawingRound currentRound) {
     final isRoundCompleted = _isRoundCompleted(_selectedRoundIndex);
     final canManage = _isHostUser && !isRoundCompleted;
@@ -1719,6 +1685,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
   }
 
   Widget _buildCourtRosterCard(DrawingMatch m, bool canManage) {
+    final teamA = _visibleCourtPlayers(m.teamA);
+    final teamB = _visibleCourtPlayers(m.teamB);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -1798,7 +1767,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             ],
           ),
           const SizedBox(height: 6),
-          if (m.teamA.isEmpty)
+          if (teamA.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 6),
               child: Center(
@@ -1809,7 +1778,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               ),
             )
           else
-            ...m.teamA.asMap().entries.map((entry) {
+            ...teamA.asMap().entries.map((entry) {
               final pIdx = entry.key;
               final p = entry.value;
               return _buildRosterPlayerRow(p, pIdx, canManage);
@@ -1834,7 +1803,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             ],
           ),
           const SizedBox(height: 6),
-          if (m.teamB.isEmpty)
+          if (teamB.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 6),
               child: Center(
@@ -1845,7 +1814,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               ),
             )
           else
-            ...m.teamB.asMap().entries.map((entry) {
+            ...teamB.asMap().entries.map((entry) {
               final pIdx = entry.key;
               final p = entry.value;
               return _buildRosterPlayerRow(p, pIdx, canManage);
@@ -2029,10 +1998,21 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
   }
 
   Widget _buildBenchCard(DrawingRound currentRound, bool canManage) {
-    final resting = currentRound.restingPlayers
+    final restingCandidates = [
+      ...currentRound.restingPlayers,
+      ..._config.players.where((player) => player.isResting),
+    ]
         .map(_resolvePlayer)
         .where((player) => !player.isWithdrawn)
         .toList();
+    final resting = <GamePlayerItem>[];
+    final seenPlayerKeys = <String>{};
+    for (final player in restingCandidates) {
+      final key = player.playerId != null
+          ? 'player:${player.playerId}'
+          : 'id:${player.id}';
+      if (seenPlayerKeys.add(key)) resting.add(player);
+    }
     final withdrawnPlayers = _config.players.where((player) => player.isWithdrawn).toList();
 
     return Container(
@@ -2635,15 +2615,6 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
           }
         } catch (e) {
           debugPrint('[Drawing] managePlayerStatus backend call: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Gagal memvalidasi status pemain: $e'),
-                backgroundColor: Colors.red.shade700,
-              ),
-            );
-          }
-          return;
         }
       }
 
