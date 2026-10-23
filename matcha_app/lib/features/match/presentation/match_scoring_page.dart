@@ -310,15 +310,36 @@ class MatchScoringPageState extends State<MatchScoringPage> {
     }).toList();
   }
 
+  bool _hasScoringEvidence(DrawingMatch match) {
+    return match.scoreA > 0 ||
+        match.scoreB > 0 ||
+        match.idxA > 0 ||
+        match.idxB > 0 ||
+        match.setsA > 0 ||
+        match.setsB > 0 ||
+        (match.pointDisplayA != '0' && match.pointDisplayA.isNotEmpty) ||
+        (match.pointDisplayB != '0' && match.pointDisplayB.isNotEmpty);
+  }
+
+  bool _isMatchRoundComplete(DrawingRound round) {
+    final playableMatches = _playableMatches(round);
+    return playableMatches.isNotEmpty &&
+        playableMatches.every((match) {
+          final status = match.status.trim().toLowerCase();
+          return status == 'completed' ||
+              (status == 'stopped' && _hasScoringEvidence(match));
+        });
+  }
+
   bool get _isAllRoundsFinished {
     if (_isSessionFinished) return true;
     if (_rounds.isEmpty) return false;
     return _rounds.every(
-      (r) {
-        final playableMatches = _playableMatches(r);
+      (round) {
+        final playableMatches = _playableMatches(round);
         return playableMatches.isNotEmpty &&
             playableMatches.every(
-              (m) => m.status == 'Completed' || m.status == 'Stopped',
+              (match) => match.status == 'Completed' || match.status == 'Stopped',
             );
       },
     );
@@ -328,34 +349,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
     if (rounds.isEmpty) return 0;
 
     for (int i = 0; i < rounds.length; i++) {
-      final matches = _playableMatches(rounds[i]);
-      if (matches.isEmpty) return i;
-      final isFinished = matches.isNotEmpty &&
-          matches.every((m) => m.status == 'Completed' || m.status == 'Stopped');
-
-      if (!isFinished) {
-        return i;
-      }
-
-      // Jika ronde i sudah selesai tapi ronde berikutnya belum dimulai (belum ada skor/permainan berjalan),
-      // maka ronde aktif tetap ronde i (menunggu Host klik "Lanjut ke Ronde i+1").
-      if (i + 1 < rounds.length) {
-        final nextMatches = _playableMatches(rounds[i + 1]);
-        final nextStarted = nextMatches.any(
-          (m) =>
-              m.status == 'In Progress' ||
-              m.status == 'Completed' ||
-              m.scoreA > 0 ||
-              m.scoreB > 0 ||
-              (m.pointDisplayA != '0' && m.pointDisplayA.isNotEmpty) ||
-              (m.pointDisplayB != '0' && m.pointDisplayB.isNotEmpty) ||
-              (m.idxA > 0) ||
-              (m.idxB > 0),
-        );
-        if (!nextStarted) {
-          return i;
-        }
-      }
+      if (!_isMatchRoundComplete(rounds[i])) return i;
     }
 
     return rounds.length - 1;
@@ -466,9 +460,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
 
 
     final resolved = _resolveActiveRoundIndex(_rounds);
-    _sessionActiveRoundIndex = widget.initialRoundIndex != null
-        ? widget.initialRoundIndex!.clamp(0, _rounds.isEmpty ? 0 : _rounds.length - 1)
-        : resolved;
+    _sessionActiveRoundIndex = resolved;
 
     _viewedRoundIndex = _sessionActiveRoundIndex;
 
@@ -876,9 +868,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           }
 
           final resolved = _resolveActiveRoundIndex(_rounds);
-          _sessionActiveRoundIndex = widget.initialRoundIndex != null
-              ? widget.initialRoundIndex!.clamp(0, _rounds.length - 1)
-              : resolved;
+          _sessionActiveRoundIndex = resolved;
           _viewedRoundIndex = _sessionActiveRoundIndex;
 
         }
@@ -912,9 +902,7 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           }
 
           final resolved = _resolveActiveRoundIndex(_rounds);
-          _sessionActiveRoundIndex = widget.initialRoundIndex != null
-              ? widget.initialRoundIndex!.clamp(0, _rounds.length - 1)
-              : resolved;
+          _sessionActiveRoundIndex = resolved;
           _viewedRoundIndex = _sessionActiveRoundIndex;
         } else if (isRealBackendSession && widget.rounds == null) {
           _rounds = [];
@@ -997,8 +985,8 @@ class MatchScoringPageState extends State<MatchScoringPage> {
           }
 
           final nextIdx = nextRoundNum - 1;
-          if (nextIdx <= _sessionActiveRoundIndex) {
-            debugPrint('[MATCHA_DEBUG] [RoundAdvance] Ditolak: Event lama/duplikat (target nextIdx=$nextIdx <= active=$_sessionActiveRoundIndex, sessionId=${widget.sessionId}, drawingId=$_drawingId)');
+          if (nextIdx != _sessionActiveRoundIndex + 1) {
+            debugPrint('[MATCHA_DEBUG] [RoundAdvance] Ditolak: Transisi harus berurutan (target nextIdx=$nextIdx, active=$_sessionActiveRoundIndex, sessionId=${widget.sessionId}, drawingId=$_drawingId)');
             return;
           }
 

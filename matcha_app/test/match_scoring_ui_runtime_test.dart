@@ -243,5 +243,59 @@ void main() {
       expect(find.text('Court 1 (0 - 0)'), findsOneWidget);
       expect(find.text('Court 2 (0 - 0)'), findsOneWidget);
     });
+
+    testWidgets('Scoring starts at the first unfinished round despite a stale initial index', (tester) async {
+      final player1 = const GamePlayerItem(id: '1', name: 'Player 1');
+      final player2 = const GamePlayerItem(id: '2', name: 'Player 2');
+      final player3 = const GamePlayerItem(id: '3', name: 'Player 3');
+      final player4 = const GamePlayerItem(id: '4', name: 'Player 4');
+      final rounds = [
+        DrawingRound(
+          roundNumber: 1,
+          matches: [
+            DrawingMatch(
+              courtNumber: 1,
+              teamA: [player1],
+              teamB: [player2],
+              status: 'Stopped',
+            ),
+          ],
+        ),
+        DrawingRound(
+          roundNumber: 2,
+          matches: [
+            DrawingMatch(
+              courtNumber: 1,
+              teamA: [player2],
+              teamB: [player3],
+              status: 'Stopped',
+            ),
+          ],
+        ),
+        DrawingRound(
+          roundNumber: 3,
+          matches: [
+            DrawingMatch(
+              courtNumber: 1,
+              teamA: [player3],
+              teamB: [player4],
+              status: 'In Progress',
+            ),
+          ],
+        ),
+      ];
+
+      await tester.pumpWidget(MaterialApp(
+        home: MatchScoringPage(
+          rounds: rounds,
+          initialRoundIndex: 2,
+          isHost: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Player 1'), findsWidgets);
+      expect(find.text('Player 3'), findsNothing);
+    });
   });
 }
