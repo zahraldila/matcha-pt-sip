@@ -1435,6 +1435,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     );
   }
   Widget _buildVisualCourtCard(DrawingMatch match) {
+    final teamA = _visibleCourtPlayers(match.teamA);
+    final teamB = _visibleCourtPlayers(match.teamB);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
@@ -1524,7 +1527,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                         style: TextStyle(color: Color(0xFFA7F3D0), fontSize: 9, fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 6),
-                      if (match.teamA.isEmpty)
+                      if (teamA.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: Text(
@@ -1535,7 +1538,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                       else
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: match.teamA.map((p) => _buildPlayerBadge(p)).toList(),
+                          children: teamA.map((p) => _buildPlayerBadge(p)).toList(),
                         ),
                     ],
                   ),
@@ -1547,7 +1550,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                   right: 10,
                   child: Column(
                     children: [
-                      if (match.teamB.isEmpty)
+                      if (teamB.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: Text(
@@ -1558,7 +1561,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
                       else
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: match.teamB.map((p) => _buildPlayerBadge(p)).toList(),
+                          children: teamB.map((p) => _buildPlayerBadge(p)).toList(),
                         ),
                       const SizedBox(height: 6),
                       const Text(
@@ -1618,6 +1621,13 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
     return found ?? p;
   }
 
+  List<GamePlayerItem> _visibleCourtPlayers(List<GamePlayerItem> players) {
+    return players
+        .map(_resolvePlayer)
+        .where((player) => !player.isResting && !player.isWithdrawn)
+        .toList();
+  }
+
   Widget _buildRosterSection(DrawingRound currentRound) {
     final isRoundCompleted = _isRoundCompleted(_selectedRoundIndex);
     final canManage = _isHostUser && !isRoundCompleted;
@@ -1675,6 +1685,9 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
   }
 
   Widget _buildCourtRosterCard(DrawingMatch m, bool canManage) {
+    final teamA = _visibleCourtPlayers(m.teamA);
+    final teamB = _visibleCourtPlayers(m.teamB);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -1754,7 +1767,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             ],
           ),
           const SizedBox(height: 6),
-          if (m.teamA.isEmpty)
+          if (teamA.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 6),
               child: Center(
@@ -1765,7 +1778,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               ),
             )
           else
-            ...m.teamA.asMap().entries.map((entry) {
+            ...teamA.asMap().entries.map((entry) {
               final pIdx = entry.key;
               final p = entry.value;
               return _buildRosterPlayerRow(p, pIdx, canManage);
@@ -1790,7 +1803,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
             ],
           ),
           const SizedBox(height: 6),
-          if (m.teamB.isEmpty)
+          if (teamB.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 6),
               child: Center(
@@ -1801,7 +1814,7 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
               ),
             )
           else
-            ...m.teamB.asMap().entries.map((entry) {
+            ...teamB.asMap().entries.map((entry) {
               final pIdx = entry.key;
               final p = entry.value;
               return _buildRosterPlayerRow(p, pIdx, canManage);
@@ -1985,10 +1998,21 @@ class _DrawingResultPageState extends State<DrawingResultPage> {
   }
 
   Widget _buildBenchCard(DrawingRound currentRound, bool canManage) {
-    final resting = currentRound.restingPlayers
+    final restingCandidates = [
+      ...currentRound.restingPlayers,
+      ..._config.players.where((player) => player.isResting),
+    ]
         .map(_resolvePlayer)
         .where((player) => !player.isWithdrawn)
         .toList();
+    final resting = <GamePlayerItem>[];
+    final seenPlayerKeys = <String>{};
+    for (final player in restingCandidates) {
+      final key = player.playerId != null
+          ? 'player:${player.playerId}'
+          : 'id:${player.id}';
+      if (seenPlayerKeys.add(key)) resting.add(player);
+    }
     final withdrawnPlayers = _config.players.where((player) => player.isWithdrawn).toList();
 
     return Container(
